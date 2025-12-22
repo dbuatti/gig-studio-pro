@@ -66,7 +66,6 @@ const Index = () => {
     if (!user) return;
     setIsSaving(true);
     try {
-      // Clean temporary UI states like isSyncing before saving
       const cleanedSongs = updatedSongs.map(({ isSyncing, ...rest }) => rest);
       const { error } = await supabase
         .from('setlists')
@@ -74,54 +73,62 @@ const Index = () => {
         .eq('id', listId);
       if (error) throw error;
     } catch (err) {
-      showError("Sync failed.");
+      // Error handled by toast
     } finally {
       setIsSaving(false);
     }
   };
 
-  // UPDATED: Now uses functional updates to prevent race conditions
-  const handleSyncProData = async (songId: string, songName: string) => {
-    if (!currentListId) return;
-    
-    // Set syncing state using functional update to ensure we don't overwrite other changes
+  const handleBulkSync = async (songsToSync: SetlistSong[]) => {
+    if (!currentListId || songsToSync.length === 0) return;
+
+    // Set syncing state for all songs in batch
     setSetlists(prev => prev.map(l => l.id === currentListId ? {
       ...l,
-      songs: l.songs.map(s => s.id === songId ? { ...s, isSyncing: true } : s)
+      songs: l.songs.map(s => 
+        songsToSync.find(ts => ts.id === s.id) ? { ...s, isSyncing: true } : s
+      )
     } : l));
 
     try {
       const { data, error } = await supabase.functions.invoke('enrich-metadata', {
-        body: { query: songName }
+        body: { queries: songsToSync.map(s => s.name) }
       });
-      if (error) throw error;
-      
-      const updates = {
-        originalKey: data.originalKey,
-        targetKey: data.originalKey,
-        bpm: data.bpm?.toString(),
-        genre: data.genre,
-        pitch: 0,
-        isSyncing: false
-      };
 
-      // Apply the AI results using functional state to be thread-safe
+      if (error) throw error;
+
+      // Map AI results back to songs by name matching
       setSetlists(prev => {
         const list = prev.find(l => l.id === currentListId);
         if (!list) return prev;
-        
-        const newSongs = list.songs.map(s => s.id === songId ? { ...s, ...updates } : s);
-        
-        // Trigger save with the absolute latest song list
-        saveList(currentListId, newSongs);
-        
-        return prev.map(l => l.id === currentListId ? { ...l, songs: newSongs } : l);
+
+        const updatedSongs = list.songs.map(s => {
+          const aiResult = Array.isArray(data) ? data.find((r: any) => r.name === s.name) : null;
+          if (aiResult) {
+            return {
+              ...s,
+              originalKey: aiResult.originalKey,
+              targetKey: aiResult.originalKey,
+              bpm: aiResult.bpm?.toString(),
+              genre: aiResult.genre,
+              pitch: 0,
+              isSyncing: false
+            };
+          }
+          // If not in this batch, return as is (but clear syncing if it was part of this batch)
+          return songsToSync.find(ts => ts.id === s.id) ? { ...s, isSyncing: false } : s;
+        });
+
+        saveList(currentListId, updatedSongs);
+        return prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l);
       });
     } catch (err) {
       // Clear syncing state on error
       setSetlists(prev => prev.map(l => l.id === currentListId ? {
         ...l,
-        songs: l.songs.map(s => s.id === songId ? { ...s, isSyncing: false } : s)
+        songs: l.songs.map(s => 
+          songsToSync.find(ts => ts.id === s.id) ? { ...s, isSyncing: false } : s
+        )
       } : l));
     }
   };
@@ -160,7 +167,7 @@ const Index = () => {
       return prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l);
     });
     
-    handleSyncProData(newSongId, name);
+    handleBulkSync([newSong]);
   };
 
   const handleUpdateKey = (songId: string, targetKey: string) => {
@@ -267,7 +274,6 @@ const Index = () => {
                   
                   const songsWithSyncState = newSongs.map(s => ({ ...s, isSyncing: true }));
                   
-                  // Use functional update to add songs first
                   setSetlists(prev => {
                     const list = prev.find(l => l.id === currentListId);
                     if (!list) return prev;
@@ -276,8 +282,11 @@ const Index = () => {
                     return prev.map(l => l.id === currentListId ? { ...l, songs: updated } : l);
                   });
                   
-                  // Trigger sync for each new song
-                  songsWithSyncState.forEach(s => handleSyncProData(s.id, s.name));
+                  // Batch sync in groups of 10 to respect quota
+                  for (let i = 0; i < songsWithSyncState.length; i += 10) {
+                    const batch = songsWithSyncState.slice(i, i + 10);
+                    handleBulkSync(batch);
+                  }
                 }} />
               </div>
             </div>
@@ -296,7 +305,7 @@ const Index = () => {
               onSelect={handleSelectSong}
               onUpdateKey={handleUpdateKey}
               onTogglePlayed={handleTogglePlayed}
-              onSyncProData={(song) => handleSyncProData(song.id, song.name)}
+              onSyncProData={(song) => handleBulkSync([song])}
               onLinkAudio={(name) => {
                 setIsStudioOpen(true);
                 transposerRef.current?.triggerSearch(name);

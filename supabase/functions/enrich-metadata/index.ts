@@ -12,32 +12,34 @@ serve(async (req) => {
   }
 
   try {
-    const { query } = await req.json();
+    const { queries } = await req.json(); // Now expects an array of strings
     // @ts-ignore: Deno global
     const apiKey = Deno.env.get('GEMINI_API_KEY');
 
     if (!apiKey) {
-      console.error("GEMINI_API_KEY missing");
-      return new Response(JSON.stringify({ 
-        originalKey: "TBC", 
-        bpm: "???", 
-        isFound: false,
-        error: "AI Configuration Missing" 
-      }), {
+      return new Response(JSON.stringify({ error: "AI Configuration Missing" }), {
+        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    const prompt = `Act as a professional music librarian. For the song "${query}", return ONLY a JSON object with this exact structure:
+    const songsList = Array.isArray(queries) ? queries : [queries];
+    
+    const prompt = `Act as a professional music librarian. For the following list of songs, return a JSON array of objects. 
+    Each object must have: 
     {
+      "name": "The original song name from the input",
       "originalKey": "The standard key (e.g., C, F#m, Eb)",
       "bpm": 120,
       "genre": "The genre",
       "isFound": true
     }
-    Return ONLY the JSON. No markdown formatting.`;
+    
+    Songs to process:
+    ${songsList.join('\n')}
+    
+    Return ONLY the JSON array. No markdown, no conversational text.`;
 
-    // Upgraded to Gemini 2.5 Flash on the stable v1 endpoint
     const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -49,14 +51,13 @@ serve(async (req) => {
     const result = await response.json();
     
     if (!response.ok) {
-      console.error("Gemini API Error:", JSON.stringify(result, null, 2));
       throw new Error(result.error?.message || "AI Provider Error");
     }
 
     const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) throw new Error("Empty AI response");
 
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
     if (!jsonMatch) throw new Error("Invalid response format");
     
     const metadata = JSON.parse(jsonMatch[0]);
@@ -67,11 +68,8 @@ serve(async (req) => {
 
   } catch (error) {
     console.error("Edge Function Error:", error.message);
-    return new Response(JSON.stringify({ 
-      originalKey: "TBC", 
-      isFound: false, 
-      error: error.message 
-    }), {
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
