@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Music, Loader2, Youtube, ExternalLink, Link as LinkIcon, Check, PlayCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import { Search, Music, Loader2, Youtube, ExternalLink, Link as LinkIcon, Check, PlayCircle, AlertCircle, RefreshCw, Plus } from 'lucide-react';
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
@@ -22,6 +22,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong }) => {
   const [ytSearchLoading, setYtSearchLoading] = useState(false);
   const [ytResults, setYtResults] = useState<any[]>([]);
   const [ytError, setYtError] = useState(false);
+  const [manualYtUrl, setManualYtUrl] = useState("");
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,9 +45,14 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong }) => {
     setYtSearchLoading(true);
     setYtResults([]);
     setYtError(false);
+    setManualYtUrl("");
     
-    // Using a public CORS proxy to bypass browser blocks
-    const proxyUrl = "https://api.allorigins.win/get?url=";
+    // Multiple proxy strategies
+    const proxies = [
+      "https://api.allorigins.win/get?url=",
+      "https://corsproxy.io/?"
+    ];
+    
     const instances = [
       'https://iv.ggtyler.dev',
       'https://yewtu.be',
@@ -54,33 +60,39 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong }) => {
     ];
 
     let success = false;
-    for (const instance of instances) {
+    
+    // Try different combinations of proxies and instances
+    for (const proxy of proxies) {
       if (success) break;
-      try {
-        const searchQuery = encodeURIComponent(`${artist} ${track} official music video`);
-        const targetUrl = encodeURIComponent(`${instance}/api/v1/search?q=${searchQuery}`);
-        
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
+      for (const instance of instances) {
+        if (success) break;
+        try {
+          const searchQuery = encodeURIComponent(`${artist} ${track} official music video`);
+          const targetUrl = encodeURIComponent(`${instance}/api/v1/search?q=${searchQuery}`);
+          
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-        const response = await fetch(`${proxyUrl}${targetUrl}`, {
-          signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        if (!response.ok) continue;
-        
-        const data = await response.json();
-        // allorigins wraps the response in a 'contents' string
-        const parsedData = JSON.parse(data.contents);
-        const videos = parsedData.filter((item: any) => item.type === "video").slice(0, 3);
-        
-        if (videos.length > 0) {
-          setYtResults(videos);
-          success = true;
+          const response = await fetch(`${proxy}${targetUrl}`, {
+            signal: controller.signal
+          });
+          
+          clearTimeout(timeoutId);
+          if (!response.ok) continue;
+          
+          const data = await response.json();
+          // handle allorigins wrapper vs direct proxy
+          const rawData = typeof data.contents === 'string' ? JSON.parse(data.contents) : data;
+          
+          const videos = rawData.filter((item: any) => item.type === "video").slice(0, 3);
+          
+          if (videos.length > 0) {
+            setYtResults(videos);
+            success = true;
+          }
+        } catch (err) {
+          console.warn(`Node ${instance} via ${proxy} failed...`);
         }
-      } catch (err) {
-        console.warn(`Node ${instance} failed or timed out, trying next...`);
       }
     }
 
@@ -120,7 +132,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong }) => {
 
       {results.length > 0 && (
         <Card className="border-indigo-50 overflow-hidden shadow-inner bg-slate-50/30">
-          <ScrollArea className="h-[400px]">
+          <ScrollArea className="h-[450px]">
             <div className="p-2 space-y-1">
               <TooltipProvider>
                 {results.map((song) => (
@@ -175,7 +187,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong }) => {
                       <div className="px-3 pb-3 animate-in slide-in-from-top-2 duration-300">
                         <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border-2 border-red-50 shadow-sm space-y-3">
                           <div className="flex items-center justify-between border-b pb-2">
-                            <span className="text-[10px] font-black text-red-600 uppercase tracking-widest">Visual Reference Provider</span>
+                            <span className="text-[10px] font-black text-red-600 uppercase tracking-widest">Visual Reference Panel</span>
                             {ytSearchLoading && <Loader2 className="w-3 h-3 animate-spin text-red-500" />}
                           </div>
 
@@ -202,24 +214,45 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong }) => {
                               </button>
                             ))}
                             
-                            {!ytSearchLoading && ytError && (
-                              <div className="flex flex-col items-center justify-center gap-2 py-6 text-center">
-                                <AlertCircle className="w-6 h-6 text-red-500 mb-1" />
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-red-600">Proxy Required</p>
-                                <p className="text-[9px] text-muted-foreground max-w-[180px]">Direct search is being blocked by browser security. Click below to try via proxy.</p>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
-                                  onClick={() => fetchYoutubeResults(song.trackName, song.artistName)}
-                                  className="h-7 text-[9px] mt-2 gap-2 border-red-100"
-                                >
-                                  <RefreshCw className="w-3 h-3" /> Retry via Proxy
-                                </Button>
+                            {(!ytSearchLoading && (ytError || ytResults.length === 0)) && (
+                              <div className="space-y-3 py-2">
+                                <div className="flex flex-col items-center justify-center gap-2 text-center">
+                                  <AlertCircle className="w-5 h-5 text-red-400" />
+                                  <p className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">Search Providers Blocked</p>
+                                  <p className="text-[8px] text-muted-foreground max-w-[200px]">Background matching is unavailable due to browser security. Paste a link manually below:</p>
+                                </div>
+                                
+                                <div className="flex gap-2">
+                                  <div className="relative flex-1">
+                                    <LinkIcon className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+                                    <Input 
+                                      placeholder="Paste YT URL..." 
+                                      className="h-8 pl-7 text-[10px] bg-slate-50"
+                                      value={manualYtUrl}
+                                      onChange={(e) => setManualYtUrl(e.target.value)}
+                                    />
+                                  </div>
+                                  <Button 
+                                    size="sm" 
+                                    className="h-8 bg-red-600 hover:bg-red-700"
+                                    disabled={!manualYtUrl}
+                                    onClick={() => onSelectSong(song.previewUrl, `${song.trackName} - ${song.artistName}`, manualYtUrl)}
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                                
+                                <div className="flex justify-center">
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => fetchYoutubeResults(song.trackName, song.artistName)}
+                                    className="h-6 text-[8px] gap-1 text-red-500"
+                                  >
+                                    <RefreshCw className="w-2.5 h-2.5" /> Try Auto-Match Again
+                                  </Button>
+                                </div>
                               </div>
-                            )}
-
-                            {!ytSearchLoading && !ytError && ytResults.length === 0 && (
-                              <p className="text-[10px] text-center py-2 text-muted-foreground italic">No matching videos found.</p>
                             )}
                           </div>
                         </div>
