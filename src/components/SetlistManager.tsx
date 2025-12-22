@@ -70,27 +70,29 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       
       onUpdateSong(song.id, {
         originalKey: data.originalKey,
-        targetKey: data.originalKey, // Reset target key to new original
+        targetKey: data.originalKey, // Match target to new original initially
         bpm: data.bpm?.toString(),
         genre: data.genre,
         pitch: 0
       });
-      showSuccess(`Metadata updated for "${song.name}"`);
+      showSuccess(`Verified "${song.name}" is in ${data.originalKey}`);
     } catch (err) {
-      showError(`Could not enrich "${song.name}"`);
+      showError(`Could not verify "${song.name}"`);
     } finally {
       setEnrichingId(null);
     }
   };
 
   const bulkEnrich = async () => {
-    if (!confirm("This will overwrite existing keys and metadata with professional data. Continue?")) return;
+    if (!confirm("This will fetch professional keys and BPMs for your entire setlist. Continue?")) return;
     setIsBulkSyncing(true);
     for (const song of songs) {
-      await enrichSong(song);
+      if (song.originalKey === 'TBC' || !song.bpm) {
+        await enrichSong(song);
+      }
     }
     setIsBulkSyncing(false);
-    showSuccess("Full setlist enriched with Pro Metadata");
+    showSuccess("Full setlist verified with Pro Metadata");
   };
 
   const processFileUpload = async (file: File, songId: string) => {
@@ -158,7 +160,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
             className="h-7 text-[9px] font-black uppercase tracking-tight gap-2 border-indigo-200 text-indigo-700 bg-indigo-50/50"
           >
             {isBulkSyncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-            Sync All Pro Data
+            Verify All Keys
           </Button>
           <Button 
             variant="outline" 
@@ -188,6 +190,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
               const isUploading = uploadingId === song.id;
               const isEnriching = enrichingId === song.id;
               const isDraggingOver = dragOverId === song.id;
+              const needsVerification = song.originalKey === 'TBC' || !song.bpm;
               
               return (
                 <tr 
@@ -230,11 +233,14 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         <div className="flex items-center gap-2">
                           <button 
                             onClick={() => enrichSong(song)}
-                            className="flex items-center gap-1 text-[9px] font-black text-indigo-400 uppercase hover:text-indigo-600 transition-colors"
+                            className={cn(
+                              "flex items-center gap-1 text-[9px] font-black uppercase transition-all",
+                              needsVerification ? "text-indigo-600 animate-pulse font-extrabold" : "text-slate-400 hover:text-indigo-600"
+                            )}
                             disabled={isEnriching}
                           >
                             {isEnriching ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Sparkles className="w-2.5 h-2.5" />}
-                            Pro Sync
+                            {needsVerification ? "Verify Key" : "Verified"}
                           </button>
                           {song.bpm && <span className="text-[8px] font-mono bg-slate-100 dark:bg-slate-800 px-1 rounded text-slate-500">{song.bpm} BPM</span>}
                           {song.genre && <span className="text-[8px] uppercase font-bold text-slate-400 tracking-widest">{song.genre}</span>}
@@ -280,7 +286,10 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                     <div className="flex items-center gap-3">
                       <div className="flex flex-col">
                         <span className="text-[8px] font-black uppercase text-slate-400">Original</span>
-                        <span className="text-[11px] font-mono font-bold">{song.originalKey || "TBC"}</span>
+                        <span className={cn(
+                          "text-[11px] font-mono font-bold",
+                          song.originalKey === 'TBC' && "text-amber-500 italic"
+                        )}>{song.originalKey || "TBC"}</span>
                       </div>
                       <ArrowRight className="w-3 h-3 text-slate-300" />
                       <div className="flex-1">

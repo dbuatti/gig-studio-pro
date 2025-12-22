@@ -112,8 +112,8 @@ const Index = () => {
       previewUrl,
       youtubeUrl,
       pitch,
-      originalKey: "C",
-      targetKey: "C",
+      originalKey: "TBC",
+      targetKey: "TBC",
       isPlayed: false
     };
     const updatedSongs = [...songs, newSong];
