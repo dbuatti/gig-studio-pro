@@ -21,6 +21,7 @@ export interface SetlistSong {
   ugUrl?: string; 
   appleMusicUrl?: string;
   pdfUrl?: string;
+  leadsheetUrl?: string; // New: Dedicated lead sheet slot
   originalKey?: string;
   targetKey?: string;
   pitch: number;
@@ -36,12 +37,13 @@ export interface SetlistSong {
   user_tags?: string[];
   isKeyLinked?: boolean;
   duration_seconds?: number;
-  key_preference?: KeyPreference; // Per-song preference
+  key_preference?: KeyPreference;
 }
 
 export const RESOURCE_TYPES = [
   { id: 'UG', label: 'Ultimate Guitar', color: 'bg-orange-500/10 text-orange-600 border-orange-500/20' },
   { id: 'LYRICS', label: 'Has Lyrics', color: 'bg-pink-500/10 text-pink-600 border-pink-500/20' },
+  { id: 'LEAD', label: 'Lead Sheet', color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20' }, // Added: LEAD
   { id: 'UGP', label: 'UG Playlist', color: 'bg-yellow-500/10 text-yellow-700 border-yellow-500/20' },
   { id: 'FS', label: 'ForScore', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-200' },
   { id: 'PDF', label: 'Stage PDF', color: 'bg-red-500/10 text-red-700 border-red-200' },
@@ -93,7 +95,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     if (song.previewUrl && !isItunesPreview(song.previewUrl)) score += 5;
     if (song.isKeyConfirmed) score += 4; 
     if (song.isMetadataConfirmed) score += 2;
-    if (song.pdfUrl) score += 3;
+    if (song.pdfUrl || song.leadsheetUrl) score += 3;
     if (song.ugUrl) score += 2; 
     if (song.lyrics) score += 2;
     if (song.bpm) score += 1;
@@ -194,7 +196,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                 const isReady = readinessScore >= 8;
                 const hasAudio = !!song.previewUrl && !isItunesPreview(song.previewUrl);
                 
-                // Use song-specific preference if it exists, otherwise use global
                 const currentPref = song.key_preference || globalPreference;
                 const displayOrigKey = formatKey(song.originalKey, currentPref);
                 const displayTargetKey = formatKey(song.targetKey || song.originalKey, currentPref);
@@ -255,7 +256,10 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         <div className="flex items-center gap-1.5 ml-7 mt-3">
                           <TooltipProvider>
                             {RESOURCE_TYPES.map(res => {
-                              const isActive = song.resources?.includes(res.id) || (res.id === 'UG' && song.ugUrl) || (res.id === 'LYRICS' && song.lyrics);
+                              const isActive = song.resources?.includes(res.id) || 
+                                             (res.id === 'UG' && song.ugUrl) || 
+                                             (res.id === 'LYRICS' && song.lyrics) ||
+                                             (res.id === 'LEAD' && song.leadsheetUrl); // Added check for LEAD
                               if (!isActive) return null;
                               return (
                                 <span key={res.id} className={cn("text-[8px] font-black px-2 py-0.5 rounded-full border shadow-sm", res.color)}>
@@ -275,7 +279,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                               </Tooltip>
                             )}
 
-                            {song.pdfUrl && (
+                            {(song.pdfUrl || song.leadsheetUrl) && (
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <div className="h-5 w-5 rounded-lg bg-red-500 flex items-center justify-center text-white shadow-lg shadow-red-500/20">
