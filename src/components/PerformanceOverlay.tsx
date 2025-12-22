@@ -11,7 +11,7 @@ import {
   Play, Pause, SkipForward, SkipBack, X, Music, 
   Waves, Activity, ArrowRight, 
   Settings2, Gauge, FileText, Save, Youtube,
-  Monitor, AlignLeft
+  Monitor, AlignLeft, RotateCcw
 } from 'lucide-react';
 import { SetlistSong } from './SetlistManager';
 import AudioVisualizer from './AudioVisualizer';
@@ -289,7 +289,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-hidden px-8">
+          <div className="flex-1 overflow-hidden px-8 relative">
             {viewMode === 'visualizer' && (
               <div className="h-full flex items-center justify-center">
                 <div className="w-full max-w-5xl">
@@ -353,12 +353,47 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
             )}
 
             {viewMode === 'pdf' && currentSong?.pdfUrl && (
-              <div className="h-full w-full bg-white rounded-[3rem] overflow-hidden shadow-2xl mx-8">
+              <div className="h-full w-full bg-white rounded-[3rem] overflow-hidden shadow-2xl mx-8 relative">
                 <iframe 
                   src={`${currentSong.pdfUrl}#toolbar=0&navpanes=0&view=FitH`} 
                   className="w-full h-full"
                   title="Sheet Music"
                 />
+                
+                {/* Mini Audio Overlay for PDF Mode */}
+                <div className="absolute bottom-8 right-8 bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl animate-in slide-in-from-right duration-500 flex items-center gap-6 min-w-[320px]">
+                  <Button 
+                    onClick={onTogglePlayback}
+                    className={cn(
+                      "h-14 w-14 rounded-full transition-all active:scale-95 shadow-lg",
+                      isPlaying ? "bg-red-600 hover:bg-red-700" : "bg-indigo-600 hover:bg-indigo-700"
+                    )}
+                  >
+                    {isPlaying ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current ml-1" />}
+                  </Button>
+                  
+                  <div className="flex-1 space-y-2">
+                    <div className="flex justify-between items-baseline">
+                       <span className="text-[10px] font-black font-mono text-indigo-400 uppercase tracking-widest">Live Feed</span>
+                       <span className="text-sm font-black font-mono text-white">{formatTime(currentTime)} / {formatTime(duration)}</span>
+                    </div>
+                    <Progress value={progress} className="h-1.5 bg-white/10" />
+                  </div>
+                  
+                  <div className="h-10 w-px bg-white/5" />
+                  
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="text-slate-400 hover:text-white"
+                    onClick={() => {
+                      // Internal reset logic - this will rely on the parent transposer to stop
+                      onTogglePlayback(); // Toggle to stop if playing
+                    }}
+                  >
+                    <RotateCcw className="w-5 h-5" />
+                  </Button>
+                </div>
               </div>
             )}
           </div>
@@ -406,7 +441,6 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
             </div>
           )}
 
-          {/* Rest of sidebar unchanged */}
           <div className="space-y-5">
             <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 flex items-center gap-2 font-mono">
               <Settings2 className="w-4 h-4" /> Harmonic Processor
@@ -439,7 +473,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
           <div className="space-y-5">
             <div className="flex items-center justify-between">
               <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 flex items-center gap-2 font-mono">
-                <FileText className="w-4 h-4" /> Stage Cues
+                <Activity className="w-4 h-4" /> Stage Cues
               </h3>
               <Badge className="bg-indigo-600/10 text-indigo-400 text-[8px] border-indigo-600/20 font-mono">SYNCED</Badge>
             </div>
