@@ -189,6 +189,7 @@ const Index = () => {
               targetKey: aiResult.originalKey,
               bpm: aiResult.bpm?.toString(),
               genre: aiResult.genre,
+              ugUrl: aiResult.ugUrl, // New: Suggest UG URL
               isMetadataConfirmed: true,
               pitch: 0,
               isSyncing: false
@@ -204,7 +205,7 @@ const Index = () => {
       setSetlists(prev => prev.map(l => l.id === currentListId ? {
         ...l,
         songs: l.songs.map(s => 
-          songsToSync.find(ts => ts.id === s.id) ? { ...s, isSyncing: true } : s
+          songsToSync.find(ts => ts.id === s.id) ? { ...s, isSyncing: false } : s
         )
       } : l));
     }

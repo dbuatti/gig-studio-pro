@@ -25,25 +25,25 @@ serve(async (req) => {
 
     const songsList = Array.isArray(queries) ? queries : [queries];
     
-    const prompt = `Act as a professional music librarian and performance consultant. For the following list of songs, return a JSON array of objects. 
-    Ensure the "originalKey" is the official concert key of the most popular version.
+    const prompt = `Act as a professional music librarian. For the following list of songs, return a JSON array of objects. 
     
     Each object must have: 
     {
-      "name": "The original song title (clean version)",
-      "artist": "The primary artist or composer",
+      "name": "The original song title",
+      "artist": "The primary artist",
       "originalKey": "The standard key (e.g., C, F#m, Eb)",
       "bpm": 120,
       "genre": "The specific genre",
+      "ugUrl": "The most likely official Ultimate Guitar URL for the chords/tabs (usually https://www.ultimate-guitar.com/search.php?search_type=title&value=ARTIST+NAME+SONG+NAME)",
       "isMetadataConfirmed": true
     }
     
     Songs to process:
     ${songsList.join('\n')}
     
-    Return ONLY the JSON array. No markdown, no conversational text.`;
+    Return ONLY the JSON array.`;
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
