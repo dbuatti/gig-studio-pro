@@ -16,9 +16,8 @@ serve(async (req) => {
     // @ts-ignore: Deno global
     const apiKey = Deno.env.get('GEMINI_API_KEY');
 
-    // If key is missing, don't 500, just return isFound: false
     if (!apiKey) {
-      console.error("CRITICAL: GEMINI_API_KEY is missing in Supabase Secrets.");
+      console.error("GEMINI_API_KEY missing");
       return new Response(JSON.stringify({ 
         originalKey: "TBC", 
         bpm: "???", 
@@ -36,9 +35,10 @@ serve(async (req) => {
       "genre": "The genre",
       "isFound": true
     }
-    If you are unsure of the key, return your best estimate. No markdown formatting.`;
+    If unsure, provide the most likely concert key. Return ONLY the JSON.`;
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+    // Switched to v1 stable endpoint and gemini-1.5-flash-latest
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -49,15 +49,15 @@ serve(async (req) => {
     const result = await response.json();
     
     if (!response.ok) {
+      console.error("Gemini API Error:", result);
       throw new Error(result.error?.message || "AI Provider Error");
     }
 
-    let text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) throw new Error("AI returned an empty response.");
+    const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error("Empty AI response");
 
-    // Improved JSON extraction in case AI adds fluff
     const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("No JSON found in AI response");
+    if (!jsonMatch) throw new Error("Invalid response format");
     
     const metadata = JSON.parse(jsonMatch[0]);
 
@@ -66,7 +66,7 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error("Metadata Logic Error:", error.message);
+    console.error("Edge Function Error:", error.message);
     return new Response(JSON.stringify({ 
       originalKey: "TBC", 
       isFound: false, 
