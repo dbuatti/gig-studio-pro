@@ -45,6 +45,8 @@ interface SongStudioModalProps {
   onPerform?: (song: SetlistSong) => void;
 }
 
+type StudioTab = 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library';
+
 const SongStudioModal: React.FC<SongStudioModalProps> = ({ 
   song, 
   isOpen, 
@@ -57,7 +59,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const { user } = useAuth();
   const { keyPreference: globalPreference } = useSettings();
   const [formData, setFormData] = useState<Partial<SetlistSong>>({});
-  const [activeTab, setActiveTab] = useState<'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library'>('audio');
+  const [activeTab, setActiveTab] = useState<StudioTab>('audio');
   const [newTag, setNewTag] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -90,6 +92,26 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   
   const playbackStartTimeRef = useRef<number>(0);
   const playbackOffsetRef = useRef<number>(0);
+
+  // Keyboard Shortcuts Mapping
+  const tabOrder: StudioTab[] = ['audio', 'details', 'charts', 'lyrics', 'visual', 'library'];
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && !isNaN(Number(e.key))) {
+        const index = Number(e.key) - 1;
+        if (index >= 0 && index < tabOrder.length) {
+          e.preventDefault();
+          setActiveTab(tabOrder[index]);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
 
   // Use song-specific preference if it exists, otherwise global
   const currentKeyPreference = formData.key_preference || globalPreference;
@@ -913,16 +935,17 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
           <div className="flex-1 flex flex-col min-w-0">
             <div className="h-20 border-b border-white/5 flex items-center px-12 justify-between bg-black/20 shrink-0">
               <div className="flex gap-12">
-                {['audio', 'details', 'charts', 'lyrics', 'visual', 'library'].map((tab) => (
+                {tabOrder.map((tab, idx) => (
                   <button 
                     key={tab}
-                    onClick={() => setActiveTab(tab as any)}
+                    onClick={() => setActiveTab(tab)}
                     className={cn(
-                      "text-xs font-black uppercase tracking-[0.4em] h-20 transition-all border-b-4",
+                      "text-xs font-black uppercase tracking-[0.4em] h-20 transition-all border-b-4 flex flex-col items-center justify-center gap-1",
                       activeTab === tab ? "text-indigo-400 border-indigo-500" : "text-slate-500 border-transparent hover:text-white"
                     )}
                   >
-                    {tab.toUpperCase()} ENGINE
+                    <span>{tab.toUpperCase()} ENGINE</span>
+                    <span className="text-[8px] font-mono opacity-40 font-bold tracking-normal">⌘{idx + 1}</span>
                   </button>
                 ))}
               </div>
