@@ -641,7 +641,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                     const isActive = formData.resources?.includes(res.id) || 
                                    (res.id === 'UG' && formData.ugUrl) || 
                                    (res.id === 'LYRICS' && formData.lyrics) ||
-                                   (res.id === 'PDF' && formData.pdfUrl) ||
                                    (res.id === 'LEAD' && formData.leadsheetUrl);
                     return (
                       <button
@@ -663,7 +662,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
               </div>
 
               <div className="space-y-4">
-                <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Custom Tags</Label>
+                <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Custom Tags</Label>
                 <div className="flex flex-wrap gap-2 mb-3">
                   {(formData.user_tags || []).map(t => (
                     <Badge key={t} variant="secondary" className="bg-white/5 text-indigo-300 border-white/10 px-3 py-1.5 gap-2 text-[10px] font-bold uppercase rounded-lg">

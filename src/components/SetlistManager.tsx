@@ -259,7 +259,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                               const isActive = song.resources?.includes(res.id) || 
                                              (res.id === 'UG' && song.ugUrl) || 
                                              (res.id === 'LYRICS' && song.lyrics) ||
-                                             (res.id === 'LEAD' && song.leadsheetUrl); // Added check for LEAD
+                                             (res.id === 'LEAD' && song.leadsheetUrl);
                               if (!isActive) return null;
                               return (
                                 <span key={res.id} className={cn("text-[8px] font-black px-2 py-0.5 rounded-full border shadow-sm", res.color)}>
