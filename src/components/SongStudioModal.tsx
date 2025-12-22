@@ -71,7 +71,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const playbackStartTimeRef = useRef<number>(0);
   const playbackOffsetRef = useRef<number>(0);
 
-  // Sync internal state with the song prop whenever it changes (e.g. after a save)
   useEffect(() => {
     if (song && isOpen) {
       setFormData({
@@ -96,7 +95,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     return () => cleanupAudio();
   }, [song, isOpen]);
 
-  // Debounced auto-save for text inputs
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
   const handleAutoSave = (updates: Partial<SetlistSong>) => {
     setFormData(prev => ({ ...prev, ...updates }));
@@ -122,7 +120,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
 
   const prepareAudio = async (url: string, pitch: number) => {
     try {
-      if (url === currentBufferRef.current?.toString()) return; // Already loaded
+      if (url === currentBufferRef.current?.toString()) return;
       cleanupAudio();
       if (Tone.getContext().state !== 'running') await Tone.start();
       
@@ -219,7 +217,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       
       const update = isAudio ? { previewUrl: publicUrl } : { pdfUrl: publicUrl };
       
-      // Save IMMEDIATELY to parent state for uploads
       onSave(song.id, update);
       setFormData(prev => ({ ...prev, ...update }));
       
@@ -267,7 +264,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         if (playerRef.current) playerRef.current.detune = diff * 100;
       }
       
-      onSave(song.id, next); // Save harmonic changes immediately
+      onSave(song.id, next);
       return next;
     });
   };
@@ -622,11 +619,11 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                   </div>
 
                   <div className="space-y-3">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Rehearsal & Dynamcis Notes</Label>
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Rehearsal & Dynamics Notes</Label>
                     <Textarea 
                       placeholder="Cues, transitions, dynamics..."
                       value={formData.notes || ""}
-                      onChange={(e) => handleAutoSave({ notes: e.target.value }))}
+                      onChange={(e) => handleAutoSave({ notes: e.target.value })}
                       className="min-h-[250px] bg-white/5 border-white/10 text-sm leading-relaxed"
                     />
                   </div>
@@ -641,7 +638,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                        <Input 
                          placeholder="YouTube URL..." 
                          value={formData.youtubeUrl || ""}
-                         onChange={(e) => handleAutoSave({ youtubeUrl: e.target.value }))}
+                         onChange={(e) => handleAutoSave({ youtubeUrl: e.target.value })}
                          className="bg-white/5 border-white/10 text-xs w-96 h-10"
                        />
                     </div>
@@ -668,7 +665,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                              <p className="text-[10px] text-slate-400 mt-1">This video will be available as a visual reference during live sets.</p>
                            </div>
                         </div>
-                        <Button variant="ghost" onClick={() => handleAutoSave({ youtubeUrl: "" }))} className="text-red-400 text-[10px] font-black uppercase hover:bg-red-500/10">Disconnect Link</Button>
+                        <Button variant="ghost" onClick={() => handleAutoSave({ youtubeUrl: "" })} className="text-red-400 text-[10px] font-black uppercase hover:bg-red-500/10">Disconnect Link</Button>
                       </div>
                     </div>
                   ) : (
