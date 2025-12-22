@@ -262,24 +262,23 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                   )}
                 >
                   <td className="p-4 text-center">
-                    <button onClick={() => onTogglePlayed(song.id)}>
+                    <button onClick={(e) => { e.stopPropagation(); onTogglePlayed(song.id); }}>
                       {song.isPlayed ? <CheckCircle2 className="w-5 h-5 text-green-500" /> : <CircleDashed className="w-5 h-5 text-slate-300" />}
                     </button>
                   </td>
-                  <td className="p-4">
+                  <td 
+                    className="p-4 cursor-pointer hover:bg-indigo-50/10 transition-colors"
+                    onClick={() => onSelect(song)}
+                  >
                     <div className="flex flex-col">
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] font-mono font-black text-slate-300">{(idx + 1).toString().padStart(2, '0')}</span>
-                        {/* CLICKABLE SONG TITLE */}
-                        <button 
-                          onClick={() => onSelect(song)}
-                          className={cn(
-                            "text-sm font-bold tracking-tight hover:text-indigo-600 hover:underline transition-colors text-left",
-                            song.isPlayed && "line-through"
-                          )}
-                        >
+                        <span className={cn(
+                          "text-sm font-bold tracking-tight",
+                          song.isPlayed && "line-through"
+                        )}>
                           {displayName}
-                        </button>
+                        </span>
                         {song.isMetadataConfirmed && <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />}
                         {sortMode !== 'none' && (
                           <Badge className={cn("text-[8px] font-black h-4 px-1 border-none", readiness > 12 ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700")}>
@@ -296,7 +295,11 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                             {RESOURCE_TYPES.map(res => {
                               const isActive = song.resources?.includes(res.id);
                               return (
-                                <button key={res.id} onClick={() => toggleResource(song, res.id)} className={cn("text-[8px] font-black px-1.5 py-0.5 rounded border transition-all", isActive ? cn(res.color, "shadow-sm opacity-100") : "bg-slate-50 text-slate-400 border-slate-100 opacity-40 hover:opacity-100")}>
+                                <button 
+                                  key={res.id} 
+                                  onClick={(e) => { e.stopPropagation(); toggleResource(song, res.id); }} 
+                                  className={cn("text-[8px] font-black px-1.5 py-0.5 rounded border transition-all", isActive ? cn(res.color, "shadow-sm opacity-100") : "bg-slate-50 text-slate-400 border-slate-100 opacity-40 hover:opacity-100")}
+                                >
                                   {res.id}
                                 </button>
                               );
@@ -309,7 +312,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                               <Tooltip><TooltipTrigger asChild><div className="text-[8px] font-black px-1.5 py-0.5 rounded border bg-amber-50 text-amber-600 border-amber-100 flex items-center gap-1"><Headphones className="w-2 h-2" /> PRE</div></TooltipTrigger><TooltipContent className="text-[9px] font-bold uppercase">iTunes Preview Stream</TooltipContent></Tooltip>
                             )}
                             {song.pdfUrl && (
-                              <a href={song.pdfUrl} target="_blank" rel="noreferrer" className="text-[8px] font-black px-1.5 py-0.5 rounded bg-red-100 text-red-700 border border-red-200 shadow-sm flex items-center gap-1"><FileDown className="w-2 h-2" /> PDF</a>
+                              <a href={song.pdfUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-[8px] font-black px-1.5 py-0.5 rounded bg-red-100 text-red-700 border border-red-200 shadow-sm flex items-center gap-1"><FileDown className="w-2 h-2" /> PDF</a>
                             )}
                           </div>
                         </TooltipProvider>
@@ -317,20 +320,36 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
                       <div className="flex items-center gap-3 mt-2 ml-7">
                         <div className="flex items-center gap-2">
-                          <button onClick={() => onSyncProData(song)} className={cn("flex items-center gap-1 text-[9px] font-black uppercase transition-all mr-1", needsSync ? "text-indigo-600 animate-pulse font-extrabold" : "text-slate-400 hover:text-indigo-600")} disabled={song.isSyncing}>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); onSyncProData(song); }} 
+                            className={cn("flex items-center gap-1 text-[9px] font-black uppercase transition-all mr-1", needsSync ? "text-indigo-600 animate-pulse font-extrabold" : "text-slate-400 hover:text-indigo-600")} 
+                            disabled={song.isSyncing}
+                          >
                             {song.isSyncing ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Sparkles className="w-2.5 h-2.5" />}
                             {needsSync ? "Sync Pro Data" : "Verified"}
                           </button>
                           <div className="h-2 w-px bg-slate-200 mx-1" />
-                          <a href={getUGUrl(song)} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-[9px] text-amber-600 font-bold hover:underline"><FileText className="w-2.5 h-2.5" /> Chords</a>
+                          <a href={getUGUrl(song)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="flex items-center gap-1 text-[9px] text-amber-600 font-bold hover:underline"><FileText className="w-2.5 h-2.5" /> Chords</a>
                           {song.youtubeUrl && (
                             <div className="flex items-center gap-1">
-                              <button onClick={() => onSelect(song)} className="flex items-center gap-1 text-[9px] text-red-600 font-bold hover:underline"><Youtube className="w-3 h-3" /> Video</button>
-                              <button onClick={() => handleCopyLink(song.youtubeUrl)} className="text-slate-400 hover:text-indigo-600 p-0.5"><Copy className="w-2.5 h-2.5" /></button>
+                              <button onClick={(e) => { e.stopPropagation(); onSelect(song); }} className="flex items-center gap-1 text-[9px] text-red-600 font-bold hover:underline"><Youtube className="w-3 h-3" /> Video</button>
+                              <button onClick={(e) => { e.stopPropagation(); handleCopyLink(song.youtubeUrl); }} className="text-slate-400 hover:text-indigo-600 p-0.5"><Copy className="w-2.5 h-2.5" /></button>
                             </div>
                           )}
-                          <label className="flex items-center gap-1 text-[9px] font-black text-indigo-600 uppercase hover:underline cursor-pointer">
+                          <label 
+                            className="flex items-center gap-1 text-[9px] font-black text-indigo-600 uppercase hover:underline cursor-pointer"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <Upload className="w-2.5 h-2.5" /> {isUploading ? "Uploading..." : "Drop PDF"}
+                            <input 
+                              type="file" 
+                              className="hidden" 
+                              accept="application/pdf" 
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handlePdfUpload(file, song.id);
+                              }}
+                            />
                           </label>
                         </div>
                       </div>
@@ -338,10 +357,10 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                   </td>
                   <td className="p-4">
                     <div className="flex flex-col items-center gap-1">
-                       <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-300 hover:text-indigo-600" onClick={() => handleMove(song.id, 'up')} disabled={idx === 0}>
+                       <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-300 hover:text-indigo-600" onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'up'); }} disabled={idx === 0}>
                          <ChevronUp className="w-4 h-4" />
                        </Button>
-                       <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-300 hover:text-indigo-600" onClick={() => handleMove(song.id, 'down')} disabled={idx === processedSongs.length - 1}>
+                       <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-300 hover:text-indigo-600" onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'down'); }} disabled={idx === processedSongs.length - 1}>
                          <ChevronDown className="w-4 h-4" />
                        </Button>
                     </div>
@@ -355,18 +374,28 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       <ArrowRight className="w-3 h-3 text-slate-300" />
                       <div className="flex-1">
                         <span className="text-[8px] font-black uppercase text-indigo-500">Target</span>
-                        <Select value={song.targetKey} onValueChange={(val) => onUpdateKey(song.id, val)}>
-                          <SelectTrigger className="h-7 text-[11px] font-bold font-mono border-indigo-100 bg-indigo-50/30 text-indigo-600"><SelectValue /></SelectTrigger>
-                          <SelectContent>{ALL_KEYS.map(k => <SelectItem key={k} value={k} className="font-mono text-[11px]">{k}</SelectItem>)}</SelectContent>
+                        <Select 
+                          value={song.targetKey} 
+                          onValueChange={(val) => onUpdateKey(song.id, val)}
+                        >
+                          <SelectTrigger 
+                            className="h-7 text-[11px] font-bold font-mono border-indigo-100 bg-indigo-50/30 text-indigo-600"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {ALL_KEYS.map(k => <SelectItem key={k} value={k} className="font-mono text-[11px]">{k}</SelectItem>)}
+                          </SelectContent>
                         </Select>
                       </div>
                     </div>
                   </td>
                   <td className="p-4 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-slate-300 hover:text-indigo-600" onClick={() => setEditingSong(song)}><Edit3 className="w-3.5 h-3.5" /></Button>
-                      <Button variant="ghost" size="sm" className={cn("h-8 px-3 text-[10px] font-black uppercase tracking-widest gap-2", !song.previewUrl ? "text-slate-300" : "text-indigo-600")} disabled={!song.previewUrl} onClick={() => onSelect(song)}>{isSelected ? "Active" : "Perform"} <Play className="w-3 h-3" /></Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300 hover:text-red-500" onClick={() => onRemove(song.id)}><Trash2 className="w-4 h-4" /></Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-slate-300 hover:text-indigo-600" onClick={(e) => { e.stopPropagation(); setEditingSong(song); }}><Edit3 className="w-3.5 h-3.5" /></Button>
+                      <Button variant="ghost" size="sm" className={cn("h-8 px-3 text-[10px] font-black uppercase tracking-widest gap-2", !song.previewUrl ? "text-slate-300" : "text-indigo-600")} disabled={!song.previewUrl} onClick={(e) => { e.stopPropagation(); onSelect(song); }}>{isSelected ? "Active" : "Perform"} <Play className="w-3 h-3" /></Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300 hover:text-red-500" onClick={(e) => { e.stopPropagation(); onRemove(song.id); }}><Trash2 className="w-4 h-4" /></Button>
                     </div>
                   </td>
                 </tr>
