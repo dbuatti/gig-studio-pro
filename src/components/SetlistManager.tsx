@@ -3,7 +3,7 @@
 import React, { useRef, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed, Copy, Upload, Loader2, FileAudio, Sparkles, RefreshCcw, FileText, ExternalLink, ShieldCheck, Edit3, Search, Link as LinkIcon } from 'lucide-react';
+import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed, Copy, Upload, Loader2, FileAudio, Sparkles, RefreshCcw, FileText, ExternalLink, ShieldCheck, Edit3, Search, Link as LinkIcon, FileCheck } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ALL_KEYS, calculateSemitones } from '@/utils/keyUtils';
@@ -30,6 +30,7 @@ export interface SetlistSong {
   isSyncing?: boolean;
   isMetadataConfirmed?: boolean;
   notes?: string;
+  resources?: string[]; // Array of strings like ['UG', 'FS', 'SM', 'LS', 'PDF']
 }
 
 interface SetlistManagerProps {
@@ -43,6 +44,14 @@ interface SetlistManagerProps {
   onSyncProData: (song: SetlistSong) => Promise<void>;
   currentSongId?: string;
 }
+
+const RESOURCE_TYPES = [
+  { id: 'UG', label: 'Ultimate Guitar', color: 'bg-orange-100 text-orange-700 border-orange-200' },
+  { id: 'FS', label: 'ForScore', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+  { id: 'SM', label: 'Sheet Music', color: 'bg-blue-100 text-blue-700 border-blue-200' },
+  { id: 'LS', label: 'Lead Sheet', color: 'bg-purple-100 text-purple-700 border-purple-200' },
+  { id: 'PDF', label: 'iPad PDF', color: 'bg-red-100 text-red-700 border-red-200' },
+];
 
 const SetlistManager: React.FC<SetlistManagerProps> = ({ 
   songs, 
@@ -75,6 +84,15 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       navigator.clipboard.writeText(url);
       showSuccess("YouTube link copied!");
     }
+  };
+
+  const toggleResource = (song: SetlistSong, resourceId: string) => {
+    const currentResources = song.resources || [];
+    const newResources = currentResources.includes(resourceId)
+      ? currentResources.filter(id => id !== resourceId)
+      : [...currentResources, resourceId];
+    
+    onUpdateSong(song.id, { resources: newResources });
   };
 
   const copyAllLinks = () => {
@@ -166,7 +184,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
           <thead>
             <tr className="bg-slate-50 dark:bg-slate-800/50 border-b">
               <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-12 text-center">Done</th>
-              <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Song Title / Pro Info</th>
+              <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Song Title / Resources</th>
               <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-48">Harmonic State</th>
               <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-32 text-right">Actions</th>
             </tr>
@@ -215,22 +233,41 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                               </Tooltip>
                             </TooltipProvider>
                           )}
-                          {song.isSyncing && (
-                            <Badge variant="outline" className="text-[8px] uppercase border-indigo-200 text-indigo-600 bg-indigo-50 leading-none h-4 animate-pulse">Syncing...</Badge>
-                          )}
                         </div>
                         {song.artist && (
                           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-7">
                             {song.artist}
                           </span>
                         )}
-                        {song.notes && (
-                          <p className="text-[10px] text-indigo-400 font-medium ml-7 mt-0.5 line-clamp-1 italic">
-                            {song.notes}
-                          </p>
-                        )}
+                        
+                        {/* Resource Toggles */}
+                        <div className="flex items-center gap-1.5 ml-7 mt-2">
+                          <TooltipProvider>
+                            {RESOURCE_TYPES.map(res => {
+                              const isActive = song.resources?.includes(res.id);
+                              return (
+                                <Tooltip key={res.id}>
+                                  <TooltipTrigger asChild>
+                                    <button
+                                      onClick={() => toggleResource(song, res.id)}
+                                      className={cn(
+                                        "text-[8px] font-black px-1.5 py-0.5 rounded border transition-all active:scale-90",
+                                        isActive 
+                                          ? cn(res.color, "shadow-sm opacity-100 scale-105") 
+                                          : "bg-slate-50 text-slate-400 border-slate-100 opacity-40 hover:opacity-100"
+                                      )}
+                                    >
+                                      {res.id}
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="text-[9px] font-bold">{res.label}</TooltipContent>
+                                </Tooltip>
+                              );
+                            })}
+                          </TooltipProvider>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3 mt-1 ml-7">
+                      <div className="flex items-center gap-3 mt-2 ml-7">
                         <div className="flex items-center gap-2">
                           <button 
                             onClick={() => onSyncProData(song)}
@@ -243,7 +280,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                             {song.isSyncing ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Sparkles className="w-2.5 h-2.5" />}
                             {needsSync ? "Sync Pro Data" : "Verified"}
                           </button>
-                          {song.bpm && <span className="text-[8px] font-mono bg-slate-100 dark:bg-slate-800 px-1 rounded text-slate-500">{song.bpm} BPM</span>}
                         </div>
                         
                         <div className="h-2 w-px bg-slate-200" />
@@ -287,55 +323,30 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                               <PopoverContent className="w-64 p-3 space-y-3" align="start">
                                 <div className="space-y-1">
                                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Connect Media</p>
-                                  <p className="text-[9px] text-slate-500 leading-tight">Link a YouTube video for visual reference or search for one.</p>
+                                  <p className="text-[9px] text-slate-500 leading-tight">Link a YouTube video for visual reference.</p>
                                 </div>
-                                <div className="space-y-2">
-                                  <div className="flex gap-1">
-                                    <Input 
-                                      placeholder="Paste YouTube Link" 
-                                      className="h-8 text-[10px] border-indigo-100"
-                                      value={manualLink}
-                                      onChange={(e) => setManualLink(e.target.value)}
-                                    />
-                                    <Button 
-                                      size="sm" 
-                                      className="h-8 px-3 bg-indigo-600 font-bold"
-                                      onClick={() => {
-                                        if (manualLink.includes('youtube.com') || manualLink.includes('youtu.be')) {
-                                          onUpdateSong(song.id, { youtubeUrl: manualLink });
-                                          showSuccess("Video linked!");
-                                          setManualLink("");
-                                        } else {
-                                          showError("Invalid YouTube URL");
-                                        }
-                                      }}
-                                    >
-                                      LINK
-                                    </Button>
-                                  </div>
-                                  <div className="flex items-center gap-2 text-slate-300 py-1">
-                                    <div className="h-px bg-slate-100 flex-1" />
-                                    <span className="text-[8px] font-black">OR</span>
-                                    <div className="h-px bg-slate-100 flex-1" />
-                                  </div>
-                                  <div className="grid grid-cols-2 gap-2">
-                                    <Button 
-                                      variant="outline" 
-                                      size="sm" 
-                                      className="h-8 text-[9px] font-bold gap-1 border-red-100 text-red-600 hover:bg-red-50"
-                                      onClick={() => openYoutubeSearch(song)}
-                                    >
-                                      <Search className="w-3 h-3" /> Search
-                                    </Button>
-                                    <Button 
-                                      variant="outline" 
-                                      size="sm" 
-                                      className="h-8 text-[9px] font-bold gap-1 border-indigo-100 text-indigo-600 hover:bg-indigo-50"
-                                      onClick={() => onLinkAudio(song.name)}
-                                    >
-                                      <Sparkles className="w-3 h-3" /> Auto
-                                    </Button>
-                                  </div>
+                                <div className="flex gap-1">
+                                  <Input 
+                                    placeholder="Paste YouTube Link" 
+                                    className="h-8 text-[10px]"
+                                    value={manualLink}
+                                    onChange={(e) => setManualLink(e.target.value)}
+                                  />
+                                  <Button 
+                                    size="sm" 
+                                    className="h-8 px-3 bg-indigo-600 font-bold"
+                                    onClick={() => {
+                                      if (manualLink.includes('youtube.com') || manualLink.includes('youtu.be')) {
+                                        onUpdateSong(song.id, { youtubeUrl: manualLink });
+                                        showSuccess("Video linked!");
+                                        setManualLink("");
+                                      } else {
+                                        showError("Invalid YouTube URL");
+                                      }
+                                    }}
+                                  >
+                                    LINK
+                                  </Button>
                                 </div>
                               </PopoverContent>
                             </Popover>

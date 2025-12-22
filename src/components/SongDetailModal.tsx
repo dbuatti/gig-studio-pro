@@ -9,7 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SetlistSong } from './SetlistManager';
 import { ALL_KEYS } from '@/utils/keyUtils';
-import { Music, Clock, FileText, Youtube, User as UserIcon, Settings2, Save } from 'lucide-react';
+import { Music, Clock, FileText, Youtube, User as UserIcon, Settings2, Save, FileCheck } from 'lucide-react';
+import { cn } from "@/lib/utils";
 
 interface SongDetailModalProps {
   song: SetlistSong | null;
@@ -17,6 +18,14 @@ interface SongDetailModalProps {
   onClose: () => void;
   onSave: (id: string, updates: Partial<SetlistSong>) => void;
 }
+
+const RESOURCE_TYPES = [
+  { id: 'UG', label: 'Ultimate Guitar', color: 'bg-orange-100 text-orange-700 border-orange-200' },
+  { id: 'FS', label: 'ForScore', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+  { id: 'SM', label: 'Sheet Music', color: 'bg-blue-100 text-blue-700 border-blue-200' },
+  { id: 'LS', label: 'Lead Sheet', color: 'bg-purple-100 text-purple-700 border-purple-200' },
+  { id: 'PDF', label: 'iPad PDF', color: 'bg-red-100 text-red-700 border-red-200' },
+];
 
 const SongDetailModal: React.FC<SongDetailModalProps> = ({ song, isOpen, onClose, onSave }) => {
   const [formData, setFormData] = useState<Partial<SetlistSong>>({});
@@ -30,7 +39,8 @@ const SongDetailModal: React.FC<SongDetailModalProps> = ({ song, isOpen, onClose
         originalKey: song.originalKey || "C",
         targetKey: song.targetKey || "C",
         notes: song.notes || "",
-        youtubeUrl: song.youtubeUrl || ""
+        youtubeUrl: song.youtubeUrl || "",
+        resources: song.resources || []
       });
     }
   }, [song, isOpen]);
@@ -40,6 +50,14 @@ const SongDetailModal: React.FC<SongDetailModalProps> = ({ song, isOpen, onClose
       onSave(song.id, formData);
       onClose();
     }
+  };
+
+  const toggleResource = (id: string) => {
+    const current = formData.resources || [];
+    const updated = current.includes(id) 
+      ? current.filter(rid => rid !== id) 
+      : [...current, id];
+    setFormData(prev => ({ ...prev, resources: updated }));
   };
 
   if (!song) return null;
@@ -80,6 +98,32 @@ const SongDetailModal: React.FC<SongDetailModalProps> = ({ song, isOpen, onClose
                   />
                 </div>
               </div>
+            </div>
+          </div>
+
+          <div className="col-span-2 space-y-3">
+            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+              <FileCheck className="w-3 h-3" /> Performance Resources Status
+            </Label>
+            <div className="flex flex-wrap gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100">
+              {RESOURCE_TYPES.map(res => {
+                const isActive = formData.resources?.includes(res.id);
+                return (
+                  <button
+                    key={res.id}
+                    onClick={() => toggleResource(res.id)}
+                    className={cn(
+                      "flex flex-col items-center justify-center p-2 rounded-lg border transition-all w-[70px]",
+                      isActive 
+                        ? cn(res.color, "ring-2 ring-offset-1 ring-indigo-500 opacity-100") 
+                        : "bg-white text-slate-400 border-slate-200 opacity-50 grayscale hover:grayscale-0 hover:opacity-100"
+                    )}
+                  >
+                    <span className="text-xs font-black">{res.id}</span>
+                    <span className="text-[8px] font-bold uppercase mt-0.5 text-center leading-none">{res.label.split(' ')[0]}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
