@@ -3,7 +3,7 @@
 import React, { useRef, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed, Copy, Upload, Loader2, FileAudio, Sparkles, RefreshCcw, FileText, ExternalLink, ShieldCheck } from 'lucide-react';
+import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed, Copy, Upload, Loader2, FileAudio, Sparkles, RefreshCcw, FileText, ExternalLink, ShieldCheck, Edit3 } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ALL_KEYS, calculateSemitones } from '@/utils/keyUtils';
@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import SongDetailModal from './SongDetailModal';
 
 export interface SetlistSong {
   id: string;
@@ -26,7 +27,7 @@ export interface SetlistSong {
   genre?: string;
   isSyncing?: boolean;
   isMetadataConfirmed?: boolean;
-  notes?: string; // Added notes field
+  notes?: string;
 }
 
 interface SetlistManagerProps {
@@ -54,6 +55,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 }) => {
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [isBulkSyncing, setIsBulkSyncing] = useState(false);
+  const [editingSong, setEditingSong] = useState<SetlistSong | null>(null);
 
   const getUGUrl = (song: SetlistSong) => {
     const searchTerm = encodeURIComponent(`${song.name} ${song.artist || ''} chords`);
@@ -310,6 +312,14 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                     <div className="flex items-center justify-end gap-1">
                       <Button 
                         variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 rounded-full text-slate-300 hover:text-indigo-600 hover:bg-indigo-50"
+                        onClick={() => setEditingSong(song)}
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
                         size="sm" 
                         className={cn(
                           "h-8 px-3 text-[10px] font-black uppercase tracking-widest gap-2",
@@ -337,6 +347,25 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
           </tbody>
         </table>
       </div>
+
+      <SongDetailModal 
+        song={editingSong}
+        isOpen={!!editingSong}
+        onClose={() => setEditingSong(null)}
+        onSave={(id, updates) => {
+          onUpdateSong(id, updates);
+          // If keys changed, we need to recalculate pitch
+          if (updates.originalKey || updates.targetKey) {
+            const currentSong = songs.find(s => s.id === id);
+            if (currentSong) {
+              const orig = updates.originalKey || currentSong.originalKey || "C";
+              const target = updates.targetKey || currentSong.targetKey || "C";
+              const newPitch = calculateSemitones(orig, target);
+              onUpdateSong(id, { ...updates, pitch: newPitch });
+            }
+          }
+        }}
+      />
     </div>
   );
 };
