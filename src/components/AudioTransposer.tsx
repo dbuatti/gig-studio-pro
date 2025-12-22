@@ -6,7 +6,7 @@ import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Play, Pause, RotateCcw, Upload, Volume2, Waves, Settings2, Activity, Link as LinkIcon, Globe, Search, Youtube, PlusCircle, Library, Sparkles, Check, FileText, ExternalLink, Subtitles, X, ChevronUp, ChevronDown } from 'lucide-react';
+import { Play, Pause, RotateCcw, Upload, Volume2, Waves, Settings2, Activity, Link as LinkIcon, Globe, Search, Youtube, PlusCircle, Library, Sparkles, Check, FileText, ExternalLink, Subtitles, X, ChevronUp, ChevronDown, Printer } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import AudioVisualizer from './AudioVisualizer';
 import SongSearch from './SongSearch';
@@ -211,6 +211,19 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
         onUpdateSongKey(currentSong.id, newTarget);
       }
     }
+  };
+
+  const handleUgPrint = () => {
+    const ugUrl = activeUgUrl || currentSong?.ugUrl;
+    if (!ugUrl) {
+      showError("No tab linked.");
+      return;
+    }
+    const printUrl = ugUrl.includes('?') 
+      ? ugUrl.replace('?', '/print?') 
+      : `${ugUrl}/print`;
+    window.open(printUrl, '_blank');
+    showSuccess("Opening iPad-ready View");
   };
 
   useImperativeHandle(ref, () => ({
@@ -420,12 +433,20 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
                 <div className="flex flex-col gap-1.5">
                   <Label className="text-[9px] font-bold text-slate-500 uppercase flex items-center justify-between">
                     <span>Ultimate Guitar Tab</span>
-                    <button 
-                      onClick={() => window.open(`https://www.ultimate-guitar.com/search.php?search_type=title&value=${encodeURIComponent(file.artist + ' ' + file.name + ' chords')}`, '_blank')}
-                      className="text-orange-500 hover:text-orange-600 flex items-center gap-1"
-                    >
-                      <FileText className="w-3 h-3" /> Search
-                    </button>
+                    <div className="flex gap-2">
+                       <button 
+                        onClick={handleUgPrint}
+                        className="text-indigo-500 hover:text-indigo-600 flex items-center gap-1"
+                       >
+                         <Printer className="w-3 h-3" /> Print
+                       </button>
+                       <button 
+                        onClick={() => window.open(`https://www.ultimate-guitar.com/search.php?search_type=title&value=${encodeURIComponent(file.artist + ' ' + file.name + ' chords')}`, '_blank')}
+                        className="text-orange-500 hover:text-orange-600 flex items-center gap-1"
+                       >
+                        <FileText className="w-3 h-3" /> Search
+                       </button>
+                    </div>
                   </Label>
                   <Input 
                     placeholder="Paste UG Tab Link..." 
