@@ -62,7 +62,7 @@ const Landing = () => {
           <button className="text-sm font-bold text-slate-400 hover:text-white transition-colors hidden md:block">Features</button>
           <button className="text-sm font-bold text-slate-400 hover:text-white transition-colors hidden md:block">Pricing</button>
           <Button 
-            onClick={() => navigate(session ? '/' : '/login')}
+            onClick={() => navigate(session ? '/dashboard' : '/login')}
             className="bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] h-10 px-6 rounded-xl shadow-lg shadow-indigo-600/20"
           >
             {session ? 'Go to Dashboard' : 'Sign In'}
@@ -92,7 +92,7 @@ const Landing = () => {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-in fade-in slide-in-from-bottom-12 duration-1000 delay-300">
             <Button 
               size="lg"
-              onClick={() => navigate('/login')}
+              onClick={() => navigate(session ? '/dashboard' : '/login')}
               className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 h-16 px-10 rounded-2xl font-black uppercase tracking-widest text-xs gap-3 shadow-2xl shadow-indigo-600/30"
             >
               Start Your First Gig <Rocket className="w-4 h-4" />
@@ -188,7 +188,7 @@ const Landing = () => {
           <p className="text-xl text-slate-400 mb-12 font-medium">Join thousands of musicians who have already transformed their live workflow with Gig Studio Pro.</p>
           <Button 
             size="lg"
-            onClick={() => navigate('/login')}
+            onClick={() => navigate(session ? '/dashboard' : '/login')}
             className="bg-white text-indigo-600 hover:bg-slate-100 h-16 px-12 rounded-2xl font-black uppercase tracking-widest text-sm shadow-2xl shadow-white/10"
           >
             Create My Studio Account
