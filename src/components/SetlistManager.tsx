@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
-import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed, Copy, Upload, Loader2, Sparkles, FileText, ShieldCheck, Edit3, Search, FileDown, FileCheck, SortAsc, SortDesc, LayoutList, Volume2 } from 'lucide-react';
+import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed, Copy, Upload, Loader2, Sparkles, FileText, ShieldCheck, Edit3, Search, FileDown, FileCheck, SortAsc, SortDesc, LayoutList, Volume2, Headphones } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ALL_KEYS, calculateSemitones } from '@/utils/keyUtils';
@@ -73,6 +73,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   const [manualLink, setManualLink] = useState("");
   const [dragOverId, setDragOverId] = useState<string | null>(null);
 
+  const isItunesPreview = (url: string) => url && (url.includes('apple.com') || url.includes('itunes-assets'));
+
   const getUGUrl = (song: SetlistSong) => {
     const searchTerm = encodeURIComponent(`${song.name} ${song.artist || ''} chords`);
     return `https://www.ultimate-guitar.com/search.php?search_type=title&value=${searchTerm}`;
@@ -81,7 +83,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   // Readiness scoring logic
   const getReadinessScore = (song: SetlistSong) => {
     let score = 0;
-    if (song.previewUrl) score += 5;
+    // Only give high points if it's a REAL full track (not a preview)
+    if (song.previewUrl && !isItunesPreview(song.previewUrl)) score += 5;
     if (song.isMetadataConfirmed) score += 3;
     if (song.pdfUrl) score += 3;
     if (song.youtubeUrl) score += 1;
@@ -218,10 +221,20 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {processedSongs.map((song, idx) => {
               const isSelected = currentSongId === song.id;
-              const hasAudio = !!song.previewUrl;
+              const isPreview = isItunesPreview(song.previewUrl);
+              const hasAudio = !!song.previewUrl && !isPreview;
               const isUploading = uploadingId === song.id;
               const readiness = getReadinessScore(song);
               const needsSync = !song.isMetadataConfirmed;
+
+              // Display cleanup logic for artist/name
+              let displayName = song.name;
+              let displayArtist = song.artist;
+              if (!displayArtist && displayName.includes(' - ')) {
+                const parts = displayName.split(' - ');
+                displayName = parts[0];
+                displayArtist = parts[1];
+              }
               
               return (
                 <tr 
@@ -245,7 +258,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                     <div className="flex flex-col">
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] font-mono font-black text-slate-300">{(idx + 1).toString().padStart(2, '0')}</span>
-                        <span className="text-sm font-bold tracking-tight">{song.name}</span>
+                        <span className="text-sm font-bold tracking-tight">{displayName}</span>
                         {song.isMetadataConfirmed && <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />}
                         
                         {song.isSyncing && (
@@ -263,7 +276,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         )}
                       </div>
                       
-                      {song.artist && <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-7">{song.artist}</span>}
+                      {displayArtist && <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-7">{displayArtist}</span>}
                       
                       <div className="flex items-center gap-1.5 ml-7 mt-2">
                         <TooltipProvider>
@@ -284,7 +297,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                               );
                             })}
 
-                            <div className="w-1.5" /> {/* Spacing between resources and audio indicator */}
+                            <div className="w-1.5" /> {/* Spacing between resources and audio indicators */}
 
                             {hasAudio && (
                               <Tooltip>
@@ -293,7 +306,18 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                                     <Volume2 className="w-2 h-2" /> AUD
                                   </div>
                                 </TooltipTrigger>
-                                <TooltipContent className="text-[9px] font-bold">Audio Track Ready</TooltipContent>
+                                <TooltipContent className="text-[9px] font-bold uppercase">Performance Audio Ready</TooltipContent>
+                              </Tooltip>
+                            )}
+
+                            {isPreview && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="text-[8px] font-black px-1.5 py-0.5 rounded border bg-amber-50 text-amber-600 border-amber-100 flex items-center gap-1">
+                                    <Headphones className="w-2 h-2" /> PRE
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent className="text-[9px] font-bold uppercase">iTunes Preview Stream</TooltipContent>
                               </Tooltip>
                             )}
 
@@ -313,7 +337,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
                       <div className="flex items-center gap-3 mt-2 ml-7">
                         <div className="flex items-center gap-2">
-                          {/* Restored individual Sync button */}
                           <button 
                             onClick={() => onSyncProData(song)}
                             className={cn(
@@ -379,8 +402,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        className={cn("h-8 px-3 text-[10px] font-black uppercase tracking-widest gap-2", !hasAudio ? "text-slate-300" : "text-indigo-600")}
-                        disabled={!hasAudio}
+                        className={cn("h-8 px-3 text-[10px] font-black uppercase tracking-widest gap-2", !song.previewUrl ? "text-slate-300" : "text-indigo-600")}
+                        disabled={!song.previewUrl}
                         onClick={() => onSelect(song)}
                       >
                         {isSelected ? "Active" : "Perform"} <Play className="w-3 h-3" />
