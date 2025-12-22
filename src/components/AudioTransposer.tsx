@@ -6,7 +6,7 @@ import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Play, Pause, RotateCcw, Upload, Volume2, Waves, Settings2, Activity, Link as LinkIcon, Globe, Search, Youtube, PlusCircle, Library, Sparkles, Check, FileText, ExternalLink } from 'lucide-react';
+import { Play, Pause, RotateCcw, Square, Upload, Volume2, Waves, Settings2, Activity, Link as LinkIcon, Globe, Search, Youtube, PlusCircle, Library, Sparkles, Check, FileText, ExternalLink } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import AudioVisualizer from './AudioVisualizer';
 import SongSearch from './SongSearch';
@@ -22,6 +22,7 @@ export interface AudioTransposerRef {
   getPitch: () => number;
   triggerSearch: (query: string) => void;
   togglePlayback: () => Promise<void>;
+  stopPlayback: () => void;
   getProgress: () => { progress: number; duration: number };
   getAnalyzer: () => Tone.Analyser | null;
   getIsPlaying: () => boolean;
@@ -155,8 +156,17 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
       const startTime = (progress / 100) * duration;
       offsetRef.current = startTime;
       playbackStartTimeRef.current = Tone.now();
-      playerRef.current.start(0, startTime);
+      playerRef.current.start(Tone.now(), startTime);
       setIsPlaying(true);
+    }
+  };
+
+  const stopPlayback = () => {
+    if (playerRef.current) {
+      playerRef.current.stop();
+      setIsPlaying(false);
+      setProgress(0);
+      offsetRef.current = 0;
     }
   };
 
@@ -185,6 +195,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
       setActiveTab("search");
     },
     togglePlayback,
+    stopPlayback,
     getProgress: () => ({ progress, duration }),
     getAnalyzer: () => analyzerRef.current,
     getIsPlaying: () => isPlaying
@@ -200,15 +211,6 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
     const arrayBuffer = await uploadedFile.arrayBuffer();
     const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
     loadAudioBuffer(audioBuffer, uploadedFile.name, "Manual Upload");
-  };
-
-  const stopPlayback = () => {
-    if (playerRef.current) {
-      playerRef.current.stop();
-      setIsPlaying(false);
-      setProgress(0);
-      offsetRef.current = 0;
-    }
   };
 
   const animateProgress = () => {
@@ -325,13 +327,15 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
               </div>
               
               <div className="flex items-center justify-center gap-6">
-                <Button variant="outline" size="icon" onClick={stopPlayback} className="rounded-full h-10 w-10">
+                <Button variant="outline" size="icon" onClick={() => { stopPlayback(); setProgress(0); }} className="rounded-full h-10 w-10">
                   <RotateCcw className="w-4 h-4" />
                 </Button>
                 <Button size="lg" onClick={togglePlayback} className="w-16 h-16 rounded-full shadow-xl bg-indigo-600 hover:bg-indigo-700">
                   {isPlaying ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8 ml-0.5" />}
                 </Button>
-                <div className="w-10" />
+                <Button variant="outline" size="icon" onClick={stopPlayback} className="rounded-full h-10 w-10">
+                  <Square className="w-4 h-4" />
+                </Button>
               </div>
             </div>
 
@@ -349,7 +353,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
                 if (isPlaying && playerRef.current) {
                   playerRef.current.stop();
                   playbackStartTimeRef.current = Tone.now();
-                  playerRef.current.start(0, offset);
+                  playerRef.current.start(Tone.now(), offset);
                 }
               }} />
             </div>

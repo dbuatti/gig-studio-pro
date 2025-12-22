@@ -89,6 +89,16 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const currentKeyPreference = formData.key_preference || globalPreference;
   const keysToUse = currentKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
 
+  const initEngine = async () => {
+    if (Tone.getContext().state !== 'running') {
+      await Tone.start();
+    }
+    if (!analyzerRef.current) {
+      analyzerRef.current = new Tone.Analyser("fft", 256);
+    }
+    return true;
+  };
+
   // Real-time progress loop
   useEffect(() => {
     const updateProgress = () => {
@@ -189,7 +199,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     if (isMetronomeActive) {
       stopMetronome();
     } else {
-      if (Tone.getContext().state !== 'running') await Tone.start();
+      await initEngine();
       if (!metronomeSynthRef.current) {
         metronomeSynthRef.current = new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 4, oscillator: { type: "sine" } }).toDestination();
       }
@@ -209,7 +219,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const prepareAudio = async (url: string, pitch: number) => {
     if (!url) return;
     try {
-      if (Tone.getContext().state !== 'running') await Tone.start();
       const response = await fetch(url);
       const arrayBuffer = await response.arrayBuffer();
       const buffer = await Tone.getContext().decodeAudioData(arrayBuffer);
@@ -236,7 +245,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     } catch (err) {} finally { setIsAnalyzing(false); }
   };
 
-  const togglePlayback = () => {
+  const togglePlayback = async () => {
+    await initEngine();
     if (!playerRef.current) return;
     if (isPlaying) {
       playerRef.current.stop();
@@ -247,7 +257,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       const startTime = (progress / 100) * duration;
       playbackOffsetRef.current = startTime;
       playbackStartTimeRef.current = Tone.now();
-      playerRef.current.start(0, startTime);
+      playerRef.current.start(Tone.now(), startTime);
       setIsPlaying(true);
     }
   };
@@ -350,7 +360,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
 
   const handleUgPrint = () => {
     if (!formData.ugUrl) return;
-    window.open(formData.ugUrl.includes('?') ? formData.ugUrl.replace('?', '/print?') : `${formData.ugUrl}/print`, '_blank');
+    window.open(formData.ugUrl.includes('?') ? formData.ugUrl.replace('?', '') : `${formData.ugUrl}/print`, '_blank');
   };
 
   const handleYoutubeSearch = () => window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent((formData.artist || "") + " " + (formData.name || "") + " studio version audio")}`, '_blank');
@@ -572,13 +582,13 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                           if (isPlaying && playerRef.current) {
                             playerRef.current.stop();
                             playbackStartTimeRef.current = Tone.now();
-                            playerRef.current.start(0, offset);
+                            playerRef.current.start(Tone.now(), offset);
                           }
                         }} />
                         <div className="flex items-center justify-center gap-12">
-                           <Button variant="ghost" size="icon" onClick={stopPlayback} className="h-20 w-20 rounded-full border border-white/5 hover:scale-110 transition-all"><RotateCcw className="w-8 h-8" /></Button>
+                           <Button variant="ghost" size="icon" onClick={() => { stopPlayback(); setProgress(0); }} className="h-20 w-20 rounded-full border border-white/5 hover:scale-110 transition-all"><RotateCcw className="w-8 h-8" /></Button>
                            <Button size="lg" onClick={togglePlayback} className="h-32 w-32 rounded-full bg-indigo-600 hover:bg-indigo-700 shadow-[0_0_60px_rgba(79,70,229,0.4)] transition-all hover:scale-105 active:scale-95">{isPlaying ? <Pause className="w-12 h-12" /> : <Play className="w-12 h-12 ml-2 fill-current" />}</Button>
-                           <Button variant="ghost" size="icon" onClick={() => { stopPlayback(); setProgress(0); }} className="h-20 w-20 rounded-full border border-white/5 hover:scale-110 transition-all"><Square className="w-8 h-8" /></Button>
+                           <Button variant="ghost" size="icon" onClick={stopPlayback} className="h-20 w-20 rounded-full border border-white/5 hover:scale-110 transition-all"><Square className="w-8 h-8" /></Button>
                         </div>
                       </div>
                     ) : (
