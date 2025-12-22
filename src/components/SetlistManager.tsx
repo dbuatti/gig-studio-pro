@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed, Copy, Upload, Loader2, Sparkles, FileText, ShieldCheck, Edit3, Search, FileDown, FileCheck, SortAsc, SortDesc, LayoutList, Volume2, Headphones, ChevronUp, ChevronDown, BarChart2, Smartphone } from 'lucide-react';
+import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed, Copy, Upload, Loader2, Sparkles, FileText, ShieldCheck, Edit3, Search, FileDown, FileCheck, SortAsc, SortDesc, LayoutList, Volume2, Headphones, ChevronUp, ChevronDown, BarChart2, Smartphone, Clock } from 'lucide-react';
 import { ALL_KEYS, calculateSemitones } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
 import { supabase } from '@/integrations/supabase/client';
@@ -31,7 +31,7 @@ export interface SetlistSong {
   resources?: string[];
   user_tags?: string[];
   isKeyLinked?: boolean;
-  duration_seconds?: number; // New field for actual length
+  duration_seconds?: number;
 }
 
 export const RESOURCE_TYPES = [
@@ -123,6 +123,12 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     onReorder(newSongs);
   };
 
+  const formatSecs = (s: number = 0) => {
+    const m = Math.floor(s / 60);
+    const rs = Math.floor(s % 60);
+    return `${m}:${rs.toString().padStart(2, '0')}`;
+  };
+
   const isReorderingEnabled = sortMode === 'none' && !searchTerm;
 
   return (
@@ -180,6 +186,10 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                 const readinessScore = getReadinessScore(song);
                 const isReady = readinessScore >= 8;
                 const hasAudio = !!song.previewUrl && !isItunesPreview(song.previewUrl);
+                
+                // Cleanup malformed keys if they were durations
+                const displayOrigKey = /^\d{1,2}:\d{2}$/.test(song.originalKey || "") ? "TBC" : (song.originalKey || "TBC");
+                const displayTargetKey = /^\d{1,2}:\d{2}$/.test(song.targetKey || "") ? displayOrigKey : (song.targetKey || displayOrigKey);
 
                 return (
                   <tr 
@@ -225,6 +235,10 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         <div className="flex items-center gap-2">
                           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none ml-7">
                             {song.artist || "Unknown Artist"}
+                          </span>
+                          <span className="text-slate-200 dark:text-slate-800 text-[8px]">•</span>
+                          <span className="text-[9px] font-mono font-bold text-slate-400 flex items-center gap-1.5">
+                            <Clock className="w-3 h-3" /> {formatSecs(song.duration_seconds)}
                           </span>
                           <span className="text-slate-200 dark:text-slate-800 text-[8px]">•</span>
                           <span className="text-[9px] font-mono font-bold text-slate-400">{song.bpm ? `${song.bpm} BPM` : 'TEMPO TBC'}</span>
@@ -301,7 +315,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       <div className="flex items-center justify-center gap-4">
                         <div className="text-center">
                           <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Orig</p>
-                          <span className="text-xs font-mono font-bold text-slate-500">{song.originalKey || "TBC"}</span>
+                          <span className="text-xs font-mono font-bold text-slate-500">{displayOrigKey}</span>
                         </div>
                         <div className="flex flex-col items-center">
                           <ArrowRight className="w-3 h-3 text-slate-300 mb-1" />
@@ -310,7 +324,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         <div className="text-center">
                           <p className="text-[8px] font-black text-indigo-500 uppercase tracking-widest mb-1">Stage</p>
                           <div className="bg-indigo-600 text-white font-mono font-black text-xs px-2.5 py-1 rounded-lg shadow-lg shadow-indigo-500/20">
-                            {song.targetKey}
+                            {displayTargetKey}
                           </div>
                         </div>
                       </div>

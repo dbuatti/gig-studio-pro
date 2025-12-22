@@ -23,19 +23,40 @@ const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport }) => {
     const newSongs: SetlistSong[] = [];
     
     lines.forEach(line => {
-      // Look for standard table/list patterns (e.g. | 01 | Title | Artist | Key | ...)
+      // Look for standard table/list patterns
       if (line.includes('|') && !line.includes('---') && !line.includes('Song Title')) {
         const columns = line.split('|').map(c => c.trim()).filter(c => c !== "");
         
         if (columns.length >= 2) {
-          // Clean up bold markers (**) and determine columns
-          // index 0: index/number
-          // index 1: title
-          // index 2: artist
-          // index 3: originalKey
           const title = columns[1].replace(/\*\*/g, '');
           const artist = columns[2]?.replace(/\*\*/g, '') || "Unknown Artist";
-          const originalKey = (columns[3] || "C").replace(/\*\*/g, '');
+          
+          // Smart detection for columns 3 and 4
+          // Often tables are: | # | Title | Artist | Duration | Key |
+          // or: | # | Title | Artist | Key | BPM |
+          let originalKey = "C";
+          let durationSeconds = 210; // Default 3:30
+
+          // Check if column 3 is a duration (e.g., 5:55)
+          const col3 = columns[3]?.replace(/\*\*/g, '') || "";
+          const col4 = columns[4]?.replace(/\*\*/g, '') || "";
+
+          const isDuration = (val: string) => /^\d{1,2}:\d{2}$/.test(val);
+
+          if (isDuration(col3)) {
+            // Col 3 is duration, Col 4 is likely Key
+            const parts = col3.split(':');
+            durationSeconds = (parseInt(parts[0]) * 60) + parseInt(parts[1]);
+            originalKey = col4 || "C";
+          } else if (isDuration(col4)) {
+            // Col 4 is duration, Col 3 is likely Key
+            const parts = col4.split(':');
+            durationSeconds = (parseInt(parts[0]) * 60) + parseInt(parts[1]);
+            originalKey = col3 || "C";
+          } else {
+            // Fallback: Col 3 is Key
+            originalKey = col3 || "C";
+          }
           
           let youtubeUrl = undefined;
           if (includeYoutube) {
@@ -51,7 +72,8 @@ const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport }) => {
             youtubeUrl,
             originalKey: originalKey,
             targetKey: originalKey,
-            pitch: 0
+            pitch: 0,
+            duration_seconds: durationSeconds
           });
         }
       }
@@ -110,7 +132,7 @@ const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport }) => {
               <li>Paste it into the box below.</li>
             </ol>
             <div className="p-2 bg-white dark:bg-slate-800 border-2 border-dashed border-slate-200 rounded font-mono text-[9px] text-slate-400 italic">
-              Example: | 01 | At Last | Michael Bublé | B | ...
+              Example: | 01 | At Last | Michael Bublé | 3:30 | B |
             </div>
           </div>
 
@@ -124,9 +146,9 @@ const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport }) => {
           <div className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-100 dark:border-amber-900/50">
             <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
             <div>
-              <p className="text-[11px] font-bold text-amber-800 dark:text-amber-400 leading-tight">Link Audio Later</p>
+              <p className="text-[11px] font-bold text-amber-800 dark:text-amber-400 leading-tight">Smart Column Detection</p>
               <p className="text-[10px] text-amber-700/80 dark:text-amber-500/80 mt-1 leading-relaxed">
-                Pasting a list adds song titles and keys only. Once added, click <b>"Link Engine"</b> in your setlist to connect them to the audio transposer.
+                The engine now automatically detects durations (like 5:55) and skips them to find the correct musical key.
               </p>
             </div>
           </div>
