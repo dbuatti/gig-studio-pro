@@ -19,8 +19,7 @@ import {
   FileDown, Headphones, Wand2, Download,
   Globe, Eye, Link as LinkIcon, RotateCcw,
   Zap, Disc, VolumeX, Smartphone, Printer, Search,
-  ClipboardPaste, AlignLeft, Apple, Hash, Music2,
-  ChevronUp, ChevronDown
+  ClipboardPaste, AlignLeft, Apple, Hash, Music2
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import AudioVisualizer from './AudioVisualizer';
@@ -364,17 +363,12 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     setFormData(prev => {
       const next = { ...prev, ...updates };
       
-      if (updates.hasOwnProperty('isKeyLinked')) {
+      // Only recalculate pitch if keys explicitly change or linking is newly enabled
+      if (updates.hasOwnProperty('isKeyLinked') || updates.hasOwnProperty('originalKey') || updates.hasOwnProperty('targetKey')) {
         if (next.isKeyLinked) {
           const diff = calculateSemitones(next.originalKey || "C", next.targetKey || "C");
           next.pitch = diff;
-        } else {
-          next.pitch = 0;
         }
-      } 
-      else if (next.isKeyLinked) {
-        const diff = calculateSemitones(next.originalKey || "C", next.targetKey || "C");
-        next.pitch = diff;
       }
       
       if (playerRef.current) {
@@ -402,24 +396,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     }
     if (song) onSave(song.id, { pitch: newPitch });
     showSuccess(`Octave Shift Applied: ${newPitch > 0 ? '+' : ''}${newPitch} ST`);
-  };
-
-  const handleOnSongImport = () => {
-    if (!formData.ugUrl && !formData.lyrics) {
-      showError("No chords or link available to import.");
-      return;
-    }
-
-    if (formData.ugUrl) {
-      // Prioritize the UG URL for OnSong's internal browser import
-      window.location.href = `onsong://import?url=${encodeURIComponent(formData.ugUrl)}`;
-      showSuccess("Opening OnSong Import...");
-    } else {
-      // Format current metadata and lyrics as an OnSong text file string
-      const text = `${formData.name}\n${formData.artist}\nKey: ${formData.targetKey}\nTempo: ${formData.bpm}\n---\n${formData.lyrics}`;
-      window.location.href = `onsong://import?text=${encodeURIComponent(text)}`;
-      showSuccess("Sending chords to OnSong...");
-    }
   };
 
   const handleProSync = async () => {
@@ -1210,17 +1186,9 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       <h3 className="text-lg font-black uppercase tracking-[0.3em] text-indigo-400">Resource Matrix</h3>
                       <p className="text-sm text-slate-500 mt-2">Centralized management for all song assets and links.</p>
                     </div>
-                    <div className="flex gap-4">
-                      <Button 
-                        onClick={handleOnSongImport}
-                        className="bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-xs h-12 gap-3 px-8 rounded-2xl shadow-xl shadow-indigo-500/20"
-                      >
-                        <Smartphone className="w-4 h-4" /> Send to OnSong
-                      </Button>
-                      <Button onClick={handleDownloadAll} className="bg-white/5 border border-white/10 hover:bg-white/10 font-black uppercase tracking-widest text-xs h-12 gap-3 px-8 rounded-2xl transition-all">
-                        <Download className="w-4 h-4" /> Download Assets
-                      </Button>
-                    </div>
+                    <Button onClick={handleDownloadAll} className="bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-xs h-12 gap-3 px-8 rounded-2xl shadow-xl shadow-indigo-500/20">
+                      <Download className="w-4 h-4" /> Download All Assets
+                    </Button>
                   </div>
 
                   <div className="grid grid-cols-2 gap-8">
