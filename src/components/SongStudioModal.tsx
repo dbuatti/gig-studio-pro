@@ -1024,19 +1024,133 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
 
               {activeTab === 'library' && (
                 <div className="space-y-12 animate-in fade-in duration-500">
-                  <div className="flex items-center justify-between">
-                    <div><h3 className="text-lg font-black uppercase tracking-[0.3em] text-indigo-400">Library Asset Matrix</h3><p className="text-sm text-slate-500 mt-2">Centralized resource management.</p></div>
-                    <Button onClick={handleDownloadAll} className="bg-indigo-600 font-black text-[10px] h-12 px-8 rounded-2xl shadow-xl shadow-indigo-600/20"><Download className="w-4 h-4" /> Download All Assets</Button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-8">
-                    {/* Simplified library items for clarity */}
-                    <div className={cn("p-8 rounded-[2.5rem] border flex flex-col justify-between h-72 bg-white/5 border-white/10", !formData.previewUrl && "opacity-40 border-dashed")}>
-                      <div className="bg-indigo-600 p-4 rounded-2xl w-fit"><Music className="w-8 h-8" /></div>
-                      <div><Label className="text-[10px] font-black uppercase text-indigo-400">Audio Stream</Label><p className="text-2xl font-black">{formData.previewUrl ? "Active_Master" : "Offline"}</p></div>
+                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                    <div>
+                      <h3 className="text-lg font-black uppercase tracking-[0.3em] text-indigo-400">Library Asset Matrix</h3>
+                      <p className="text-sm text-slate-500 mt-2">Centralized stage resource management.</p>
                     </div>
-                    <div className={cn("p-8 rounded-[2.5rem] border flex flex-col justify-between h-72 bg-white/5 border-white/10", !formData.pdfUrl && "opacity-40 border-dashed")}>
-                      <div className="bg-emerald-600 p-4 rounded-2xl w-fit"><FileText className="w-8 h-8" /></div>
-                      <div><Label className="text-[10px] font-black uppercase text-emerald-400">Stage Chart</Label><p className="text-2xl font-black">{formData.pdfUrl ? "Verified_Chart" : "Offline"}</p></div>
+                    <Button 
+                      onClick={handleDownloadAll} 
+                      className="bg-indigo-600 hover:bg-indigo-700 font-black text-[10px] h-12 px-8 rounded-2xl shadow-xl shadow-indigo-600/20 gap-3"
+                    >
+                      <Download className="w-4 h-4" /> Export All Master Assets
+                    </Button>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {/* Audio Asset */}
+                    <div className={cn(
+                      "p-6 rounded-[2rem] border flex flex-col justify-between h-56 transition-all",
+                      formData.previewUrl ? "bg-white/5 border-white/10" : "bg-white/[0.02] border-white/5 border-dashed opacity-50"
+                    )}>
+                      <div className="flex items-center justify-between">
+                        <div className="bg-indigo-600 p-3 rounded-xl"><Music className="w-5 h-5" /></div>
+                        {formData.previewUrl && (
+                          <Button variant="ghost" size="icon" onClick={() => handleDownloadAsset(formData.previewUrl, `${formData.name}_audio`)} className="text-slate-500 hover:text-white">
+                            <Download className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                      <div>
+                        <Label className="text-[9px] font-black uppercase tracking-widest text-indigo-400">Master Audio</Label>
+                        <p className="text-lg font-black truncate">{formData.previewUrl ? "Active_Stream" : "Engine_Offline"}</p>
+                        <p className="text-[10px] font-mono text-slate-500 mt-1">{formData.previewUrl ? "Verified Direct Link" : "No asset attached"}</p>
+                      </div>
+                    </div>
+
+                    {/* Chart Asset */}
+                    <div className={cn(
+                      "p-6 rounded-[2rem] border flex flex-col justify-between h-56 transition-all",
+                      formData.pdfUrl ? "bg-white/5 border-white/10" : "bg-white/[0.02] border-white/5 border-dashed opacity-50"
+                    )}>
+                      <div className="flex items-center justify-between">
+                        <div className="bg-emerald-600 p-3 rounded-xl"><FileText className="w-5 h-5" /></div>
+                        {formData.pdfUrl && (
+                          <Button variant="ghost" size="icon" onClick={() => handleDownloadAsset(formData.pdfUrl, `${formData.name}_chart`)} className="text-slate-500 hover:text-white">
+                            <Download className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                      <div>
+                        <Label className="text-[9px] font-black uppercase tracking-widest text-emerald-400">Stage Chart</Label>
+                        <p className="text-lg font-black truncate">{formData.pdfUrl ? "Verified_PDF" : "Engine_Offline"}</p>
+                        <p className="text-[10px] font-mono text-slate-500 mt-1">{formData.pdfUrl ? "Full Resolution Scan" : "No asset attached"}</p>
+                      </div>
+                    </div>
+
+                    {/* Lead Sheet Asset */}
+                    <div className={cn(
+                      "p-6 rounded-[2rem] border flex flex-col justify-between h-56 transition-all",
+                      formData.leadsheetUrl ? "bg-white/5 border-white/10" : "bg-white/[0.02] border-white/5 border-dashed opacity-50"
+                    )}>
+                      <div className="flex items-center justify-between">
+                        <div className="bg-indigo-400 p-3 rounded-xl"><Layers className="w-5 h-5" /></div>
+                        {formData.leadsheetUrl && (
+                          <Button variant="ghost" size="icon" onClick={() => handleDownloadAsset(formData.leadsheetUrl, `${formData.name}_leadsheet`)} className="text-slate-500 hover:text-white">
+                            <Download className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                      <div>
+                        <Label className="text-[9px] font-black uppercase tracking-widest text-indigo-300">Lead Sheet</Label>
+                        <p className="text-lg font-black truncate">{formData.leadsheetUrl ? "Pro_Arrangement" : "Engine_Offline"}</p>
+                        <p className="text-[10px] font-mono text-slate-500 mt-1">{formData.leadsheetUrl ? "Melody & Chords Linked" : "No asset attached"}</p>
+                      </div>
+                    </div>
+
+                    {/* Lyrics Asset */}
+                    <div className={cn(
+                      "p-6 rounded-[2rem] border flex flex-col justify-between h-56 transition-all",
+                      formData.lyrics ? "bg-white/5 border-white/10" : "bg-white/[0.02] border-white/5 border-dashed opacity-50"
+                    )}>
+                      <div className="flex items-center justify-between">
+                        <div className="bg-pink-600 p-3 rounded-xl"><AlignLeft className="w-5 h-5" /></div>
+                      </div>
+                      <div>
+                        <Label className="text-[9px] font-black uppercase tracking-widest text-pink-400">Lyrics Data</Label>
+                        <p className="text-lg font-black truncate">{formData.lyrics ? "Verified_Text" : "Engine_Offline"}</p>
+                        <p className="text-[10px] font-mono text-slate-500 mt-1">{formData.lyrics ? "Formatted & Ready" : "No asset attached"}</p>
+                      </div>
+                    </div>
+
+                    {/* Video Asset */}
+                    <div className={cn(
+                      "p-6 rounded-[2rem] border flex flex-col justify-between h-56 transition-all",
+                      formData.youtubeUrl ? "bg-white/5 border-white/10" : "bg-white/[0.02] border-white/5 border-dashed opacity-50"
+                    )}>
+                      <div className="flex items-center justify-between">
+                        <div className="bg-red-600 p-3 rounded-xl"><Youtube className="w-5 h-5" /></div>
+                        {formData.youtubeUrl && (
+                          <Button variant="ghost" size="icon" onClick={() => window.open(formData.youtubeUrl, '_blank')} className="text-slate-500 hover:text-white">
+                            <ExternalLink className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                      <div>
+                        <Label className="text-[9px] font-black uppercase tracking-widest text-red-500">Visual Ref</Label>
+                        <p className="text-lg font-black truncate">{formData.youtubeUrl ? "YT_Stream_Ready" : "Engine_Offline"}</p>
+                        <p className="text-[10px] font-mono text-slate-500 mt-1">{formData.youtubeUrl ? "Reference Feed Linked" : "No asset attached"}</p>
+                      </div>
+                    </div>
+
+                    {/* Tab Asset */}
+                    <div className={cn(
+                      "p-6 rounded-[2rem] border flex flex-col justify-between h-56 transition-all",
+                      formData.ugUrl ? "bg-white/5 border-white/10" : "bg-white/[0.02] border-white/5 border-dashed opacity-50"
+                    )}>
+                      <div className="flex items-center justify-between">
+                        <div className="bg-orange-600 p-3 rounded-xl"><FileSearch className="w-5 h-5" /></div>
+                        {formData.ugUrl && (
+                          <Button variant="ghost" size="icon" onClick={() => window.open(formData.ugUrl, '_blank')} className="text-slate-500 hover:text-white">
+                            <ExternalLink className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                      <div>
+                        <Label className="text-[9px] font-black uppercase tracking-widest text-orange-400">UG Tab Link</Label>
+                        <p className="text-lg font-black truncate">{formData.ugUrl ? "Interactive_Tab" : "Engine_Offline"}</p>
+                        <p className="text-[10px] font-mono text-slate-500 mt-1">{formData.ugUrl ? "Official Chords Matrix" : "No asset attached"}</p>
+                      </div>
                     </div>
                   </div>
                 </div>
