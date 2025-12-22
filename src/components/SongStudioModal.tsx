@@ -58,6 +58,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isFormattingLyrics, setIsFormattingLyrics] = useState(false);
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   
   // Audio Engine State
   const [isPlaying, setIsPlaying] = useState(false);
@@ -309,10 +310,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       
       if (isPDF) {
         if (isLeadSheet) {
-          // Preserve leadsheet name but prefix with ID for storage unique routing
           customFileName = `${song.id}-${file.name}`;
         } else {
-          // Automatically rename based on song details
           const safeTitle = (formData.name || "Untitled").replace(/[/\\?%*:|"<>]/g, '-');
           const safeArtist = (formData.artist || "Unknown").replace(/[/\\?%*:|"<>]/g, '-');
           customFileName = `${song.id}-${safeTitle} - ${safeArtist}.${extension}`;
@@ -371,7 +370,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     setFormData(prev => {
       const next = { ...prev, ...updates };
       
-      // Only recalculate pitch if keys explicitly change or linking is newly enabled
       if (updates.hasOwnProperty('isKeyLinked') || updates.hasOwnProperty('originalKey') || updates.hasOwnProperty('targetKey')) {
         if (next.isKeyLinked) {
           const diff = calculateSemitones(next.originalKey || "C", next.targetKey || "C");
@@ -490,6 +488,25 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     window.open(`https://www.youtube.com/results?search_query=${query}`, '_blank');
   };
 
+  const handleDownloadAsset = async (url: string | undefined, filename: string) => {
+    if (!url) return;
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+      showSuccess(`Downloading ${filename}`);
+    } catch (err) {
+      showError("Download failed.");
+    }
+  };
+
   const handleDownloadAll = async () => {
     const assets = [
       { url: formData.previewUrl, name: `${formData.name}_audio` },
@@ -503,22 +520,9 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     }
 
     for (const asset of assets) {
-      try {
-        const response = await fetch(asset.url!);
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = asset.name;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-      } catch (err) {
-        showError(`Failed to download ${asset.name}`);
-      }
+      await handleDownloadAsset(asset.url, asset.name);
     }
-    showSuccess("Assets downloaded");
+    showSuccess("All assets queued for download");
   };
 
   if (!song) return null;
@@ -532,7 +536,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         onDragLeave={() => setIsDragOver(false)}
         onDrop={handleDrop}
       >
-        {/* Discrete Top Readiness Strip */}
         <div className="absolute top-0 left-0 right-0 h-0.5 bg-white/5 z-50 overflow-hidden rounded-t-[2rem]">
           <div 
             className={cn("h-full transition-all duration-1000", readinessColor)} 
@@ -544,6 +547,22 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
           <DialogTitle>{formData.name || "Song Studio"}</DialogTitle>
           <DialogDescription>Configure song metadata, assets, and harmonic settings.</DialogDescription>
         </DialogHeader>
+
+        {previewPdfUrl && (
+          <div className="absolute inset-0 z-[100] bg-black/90 backdrop-blur-xl animate-in fade-in zoom-in duration-300 flex flex-col p-12">
+            <div className="flex items-center justify-between mb-8">
+              <h3 className="text-2xl font-black uppercase tracking-tight">Stage Chart Preview</h3>
+              <Button variant="ghost" size="icon" onClick={() => setPreviewPdfUrl(null)} className="h-12 w-12 rounded-full hover:bg-white/10">
+                <X className="w-8 h-8" />
+              </Button>
+            </div>
+            <iframe 
+              src={`${previewPdfUrl}#toolbar=0&navpanes=0&view=FitH`} 
+              className="flex-1 w-full rounded-2xl bg-white"
+              title="PDF Preview"
+            />
+          </div>
+        )}
 
         {isDragOver && (
           <div className="absolute inset-0 z-50 bg-indigo-600/20 backdrop-blur-sm border-4 border-dashed border-indigo-500 flex items-center justify-center animate-in fade-in duration-200">
@@ -572,7 +591,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                   <span className="font-black uppercase tracking-tighter text-xs">Pro Studio Config</span>
                 </div>
                 
-                {/* Minimalist Readiness Gauge */}
                 <div className="flex items-center gap-2 px-2.5 py-1 bg-white/5 rounded-full border border-white/10">
                    <div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", readinessColor)} />
                    <span className="text-[9px] font-black font-mono text-slate-400">{readiness}% READY</span>
@@ -653,7 +671,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                             onClick={() => updateHarmonics({ isKeyLinked: !formData.isKeyLinked })}
                             className={cn(
                               "p-1.5 rounded-lg border transition-all",
-                              formData.isKeyLinked ? "bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/20" : "bg-white/5 border-white/10 text-slate-500"
+                              formData.isKeyLinked ? "bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-emerald-600/20" : "bg-white/5 border-white/10 text-slate-500"
                             )}
                           >
                             <LinkIcon className="w-3.5 h-3.5" />
@@ -1222,6 +1240,13 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                         <div className="bg-indigo-600 p-4 rounded-2xl shadow-lg shadow-indigo-600/20">
                           <Music className="w-8 h-8" />
                         </div>
+                        {formData.previewUrl && (
+                          <div className="flex gap-2">
+                             <Button variant="ghost" size="icon" className="h-10 w-10 bg-white/5 hover:bg-white/10 rounded-xl" onClick={() => handleDownloadAsset(formData.previewUrl, `${formData.name}_audio`)}>
+                               <Download className="w-4 h-4 text-indigo-400" />
+                             </Button>
+                          </div>
+                        )}
                       </div>
                       <div className="space-y-2 mt-6">
                         <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400">Master Performance Audio</Label>
@@ -1319,6 +1344,16 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                         <div className="bg-emerald-600 p-4 rounded-2xl shadow-lg shadow-emerald-600/20">
                           <FileText className="w-8 h-8" />
                         </div>
+                        {formData.pdfUrl && (
+                          <div className="flex gap-2">
+                             <Button variant="ghost" size="icon" className="h-10 w-10 bg-white/5 hover:bg-white/10 rounded-xl" onClick={() => setPreviewPdfUrl(formData.pdfUrl!)}>
+                               <Eye className="w-4 h-4 text-emerald-400" />
+                             </Button>
+                             <Button variant="ghost" size="icon" className="h-10 w-10 bg-white/5 hover:bg-white/10 rounded-xl" onClick={() => handleDownloadAsset(formData.pdfUrl, `${formData.name}_sheet`)}>
+                               <Download className="w-4 h-4 text-emerald-400" />
+                             </Button>
+                          </div>
+                        )}
                       </div>
                       <div className="space-y-2 mt-6">
                         <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400">Stage Chart / PDF</Label>

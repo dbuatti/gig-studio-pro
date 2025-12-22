@@ -471,7 +471,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
         </aside>
       </div>
 
-      {/* Fixed Bottom Playback Bar – No Overlap, Clean Layout */}
+      {/* Fixed Bottom Playback Bar */}
       <div className="h-20 border-t border-white/10 bg-slate-900/90 backdrop-blur-xl px-10 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-8 text-sm font-mono">
           <span className="text-indigo-400 font-bold">{formatTime(currentTime)}</span>
