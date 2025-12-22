@@ -61,7 +61,7 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
       style={{ backgroundColor: colors.background, color: colors.text }}
     >
       <header className={cn("px-4 text-center border-b border-white/5 bg-gradient-to-b from-black/20 to-transparent", isPreview ? "py-8" : "py-20")}>
-        <div className="max-w-4xl mx-auto space-y-6">
+        <div className="max-w-7xl mx-auto space-y-6">
           <div 
             className={cn(
               "rounded-full mx-auto border-4 bg-slate-800 flex items-center justify-center overflow-hidden shadow-2xl transition-all",
@@ -86,8 +86,8 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
         </div>
       </header>
 
-      <main className={cn("max-w-4xl mx-auto px-6 pb-20", isPreview ? "py-6" : "py-12")}>
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-8">
+      <main className={cn("max-w-7xl mx-auto px-6 pb-20", isPreview ? "py-6" : "py-12")}>
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-12">
           <div className="relative w-full md:w-64">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 opacity-40" />
             <Input 
@@ -125,38 +125,40 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
           </div>
         </div>
 
-        <div className="space-y-8">
+        <div>
           {songs.length === 0 ? (
-            <div className="text-center py-10 opacity-30 border border-dashed border-white/10 rounded-2xl">
-              <Music className="w-10 h-10 mx-auto mb-2" />
-              <p className="text-[10px] font-black uppercase tracking-widest">Add songs to see them here</p>
+            <div className="text-center py-20 opacity-30 border border-dashed border-white/10 rounded-[3rem]">
+              <Music className="w-12 h-12 mx-auto mb-4" />
+              <p className="text-[10px] font-black uppercase tracking-[0.3em]">No Public Tracks Available</p>
             </div>
           ) : (
             sortMode === 'artist' ? (
-              (groupedSongs as any[]).map((group) => (
-                <section key={group.artist} className="space-y-3">
-                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40 border-b border-white/5 pb-1" style={{ color: colors.primary }}>
-                    {group.artist}
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
-                    {group.songs.map((song: any) => (
-                      <div key={song.id} className="flex items-center justify-between py-0.5 group">
-                        <span className="text-sm font-bold tracking-tight group-hover:translate-x-1 transition-transform">{song.title || song.name}</span>
-                        {song.genre && <span className="text-[8px] font-black uppercase opacity-20">{song.genre}</span>}
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              ))
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3">
-                {(groupedSongs as any[]).map((song) => (
-                  <div key={song.id} className="flex items-center justify-between py-1 border-b border-white/5 group">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold tracking-tight">{song.title || song.name}</span>
-                      <span className="text-[9px] font-black uppercase opacity-40 tracking-widest">{song.artist}</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-16">
+                {(groupedSongs as any[]).map((group) => (
+                  <section key={group.artist} className="space-y-4">
+                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40 border-b border-white/5 pb-2" style={{ color: colors.primary }}>
+                      {group.artist}
+                    </h3>
+                    <div className="flex flex-col gap-2.5">
+                      {group.songs.map((song: any) => (
+                        <div key={song.id} className="flex items-center justify-between group py-0.5">
+                          <span className="text-[13px] font-bold tracking-tight group-hover:translate-x-1 transition-transform">{song.title || song.name}</span>
+                          {song.genre && <span className="text-[8px] font-black uppercase opacity-20 ml-4 shrink-0">{song.genre}</span>}
+                        </div>
+                      ))}
                     </div>
-                    {song.genre && <span className="text-[8px] font-black uppercase opacity-20">{song.genre}</span>}
+                  </section>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-6">
+                {(groupedSongs as any[]).map((song) => (
+                  <div key={song.id} className="flex items-center justify-between py-2 border-b border-white/5 group">
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-sm font-bold tracking-tight truncate group-hover:translate-x-1 transition-transform">{song.title || song.name}</span>
+                      <span className="text-[9px] font-black uppercase opacity-40 tracking-widest truncate">{song.artist}</span>
+                    </div>
+                    {song.genre && <span className="text-[8px] font-black uppercase opacity-20 ml-4 shrink-0">{song.genre}</span>}
                   </div>
                 ))}
               </div>
