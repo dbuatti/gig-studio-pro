@@ -161,6 +161,14 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
             >
               <SortAsc className="w-3 h-3" /> Readiness
             </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setSortMode('work')}
+              className={cn("h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-2", sortMode === 'work' && "bg-white dark:bg-slate-700 shadow-sm text-orange-600")}
+            >
+              <SortDesc className="w-3 h-3" /> Work Needed
+            </Button>
           </div>
         </div>
 
