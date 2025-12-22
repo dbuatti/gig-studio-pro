@@ -113,12 +113,30 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
               <div className="space-y-4">
                 <Label className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Harmonic Engine</Label>
                 
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/5">
-                    <span className="text-[10px] font-bold text-slate-400">Original</span>
-                    <span className="text-sm font-mono font-bold">{formData.originalKey}</span>
+                <div className="space-y-4">
+                  {/* Original Key Selection */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-bold text-slate-400">Original Key</span>
+                    </div>
+                    <Select 
+                      value={formData.originalKey} 
+                      onValueChange={(val) => {
+                        setFormData(prev => ({ ...prev, originalKey: val }));
+                      }}
+                    >
+                      <SelectTrigger className="bg-white/5 border-white/10 text-white font-bold font-mono h-10">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-900 border-white/10 text-white">
+                        {ALL_KEYS.map(k => (
+                          <SelectItem key={k} value={k} className="font-mono">{k}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
+                  {/* Performance Key Selection */}
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
                       <span className="text-[10px] font-bold text-indigo-400">Performance Key</span>
@@ -130,6 +148,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       value={formData.targetKey} 
                       onValueChange={(val) => {
                         setFormData(prev => ({ ...prev, targetKey: val }));
+                        // We also trigger the live key update in the transposer if active
                         onUpdateKey(song.id, val);
                       }}
                     >
