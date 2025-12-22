@@ -5,13 +5,14 @@ import AudioTransposer, { AudioTransposerRef } from "@/components/AudioTranspose
 import SetlistManager, { SetlistSong } from "@/components/SetlistManager";
 import SetlistSelector from "@/components/SetlistSelector";
 import ImportSetlist from "@/components/ImportSetlist";
+import PerformanceOverlay from "@/components/PerformanceOverlay";
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { showSuccess, showError } from '@/utils/toast';
 import { calculateSemitones } from '@/utils/keyUtils';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { LogOut, User as UserIcon, Loader2, Play, Music, LayoutDashboard, Search as SearchIcon } from 'lucide-react';
+import { LogOut, User as UserIcon, Loader2, Play, Music, LayoutDashboard, Search as SearchIcon, Rocket } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
 const Index = () => {
@@ -21,15 +22,32 @@ const Index = () => {
   const [activeSongId, setActiveSongId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isStudioOpen, setIsStudioOpen] = useState(true);
+  const [isPerformanceMode, setIsPerformanceMode] = useState(false);
+  const [performanceState, setPerformanceState] = useState({ progress: 0, duration: 0 });
+  
   const transposerRef = useRef<AudioTransposerRef>(null);
 
   const currentList = setlists.find(l => l.id === currentListId);
   const songs = currentList?.songs || [];
-  const activeSong = songs.find(s => s.id === activeSongId);
+  const activeSongIndex = songs.findIndex(s => s.id === activeSongId);
+  const activeSong = songs[activeSongIndex];
 
   useEffect(() => {
     if (user) fetchSetlists();
   }, [user]);
+
+  // Sync performance UI stats
+  useEffect(() => {
+    let interval: number;
+    if (isPerformanceMode) {
+      interval = window.setInterval(() => {
+        if (transposerRef.current) {
+          setPerformanceState(transposerRef.current.getProgress());
+        }
+      }, 100);
+    }
+    return () => clearInterval(interval);
+  }, [isPerformanceMode]);
 
   const fetchSetlists = async () => {
     try {
@@ -214,6 +232,50 @@ const Index = () => {
     }
   };
 
+  const handleNextSong = async () => {
+    if (!currentList) return;
+    const nextIndex = songs.findIndex((s, i) => i > activeSongIndex && !!s.previewUrl);
+    if (nextIndex !== -1) {
+      const song = songs[nextIndex];
+      handleSelectSong(song);
+      if (isPerformanceMode) {
+        // Wait a small bit for loading then play
+        setTimeout(() => transposerRef.current?.togglePlayback(), 1000);
+      }
+    } else {
+      setIsPerformanceMode(false);
+      showSuccess("Gig Finished!");
+    }
+  };
+
+  const handlePreviousSong = () => {
+    if (!currentList) return;
+    
+    // Polyfill for findLastIndex to support older TypeScript targets
+    let prevIndex = -1;
+    for (let i = activeSongIndex - 1; i >= 0; i--) {
+      if (songs[i].previewUrl) {
+        prevIndex = i;
+        break;
+      }
+    }
+    
+    if (prevIndex !== -1) {
+      handleSelectSong(songs[prevIndex]);
+    }
+  };
+
+  const startPerformance = () => {
+    const firstPlayable = songs.find(s => !!s.previewUrl);
+    if (!firstPlayable) {
+      showError("No audio tracks found in setlist.");
+      return;
+    }
+    setIsPerformanceMode(true);
+    handleSelectSong(firstPlayable);
+    setTimeout(() => transposerRef.current?.togglePlayback(), 1000);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col">
       <nav className="h-16 bg-white dark:bg-slate-900 border-b px-6 flex items-center justify-between sticky top-0 z-30 shadow-sm">
@@ -244,6 +306,15 @@ const Index = () => {
         </div>
 
         <div className="flex items-center gap-4">
+          <Button 
+            variant="default" 
+            size="sm" 
+            onClick={startPerformance}
+            className="gap-2 bg-indigo-600 hover:bg-indigo-700 font-bold uppercase tracking-tight"
+          >
+            <Rocket className="w-4 h-4" /> Start Show
+          </Button>
+          <div className="h-6 w-px bg-slate-200" />
           <Button 
             variant="ghost" 
             size="sm" 
@@ -335,13 +406,32 @@ const Index = () => {
               <Button variant="ghost" size="sm" onClick={() => setIsStudioOpen(false)} className="text-[10px] font-bold uppercase tracking-tighter">Close Studio</Button>
             </div>
             <div className="flex-1 overflow-y-auto p-6">
-              <AudioTransposer ref={transposerRef} onAddToSetlist={handleAddToSetlist} />
+              <AudioTransposer 
+                ref={transposerRef} 
+                onAddToSetlist={handleAddToSetlist} 
+                onSongEnded={handleNextSong}
+              />
             </div>
           </div>
         </aside>
       </div>
 
-      {!isStudioOpen && (
+      {isPerformanceMode && (
+        <PerformanceOverlay 
+          songs={songs.filter(s => !!s.previewUrl)}
+          currentIndex={songs.filter(s => !!s.previewUrl).findIndex(s => s.id === activeSongId)}
+          isPlaying={transposerRef.current?.getIsPlaying() || false}
+          progress={performanceState.progress}
+          duration={performanceState.duration}
+          onTogglePlayback={() => transposerRef.current?.togglePlayback()}
+          onNext={handleNextSong}
+          onPrevious={handlePreviousSong}
+          onClose={() => setIsPerformanceMode(false)}
+          analyzer={transposerRef.current?.getAnalyzer()}
+        />
+      )}
+
+      {!isStudioOpen && !isPerformanceMode && (
         <button 
           onClick={() => setIsStudioOpen(true)}
           className="fixed bottom-8 right-8 bg-indigo-600 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition-all z-50 group"

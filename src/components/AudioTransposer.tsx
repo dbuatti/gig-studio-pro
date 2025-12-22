@@ -20,13 +20,18 @@ export interface AudioTransposerRef {
   setPitch: (pitch: number) => void;
   getPitch: () => number;
   triggerSearch: (query: string) => void;
+  togglePlayback: () => Promise<void>;
+  getProgress: () => { progress: number; duration: number };
+  getAnalyzer: () => Tone.Analyser | null;
+  getIsPlaying: () => boolean;
 }
 
 interface AudioTransposerProps {
   onAddToSetlist?: (previewUrl: string, name: string, ytUrl?: string, pitch?: number) => void;
+  onSongEnded?: () => void;
 }
 
-const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ onAddToSetlist }, ref) => {
+const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ onAddToSetlist, onSongEnded }, ref) => {
   const [file, setFile] = useState<{ name: string; url?: string } | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [pitch, setPitch] = useState(0);
@@ -55,12 +60,10 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
   const offsetRef = useRef<number>(0);
 
   const initEngine = async () => {
-    // Only start if not already running to satisfy browser policy
     if (Tone.getContext().state !== 'running') {
       await Tone.start();
     }
     
-    // Lazily create nodes only when needed
     if (!analyzerRef.current) {
       analyzerRef.current = new Tone.Analyser("fft", 256);
       limiterRef.current = new Tone.Limiter(-1).toDestination();
@@ -125,7 +128,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
         setActiveVideoId(null);
       }
 
-      showSuccess("Engine Ready");
+      showSuccess("Performance Ready");
     } catch (err) {
       console.error("Buffer error:", err);
       showError("Engine initialization failed.");
@@ -148,34 +151,6 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
     }
   };
 
-  useImperativeHandle(ref, () => ({
-    loadFromUrl,
-    setPitch: (newPitch: number) => {
-      setPitch(newPitch);
-      if (playerRef.current) playerRef.current.detune = (newPitch * 100) + fineTune;
-    },
-    getPitch: () => pitch,
-    triggerSearch: (query: string) => {
-      setSearchQuery(query);
-      setActiveTab("search");
-    }
-  }));
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const uploadedFile = e.target.files?.[0];
-    if (uploadedFile) loadFile(uploadedFile);
-  };
-
-  const loadFile = async (uploadedFile: File) => {
-    if (!uploadedFile.type.startsWith('audio/')) {
-      showError("Invalid audio format.");
-      return;
-    }
-    const arrayBuffer = await uploadedFile.arrayBuffer();
-    const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
-    loadAudioBuffer(audioBuffer, uploadedFile.name);
-  };
-
   const togglePlayback = async () => {
     await initEngine();
     if (!playerRef.current) return;
@@ -192,6 +167,38 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
       playerRef.current.start(0, startTime);
       setIsPlaying(true);
     }
+  };
+
+  useImperativeHandle(ref, () => ({
+    loadFromUrl,
+    setPitch: (newPitch: number) => {
+      setPitch(newPitch);
+      if (playerRef.current) playerRef.current.detune = (newPitch * 100) + fineTune;
+    },
+    getPitch: () => pitch,
+    triggerSearch: (query: string) => {
+      setSearchQuery(query);
+      setActiveTab("search");
+    },
+    togglePlayback,
+    getProgress: () => ({ progress, duration }),
+    getAnalyzer: () => analyzerRef.current,
+    getIsPlaying: () => isPlaying
+  }));
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const uploadedFile = e.target.files?.[0];
+    if (uploadedFile) loadFile(uploadedFile);
+  };
+
+  const loadFile = async (uploadedFile: File) => {
+    if (!uploadedFile.type.startsWith('audio/')) {
+      showError("Invalid audio format.");
+      return;
+    }
+    const arrayBuffer = await uploadedFile.arrayBuffer();
+    const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
+    loadAudioBuffer(audioBuffer, uploadedFile.name);
   };
 
   const stopPlayback = () => {
@@ -213,6 +220,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
         setIsPlaying(false);
         setProgress(0);
         offsetRef.current = 0;
+        if (onSongEnded) onSongEnded();
         return;
       }
       
