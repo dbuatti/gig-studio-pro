@@ -456,14 +456,13 @@ const Index = () => {
   };
 
   const handleMainClick = (e: React.MouseEvent) => {
-    // If studio is open and the user clicks the background whitespace of the main area
     if (isStudioOpen && (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('main-inner-container'))) {
       setIsStudioOpen(false);
     }
   };
 
   return (
-    <div className="h-screen bg-slate-50 dark:bg-slate-950 flex flex-col overflow-hidden">
+    <div className="h-screen bg-slate-50 dark:bg-slate-950 flex flex-col overflow-hidden relative">
       <nav className="h-16 bg-white dark:bg-slate-900 border-b px-6 flex items-center justify-between z-30 shadow-sm shrink-0">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
@@ -622,7 +621,7 @@ const Index = () => {
         </main>
 
         <aside className={cn(
-          "w-[450px] bg-white dark:bg-slate-900 border-l shadow-2xl transition-all duration-500 shrink-0",
+          "w-[450px] bg-white dark:bg-slate-900 border-l shadow-2xl transition-all duration-500 shrink-0 relative",
           isStudioOpen ? "translate-x-0" : "translate-x-full absolute right-0 top-16 bottom-0"
         )}>
           <div className="h-full flex flex-col">
@@ -681,8 +680,12 @@ const Index = () => {
       )}
 
       {!isStudioOpen && !isPerformanceMode && (
-        <button onClick={() => setIsStudioOpen(true)} className="fixed bottom-8 right-8 bg-indigo-600 text-white p-4 rounded-full shadow-2xl hover:scale-110 z-50">
-          <SearchIcon className="w-6 h-6" />
+        <button 
+          onClick={() => setIsStudioOpen(true)} 
+          className="fixed right-0 top-1/2 -translate-y-1/2 z-[40] bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border-y border-l border-slate-300 dark:border-slate-700 rounded-l-2xl py-8 px-2 transition-all group flex items-center justify-center shadow-[-4px_0_15px_rgba(0,0,0,0.1)]"
+          title="Open Song Studio"
+        >
+          <Music className="w-5 h-5 text-slate-500 group-hover:text-indigo-600 transition-colors" />
         </button>
       )}
     </div>
