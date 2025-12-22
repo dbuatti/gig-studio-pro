@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -55,11 +55,68 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
   const nextSong = songs[currentIndex + 1];
   const [localNotes, setLocalNotes] = useState(currentSong?.notes || "");
   const [viewMode, setViewMode] = useState<ViewMode>('visualizer');
+  const lyricsContainerRef = useRef<HTMLDivElement>(null);
+  const lyricsLinesRef = useRef<HTMLDivElement[]>([]);
 
-  // Per-song preference logic
   const currentPref = currentSong?.key_preference || globalPreference;
   const nextPref = nextSong?.key_preference || globalPreference;
   const keysToUse = currentPref === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
+
+  // Parse lyrics into timed sections
+  const parseLyricsWithTimestamps = (lyrics: string) => {
+    const lines = lyrics.split('\n');
+    const sections: { time: number; text: string; element?: HTMLDivElement }[] = [];
+    let currentText = [];
+
+    for (const line of lines) {
+      const timestampMatch = line.match(/^\[(\d+):(\d{2})\]\s*(.*)$/);
+      if (timestampMatch) {
+        if (currentText.length > 0) {
+          sections.push({ time: -1, text: currentText.join('\n') });
+          currentText = [];
+        }
+        const minutes = parseInt(timestampMatch[1]);
+        const seconds = parseInt(timestampMatch[2]);
+        const text = timestampMatch[3] || '';
+        sections.push({ time: minutes * 60 + seconds, text });
+      } else {
+        currentText.push(line);
+      }
+    }
+    if (currentText.length > 0) {
+      sections.push({ time: -1, text: currentText.join('\n') });
+    }
+    return sections;
+  };
+
+  const lyricsSections = currentSong?.lyrics ? parseLyricsWithTimestamps(currentSong.lyrics) : [];
+  const hasTimestamps = lyricsSections.some(s => s.time >= 0);
+
+  // Auto-scroll effect
+  useEffect(() => {
+    if (viewMode !== 'lyrics' || !lyricsContainerRef.current || duration === 0) return;
+
+    const currentTime = (progress / 100) * duration;
+
+    if (hasTimestamps) {
+      // Find current or upcoming section
+      let targetIndex = lyricsSections.findIndex(s => s.time > currentTime);
+      if (targetIndex === -1) targetIndex = lyricsSections.length;
+      targetIndex = Math.max(0, targetIndex - 1);
+
+      const targetEl = lyricsLinesRef.current[targetIndex];
+      if (targetEl) {
+        const container = lyricsContainerRef.current;
+        const offset = targetEl.offsetTop - container.offsetTop - container.clientHeight * 0.3; // Look-ahead bias
+        container.scrollTop = offset;
+      }
+    } else {
+      // Proportional smooth scrolling
+      const scrollHeight = lyricsContainerRef.current.scrollHeight - lyricsContainerRef.current.clientHeight;
+      const targetScroll = (currentTime / duration) * scrollHeight - lyricsContainerRef.current.clientHeight * 0.3;
+      lyricsContainerRef.current.scrollTop = Math.max(0, targetScroll);
+    }
+  }, [progress, duration, viewMode, hasTimestamps]);
 
   useEffect(() => {
     setLocalNotes(currentSong?.notes || "");
@@ -94,7 +151,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
 
   return (
     <div className="fixed inset-0 z-[100] bg-slate-950 text-white flex flex-col animate-in fade-in zoom-in duration-300">
-      {/* Practice Header */}
+      {/* Header unchanged */}
       <div className="h-24 border-b border-white/10 px-10 flex items-center justify-between bg-slate-900/50 backdrop-blur-xl shrink-0">
         <div className="flex items-center gap-6">
           <div className="bg-indigo-600 p-2.5 rounded-2xl shadow-lg shadow-indigo-600/20">
@@ -119,7 +176,6 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
           </div>
         </div>
 
-        {/* Real-time HUD stats */}
         <div className="hidden lg:flex items-center gap-12 border-x border-white/5 px-12 mx-8 font-mono">
            <div className="flex flex-col items-center">
               <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Master Tempo</span>
@@ -181,14 +237,12 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
       </div>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Main Workspace */}
         <div className="flex-1 flex flex-col items-center justify-center p-8 lg:p-12 relative overflow-hidden border-r border-white/5">
           <div className="absolute inset-0 opacity-10 pointer-events-none scale-150 blur-3xl transition-all">
             <AudioVisualizer analyzer={analyzer} isActive={isPlaying} />
           </div>
 
           <div className="max-w-6xl w-full h-full flex flex-col space-y-8 z-10">
-            {/* HUD Status Matrix */}
             <div className={cn("text-center transition-all duration-500", (viewMode === 'pdf' || viewMode === 'lyrics') ? "space-y-1" : "space-y-6")}>
               <div className="inline-flex items-center gap-4 px-6 py-2 bg-indigo-500/10 border border-indigo-500/20 rounded-full font-mono">
                 <Music className="w-4 h-4 text-indigo-400" />
@@ -208,7 +262,6 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
               </div>
             </div>
 
-            {/* Dynamic Viewport */}
             <div className="flex-1 w-full bg-slate-900/40 rounded-[3rem] border border-white/10 shadow-2xl relative overflow-hidden backdrop-blur-sm">
               {viewMode === 'visualizer' && (
                 <div className="h-full flex flex-col items-center justify-center p-16 animate-in fade-in duration-500">
@@ -219,10 +272,24 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
               )}
 
               {viewMode === 'lyrics' && currentSong?.lyrics && (
-                <div className="h-full w-full overflow-y-auto p-20 animate-in fade-in duration-500 text-center custom-scrollbar">
-                   <div className="max-w-2xl mx-auto whitespace-pre-wrap text-4xl font-black leading-relaxed uppercase tracking-tight text-white/90 drop-shadow-xl">
-                      {currentSong.lyrics}
-                   </div>
+                <div 
+                  ref={lyricsContainerRef}
+                  className="h-full w-full overflow-y-auto p-12 lg:p-20 animate-in fade-in duration-500 custom-scrollbar scroll-smooth"
+                >
+                  <div className="max-w-4xl mx-auto space-y-8">
+                    {lyricsSections.map((section, i) => (
+                      <div
+                        key={i}
+                        ref={el => el && (lyricsLinesRef.current[i] = el)}
+                        className={cn(
+                          "transition-all duration-700 text-center leading-relaxed whitespace-pre-wrap",
+                          section.time >= 0 ? "text-5xl lg:text-6xl font-black uppercase tracking-tight text-pink-400 drop-shadow-2xl" : "text-3xl lg:text-4xl font-medium text-white/70"
+                        )}
+                      >
+                        {section.text}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -250,7 +317,6 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
                 </div>
               )}
 
-              {/* Progress HUD */}
               <div className="absolute bottom-0 left-0 right-0 p-10 bg-gradient-to-t from-slate-950 via-slate-950/90 to-transparent">
                 <div className="flex justify-between text-xs font-mono text-slate-400 font-black uppercase tracking-widest mb-3">
                   <div className="flex gap-6">
@@ -270,7 +336,6 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
               </div>
             </div>
 
-            {/* Playback Controls */}
             <div className="flex flex-col items-center gap-8 pb-8 shrink-0">
               <div className="flex items-center gap-12">
                 <Button 
@@ -303,9 +368,8 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
           </div>
         </div>
 
-        {/* Stage Sidebar */}
+        {/* Sidebar unchanged */}
         <aside className="w-[450px] bg-slate-900/40 backdrop-blur-2xl p-10 space-y-10 overflow-y-auto shrink-0 border-l border-white/5 scrollbar-hide">
-          {/* Metronome Utility */}
           <div className="space-y-5">
             <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 flex items-center gap-2 font-mono">
               <Gauge className="w-4 h-4" /> Live Click Track
@@ -313,7 +377,6 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
             <Metronome initialBpm={parseInt(currentSong?.bpm || "120")} />
           </div>
 
-          {/* Harmonic HUD */}
           <div className="space-y-5">
             <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 flex items-center gap-2 font-mono">
               <Settings2 className="w-4 h-4" /> Harmonic Processor
@@ -346,7 +409,6 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
             </div>
           </div>
 
-          {/* Artist Stage Cues */}
           <div className="space-y-5">
             <div className="flex items-center justify-between">
               <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 flex items-center gap-2 font-mono">
@@ -370,7 +432,6 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
             </div>
           </div>
 
-          {/* Next Deck Preview */}
           {nextSong && (
             <div className="pt-10 border-t border-white/5">
               <div className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-6 font-mono">On Deck: Next Sequence</div>
@@ -395,7 +456,6 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
         </aside>
       </div>
 
-      {/* Stage Status Footer */}
       <div className="h-16 border-t border-white/10 px-10 flex items-center justify-between text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 bg-slate-900/30 shrink-0 font-mono">
         <div className="flex gap-12">
           <div className="flex items-center gap-3">
@@ -414,7 +474,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
         <div className="flex items-center gap-6">
           <span className="text-slate-400">{currentSong?.name} <span className="text-slate-700">|</span> {currentIndex + 1} OF {songs.length}</span>
           <div className="h-4 w-px bg-white/10" />
-          <span className="text-indigo-400 tracking-[0.4em]">GIG STUDIO PRO v2.5</span>
+          <span className="text-indigo-400 tracking-[0.4em]">GIG STUDIO PRO v2.6</span>
         </div>
       </div>
     </div>
