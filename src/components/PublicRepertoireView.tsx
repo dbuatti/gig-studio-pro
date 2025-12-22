@@ -41,7 +41,17 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
     });
 
     return Object.entries(groups)
-      .sort(([a], [b]) => a.localeCompare(b))
+      .sort(([a], [b]) => {
+        const isUnknownA = a.toLowerCase() === 'unknown artist';
+        const isUnknownB = b.toLowerCase() === 'unknown artist';
+        
+        // If one is unknown and the other isn't, the unknown one goes to the bottom
+        if (isUnknownA && !isUnknownB) return 1;
+        if (!isUnknownA && isUnknownB) return -1;
+        
+        // Otherwise, standard alphabetical sort
+        return a.localeCompare(b);
+      })
       .map(([artist, artistSongs]) => ({
         artist,
         songs: artistSongs.sort((a, b) => (a.title || a.name || "").localeCompare(b.title || b.name || ""))
