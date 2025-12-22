@@ -41,13 +41,17 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong }) => {
     }
   };
 
+  const openYoutubeSearch = (track: string, artist: string) => {
+    const searchQuery = encodeURIComponent(`${artist} ${track} official music video`);
+    window.open(`https://www.youtube.com/results?search_query=${searchQuery}`, '_blank');
+  };
+
   const fetchYoutubeResults = async (track: string, artist: string) => {
     setYtSearchLoading(true);
     setYtResults([]);
     setYtError(false);
     setManualYtUrl("");
     
-    // Multiple proxy strategies
     const proxies = [
       "https://api.allorigins.win/get?url=",
       "https://corsproxy.io/?"
@@ -61,7 +65,6 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong }) => {
 
     let success = false;
     
-    // Try different combinations of proxies and instances
     for (const proxy of proxies) {
       if (success) break;
       for (const instance of instances) {
@@ -71,7 +74,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong }) => {
           const targetUrl = encodeURIComponent(`${instance}/api/v1/search?q=${searchQuery}`);
           
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 4000);
+          const timeoutId = setTimeout(() => controller.abort(), 3000);
 
           const response = await fetch(`${proxy}${targetUrl}`, {
             signal: controller.signal
@@ -81,7 +84,6 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong }) => {
           if (!response.ok) continue;
           
           const data = await response.json();
-          // handle allorigins wrapper vs direct proxy
           const rawData = typeof data.contents === 'string' ? JSON.parse(data.contents) : data;
           
           const videos = rawData.filter((item: any) => item.type === "video").slice(0, 3);
@@ -208,38 +210,49 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong }) => {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <p className="text-[10px] font-bold leading-tight line-clamp-2">{yt.title}</p>
-                                  <p className="text-[8px] text-muted-foreground mt-0.5">{yt.author} • {yt.viewCountText}</p>
+                                  <p className="text-[8px] text-muted-foreground mt-0.5">{yt.author}</p>
                                 </div>
                                 <Check className="w-3 h-3 text-red-500 opacity-0 group-hover/item:opacity-100" />
                               </button>
                             ))}
                             
                             {(!ytSearchLoading && (ytError || ytResults.length === 0)) && (
-                              <div className="space-y-3 py-2">
-                                <div className="flex flex-col items-center justify-center gap-2 text-center">
+                              <div className="space-y-3 py-1">
+                                <div className="flex flex-col items-center justify-center gap-2 text-center py-2">
                                   <AlertCircle className="w-5 h-5 text-red-400" />
-                                  <p className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">Search Providers Blocked</p>
-                                  <p className="text-[8px] text-muted-foreground max-w-[200px]">Background matching is unavailable due to browser security. Paste a link manually below:</p>
+                                  <p className="text-[9px] text-muted-foreground uppercase font-black tracking-widest">Automatic Matching Blocked</p>
+                                  <p className="text-[8px] text-muted-foreground max-w-[220px]">External search providers are currently restricting access. Use the tools below to finish the link manually.</p>
                                 </div>
-                                
-                                <div className="flex gap-2">
-                                  <div className="relative flex-1">
-                                    <LinkIcon className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-                                    <Input 
-                                      placeholder="Paste YT URL..." 
-                                      className="h-8 pl-7 text-[10px] bg-slate-50"
-                                      value={manualYtUrl}
-                                      onChange={(e) => setManualYtUrl(e.target.value)}
-                                    />
-                                  </div>
+
+                                <div className="flex flex-col gap-2">
                                   <Button 
+                                    variant="outline" 
                                     size="sm" 
-                                    className="h-8 bg-red-600 hover:bg-red-700"
-                                    disabled={!manualYtUrl}
-                                    onClick={() => onSelectSong(song.previewUrl, `${song.trackName} - ${song.artistName}`, manualYtUrl)}
+                                    className="h-9 border-red-200 text-red-600 hover:bg-red-50 text-[10px] font-bold uppercase"
+                                    onClick={() => openYoutubeSearch(song.trackName, song.artistName)}
                                   >
-                                    <Plus className="w-3 h-3" />
+                                    <ExternalLink className="w-3 h-3 mr-2" /> Find on YouTube
                                   </Button>
+                                  
+                                  <div className="flex gap-2">
+                                    <div className="relative flex-1">
+                                      <LinkIcon className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+                                      <Input 
+                                        placeholder="Paste video URL here..." 
+                                        className="h-9 pl-7 text-[10px] bg-slate-50 border-red-100"
+                                        value={manualYtUrl}
+                                        onChange={(e) => setManualYtUrl(e.target.value)}
+                                      />
+                                    </div>
+                                    <Button 
+                                      size="sm" 
+                                      className="h-9 bg-red-600 hover:bg-red-700 font-bold px-4"
+                                      disabled={!manualYtUrl}
+                                      onClick={() => onSelectSong(song.previewUrl, `${song.trackName} - ${song.artistName}`, manualYtUrl)}
+                                    >
+                                      LINK
+                                    </Button>
+                                  </div>
                                 </div>
                                 
                                 <div className="flex justify-center">
@@ -247,9 +260,9 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong }) => {
                                     variant="ghost" 
                                     size="sm" 
                                     onClick={() => fetchYoutubeResults(song.trackName, song.artistName)}
-                                    className="h-6 text-[8px] gap-1 text-red-500"
+                                    className="h-6 text-[8px] gap-1 text-slate-400"
                                   >
-                                    <RefreshCw className="w-2.5 h-2.5" /> Try Auto-Match Again
+                                    <RefreshCw className="w-2.5 h-2.5" /> Retry Provider Scan
                                   </Button>
                                 </div>
                               </div>
