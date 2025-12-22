@@ -4,25 +4,40 @@ import React, { useState, useEffect, useRef } from 'react';
 import * as Tone from 'tone';
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Play, Pause, Minus, Plus, Volume2 } from 'lucide-react';
+import { 
+  Play, Pause, Minus, Plus, Volume2, 
+  Activity, Settings2, Hash, Zap
+} from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 interface MetronomeProps {
   initialBpm?: number;
 }
 
+const TIME_SIGNATURES = ["2/4", "3/4", "4/4", "5/4", "6/8"];
+
 const Metronome: React.FC<MetronomeProps> = ({ initialBpm = 120 }) => {
   const [bpm, setBpm] = useState(initialBpm);
   const [isPlaying, setIsPlaying] = useState(false);
   const [beat, setBeat] = useState(0);
+  const [timeSignature, setTimeSignature] = useState("4/4");
+  const [volume, setVolume] = useState(-12);
+
   const synthRef = useRef<Tone.MembraneSynth | null>(null);
   const loopRef = useRef<Tone.Loop | null>(null);
 
   useEffect(() => {
     synthRef.current = new Tone.MembraneSynth({
-      pitchDecay: 0.05,
-      octaves: 4,
-      oscillator: { type: "sine" }
+      pitchDecay: 0.02,
+      octaves: 6,
+      oscillator: { type: "sine" },
+      envelope: {
+        attack: 0.001,
+        decay: 0.1,
+        sustain: 0,
+        release: 0.1
+      }
     }).toDestination();
 
     return () => {
@@ -32,82 +47,153 @@ const Metronome: React.FC<MetronomeProps> = ({ initialBpm = 120 }) => {
   }, []);
 
   useEffect(() => {
-    if (loopRef.current) {
-      Tone.getTransport().bpm.value = bpm;
+    if (synthRef.current) {
+      synthRef.current.volume.value = volume;
     }
-  }, [bpm]);
+  }, [volume]);
 
-  const toggleMetronome = async () => {
-    if (Tone.getContext().state !== 'running') {
-      await Tone.start();
-    }
+  // Handle Logic for Beats based on Time Signature
+  const getBeatCount = () => {
+    return parseInt(timeSignature.split('/')[0]);
+  };
 
+  const getBeatDivision = () => {
+    const den = timeSignature.split('/')[1];
+    return den === '8' ? '8n' : '4n';
+  };
+
+  useEffect(() => {
     if (isPlaying) {
-      Tone.getTransport().stop();
-      loopRef.current?.stop();
-      setIsPlaying(false);
-      setBeat(0);
-    } else {
-      Tone.getTransport().bpm.value = bpm;
-      
-      if (!loopRef.current) {
-        loopRef.current = new Tone.Loop((time) => {
-          setBeat(prev => {
-            const next = (prev % 4) + 1;
-            const freq = next === 1 ? "C4" : "G3";
-            synthRef.current?.triggerAttackRelease(freq, "32n", time, next === 1 ? 1 : 0.5);
-            return next;
-          });
-        }, "4n").start(0);
-      } else {
-        loopRef.current.start(0);
-      }
-      
-      Tone.getTransport().start();
-      setIsPlaying(true);
+      // Re-initialize loop if settings change while running
+      stopMetronome();
+      startMetronome();
     }
+  }, [bpm, timeSignature]);
+
+  const startMetronome = async () => {
+    if (Tone.getContext().state !== 'running') await Tone.start();
+
+    Tone.getTransport().bpm.value = bpm;
+    const count = getBeatCount();
+    const division = getBeatDivision();
+
+    loopRef.current = new Tone.Loop((time) => {
+      setBeat(prev => {
+        const next = (prev % count) + 1;
+        const freq = next === 1 ? "C5" : "G4";
+        synthRef.current?.triggerAttackRelease(freq, "32n", time, next === 1 ? 1 : 0.4);
+        return next;
+      });
+    }, division).start(0);
+
+    Tone.getTransport().start();
+    setIsPlaying(true);
+  };
+
+  const stopMetronome = () => {
+    Tone.getTransport().stop();
+    loopRef.current?.stop();
+    loopRef.current?.dispose();
+    loopRef.current = null;
+    setIsPlaying(false);
+    setBeat(0);
+  };
+
+  const toggleMetronome = () => {
+    if (isPlaying) stopMetronome();
+    else startMetronome();
   };
 
   return (
-    <div className="bg-slate-900/50 border border-white/5 rounded-2xl p-4 space-y-4 shadow-xl">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse" />
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Click Track</span>
+    <div className="bg-slate-900/60 border border-white/5 rounded-[2rem] p-6 space-y-6 shadow-2xl backdrop-blur-xl">
+      <div className="flex items-center justify-between border-b border-white/5 pb-4">
+        <div className="flex items-center gap-3">
+          <div className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse shadow-[0_0_10px_rgba(79,70,229,0.5)]" />
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Timing Engine v2.0</span>
         </div>
-        <div className="flex gap-1">
-          {[1, 2, 3, 4].map((i) => (
-            <div 
-              key={i} 
-              className={cn(
-                "h-1.5 w-4 rounded-full transition-all duration-100",
-                beat === i ? "bg-indigo-500 scale-y-125 shadow-[0_0_10px_rgba(79,70,229,0.5)]" : "bg-white/5"
-              )} 
-            />
-          ))}
+        <div className="flex items-center gap-2">
+           <Zap className="w-3 h-3 text-indigo-400" />
+           <span className="text-[9px] font-black text-indigo-400 uppercase">Jitter: Ultra Low</span>
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-4">
-        <div className="text-center flex-1">
-          <span className="text-3xl font-black font-mono tracking-tighter text-white">{bpm}</span>
-          <span className="text-[10px] font-black text-indigo-400 block uppercase">BPM</span>
+      <div className="flex items-center justify-between gap-6">
+        <div className="flex flex-col items-center justify-center flex-1 bg-white/5 rounded-[1.5rem] py-4 border border-white/5">
+          <span className="text-4xl font-black font-mono tracking-tighter text-white">{bpm}</span>
+          <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mt-1">BPM</span>
         </div>
+
         <Button 
           size="lg" 
           onClick={toggleMetronome}
           className={cn(
-            "h-12 w-12 rounded-full transition-all",
-            isPlaying ? "bg-red-600 hover:bg-red-700" : "bg-indigo-600 hover:bg-indigo-700"
+            "h-20 w-20 rounded-full transition-all hover:scale-105 active:scale-95 shadow-xl",
+            isPlaying 
+              ? "bg-red-600 hover:bg-red-700 shadow-red-600/20" 
+              : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20"
           )}
         >
-          {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-0.5" />}
+          {isPlaying ? <Pause className="w-8 h-8 fill-current" /> : <Play className="w-8 h-8 fill-current ml-1" />}
         </Button>
       </div>
 
-      <div className="flex items-center gap-3 pt-2">
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400" onClick={() => setBpm(b => Math.max(40, b - 1))}>
-          <Minus className="w-3 h-3" />
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+           <Label className="text-[9px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+             <Hash className="w-3 h-3" /> Time Sig
+           </Label>
+           <Select value={timeSignature} onValueChange={setTimeSignature}>
+              <SelectTrigger className="bg-white/5 border-white/10 h-10 rounded-xl font-black font-mono text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-900 border-white/10 text-white">
+                {TIME_SIGNATURES.map(sig => (
+                  <SelectItem key={sig} value={sig} className="font-mono text-xs">{sig}</SelectItem>
+                ))}
+              </SelectContent>
+           </Select>
+        </div>
+
+        <div className="space-y-2">
+           <Label className="text-[9px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+             <Volume2 className="w-3 h-3" /> Click Gain
+           </Label>
+           <div className="pt-3">
+             <Slider 
+               value={[volume]} 
+               min={-48} 
+               max={0} 
+               step={1} 
+               onValueChange={(v) => setVolume(v[0])}
+             />
+           </div>
+        </div>
+      </div>
+
+      <div className="flex gap-2 justify-center">
+        {Array.from({ length: getBeatCount() }).map((_, i) => (
+          <div 
+            key={i} 
+            className={cn(
+              "h-2 flex-1 rounded-full transition-all duration-75",
+              beat === i + 1 
+                ? i === 0 
+                  ? "bg-indigo-400 scale-y-150 shadow-[0_0_15px_rgba(129,140,248,0.6)]" 
+                  : "bg-slate-400 scale-y-125" 
+                : "bg-white/5"
+            )} 
+          />
+        ))}
+      </div>
+
+      <div className="flex items-center gap-4 pt-2">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="h-10 w-10 bg-white/5 rounded-xl text-slate-400 hover:text-white" 
+          onClick={() => setBpm(b => Math.max(40, b - 1))}
+        >
+          <Minus className="w-4 h-4" />
         </Button>
         <Slider 
           value={[bpm]} 
@@ -117,8 +203,13 @@ const Metronome: React.FC<MetronomeProps> = ({ initialBpm = 120 }) => {
           onValueChange={(v) => setBpm(v[0])}
           className="flex-1"
         />
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400" onClick={() => setBpm(b => Math.min(240, b + 1))}>
-          <Plus className="w-3 h-3" />
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="h-10 w-10 bg-white/5 rounded-xl text-slate-400 hover:text-white" 
+          onClick={() => setBpm(b => Math.min(240, b + 1))}
+        >
+          <Plus className="w-4 h-4" />
         </Button>
       </div>
     </div>
