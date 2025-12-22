@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { ClipboardPaste, AlertCircle, HelpCircle, ListPlus, Youtube } from 'lucide-react';
+import { ClipboardPaste, AlertCircle, HelpCircle, ListPlus, Youtube, Wand2, Music } from 'lucide-react';
 import { SetlistSong } from './SetlistManager';
 
 interface ImportSetlistProps {
@@ -18,69 +18,87 @@ const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [includeYoutube, setIncludeYoutube] = useState(true);
 
-  const handleImport = () => {
-    const lines = text.split('\n');
+  const parseText = (content: string): SetlistSong[] => {
+    const lines = content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     const newSongs: SetlistSong[] = [];
-    
+
     lines.forEach(line => {
-      // Look for standard table/list patterns
+      let title = "";
+      let artist = "Unknown Artist";
+      let originalKey = "C";
+      let youtubeUrl = undefined;
+
+      // Pattern 1: Markdown Table | # | Title | Artist | Key | ...
       if (line.includes('|') && !line.includes('---') && !line.includes('Song Title')) {
         const columns = line.split('|').map(c => c.trim()).filter(c => c !== "");
-        
         if (columns.length >= 2) {
-          const title = columns[1].replace(/\*\*/g, '');
-          const artist = columns[2]?.replace(/\*\*/g, '') || "Unknown Artist";
+          // Detect if col 0 is a number, if so shift
+          const startIdx = /^\d+$/.test(columns[0]) ? 1 : 0;
+          title = columns[startIdx].replace(/\*\*/g, '');
+          artist = columns[startIdx + 1]?.replace(/\*\*/g, '') || "Unknown Artist";
           
-          // Smart detection for columns 3 and 4
-          // Often tables are: | # | Title | Artist | Duration | Key |
-          // or: | # | Title | Artist | Key | BPM |
-          let originalKey = "C";
-          let durationSeconds = 210; // Default 3:30
-
-          // Check if column 3 is a duration (e.g., 5:55)
-          const col3 = columns[3]?.replace(/\*\*/g, '') || "";
-          const col4 = columns[4]?.replace(/\*\*/g, '') || "";
-
-          const isDuration = (val: string) => /^\d{1,2}:\d{2}$/.test(val);
-
-          if (isDuration(col3)) {
-            // Col 3 is duration, Col 4 is likely Key
-            const parts = col3.split(':');
-            durationSeconds = (parseInt(parts[0]) * 60) + parseInt(parts[1]);
-            originalKey = col4 || "C";
-          } else if (isDuration(col4)) {
-            // Col 4 is duration, Col 3 is likely Key
-            const parts = col4.split(':');
-            durationSeconds = (parseInt(parts[0]) * 60) + parseInt(parts[1]);
-            originalKey = col3 || "C";
-          } else {
-            // Fallback: Col 3 is Key
-            originalKey = col3 || "C";
-          }
-          
-          let youtubeUrl = undefined;
-          if (includeYoutube) {
-            const ytMatch = line.match(/\((https:\/\/www\.youtube\.com\/watch\?v=[^)]+)\)/);
-            youtubeUrl = ytMatch ? ytMatch[1] : undefined;
-          }
-
-          newSongs.push({
-            id: Math.random().toString(36).substr(2, 9),
-            name: title,
-            artist: artist,
-            previewUrl: "", 
-            youtubeUrl,
-            originalKey: originalKey,
-            targetKey: originalKey,
-            pitch: 0,
-            duration_seconds: durationSeconds
-          });
+          // Look for key in remaining columns
+          const possibleKey = columns.find((c, i) => i > startIdx + 1 && /^[A-G][#b]?m?$/.test(c));
+          if (possibleKey) originalKey = possibleKey;
         }
+      } 
+      // Pattern 2: OnSong / Standard List "Artist - Title" or "Title - Artist"
+      else if (line.includes(' - ')) {
+        const parts = line.split(' - ').map(p => p.trim());
+        // Simple heuristic: Usually longer part or part with spaces is title, 
+        // but often it's Artist - Title.
+        artist = parts[0];
+        title = parts[1];
+        
+        // Check for trailing key like "Artist - Title (G)"
+        const keyMatch = line.match(/\((([A-G][#b]?m?))\)$/);
+        if (keyMatch) originalKey = keyMatch[1];
+      }
+      // Pattern 3: Simple "Title by Artist"
+      else if (line.toLowerCase().includes(' by ')) {
+        const parts = line.split(/ by /i).map(p => p.trim());
+        title = parts[0];
+        artist = parts[1];
+      }
+      // Pattern 4: Just the title (with optional number prefix)
+      else {
+        // Remove leading numbers like "01. " or "1) "
+        title = line.replace(/^\d+[\.\)\-\s]+/, '');
+      }
+
+      // Cleanup Title/Artist (remove quotes, etc)
+      title = title.replace(/^["']|["']$/g, '').trim();
+      artist = artist.replace(/^["']|["']$/g, '').trim();
+
+      if (title) {
+        if (includeYoutube) {
+          const ytMatch = line.match(/\((https:\/\/www\.youtube\.com\/watch\?v=[^)]+)\)/);
+          youtubeUrl = ytMatch ? ytMatch[1] : undefined;
+        }
+
+        newSongs.push({
+          id: Math.random().toString(36).substr(2, 9),
+          name: title,
+          artist: artist,
+          previewUrl: "", 
+          youtubeUrl,
+          originalKey: originalKey,
+          targetKey: originalKey,
+          pitch: 0,
+          isPlayed: false,
+          isSyncing: true,
+          isMetadataConfirmed: false
+        });
       }
     });
 
-    if (newSongs.length > 0) {
-      onImport(newSongs);
+    return newSongs;
+  };
+
+  const handleImport = () => {
+    const songs = parseText(text);
+    if (songs.length > 0) {
+      onImport(songs);
       setIsOpen(false);
       setText("");
     }
@@ -89,77 +107,89 @@ const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport }) => {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2 border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-bold uppercase tracking-tight">
-          <ClipboardPaste className="w-4 h-4" /> Paste Song List
+        <Button variant="outline" size="sm" className="gap-2 border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-bold uppercase tracking-tight shadow-sm hover:shadow-md transition-all">
+          <ClipboardPaste className="w-4 h-4" /> Smart Import
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl font-black uppercase tracking-tight">
-            <ListPlus className="w-6 h-6 text-indigo-600" />
-            Add Songs in Bulk
-          </DialogTitle>
-          <DialogDescription className="text-slate-500">
-            Copy a table from Google Docs, ChatGPT, or Excel and paste it below.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="max-w-3xl bg-slate-50 dark:bg-slate-950 border-none shadow-2xl rounded-[2rem] p-0 overflow-hidden">
+        <div className="bg-indigo-600 p-8 flex items-center justify-between text-white shrink-0">
+          <div className="flex items-center gap-4">
+            <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-md">
+              <ListPlus className="w-8 h-8" />
+            </div>
+            <div>
+              <DialogTitle className="text-2xl font-black uppercase tracking-tight">Gig Ingest Engine</DialogTitle>
+              <DialogDescription className="text-indigo-100 font-medium">Supporting OnSong, Markdown, and Plain Text formats.</DialogDescription>
+            </div>
+          </div>
+          <Wand2 className="w-8 h-8 opacity-20 animate-pulse" />
+        </div>
         
-        <div className="space-y-4 py-4">
-          <div className="bg-slate-50 dark:bg-slate-900 border rounded-lg p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="bg-red-100 p-2 rounded-lg">
-                <Youtube className="w-4 h-4 text-red-600" />
+        <div className="p-8 space-y-6">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-white dark:bg-slate-900 border rounded-2xl p-5 flex items-center justify-between shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="bg-red-100 dark:bg-red-900/30 p-2.5 rounded-xl">
+                  <Youtube className="w-5 h-5 text-red-600" />
+                </div>
+                <div>
+                  <Label htmlFor="yt-toggle" className="text-xs font-black uppercase tracking-widest text-slate-500">Audio Discovery</Label>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Auto-link Reference Media</p>
+                </div>
+              </div>
+              <Switch 
+                id="yt-toggle" 
+                checked={includeYoutube} 
+                onCheckedChange={setIncludeYoutube}
+                className="data-[state=checked]:bg-indigo-600"
+              />
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 border rounded-2xl p-5 flex items-center gap-4 shadow-sm">
+              <div className="bg-emerald-100 dark:bg-emerald-900/30 p-2.5 rounded-xl">
+                <Music className="w-5 h-5 text-emerald-600" />
               </div>
               <div>
-                <Label htmlFor="yt-toggle" className="text-sm font-bold">Import YouTube References</Label>
-                <p className="text-[10px] text-slate-500">Extracts video links if present in the pasted text.</p>
+                <Label className="text-xs font-black uppercase tracking-widest text-slate-500">Auto-Metadata</Label>
+                <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">AI Engine Level 2 Active</p>
               </div>
             </div>
-            <Switch 
-              id="yt-toggle" 
-              checked={includeYoutube} 
-              onCheckedChange={setIncludeYoutube}
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Pasted Content Buffer</Label>
+              <span className="text-[10px] font-black text-indigo-500 uppercase">Pro Tip: Use 'Artist - Title'</span>
+            </div>
+            <Textarea 
+              placeholder="Paste your OnSong list, Markdown table, or plain song list here..." 
+              className="min-h-[300px] font-mono text-sm bg-white dark:bg-slate-900 border-indigo-100 dark:border-slate-800 focus-visible:ring-indigo-500 rounded-2xl p-6 shadow-inner resize-none"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
             />
           </div>
 
-          <div className="bg-slate-50 dark:bg-slate-900 border rounded-lg p-4 space-y-3">
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-              <HelpCircle className="w-3 h-3" /> Quick Instructions
-            </h4>
-            <ol className="text-xs space-y-1 text-slate-600 dark:text-slate-400 list-decimal list-inside">
-              <li>Highlight the table in your document.</li>
-              <li>Press <b>Ctrl+C</b> (or Cmd+C) to copy.</li>
-              <li>Paste it into the box below.</li>
-            </ol>
-            <div className="p-2 bg-white dark:bg-slate-800 border-2 border-dashed border-slate-200 rounded font-mono text-[9px] text-slate-400 italic">
-              Example: | 01 | At Last | Michael Bublé | 3:30 | B |
-            </div>
-          </div>
-
-          <Textarea 
-            placeholder="Paste your table text here..." 
-            className="min-h-[250px] font-mono text-xs bg-slate-50 dark:bg-slate-900 border-indigo-100 focus-visible:ring-indigo-500"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-          />
-
-          <div className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-100 dark:border-amber-900/50">
-            <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="flex items-start gap-4 p-5 bg-indigo-50 dark:bg-indigo-950/30 rounded-2xl border border-indigo-100 dark:border-indigo-900/50">
+            <AlertCircle className="w-6 h-6 text-indigo-600 shrink-0 mt-0.5" />
             <div>
-              <p className="text-[11px] font-bold text-amber-800 dark:text-amber-400 leading-tight">Smart Column Detection</p>
-              <p className="text-[10px] text-amber-700/80 dark:text-amber-500/80 mt-1 leading-relaxed">
-                The engine now automatically detects durations (like 5:55) and skips them to find the correct musical key.
+              <p className="text-sm font-black text-indigo-900 dark:text-indigo-300 uppercase tracking-tight">Intelligence Report</p>
+              <p className="text-[11px] text-indigo-700/80 dark:text-indigo-400/80 mt-1 leading-relaxed">
+                The engine will attempt to extract the song name, artist, and musical key automatically. After import, the AI background worker will verify these details and link professional reference audio.
               </p>
             </div>
           </div>
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0">
-          <Button variant="ghost" onClick={() => setIsOpen(false)} className="font-bold uppercase tracking-widest text-[10px]">Cancel</Button>
-          <Button onClick={handleImport} className="bg-indigo-600 hover:bg-indigo-700 font-bold uppercase tracking-widest text-[10px] px-8" disabled={!text.trim()}>
-            Build Gig List
+        <div className="p-8 bg-slate-100 dark:bg-slate-900/50 border-t flex flex-col sm:flex-row gap-4">
+          <Button variant="ghost" onClick={() => setIsOpen(false)} className="flex-1 font-black uppercase tracking-widest text-xs h-12 rounded-xl">Discard</Button>
+          <Button 
+            onClick={handleImport} 
+            className="flex-[2] bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-[0.2em] text-xs h-12 rounded-xl shadow-xl shadow-indigo-500/20 gap-3"
+            disabled={!text.trim()}
+          >
+            <ListPlus className="w-4 h-4" /> Deploy to Setlist
           </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
