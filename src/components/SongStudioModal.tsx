@@ -566,7 +566,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                             onClick={() => updateHarmonics({ isKeyLinked: !formData.isKeyLinked })}
                             className={cn(
                               "p-1.5 rounded-lg border transition-all",
-                              formData.isKeyLinked ? "bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/20" : "bg-white/5 border-white/10 text-slate-500"
+                              formData.isKeyLinked ? "bg-indigo-600 border-indigo-500 text-white shadow-lg" : "bg-white/5 border-white/10 text-slate-500"
                             )}
                           >
                             <LinkIcon className="w-3.5 h-3.5" />
@@ -969,7 +969,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                           className="bg-white/5 border-white/10 font-bold text-orange-400 h-12 rounded-xl"
                         />
                         <Button variant="ghost" className="bg-white/5 h-12 w-12 p-0 text-orange-400 rounded-xl" onClick={handleUgAction}>
-                          {formData.ugUrl ? <LinkIcon className="w-5 h-5" /> : <Search className="w-5 h-5" />}
+                          {formData.ugUrl ? <LinkIcon className="w-5 h-5" /> : <ExternalLink className="w-5 h-5" />}
                         </Button>
                       </div>
                     </div>
@@ -1177,7 +1177,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                               className="h-10 w-10 text-orange-400 hover:bg-orange-600 hover:text-white transition-all rounded-xl" 
                               onClick={handleUgAction}
                             >
-                              <ExternalLink className="w-4 h-4" />
+                              {formData.ugUrl ? <LinkIcon className="w-4 h-4" /> : <ExternalLink className="w-4 h-4" />}
                             </Button>
                           </TooltipProvider>
                         </div>
