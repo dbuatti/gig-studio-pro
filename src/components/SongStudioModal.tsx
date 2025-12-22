@@ -641,16 +641,27 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                              className="bg-transparent border-none p-0 h-auto text-xl font-black font-mono text-indigo-400 focus-visible:ring-0"
                            />
                         </div>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={handleDetectBPM}
-                          disabled={isAnalyzing || !formData.previewUrl}
-                          className="h-10 px-4 bg-indigo-600/10 text-indigo-400 hover:bg-indigo-600 hover:text-white font-black uppercase tracking-widest text-[10px] gap-2 rounded-xl"
-                        >
-                          {isAnalyzing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Disc className="w-3.5 h-3.5" />}
-                          Scan Master Tempo
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={handleDetectBPM}
+                            disabled={isAnalyzing || !formData.previewUrl}
+                            className="h-10 px-4 bg-indigo-600/10 text-indigo-400 hover:bg-indigo-600 hover:text-white font-black uppercase tracking-widest text-[10px] gap-2 rounded-xl"
+                          >
+                            {isAnalyzing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Disc className="w-3.5 h-3.5" />}
+                            Scan Master Tempo
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => window.open('https://www.beatsperminuteonline.com/', '_blank')}
+                            className="h-10 px-4 bg-white/5 text-slate-400 hover:bg-white/10 font-black uppercase tracking-widest text-[10px] gap-2 rounded-xl"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            Tap BPM Tool
+                          </Button>
+                        </div>
                      </div>
                      <div className="flex items-center gap-10 pr-4">
                         <div className="flex flex-col items-end">
