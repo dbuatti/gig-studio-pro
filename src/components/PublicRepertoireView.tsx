@@ -60,7 +60,7 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
 
   if (!profile) return null;
 
-  const colors = profile.custom_colors || { primary: '#4f46e5', background: '#020617', text: '#ffffff', border: '#4f46e5' };
+  const colors = profile.custom_colors || { primary: '#9333ea', background: '#ffffff', text: '#1e1b4b', border: '#9333ea' };
 
   return (
     <div 
@@ -162,15 +162,22 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-6">
-                {(groupedSongs as any[]).map((song) => (
-                  <div key={song.id} className="flex items-center justify-between py-2 border-b border-white/5 group">
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-sm font-bold tracking-tight truncate group-hover:translate-x-1 transition-transform">{song.title || song.name}</span>
-                      <span className="text-[9px] font-black uppercase opacity-40 tracking-widest truncate">{song.artist}</span>
+                {(groupedSongs as any[]).map((song) => {
+                  const artistName = song.artist || "";
+                  const isUnknown = !artistName || artistName.toLowerCase() === "unknown artist";
+                  
+                  return (
+                    <div key={song.id} className="flex items-center justify-between py-2 border-b border-white/5 group">
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-sm font-bold tracking-tight truncate group-hover:translate-x-1 transition-transform">{song.title || song.name}</span>
+                        {!isUnknown && (
+                          <span className="text-[9px] font-black uppercase opacity-40 tracking-widest truncate">{artistName}</span>
+                        )}
+                      </div>
+                      {song.genre && <span className="text-[8px] font-black uppercase opacity-20 ml-4 shrink-0">{song.genre}</span>}
                     </div>
-                    {song.genre && <span className="text-[8px] font-black uppercase opacity-20 ml-4 shrink-0">{song.genre}</span>}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )
           )}
