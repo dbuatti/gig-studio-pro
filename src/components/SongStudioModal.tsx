@@ -643,9 +643,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     showSuccess("All assets queued for download");
   };
 
-  if (!song) return null;
-  const videoId = formData.youtubeUrl ? formData.youtubeUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)?.[1] : null;
-
   const currentChartUrl = useMemo(() => {
     switch(activeChartType) {
       case 'pdf': return formData.pdfUrl ? `${formData.pdfUrl}#toolbar=0&navpanes=0&view=FitH` : null;
@@ -655,6 +652,9 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       default: return null;
     }
   }, [activeChartType, formData.pdfUrl, formData.leadsheetUrl, formData.ugUrl]);
+
+  if (!song) return null;
+  const videoId = formData.youtubeUrl ? formData.youtubeUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)?.[1] : null;
 
   // Utility to check if a URL is likely to be blocked by framing (X-Frame-Options)
   const isFramable = (url: string | null) => {
