@@ -30,6 +30,7 @@ const Index = () => {
   const [isPerformanceMode, setIsPerformanceMode] = useState(false);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [performanceState, setPerformanceState] = useState({ progress: 0, duration: 0 });
+  const [isPlayerActive, setIsPlayerActive] = useState(false);
   
   const [syncQueue, setSyncQueue] = useState<string[]>([]);
   const [isProcessingQueue, setIsProcessingQueue] = useState(false);
@@ -417,7 +418,11 @@ const Index = () => {
       <div className="flex-1 flex overflow-hidden">
         <main className="flex-1 overflow-y-auto p-8 relative scroll-smooth">
           <div className="max-w-4xl mx-auto space-y-8">
-            <ActiveSongBanner song={activeSong} />
+            <ActiveSongBanner 
+              song={activeSong} 
+              isPlaying={isPlayerActive}
+              onTogglePlayback={() => transposerRef.current?.togglePlayback()}
+            />
             
             <div className="flex items-center justify-between">
               <div>
@@ -497,6 +502,7 @@ const Index = () => {
                 onAddExistingSong={handleAddExistingSong}
                 onUpdateSongKey={handleUpdateKey}
                 onSongEnded={handleNextSong}
+                onPlaybackChange={setIsPlayerActive}
                 repertoire={fullRepertoire}
                 currentSong={activeSong}
               />
@@ -514,7 +520,7 @@ const Index = () => {
         <PerformanceOverlay 
           songs={songs.filter(s => !!s.previewUrl)}
           currentIndex={songs.filter(s => !!s.previewUrl).findIndex(s => s.id === activeSongId)}
-          isPlaying={transposerRef.current?.getIsPlaying() || false}
+          isPlaying={isPlayerActive}
           progress={performanceState.progress}
           duration={performanceState.duration}
           onTogglePlayback={() => transposerRef.current?.togglePlayback()}

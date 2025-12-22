@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { SetlistSong } from './SetlistManager';
-import { Music, Youtube, Copy, Play, Activity, Gauge, Sparkles, Tag, Apple, ExternalLink } from 'lucide-react';
+import { Music, Youtube, Copy, Play, Pause, Activity, Gauge, Sparkles, Tag, Apple, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { showSuccess } from '@/utils/toast';
 import { Badge } from '@/components/ui/badge';
@@ -11,10 +11,12 @@ import { useSettings } from '@/hooks/use-settings';
 
 interface ActiveSongBannerProps {
   song: SetlistSong | null;
+  isPlaying?: boolean;
+  onTogglePlayback?: () => void;
   onClear?: () => void;
 }
 
-const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song }) => {
+const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song, isPlaying, onTogglePlayback }) => {
   const { keyPreference: globalPreference } = useSettings();
   if (!song) return null;
 
@@ -25,7 +27,6 @@ const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song }) => {
     }
   };
 
-  // Use song-specific preference or global
   const currentPref = song.key_preference || globalPreference;
   const displayKey = formatKey(song.targetKey || song.originalKey, currentPref);
 
@@ -47,9 +48,16 @@ const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song }) => {
         
         <div className="p-8 flex items-center justify-between gap-8 bg-gradient-to-br from-slate-900 to-indigo-950/30">
           <div className="flex items-center gap-6 min-w-0">
-            <div className="h-16 w-16 bg-indigo-600 rounded-2xl flex items-center justify-center shrink-0 shadow-lg shadow-indigo-600/20">
-              <Play className="w-8 h-8 text-white fill-current ml-1" />
-            </div>
+            <Button 
+              onClick={onTogglePlayback}
+              className="h-16 w-16 bg-indigo-600 hover:bg-indigo-700 rounded-2xl flex items-center justify-center shrink-0 shadow-lg shadow-indigo-600/20 p-0 transition-all active:scale-95"
+            >
+              {isPlaying ? (
+                <Pause className="w-8 h-8 text-white fill-current" />
+              ) : (
+                <Play className="w-8 h-8 text-white fill-current ml-1" />
+              )}
+            </Button>
             <div className="min-w-0">
               <h2 className="text-3xl font-black text-white uppercase tracking-tighter truncate leading-none">
                 {song.name}
@@ -63,7 +71,6 @@ const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song }) => {
           </div>
 
           <div className="flex items-center gap-10 shrink-0">
-            {/* Telemetry Stats */}
             <div className="flex gap-8 border-l border-white/5 pl-8">
               <div className="flex flex-col items-center">
                 <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1.5 font-mono">
