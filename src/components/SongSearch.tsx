@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Music, Loader2, Youtube, ExternalLink, Link as LinkIcon, Check, PlayCircle, AlertCircle } from 'lucide-react';
+import { Search, Music, Loader2, Youtube, ExternalLink, Link as LinkIcon, Check, PlayCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
@@ -45,11 +45,13 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong }) => {
     setYtResults([]);
     setYtError(false);
     
-    // We try a more reliable public Invidious instance
+    // Expanded list of public instances to bypass potential CORS/downtime
     const instances = [
-      'https://yewtu.be',
+      'https://iv.ggtyler.dev',
       'https://invidious.flokinet.to',
-      'https://iv.ggtyler.dev'
+      'https://invidious.projectsegfau.lt',
+      'https://yewtu.be',
+      'https://inv.vern.cc'
     ];
 
     let success = false;
@@ -57,8 +59,15 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong }) => {
       if (success) break;
       try {
         const searchQuery = encodeURIComponent(`${artist} ${track} official music video`);
-        const response = await fetch(`${instance}/api/v1/search?q=${searchQuery}`);
+        // We add a timeout to each fetch to keep the UI responsive
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+        const response = await fetch(`${instance}/api/v1/search?q=${searchQuery}`, {
+          signal: controller.signal
+        });
         
+        clearTimeout(timeoutId);
         if (!response.ok) continue;
         
         const data = await response.json();
@@ -69,7 +78,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong }) => {
           success = true;
         }
       } catch (err) {
-        console.warn(`Instance ${instance} failed, trying next...`);
+        console.warn(`Instance ${instance} failed or timed out, trying next...`);
       }
     }
 
@@ -164,7 +173,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong }) => {
                       <div className="px-3 pb-3 animate-in slide-in-from-top-2 duration-300">
                         <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border-2 border-red-50 shadow-sm space-y-3">
                           <div className="flex items-center justify-between border-b pb-2">
-                            <span className="text-[10px] font-black text-red-600 uppercase tracking-widest">Select Visual Reference</span>
+                            <span className="text-[10px] font-black text-red-600 uppercase tracking-widest">Visual Reference Provider</span>
                             {ytSearchLoading && <Loader2 className="w-3 h-3 animate-spin text-red-500" />}
                           </div>
 
@@ -175,8 +184,10 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong }) => {
                                 onClick={() => onSelectSong(song.previewUrl, `${song.trackName} - ${song.artistName}`, `https://youtube.com/watch?v=${yt.videoId}`)}
                                 className="flex items-center gap-3 p-1.5 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg text-left transition-all border border-transparent hover:border-red-100 group/item"
                               >
-                                <div className="relative w-20 aspect-video rounded overflow-hidden shadow-sm">
-                                  <img src={yt.videoThumbnails?.[0]?.url || yt.videoThumbnails?.[1]?.url} className="w-full h-full object-cover" />
+                                <div className="relative w-20 aspect-video rounded overflow-hidden shadow-sm bg-slate-100">
+                                  {yt.videoThumbnails?.[0]?.url && (
+                                    <img src={yt.videoThumbnails[0].url} className="w-full h-full object-cover" alt="Thumbnail" />
+                                  )}
                                   <div className="absolute inset-0 bg-black/20 group-hover/item:bg-black/0 transition-colors flex items-center justify-center">
                                     <PlayCircle className="w-5 h-5 text-white opacity-0 group-hover/item:opacity-100 transition-opacity" />
                                   </div>
@@ -190,9 +201,18 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong }) => {
                             ))}
                             
                             {!ytSearchLoading && ytError && (
-                              <div className="flex items-center justify-center gap-2 py-4 text-red-500">
-                                <AlertCircle className="w-4 h-4" />
-                                <p className="text-[10px] font-bold uppercase tracking-wider">Search Provider Timeout</p>
+                              <div className="flex flex-col items-center justify-center gap-2 py-6 text-center">
+                                <AlertCircle className="w-6 h-6 text-red-500 mb-1" />
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-red-600">All Search Nodes Busy</p>
+                                <p className="text-[9px] text-muted-foreground max-w-[180px]">Browser security (CORS) is blocking direct visual matching. Try one more time?</p>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => fetchYoutubeResults(song.trackName, song.artistName)}
+                                  className="h-7 text-[9px] mt-2 gap-2 border-red-100"
+                                >
+                                  <RefreshCw className="w-3 h-3" /> Retry Visual Search
+                                </Button>
                               </div>
                             )}
 
