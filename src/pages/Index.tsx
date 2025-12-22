@@ -458,7 +458,7 @@ const Index = () => {
           isStudioOpen ? "translate-x-0" : "translate-x-full absolute right-0 top-16 bottom-0"
         )}>
           <div className="h-full flex flex-col">
-            <div className="p-4 border-b flex items-center justify-between bg-slate-50 dark:bg-slate-800/50">
+            <div className="p-4 border-b flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 shrink-0">
               <div className="flex items-center gap-3">
                 <div className="bg-indigo-600 p-2 rounded-full text-white animate-pulse">
                   {activeSongId ? <Play className="w-4 h-4 fill-current" /> : <SearchIcon className="w-4 h-4" />}
@@ -470,7 +470,7 @@ const Index = () => {
               </div>
               <Button variant="ghost" size="sm" onClick={() => setIsStudioOpen(false)} className="text-[10px] font-bold uppercase tracking-tighter">Close Studio</Button>
             </div>
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-y-auto">
               <AudioTransposer 
                 ref={transposerRef} 
                 onAddToSetlist={handleAddToSetlist} 

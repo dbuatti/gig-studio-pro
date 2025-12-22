@@ -2,14 +2,12 @@
 
 import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import * as Tone from 'tone';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Play, Pause, RotateCcw, Upload, Volume2, Info, Waves, Settings2, Gauge, Activity, Link as LinkIcon, Globe, Search, Youtube, PlusCircle, Library } from 'lucide-react';
+import { Play, Pause, RotateCcw, Upload, Volume2, Waves, Settings2, Activity, Link as LinkIcon, Globe, Search, Youtube, PlusCircle, Library } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import AudioVisualizer from './AudioVisualizer';
 import SongSearch from './SongSearch';
 import MyLibrary from './MyLibrary';
@@ -44,8 +42,6 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
   const [volume, setVolume] = useState(-6);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [eqHigh, setEqHigh] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
   const [url, setUrl] = useState("");
   const [activeTab, setActiveTab] = useState("search");
   const [isLoadingUrl, setIsLoadingUrl] = useState(false);
@@ -240,51 +236,47 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
   }, [isPlaying, tempo]);
 
   return (
-    <Card className="w-full shadow-2xl border-t-4 border-t-indigo-600 overflow-hidden">
-      <div className="bg-indigo-600 px-6 py-3 flex items-center justify-between text-white">
+    <div className="flex flex-col h-full">
+      <div className="bg-indigo-600 px-6 py-2.5 flex items-center justify-between text-white shadow-sm shrink-0">
         <div className="flex items-center gap-2">
-          <Activity className="w-4 h-4 animate-pulse" />
-          <span className="font-bold text-xs tracking-widest uppercase">Direct Stream Processor</span>
+          <Activity className="w-3.5 h-3.5 animate-pulse" />
+          <span className="font-bold text-[10px] tracking-widest uppercase">Direct Stream Processor</span>
         </div>
-        <div className="flex items-center gap-4 text-[10px] font-mono opacity-80 uppercase">
+        <div className="flex items-center gap-4 text-[9px] font-mono opacity-80 uppercase">
           <span>Latency: Low</span>
         </div>
       </div>
       
-      <CardHeader className="pb-4">
+      <div className="p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2 text-2xl">
-              <Waves className="w-6 h-6 text-indigo-600" />
+            <h2 className="flex items-center gap-2 text-xl font-black uppercase tracking-tight text-slate-900 dark:text-white">
+              <Waves className="w-5 h-5 text-indigo-600" />
               Song Studio
-            </CardTitle>
-            <CardDescription>Shift keys and prepare your repertoire.</CardDescription>
+            </h2>
+            <p className="text-xs text-slate-500 font-medium">Shift keys and prepare your repertoire.</p>
           </div>
-          <div className="flex items-center gap-2">
-            {file && onAddToSetlist && (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => onAddToSetlist(file.url || '', file.name, file.artist || "Unknown", activeYoutubeUrl, pitch)}
-                className="h-9 border-green-200 text-green-600 hover:bg-green-50 font-bold text-[10px] uppercase gap-2"
-              >
-                <PlusCircle className="w-4 h-4" /> Save
-              </Button>
-            )}
-          </div>
+          {file && onAddToSetlist && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => onAddToSetlist(file.url || '', file.name, file.artist || "Unknown", activeYoutubeUrl, pitch)}
+              className="h-8 border-green-200 text-green-600 hover:bg-green-50 font-bold text-[10px] uppercase gap-2"
+            >
+              <PlusCircle className="w-3.5 h-3.5" /> Save
+            </Button>
+          )}
         </div>
-      </CardHeader>
 
-      <CardContent className="space-y-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-4">
-            <TabsTrigger value="search" className="gap-2 px-1"><Search className="w-3 h-3" /> iTunes</TabsTrigger>
-            <TabsTrigger value="repertoire" className="gap-2 px-1"><Library className="w-3 h-3" /> Repertoire</TabsTrigger>
-            <TabsTrigger value="upload" className="gap-2 px-1"><Upload className="w-3 h-3" /> Upload</TabsTrigger>
-            <TabsTrigger value="url" className="gap-2 px-1"><Globe className="w-3 h-3" /> URL</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4 h-9 bg-slate-100 dark:bg-slate-800 p-1 mb-6">
+            <TabsTrigger value="search" className="text-[10px] uppercase font-bold gap-1.5"><Search className="w-3 h-3" /> iTunes</TabsTrigger>
+            <TabsTrigger value="repertoire" className="text-[10px] uppercase font-bold gap-1.5"><Library className="w-3 h-3" /> Lib</TabsTrigger>
+            <TabsTrigger value="upload" className="text-[10px] uppercase font-bold gap-1.5"><Upload className="w-3 h-3" /> Up</TabsTrigger>
+            <TabsTrigger value="url" className="text-[10px] uppercase font-bold gap-1.5"><Globe className="w-3 h-3" /> URL</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="search" className="space-y-4">
+          <TabsContent value="search" className="mt-0 space-y-4">
             <SongSearch 
               onSelectSong={(url, name, artist, yt) => loadFromUrl(url, name, artist, yt)} 
               onAddToSetlist={(url, name, artist, yt) => onAddToSetlist?.(url, name, artist, yt)}
@@ -292,20 +284,20 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
             />
           </TabsContent>
 
-          <TabsContent value="repertoire" className="space-y-4">
+          <TabsContent value="repertoire" className="mt-0 space-y-4">
             <MyLibrary 
               repertoire={repertoire} 
               onAddSong={(song) => onAddExistingSong?.(song)}
             />
           </TabsContent>
 
-          <TabsContent value="upload">
+          <TabsContent value="upload" className="mt-0">
             <div 
-              className="relative h-32 flex items-center justify-center rounded-xl border-2 border-dashed bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 transition-all hover:border-indigo-500 group"
+              className="relative h-28 flex items-center justify-center rounded-xl border-2 border-dashed bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 transition-all hover:border-indigo-500 group"
             >
               <div className="flex flex-col items-center pointer-events-none text-center p-4">
-                <Upload className="w-8 h-8 mb-2 text-indigo-400 group-hover:scale-110 transition-transform" />
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Load High-Res Audio</p>
+                <Upload className="w-7 h-7 mb-1.5 text-indigo-400 group-hover:scale-110 transition-transform" />
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Drop High-Res Audio</p>
               </div>
               <input
                 type="file"
@@ -316,13 +308,13 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
             </div>
           </TabsContent>
 
-          <TabsContent value="url" className="space-y-4">
+          <TabsContent value="url" className="mt-0 space-y-4">
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input 
                   placeholder="Direct link to .mp3" 
-                  className="pl-9 h-11 text-sm"
+                  className="pl-9 h-10 text-xs font-medium"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                 />
@@ -330,19 +322,19 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
               <Button 
                 onClick={() => loadFromUrl(url, "Remote Link", "Web Stream")} 
                 disabled={!url || isLoadingUrl}
-                className="bg-indigo-600 hover:bg-indigo-700 h-11 px-6 font-bold uppercase text-[10px]"
+                className="bg-indigo-600 hover:bg-indigo-700 h-10 px-5 font-bold uppercase text-[10px]"
               >
-                {isLoadingUrl ? <Activity className="w-4 h-4 animate-spin" /> : "Fetch"}
+                {isLoadingUrl ? <Activity className="w-3.5 h-3.5 animate-spin" /> : "Fetch"}
               </Button>
             </div>
           </TabsContent>
         </Tabs>
 
         {file && (
-          <div className="space-y-8 animate-in fade-in zoom-in-95 duration-300 border-t pt-6">
-            <div className="flex flex-col items-center gap-6">
+          <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300 border-t pt-6">
+            <div className="flex flex-col items-center gap-5">
               {activeVideoId && (
-                <div className="w-full aspect-video rounded-xl overflow-hidden shadow-lg border-b-4 border-red-600 bg-black">
+                <div className="w-full aspect-video rounded-xl overflow-hidden shadow-lg border border-slate-200 dark:border-slate-800 bg-black">
                   <iframe 
                     width="100%" 
                     height="100%" 
@@ -360,20 +352,20 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
               </div>
               
               <div className="flex items-center justify-center gap-6">
-                <Button variant="outline" size="icon" onClick={stopPlayback} className="rounded-full h-12 w-12 border-indigo-100">
-                  <RotateCcw className="w-5 h-5" />
+                <Button variant="outline" size="icon" onClick={stopPlayback} className="rounded-full h-10 w-10 border-slate-200">
+                  <RotateCcw className="w-4 h-4" />
                 </Button>
-                <Button size="lg" onClick={togglePlayback} className="w-20 h-20 rounded-full shadow-2xl bg-indigo-600 hover:bg-indigo-700 transition-all hover:scale-110 group">
-                  {isPlaying ? <Pause className="w-10 h-10" /> : <Play className="w-10 h-10 ml-1" />}
+                <Button size="lg" onClick={togglePlayback} className="w-16 h-16 rounded-full shadow-xl bg-indigo-600 hover:bg-indigo-700 transition-all hover:scale-105 group">
+                  {isPlaying ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8 ml-0.5" />}
                 </Button>
-                <div className="w-12" />
+                <div className="w-10" />
               </div>
             </div>
 
-            <div className="space-y-3">
-              <div className="flex justify-between text-[10px] font-mono text-indigo-500 font-bold uppercase">
+            <div className="space-y-2.5">
+              <div className="flex justify-between text-[9px] font-mono text-indigo-600 font-black uppercase tracking-tighter">
                 <span>{new Date((progress/100 * duration) * 1000).toISOString().substr(14, 5)}</span>
-                <span className="opacity-40 truncate max-w-[200px]">{file.name}</span>
+                <span className="opacity-60 truncate max-w-[180px]">{file.name}</span>
                 <span>{new Date(duration * 1000).toISOString().substr(14, 5)}</span>
               </div>
               <Slider value={[progress]} max={100} step={0.1} onValueChange={(v) => {
@@ -389,24 +381,24 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
               }} />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-              <div className="space-y-8">
-                <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-6 bg-slate-50 dark:bg-slate-900/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                      <Settings2 className="w-3 h-3 text-indigo-500" /> Semitones
+                    <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                      <Settings2 className="w-3 h-3 text-indigo-500" /> Pitch
                     </Label>
-                    <span className="text-xl font-mono font-bold text-indigo-600">{pitch > 0 ? `+${pitch}` : pitch}</span>
+                    <span className="text-xs font-mono font-bold text-indigo-600">{pitch > 0 ? `+${pitch}` : pitch} ST</span>
                   </div>
                   <Slider value={[pitch]} min={-12} max={12} step={1} onValueChange={(v) => {
                     setPitch(v[0]);
                     if (playerRef.current) playerRef.current.detune = (v[0] * 100) + fineTune;
                   }} />
                 </div>
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Tempo Scaler</Label>
-                    <span className="text-sm font-mono text-indigo-600 font-bold">{tempo.toFixed(2)}x</span>
+                    <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Tempo</Label>
+                    <span className="text-xs font-mono text-indigo-600 font-bold">{tempo.toFixed(2)}x</span>
                   </div>
                   <Slider value={[tempo]} min={0.5} max={1.5} step={0.01} onValueChange={(v) => {
                     setTempo(v[0]);
@@ -415,32 +407,23 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
                 </div>
               </div>
 
-              <div className="space-y-8 bg-slate-50 dark:bg-slate-900/50 p-6 rounded-2xl border border-indigo-100/50">
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                      <Volume2 className="w-3 h-3 text-indigo-500" /> Output Gain
-                    </Label>
-                    <span className="text-xs font-mono font-bold">{Math.round((volume + 60) * 1.66)}%</span>
-                  </div>
-                  <Slider value={[volume]} min={-60} max={0} step={1} onValueChange={(v) => {
-                    setVolume(v[0]);
-                    if (playerRef.current) playerRef.current.volume.value = v[0];
-                  }} />
+              <div className="space-y-3 border-t pt-4">
+                <div className="flex justify-between items-center">
+                  <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                    <Volume2 className="w-3 h-3 text-indigo-500" /> Gain
+                  </Label>
+                  <span className="text-[10px] font-mono font-bold text-slate-600">{Math.round((volume + 60) * 1.66)}%</span>
                 </div>
-                <div className="pt-4 border-t flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Youtube className="w-3 h-3 text-red-600" />
-                    <span className="text-[9px] font-bold text-indigo-600 uppercase">Pro Reference Mode</span>
-                  </div>
-                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
-                </div>
+                <Slider value={[volume]} min={-60} max={0} step={1} onValueChange={(v) => {
+                  setVolume(v[0]);
+                  if (playerRef.current) playerRef.current.volume.value = v[0];
+                }} />
               </div>
             </div>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 });
 
