@@ -32,54 +32,70 @@ const Profile = () => {
   const [profile, setProfile] = useState<any>(null);
   const [songs, setSongs] = useState<any[]>([]);
 
-  useEffect(() => {
-    if (user) {
-      fetchData();
-    }
-  }, [user]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
+    if (!user) return;
+    
     try {
-      const { data: profileData, error: pError } = await supabase
+      // First, attempt to get the profile
+      let { data: profileData, error: pError } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', user?.id)
-        .single();
+        .eq('id', user.id)
+        .maybeSingle();
 
-      if (pError) throw pError;
+      // If no profile exists (unlikely now with the SQL fix, but good for safety)
+      if (!profileData && !pError) {
+        const { data: newData, error: iError } = await supabase
+          .from('profiles')
+          .insert([{ id: user.id, first_name: user.email?.split('@')[0] }])
+          .select()
+          .single();
+        
+        if (iError) throw iError;
+        profileData = newData;
+      } else if (pError) {
+        throw pError;
+      }
+
       setProfile(profileData);
 
       const { data: songData, error: sError } = await supabase
         .from('repertoire')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .eq('is_active', true);
 
       if (sError) throw sError;
       setSongs(songData || []);
     } catch (err) {
-      showError("Failed to load data");
+      console.error("Profile Fetch Error:", err);
+      showError("Connection lost. Please refresh.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleUpdateLocal = (updates: any) => {
     setProfile((prev: any) => ({ ...prev, ...updates }));
   };
 
   const saveToDatabase = async (updates: any) => {
+    if (!user) return;
     setSaving(true);
     try {
       const { error } = await supabase
         .from('profiles')
         .update(updates)
-        .eq('id', user?.id);
+        .eq('id', user.id);
 
       if (error) throw error;
       showSuccess("Settings Saved");
     } catch (err: any) {
-      showError(err.message || "Failed to save settings");
+      showError("Save failed. Try again.");
     } finally {
       setSaving(false);
     }
