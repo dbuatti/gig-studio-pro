@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -58,10 +58,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   
-  // Custom asset names/captions (stored locally in the song object)
-  const [assetLabels, setAssetLabels] = useState<Record<string, string>>({});
-
-  // Audio Engine State
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -70,11 +66,10 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const currentBufferRef = useRef<AudioBuffer | null>(null);
   const requestRef = useRef<number>();
 
-  // Initialize data when song changes
   useEffect(() => {
     if (song) {
       setFormData({
-        name: song.name,
+        name: song.name || "",
         artist: song.artist || "",
         bpm: song.bpm || "",
         originalKey: song.originalKey || "C",
@@ -94,7 +89,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     return () => cleanupAudio();
   }, [song, isOpen]);
 
-  // Auto-Save Logic (Debounced)
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
   useEffect(() => {
     if (!song || !isOpen) return;
@@ -262,7 +256,15 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
         onDragLeave={() => setIsDragOver(false)}
         onDrop={handleDrop}
+        aria-describedby="song-studio-description"
       >
+        <DialogHeader className="sr-only">
+          <DialogTitle>{formData.name || "Song Studio"}</DialogTitle>
+          <DialogDescription id="song-studio-description">
+            Configure song metadata, assets, and harmonic settings.
+          </DialogDescription>
+        </DialogHeader>
+
         {isDragOver && (
           <div className="absolute inset-0 z-50 bg-indigo-600/20 backdrop-blur-sm border-4 border-dashed border-indigo-500 flex items-center justify-center animate-in fade-in duration-200">
             <div className="bg-slate-900 p-8 rounded-3xl shadow-2xl flex flex-col items-center gap-4">
@@ -282,7 +284,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                 </div>
                 <span className="font-black uppercase tracking-tighter text-xs">Pro Studio Config</span>
               </div>
-              <h2 className="text-2xl font-black uppercase tracking-tight leading-none mb-1">{formData.name}</h2>
+              <h2 className="text-2xl font-black uppercase tracking-tight leading-none mb-1">{formData.name || ""}</h2>
               <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">{formData.artist || "Unknown Artist"}</p>
             </div>
 
@@ -297,7 +299,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label className="text-[9px] font-bold text-slate-400 uppercase">Original Key</Label>
-                    <Select value={formData.originalKey} onValueChange={(val) => setFormData(prev => ({ ...prev, originalKey: val }))}>
+                    <Select value={formData.originalKey || "C"} onValueChange={(val) => setFormData(prev => ({ ...prev, originalKey: val }))}>
                       <SelectTrigger className="bg-white/5 border-white/10 text-white font-bold font-mono h-11">
                         <SelectValue />
                       </SelectTrigger>
@@ -310,9 +312,9 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <Label className="text-[9px] font-bold text-indigo-400 uppercase">Stage Key</Label>
-                      <span className="text-[9px] font-mono text-slate-500">{formData.pitch > 0 ? '+' : ''}{formData.pitch} ST</span>
+                      <span className="text-[9px] font-mono text-slate-500">{(formData.pitch || 0) > 0 ? '+' : ''}{formData.pitch || 0} ST</span>
                     </div>
-                    <Select value={formData.targetKey} onValueChange={(val) => {
+                    <Select value={formData.targetKey || "C"} onValueChange={(val) => {
                       setFormData(prev => ({ ...prev, targetKey: val }));
                       onUpdateKey(song.id, val);
                     }}>
@@ -442,7 +444,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                        <div className="w-full max-w-md space-y-3">
                          <div className="flex justify-between text-[10px] font-mono font-black text-indigo-400 uppercase">
                            <span>Pitch Processor</span>
-                           <span>{formData.pitch > 0 ? '+' : ''}{formData.pitch} ST</span>
+                           <span>{(formData.pitch || 0) > 0 ? '+' : ''}{formData.pitch || 0} ST</span>
                          </div>
                          <Slider 
                            value={[formData.pitch || 0]} 
@@ -477,7 +479,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       </div>
                       <Input 
                         placeholder="Manual override BPM..." 
-                        value={formData.bpm}
+                        value={formData.bpm || ""}
                         onChange={(e) => setFormData(prev => ({ ...prev, bpm: e.target.value }))}
                         className="bg-white/5 border-white/10 font-mono text-indigo-400 h-12"
                       />
@@ -504,7 +506,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                     <div className="space-y-3">
                       <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Performance Title</Label>
                       <Input 
-                        value={formData.name} 
+                        value={formData.name || ""} 
                         onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                         className="bg-white/5 border-white/10 text-xl font-black h-14"
                       />
@@ -512,7 +514,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                     <div className="space-y-3">
                       <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Primary Artist</Label>
                       <Input 
-                        value={formData.artist} 
+                        value={formData.artist || ""} 
                         onChange={(e) => setFormData(prev => ({ ...prev, artist: e.target.value }))}
                         className="bg-white/5 border-white/10 text-xl font-black h-14"
                       />
@@ -525,7 +527,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       <div className="flex gap-2">
                         <Input 
                           placeholder="Paste sheet music URL..." 
-                          value={formData.pdfUrl}
+                          value={formData.pdfUrl || ""}
                           onChange={(e) => setFormData(prev => ({ ...prev, pdfUrl: e.target.value }))}
                           className="bg-white/5 border-white/10 font-bold"
                         />
@@ -557,7 +559,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                     <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Rehearsal & Dynamcis Notes</Label>
                     <Textarea 
                       placeholder="Cues, transitions, dynamics..."
-                      value={formData.notes}
+                      value={formData.notes || ""}
                       onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
                       className="min-h-[250px] bg-white/5 border-white/10 text-sm leading-relaxed"
                     />
@@ -572,7 +574,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                     <div className="flex gap-2">
                        <Input 
                          placeholder="YouTube URL..." 
-                         value={formData.youtubeUrl}
+                         value={formData.youtubeUrl || ""}
                          onChange={(e) => setFormData(prev => ({ ...prev, youtubeUrl: e.target.value }))}
                          className="bg-white/5 border-white/10 text-xs w-96 h-10"
                        />
@@ -633,7 +635,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                   </div>
 
                   <div className="grid grid-cols-2 gap-6">
-                    {/* Audio Asset Card */}
                     <div className={cn(
                       "group p-6 rounded-[2rem] border transition-all relative flex flex-col justify-between h-56",
                       formData.previewUrl ? "bg-white/5 border-white/10" : "bg-white/5 border-white/5 opacity-40 border-dashed"
@@ -660,7 +661,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       </div>
                     </div>
 
-                    {/* Sheet Music Card */}
                     <div className={cn(
                       "group p-6 rounded-[2rem] border transition-all relative flex flex-col justify-between h-56",
                       formData.pdfUrl ? "bg-white/5 border-white/10" : "bg-white/5 border-white/5 opacity-40 border-dashed"
@@ -687,7 +687,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       </div>
                     </div>
 
-                    {/* YouTube Card */}
                     <div className={cn(
                       "group p-6 rounded-[2rem] border transition-all relative flex flex-col justify-between h-56",
                       formData.youtubeUrl ? "bg-white/5 border-white/10" : "bg-white/5 border-white/5 opacity-40 border-dashed"
@@ -712,7 +711,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       </div>
                     </div>
 
-                    {/* Pro Resource Link Card (e.g. Ultimate Guitar) */}
                     <div className="group p-6 rounded-[2rem] border bg-white/5 border-white/10 transition-all relative flex flex-col justify-between h-56">
                       <div className="flex items-center justify-between">
                         <div className="bg-orange-600 p-3 rounded-2xl">
