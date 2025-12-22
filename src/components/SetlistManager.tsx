@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed, Copy, Upload, Loader2, Sparkles, FileText, ShieldCheck, Edit3, Search, FileDown, FileCheck, SortAsc, SortDesc, LayoutList, Volume2, Headphones, ChevronUp, ChevronDown, BarChart2 } from 'lucide-react';
+import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed, Copy, Upload, Loader2, Sparkles, FileText, ShieldCheck, Edit3, Search, FileDown, FileCheck, SortAsc, SortDesc, LayoutList, Volume2, Headphones, ChevronUp, ChevronDown, BarChart2, Smartphone } from 'lucide-react';
 import { ALL_KEYS, calculateSemitones } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
 import { supabase } from '@/integrations/supabase/client';
@@ -34,6 +34,14 @@ export interface SetlistSong {
   duration_seconds?: number; // New field for actual length
 }
 
+export const RESOURCE_TYPES = [
+  { id: 'UG', label: 'Ultimate Guitar', color: 'bg-orange-500/10 text-orange-600 border-orange-500/20' },
+  { id: 'OS', label: 'In OnSong', color: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
+  { id: 'UGP', label: 'UG Playlist', color: 'bg-yellow-500/10 text-yellow-700 border-yellow-500/20' },
+  { id: 'FS', label: 'ForScore', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
+  { id: 'PDF', label: 'Stage PDF', color: 'bg-red-500/10 text-red-700 border-red-500/20' },
+];
+
 interface SetlistManagerProps {
   songs: SetlistSong[];
   onRemove: (id: string) => void;
@@ -46,14 +54,6 @@ interface SetlistManagerProps {
   onReorder: (newSongs: SetlistSong[]) => void;
   currentSongId?: string;
 }
-
-const RESOURCE_TYPES = [
-  { id: 'UG', label: 'Ultimate Guitar', color: 'bg-orange-500/10 text-orange-600 border-orange-500/20' },
-  { id: 'FS', label: 'ForScore', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
-  { id: 'SM', label: 'Sheet Music', color: 'bg-blue-500/10 text-blue-600 border-blue-200' },
-  { id: 'LS', label: 'Lead Sheet', color: 'bg-purple-500/10 text-purple-600 border-purple-200' },
-  { id: 'PDF', label: 'iPad PDF', color: 'bg-red-100 text-red-700 border-red-200' },
-];
 
 type SortMode = 'none' | 'ready' | 'work';
 
@@ -88,7 +88,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     if (song.isMetadataConfirmed) score += 3;
     if (song.pdfUrl) score += 3;
     if (song.ugUrl) score += 2; 
-    if (song.youtubeUrl) score += 1;
+    if (song.resources?.includes('OS')) score += 2;
     if (song.bpm) score += 1;
     return score;
   };

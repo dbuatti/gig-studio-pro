@@ -40,10 +40,10 @@ interface SongStudioModalProps {
 
 const RESOURCE_TYPES = [
   { id: 'UG', label: 'Ultimate Guitar', color: 'bg-orange-100 text-orange-700 border-orange-200' },
+  { id: 'OS', label: 'In OnSong', color: 'bg-blue-100 text-blue-700 border-blue-200' },
+  { id: 'UGP', label: 'UG Playlist', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
   { id: 'FS', label: 'ForScore', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-  { id: 'SM', label: 'Sheet Music', color: 'bg-blue-100 text-blue-700 border-blue-200' },
-  { id: 'LS', label: 'Lead Sheet', color: 'bg-purple-100 text-purple-700 border-purple-200' },
-  { id: 'PDF', label: 'iPad PDF', color: 'bg-red-100 text-red-700 border-red-200' },
+  { id: 'PDF', label: 'Stage PDF', color: 'bg-red-100 text-red-700 border-red-200' },
 ];
 
 const SongStudioModal: React.FC<SongStudioModalProps> = ({ 
@@ -368,6 +368,11 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     const onSongUrl = `onsong://import?url=${encodeURIComponent(formData.ugUrl)}`;
     window.location.href = onSongUrl;
     showSuccess("Attempting OnSong Handover...");
+    
+    // Automatically mark as OS (In OnSong) if not already marked
+    if (!formData.resources?.includes('OS')) {
+      toggleResource('OS');
+    }
   };
 
   const handleUgPrint = () => {
