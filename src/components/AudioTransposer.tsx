@@ -54,30 +54,32 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
   const playbackStartTimeRef = useRef<number>(0);
   const offsetRef = useRef<number>(0);
 
-  // Initialize engine nodes ONLY after a user interaction
   const initEngine = async () => {
+    // Only start if not already running to satisfy browser policy
     if (Tone.getContext().state !== 'running') {
       await Tone.start();
     }
     
-    if (analyzerRef.current) return;
-
-    analyzerRef.current = new Tone.Analyser("fft", 256);
-    limiterRef.current = new Tone.Limiter(-1).toDestination();
-    compressorRef.current = new Tone.Compressor({
-      threshold: -20,
-      ratio: 3,
-      attack: 0.005,
-      release: 0.1
-    }).connect(limiterRef.current);
-    
-    eqRef.current = new Tone.EQ3({
-      low: 0,
-      mid: 0,
-      high: 0
-    }).connect(compressorRef.current);
-    
-    limiterRef.current.connect(analyzerRef.current);
+    // Lazily create nodes only when needed
+    if (!analyzerRef.current) {
+      analyzerRef.current = new Tone.Analyser("fft", 256);
+      limiterRef.current = new Tone.Limiter(-1).toDestination();
+      compressorRef.current = new Tone.Compressor({
+        threshold: -20,
+        ratio: 3,
+        attack: 0.005,
+        release: 0.1
+      }).connect(limiterRef.current);
+      
+      eqRef.current = new Tone.EQ3({
+        low: 0,
+        mid: 0,
+        high: 0
+      }).connect(compressorRef.current);
+      
+      limiterRef.current.connect(analyzerRef.current);
+    }
+    return true;
   };
 
   useEffect(() => {
@@ -123,8 +125,9 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
         setActiveVideoId(null);
       }
 
-      showSuccess("Engine Ready: " + (identifier.length > 20 ? identifier.substring(0, 20) + "..." : identifier));
+      showSuccess("Engine Ready");
     } catch (err) {
+      console.error("Buffer error:", err);
       showError("Engine initialization failed.");
     }
   };
@@ -136,10 +139,10 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
       if (!response.ok) throw new Error("Could not fetch file");
       const arrayBuffer = await response.arrayBuffer();
       const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
-      await loadAudioBuffer(audioBuffer, name || targetUrl.split('/').pop() || "Remote Audio", youtubeUrl, targetUrl);
+      await loadAudioBuffer(audioBuffer, name || "Remote Audio", youtubeUrl, targetUrl);
       if (!name) setUrl("");
     } catch (err) {
-      showError("Failed to load audio. Ensure it is a direct link with CORS enabled.");
+      showError("Failed to load audio stream.");
     } finally {
       setIsLoadingUrl(false);
     }
@@ -149,7 +152,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
     loadFromUrl,
     setPitch: (newPitch: number) => {
       setPitch(newPitch);
-      updateDetune(newPitch, fineTune);
+      if (playerRef.current) playerRef.current.detune = (newPitch * 100) + fineTune;
     },
     getPitch: () => pitch,
     triggerSearch: (query: string) => {
@@ -165,53 +168,13 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
 
   const loadFile = async (uploadedFile: File) => {
     if (!uploadedFile.type.startsWith('audio/')) {
-      showError("Please upload a valid audio file.");
+      showError("Invalid audio format.");
       return;
     }
     const arrayBuffer = await uploadedFile.arrayBuffer();
     const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
     loadAudioBuffer(audioBuffer, uploadedFile.name);
   };
-
-  const onDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const onDragLeave = () => {
-    setIsDragging(false);
-  };
-
-  const onDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const droppedFile = e.dataTransfer.files?.[0];
-    if (droppedFile) loadFile(droppedFile);
-  };
-
-  const animateProgress = () => {
-    if (isPlaying && playerRef.current) {
-      const elapsed = (Tone.now() - playbackStartTimeRef.current) * tempo;
-      const currentSeconds = offsetRef.current + elapsed;
-      const newProgress = (currentSeconds / duration) * 100;
-      
-      if (currentSeconds >= duration) {
-        setIsPlaying(false);
-        setProgress(0);
-        offsetRef.current = 0;
-        return;
-      }
-      
-      setProgress(newProgress);
-      requestRef.current = requestAnimationFrame(animateProgress);
-    }
-  };
-
-  useEffect(() => {
-    if (isPlaying) requestRef.current = requestAnimationFrame(animateProgress);
-    else if (requestRef.current) cancelAnimationFrame(requestRef.current);
-    return () => { if (requestRef.current) cancelAnimationFrame(requestRef.current); };
-  }, [isPlaying, tempo]);
 
   const togglePlayback = async () => {
     await initEngine();
@@ -240,66 +203,39 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
     }
   };
 
-  const updateDetune = (newPitch: number, newFine: number) => {
-    if (playerRef.current) playerRef.current.detune = (newPitch * 100) + newFine;
-  };
-
-  const handlePitchChange = (values: number[]) => {
-    setPitch(values[0]);
-    updateDetune(values[0], fineTune);
-  };
-
-  const handleFineTuneChange = (values: number[]) => {
-    setFineTune(values[0]);
-    updateDetune(pitch, values[0]);
-  };
-
-  const handleTempoChange = (values: number[]) => {
-    const newTempo = values[0];
-    setTempo(newTempo);
-    if (playerRef.current) {
-      playerRef.current.playbackRate = newTempo;
-      if (isPlaying) {
-        const elapsed = (Tone.now() - playbackStartTimeRef.current) * (tempo);
-        offsetRef.current += elapsed;
-        playbackStartTimeRef.current = Tone.now();
-      }
-    }
-  };
-
-  const handleEqChange = (values: number[]) => {
-    setEqHigh(values[0]);
-    if (eqRef.current) eqRef.current.high.value = values[0];
-  };
-
-  const handleVolumeChange = (values: number[]) => {
-    setVolume(values[0]);
-    if (playerRef.current) playerRef.current.volume.value = values[0];
-  };
-
-  const handleSeek = (values: number[]) => {
-    const newProgress = values[0];
-    setProgress(newProgress);
-    const newOffset = (newProgress / 100) * duration;
-    offsetRef.current = newOffset;
-    
+  const animateProgress = () => {
     if (isPlaying && playerRef.current) {
-      playerRef.current.stop();
-      playbackStartTimeRef.current = Tone.now();
-      playerRef.current.start(0, newOffset);
+      const elapsed = (Tone.now() - playbackStartTimeRef.current) * tempo;
+      const currentSeconds = offsetRef.current + elapsed;
+      const newProgress = (currentSeconds / duration) * 100;
+      
+      if (currentSeconds >= duration) {
+        setIsPlaying(false);
+        setProgress(0);
+        offsetRef.current = 0;
+        return;
+      }
+      
+      setProgress(newProgress);
+      requestRef.current = requestAnimationFrame(animateProgress);
     }
   };
+
+  useEffect(() => {
+    if (isPlaying) requestRef.current = requestAnimationFrame(animateProgress);
+    else if (requestRef.current) cancelAnimationFrame(requestRef.current);
+    return () => { if (requestRef.current) cancelAnimationFrame(requestRef.current); };
+  }, [isPlaying, tempo]);
 
   return (
     <Card className="w-full shadow-2xl border-t-4 border-t-indigo-600 overflow-hidden">
       <div className="bg-indigo-600 px-6 py-3 flex items-center justify-between text-white">
         <div className="flex items-center gap-2">
           <Activity className="w-4 h-4 animate-pulse" />
-          <span className="font-bold text-xs tracking-widest uppercase">Direct Stream Processor v2.5</span>
+          <span className="font-bold text-xs tracking-widest uppercase">Direct Stream Processor</span>
         </div>
-        <div className="flex items-center gap-4 text-[10px] font-mono opacity-80">
-          <span>LATENCY: ULTRA-LOW</span>
-          <span>SPS: 44.1KHZ</span>
+        <div className="flex items-center gap-4 text-[10px] font-mono opacity-80 uppercase">
+          <span>Latency: Low</span>
         </div>
       </div>
       
@@ -308,9 +244,9 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
           <div>
             <CardTitle className="flex items-center gap-2 text-2xl">
               <Waves className="w-6 h-6 text-indigo-600" />
-              Transposer Studio Pro
+              Transposer Studio
             </CardTitle>
-            <CardDescription>Advanced harmonic shifting and time-stretching engine.</CardDescription>
+            <CardDescription>Shift keys and tempo in real-time.</CardDescription>
           </div>
           <div className="flex items-center gap-2">
             {file && onAddToSetlist && (
@@ -320,21 +256,9 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
                 onClick={() => onAddToSetlist(file.url || '', file.name, activeYoutubeUrl, pitch)}
                 className="h-9 border-green-200 text-green-600 hover:bg-green-50 font-bold text-[10px] uppercase gap-2"
               >
-                <PlusCircle className="w-4 h-4" /> Save to Setlist
+                <PlusCircle className="w-4 h-4" /> Save
               </Button>
             )}
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-full">
-                    <Info className="w-5 h-5 text-muted-foreground" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs">
-                  <p>Streaming services are DRM-protected. Use Search to load high-quality previews with optional YouTube visual association.</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
           </div>
         </div>
       </CardHeader>
@@ -357,31 +281,17 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
 
           <TabsContent value="upload">
             <div 
-              onDragOver={onDragOver}
-              onDragLeave={onDragLeave}
-              onDrop={onDrop}
-              className={cn(
-                "relative h-32 flex items-center justify-center rounded-xl border-2 border-dashed transition-all duration-200 overflow-hidden group",
-                isDragging 
-                  ? "bg-indigo-50 border-indigo-500 scale-[1.01] dark:bg-indigo-900/20" 
-                  : "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800"
-              )}
+              className="relative h-32 flex items-center justify-center rounded-xl border-2 border-dashed bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 transition-all hover:border-indigo-500 group"
             >
               <div className="flex flex-col items-center pointer-events-none text-center p-4">
-                <Upload className={cn(
-                  "w-8 h-8 mb-2 transition-transform",
-                  isDragging ? "text-indigo-600 scale-110" : "text-indigo-400 group-hover:scale-110"
-                )} />
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  {isDragging ? "Drop to load engine" : "Drop High-Res Audio File"}
-                </p>
-                <p className="text-[10px] text-muted-foreground mt-1 italic">Supports .mp3, .wav, .m4a, .flac</p>
+                <Upload className="w-8 h-8 mb-2 text-indigo-400 group-hover:scale-110 transition-transform" />
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Load High-Res Audio</p>
               </div>
               <input
                 type="file"
                 accept="audio/*"
                 onChange={handleFileUpload}
-                className="absolute inset-0 opacity-0 cursor-pointer z-20"
+                className="absolute inset-0 opacity-0 cursor-pointer"
               />
             </div>
           </TabsContent>
@@ -391,8 +301,8 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
               <div className="relative flex-1">
                 <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input 
-                  placeholder="Paste direct audio link (e.g. .mp3)" 
-                  className="pl-9 h-11 text-sm border-slate-200"
+                  placeholder="Direct link to .mp3" 
+                  className="pl-9 h-11 text-sm"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                 />
@@ -400,7 +310,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
               <Button 
                 onClick={() => loadFromUrl(url)} 
                 disabled={!url || isLoadingUrl}
-                className="bg-indigo-600 hover:bg-indigo-700 h-11 px-6 font-bold uppercase tracking-wider text-[10px]"
+                className="bg-indigo-600 hover:bg-indigo-700 h-11 px-6 font-bold uppercase text-[10px]"
               >
                 {isLoadingUrl ? <Activity className="w-4 h-4 animate-spin" /> : "Fetch"}
               </Button>
@@ -417,7 +327,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
                     width="100%" 
                     height="100%" 
                     src={`https://www.youtube.com/embed/${activeVideoId}`}
-                    title="YouTube video player" 
+                    title="Video association" 
                     frameBorder="0" 
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
                     allowFullScreen
@@ -434,19 +344,29 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
                   <RotateCcw className="w-5 h-5" />
                 </Button>
                 <Button size="lg" onClick={togglePlayback} className="w-20 h-20 rounded-full shadow-2xl bg-indigo-600 hover:bg-indigo-700 transition-all hover:scale-110 group">
-                  {isPlaying ? <Pause className="w-10 h-10" /> : <Play className="w-10 h-10 ml-1 group-hover:text-white" />}
+                  {isPlaying ? <Pause className="w-10 h-10" /> : <Play className="w-10 h-10 ml-1" />}
                 </Button>
                 <div className="w-12" />
               </div>
             </div>
 
             <div className="space-y-3">
-              <div className="flex justify-between text-[10px] font-mono text-indigo-500 font-bold uppercase tracking-tighter">
+              <div className="flex justify-between text-[10px] font-mono text-indigo-500 font-bold uppercase">
                 <span>{new Date((progress/100 * duration) * 1000).toISOString().substr(14, 5)}</span>
                 <span className="opacity-40 truncate max-w-[200px]">{file.name}</span>
                 <span>{new Date(duration * 1000).toISOString().substr(14, 5)}</span>
               </div>
-              <Slider value={[progress]} max={100} step={0.1} onValueChange={handleSeek} className="cursor-pointer" />
+              <Slider value={[progress]} max={100} step={0.1} onValueChange={(v) => {
+                const p = v[0];
+                setProgress(p);
+                const offset = (p / 100) * duration;
+                offsetRef.current = offset;
+                if (isPlaying && playerRef.current) {
+                  playerRef.current.stop();
+                  playbackStartTimeRef.current = Tone.now();
+                  playerRef.current.start(0, offset);
+                }
+              }} />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
@@ -458,29 +378,24 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
                     </Label>
                     <span className="text-xl font-mono font-bold text-indigo-600">{pitch > 0 ? `+${pitch}` : pitch}</span>
                   </div>
-                  <Slider value={[pitch]} min={-12} max={12} step={1} onValueChange={handlePitchChange} />
+                  <Slider value={[pitch]} min={-12} max={12} step={1} onValueChange={(v) => {
+                    setPitch(v[0]);
+                    if (playerRef.current) playerRef.current.detune = (v[0] * 100) + fineTune;
+                  }} />
                 </div>
-
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Fine Tune (Cents)</Label>
-                    <span className="text-sm font-mono text-indigo-400 font-bold">{fineTune > 0 ? `+${fineTune}` : fineTune}¢</span>
-                  </div>
-                  <Slider value={[fineTune]} min={-100} max={100} step={1} onValueChange={handleFineTuneChange} />
-                </div>
-
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                      <Gauge className="w-3 h-3 text-indigo-500" /> Tempo Scaler
-                    </Label>
+                    <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Tempo Scaler</Label>
                     <span className="text-sm font-mono text-indigo-600 font-bold">{tempo.toFixed(2)}x</span>
                   </div>
-                  <Slider value={[tempo]} min={0.5} max={2.0} step={0.01} onValueChange={handleTempoChange} />
+                  <Slider value={[tempo]} min={0.5} max={1.5} step={0.01} onValueChange={(v) => {
+                    setTempo(v[0]);
+                    if (playerRef.current) playerRef.current.playbackRate = v[0];
+                  }} />
                 </div>
               </div>
 
-              <div className="space-y-8 bg-slate-50 dark:bg-slate-900/50 p-6 rounded-2xl border border-indigo-100/50 dark:border-indigo-900/50">
+              <div className="space-y-8 bg-slate-50 dark:bg-slate-900/50 p-6 rounded-2xl border border-indigo-100/50">
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
@@ -488,22 +403,15 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
                     </Label>
                     <span className="text-xs font-mono font-bold">{Math.round((volume + 60) * 1.66)}%</span>
                   </div>
-                  <Slider value={[volume]} min={-60} max={0} step={1} onValueChange={handleVolumeChange} />
+                  <Slider value={[volume]} min={-60} max={0} step={1} onValueChange={(v) => {
+                    setVolume(v[0]);
+                    if (playerRef.current) playerRef.current.volume.value = v[0];
+                  }} />
                 </div>
-
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">High Brilliance (EQ)</Label>
-                    <span className="text-xs font-mono font-bold text-indigo-400">{eqHigh > 0 ? `+${eqHigh}` : eqHigh}dB</span>
-                  </div>
-                  <Slider value={[eqHigh]} min={-12} max={12} step={1} onValueChange={handleEqChange} />
-                  <p className="text-[9px] text-muted-foreground italic">Use brilliance to recover clarity lost during high positive shifts.</p>
-                </div>
-
                 <div className="pt-4 border-t flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Youtube className="w-3 h-3 text-red-600" />
-                    <span className="text-[9px] font-bold text-indigo-600 uppercase">YouTube Link Active</span>
+                    <span className="text-[9px] font-bold text-indigo-600 uppercase">Pro Reference Mode</span>
                   </div>
                   <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
                 </div>
