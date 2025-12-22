@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { SetlistSong } from './SetlistManager';
-import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, calculateSemitones, formatKey } from '@/utils/keyUtils';
+import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, calculateSemitones, formatKey, transposeKey } from '@/utils/keyUtils';
 import { 
   Music, FileText, Youtube, Settings2, 
   Sparkles, Waves, Activity, Play, Pause,
@@ -22,13 +22,13 @@ import {
   ClipboardPaste, AlignLeft, Apple
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
-import AudioVisualizer from './AudioVisualizer';
 import * as Tone from 'tone';
 import { analyze } from 'web-audio-beat-detector';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { Slider } from '@/components/ui/slider';
 import { useSettings } from '@/hooks/use-settings';
+import AudioVisualizer from './AudioVisualizer';
 
 interface SongStudioModalProps {
   song: SetlistSong | null;
@@ -715,9 +715,20 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                           max={12} 
                           step={1} 
                           onValueChange={(v) => {
-                            setFormData(prev => ({ ...prev, pitch: v[0] }));
-                            if (playerRef.current) playerRef.current.detune = (v[0] * 100) + fineTune;
-                            if (song) onSave(song.id, { pitch: v[0] });
+                            const newPitch = v[0];
+                            const newTargetKey = transposeKey(formData.originalKey || "C", newPitch);
+                            
+                            setFormData(prev => ({ 
+                              ...prev, 
+                              pitch: newPitch,
+                              targetKey: newTargetKey
+                            }));
+                            
+                            if (playerRef.current) playerRef.current.detune = (newPitch * 100) + fineTune;
+                            if (song) {
+                              onSave(song.id, { pitch: newPitch, targetKey: newTargetKey });
+                              onUpdateKey(song.id, newTargetKey);
+                            }
                           }} 
                         />
                       </div>
@@ -985,7 +996,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                 <div className="space-y-12 animate-in fade-in slide-in-from-top-6 duration-500">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-lg font-black uppercase tracking-[0.3em] text-indigo-400">Resource Matrix</h3>
+                      <h3 className="text-lg font-black uppercase tracking-[0.2em] text-indigo-400">Resource Matrix</h3>
                       <p className="text-sm text-slate-500 mt-2">Centralized management for all song assets and links.</p>
                     </div>
                     <Button onClick={handleDownloadAll} className="bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-xs h-12 gap-3 px-8 rounded-2xl shadow-xl shadow-indigo-600/20">
