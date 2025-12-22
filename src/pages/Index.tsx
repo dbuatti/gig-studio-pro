@@ -7,28 +7,71 @@ import ImportSetlist from "@/components/ImportSetlist";
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { showSuccess, showError } from '@/utils/toast';
 import { calculateSemitones } from '@/utils/keyUtils';
+import { useAuth } from '@/components/AuthProvider';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { LogOut, User as UserIcon, Save, Loader2 } from 'lucide-react';
 
 const Index = () => {
+  const { user, signOut } = useAuth();
   const [setlist, setSetlist] = useState<SetlistSong[]>([]);
   const [currentSongId, setCurrentSongId] = useState<string | undefined>();
+  const [isSaving, setIsSaving] = useState(false);
+  const [setlistId, setSetlistId] = useState<string | null>(null);
   const transposerRef = useRef<AudioTransposerRef>(null);
 
-  // Load setlist from localStorage on mount
+  // Load setlist from Supabase on mount
   useEffect(() => {
-    const saved = localStorage.getItem('gig-setlist');
-    if (saved) {
-      try {
-        setSetlist(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to parse setlist", e);
-      }
+    if (user) {
+      fetchSetlist();
     }
-  }, []);
+  }, [user]);
 
-  // Save setlist to localStorage on change
-  useEffect(() => {
-    localStorage.setItem('gig-setlist', JSON.stringify(setlist));
-  }, [setlist]);
+  const fetchSetlist = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('setlists')
+        .select('*')
+        .limit(1)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+
+      if (data) {
+        setSetlist(data.songs as SetlistSong[]);
+        setSetlistId(data.id);
+      }
+    } catch (err) {
+      console.error("Failed to fetch setlist", err);
+    }
+  };
+
+  const saveToSupabase = async (newSetlist: SetlistSong[]) => {
+    if (!user) return;
+    setIsSaving(true);
+    try {
+      if (setlistId) {
+        const { error } = await supabase
+          .from('setlists')
+          .update({ songs: newSetlist, updated_at: new Date().toISOString() })
+          .eq('id', setlistId);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from('setlists')
+          .insert([{ user_id: user.id, songs: newSetlist }])
+          .select()
+          .single();
+        if (error) throw error;
+        if (data) setSetlistId(data.id);
+      }
+    } catch (err) {
+      console.error("Failed to save setlist", err);
+      showError("Cloud sync failed.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleAddToSetlist = (previewUrl: string, name: string, youtubeUrl?: string, pitch: number = 0) => {
     const newSong: SetlistSong = {
@@ -37,47 +80,49 @@ const Index = () => {
       previewUrl,
       youtubeUrl,
       pitch,
-      originalKey: "C", // Default for searches
+      originalKey: "C",
       targetKey: "C"
     };
-    setSetlist(prev => [...prev, newSong]);
+    const updated = [...setlist, newSong];
+    setSetlist(updated);
+    saveToSupabase(updated);
     showSuccess(`Added "${name}" to setlist`);
   };
 
   const handleImportSongs = (songs: SetlistSong[]) => {
-    setSetlist(prev => [...prev, ...songs]);
+    const updated = [...setlist, ...songs];
+    setSetlist(updated);
+    saveToSupabase(updated);
     showSuccess(`Imported ${songs.length} songs from Markdown`);
   };
 
   const handleUpdateKey = (id: string, targetKey: string) => {
-    setSetlist(prev => prev.map(s => {
+    const updated = setlist.map(s => {
       if (s.id === id) {
         const pitch = calculateSemitones(s.originalKey || "C", targetKey);
-        
-        // If this is the active song, update the engine immediately
         if (currentSongId === id && transposerRef.current) {
           transposerRef.current.setPitch(pitch);
         }
-        
         return { ...s, targetKey, pitch };
       }
       return s;
-    }));
+    });
+    setSetlist(updated);
+    saveToSupabase(updated);
   };
 
   const handleRemoveFromSetlist = (id: string) => {
-    setSetlist(prev => prev.filter(s => s.id !== id));
+    const updated = setlist.filter(s => s.id !== id);
+    setSetlist(updated);
+    saveToSupabase(updated);
     if (currentSongId === id) setCurrentSongId(undefined);
   };
 
   const handleSelectFromSetlist = async (song: SetlistSong) => {
     setCurrentSongId(song.id);
-    
     if (song.previewUrl) {
       if (transposerRef.current) {
-        // First load the audio
         await transposerRef.current.loadFromUrl(song.previewUrl, song.name, song.youtubeUrl);
-        // Then apply the saved pitch
         transposerRef.current.setPitch(song.pitch);
       }
     } else {
@@ -88,8 +133,19 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto space-y-8">
-        <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b pb-6">
           <div className="space-y-2">
+            <div className="flex items-center gap-2 text-indigo-600 mb-2">
+              <UserIcon className="w-4 h-4" />
+              <span className="text-xs font-bold uppercase tracking-widest">{user?.email}</span>
+              {isSaving ? (
+                <span className="flex items-center gap-1 text-[10px] text-slate-400">
+                  <Loader2 className="w-3 h-3 animate-spin" /> SYNCING...
+                </span>
+              ) : (
+                <span className="text-[10px] text-green-500 font-bold uppercase tracking-widest">● CLOUD SYNCED</span>
+              )}
+            </div>
             <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100 sm:text-5xl">
               Gig Studio Pro
             </h1>
@@ -99,6 +155,9 @@ const Index = () => {
           </div>
           <div className="flex items-center gap-2">
             <ImportSetlist onImport={handleImportSongs} />
+            <Button variant="ghost" size="sm" onClick={signOut} className="text-slate-500 hover:text-red-600">
+              <LogOut className="w-4 h-4 mr-2" /> Exit
+            </Button>
           </div>
         </header>
 
@@ -123,10 +182,9 @@ const Index = () => {
 
         <footer className="pt-8">
           <div className="max-w-xl mx-auto p-4 bg-white dark:bg-slate-900 rounded-lg border text-sm text-slate-500 text-center">
-            <h3 className="font-semibold mb-2">Setlist Intelligence</h3>
+            <h3 className="font-semibold mb-2">Supabase Cloud Active</h3>
             <p>
-              Imported songs are saved to your browser. Use the <b>Key Selector</b> in the setlist 
-              to automatically calculate the required semitone shift from the original key.
+              Your setlists are now stored securely in the database. Changes are saved automatically as you work.
             </p>
           </div>
           <MadeWithDyad />
