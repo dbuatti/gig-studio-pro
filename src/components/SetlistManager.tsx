@@ -17,7 +17,7 @@ export interface SetlistSong {
   artist?: string;
   previewUrl: string;
   youtubeUrl?: string;
-  ugUrl?: string; // Direct Ultimate Guitar Link
+  ugUrl?: string; 
   pdfUrl?: string;
   originalKey?: string;
   targetKey?: string;
@@ -31,6 +31,7 @@ export interface SetlistSong {
   resources?: string[];
   user_tags?: string[];
   isKeyLinked?: boolean;
+  duration_seconds?: number; // New field for actual length
 }
 
 interface SetlistManagerProps {
@@ -86,7 +87,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     if (song.previewUrl && !isItunesPreview(song.previewUrl)) score += 5;
     if (song.isMetadataConfirmed) score += 3;
     if (song.pdfUrl) score += 3;
-    if (song.ugUrl) score += 2; // Extra points for direct UG link
+    if (song.ugUrl) score += 2; 
     if (song.youtubeUrl) score += 1;
     if (song.bpm) score += 1;
     return score;
@@ -356,6 +357,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
         onClose={() => setStudioSong(null)} 
         onSave={onUpdateSong} 
         onUpdateKey={onUpdateKey}
+        onSyncProData={onSyncProData}
         onPerform={(song) => {
           onSelect(song);
           setStudioSong(null);

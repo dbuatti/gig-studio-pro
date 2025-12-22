@@ -34,6 +34,7 @@ interface SongStudioModalProps {
   onClose: () => void;
   onSave: (id: string, updates: Partial<SetlistSong>) => void;
   onUpdateKey: (id: string, targetKey: string) => void;
+  onSyncProData?: (song: SetlistSong) => Promise<void>;
   onPerform?: (song: SetlistSong) => void;
 }
 
@@ -51,6 +52,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   onClose, 
   onSave, 
   onUpdateKey,
+  onSyncProData,
   onPerform 
 }) => {
   const [formData, setFormData] = useState<Partial<SetlistSong>>({});
@@ -95,7 +97,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         resources: song.resources || [],
         pitch: song.pitch || 0,
         user_tags: song.user_tags || [],
-        isKeyLinked: song.isKeyLinked ?? true
+        isKeyLinked: song.isKeyLinked ?? true,
+        duration_seconds: song.duration_seconds || 0
       });
       
       if (song.previewUrl) {
@@ -209,6 +212,9 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       playerRef.current.overlap = 0.1;
       
       setDuration(buffer.duration);
+      if (song && !song.duration_seconds) {
+        handleAutoSave({ duration_seconds: buffer.duration });
+      }
     } catch (err) {
       console.error("Audio Load Error:", err);
     }
@@ -338,24 +344,19 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     setFormData(prev => {
       const next = { ...prev, ...updates };
       
-      // Case 1: Toggling link state
       if (updates.hasOwnProperty('isKeyLinked')) {
         if (next.isKeyLinked) {
-          // Turning ON: Recalculate pitch based on keys
           const diff = calculateSemitones(next.originalKey || "C", next.targetKey || "C");
           next.pitch = diff;
         } else {
-          // Turning OFF: Reset pitch to 0 as requested
           next.pitch = 0;
         }
       } 
-      // Case 2: Changing keys while link is active
       else if (next.isKeyLinked) {
         const diff = calculateSemitones(next.originalKey || "C", next.targetKey || "C");
         next.pitch = diff;
       }
       
-      // Apply to engine if needed
       if (playerRef.current) {
         playerRef.current.detune = ((next.pitch || 0) * 100) + fineTune;
       }
@@ -365,37 +366,49 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     });
   };
 
-  const handleDownloadAll = () => {
-    const links = [
-      { url: formData.previewUrl, name: `${formData.name}_Audio` },
-      { url: formData.pdfUrl, name: `${formData.name}_Chart` },
-      { url: formData.youtubeUrl, name: `${formData.name}_Reference` },
-      { url: formData.ugUrl, name: `${formData.name}_UG_Chords` }
-    ].filter(l => !!l.url);
-
-    if (links.length === 0) {
-      showError("No downloadable assets found.");
-      return;
-    }
-
-    links.forEach(link => {
-      const a = document.createElement('a');
-      a.href = link.url!;
-      a.download = link.name;
-      a.target = '_blank';
-      a.click();
-    });
-    showSuccess(`Started download for ${links.length} assets.`);
+  const handleProSync = async () => {
+    if (!song || !onSyncProData) return;
+    await onSyncProData(song);
+    showSuccess("Pro Sync data updated");
   };
 
   const handleUgAction = () => {
     if (formData.ugUrl) {
       window.open(formData.ugUrl, '_blank');
-    } else {
-      const query = encodeURIComponent(`${formData.artist} ${formData.name}`);
-      const searchUrl = `https://www.ultimate-guitar.com/search.php?search_type=title&value=${query}&type=600`;
-      window.open(searchUrl, '_blank');
+    } else if (formData.name && formData.artist) {
+      const query = encodeURIComponent(`${formData.artist} ${formData.name} official tab`);
+      window.open(`https://www.ultimate-guitar.com/search.php?search_type=title&value=${query}`, '_blank');
     }
+  };
+
+  const handleDownloadAll = async () => {
+    const assets = [
+      { url: formData.previewUrl, name: `${formData.name}_audio` },
+      { url: formData.pdfUrl, name: `${formData.name}_sheet` }
+    ].filter(a => !!a.url);
+
+    if (assets.length === 0) {
+      showError("No assets linked to download.");
+      return;
+    }
+
+    for (const asset of assets) {
+      try {
+        const response = await fetch(asset.url!);
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = asset.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } catch (err) {
+        showError(`Failed to download ${asset.name}`);
+      }
+    }
+    showSuccess("Assets downloaded");
   };
 
   if (!song) return null;
@@ -433,11 +446,19 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         <div className="flex h-[90vh] min-h-[800px]">
           <div className="w-96 bg-slate-900/50 border-r border-white/5 flex flex-col">
             <div className="p-8 border-b border-white/5 bg-black/20">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="bg-indigo-600 p-1.5 rounded-lg">
-                  <Activity className="w-5 h-5 text-white" />
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="bg-indigo-600 p-1.5 rounded-lg">
+                    <Activity className="w-5 h-5 text-white" />
+                  </div>
+                  <span className="font-black uppercase tracking-tighter text-xs">Pro Studio Config</span>
                 </div>
-                <span className="font-black uppercase tracking-tighter text-xs">Pro Studio Config</span>
+                <Button 
+                  onClick={handleProSync} 
+                  className="bg-indigo-600 hover:bg-indigo-700 h-8 px-3 text-[9px] font-black uppercase tracking-widest gap-2 shadow-lg shadow-indigo-600/20"
+                >
+                  <Sparkles className="w-3 h-3" /> Pro Sync
+                </Button>
               </div>
               <h2 className="text-3xl font-black uppercase tracking-tight leading-none mb-1 truncate">{formData.name || ""}</h2>
               <p className="text-xs font-black text-indigo-400 uppercase tracking-widest truncate">{formData.artist || "Unknown Artist"}</p>
@@ -627,7 +648,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                        >
                          {isPlaying ? <Pause className="w-12 h-12" /> : <Play className="w-12 h-12 ml-2 fill-current" />}
                        </Button>
-                       <div className="h-20 w-20" /> {/* Spacer */}
+                       <div className="h-20 w-20" /> 
                     </div>
                   </div>
 

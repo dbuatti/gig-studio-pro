@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 
 const Index = () => {
   const { user, signOut } = useAuth();
-  const [setlists, setSetlists] = useState<{ id: string; name: string; songs: SetlistSong[] }[]>([]);
+  const [setlists, setSetlists] = useState<{ id: string; name: string; songs: SetlistSong[]; time_goal?: number }[]>([]);
   const [currentListId, setCurrentListId] = useState<string | null>(null);
   const [activeSongId, setActiveSongId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -37,10 +37,8 @@ const Index = () => {
   const activeSongIndex = songs.findIndex(s => s.id === activeSongId);
   const activeSong = songs[activeSongIndex] || null;
 
-  // Compute total repertoire for the "My Library" tab
   const fullRepertoire = useMemo(() => {
     const all = setlists.flatMap(list => list.songs);
-    // Unique by name + artist to keep it clean
     const seen = new Set();
     return all.filter(song => {
       const key = `${song.name}-${song.artist}`.toLowerCase();
@@ -96,10 +94,15 @@ const Index = () => {
       if (error) throw error;
       
       if (data && data.length > 0) {
-        setSetlists(data.map(d => ({ id: d.id, name: d.name, songs: d.songs as SetlistSong[] })));
+        setSetlists(data.map(d => ({ 
+          id: d.id, 
+          name: d.name, 
+          songs: d.songs as SetlistSong[],
+          time_goal: d.time_goal 
+        })));
         setCurrentListId(data[0].id);
       } else {
-        const newList = { name: "My First Gig", songs: [] };
+        const newList = { name: "My First Gig", songs: [], time_goal: 7200 };
         const { data: created, error: createError } = await supabase
           .from('setlists')
           .insert([{ user_id: user?.id, ...newList }])
@@ -108,7 +111,7 @@ const Index = () => {
         
         if (createError) throw createError;
         if (created) {
-          setSetlists([{ id: created.id, name: created.name, songs: created.songs as SetlistSong[] }]);
+          setSetlists([{ id: created.id, name: created.name, songs: created.songs as SetlistSong[], time_goal: created.time_goal }]);
           setCurrentListId(created.id);
         }
       }
@@ -117,14 +120,18 @@ const Index = () => {
     }
   };
 
-  const saveList = async (listId: string, updatedSongs: SetlistSong[]) => {
+  const saveList = async (listId: string, updatedSongs: SetlistSong[], updates: Partial<any> = {}) => {
     if (!user) return;
     setIsSaving(true);
     try {
       const cleanedSongs = updatedSongs.map(({ isSyncing, ...rest }) => rest);
       const { error } = await supabase
         .from('setlists')
-        .update({ songs: cleanedSongs, updated_at: new Date().toISOString() })
+        .update({ 
+          songs: cleanedSongs, 
+          updated_at: new Date().toISOString(),
+          ...updates
+        })
         .eq('id', listId);
       if (error) throw error;
     } catch (err) {
@@ -132,6 +139,13 @@ const Index = () => {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleUpdateGoal = async (seconds: number) => {
+    if (!currentListId) return;
+    setSetlists(prev => prev.map(l => l.id === currentListId ? { ...l, time_goal: seconds } : l));
+    await saveList(currentListId, songs, { time_goal: seconds });
+    showSuccess(`Gig goal updated to ${seconds / 3600} hours`);
   };
 
   const handleBulkSync = async (songsToSync: SetlistSong[], fromQueue = false) => {
@@ -241,7 +255,7 @@ const Index = () => {
     const clonedSong: SetlistSong = {
       ...song,
       id: newSongId,
-      isPlayed: false // Reset played status for new list
+      isPlayed: false 
     };
     
     setSetlists(prev => {
@@ -351,7 +365,7 @@ const Index = () => {
             onCreate={async () => {
               const name = prompt("Enter Gig Name:");
               if (!name) return;
-              const { data } = await supabase.from('setlists').insert([{ user_id: user?.id, name, songs: [] }]).select().single();
+              const { data } = await supabase.from('setlists').insert([{ user_id: user?.id, name, songs: [], time_goal: 7200 }]).select().single();
               if (data) fetchSetlists();
             }}
             onDelete={async (id) => {
@@ -426,7 +440,11 @@ const Index = () => {
               </div>
             </div>
 
-            <SetlistStats songs={songs} />
+            <SetlistStats 
+              songs={songs} 
+              goalSeconds={currentList?.time_goal} 
+              onUpdateGoal={handleUpdateGoal} 
+            />
 
             <SetlistManager 
               songs={songs} 

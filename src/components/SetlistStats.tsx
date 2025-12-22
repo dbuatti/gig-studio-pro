@@ -1,33 +1,39 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { SetlistSong } from './SetlistManager';
-import { Clock, Music, CheckCircle2, BarChart3, PieChart, Tag } from 'lucide-react';
+import { Clock, Music, CheckCircle2, BarChart3, PieChart, Tag, Target, ChevronRight } from 'lucide-react';
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import { Input } from './ui/input';
 
 interface SetlistStatsProps {
   songs: SetlistSong[];
+  goalSeconds?: number;
+  onUpdateGoal?: (seconds: number) => void;
 }
 
-const SetlistStats: React.FC<SetlistStatsProps> = ({ songs }) => {
+const SetlistStats: React.FC<SetlistStatsProps> = ({ songs, goalSeconds = 7200, onUpdateGoal }) => {
+  const [isEditingGoal, setIsEditingGoal] = useState(false);
   const totalSongs = songs.length;
   const playedSongs = songs.filter(s => s.isPlayed).length;
   
-  const calculateTotalSeconds = () => {
-    let total = 0;
-    songs.forEach(song => {
-      total += 210; // Default 3:30 for gig planning
-    });
-    return total;
+  const totalSeconds = songs.reduce((acc, song) => {
+    // Use actual duration if available, fallback to 3:30 (210s)
+    return acc + (song.duration_seconds || 210);
+  }, 0);
+
+  const formatDuration = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
   };
 
-  const totalSeconds = calculateTotalSeconds();
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-
-  const readySongs = songs.filter(s => s.previewUrl && !s.previewUrl.includes('apple.com')).length;
-  const readinessPercent = totalSongs > 0 ? (readySongs / totalSongs) * 100 : 0;
+  const readinessPercent = totalSongs > 0 ? (songs.filter(s => s.previewUrl && !s.previewUrl.includes('apple.com')).length / totalSongs) * 100 : 0;
+  
+  const goalProgress = goalSeconds > 0 ? (totalSeconds / goalSeconds) * 100 : 0;
+  const remainingSeconds = goalSeconds - totalSeconds;
+  const isGoalMet = remainingSeconds <= 0;
 
   // Genre distribution
   const genres = songs.reduce((acc, song) => {
@@ -43,6 +49,64 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({ songs }) => {
   return (
     <div className="space-y-4 mb-8">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* Setlist Goal Tracker */}
+        <div className="col-span-1 md:col-span-2 bg-slate-900 text-white p-6 rounded-[2rem] shadow-2xl shadow-indigo-500/10 border border-white/5 flex flex-col justify-between group relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-600/10 blur-[60px] rounded-full -mr-16 -mt-16 group-hover:bg-indigo-600/20 transition-all" />
+          
+          <div className="flex items-center justify-between mb-4 relative z-10">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/20">
+                <Target className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Performance Goal</p>
+                {isEditingGoal ? (
+                  <div className="flex items-center gap-2 mt-1">
+                    <Input 
+                      type="number"
+                      autoFocus
+                      className="h-7 w-20 bg-white/5 border-white/10 text-xs font-black p-1"
+                      placeholder="Hours"
+                      defaultValue={Math.floor(goalSeconds / 3600)}
+                      onBlur={(e) => {
+                        const hours = parseInt(e.target.value) || 0;
+                        onUpdateGoal?.(hours * 3600);
+                        setIsEditingGoal(false);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') e.currentTarget.blur();
+                      }}
+                    />
+                    <span className="text-[10px] font-bold text-slate-500">HOURS</span>
+                  </div>
+                ) : (
+                  <h3 className="text-2xl font-black flex items-center gap-2 cursor-pointer hover:text-indigo-400 transition-colors" onClick={() => setIsEditingGoal(true)}>
+                    {formatDuration(goalSeconds)} <span className="text-[10px] font-bold text-slate-500">TARGET</span>
+                  </h3>
+                )}
+              </div>
+            </div>
+            
+            <div className="text-right">
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Total Active</p>
+              <p className="text-2xl font-black text-white">{formatDuration(totalSeconds)}</p>
+            </div>
+          </div>
+
+          <div className="space-y-3 relative z-10">
+            <div className="flex justify-between items-end">
+              <span className={cn(
+                "text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded",
+                isGoalMet ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"
+              )}>
+                {isGoalMet ? "Goal Achieved" : `${formatDuration(remainingSeconds)} Remaining`}
+              </span>
+              <span className="text-xs font-mono font-bold">{Math.min(100, Math.round(goalProgress))}%</span>
+            </div>
+            <Progress value={Math.min(100, goalProgress)} className="h-3 bg-white/5" />
+          </div>
+        </div>
+
         <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border shadow-sm flex items-center gap-5 transition-transform hover:scale-[1.02]">
           <div className="h-12 w-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-600/20">
             <Music className="w-6 h-6" />
@@ -50,18 +114,6 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({ songs }) => {
           <div>
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Repertoire</p>
             <p className="text-2xl font-black">{totalSongs} <span className="text-[10px] font-bold text-slate-400">TRACKS</span></p>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border shadow-sm flex items-center gap-5 transition-transform hover:scale-[1.02]">
-          <div className="h-12 w-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
-            <Clock className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Duration</p>
-            <p className="text-2xl font-black">
-              {hours > 0 && `${hours}h `}{minutes}m
-            </p>
           </div>
         </div>
 
@@ -74,20 +126,8 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({ songs }) => {
             <p className="text-2xl font-black">{playedSongs} / {totalSongs}</p>
           </div>
         </div>
-
-        <div className="bg-indigo-600 p-6 rounded-[2rem] shadow-xl shadow-indigo-600/20 space-y-3">
-          <div className="flex justify-between items-center text-white">
-            <p className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 opacity-80">
-              <BarChart3 className="w-4 h-4" /> Readiness
-            </p>
-            <span className="text-lg font-black">{Math.round(readinessPercent)}%</span>
-          </div>
-          <Progress value={readinessPercent} className="h-2.5 bg-white/20" />
-          <p className="text-[8px] font-black text-indigo-100/60 uppercase tracking-widest">Audio Connectivity Status</p>
-        </div>
       </div>
 
-      {/* Deep Telemetry Breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-slate-900/5 dark:bg-white/5 border border-slate-200 dark:border-white/5 p-6 rounded-[2rem] flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -100,9 +140,10 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({ songs }) => {
                 {topGenres.map(([genre, count]) => (
                   <div key={genre} className="flex items-baseline gap-1.5">
                     <span className="text-xs font-black uppercase tracking-tight">{genre}</span>
-                    <span className="text-[10px] font-mono font-bold text-indigo-600">{Math.round((count/totalSongs)*100)}%</span>
+                    <span className="text-[10px] font-mono font-bold text-indigo-600">{Math.round((count/Math.max(1, totalSongs))*100)}%</span>
                   </div>
                 ))}
+                {totalSongs === 0 && <span className="text-[9px] text-slate-400 font-bold uppercase">Ready for Analysis</span>}
               </div>
             </div>
           </div>
@@ -110,18 +151,14 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({ songs }) => {
 
         <div className="bg-slate-900/5 dark:bg-white/5 border border-slate-200 dark:border-white/5 p-6 rounded-[2rem] flex items-center gap-4">
           <div className="h-10 w-10 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center text-indigo-600">
-            <Tag className="w-5 h-5" />
+            <BarChart3 className="w-5 h-5" />
           </div>
           <div className="flex-1">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Popular Set Tags</p>
-            <div className="flex flex-wrap gap-2">
-              {Array.from(new Set(songs.flatMap(s => s.user_tags || []))).slice(0, 5).map(tag => (
-                <span key={tag} className="text-[8px] font-black uppercase tracking-widest bg-indigo-600/10 text-indigo-600 px-2.5 py-1 rounded-full border border-indigo-600/20">
-                  {tag}
-                </span>
-              ))}
-              {songs.length === 0 && <span className="text-[9px] text-slate-400 font-bold">ADD TAGS IN STUDIO</span>}
+            <div className="flex justify-between items-center mb-2">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Audio Readiness</p>
+              <span className="text-xs font-black text-indigo-600">{Math.round(readinessPercent)}%</span>
             </div>
+            <Progress value={readinessPercent} className="h-1.5" />
           </div>
         </div>
       </div>
