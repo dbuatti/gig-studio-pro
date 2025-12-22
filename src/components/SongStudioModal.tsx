@@ -58,6 +58,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   
+  // Audio Engine State
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -65,6 +66,9 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const analyzerRef = useRef<Tone.Analyser | null>(null);
   const currentBufferRef = useRef<AudioBuffer | null>(null);
   const requestRef = useRef<number>();
+  
+  const playbackStartTimeRef = useRef<number>(0);
+  const playbackOffsetRef = useRef<number>(0);
 
   useEffect(() => {
     if (song) {
@@ -108,6 +112,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     if (requestRef.current) cancelAnimationFrame(requestRef.current);
     setIsPlaying(false);
     setProgress(0);
+    playbackOffsetRef.current = 0;
     currentBufferRef.current = null;
   };
 
@@ -158,18 +163,34 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     if (!playerRef.current) return;
     if (isPlaying) {
       playerRef.current.stop();
+      const elapsed = Tone.now() - playbackStartTimeRef.current;
+      playbackOffsetRef.current += elapsed;
       setIsPlaying(false);
+      if (requestRef.current) cancelAnimationFrame(requestRef.current);
     } else {
       const startTime = (progress / 100) * duration;
+      playbackOffsetRef.current = startTime;
+      playbackStartTimeRef.current = Tone.now();
       playerRef.current.start(0, startTime);
       setIsPlaying(true);
-      animate();
+      requestRef.current = requestAnimationFrame(animate);
     }
   };
 
   const animate = () => {
     if (playerRef.current && isPlaying) {
-      const currentSeconds = playerRef.current.state === 'started' ? playerRef.current.now() : 0;
+      const elapsed = Tone.now() - playbackStartTimeRef.current;
+      const currentSeconds = playbackOffsetRef.current + elapsed;
+      const newProgress = (currentSeconds / duration) * 100;
+
+      if (currentSeconds >= duration) {
+        setIsPlaying(false);
+        setProgress(0);
+        playbackOffsetRef.current = 0;
+        return;
+      }
+
+      setProgress(newProgress);
       requestRef.current = requestAnimationFrame(animate);
     }
   };
