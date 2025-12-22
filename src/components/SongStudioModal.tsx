@@ -73,6 +73,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
 
   useEffect(() => {
     if (song && isOpen) {
+      // Initialize with full song data to ensure all assets are tracked
       setFormData({
         name: song.name || "",
         artist: song.artist || "",
@@ -81,6 +82,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         targetKey: song.targetKey || "C",
         notes: song.notes || "",
         youtubeUrl: song.youtubeUrl || "",
+        previewUrl: song.previewUrl || "",
         pdfUrl: song.pdfUrl || "",
         resources: song.resources || [],
         pitch: song.pitch || 0,
@@ -93,7 +95,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       }
     }
     return () => cleanupAudio();
-  }, [song, isOpen]);
+  }, [song?.id, isOpen]); // Use song.id to prevent unnecessary re-runs if other fields change during sync
 
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
   const handleAutoSave = (updates: Partial<SetlistSong>) => {
@@ -102,7 +104,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(() => {
       if (song) onSave(song.id, updates);
-    }, 1000);
+    }, 800);
   };
 
   const cleanupAudio = () => {
@@ -119,12 +121,12 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   };
 
   const prepareAudio = async (url: string, pitch: number) => {
+    if (!url) return;
     try {
-      if (url === currentBufferRef.current?.toString()) return;
-      cleanupAudio();
       if (Tone.getContext().state !== 'running') await Tone.start();
       
       const response = await fetch(url);
+      if (!response.ok) throw new Error("Audio fetch failed");
       const arrayBuffer = await response.arrayBuffer();
       const buffer = await Tone.getContext().decodeAudioData(arrayBuffer);
       
@@ -134,6 +136,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         analyzerRef.current = new Tone.Analyser("fft", 256);
       }
 
+      if (playerRef.current) playerRef.current.dispose();
       playerRef.current = new Tone.GrainPlayer(buffer).toDestination();
       playerRef.current.connect(analyzerRef.current);
       playerRef.current.detune = pitch * 100;
@@ -210,20 +213,25 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       const folder = isAudio ? 'tracks' : 'sheets';
       const fileName = `${folder}/${song.id}-${Date.now()}.${file.name.split('.').pop()}`;
 
-      const { error } = await supabase.storage.from('audio_tracks').upload(fileName, file);
-      if (error) throw error;
+      // Upload to public storage
+      const { error: uploadError } = await supabase.storage.from('audio_tracks').upload(fileName, file);
+      if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage.from('audio_tracks').getPublicUrl(fileName);
       
       const update = isAudio ? { previewUrl: publicUrl } : { pdfUrl: publicUrl };
       
-      onSave(song.id, update);
+      // Update local state first for immediate UI response
       setFormData(prev => ({ ...prev, ...update }));
       
+      // Persist to DB
+      onSave(song.id, update);
+      
       if (isAudio) prepareAudio(publicUrl, formData.pitch || 0);
-      showSuccess(`Uploaded ${file.name}`);
+      showSuccess(`Successfully linked ${file.name}`);
     } catch (err) {
-      showError("Upload failed");
+      console.error("Upload Error:", err);
+      showError("Asset upload failed. Please check storage bucket permissions.");
     } finally {
       setIsUploading(false);
     }
@@ -319,6 +327,13 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
           </div>
         )}
 
+        {isUploading && (
+          <div className="absolute inset-0 z-[60] bg-black/60 backdrop-blur-md flex flex-col items-center justify-center gap-4 animate-in fade-in">
+             <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" />
+             <p className="text-sm font-black uppercase tracking-[0.2em] text-white">Syncing Master Asset...</p>
+          </div>
+        )}
+
         <div className="flex h-[800px]">
           {/* Left Sidebar: Settings */}
           <div className="w-80 bg-slate-900/50 border-r border-white/5 flex flex-col">
@@ -329,8 +344,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                 </div>
                 <span className="font-black uppercase tracking-tighter text-xs">Pro Studio Config</span>
               </div>
-              <h2 className="text-2xl font-black uppercase tracking-tight leading-none mb-1">{formData.name || ""}</h2>
-              <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">{formData.artist || "Unknown Artist"}</p>
+              <h2 className="text-2xl font-black uppercase tracking-tight leading-none mb-1 truncate">{formData.name || ""}</h2>
+              <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest truncate">{formData.artist || "Unknown Artist"}</p>
             </div>
 
             <div className="flex-1 overflow-y-auto p-8 space-y-10">
@@ -442,9 +457,9 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
             <div className="p-6 border-t border-white/5 flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-slate-600">
               <div className="flex items-center gap-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-                Auto-Save Active
+                Live Sync: ON
               </div>
-              <span>v2.0 PRO</span>
+              <span>PRO V2.1</span>
             </div>
           </div>
 
@@ -578,7 +593,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Primary Artist</Label>
                       <Input 
                         value={formData.artist || ""} 
-                        onChange={(e) => setFormData(prev => ({ ...prev, artist: e.target.value }))}
+                        onChange={(e) => handleAutoSave({ artist: e.target.value })}
                         className="bg-white/5 border-white/10 text-xl font-black h-14"
                       />
                     </div>
