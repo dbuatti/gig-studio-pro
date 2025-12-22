@@ -8,25 +8,27 @@ import ImportSetlist from "@/components/ImportSetlist";
 import PerformanceOverlay from "@/components/PerformanceOverlay";
 import ActiveSongBanner from "@/components/ActiveSongBanner";
 import SetlistStats from "@/components/SetlistStats";
+import PreferencesModal from "@/components/PreferencesModal";
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { showSuccess, showError } from '@/utils/toast';
 import { calculateSemitones } from '@/utils/keyUtils';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { LogOut, User as UserIcon, Loader2, Play, Music, LayoutDashboard, Search as SearchIcon, Rocket, Hash, Music2 } from 'lucide-react';
+import { LogOut, User as UserIcon, Loader2, Play, Music, LayoutDashboard, Search as SearchIcon, Rocket, Hash, Music2, Settings } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { useSettings } from '@/hooks/use-settings';
 
 const Index = () => {
   const { user, signOut } = useAuth();
-  const { keyPreference, toggleKeyPreference } = useSettings();
+  const { keyPreference, setKeyPreference } = useSettings();
   const [setlists, setSetlists] = useState<{ id: string; name: string; songs: SetlistSong[]; time_goal?: number }[]>([]);
   const [currentListId, setCurrentListId] = useState<string | null>(null);
   const [activeSongId, setActiveSongId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isStudioOpen, setIsStudioOpen] = useState(true);
   const [isPerformanceMode, setIsPerformanceMode] = useState(false);
+  const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [performanceState, setPerformanceState] = useState({ progress: 0, duration: 0 });
   
   const [syncQueue, setSyncQueue] = useState<string[]>([]);
@@ -395,31 +397,20 @@ const Index = () => {
 
           <div className="h-6 w-px bg-slate-200" />
 
-          {/* Key Preference Toggle */}
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={toggleKeyPreference}
-            className="gap-2 font-black uppercase tracking-widest text-[10px] text-slate-500 hover:text-indigo-600"
-          >
-            {keyPreference === 'sharps' ? <Hash className="w-3.5 h-3.5" /> : <Music2 className="w-3.5 h-3.5" />}
-            {keyPreference === 'sharps' ? "Sharps" : "Flats"}
-          </Button>
-
-          <div className="h-6 w-px bg-slate-200" />
-
           <Button variant="ghost" size="sm" onClick={() => setIsStudioOpen(!isStudioOpen)} className={cn("gap-2 font-bold uppercase tracking-tight", isStudioOpen && "text-indigo-600")}>
             <SearchIcon className="w-4 h-4" /> Studio
           </Button>
           <div className="h-6 w-px bg-slate-200" />
-          <div className="flex items-center gap-2 px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full">
+          
+          <button 
+            onClick={() => setIsPreferencesOpen(true)}
+            className="flex items-center gap-2 px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+          >
             <UserIcon className="w-3 h-3 text-slate-500" />
             <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">{user?.email?.split('@')[0]}</span>
-            {isSaving && <Loader2 className="w-3 h-3 animate-spin text-indigo-500" />}
-          </div>
-          <Button variant="ghost" size="icon" onClick={signOut} className="rounded-full">
-            <LogOut className="w-4 h-4 text-slate-400" />
-          </Button>
+            {isSaving && <Loader2 className="w-3 h-3 animate-spin text-indigo-500 ml-1" />}
+            <Settings className="w-3 h-3 text-slate-400 ml-1" />
+          </button>
         </div>
       </nav>
 
@@ -513,6 +504,11 @@ const Index = () => {
           </div>
         </aside>
       </div>
+
+      <PreferencesModal 
+        isOpen={isPreferencesOpen} 
+        onClose={() => setIsPreferencesOpen(false)} 
+      />
 
       {isPerformanceMode && (
         <PerformanceOverlay 

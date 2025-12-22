@@ -15,7 +15,7 @@ interface ActiveSongBannerProps {
 }
 
 const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song }) => {
-  const { keyPreference } = useSettings();
+  const { keyPreference: globalPreference } = useSettings();
   if (!song) return null;
 
   const handleCopyLink = () => {
@@ -25,7 +25,9 @@ const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song }) => {
     }
   };
 
-  const displayKey = formatKey(song.targetKey || song.originalKey, keyPreference);
+  // Use song-specific preference or global
+  const currentPref = song.key_preference || globalPreference;
+  const displayKey = formatKey(song.targetKey || song.originalKey, currentPref);
 
   return (
     <div className="sticky top-0 z-20 mb-6 animate-in slide-in-from-top duration-500">

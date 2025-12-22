@@ -19,7 +19,7 @@ import {
   FileDown, Headphones, Wand2, Download,
   Globe, Eye, Link as LinkIcon, RotateCcw,
   Zap, Disc, VolumeX, Smartphone, Printer, Search,
-  ClipboardPaste, AlignLeft, Apple
+  ClipboardPaste, AlignLeft, Apple, Hash, Music2
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import AudioVisualizer from './AudioVisualizer';
@@ -28,7 +28,7 @@ import { analyze } from 'web-audio-beat-detector';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { Slider } from '@/components/ui/slider';
-import { useSettings } from '@/hooks/use-settings';
+import { useSettings, KeyPreference } from '@/hooks/use-settings';
 
 interface SongStudioModalProps {
   song: SetlistSong | null;
@@ -57,7 +57,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   onSyncProData,
   onPerform 
 }) => {
-  const { keyPreference } = useSettings();
+  const { keyPreference: globalPreference } = useSettings();
   const [formData, setFormData] = useState<Partial<SetlistSong>>({});
   const [activeTab, setActiveTab] = useState<'details' | 'audio' | 'visual' | 'lyrics' | 'library'>('audio');
   const [newTag, setNewTag] = useState("");
@@ -84,7 +84,9 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const playbackStartTimeRef = useRef<number>(0);
   const playbackOffsetRef = useRef<number>(0);
 
-  const keysToUse = keyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
+  // Use song-specific preference if it exists, otherwise global
+  const currentKeyPreference = formData.key_preference || globalPreference;
+  const keysToUse = currentKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
 
   useEffect(() => {
     if (song && isOpen) {
@@ -106,7 +108,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         user_tags: song.user_tags || [],
         isKeyLinked: song.isKeyLinked ?? true,
         isKeyConfirmed: song.isKeyConfirmed ?? false,
-        duration_seconds: song.duration_seconds || 0
+        duration_seconds: song.duration_seconds || 0,
+        key_preference: song.key_preference
       });
       
       if (song.previewUrl) {
@@ -493,6 +496,27 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                   <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Harmonic Engine</Label>
                   <TooltipProvider>
                     <div className="flex gap-2">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button 
+                            onClick={() => {
+                              const nextPref = currentKeyPreference === 'sharps' ? 'flats' : 'sharps';
+                              handleAutoSave({ key_preference: nextPref });
+                            }}
+                            className={cn(
+                              "p-1.5 rounded-lg border transition-all flex items-center gap-2 px-3",
+                              formData.key_preference ? "bg-indigo-600 border-indigo-500 text-white shadow-lg" : "bg-white/5 border-white/10 text-slate-500"
+                            )}
+                          >
+                            {currentKeyPreference === 'sharps' ? <Hash className="w-3.5 h-3.5" /> : <Music2 className="w-3.5 h-3.5" />}
+                            <span className="text-[9px] font-black uppercase">{currentKeyPreference}</span>
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="text-[10px] font-black uppercase">
+                          Toggle Notation for this song
+                        </TooltipContent>
+                      </Tooltip>
+
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button 
@@ -929,7 +953,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                         placeholder="Cues, transitions, dynamics..."
                         value={formData.notes || ""}
                         onChange={(e) => handleAutoSave({ notes: e.target.value })}
-                        className="min-h-[350px] bg-white/5 border-white/10 text-lg leading-relaxed rounded-[2rem] p-8"
+                        className="min-h-[350px] bg-white/5 border-white/10 text-lg leading-relaxed rounded-[2rem] p-8 whitespace-pre-wrap"
                       />
                     </div>
                   </div>
@@ -957,7 +981,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       placeholder="Paste lyrics here (formatted with line breaks)..."
                       value={formData.lyrics || ""}
                       onChange={(e) => handleAutoSave({ lyrics: e.target.value })}
-                      className="h-full min-h-[400px] bg-white/5 border-white/10 text-xl leading-relaxed rounded-[2.5rem] p-10 font-medium"
+                      className="h-full min-h-[400px] bg-white/5 border-white/10 text-xl leading-relaxed rounded-[2.5rem] p-10 font-medium whitespace-pre-wrap"
                     />
                   </div>
                 </div>

@@ -9,7 +9,7 @@ import {
   Play, Pause, SkipForward, SkipBack, X, Music, 
   Waves, Activity, ArrowRight, Volume2, 
   Settings2, Gauge, FileText, Save, Youtube,
-  Monitor, Sparkles, Tag, AlignLeft
+  Monitor, Sparkles, Tag, AlignLeft, Hash, Music2
 } from 'lucide-react';
 import { SetlistSong } from './SetlistManager';
 import AudioVisualizer from './AudioVisualizer';
@@ -50,13 +50,16 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
   onUpdateKey,
   analyzer
 }) => {
-  const { keyPreference } = useSettings();
+  const { keyPreference: globalPreference } = useSettings();
   const currentSong = songs[currentIndex];
   const nextSong = songs[currentIndex + 1];
   const [localNotes, setLocalNotes] = useState(currentSong?.notes || "");
   const [viewMode, setViewMode] = useState<ViewMode>('visualizer');
 
-  const keysToUse = keyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
+  // Per-song preference logic
+  const currentPref = currentSong?.key_preference || globalPreference;
+  const nextPref = nextSong?.key_preference || globalPreference;
+  const keysToUse = currentPref === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
 
   useEffect(() => {
     setLocalNotes(currentSong?.notes || "");
@@ -86,8 +89,8 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
     }
   };
 
-  const displayCurrentKey = formatKey(currentSong?.targetKey || currentSong?.originalKey, keyPreference);
-  const displayNextKey = formatKey(nextSong?.targetKey || nextSong?.originalKey, keyPreference);
+  const displayCurrentKey = formatKey(currentSong?.targetKey || currentSong?.originalKey, currentPref);
+  const displayNextKey = formatKey(nextSong?.targetKey || nextSong?.originalKey, nextPref);
 
   return (
     <div className="fixed inset-0 z-[100] bg-slate-950 text-white flex flex-col animate-in fade-in zoom-in duration-300">
@@ -354,7 +357,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
             <div className="space-y-4">
               <Textarea 
                 placeholder="Add cues, transition details, or lyrics here..."
-                className="bg-slate-950/30 border-white/5 min-h-[180px] text-base leading-relaxed resize-none focus-visible:ring-indigo-500 rounded-2xl"
+                className="bg-slate-950/30 border-white/5 min-h-[180px] text-base leading-relaxed resize-none focus-visible:ring-indigo-500 rounded-2xl whitespace-pre-wrap"
                 value={localNotes}
                 onChange={(e) => setLocalNotes(e.target.value)}
               />

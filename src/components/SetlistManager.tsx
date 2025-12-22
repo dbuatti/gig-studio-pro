@@ -10,7 +10,7 @@ import { showSuccess, showError } from '@/utils/toast';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import SongStudioModal from './SongStudioModal';
-import { useSettings } from '@/hooks/use-settings';
+import { useSettings, KeyPreference } from '@/hooks/use-settings';
 
 export interface SetlistSong {
   id: string;
@@ -36,6 +36,7 @@ export interface SetlistSong {
   user_tags?: string[];
   isKeyLinked?: boolean;
   duration_seconds?: number;
+  key_preference?: KeyPreference; // Per-song preference
 }
 
 export const RESOURCE_TYPES = [
@@ -73,7 +74,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   onReorder,
   currentSongId 
 }) => {
-  const { keyPreference } = useSettings();
+  const { keyPreference: globalPreference } = useSettings();
   const [sortMode, setSortMode] = useState<SortMode>(() => {
     const saved = localStorage.getItem('gig_sort_mode');
     return (saved as SortMode) || 'none';
@@ -90,7 +91,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   const getReadinessScore = (song: SetlistSong) => {
     let score = 0;
     if (song.previewUrl && !isItunesPreview(song.previewUrl)) score += 5;
-    if (song.isKeyConfirmed) score += 4; // High weight for verified keys
+    if (song.isKeyConfirmed) score += 4; 
     if (song.isMetadataConfirmed) score += 2;
     if (song.pdfUrl) score += 3;
     if (song.ugUrl) score += 2; 
@@ -193,8 +194,10 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                 const isReady = readinessScore >= 8;
                 const hasAudio = !!song.previewUrl && !isItunesPreview(song.previewUrl);
                 
-                const displayOrigKey = formatKey(song.originalKey, keyPreference);
-                const displayTargetKey = formatKey(song.targetKey || song.originalKey, keyPreference);
+                // Use song-specific preference if it exists, otherwise use global
+                const currentPref = song.key_preference || globalPreference;
+                const displayOrigKey = formatKey(song.originalKey, currentPref);
+                const displayTargetKey = formatKey(song.targetKey || song.originalKey, currentPref);
 
                 return (
                   <tr 
