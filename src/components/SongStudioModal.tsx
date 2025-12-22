@@ -933,15 +933,15 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
           )}
 
           <div className="flex-1 flex flex-col min-w-0">
-            <div className={cn("border-b border-white/5 flex items-center bg-black/20 shrink-0", isMobile ? "h-16 px-2 pr-4 justify-between" : "h-20 px-12 justify-between")}>
-              <div className={cn("flex", isMobile ? "gap-2 overflow-x-auto no-scrollbar flex-1" : "gap-12")}>
+            <div className={cn("border-b border-white/5 flex items-center bg-black/20 shrink-0", isMobile ? "h-16 px-4 overflow-x-auto no-scrollbar" : "h-20 px-12 justify-between")}>
+              <div className={cn("flex", isMobile ? "gap-4 min-w-max" : "gap-12")}>
                 {tabOrder.map((tab, idx) => (
                   <button 
                     key={tab}
                     onClick={() => setActiveTab(tab)}
                     className={cn(
-                      "text-[10px] font-black uppercase tracking-[0.2em] transition-all border-b-4 flex flex-col items-center justify-center gap-1 shrink-0",
-                      isMobile ? "h-16 px-3" : "text-xs tracking-[0.4em] h-20",
+                      "text-[10px] font-black uppercase tracking-[0.2em] transition-all border-b-4 flex flex-col items-center justify-center gap-1",
+                      isMobile ? "h-16 px-2" : "text-xs tracking-[0.4em] h-20",
                       activeTab === tab ? "text-indigo-400 border-indigo-500" : "text-slate-500 border-transparent hover:text-white"
                     )}
                   >
@@ -950,21 +950,12 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                   </button>
                 ))}
               </div>
-              
-              <div className="flex items-center gap-2 md:gap-6 shrink-0 ml-2">
-                 {!isMobile && <div className="h-10 w-px bg-white/5" />}
-                 <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={onClose} 
-                  className={cn(
-                    "rounded-full hover:bg-white/10 transition-all",
-                    isMobile ? "h-10 w-10 text-white" : "h-12 w-12 text-slate-400"
-                  )}
-                 >
-                   <X className={isMobile ? "w-5 h-5" : "w-6 h-6"} />
-                 </Button>
-              </div>
+              {!isMobile && (
+                <div className="flex items-center gap-6">
+                   <div className="h-10 w-px bg-white/5" />
+                   <Button variant="ghost" size="sm" onClick={onClose} className="text-slate-400 hover:text-white font-black uppercase tracking-[0.3em] text-xs">Close Studio</Button>
+                </div>
+              )}
             </div>
 
             <div className={cn("flex-1 overflow-y-auto relative", isMobile ? "p-4" : "p-12")}>
