@@ -63,6 +63,7 @@
     "tailwindcss-animate": "^1.0.7",
     "tone": "^15.1.22",
     "vaul": "^0.9.3",
+    "web-audio-beat-detector": "^8.2.32",
     "zod": "^3.23.8"
   },
   "devDependencies": {

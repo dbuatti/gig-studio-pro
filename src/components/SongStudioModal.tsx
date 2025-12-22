@@ -15,11 +15,12 @@ import {
   Sparkles, Waves, Activity, Play, Pause,
   Volume2, Gauge, ExternalLink, Library,
   Upload, Link2, X, Plus, Tag, Check, Loader2,
-  FileDown, FileType, Headphones
+  FileDown, FileType, Headphones, Wand2
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import AudioVisualizer from './AudioVisualizer';
 import * as Tone from 'tone';
+import { analyze } from 'web-audio-beat-detector';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { Slider } from '@/components/ui/slider';
@@ -53,6 +54,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const [activeTab, setActiveTab] = useState<'details' | 'audio' | 'visual'>('audio');
   const [newTag, setNewTag] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   
   // Audio Engine State
@@ -61,9 +63,10 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const [duration, setDuration] = useState(0);
   const playerRef = useRef<Tone.GrainPlayer | null>(null);
   const analyzerRef = useRef<Tone.Analyser | null>(null);
+  const currentBufferRef = useRef<AudioBuffer | null>(null);
   const requestRef = useRef<number>();
 
-  // 1. Initialize data when song changes
+  // Initialize data when song changes
   useEffect(() => {
     if (song) {
       setFormData({
@@ -80,7 +83,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         user_tags: song.user_tags || []
       });
       
-      // If we have a preview URL, prepare the audio
       if (song.previewUrl) {
         prepareAudio(song.previewUrl, song.pitch || 0);
       }
@@ -88,21 +90,17 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     return () => cleanupAudio();
   }, [song, isOpen]);
 
-  // 2. Auto-Save Logic (Debounced)
+  // Auto-Save Logic (Debounced)
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
   useEffect(() => {
     if (!song || !isOpen) return;
-
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    
     saveTimeoutRef.current = setTimeout(() => {
       onSave(song.id, formData);
     }, 1000);
-
     return () => clearTimeout(saveTimeoutRef.current);
   }, [formData, song?.id, isOpen]);
 
-  // Audio Engine Functions
   const cleanupAudio = () => {
     if (playerRef.current) {
       playerRef.current.stop();
@@ -112,6 +110,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     if (requestRef.current) cancelAnimationFrame(requestRef.current);
     setIsPlaying(false);
     setProgress(0);
+    currentBufferRef.current = null;
   };
 
   const prepareAudio = async (url: string, pitch: number) => {
@@ -119,7 +118,11 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       cleanupAudio();
       if (Tone.getContext().state !== 'running') await Tone.start();
       
-      const buffer = await Tone.getContext().decodeAudioData(await (await fetch(url)).arrayBuffer());
+      const response = await fetch(url);
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = await Tone.getContext().decodeAudioData(arrayBuffer);
+      
+      currentBufferRef.current = buffer;
       
       if (!analyzerRef.current) {
         analyzerRef.current = new Tone.Analyser("fft", 256);
@@ -131,6 +134,25 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       setDuration(buffer.duration);
     } catch (err) {
       console.error("Audio Load Error:", err);
+    }
+  };
+
+  const handleDetectBPM = async () => {
+    if (!currentBufferRef.current) {
+      showError("Link an audio track first.");
+      return;
+    }
+
+    setIsAnalyzing(true);
+    try {
+      const bpm = await analyze(currentBufferRef.current);
+      const roundedBpm = Math.round(bpm);
+      setFormData(prev => ({ ...prev, bpm: roundedBpm.toString() }));
+      showSuccess(`Detected Tempo: ${roundedBpm} BPM`);
+    } catch (err) {
+      showError("Could not determine tempo.");
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
@@ -154,7 +176,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     }
   };
 
-  // Drag & Drop
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
@@ -164,7 +185,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     setIsUploading(true);
     try {
       const isAudio = file.type.startsWith('audio/');
-      const isPdf = file.type === 'application/pdf';
       const folder = isAudio ? 'tracks' : 'sheets';
       const fileName = `${folder}/${song.id}-${Date.now()}.${file.name.split('.').pop()}`;
 
@@ -184,7 +204,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     }
   };
 
-  // Tags
   const addTag = () => {
     if (!newTag.trim()) return;
     const currentTags = formData.user_tags || [];
@@ -415,9 +434,21 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
 
                   <div className="grid grid-cols-2 gap-6">
                     <div className="p-6 bg-white/5 rounded-3xl border border-white/5 space-y-4">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                        <Gauge className="w-3.5 h-3.5 text-indigo-400" /> BPM Analyzer
-                      </Label>
+                      <div className="flex items-center justify-between">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                          <Gauge className="w-3.5 h-3.5 text-indigo-400" /> BPM Engine
+                        </Label>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={handleDetectBPM}
+                          disabled={isAnalyzing || !formData.previewUrl}
+                          className="h-7 px-3 bg-indigo-600/10 text-indigo-400 hover:bg-indigo-600 hover:text-white font-black uppercase tracking-widest text-[8px] gap-1.5"
+                        >
+                          {isAnalyzing ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Wand2 className="w-2.5 h-2.5" />}
+                          Scan Tempo
+                        </Button>
+                      </div>
                       <Input 
                         placeholder="Manual override BPM..." 
                         value={formData.bpm}
@@ -443,6 +474,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
 
               {activeTab === 'details' && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  {/* ... same details content as before */}
                   <div className="grid grid-cols-2 gap-8">
                     <div className="space-y-3">
                       <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Performance Title</Label>
