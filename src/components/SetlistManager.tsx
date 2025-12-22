@@ -221,6 +221,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
               const hasAudio = !!song.previewUrl;
               const isUploading = uploadingId === song.id;
               const readiness = getReadinessScore(song);
+              const needsSync = !song.isMetadataConfirmed;
               
               return (
                 <tr 
@@ -247,6 +248,10 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         <span className="text-sm font-bold tracking-tight">{song.name}</span>
                         {song.isMetadataConfirmed && <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />}
                         
+                        {song.isSyncing && (
+                          <Badge variant="outline" className="text-[8px] uppercase border-indigo-200 text-indigo-600 bg-indigo-50 leading-none h-4 animate-pulse">Syncing...</Badge>
+                        )}
+
                         {/* Readiness Tag */}
                         {sortMode !== 'none' && (
                           <Badge variant="outline" className={cn(
@@ -308,6 +313,21 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
                       <div className="flex items-center gap-3 mt-2 ml-7">
                         <div className="flex items-center gap-2">
+                          {/* Restored individual Sync button */}
+                          <button 
+                            onClick={() => onSyncProData(song)}
+                            className={cn(
+                              "flex items-center gap-1 text-[9px] font-black uppercase transition-all mr-1",
+                              needsSync ? "text-indigo-600 animate-pulse font-extrabold" : "text-slate-400 hover:text-indigo-600"
+                            )}
+                            disabled={song.isSyncing}
+                          >
+                            {song.isSyncing ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Sparkles className="w-2.5 h-2.5" />}
+                            {needsSync ? "Sync Pro Data" : "Verified"}
+                          </button>
+
+                          <div className="h-2 w-px bg-slate-200 mx-1" />
+
                           <a href={getUGUrl(song)} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-[9px] text-amber-600 font-bold hover:underline">
                             <FileText className="w-2.5 h-2.5" /> Chords
                           </a>
