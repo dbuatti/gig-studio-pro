@@ -17,9 +17,10 @@ import {
   Volume2, Gauge, ExternalLink, Library,
   Upload, Link2, X, Plus, Tag, Check, Loader2,
   FileDown, Headphones, Wand2, Download,
-  Globe, Eye, Link as LinkIcon, RotateCcw,
+  Globe, Eye, RotateCcw,
   Zap, Disc, VolumeX, Smartphone, Printer, Search,
-  ClipboardPaste, AlignLeft, Apple, Hash, Music2
+  ClipboardPaste, AlignLeft, Apple, Hash, Music2,
+  Link as LinkIcon
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import AudioVisualizer from './AudioVisualizer';
@@ -1177,7 +1178,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                               className="h-10 w-10 text-orange-400 hover:bg-orange-600 hover:text-white transition-all rounded-xl" 
                               onClick={handleUgAction}
                             >
-                              {formData.ugUrl ? <LinkIcon className="w-4 h-4" /> : <ExternalLink className="w-4 h-4" />}
+                              {formData.ugUrl ? <LinkIcon className="w-5 h-5" /> : <ExternalLink className="w-5 h-5" />}
                             </Button>
                           </TooltipProvider>
                         </div>
