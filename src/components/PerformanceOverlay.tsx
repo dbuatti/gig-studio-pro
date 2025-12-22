@@ -64,7 +64,6 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
   const nextPref = nextSong?.key_preference || globalPreference;
   const keysToUse = currentPref === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
 
-  // Parse lyrics with timestamps
   const parseLyricsWithTimestamps = (lyrics: string) => {
     const lines = lyrics.split('\n');
     const sections: { time: number; text: string }[] = [];
@@ -96,7 +95,6 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
   const currentTime = (progress / 100) * duration;
   const adjustedTime = currentTime * scrollSpeed;
 
-  // Auto-scroll effect
   useEffect(() => {
     if (viewMode !== 'lyrics' || !lyricsContainerRef.current || duration === 0) return;
 
@@ -158,7 +156,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
             <Activity className="w-8 h-8 animate-pulse text-white" />
           </div>
           <div>
-            <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400 mb-1 font-mono">Mission Control V2.8</h2>
+            <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400 mb-1 font-mono">Mission Control V2.9</h2>
             <div className="flex items-center gap-4">
               <span className="text-2xl font-black uppercase tracking-tight">Active Performance</span>
               <div className="flex gap-1.5">
@@ -178,15 +176,15 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
 
         <div className="hidden lg:flex items-center gap-12 border-x border-white/5 px-12 mx-8 font-mono">
            <div className="flex flex-col items-center">
-              <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Master Tempo</span>
-              <span className="text-xl font-black text-indigo-400">{currentSong?.bpm || "--"} <span className="text-[10px] text-slate-600">BPM</span></span>
+              <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Tempo</span>
+              <span className="text-xl font-black text-indigo-400">{currentSong?.bpm || "--"} BPM</span>
            </div>
            <div className="flex flex-col items-center">
-              <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Vibe Profile</span>
+              <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Genre</span>
               <span className="text-xl font-black text-white uppercase">{currentSong?.genre || "STD"}</span>
            </div>
            <div className="flex flex-col items-center">
-              <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Pitch Offset</span>
+              <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Pitch</span>
               <span className="text-xl font-black text-indigo-400">{currentSong?.pitch > 0 ? '+' : ''}{currentSong?.pitch || 0}ST</span>
            </div>
         </div>
@@ -217,16 +215,15 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
         </div>
       </div>
 
-      {/* Main Content + Floating Controls */}
-      <div className="flex-1 relative flex">
-        {/* Main Viewport */}
+      {/* Main Content Area */}
+      <div className="flex-1 relative flex overflow-hidden">
         <div className="flex-1 flex flex-col">
           <div className="absolute inset-0 opacity-10 pointer-events-none blur-3xl scale-150">
             <AudioVisualizer analyzer={analyzer} isActive={isPlaying} />
           </div>
 
           {/* Title & Artist */}
-          <div className={cn("text-center pt-12 pb-8 px-12 transition-all duration-700 z-10", viewMode === 'lyrics' ? "pt-8 pb-4" : "pt-16")}>
+          <div className={cn("text-center pt-12 pb-8 px-12 transition-all duration-700 z-10", viewMode === 'lyrics' ? "pt-8 pb-6" : "pt-16")}>
             <h1 className={cn(
               "font-black tracking-tight leading-none drop-shadow-2xl transition-all duration-700",
               viewMode === 'lyrics' ? "text-5xl lg:text-7xl" : "text-7xl lg:text-9xl"
@@ -239,8 +236,8 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
             </div>
           </div>
 
-          {/* Content Area */}
-          <div className="flex-1 overflow-hidden px-8 pb-48"> {/* Critical: pb-48 reserves space for floating controls */}
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-hidden px-8 pb-32"> {/* Reserves space for compact controls */}
             {viewMode === 'visualizer' && (
               <div className="h-full flex items-center justify-center">
                 <div className="w-full max-w-5xl">
@@ -251,7 +248,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
 
             {viewMode === 'lyrics' && currentSong?.lyrics && (
               <div ref={lyricsContainerRef} className="h-full overflow-y-auto px-8 lg:px-32 custom-scrollbar scroll-smooth">
-                <div className="max-w-5xl mx-auto py-16 space-y-16">
+                <div className="max-w-5xl mx-auto py-16 space-y-20">
                   {lyricsSections.map((section, i) => {
                     const isPast = hasTimestamps && section.time >= 0 && section.time < adjustedTime;
                     const isCurrent = hasTimestamps 
@@ -275,7 +272,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
                             ? cn(
                                 "text-6xl lg:text-8xl font-black tracking-tight",
                                 active 
-                                  ? "text-pink-400 scale-110 drop-shadow-2xl shadow-pink-600/60" 
+                                  ? "text-pink-400 scale-110 drop-shadow-2xl shadow-pink-500/70" 
                                   : isPast 
                                     ? "text-white/40" 
                                     : "text-white/25"
@@ -318,7 +315,6 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
 
         {/* Sidebar */}
         <aside className="w-[450px] bg-slate-900/60 backdrop-blur-2xl p-10 space-y-10 overflow-y-auto border-l border-white/5">
-          {/* Metronome */}
           <div className="space-y-5">
             <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 flex items-center gap-2 font-mono">
               <Gauge className="w-4 h-4" /> Live Click Track
@@ -326,16 +322,15 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
             <Metronome initialBpm={parseInt(currentSong?.bpm || "120")} />
           </div>
 
-          {/* Scroll Speed (Lyrics Only) */}
           {viewMode === 'lyrics' && (
             <div className="space-y-5">
               <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-pink-400 flex items-center gap-2 font-mono">
                 <Activity className="w-4 h-4" /> Scroll Speed
               </h3>
               <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
-                <div className="flex justify-between mb-4">
-                  <span className="text-sm font-mono text-slate-400">Multiplier</span>
-                  <span className="text-xl font-black text-pink-400 font-mono">{scrollSpeed.toFixed(2)}x</span>
+                <div className="flex justify-between mb-3">
+                  <span className="text-sm font-mono text-slate-400">Speed</span>
+                  <span className="text-lg font-black text-pink-400 font-mono">{scrollSpeed.toFixed(2)}x</span>
                 </div>
                 <Slider
                   value={[scrollSpeed]}
@@ -349,7 +344,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
             </div>
           )}
 
-          {/* Key Transpose */}
+          {/* Other sidebar sections unchanged */}
           <div className="space-y-5">
             <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 flex items-center gap-2 font-mono">
               <Settings2 className="w-4 h-4" /> Harmonic Processor
@@ -379,7 +374,6 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
             </div>
           </div>
 
-          {/* Notes */}
           <div className="space-y-5">
             <div className="flex items-center justify-between">
               <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 flex items-center gap-2 font-mono">
@@ -388,7 +382,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
               <Badge className="bg-indigo-600/10 text-indigo-400 text-[8px] border-indigo-600/20 font-mono">SYNCED</Badge>
             </div>
             <Textarea 
-              placeholder="Cues, transitions, reminders..."
+              placeholder="Cues, transitions..."
               className="bg-slate-950/30 border-white/5 min-h-[180px] text-base leading-relaxed resize-none rounded-2xl"
               value={localNotes}
               onChange={(e) => setLocalNotes(e.target.value)}
@@ -398,7 +392,6 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
             </Button>
           </div>
 
-          {/* Next Song */}
           {nextSong && (
             <div className="pt-10 border-t border-white/5">
               <div className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-6 font-mono">On Deck</div>
@@ -416,53 +409,52 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
         </aside>
       </div>
 
-      {/* Floating Playback Controls – Perfectly Integrated */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 w-full max-w-5xl px-8 pointer-events-none">
-        <div className="pointer-events-auto bg-slate-900/90 backdrop-blur-2xl rounded-[3rem] border border-white/10 shadow-2xl p-10">
-          <div className="flex justify-between text-xs font-mono uppercase tracking-widest mb-6 text-slate-400">
-            <div className="flex items-center gap-6">
-              <span className="text-indigo-400">{formatTime(currentTime)}</span>
-              <span className="text-emerald-400 flex items-center gap-2">
-                <Activity className="w-3 h-3 animate-pulse" /> ENGAGED
-              </span>
+      {/* Compact Floating Playback Bar – No Longer Giant */}
+      <div className="absolute bottom-0 left-0 right-0 px-8 pb-8 pointer-events-none">
+        <div className="max-w-6xl mx-auto pointer-events-auto">
+          <div className="bg-slate-900/90 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-8 text-sm font-mono text-slate-400">
+                <span className="text-indigo-400 font-bold">{formatTime(currentTime)}</span>
+                <span className="text-emerald-400 flex items-center gap-2 text-xs">
+                  <Activity className="w-3 h-3 animate-pulse" /> ENGAGED
+                </span>
+              </div>
+              <div className="flex items-center gap-8 text-sm font-mono text-slate-400">
+                <span>{Math.round(progress)}%</span>
+                <span>{formatTime(duration)}</span>
+              </div>
             </div>
-            <div className="flex items-center gap-6">
-              <span>{Math.round(progress)}%</span>
-              <span>{formatTime(duration)} TOTAL</span>
+
+            <Progress value={progress} className="h-2 mb-6 bg-white/10" />
+
+            <div className="flex items-center justify-center gap-10">
+              <Button variant="ghost" size="icon" onClick={onPrevious} className="h-14 w-14 rounded-full hover:bg-white/10">
+                <SkipBack className="w-8 h-8" />
+              </Button>
+
+              <Button 
+                onClick={onTogglePlayback}
+                className="h-20 w-20 rounded-full bg-gradient-to-br from-indigo-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 shadow-xl transition-all hover:scale-110 active:scale-95"
+              >
+                {isPlaying ? <Pause className="w-10 h-10" /> : <Play className="w-10 h-10 ml-1" />}
+              </Button>
+
+              <Button variant="ghost" size="icon" onClick={onNext} className="h-14 w-14 rounded-full hover:bg-white/10">
+                <SkipForward className="w-8 h-8" />
+              </Button>
             </div>
-          </div>
-
-          <Progress value={progress} className="h-3 mb-10 bg-white/10" />
-
-          <div className="flex items-center justify-center gap-16">
-            <Button variant="ghost" size="icon" onClick={onPrevious} className="h-20 w-20 rounded-full hover:bg-white/10">
-              <SkipBack className="w-10 h-10" />
-            </Button>
-
-            <Button 
-              onClick={onTogglePlayback}
-              className="h-32 w-32 rounded-full bg-gradient-to-br from-indigo-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 shadow-2xl shadow-indigo-600/50 transition-all hover:scale-105 active:scale-95"
-            >
-              {isPlaying ? <Pause className="w-16 h-16" /> : <Play className="w-16 h-16 ml-3" />}
-            </Button>
-
-            <Button variant="ghost" size="icon" onClick={onNext} className="h-20 w-20 rounded-full hover:bg-white/10">
-              <SkipForward className="w-10 h-10" />
-            </Button>
           </div>
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="h-16 border-t border-white/10 px-10 flex items-center justify-between text-[10px] font-black uppercase tracking-[0.4em] text-slate-500 bg-slate-900/30 font-mono">
-        <div className="flex gap-12">
-          <div className="flex items-center gap-3"><Monitor className="w-4 h-4 text-indigo-500" />{viewMode.toUpperCase()}</div>
-          <div className="flex items-center gap-3"><div className="w-2 h-2 rounded-full bg-green-500 shadow-lg" />SYNC</div>
+      {/* Minimal Footer */}
+      <div className="h-12 border-t border-white/10 px-10 flex items-center justify-between text-[9px] font-black uppercase tracking-[0.3em] text-slate-600 bg-slate-900/40 font-mono">
+        <div className="flex gap-8">
+          <span>{viewMode.toUpperCase()} MODE</span>
+          <span className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-green-500" />SYNC</span>
         </div>
-        <div className="flex items-center gap-6">
-          <span className="text-slate-400">{currentSong?.name} • {currentIndex + 1}/{songs.length}</span>
-          <span className="text-indigo-400">GIG STUDIO PRO v2.8</span>
-        </div>
+        <span className="text-indigo-400">GIG STUDIO PRO v2.9</span>
       </div>
     </div>
   );
