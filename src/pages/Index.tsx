@@ -530,7 +530,11 @@ const Index = () => {
           onTogglePlayback={() => transposerRef.current?.togglePlayback()}
           onNext={handleNextSong}
           onPrevious={handlePreviousSong}
-          onClose={() => setIsPerformanceMode(false)}
+          onClose={() => {
+            setIsPerformanceMode(false);
+            setActiveSongId(null);
+            transposerRef.current?.stopPlayback();
+          }}
           onUpdateKey={handleUpdateKey}
           onUpdateSong={handleUpdateSong}
           analyzer={transposerRef.current?.getAnalyzer()}
