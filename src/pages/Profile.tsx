@@ -183,18 +183,15 @@ const Profile = () => {
     setSaving(true);
     try {
       const fileExt = file.name.split('.').pop();
+      // Using a simple path to avoid complex RLS parsing errors
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
       const bucketName = 'public_assets';
-
-      // Explicitly set the content type to avoid sniffing timeouts
-      const contentType = file.type || 'image/jpeg';
 
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from(bucketName)
         .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: false, // Set to false to reduce initial request complexity
-          contentType: contentType
+          contentType: file.type,
+          upsert: true
         });
 
       if (uploadError) throw uploadError;
@@ -208,7 +205,7 @@ const Profile = () => {
       showSuccess("Photo Updated");
     } catch (err: any) {
       console.error("Upload process failed:", err);
-      showError(`Upload failed: ${err.message || "Network Timeout. Please try a smaller image or check your connection."}`);
+      showError(`Upload failed: ${err.message || "Network Timeout"}`);
     } finally {
       setSaving(false);
     }
