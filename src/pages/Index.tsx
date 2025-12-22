@@ -417,7 +417,7 @@ const Index = () => {
 
       <div className="flex-1 flex overflow-hidden">
         <main className="flex-1 overflow-y-auto p-8 relative scroll-smooth">
-          <div className="max-w-4xl mx-auto space-y-8">
+          <div className="max-w-6xl mx-auto space-y-8">
             <ActiveSongBanner 
               song={activeSong} 
               isPlaying={isPlayerActive}
