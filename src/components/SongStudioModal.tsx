@@ -19,7 +19,8 @@ import {
   FileDown, Headphones, Wand2, Download,
   Globe, Eye, Link as LinkIcon, RotateCcw,
   Zap, Disc, VolumeX, Smartphone, Printer, Search,
-  ClipboardPaste, AlignLeft, Apple, Hash, Music2
+  ClipboardPaste, AlignLeft, Apple, Hash, Music2,
+  FileSearch, ChevronRight, Layers
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import AudioVisualizer from './AudioVisualizer';
@@ -52,7 +53,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
 }) => {
   const { keyPreference: globalPreference } = useSettings();
   const [formData, setFormData] = useState<Partial<SetlistSong>>({});
-  const [activeTab, setActiveTab] = useState<'details' | 'audio' | 'visual' | 'lyrics' | 'library'>('audio');
+  const [activeTab, setActiveTab] = useState<'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library'>('audio');
   const [newTag, setNewTag] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -60,6 +61,10 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const [isFormattingLyrics, setIsFormattingLyrics] = useState(false);
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   
+  // Chart Engine State
+  const [activeChartType, setActiveChartType] = useState<'pdf' | 'leadsheet'>('pdf');
+  const [isChartMenuOpen, setIsChartMenuOpen] = useState(false);
+
   // Audio Engine State
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -528,6 +533,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   if (!song) return null;
   const videoId = formData.youtubeUrl ? formData.youtubeUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)?.[1] : null;
 
+  const currentChartUrl = activeChartType === 'pdf' ? formData.pdfUrl : formData.leadsheetUrl;
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent 
@@ -605,6 +612,13 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                 </div>
                 <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Stability Index</span>
               </div>
+
+              <Button 
+                onClick={handleProSync}
+                className="w-full mt-6 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-[0.2em] text-[10px] h-10 rounded-xl shadow-lg shadow-indigo-600/20 gap-2 transition-all active:scale-95"
+              >
+                <Sparkles className="w-4 h-4" /> Pro Sync Engine
+              </Button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-8 space-y-10">
@@ -789,7 +803,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
           <div className="flex-1 flex flex-col min-w-0">
             <div className="h-20 border-b border-white/5 flex items-center px-12 justify-between bg-black/20 shrink-0">
               <div className="flex gap-12">
-                {['audio', 'details', 'lyrics', 'visual', 'library'].map((tab) => (
+                {['audio', 'details', 'charts', 'lyrics', 'visual', 'library'].map((tab) => (
                   <button 
                     key={tab}
                     onClick={() => setActiveTab(tab as any)}
@@ -808,7 +822,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-12">
+            <div className="flex-1 overflow-y-auto p-12 relative">
               {activeTab === 'audio' && (
                 <div className="space-y-12 animate-in fade-in duration-500">
                   <div className="flex items-center justify-between">
@@ -1125,6 +1139,116 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                         className="min-h-[350px] bg-white/5 border-white/10 text-lg leading-relaxed rounded-[2rem] p-8 whitespace-pre-wrap"
                       />
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'charts' && (
+                <div className="h-full flex flex-col gap-8 animate-in fade-in duration-500">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-black uppercase tracking-[0.3em] text-emerald-400">Chart Engine V2</h3>
+                      <p className="text-sm text-slate-500 mt-2">Active stage chart rendering with multi-layer support.</p>
+                    </div>
+                    <div className="flex gap-4">
+                      {formData.pdfUrl && formData.leadsheetUrl && (
+                        <div className="flex bg-white/5 border border-white/10 p-1 rounded-xl">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => setActiveChartType('pdf')}
+                            className={cn("text-[10px] font-black uppercase tracking-widest h-9 px-4 rounded-lg", activeChartType === 'pdf' ? "bg-indigo-600 text-white" : "text-slate-500")}
+                          >
+                            Stage PDF
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => setActiveChartType('leadsheet')}
+                            className={cn("text-[10px] font-black uppercase tracking-widest h-9 px-4 rounded-lg", activeChartType === 'leadsheet' ? "bg-indigo-600 text-white" : "text-slate-500")}
+                          >
+                            Lead Sheet
+                          </Button>
+                        </div>
+                      )}
+                      <Button 
+                        variant="outline" 
+                        onClick={handlePdfAction}
+                        className="bg-emerald-600/10 border-emerald-600/20 text-emerald-600 hover:bg-emerald-600 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 gap-2 px-6 rounded-xl transition-all"
+                      >
+                        <Search className="w-3.5 h-3.5" /> Discovery
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 min-h-0 bg-white rounded-[3rem] overflow-hidden shadow-2xl relative group">
+                    {currentChartUrl ? (
+                      <>
+                        <iframe 
+                          src={`${currentChartUrl}#toolbar=0&navpanes=0&view=FitH`} 
+                          className="w-full h-full"
+                          title="Chart Viewer"
+                        />
+                        
+                        {/* Pull-out selection menu */}
+                        {(formData.pdfUrl || formData.leadsheetUrl) && (
+                          <div className={cn(
+                            "absolute left-0 top-1/2 -translate-y-1/2 z-10 transition-all duration-500",
+                            isChartMenuOpen ? "translate-x-0" : "-translate-x-[calc(100%-12px)]"
+                          )}>
+                            <div className="flex items-center">
+                              <div className="bg-slate-900 border border-white/10 rounded-r-3xl p-6 shadow-2xl space-y-6 min-w-[200px]">
+                                <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-white/5 pb-2">Select Matrix</h4>
+                                <div className="space-y-3">
+                                  <button 
+                                    onClick={() => { setActiveChartType('pdf'); setIsChartMenuOpen(false); }}
+                                    disabled={!formData.pdfUrl}
+                                    className={cn(
+                                      "w-full text-left p-3 rounded-xl transition-all flex items-center justify-between group/item",
+                                      activeChartType === 'pdf' ? "bg-indigo-600 text-white" : "text-slate-400 hover:bg-white/5 disabled:opacity-20"
+                                    )}
+                                  >
+                                    <span className="text-[10px] font-black uppercase tracking-widest">Stage PDF</span>
+                                    {formData.pdfUrl && <Check className="w-3 h-3 opacity-0 group-hover/item:opacity-100" />}
+                                  </button>
+                                  <button 
+                                    onClick={() => { setActiveChartType('leadsheet'); setIsChartMenuOpen(false); }}
+                                    disabled={!formData.leadsheetUrl}
+                                    className={cn(
+                                      "w-full text-left p-3 rounded-xl transition-all flex items-center justify-between group/item",
+                                      activeChartType === 'leadsheet' ? "bg-indigo-600 text-white" : "text-slate-400 hover:bg-white/5 disabled:opacity-20"
+                                    )}
+                                  >
+                                    <span className="text-[10px] font-black uppercase tracking-widest">Lead Sheet</span>
+                                    {formData.leadsheetUrl && <Check className="w-3 h-3 opacity-0 group-hover/item:opacity-100" />}
+                                  </button>
+                                </div>
+                              </div>
+                              <button 
+                                onClick={() => setIsChartMenuOpen(!isChartMenuOpen)}
+                                className="bg-slate-900 border-y border-r border-white/10 h-16 w-8 rounded-r-xl flex items-center justify-center text-indigo-400 hover:text-white transition-all shadow-lg"
+                              >
+                                {isChartMenuOpen ? <X className="w-4 h-4" /> : <Layers className="w-4 h-4" />}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="h-full flex flex-col items-center justify-center p-12 bg-slate-100">
+                        <div className="bg-indigo-600/10 p-10 rounded-full border border-indigo-500/20 mb-8">
+                           <FileSearch className="w-16 h-16 text-indigo-400" />
+                        </div>
+                        <h4 className="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-2">No Active Chart Detected</h4>
+                        <p className="text-slate-500 max-w-sm text-center font-medium leading-relaxed">
+                          Link a PDF from your device or use the Discovery tool to fetch a chart online. Support for Stage Charts and Lead Sheets.
+                        </p>
+                        <div className="flex gap-4 mt-8">
+                           <Button className="bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest h-12 px-8 rounded-2xl">Upload Asset</Button>
+                           <Button variant="outline" onClick={handlePdfAction} className="border-indigo-200 text-indigo-600 font-black uppercase tracking-widest h-12 px-8 rounded-2xl">Web Search</Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
