@@ -592,7 +592,21 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                           <button 
                             onClick={() => {
                               const nextPref = currentKeyPreference === 'sharps' ? 'flats' : 'sharps';
-                              handleAutoSave({ key_preference: nextPref });
+                              const updates: Partial<SetlistSong> = { key_preference: nextPref };
+                              
+                              if (formData.originalKey) {
+                                updates.originalKey = formatKey(formData.originalKey, nextPref);
+                              }
+                              
+                              if (formData.targetKey) {
+                                const newTarget = formatKey(formData.targetKey, nextPref);
+                                updates.targetKey = newTarget;
+                                if (newTarget !== formData.targetKey && song) {
+                                  onUpdateKey(song.id, newTarget);
+                                }
+                              }
+                              
+                              handleAutoSave(updates);
                             }}
                             className={cn(
                               "p-1.5 rounded-lg border transition-all flex items-center gap-2 px-3",
