@@ -18,7 +18,7 @@ import {
   Upload, Link2, X, Plus, Tag, Check, Loader2,
   FileDown, Headphones, Wand2, Download,
   Globe, Eye, Link as LinkIcon, RotateCcw,
-  Zap, Disc, VolumeX, Smartphone, Printer
+  Zap, Disc, VolumeX, Smartphone, Printer, Search
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import AudioVisualizer from './AudioVisualizer';
@@ -399,6 +399,11 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     showSuccess("Opening Print Assistant. Use 'Print to PDF' and upload here.");
   };
 
+  const handleYoutubeSearch = () => {
+    const query = encodeURIComponent(`${formData.artist || ""} ${formData.name || ""} studio version audio`);
+    window.open(`https://www.youtube.com/results?search_query=${query}`, '_blank');
+  };
+
   const handleDownloadAll = async () => {
     const assets = [
       { url: formData.previewUrl, name: `${formData.name}_audio` },
@@ -635,39 +640,58 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       <AudioVisualizer analyzer={analyzerRef.current} isActive={isPlaying} />
                     </div>
                     
-                    <div className="space-y-8">
-                      <div className="flex justify-between text-xs font-mono font-black text-slate-500 uppercase tracking-widest">
-                        <span className="text-indigo-400">{new Date((progress/100 * duration) * 1000).toISOString().substr(14, 5)}</span>
-                        <span>Transport Master Clock</span>
-                        <span>{new Date(duration * 1000).toISOString().substr(14, 5)}</span>
-                      </div>
-                      <Slider value={[progress]} max={100} step={0.1} onValueChange={(v) => {
-                        const p = v[0];
-                        setProgress(p);
-                        const offset = (p / 100) * duration;
-                        playbackOffsetRef.current = offset;
-                        if (isPlaying && playerRef.current) {
-                          playerRef.current.stop();
-                          playbackStartTimeRef.current = Tone.now();
-                          playerRef.current.start(0, offset);
-                        }
-                      }} />
-                    </div>
+                    {formData.previewUrl ? (
+                      <>
+                        <div className="space-y-8">
+                          <div className="flex justify-between text-xs font-mono font-black text-slate-500 uppercase tracking-widest">
+                            <span className="text-indigo-400">{new Date((progress/100 * duration) * 1000).toISOString().substr(14, 5)}</span>
+                            <span>Transport Master Clock</span>
+                            <span>{new Date(duration * 1000).toISOString().substr(14, 5)}</span>
+                          </div>
+                          <Slider value={[progress]} max={100} step={0.1} onValueChange={(v) => {
+                            const p = v[0];
+                            setProgress(p);
+                            const offset = (p / 100) * duration;
+                            playbackOffsetRef.current = offset;
+                            if (isPlaying && playerRef.current) {
+                              playerRef.current.stop();
+                              playbackStartTimeRef.current = Tone.now();
+                              playerRef.current.start(0, offset);
+                            }
+                          }} />
+                        </div>
 
-                    <div className="flex items-center justify-center gap-12">
-                       <Button variant="ghost" size="icon" onClick={stopPlayback} className="h-20 w-20 rounded-full border border-white/5 hover:bg-white/5 hover:scale-110 transition-all">
-                         <RotateCcw className="w-8 h-8" />
-                       </Button>
-                       <Button 
-                         size="lg" 
-                         disabled={!formData.previewUrl}
-                         onClick={togglePlayback}
-                         className="h-32 w-32 rounded-full bg-indigo-600 hover:bg-indigo-700 shadow-[0_0_60px_rgba(79,70,229,0.4)] transition-all hover:scale-105 active:scale-95"
-                       >
-                         {isPlaying ? <Pause className="w-12 h-12" /> : <Play className="w-12 h-12 ml-2 fill-current" />}
-                       </Button>
-                       <div className="h-20 w-20" /> 
-                    </div>
+                        <div className="flex items-center justify-center gap-12">
+                           <Button variant="ghost" size="icon" onClick={stopPlayback} className="h-20 w-20 rounded-full border border-white/5 hover:bg-white/5 hover:scale-110 transition-all">
+                             <RotateCcw className="w-8 h-8" />
+                           </Button>
+                           <Button 
+                             size="lg" 
+                             onClick={togglePlayback}
+                             className="h-32 w-32 rounded-full bg-indigo-600 hover:bg-indigo-700 shadow-[0_0_60px_rgba(79,70,229,0.4)] transition-all hover:scale-105 active:scale-95"
+                           >
+                             {isPlaying ? <Pause className="w-12 h-12" /> : <Play className="w-12 h-12 ml-2 fill-current" />}
+                           </Button>
+                           <div className="h-20 w-20" /> 
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-12 space-y-6">
+                        <div className="bg-indigo-600/10 p-6 rounded-full border border-indigo-500/20">
+                           <Music className="w-12 h-12 text-indigo-400" />
+                        </div>
+                        <div className="text-center space-y-2">
+                           <p className="text-lg font-black uppercase tracking-tight">Audio Engine Offline</p>
+                           <p className="text-sm text-slate-500 max-w-sm">No performance track is linked. Upload a master file or discover a version on YouTube to start transposing.</p>
+                        </div>
+                        <Button 
+                          onClick={handleYoutubeSearch}
+                          className="bg-red-600 hover:bg-red-700 font-black uppercase tracking-widest text-xs h-12 gap-3 px-8 rounded-2xl shadow-xl shadow-red-600/20"
+                        >
+                          <Search className="w-4 h-4" /> Discover on YouTube
+                        </Button>
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-10">
