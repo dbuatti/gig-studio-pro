@@ -19,8 +19,7 @@ import {
   FileDown, Headphones, Wand2, Download,
   Globe, Eye, Link as LinkIcon, RotateCcw,
   Zap, Disc, VolumeX, Smartphone, Printer, Search,
-  ClipboardPaste, AlignLeft, Apple, Hash, Music2,
-  Wand
+  ClipboardPaste, AlignLeft, Apple, Hash, Music2
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import AudioVisualizer from './AudioVisualizer';
@@ -621,7 +620,10 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                 <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Library Matrix</Label>
                 <div className="grid grid-cols-1 gap-2.5">
                   {RESOURCE_TYPES.map(res => {
-                    const isActive = formData.resources?.includes(res.id) || (res.id === 'UG' && formData.ugUrl) || (res.id === 'LYRICS' && formData.lyrics);
+                    const isActive = formData.resources?.includes(res.id) || 
+                                   (res.id === 'UG' && formData.ugUrl) || 
+                                   (res.id === 'LYRICS' && formData.lyrics) ||
+                                   (res.id === 'PDF' && formData.pdfUrl);
                     return (
                       <button
                         key={res.id}
@@ -1175,7 +1177,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                               className="h-10 w-10 text-orange-400 hover:bg-orange-600 hover:text-white transition-all rounded-xl" 
                               onClick={handleUgAction}
                             >
-                              <ExternalLink className="w-4 h-4" />
+                              {formData.ugUrl ? <ExternalLink className="w-4 h-4" /> : <Search className="w-4 h-4" />}
                             </Button>
                           </TooltipProvider>
                         </div>
