@@ -6,7 +6,7 @@ import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Play, Pause, RotateCcw, Upload, Volume2, Waves, Settings2, Activity, Link as LinkIcon, Globe, Search, Youtube, PlusCircle, Library, Sparkles, Check } from 'lucide-react';
+import { Play, Pause, RotateCcw, Upload, Volume2, Waves, Settings2, Activity, Link as LinkIcon, Globe, Search, Youtube, PlusCircle, Library, Sparkles, Check, FileText, ExternalLink } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import AudioVisualizer from './AudioVisualizer';
 import SongSearch from './SongSearch';
@@ -17,7 +17,7 @@ import { SetlistSong } from './SetlistManager';
 import { transposeKey } from '@/utils/keyUtils';
 
 export interface AudioTransposerRef {
-  loadFromUrl: (url: string, name: string, artist: string, youtubeUrl?: string, originalKey?: string) => Promise<void>;
+  loadFromUrl: (url: string, name: string, artist: string, youtubeUrl?: string, originalKey?: string, ugUrl?: string) => Promise<void>;
   setPitch: (pitch: number) => void;
   getPitch: () => number;
   triggerSearch: (query: string) => void;
@@ -28,7 +28,7 @@ export interface AudioTransposerRef {
 }
 
 interface AudioTransposerProps {
-  onAddToSetlist?: (previewUrl: string, name: string, artist: string, ytUrl?: string, pitch?: number) => void;
+  onAddToSetlist?: (previewUrl: string, name: string, artist: string, ytUrl?: string, pitch?: number, ugUrl?: string) => void;
   onAddExistingSong?: (song: SetlistSong) => void;
   onUpdateSongKey?: (songId: string, newTargetKey: string) => void;
   onSongEnded?: () => void;
@@ -44,7 +44,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
   repertoire = [],
   currentSong
 }, ref) => {
-  const [file, setFile] = useState<{ id?: string; name: string; artist?: string; url?: string; originalKey?: string } | null>(null);
+  const [file, setFile] = useState<{ id?: string; name: string; artist?: string; url?: string; originalKey?: string; ugUrl?: string } | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [pitch, setPitch] = useState(0);
   const [fineTune, setFineTune] = useState(0);
@@ -57,12 +57,10 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
   const [isLoadingUrl, setIsLoadingUrl] = useState(false);
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
   const [activeYoutubeUrl, setActiveYoutubeUrl] = useState<string | undefined>();
+  const [activeUgUrl, setActiveUgUrl] = useState<string | undefined>();
   const [searchQuery, setSearchQuery] = useState("");
 
   const playerRef = useRef<Tone.GrainPlayer | null>(null);
-  const limiterRef = useRef<Tone.Limiter | null>(null);
-  const compressorRef = useRef<Tone.Compressor | null>(null);
-  const eqRef = useRef<Tone.EQ3 | null>(null);
   const analyzerRef = useRef<Tone.Analyser | null>(null);
   const requestRef = useRef<number>();
   
@@ -76,21 +74,6 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
     
     if (!analyzerRef.current) {
       analyzerRef.current = new Tone.Analyser("fft", 256);
-      limiterRef.current = new Tone.Limiter(-1).toDestination();
-      compressorRef.current = new Tone.Compressor({
-        threshold: -20,
-        ratio: 3,
-        attack: 0.005,
-        release: 0.1
-      }).connect(limiterRef.current);
-      
-      eqRef.current = new Tone.EQ3({
-        low: 0,
-        mid: 0,
-        high: 0
-      }).connect(compressorRef.current);
-      
-      limiterRef.current.connect(analyzerRef.current);
     }
     return true;
   };
@@ -99,9 +82,6 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
     return () => {
       stopPlayback();
       playerRef.current?.dispose();
-      limiterRef.current?.dispose();
-      compressorRef.current?.dispose();
-      eqRef.current?.dispose();
       analyzerRef.current?.dispose();
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
     };
@@ -113,49 +93,50 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
     return (match && match[2].length === 11) ? match[2] : null;
   };
 
-  const loadAudioBuffer = async (audioBuffer: AudioBuffer, name: string, artist: string, youtubeUrl?: string, previewUrl?: string, originalKey?: string) => {
+  const loadAudioBuffer = async (audioBuffer: AudioBuffer, name: string, artist: string, youtubeUrl?: string, previewUrl?: string, originalKey?: string, ugUrl?: string) => {
     try {
       await initEngine();
       if (playerRef.current) playerRef.current.dispose();
 
-      playerRef.current = new Tone.GrainPlayer(audioBuffer).connect(eqRef.current!);
+      playerRef.current = new Tone.GrainPlayer(audioBuffer).toDestination();
+      playerRef.current.connect(analyzerRef.current!);
       playerRef.current.grainSize = 0.18;
       playerRef.current.overlap = 0.1;
       playerRef.current.detune = (pitch * 100) + fineTune;
       playerRef.current.playbackRate = tempo;
       playerRef.current.volume.value = volume;
 
-      setFile({ id: currentSong?.id, name, artist, url: previewUrl, originalKey });
+      setFile({ id: currentSong?.id, name, artist, url: previewUrl, originalKey, ugUrl });
       setDuration(audioBuffer.duration);
       setProgress(0);
       offsetRef.current = 0;
       setIsPlaying(false);
       
       setActiveYoutubeUrl(youtubeUrl);
+      setActiveUgUrl(ugUrl);
       if (youtubeUrl) {
         setActiveVideoId(getYoutubeId(youtubeUrl));
       } else {
         setActiveVideoId(null);
       }
 
-      showSuccess("Performance Ready");
+      showSuccess("Audio Matrix Loaded");
     } catch (err) {
-      console.error("Buffer error:", err);
-      showError("Engine initialization failed.");
+      showError("Engine error.");
     }
   };
 
-  const loadFromUrl = async (targetUrl: string, name: string, artist: string, youtubeUrl?: string, originalKey?: string) => {
+  const loadFromUrl = async (targetUrl: string, name: string, artist: string, youtubeUrl?: string, originalKey?: string, ugUrl?: string) => {
     setIsLoadingUrl(true);
     try {
       const response = await fetch(targetUrl);
-      if (!response.ok) throw new Error("Could not fetch file");
+      if (!response.ok) throw new Error("Fetch error");
       const arrayBuffer = await response.arrayBuffer();
       const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
-      await loadAudioBuffer(audioBuffer, name, artist, youtubeUrl, targetUrl, originalKey);
+      await loadAudioBuffer(audioBuffer, name, artist, youtubeUrl, targetUrl, originalKey, ugUrl);
       if (!name) setUrl("");
     } catch (err) {
-      showError("Failed to load audio stream.");
+      showError("Load failed.");
     } finally {
       setIsLoadingUrl(false);
     }
@@ -188,7 +169,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
   const handleApplyKey = () => {
     if (currentSong && suggestedKey && onUpdateSongKey) {
       onUpdateSongKey(currentSong.id, suggestedKey);
-      showSuccess(`Set performance key to ${suggestedKey}`);
+      showSuccess(`Applied ${suggestedKey}`);
     }
   };
 
@@ -215,13 +196,10 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
   };
 
   const loadFile = async (uploadedFile: File) => {
-    if (!uploadedFile.type.startsWith('audio/')) {
-      showError("Invalid audio format.");
-      return;
-    }
+    if (!uploadedFile.type.startsWith('audio/')) return;
     const arrayBuffer = await uploadedFile.arrayBuffer();
     const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
-    loadAudioBuffer(audioBuffer, uploadedFile.name, "Uploaded Track");
+    loadAudioBuffer(audioBuffer, uploadedFile.name, "Manual Upload");
   };
 
   const stopPlayback = () => {
@@ -263,10 +241,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
       <div className="bg-indigo-600 px-6 py-2.5 flex items-center justify-between text-white shadow-sm shrink-0">
         <div className="flex items-center gap-2">
           <Activity className="w-3.5 h-3.5 animate-pulse" />
-          <span className="font-bold text-[10px] tracking-widest uppercase">Direct Stream Processor</span>
-        </div>
-        <div className="flex items-center gap-4 text-[9px] font-mono opacity-80 uppercase">
-          <span>Latency: Low</span>
+          <span className="font-black text-[10px] tracking-widest uppercase">Performance Engine Ready</span>
         </div>
       </div>
       
@@ -277,16 +252,15 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
               <Waves className="w-5 h-5 text-indigo-600" />
               Song Studio
             </h2>
-            <p className="text-xs text-slate-500 font-medium">Shift keys and prepare your repertoire.</p>
           </div>
           {file && onAddToSetlist && (
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={() => onAddToSetlist(file.url || '', file.name, file.artist || "Unknown", activeYoutubeUrl, pitch)}
+              onClick={() => onAddToSetlist(file.url || '', file.name, file.artist || "Unknown", activeYoutubeUrl, pitch, activeUgUrl)}
               className="h-8 border-green-200 text-green-600 hover:bg-green-50 font-bold text-[10px] uppercase gap-2"
             >
-              <PlusCircle className="w-3.5 h-3.5" /> Save
+              <PlusCircle className="w-3.5 h-3.5" /> Save to Gig
             </Button>
           )}
         </div>
@@ -302,7 +276,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
           <TabsContent value="search" className="mt-0 space-y-4">
             <SongSearch 
               onSelectSong={(url, name, artist, yt) => loadFromUrl(url, name, artist, yt)} 
-              onAddToSetlist={(url, name, artist, yt) => onAddToSetlist?.(url, name, artist, yt)}
+              onAddToSetlist={(url, name, artist, yt, ug) => onAddToSetlist?.(url, name, artist, yt, 0, ug)}
               externalQuery={searchQuery}
             />
           </TabsContent>
@@ -315,19 +289,12 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
           </TabsContent>
 
           <TabsContent value="upload" className="mt-0">
-            <div 
-              className="relative h-28 flex items-center justify-center rounded-xl border-2 border-dashed bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 transition-all hover:border-indigo-500 group"
-            >
+            <div className="relative h-24 flex items-center justify-center rounded-xl border-2 border-dashed bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 transition-all hover:border-indigo-500 group">
               <div className="flex flex-col items-center pointer-events-none text-center p-4">
-                <Upload className="w-7 h-7 mb-1.5 text-indigo-400 group-hover:scale-110 transition-transform" />
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Drop High-Res Audio</p>
+                <Upload className="w-6 h-6 mb-1 text-indigo-400 group-hover:scale-110 transition-transform" />
+                <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Drop Studio Master</p>
               </div>
-              <input
-                type="file"
-                accept="audio/*"
-                onChange={handleFileUpload}
-                className="absolute inset-0 opacity-0 cursor-pointer"
-              />
+              <input type="file" accept="audio/*" onChange={handleFileUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
             </div>
           </TabsContent>
 
@@ -335,18 +302,9 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Direct link to .mp3" 
-                  className="pl-9 h-10 text-xs font-medium"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                />
+                <Input placeholder="Direct .mp3 URL" className="pl-9 h-10 text-xs" value={url} onChange={(e) => setUrl(e.target.value)} />
               </div>
-              <Button 
-                onClick={() => loadFromUrl(url, "Remote Link", "Web Stream")} 
-                disabled={!url || isLoadingUrl}
-                className="bg-indigo-600 hover:bg-indigo-700 h-10 px-5 font-bold uppercase text-[10px]"
-              >
+              <Button onClick={() => loadFromUrl(url, "Remote Link", "Web Stream")} disabled={!url || isLoadingUrl} className="bg-indigo-600 h-10 px-5 font-bold uppercase text-[10px]">
                 {isLoadingUrl ? <Activity className="w-3.5 h-3.5 animate-spin" /> : "Fetch"}
               </Button>
             </div>
@@ -358,15 +316,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
             <div className="flex flex-col items-center gap-5">
               {activeVideoId && (
                 <div className="w-full aspect-video rounded-xl overflow-hidden shadow-lg border border-slate-200 dark:border-slate-800 bg-black">
-                  <iframe 
-                    width="100%" 
-                    height="100%" 
-                    src={`https://www.youtube.com/embed/${activeVideoId}`}
-                    title="Video association" 
-                    frameBorder="0" 
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-                    allowFullScreen
-                  />
+                  <iframe width="100%" height="100%" src={`https://www.youtube.com/embed/${activeVideoId}`} frameBorder="0" allowFullScreen />
                 </div>
               )}
               
@@ -375,10 +325,10 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
               </div>
               
               <div className="flex items-center justify-center gap-6">
-                <Button variant="outline" size="icon" onClick={stopPlayback} className="rounded-full h-10 w-10 border-slate-200">
+                <Button variant="outline" size="icon" onClick={stopPlayback} className="rounded-full h-10 w-10">
                   <RotateCcw className="w-4 h-4" />
                 </Button>
-                <Button size="lg" onClick={togglePlayback} className="w-16 h-16 rounded-full shadow-xl bg-indigo-600 hover:bg-indigo-700 transition-all hover:scale-105 group">
+                <Button size="lg" onClick={togglePlayback} className="w-16 h-16 rounded-full shadow-xl bg-indigo-600 hover:bg-indigo-700">
                   {isPlaying ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8 ml-0.5" />}
                 </Button>
                 <div className="w-10" />
@@ -404,17 +354,66 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
               }} />
             </div>
 
+            {/* Manual Link Section for Active Processing */}
+            <div className="bg-slate-50 dark:bg-slate-900/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-4">
+              <div className="flex items-center justify-between border-b pb-2 mb-2">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                  <LinkIcon className="w-3.5 h-3.5 text-indigo-500" /> Manual Metadata Links
+                </span>
+                <Sparkles className="w-3.5 h-3.5 text-indigo-300" />
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex flex-col gap-1.5">
+                  <Label className="text-[9px] font-bold text-slate-500 uppercase flex items-center justify-between">
+                    <span>YouTube Full Version</span>
+                    <button 
+                      onClick={() => window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(file.artist + ' ' + file.name + ' full audio')}`, '_blank')}
+                      className="text-red-500 hover:text-red-600 flex items-center gap-1"
+                    >
+                      <Youtube className="w-3 h-3" /> Find
+                    </button>
+                  </Label>
+                  <Input 
+                    placeholder="Paste YouTube Link..." 
+                    className="h-8 text-[10px] bg-white border-slate-100" 
+                    value={activeYoutubeUrl || ""} 
+                    onChange={(e) => {
+                      setActiveYoutubeUrl(e.target.value);
+                      setActiveVideoId(getYoutubeId(e.target.value));
+                    }}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <Label className="text-[9px] font-bold text-slate-500 uppercase flex items-center justify-between">
+                    <span>Ultimate Guitar Tab</span>
+                    <button 
+                      onClick={() => window.open(`https://www.ultimate-guitar.com/search.php?search_type=title&value=${encodeURIComponent(file.artist + ' ' + file.name + ' chords')}`, '_blank')}
+                      className="text-orange-500 hover:text-orange-600 flex items-center gap-1"
+                    >
+                      <FileText className="w-3 h-3" /> Search
+                    </button>
+                  </Label>
+                  <Input 
+                    placeholder="Paste UG Tab Link..." 
+                    className="h-8 text-[10px] bg-white border-slate-100" 
+                    value={activeUgUrl || ""} 
+                    onChange={(e) => setActiveUgUrl(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 gap-6 bg-slate-50 dark:bg-slate-900/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800">
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
-                    <Settings2 className="w-3 h-3 text-indigo-500" /> Semitones
+                    <Settings2 className="w-3 h-3 text-indigo-500" /> Key Transposer
                   </Label>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
-                      {pitch > 0 ? `+${pitch}` : pitch} ST
-                    </span>
-                  </div>
+                  <span className="text-sm font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
+                    {pitch > 0 ? `+${pitch}` : pitch} ST
+                  </span>
                 </div>
                 
                 <div className="flex gap-4 items-center">
@@ -424,15 +423,9 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
                       if (playerRef.current) playerRef.current.detune = (v[0] * 100) + fineTune;
                     }} />
                   </div>
-                  
                   {suggestedKey && (
-                    <Button 
-                      onClick={handleApplyKey}
-                      size="sm"
-                      className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 h-9 px-3 gap-2 group whitespace-nowrap animate-in slide-in-from-right duration-300"
-                    >
-                      <Sparkles className="w-3 h-3" />
-                      <span className="text-[10px] font-black uppercase">Apply {suggestedKey}</span>
+                    <Button onClick={handleApplyKey} size="sm" className="bg-indigo-50 text-indigo-600 h-9 px-3 text-[10px] uppercase font-black gap-1">
+                      <Sparkles className="w-3 h-3" /> Apply {suggestedKey}
                     </Button>
                   )}
                 </div>

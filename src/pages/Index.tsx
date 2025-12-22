@@ -135,7 +135,7 @@ const Index = () => {
         .eq('id', listId);
       if (error) throw error;
     } catch (err) {
-      // Handled silently
+      // Handled
     } finally {
       setIsSaving(false);
     }
@@ -189,7 +189,7 @@ const Index = () => {
               targetKey: aiResult.originalKey,
               bpm: aiResult.bpm?.toString(),
               genre: aiResult.genre,
-              ugUrl: aiResult.ugUrl, // New: Suggest UG URL
+              ugUrl: aiResult.ugUrl || s.ugUrl,
               isMetadataConfirmed: true,
               pitch: 0,
               isSyncing: false
@@ -222,7 +222,7 @@ const Index = () => {
     });
   };
 
-  const handleAddToSetlist = async (previewUrl: string, name: string, artist: string, youtubeUrl?: string, pitch: number = 0) => {
+  const handleAddToSetlist = async (previewUrl: string, name: string, artist: string, youtubeUrl?: string, pitch: number = 0, ugUrl?: string) => {
     if (!currentListId) return;
     const newSongId = Math.random().toString(36).substr(2, 9);
     const newSong: SetlistSong = {
@@ -231,6 +231,7 @@ const Index = () => {
       artist,
       previewUrl,
       youtubeUrl,
+      ugUrl,
       pitch,
       originalKey: "TBC",
       targetKey: "TBC",
@@ -266,7 +267,7 @@ const Index = () => {
       saveList(currentListId, updatedSongs);
       return prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l);
     });
-    showSuccess(`Imported "${song.name}" to gig.`);
+    showSuccess(`Imported "${song.name}"`);
   };
 
   const handleUpdateKey = (songId: string, targetKey: string) => {
@@ -304,7 +305,7 @@ const Index = () => {
     setActiveSongId(song.id);
     setIsStudioOpen(true);
     if (song.previewUrl && transposerRef.current) {
-      await transposerRef.current.loadFromUrl(song.previewUrl, song.name, song.artist || "Unknown", song.youtubeUrl, song.originalKey);
+      await transposerRef.current.loadFromUrl(song.previewUrl, song.name, song.artist || "Unknown", song.youtubeUrl, song.originalKey, song.ugUrl);
       transposerRef.current.setPitch(song.pitch);
     }
   };
@@ -341,7 +342,7 @@ const Index = () => {
   const startPerformance = () => {
     const firstPlayable = songs.find(s => !!s.previewUrl);
     if (!firstPlayable) {
-      showError("No audio tracks found in setlist.");
+      showError("No audio tracks found.");
       return;
     }
     setIsPerformanceMode(true);
@@ -370,7 +371,7 @@ const Index = () => {
               if (data) fetchSetlists();
             }}
             onDelete={async (id) => {
-              if (confirm("Delete this gig?")) {
+              if (confirm("Delete gig?")) {
                 await supabase.from('setlists').delete().eq('id', id);
                 fetchSetlists();
               }
@@ -382,26 +383,16 @@ const Index = () => {
           {syncQueue.length > 0 && (
             <div className="flex items-center gap-2 px-3 py-1 bg-amber-50 border border-amber-100 rounded-full animate-pulse">
               <Loader2 className="w-3 h-3 animate-spin text-amber-600" />
-              <span className="text-[10px] font-black text-amber-700 uppercase">AI Processing Queue: {syncQueue.length}</span>
+              <span className="text-[10px] font-black text-amber-700 uppercase">AI Queue: {syncQueue.length}</span>
             </div>
           )}
           
-          <Button 
-            variant="default" 
-            size="sm" 
-            onClick={startPerformance}
-            className="gap-2 bg-indigo-600 hover:bg-indigo-700 font-bold uppercase tracking-tight"
-          >
+          <Button variant="default" size="sm" onClick={startPerformance} className="gap-2 bg-indigo-600 font-bold uppercase tracking-tight">
             <Rocket className="w-4 h-4" /> Start Show
           </Button>
           <div className="h-6 w-px bg-slate-200" />
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => setIsStudioOpen(!isStudioOpen)}
-            className={cn("gap-2 font-bold uppercase tracking-tight", isStudioOpen && "text-indigo-600")}
-          >
-            <SearchIcon className="w-4 h-4" /> Song Studio
+          <Button variant="ghost" size="sm" onClick={() => setIsStudioOpen(!isStudioOpen)} className={cn("gap-2 font-bold uppercase tracking-tight", isStudioOpen && "text-indigo-600")}>
+            <SearchIcon className="w-4 h-4" /> Studio
           </Button>
           <div className="h-6 w-px bg-slate-200" />
           <div className="flex items-center gap-2 px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full">
@@ -410,7 +401,7 @@ const Index = () => {
             {isSaving && <Loader2 className="w-3 h-3 animate-spin text-indigo-500" />}
           </div>
           <Button variant="ghost" size="icon" onClick={signOut} className="rounded-full">
-            <LogOut className="w-4 h-4 text-slate-400 hover:text-red-500" />
+            <LogOut className="w-4 h-4 text-slate-400" />
           </Button>
         </div>
       </nav>
@@ -423,29 +414,23 @@ const Index = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase">{currentList?.name}</h2>
-                <p className="text-slate-500 text-sm font-medium">{songs.length} Songs Loaded</p>
+                <p className="text-slate-500 text-sm font-medium">{songs.length} Tracks</p>
               </div>
-              <div className="flex gap-2">
-                <ImportSetlist onImport={(newSongs) => {
-                  if (!currentListId) return;
-                  const songsWithSyncState = newSongs.map(s => ({ ...s, isSyncing: true, isMetadataConfirmed: false }));
-                  setSetlists(prev => {
-                    const list = prev.find(l => l.id === currentListId);
-                    if (!list) return prev;
-                    const updated = [...list.songs, ...songsWithSyncState];
-                    saveList(currentListId, updated);
-                    return prev.map(l => l.id === currentListId ? { ...l, songs: updated } : l);
-                  });
-                  setSyncQueue(prev => [...prev, ...songsWithSyncState.map(s => s.id)]);
-                }} />
-              </div>
+              <ImportSetlist onImport={(newSongs) => {
+                if (!currentListId) return;
+                const songsWithSyncState = newSongs.map(s => ({ ...s, isSyncing: true, isMetadataConfirmed: false }));
+                setSetlists(prev => {
+                  const list = prev.find(l => l.id === currentListId);
+                  if (!list) return prev;
+                  const updated = [...list.songs, ...songsWithSyncState];
+                  saveList(currentListId, updated);
+                  return prev.map(l => l.id === currentListId ? { ...l, songs: updated } : l);
+                });
+                setSyncQueue(prev => [...prev, ...songsWithSyncState.map(s => s.id)]);
+              }} />
             </div>
 
-            <SetlistStats 
-              songs={songs} 
-              goalSeconds={currentList?.time_goal} 
-              onUpdateGoal={handleUpdateGoal} 
-            />
+            <SetlistStats songs={songs} goalSeconds={currentList?.time_goal} onUpdateGoal={handleUpdateGoal} />
 
             <SetlistManager 
               songs={songs} 
@@ -481,7 +466,7 @@ const Index = () => {
         </main>
 
         <aside className={cn(
-          "w-[450px] bg-white dark:bg-slate-900 border-l shadow-2xl transition-all duration-500 ease-in-out shrink-0",
+          "w-[450px] bg-white dark:bg-slate-900 border-l shadow-2xl transition-all duration-500 shrink-0",
           isStudioOpen ? "translate-x-0" : "translate-x-full absolute right-0 top-16 bottom-0"
         )}>
           <div className="h-full flex flex-col">
@@ -491,11 +476,11 @@ const Index = () => {
                   {activeSongId ? <Play className="w-4 h-4 fill-current" /> : <SearchIcon className="w-4 h-4" />}
                 </div>
                 <div>
-                  <h3 className="text-xs font-black uppercase tracking-widest text-indigo-600">{activeSongId ? "Performing Now" : "Inspiration Studio"}</h3>
-                  <p className="text-sm font-bold truncate max-w-[200px]">{activeSongId ? activeSong?.name : "Find & Add Songs"}</p>
+                  <h3 className="text-xs font-black uppercase tracking-widest text-indigo-600">{activeSongId ? "Performing" : "Studio Engine"}</h3>
+                  <p className="text-sm font-bold truncate max-w-[200px]">{activeSongId ? activeSong?.name : "Link Assets"}</p>
                 </div>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => setIsStudioOpen(false)} className="text-[10px] font-bold uppercase tracking-tighter">Close Studio</Button>
+              <Button variant="ghost" size="sm" onClick={() => setIsStudioOpen(false)} className="text-[10px] font-bold uppercase">Hide</Button>
             </div>
             <div className="flex-1 overflow-y-auto">
               <AudioTransposer 
@@ -530,10 +515,7 @@ const Index = () => {
       )}
 
       {!isStudioOpen && !isPerformanceMode && (
-        <button 
-          onClick={() => setIsStudioOpen(true)}
-          className="fixed bottom-8 right-8 bg-indigo-600 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition-all z-50 group"
-        >
+        <button onClick={() => setIsStudioOpen(true)} className="fixed bottom-8 right-8 bg-indigo-600 text-white p-4 rounded-full shadow-2xl hover:scale-110 z-50">
           <SearchIcon className="w-6 h-6" />
         </button>
       )}
