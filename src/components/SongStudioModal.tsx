@@ -633,9 +633,18 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
               {activeTab === 'audio' && (
                 <div className="space-y-12 animate-in fade-in duration-500">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-black uppercase tracking-[0.2em] text-indigo-400">Audio Transposition Matrix</h3>
-                      <p className="text-sm text-slate-500 mt-2">Direct stream processing with real-time pitch and time-stretching.</p>
+                    <div className="flex items-center gap-6">
+                      <div>
+                        <h3 className="text-lg font-black uppercase tracking-[0.2em] text-indigo-400">Audio Transposition Matrix</h3>
+                        <p className="text-sm text-slate-500 mt-2">Direct stream processing with real-time pitch and time-stretching.</p>
+                      </div>
+                      <Button 
+                        variant="outline"
+                        onClick={handleYoutubeSearch}
+                        className="bg-red-600/10 border-red-600/20 text-red-600 hover:bg-red-600 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 gap-2 px-6 rounded-xl transition-all"
+                      >
+                        <Youtube className="w-3.5 h-3.5" /> Discovery Mode
+                      </Button>
                     </div>
                     <div className="flex items-center gap-3 px-4 py-2 bg-indigo-600/10 border border-indigo-500/20 rounded-full">
                        <Zap className="w-4 h-4 text-indigo-400" />
@@ -700,17 +709,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                         </Button>
                       </div>
                     )}
-                  </div>
-
-                  {/* YouTube Discovery Button - Always Visible */}
-                  <div className="flex justify-center mt-6">
-                    <Button 
-                      variant="outline"
-                      onClick={handleYoutubeSearch}
-                      className="bg-red-600/10 border-red-600/20 text-red-600 hover:bg-red-600 hover:text-white font-black uppercase tracking-widest text-xs h-12 gap-3 px-8 rounded-2xl transition-all"
-                    >
-                      <Youtube className="w-4 h-4" /> Find Full YouTube Version
-                    </Button>
                   </div>
 
                   <div className="grid grid-cols-2 gap-10">
