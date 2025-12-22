@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
-import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed, Copy, Upload, Loader2, Sparkles, FileText, ShieldCheck, Edit3, Search, FileDown, FileCheck, SortAsc, SortDesc, LayoutList, Volume2, Headphones, ChevronUp, ChevronDown } from 'lucide-react';
+import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed, Copy, Upload, Loader2, Sparkles, FileText, ShieldCheck, Edit3, Search, FileDown, FileCheck, SortAsc, SortDesc, LayoutList, Volume2, Headphones, ChevronUp, ChevronDown, BarChart2 } from 'lucide-react';
 import { ALL_KEYS, calculateSemitones } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
 import { supabase } from '@/integrations/supabase/client';
@@ -44,11 +44,11 @@ interface SetlistManagerProps {
 }
 
 const RESOURCE_TYPES = [
-  { id: 'UG', label: 'Ultimate Guitar', color: 'bg-orange-100 text-orange-700 border-orange-200' },
-  { id: 'FS', label: 'ForScore', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-  { id: 'SM', label: 'Sheet Music', color: 'bg-blue-100 text-blue-700 border-blue-200' },
-  { id: 'LS', label: 'Lead Sheet', color: 'bg-purple-100 text-purple-700 border-purple-200' },
-  { id: 'PDF', label: 'iPad PDF', color: 'bg-red-100 text-red-700 border-red-200' },
+  { id: 'UG', label: 'Ultimate Guitar', color: 'bg-orange-500/10 text-orange-600 border-orange-500/20' },
+  { id: 'FS', label: 'ForScore', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
+  { id: 'SM', label: 'Sheet Music', color: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
+  { id: 'LS', label: 'Lead Sheet', color: 'bg-purple-500/10 text-purple-600 border-purple-500/20' },
+  { id: 'PDF', label: 'iPad PDF', color: 'bg-red-500/10 text-red-600 border-red-500/20' },
 ];
 
 type SortMode = 'none' | 'ready' | 'work';
@@ -59,7 +59,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   onSelect, 
   onUpdateKey, 
   onTogglePlayed,
-  onLinkAudio,
   onUpdateSong,
   onSyncProData,
   onReorder,
@@ -73,11 +72,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
   const isItunesPreview = (url: string) => url && (url.includes('apple.com') || url.includes('itunes-assets'));
 
-  const getUGUrl = (song: SetlistSong) => {
-    const searchTerm = encodeURIComponent(`${song.name} ${song.artist || ''} chords`);
-    return `https://www.ultimate-guitar.com/search.php?search_type=title&value=${searchTerm}`;
-  };
-
   const getReadinessScore = (song: SetlistSong) => {
     let score = 0;
     if (song.previewUrl && !isItunesPreview(song.previewUrl)) score += 5;
@@ -85,8 +79,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     if (song.pdfUrl) score += 3;
     if (song.youtubeUrl) score += 1;
     if (song.bpm) score += 1;
-    if (song.notes) score += 1;
-    if (song.resources) score += song.resources.length;
     return score;
   };
 
@@ -106,15 +98,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     });
   }, [songs, sortMode, searchTerm]);
 
-  const toggleResource = (song: SetlistSong, resourceId: string) => {
-    const currentResources = song.resources || [];
-    const newResources = currentResources.includes(resourceId)
-      ? currentResources.filter(id => id !== resourceId)
-      : [...currentResources, resourceId];
-    
-    onUpdateSong(song.id, { resources: newResources });
-  };
-
   const handleMove = (id: string, direction: 'up' | 'down') => {
     const index = songs.findIndex(s => s.id === id);
     if (index === -1) return;
@@ -127,296 +110,231 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     onReorder(newSongs);
   };
 
-  const processAudioUpload = async (file: File, songId: string) => {
-    setUploadingId(songId);
-    try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `tracks/${songId}-${Date.now()}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage
-        .from('audio_tracks')
-        .upload(fileName, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('audio_tracks')
-        .getPublicUrl(fileName);
-
-      onUpdateSong(songId, { previewUrl: publicUrl });
-      showSuccess("Performance track linked!");
-    } catch (err) {
-      showError("Audio upload failed.");
-    } finally {
-      setUploadingId(null);
-    }
-  };
-
-  const handlePdfUpload = async (file: File, songId: string) => {
-    setUploadingId(songId);
-    try {
-      const fileName = `sheets/${songId}-${Date.now()}.pdf`;
-      const { error: uploadError } = await supabase.storage
-        .from('audio_tracks')
-        .upload(fileName, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('audio_tracks')
-        .getPublicUrl(fileName);
-
-      onUpdateSong(songId, { pdfUrl: publicUrl });
-      showSuccess("Sheet music linked!");
-    } catch (err) {
-      showError("PDF upload failed.");
-    } finally {
-      setUploadingId(null);
-      setDragOverId(null);
-    }
-  };
-
-  const onDragOver = (e: React.DragEvent, id: string) => {
-    e.preventDefault();
-    setDragOverId(id);
-  };
-
-  const onDrop = (e: React.DragEvent, id: string) => {
-    e.preventDefault();
-    setDragOverId(null);
-    const file = e.dataTransfer.files?.[0];
-    if (!file) return;
-
-    if (file.type.startsWith('audio/')) {
-      processAudioUpload(file, id);
-    } else if (file.type === 'application/pdf') {
-      handlePdfUpload(file, id);
-    } else {
-      showError("Unsupported file type. Drop an audio file or PDF.");
-    }
-  };
-
-  const cycleSortMode = () => {
-    if (sortMode === 'none') setSortMode('ready');
-    else if (sortMode === 'ready') setSortMode('work');
-    else setSortMode('none');
-  };
-
-  const handleCopyLink = (url?: string) => {
-    if (url) {
-      navigator.clipboard.writeText(url);
-      showSuccess("YouTube link copied!");
-    }
-  };
-
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-2">
-        <div className="flex items-center gap-3">
-          <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Gig Dashboard</h3>
-          <div className="h-4 w-px bg-slate-200" />
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={cycleSortMode}
-            className={cn(
-              "h-7 text-[9px] font-black uppercase tracking-tight gap-2 transition-all",
-              sortMode !== 'none' ? "bg-indigo-600 text-white hover:bg-indigo-700" : "text-slate-500 hover:bg-slate-100"
-            )}
-          >
-            {sortMode === 'none' && <LayoutList className="w-3 h-3" />}
-            {sortMode === 'ready' && <SortAsc className="w-3 h-3" />}
-            {sortMode === 'work' && <SortDesc className="w-3 h-3" />}
-            {sortMode === 'none' && "List Order"}
-            {sortMode === 'ready' && "Ready-First"}
-            {sortMode === 'work' && "Work-First"}
-          </Button>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setSortMode('none')}
+              className={cn("h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-2", sortMode === 'none' && "bg-white dark:bg-slate-700 shadow-sm")}
+            >
+              <LayoutList className="w-3 h-3" /> List
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setSortMode('ready')}
+              className={cn("h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-2", sortMode === 'ready' && "bg-white dark:bg-slate-700 shadow-sm text-indigo-600")}
+            >
+              <SortAsc className="w-3 h-3" /> Readiness
+            </Button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <div className="relative flex-1 sm:w-64">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400" />
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="relative flex-1 sm:w-64 group">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
             <Input 
-              placeholder="Search setlist..." 
+              placeholder="Search Gig Repertoire..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-8 pl-8 text-[10px] bg-white border-slate-200 focus-visible:ring-indigo-500"
+              className="h-9 pl-9 text-[11px] font-bold bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-xl focus-visible:ring-indigo-500"
             />
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => songs.forEach(s => !s.isMetadataConfirmed && onSyncProData(s))}
-            className="h-8 text-[9px] font-black uppercase tracking-tight gap-2 border-indigo-200 text-indigo-700 bg-indigo-50/50"
-          >
-            <Sparkles className="w-3 h-3" /> Sync Pro
-          </Button>
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border shadow-sm overflow-hidden">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-slate-50 dark:bg-slate-800/50 border-b">
-              <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-12 text-center">Done</th>
-              <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Song Title / Resources</th>
-              <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-32 text-center">Reorder</th>
-              <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-48">Harmonic State</th>
-              <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-32 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-            {processedSongs.map((song, idx) => {
-              const isSelected = currentSongId === song.id;
-              const isPreview = isItunesPreview(song.previewUrl);
-              const hasAudio = !!song.previewUrl && !isPreview;
-              const isUploading = uploadingId === song.id;
-              const needsSync = !song.isMetadataConfirmed;
+      <div className="bg-white dark:bg-slate-950 rounded-[2rem] border-4 border-slate-100 dark:border-slate-900 shadow-2xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[800px]">
+            <thead>
+              <tr className="bg-slate-50/50 dark:bg-slate-900/50 border-b dark:border-slate-800">
+                <th className="py-5 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 w-16 text-center">Sts</th>
+                <th className="py-5 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Song / Resource Matrix</th>
+                <th className="py-5 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 w-24 text-center">Move</th>
+                <th className="py-5 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 w-48 text-center">Harmonic Map</th>
+                <th className="py-5 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 w-40 text-right pr-10">Command</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-900">
+              {processedSongs.map((song, idx) => {
+                const isSelected = currentSongId === song.id;
+                const readinessScore = getReadinessScore(song);
+                const isReady = readinessScore >= 8;
+                const hasAudio = !!song.previewUrl && !isItunesPreview(song.previewUrl);
 
-              return (
-                <tr 
-                  key={song.id}
-                  onDragOver={(e) => onDragOver(e, song.id)}
-                  onDragLeave={() => setDragOverId(null)}
-                  onDrop={(e) => onDrop(e, song.id)}
-                  onClick={() => setStudioSong(song)}
-                  className={cn(
-                    "transition-all group relative cursor-pointer",
-                    isSelected ? "bg-indigo-50/50 dark:bg-indigo-900/10" : "hover:bg-slate-50/50 dark:hover:bg-slate-800/30",
-                    song.isPlayed && "opacity-50",
-                    dragOverId === song.id && "bg-indigo-100 border-2 border-dashed border-indigo-400"
-                  )}
-                >
-                  <td className="p-4 text-center">
-                    <button onClick={(e) => { e.stopPropagation(); onTogglePlayed(song.id); }}>
-                      {song.isPlayed ? <CheckCircle2 className="w-5 h-5 text-green-500" /> : <CircleDashed className="w-5 h-5 text-slate-300" />}
-                    </button>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-mono font-black text-slate-300">{(idx + 1).toString().padStart(2, '0')}</span>
-                        <span className={cn("text-sm font-bold tracking-tight", song.isPlayed && "line-through")}>
-                          {song.name}
-                        </span>
-                        {song.isMetadataConfirmed && <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />}
-                      </div>
-                      
-                      {song.artist && <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-7">{song.artist}</span>}
-                      
-                      <div className="flex items-center gap-1.5 ml-7 mt-2">
-                        <TooltipProvider>
-                          <div className="flex items-center gap-1.5">
+                return (
+                  <tr 
+                    key={song.id}
+                    onClick={() => setStudioSong(song)}
+                    className={cn(
+                      "transition-all group relative cursor-pointer",
+                      isSelected ? "bg-indigo-50/50 dark:bg-indigo-900/10" : "hover:bg-slate-50/30 dark:hover:bg-slate-900/50",
+                      song.isPlayed && "opacity-40 grayscale-[0.5]"
+                    )}
+                  >
+                    {/* Status Column */}
+                    <td className="py-6 px-6 text-center">
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); onTogglePlayed(song.id); }}
+                        className="transition-transform active:scale-90"
+                      >
+                        {song.isPlayed ? (
+                          <div className="h-6 w-6 rounded-full bg-emerald-500 flex items-center justify-center text-white">
+                            <CheckCircle2 className="w-4 h-4" />
+                          </div>
+                        ) : (
+                          <div className="h-6 w-6 rounded-full border-2 border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-300 group-hover:border-indigo-300 transition-colors">
+                            <CircleDashed className="w-4 h-4" />
+                          </div>
+                        )}
+                      </button>
+                    </td>
+
+                    {/* Metadata Column */}
+                    <td className="py-6 px-6">
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex items-center gap-3">
+                          <span className="text-[10px] font-mono font-black text-slate-300">{(idx + 1).toString().padStart(2, '0')}</span>
+                          <h4 className={cn("text-base font-black tracking-tight leading-none", song.isPlayed && "line-through text-slate-400")}>
+                            {song.name}
+                          </h4>
+                          {song.isMetadataConfirmed && <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />}
+                          <div className={cn(
+                            "h-1.5 w-1.5 rounded-full",
+                            isReady ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]"
+                          )} />
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none ml-7">
+                            {song.artist || "Unknown Artist"}
+                          </span>
+                          <span className="text-slate-200 dark:text-slate-800 text-[8px]">•</span>
+                          <span className="text-[9px] font-mono font-bold text-slate-400">{song.bpm ? `${song.bpm} BPM` : 'TEMPO TBC'}</span>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 ml-7 mt-3">
+                          <TooltipProvider>
                             {RESOURCE_TYPES.map(res => {
                               const isActive = song.resources?.includes(res.id);
+                              if (!isActive) return null;
                               return (
-                                <button 
-                                  key={res.id} 
-                                  onClick={(e) => { e.stopPropagation(); toggleResource(song, res.id); }} 
-                                  className={cn("text-[8px] font-black px-1.5 py-0.5 rounded border transition-all", isActive ? cn(res.color, "shadow-sm opacity-100") : "bg-slate-50 text-slate-400 border-slate-100 opacity-40 hover:opacity-100")}
-                                >
+                                <span key={res.id} className={cn("text-[8px] font-black px-2 py-0.5 rounded-full border shadow-sm", res.color)}>
                                   {res.id}
-                                </button>
+                                </span>
                               );
                             })}
-                            <div className="w-1.5" />
+                            
                             {hasAudio && (
-                              <Tooltip><TooltipTrigger asChild><div className="text-[8px] font-black px-1.5 py-0.5 rounded border bg-indigo-100 text-indigo-700 border-indigo-200 shadow-sm flex items-center gap-1"><Volume2 className="w-2 h-2" /> AUD</div></TooltipTrigger><TooltipContent className="text-[9px] font-bold uppercase">Performance Audio Ready</TooltipContent></Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="h-5 w-5 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+                                    <Volume2 className="w-3 h-3" />
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent className="text-[10px] font-black uppercase">Direct Audio Link Active</TooltipContent>
+                              </Tooltip>
                             )}
-                            {isPreview && (
-                              <Tooltip><TooltipTrigger asChild><div className="text-[8px] font-black px-1.5 py-0.5 rounded border bg-amber-50 text-amber-600 border-amber-100 flex items-center gap-1"><Headphones className="w-2 h-2" /> PRE</div></TooltipTrigger><TooltipContent className="text-[9px] font-bold uppercase">iTunes Preview Stream</TooltipContent></Tooltip>
-                            )}
-                            {song.pdfUrl && (
-                              <a href={song.pdfUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-[8px] font-black px-1.5 py-0.5 rounded bg-red-100 text-red-700 border border-red-200 shadow-sm flex items-center gap-1"><FileDown className="w-2 h-2" /> PDF</a>
-                            )}
-                          </div>
-                        </TooltipProvider>
-                      </div>
 
-                      <div className="flex items-center gap-3 mt-2 ml-7">
-                        <div className="flex items-center gap-2">
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); onSyncProData(song); }} 
-                            className={cn("flex items-center gap-1 text-[9px] font-black uppercase transition-all mr-1", needsSync ? "text-indigo-600 animate-pulse font-extrabold" : "text-slate-400 hover:text-indigo-600")} 
-                            disabled={song.isSyncing}
-                          >
-                            {song.isSyncing ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Sparkles className="w-2.5 h-2.5" />}
-                            {needsSync ? "Sync Pro Data" : "Verified"}
-                          </button>
-                          <div className="h-2 w-px bg-slate-200 mx-1" />
-                          <a href={getUGUrl(song)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="flex items-center gap-1 text-[9px] text-amber-600 font-bold hover:underline"><FileText className="w-2.5 h-2.5" /> Chords</a>
-                          {song.youtubeUrl && (
-                            <div className="flex items-center gap-1">
-                              <button onClick={(e) => { e.stopPropagation(); onSelect(song); }} className="flex items-center gap-1 text-[9px] text-red-600 font-bold hover:underline"><Youtube className="w-3 h-3" /> Video</button>
-                              <button onClick={(e) => { e.stopPropagation(); handleCopyLink(song.youtubeUrl); }} className="text-slate-400 hover:text-indigo-600 p-0.5"><Copy className="w-2.5 h-2.5" /></button>
-                            </div>
-                          )}
-                          <label 
-                            className="flex items-center gap-1 text-[9px] font-black text-indigo-600 uppercase hover:underline cursor-pointer"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Upload className="w-2.5 h-2.5" /> {isUploading ? "Uploading..." : "Drop Track/PDF"}
-                            <input 
-                              type="file" 
-                              className="hidden" 
-                              accept="audio/*,application/pdf" 
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (!file) return;
-                                if (file.type.startsWith('audio/')) processAudioUpload(file, song.id);
-                                else if (file.type === 'application/pdf') handlePdfUpload(file, song.id);
-                              }}
-                            />
-                          </label>
+                            {song.pdfUrl && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="h-5 w-5 rounded-lg bg-red-500 flex items-center justify-center text-white shadow-lg shadow-red-500/20">
+                                    <FileDown className="w-3 h-3" />
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent className="text-[10px] font-black uppercase">Chart / Sheet Music Attached</TooltipContent>
+                              </Tooltip>
+                            )}
+                          </TooltipProvider>
                         </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex flex-col items-center gap-1">
-                       <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-300 hover:text-indigo-600" onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'up'); }} disabled={idx === 0}>
-                         <ChevronUp className="w-4 h-4" />
-                       </Button>
-                       <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-300 hover:text-indigo-600" onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'down'); }} disabled={idx === processedSongs.length - 1}>
-                         <ChevronDown className="w-4 h-4" />
-                       </Button>
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex flex-col">
-                        <span className="text-[8px] font-black uppercase text-slate-400">Original</span>
-                        <span className="text-[11px] font-mono font-bold">{song.originalKey || "TBC"}</span>
+                    </td>
+
+                    {/* Reorder Column */}
+                    <td className="py-6 px-6">
+                      <div className="flex flex-col items-center gap-0.5">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-7 w-7 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50" 
+                          onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'up'); }} 
+                          disabled={idx === 0}
+                        >
+                          <ChevronUp className="w-4 h-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-7 w-7 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50" 
+                          onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'down'); }} 
+                          disabled={idx === processedSongs.length - 1}
+                        >
+                          <ChevronDown className="w-4 h-4" />
+                        </Button>
                       </div>
-                      <ArrowRight className="w-3 h-3 text-slate-300" />
-                      <div className="flex-1">
-                        <span className="text-[8px] font-black uppercase text-indigo-500">Target</span>
-                        <div className="h-7 text-[11px] font-bold font-mono bg-indigo-50/30 text-indigo-600 px-2 flex items-center rounded border border-indigo-100">
-                          {song.targetKey}
+                    </td>
+
+                    {/* Harmonic Map Column */}
+                    <td className="py-6 px-6">
+                      <div className="flex items-center justify-center gap-4">
+                        <div className="text-center">
+                          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Orig</p>
+                          <span className="text-xs font-mono font-bold text-slate-500">{song.originalKey || "TBC"}</span>
+                        </div>
+                        <div className="flex flex-col items-center">
+                          <ArrowRight className="w-3 h-3 text-slate-300 mb-1" />
+                          <div className="h-px w-8 bg-slate-100 dark:bg-slate-800" />
+                        </div>
+                        <div className="text-center">
+                          <p className="text-[8px] font-black text-indigo-500 uppercase tracking-widest mb-1">Stage</p>
+                          <div className="bg-indigo-600 text-white font-mono font-black text-xs px-2.5 py-1 rounded-lg shadow-lg shadow-indigo-500/20">
+                            {song.targetKey}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="p-4 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-slate-300 hover:text-indigo-600" onClick={(e) => { e.stopPropagation(); setStudioSong(song); }}><Edit3 className="w-3.5 h-3.5" /></Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className={cn("h-8 px-3 text-[10px] font-black uppercase tracking-widest gap-2", !song.previewUrl ? "text-slate-300" : "text-indigo-600")} 
-                        disabled={!song.previewUrl} 
-                        onClick={(e) => { e.stopPropagation(); onSelect(song); }}
-                      >
-                        {isSelected ? "Active" : "Perform"} <Play className="w-3 h-3" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300 hover:text-red-500" onClick={(e) => { e.stopPropagation(); onRemove(song.id); }}><Trash2 className="w-4 h-4" /></Button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                    </td>
+
+                    {/* Actions Column */}
+                    <td className="py-6 px-6 text-right pr-10">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button 
+                          size="sm" 
+                          className={cn(
+                            "h-9 px-4 text-[10px] font-black uppercase tracking-[0.1em] gap-2 rounded-xl transition-all",
+                            !song.previewUrl 
+                              ? "bg-slate-100 text-slate-400 hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-600" 
+                              : isSelected 
+                                ? "bg-indigo-100 text-indigo-600 border border-indigo-200" 
+                                : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-xl shadow-indigo-500/20"
+                          )} 
+                          disabled={!song.previewUrl} 
+                          onClick={(e) => { e.stopPropagation(); onSelect(song); }}
+                        >
+                          {isSelected ? "Active" : "Perform"} <Play className={cn("w-3 h-3 fill-current", isSelected && "fill-indigo-600")} />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-9 w-9 rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors" 
+                          onClick={(e) => { e.stopPropagation(); onRemove(song.id); }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
+      
       <SongStudioModal 
         song={studioSong} 
         isOpen={!!studioSong} 
