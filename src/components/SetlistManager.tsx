@@ -270,7 +270,16 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                     <div className="flex flex-col">
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] font-mono font-black text-slate-300">{(idx + 1).toString().padStart(2, '0')}</span>
-                        <span className="text-sm font-bold tracking-tight">{displayName}</span>
+                        {/* CLICKABLE SONG TITLE */}
+                        <button 
+                          onClick={() => onSelect(song)}
+                          className={cn(
+                            "text-sm font-bold tracking-tight hover:text-indigo-600 hover:underline transition-colors text-left",
+                            song.isPlayed && "line-through"
+                          )}
+                        >
+                          {displayName}
+                        </button>
                         {song.isMetadataConfirmed && <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />}
                         {sortMode !== 'none' && (
                           <Badge className={cn("text-[8px] font-black h-4 px-1 border-none", readiness > 12 ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700")}>

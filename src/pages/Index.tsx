@@ -190,7 +190,7 @@ const Index = () => {
       setSetlists(prev => prev.map(l => l.id === currentListId ? {
         ...l,
         songs: l.songs.map(s => 
-          songsToSync.find(ts => ts.id === s.id) ? { ...s, isSyncing: false } : s
+          songsToSync.find(ts => ts.id === s.id) ? { ...s, isSyncing: true } : s
         )
       } : l));
     }
@@ -289,7 +289,7 @@ const Index = () => {
     setActiveSongId(song.id);
     setIsStudioOpen(true);
     if (song.previewUrl && transposerRef.current) {
-      await transposerRef.current.loadFromUrl(song.previewUrl, song.name, song.artist || "Unknown", song.youtubeUrl);
+      await transposerRef.current.loadFromUrl(song.previewUrl, song.name, song.artist || "Unknown", song.youtubeUrl, song.originalKey);
       transposerRef.current.setPitch(song.pitch);
     }
   };
@@ -483,8 +483,10 @@ const Index = () => {
                 ref={transposerRef} 
                 onAddToSetlist={handleAddToSetlist} 
                 onAddExistingSong={handleAddExistingSong}
+                onUpdateSongKey={handleUpdateKey}
                 onSongEnded={handleNextSong}
                 repertoire={fullRepertoire}
+                currentSong={activeSong}
               />
             </div>
           </div>

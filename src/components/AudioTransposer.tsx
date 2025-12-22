@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
+import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef, useMemo } from 'react';
 import * as Tone from 'tone';
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Play, Pause, RotateCcw, Upload, Volume2, Waves, Settings2, Activity, Link as LinkIcon, Globe, Search, Youtube, PlusCircle, Library } from 'lucide-react';
+import { Play, Pause, RotateCcw, Upload, Volume2, Waves, Settings2, Activity, Link as LinkIcon, Globe, Search, Youtube, PlusCircle, Library, Sparkles, Check } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import AudioVisualizer from './AudioVisualizer';
 import SongSearch from './SongSearch';
@@ -14,9 +14,10 @@ import MyLibrary from './MyLibrary';
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SetlistSong } from './SetlistManager';
+import { transposeKey } from '@/utils/keyUtils';
 
 export interface AudioTransposerRef {
-  loadFromUrl: (url: string, name: string, artist: string, youtubeUrl?: string) => Promise<void>;
+  loadFromUrl: (url: string, name: string, artist: string, youtubeUrl?: string, originalKey?: string) => Promise<void>;
   setPitch: (pitch: number) => void;
   getPitch: () => number;
   triggerSearch: (query: string) => void;
@@ -29,12 +30,21 @@ export interface AudioTransposerRef {
 interface AudioTransposerProps {
   onAddToSetlist?: (previewUrl: string, name: string, artist: string, ytUrl?: string, pitch?: number) => void;
   onAddExistingSong?: (song: SetlistSong) => void;
+  onUpdateSongKey?: (songId: string, newTargetKey: string) => void;
   onSongEnded?: () => void;
   repertoire?: SetlistSong[];
+  currentSong?: SetlistSong | null;
 }
 
-const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ onAddToSetlist, onAddExistingSong, onSongEnded, repertoire = [] }, ref) => {
-  const [file, setFile] = useState<{ name: string; artist?: string; url?: string } | null>(null);
+const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
+  onAddToSetlist, 
+  onAddExistingSong, 
+  onUpdateSongKey,
+  onSongEnded, 
+  repertoire = [],
+  currentSong
+}, ref) => {
+  const [file, setFile] = useState<{ id?: string; name: string; artist?: string; url?: string; originalKey?: string } | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [pitch, setPitch] = useState(0);
   const [fineTune, setFineTune] = useState(0);
@@ -103,7 +113,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
     return (match && match[2].length === 11) ? match[2] : null;
   };
 
-  const loadAudioBuffer = async (audioBuffer: AudioBuffer, name: string, artist: string, youtubeUrl?: string, previewUrl?: string) => {
+  const loadAudioBuffer = async (audioBuffer: AudioBuffer, name: string, artist: string, youtubeUrl?: string, previewUrl?: string, originalKey?: string) => {
     try {
       await initEngine();
       if (playerRef.current) playerRef.current.dispose();
@@ -115,7 +125,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
       playerRef.current.playbackRate = tempo;
       playerRef.current.volume.value = volume;
 
-      setFile({ name, artist, url: previewUrl });
+      setFile({ id: currentSong?.id, name, artist, url: previewUrl, originalKey });
       setDuration(audioBuffer.duration);
       setProgress(0);
       offsetRef.current = 0;
@@ -135,14 +145,14 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
     }
   };
 
-  const loadFromUrl = async (targetUrl: string, name: string, artist: string, youtubeUrl?: string) => {
+  const loadFromUrl = async (targetUrl: string, name: string, artist: string, youtubeUrl?: string, originalKey?: string) => {
     setIsLoadingUrl(true);
     try {
       const response = await fetch(targetUrl);
       if (!response.ok) throw new Error("Could not fetch file");
       const arrayBuffer = await response.arrayBuffer();
       const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
-      await loadAudioBuffer(audioBuffer, name, artist, youtubeUrl, targetUrl);
+      await loadAudioBuffer(audioBuffer, name, artist, youtubeUrl, targetUrl, originalKey);
       if (!name) setUrl("");
     } catch (err) {
       showError("Failed to load audio stream.");
@@ -166,6 +176,19 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
       playbackStartTimeRef.current = Tone.now();
       playerRef.current.start(0, startTime);
       setIsPlaying(true);
+    }
+  };
+
+  const suggestedKey = useMemo(() => {
+    const activeKey = file?.originalKey || currentSong?.originalKey;
+    if (!activeKey || activeKey === "TBC") return null;
+    return transposeKey(activeKey, pitch);
+  }, [file?.originalKey, currentSong?.originalKey, pitch]);
+
+  const handleApplyKey = () => {
+    if (currentSong && suggestedKey && onUpdateSongKey) {
+      onUpdateSongKey(currentSong.id, suggestedKey);
+      showSuccess(`Set performance key to ${suggestedKey}`);
     }
   };
 
@@ -382,19 +405,40 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
             </div>
 
             <div className="grid grid-cols-1 gap-6 bg-slate-50 dark:bg-slate-900/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800">
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
-                      <Settings2 className="w-3 h-3 text-indigo-500" /> Pitch
-                    </Label>
-                    <span className="text-xs font-mono font-bold text-indigo-600">{pitch > 0 ? `+${pitch}` : pitch} ST</span>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                    <Settings2 className="w-3 h-3 text-indigo-500" /> Semitones
+                  </Label>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
+                      {pitch > 0 ? `+${pitch}` : pitch} ST
+                    </span>
                   </div>
-                  <Slider value={[pitch]} min={-12} max={12} step={1} onValueChange={(v) => {
-                    setPitch(v[0]);
-                    if (playerRef.current) playerRef.current.detune = (v[0] * 100) + fineTune;
-                  }} />
                 </div>
+                
+                <div className="flex gap-4 items-center">
+                  <div className="flex-1">
+                    <Slider value={[pitch]} min={-12} max={12} step={1} onValueChange={(v) => {
+                      setPitch(v[0]);
+                      if (playerRef.current) playerRef.current.detune = (v[0] * 100) + fineTune;
+                    }} />
+                  </div>
+                  
+                  {suggestedKey && (
+                    <Button 
+                      onClick={handleApplyKey}
+                      size="sm"
+                      className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 h-9 px-3 gap-2 group whitespace-nowrap animate-in slide-in-from-right duration-300"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      <span className="text-[10px] font-black uppercase">Apply {suggestedKey}</span>
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6 pt-4 border-t">
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Tempo</Label>
@@ -405,19 +449,19 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
                     if (playerRef.current) playerRef.current.playbackRate = v[0];
                   }} />
                 </div>
-              </div>
 
-              <div className="space-y-3 border-t pt-4">
-                <div className="flex justify-between items-center">
-                  <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
-                    <Volume2 className="w-3 h-3 text-indigo-500" /> Gain
-                  </Label>
-                  <span className="text-[10px] font-mono font-bold text-slate-600">{Math.round((volume + 60) * 1.66)}%</span>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                      <Volume2 className="w-3 h-3 text-indigo-500" /> Gain
+                    </Label>
+                    <span className="text-[10px] font-mono font-bold text-slate-600">{Math.round((volume + 60) * 1.66)}%</span>
+                  </div>
+                  <Slider value={[volume]} min={-60} max={0} step={1} onValueChange={(v) => {
+                    setVolume(v[0]);
+                    if (playerRef.current) playerRef.current.volume.value = v[0];
+                  }} />
                 </div>
-                <Slider value={[volume]} min={-60} max={0} step={1} onValueChange={(v) => {
-                  setVolume(v[0]);
-                  if (playerRef.current) playerRef.current.volume.value = v[0];
-                }} />
               </div>
             </div>
           </div>
