@@ -7,13 +7,15 @@ import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Play, Pause, RotateCcw, Upload, Volume2, Info, Waves, Settings2, Gauge, Activity, Link as LinkIcon, Globe, Search, Youtube, PlusCircle } from 'lucide-react';
+import { Play, Pause, RotateCcw, Upload, Volume2, Info, Waves, Settings2, Gauge, Activity, Link as LinkIcon, Globe, Search, Youtube, PlusCircle, Library } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import AudioVisualizer from './AudioVisualizer';
 import SongSearch from './SongSearch';
+import MyLibrary from './MyLibrary';
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SetlistSong } from './SetlistManager';
 
 export interface AudioTransposerRef {
   loadFromUrl: (url: string, name: string, youtubeUrl?: string) => Promise<void>;
@@ -28,10 +30,12 @@ export interface AudioTransposerRef {
 
 interface AudioTransposerProps {
   onAddToSetlist?: (previewUrl: string, name: string, ytUrl?: string, pitch?: number) => void;
+  onAddExistingSong?: (song: SetlistSong) => void;
   onSongEnded?: () => void;
+  repertoire?: SetlistSong[];
 }
 
-const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ onAddToSetlist, onSongEnded }, ref) => {
+const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ onAddToSetlist, onAddExistingSong, onSongEnded, repertoire = [] }, ref) => {
   const [file, setFile] = useState<{ name: string; url?: string } | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [pitch, setPitch] = useState(0);
@@ -273,10 +277,11 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
 
       <CardContent className="space-y-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-4">
-            <TabsTrigger value="search" className="gap-2"><Search className="w-4 h-4" /> Search</TabsTrigger>
-            <TabsTrigger value="upload" className="gap-2"><Upload className="w-4 h-4" /> Upload</TabsTrigger>
-            <TabsTrigger value="url" className="gap-2"><Globe className="w-4 h-4" /> URL</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4 mb-4">
+            <TabsTrigger value="search" className="gap-2 px-1"><Search className="w-3 h-3" /> iTunes</TabsTrigger>
+            <TabsTrigger value="repertoire" className="gap-2 px-1"><Library className="w-3 h-3" /> Repertoire</TabsTrigger>
+            <TabsTrigger value="upload" className="gap-2 px-1"><Upload className="w-3 h-3" /> Upload</TabsTrigger>
+            <TabsTrigger value="url" className="gap-2 px-1"><Globe className="w-3 h-3" /> URL</TabsTrigger>
           </TabsList>
           
           <TabsContent value="search" className="space-y-4">
@@ -284,6 +289,13 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
               onSelectSong={(url, name, yt) => loadFromUrl(url, name, yt)} 
               onAddToSetlist={onAddToSetlist || (() => {})}
               externalQuery={searchQuery}
+            />
+          </TabsContent>
+
+          <TabsContent value="repertoire" className="space-y-4">
+            <MyLibrary 
+              repertoire={repertoire} 
+              onAddSong={(song) => onAddExistingSong?.(song)}
             />
           </TabsContent>
 

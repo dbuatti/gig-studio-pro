@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import AudioTransposer, { AudioTransposerRef } from "@/components/AudioTransposer";
 import SetlistManager, { SetlistSong } from "@/components/SetlistManager";
 import SetlistSelector from "@/components/SetlistSelector";
@@ -35,6 +35,19 @@ const Index = () => {
   const songs = currentList?.songs || [];
   const activeSongIndex = songs.findIndex(s => s.id === activeSongId);
   const activeSong = songs[activeSongIndex] || null;
+
+  // Compute total repertoire for the "My Library" tab
+  const fullRepertoire = useMemo(() => {
+    const all = setlists.flatMap(list => list.songs);
+    // Unique by name + artist to keep it clean
+    const seen = new Set();
+    return all.filter(song => {
+      const key = `${song.name}-${song.artist}`.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [setlists]);
 
   useEffect(() => {
     if (user) fetchSetlists();
@@ -218,6 +231,25 @@ const Index = () => {
     });
     
     setSyncQueue(prev => [...prev, newSongId]);
+  };
+
+  const handleAddExistingSong = (song: SetlistSong) => {
+    if (!currentListId) return;
+    const newSongId = Math.random().toString(36).substr(2, 9);
+    const clonedSong: SetlistSong = {
+      ...song,
+      id: newSongId,
+      isPlayed: false // Reset played status for new list
+    };
+    
+    setSetlists(prev => {
+      const list = prev.find(l => l.id === currentListId);
+      if (!list) return prev;
+      const updatedSongs = [...list.songs, clonedSong];
+      saveList(currentListId, updatedSongs);
+      return prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l);
+    });
+    showSuccess(`Imported "${song.name}" to gig.`);
   };
 
   const handleUpdateKey = (songId: string, targetKey: string) => {
@@ -441,7 +473,9 @@ const Index = () => {
               <AudioTransposer 
                 ref={transposerRef} 
                 onAddToSetlist={handleAddToSetlist} 
+                onAddExistingSong={handleAddExistingSong}
                 onSongEnded={handleNextSong}
+                repertoire={fullRepertoire}
               />
             </div>
           </div>
