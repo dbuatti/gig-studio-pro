@@ -15,7 +15,7 @@ import { calculateSemitones } from '@/utils/keyUtils';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { LogOut, User as UserIcon, Loader2, Play, Music, LayoutDashboard, Search as SearchIcon, Rocket, Hash, Music2, Settings } from 'lucide-react';
+import { LogOut, User as UserIcon, Loader2, Play, Music, LayoutDashboard, Search as SearchIcon, Rocket, Hash, Music2, Settings, Sparkles, RefreshCw } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { useSettings } from '@/hooks/use-settings';
 
@@ -87,7 +87,7 @@ const Index = () => {
     };
 
     processNextBatch();
-  }, [syncQueue, isProcessingQueue, currentListId]);
+  }, [syncQueue, isProcessingQueue, currentListId, songs]);
 
   const fetchSetlists = async () => {
     try {
@@ -214,6 +214,21 @@ const Index = () => {
         )
       } : l));
     }
+  };
+
+  const handleSyncAll = () => {
+    if (!currentListId || songs.length === 0) return;
+    
+    // Identify songs that haven't been confirmed or are missing key data
+    const songsToSync = songs.filter(s => !s.isMetadataConfirmed || !s.bpm || s.originalKey === 'TBC');
+    
+    if (songsToSync.length === 0) {
+      showSuccess("All songs are already synced and confirmed.");
+      return;
+    }
+
+    setSyncQueue(prev => [...new Set([...prev, ...songsToSync.map(s => s.id)])]);
+    showSuccess(`Queueing ${songsToSync.length} songs for AI metadata enrichment...`);
   };
 
   const handleUpdateSong = (songId: string, updates: Partial<SetlistSong>) => {
@@ -431,7 +446,18 @@ const Index = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase">{currentList?.name}</h2>
-                <p className="text-slate-500 text-sm font-medium">{songs.length} Tracks</p>
+                <div className="flex items-center gap-3 mt-1">
+                  <p className="text-slate-500 text-sm font-medium">{songs.length} Tracks</p>
+                  <div className="h-1 w-1 rounded-full bg-slate-300" />
+                  <button 
+                    onClick={handleSyncAll}
+                    disabled={syncQueue.length > 0}
+                    className="text-[10px] font-black uppercase text-indigo-600 hover:text-indigo-500 flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                  >
+                    {syncQueue.length > 0 ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                    Sync All Metadata
+                  </button>
+                </div>
               </div>
               <ImportSetlist onImport={(newSongs) => {
                 if (!currentListId) return;
