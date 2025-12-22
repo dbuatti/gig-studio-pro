@@ -7,6 +7,7 @@ import SetlistSelector from "@/components/SetlistSelector";
 import ImportSetlist from "@/components/ImportSetlist";
 import PerformanceOverlay from "@/components/PerformanceOverlay";
 import ActiveSongBanner from "@/components/ActiveSongBanner";
+import SetlistStats from "@/components/SetlistStats";
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { showSuccess, showError } from '@/utils/toast';
 import { calculateSemitones } from '@/utils/keyUtils';
@@ -403,7 +404,7 @@ const Index = () => {
         <main className="flex-1 overflow-y-auto p-8 relative scroll-smooth">
           <div className="max-w-4xl mx-auto space-y-8">
             <ActiveSongBanner song={activeSong} />
-
+            
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase">{currentList?.name}</h2>
@@ -424,6 +425,8 @@ const Index = () => {
                 }} />
               </div>
             </div>
+
+            <SetlistStats songs={songs} />
 
             <SetlistManager 
               songs={songs} 
@@ -447,6 +450,11 @@ const Index = () => {
                 transposerRef.current?.triggerSearch(name);
               }}
               onUpdateSong={handleUpdateSong}
+              onReorder={(newSongs) => {
+                if (!currentListId) return;
+                setSetlists(prev => prev.map(l => l.id === currentListId ? { ...l, songs: newSongs } : l));
+                saveList(currentListId, newSongs);
+              }}
               currentSongId={activeSongId || undefined}
             />
           </div>
