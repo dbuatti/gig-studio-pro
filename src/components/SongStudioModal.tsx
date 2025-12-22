@@ -69,7 +69,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const [isInRepertoire, setIsInRepertoire] = useState(false);
   
   // Chart Engine State
-  const [activeChartType, setActiveChartType] = useState<'ug' | 'pdf' | 'leadsheet' | 'web'>('ug');
+  const [activeChartType, setActiveChartType] = useState<'pdf' | 'leadsheet' | 'web' | 'ug'>('pdf');
   const [isChartMenuOpen, setIsChartMenuOpen] = useState(false);
 
   // Audio Engine State
@@ -143,13 +143,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       checkRepertoireStatus();
       if (song.previewUrl) {
         prepareAudio(song.previewUrl, song.pitch || 0);
-      }
-
-      // Default to UG if active, otherwise PDF
-      if (song.resources?.includes('UG') || song.ugUrl) {
-        setActiveChartType('ug');
-      } else if (song.resources?.includes('PDF') || song.pdfUrl) {
-        setActiveChartType('pdf');
       }
     }
     return () => {
@@ -622,22 +615,13 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
 
   const currentChartUrl = useMemo(() => {
     switch(activeChartType) {
-      case 'ug': return formData.ugUrl;
       case 'pdf': return formData.pdfUrl ? `${formData.pdfUrl}#toolbar=0&navpanes=0&view=FitH` : null;
       case 'leadsheet': return formData.leadsheetUrl ? `${formData.leadsheetUrl}#toolbar=0&navpanes=0&view=FitH` : null;
       case 'web': return formData.pdfUrl;
+      case 'ug': return formData.ugUrl;
       default: return null;
     }
   }, [activeChartType, formData.pdfUrl, formData.leadsheetUrl, formData.ugUrl]);
-
-  const activeResources = formData.resources || [];
-  
-  const chartOptions = [
-    { id: 'ug', label: 'UG Pro', resourceId: 'UG', url: formData.ugUrl },
-    { id: 'pdf', label: 'Stage PDF', resourceId: 'PDF', url: formData.pdfUrl },
-    { id: 'leadsheet', label: 'Lead Sheet', resourceId: 'LEAD', url: formData.leadsheetUrl },
-    { id: 'web', label: 'Web Sheet', resourceId: 'WEB', url: formData.pdfUrl },
-  ].filter(opt => activeResources.includes(opt.resourceId) && opt.url);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -868,8 +852,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                     const isActive = formData.resources?.includes(res.id) || 
                                    (res.id === 'UG' && formData.ugUrl) || 
                                    (res.id === 'LYRICS' && formData.lyrics) ||
-                                   (res.id === 'LEAD' && formData.leadsheetUrl) ||
-                                   (res.id === 'WEB' && formData.pdfUrl);
+                                   (res.id === 'LEAD' && formData.leadsheetUrl);
                     return (
                       <button
                         key={res.id}
@@ -1279,17 +1262,42 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                     </div>
                     <div className="flex gap-4">
                       <div className="flex bg-white/5 border border-white/10 p-1 rounded-xl">
-                        {chartOptions.map(opt => (
-                          <Button 
-                            key={opt.id}
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => setActiveChartType(opt.id as any)}
-                            className={cn("text-[10px] font-black uppercase tracking-widest h-9 px-4 rounded-lg", activeChartType === opt.id ? "bg-indigo-600 text-white" : "text-slate-500")}
-                          >
-                            {opt.label}
-                          </Button>
-                        ))}
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          disabled={!formData.pdfUrl}
+                          onClick={() => setActiveChartType('pdf')}
+                          className={cn("text-[10px] font-black uppercase tracking-widest h-9 px-4 rounded-lg", activeChartType === 'pdf' ? "bg-indigo-600 text-white" : "text-slate-500 disabled:opacity-20")}
+                        >
+                          Stage PDF
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          disabled={!formData.leadsheetUrl}
+                          onClick={() => setActiveChartType('leadsheet')}
+                          className={cn("text-[10px] font-black uppercase tracking-widest h-9 px-4 rounded-lg", activeChartType === 'leadsheet' ? "bg-indigo-600 text-white" : "text-slate-500 disabled:opacity-20")}
+                        >
+                          Lead Sheet
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          disabled={!formData.pdfUrl}
+                          onClick={() => setActiveChartType('web')}
+                          className={cn("text-[10px] font-black uppercase tracking-widest h-9 px-4 rounded-lg", activeChartType === 'web' ? "bg-indigo-600 text-white" : "text-slate-500 disabled:opacity-20")}
+                        >
+                          Web Sheet
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          disabled={!formData.ugUrl}
+                          onClick={() => setActiveChartType('ug')}
+                          className={cn("text-[10px] font-black uppercase tracking-widest h-9 px-4 rounded-lg", activeChartType === 'ug' ? "bg-indigo-600 text-white" : "text-slate-500 disabled:opacity-20")}
+                        >
+                          UG Pro
+                        </Button>
                       </div>
                       <Button 
                         variant="outline" 
@@ -1302,10 +1310,10 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                   </div>
 
                   <div className="flex-1 min-h-0 bg-white rounded-[3rem] overflow-hidden shadow-2xl relative group">
-                    {currentChartUrl && chartOptions.some(o => o.id === activeChartType) ? (
+                    {currentChartUrl ? (
                       <>
                         <iframe 
-                          src={activeChartType === 'ug' || activeChartType === 'web' ? currentChartUrl : `${currentChartUrl}#toolbar=0&navpanes=0&view=FitH`} 
+                          src={currentChartUrl} 
                           className="w-full h-full"
                           title="Chart Viewer"
                         />
@@ -1319,19 +1327,50 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                             <div className="bg-slate-900 border border-white/10 rounded-r-3xl p-6 shadow-2xl space-y-6 min-w-[200px]">
                               <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-white/5 pb-2">Select Matrix</h4>
                               <div className="space-y-3">
-                                {chartOptions.map(opt => (
-                                  <button 
-                                    key={opt.id}
-                                    onClick={() => { setActiveChartType(opt.id as any); setIsChartMenuOpen(false); }}
-                                    className={cn(
-                                      "w-full text-left p-3 rounded-xl transition-all flex items-center justify-between group/item",
-                                      activeChartType === opt.id ? "bg-indigo-600 text-white" : "text-slate-400 hover:bg-white/5"
-                                    )}
-                                  >
-                                    <span className="text-[10px] font-black uppercase tracking-widest">{opt.label}</span>
-                                    <Check className={cn("w-3 h-3 opacity-0 group-hover/item:opacity-100", activeChartType === opt.id && "opacity-100")} />
-                                  </button>
-                                ))}
+                                <button 
+                                  onClick={() => { setActiveChartType('pdf'); setIsChartMenuOpen(false); }}
+                                  disabled={!formData.pdfUrl}
+                                  className={cn(
+                                    "w-full text-left p-3 rounded-xl transition-all flex items-center justify-between group/item",
+                                    activeChartType === 'pdf' ? "bg-indigo-600 text-white" : "text-slate-400 hover:bg-white/5 disabled:opacity-20"
+                                  )}
+                                >
+                                  <span className="text-[10px] font-black uppercase tracking-widest">Stage PDF</span>
+                                  {formData.pdfUrl && <Check className="w-3 h-3 opacity-0 group-hover/item:opacity-100" />}
+                                </button>
+                                <button 
+                                  onClick={() => { setActiveChartType('leadsheet'); setIsChartMenuOpen(false); }}
+                                  disabled={!formData.leadsheetUrl}
+                                  className={cn(
+                                    "w-full text-left p-3 rounded-xl transition-all flex items-center justify-between group/item",
+                                    activeChartType === 'leadsheet' ? "bg-indigo-600 text-white" : "text-slate-400 hover:bg-white/5 disabled:opacity-20"
+                                  )}
+                                >
+                                  <span className="text-[10px] font-black uppercase tracking-widest">Lead Sheet</span>
+                                  {formData.leadsheetUrl && <Check className="w-3 h-3 opacity-0 group-hover/item:opacity-100" />}
+                                </button>
+                                <button 
+                                  onClick={() => { setActiveChartType('web'); setIsChartMenuOpen(false); }}
+                                  disabled={!formData.pdfUrl}
+                                  className={cn(
+                                    "w-full text-left p-3 rounded-xl transition-all flex items-center justify-between group/item",
+                                    activeChartType === 'web' ? "bg-indigo-600 text-white" : "text-slate-400 hover:bg-white/5 disabled:opacity-20"
+                                  )}
+                                >
+                                  <span className="text-[10px] font-black uppercase tracking-widest">Web Sheet</span>
+                                  {formData.pdfUrl && <Check className="w-3 h-3 opacity-0 group-hover/item:opacity-100" />}
+                                </button>
+                                <button 
+                                  onClick={() => { setActiveChartType('ug'); setIsChartMenuOpen(false); }}
+                                  disabled={!formData.ugUrl}
+                                  className={cn(
+                                    "w-full text-left p-3 rounded-xl transition-all flex items-center justify-between group/item",
+                                    activeChartType === 'ug' ? "bg-indigo-600 text-white" : "text-slate-400 hover:bg-white/5 disabled:opacity-20"
+                                  )}
+                                >
+                                  <span className="text-[10px] font-black uppercase tracking-widest">UG Pro Link</span>
+                                  {formData.ugUrl && <Check className="w-3 h-3 opacity-0 group-hover/item:opacity-100" />}
+                                </button>
                               </div>
                             </div>
                             <button 
@@ -1350,7 +1389,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                         </div>
                         <h4 className="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-2">No Active Chart Detected</h4>
                         <p className="text-slate-500 max-w-sm text-center font-medium leading-relaxed">
-                          Enable resources in the side panel to preview them here. You can toggle UG Pro, Stage PDF, Lead Sheet, and Web Sheets.
+                          Link a PDF from your device or use the Discovery tool to fetch a chart online. Support for Stage Charts and Lead Sheets.
                         </p>
                         <div className="flex gap-4 mt-8">
                            <Button className="bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest h-12 px-8 rounded-2xl">Upload Asset</Button>
