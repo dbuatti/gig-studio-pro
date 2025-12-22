@@ -187,11 +187,11 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
       <div className="bg-white dark:bg-slate-950 rounded-[2rem] border-4 border-slate-100 dark:border-slate-900 shadow-2xl overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[900px]">
+          <table className="w-full border-collapse min-w-[900px]">
             <thead>
               <tr className="bg-slate-50/50 dark:bg-slate-900/50 border-b dark:border-slate-800">
                 <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 w-16 text-center">Sts</th>
-                <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Song / Resource Matrix</th>
+                <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-left">Song / Resource Matrix</th>
                 <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 w-24 text-center">Move</th>
                 <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 w-48 text-center">Harmonic Map</th>
                 <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 w-40 text-right pr-10">Command</th>
@@ -213,15 +213,15 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                     key={song.id}
                     onClick={() => setStudioSong(song)}
                     className={cn(
-                      "transition-all group relative cursor-pointer",
+                      "transition-all group relative cursor-pointer h-[80px]",
                       isSelected ? "bg-indigo-50/50 dark:bg-indigo-900/10" : "hover:bg-slate-50/30 dark:hover:bg-slate-800/50",
                       song.isPlayed && "opacity-40 grayscale-[0.5]"
                     )}
                   >
-                    <td className="py-4 px-6 align-middle text-center">
+                    <td className="px-6 text-center">
                       <button 
                         onClick={(e) => { e.stopPropagation(); onTogglePlayed(song.id); }}
-                        className="transition-transform active:scale-90"
+                        className="transition-transform active:scale-90 inline-flex items-center justify-center"
                       >
                         {song.isPlayed ? (
                           <div className="h-6 w-6 rounded-full bg-emerald-500 flex items-center justify-center text-white">
@@ -235,8 +235,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       </button>
                     </td>
 
-                    <td className="py-4 px-6 align-middle">
-                      <div className="flex flex-col gap-1.5">
+                    <td className="px-6 text-left">
+                      <div className="flex flex-col gap-1">
                         <div className="flex items-center gap-3">
                           <span className="text-[10px] font-mono font-black text-slate-300 min-w-[20px]">{(idx + 1).toString().padStart(2, '0')}</span>
                           <h4 className={cn("text-base font-black tracking-tight leading-none", song.isPlayed && "line-through text-slate-400")}>
@@ -261,7 +261,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                           <span className="text-[9px] font-mono font-bold text-slate-400">{song.bpm ? `${song.bpm} BPM` : 'TEMPO TBC'}</span>
                         </div>
 
-                        <div className="flex items-center gap-1.5 ml-[32px]">
+                        <div className="flex items-center gap-1.5 ml-[32px] mt-1">
                           <TooltipProvider>
                             {RESOURCE_TYPES.map(res => {
                               const isActive = song.resources?.includes(res.id) || 
@@ -302,13 +302,13 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       </div>
                     </td>
 
-                    <td className="py-4 px-6 align-middle text-center">
-                      <div className="flex flex-col items-center gap-0.5">
+                    <td className="px-6 text-center">
+                      <div className="flex flex-col items-center justify-center gap-0.5 h-full">
                         <Button 
                           variant="ghost" 
                           size="icon" 
                           className={cn(
-                            "h-7 w-7 transition-all",
+                            "h-7 w-7 transition-all flex items-center justify-center",
                             isReorderingEnabled ? "text-slate-300 hover:text-indigo-600 hover:bg-indigo-50" : "text-slate-100 opacity-20 cursor-not-allowed"
                           )} 
                           onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'up'); }} 
@@ -320,7 +320,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                           variant="ghost" 
                           size="icon" 
                           className={cn(
-                            "h-7 w-7 transition-all",
+                            "h-7 w-7 transition-all flex items-center justify-center",
                             isReorderingEnabled ? "text-slate-300 hover:text-indigo-600 hover:bg-indigo-50" : "text-slate-100 opacity-20 cursor-not-allowed"
                           )} 
                           onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'down'); }} 
@@ -331,20 +331,20 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       </div>
                     </td>
 
-                    <td className="py-4 px-6 align-middle">
-                      <div className="flex items-center justify-center gap-4">
+                    <td className="px-6 text-center">
+                      <div className="flex items-center justify-center gap-4 h-full">
                         <div className="text-center min-w-[32px]">
-                          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Orig</p>
-                          <span className="text-xs font-mono font-bold text-slate-500">{displayOrigKey}</span>
+                          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Orig</p>
+                          <span className="text-xs font-mono font-bold text-slate-500 block leading-none">{displayOrigKey}</span>
                         </div>
-                        <div className="flex flex-col items-center opacity-30">
-                          <ArrowRight className="w-3 h-3 text-slate-300" />
+                        <div className="flex flex-col items-center justify-center opacity-30">
+                          <ArrowRight className="w-3 h-3 text-slate-300 mb-0.5" />
                           <div className="h-px w-6 bg-slate-100 dark:bg-slate-800" />
                         </div>
-                        <div className="text-center min-w-[32px]">
-                          <p className="text-[8px] font-black text-indigo-500 uppercase tracking-widest mb-1">Stage</p>
+                        <div className="text-center min-w-[32px] relative">
+                          <p className="text-[8px] font-black text-indigo-500 uppercase tracking-widest mb-0.5">Stage</p>
                           <div className={cn(
-                            "font-mono font-black text-xs px-2.5 py-1 rounded-lg shadow-lg flex items-center justify-center gap-1.5",
+                            "font-mono font-black text-xs px-2.5 py-1 rounded-lg shadow-lg flex items-center justify-center gap-1.5 leading-none h-6",
                             song.isKeyConfirmed 
                               ? "bg-emerald-600 text-white shadow-emerald-500/20" 
                               : "bg-indigo-600 text-white shadow-indigo-500/20"
@@ -356,8 +356,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       </div>
                     </td>
 
-                    <td className="py-4 px-6 align-middle text-right pr-10">
-                      <div className="flex items-center justify-end gap-2">
+                    <td className="px-6 text-right pr-10">
+                      <div className="flex items-center justify-end gap-2 h-full">
                         <Button 
                           size="sm" 
                           className={cn(
@@ -376,7 +376,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="h-9 w-9 rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors" 
+                          className="h-9 w-9 rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors inline-flex items-center justify-center" 
                           onClick={(e) => { e.stopPropagation(); onRemove(song.id); }}
                         >
                           <Trash2 className="w-4 h-4" />
