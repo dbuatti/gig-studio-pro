@@ -10,7 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { showSuccess, showError } from '@/utils/toast';
-import { Camera, Copy, Globe, Palette, User, Loader2, ArrowLeft, RotateCcw, Sparkles, ExternalLink, CheckCircle2 } from 'lucide-react';
+import { Camera, Copy, Globe, Palette, User, Loader2, ArrowLeft, RotateCcw, Sparkles, ExternalLink, RefreshCw, Library, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import PublicRepertoireView from '@/components/PublicRepertoireView';
 import { cn } from '@/lib/utils';
@@ -29,6 +29,7 @@ const Profile = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [profile, setProfile] = useState<any>(null);
   const [songs, setSongs] = useState<any[]>([]);
 
@@ -96,6 +97,60 @@ const Profile = () => {
       showError("Save failed. Try again.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSyncFromGigs = async () => {
+    if (!user) return;
+    setIsSyncing(true);
+    try {
+      // 1. Fetch all setlists to get all songs
+      const { data: setlists, error: sError } = await supabase
+        .from('setlists')
+        .select('songs');
+
+      if (sError) throw sError;
+
+      const allSongs = setlists.flatMap(s => (s.songs as any[]) || []);
+      if (allSongs.length === 0) {
+        showError("No songs found in your setlists to sync.");
+        return;
+      }
+
+      // 2. Helper to calculate readiness (Simplified for bulk)
+      const calculateScore = (s: any) => {
+        let score = 0;
+        if (s.previewUrl && !s.previewUrl.includes('apple.com')) score += 25;
+        if (s.isKeyConfirmed) score += 25;
+        if (s.lyrics) score += 25;
+        if (s.bpm) score += 25;
+        return score;
+      };
+
+      // 3. Upsert into repertoire table
+      const repertoireData = allSongs.map(song => ({
+        user_id: user.id,
+        title: song.name,
+        artist: song.artist || 'Unknown Artist',
+        original_key: song.originalKey,
+        bpm: song.bpm,
+        genre: song.genre || (song.user_tags?.[0]),
+        readiness_score: calculateScore(song),
+        is_active: true
+      }));
+
+      const { error: uError } = await supabase
+        .from('repertoire')
+        .upsert(repertoireData, { onConflict: 'user_id,title,artist' });
+
+      if (uError) throw uError;
+
+      showSuccess(`Successfully Synced ${repertoireData.length} unique songs!`);
+      fetchData(); // Refresh list
+    } catch (err) {
+      showError("Bulk sync failed.");
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -242,6 +297,15 @@ const Profile = () => {
             </div>
 
             <div className="space-y-4">
+              <Button 
+                onClick={handleSyncFromGigs} 
+                disabled={isSyncing}
+                className="w-full h-14 rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] gap-3 shadow-xl shadow-indigo-500/20"
+              >
+                {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                Sync Entire Repertoire
+              </Button>
+
               <div className="space-y-2 px-1">
                 <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Visibility Threshold</Label>
                 <div className="grid grid-cols-4 gap-2">
