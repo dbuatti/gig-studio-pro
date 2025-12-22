@@ -244,9 +244,12 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                           </a>
 
                           {song.youtubeUrl ? (
-                            <a href={song.youtubeUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-[9px] text-red-600 font-bold hover:underline">
+                            <button 
+                              onClick={() => onSelect(song)}
+                              className="flex items-center gap-1 text-[9px] text-red-600 font-bold hover:underline"
+                            >
                               <Youtube className="w-3 h-3" /> Video
-                            </a>
+                            </button>
                           ) : (
                             <button onClick={() => onLinkAudio(song.name)} className="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase hover:underline">
                               <Link2 className="w-2.5 h-2.5" /> Find Video

@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { 
   Play, Pause, SkipForward, SkipBack, X, Music, 
   Waves, ListMusic, Activity, ArrowRight, Volume2, 
-  Settings2, Gauge, FileText, Save, Clock
+  Settings2, Gauge, FileText, Save, Clock, Youtube
 } from 'lucide-react';
 import { SetlistSong } from './SetlistManager';
 import AudioVisualizer from './AudioVisualizer';
@@ -53,6 +53,14 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
   useEffect(() => {
     setLocalNotes(currentSong?.notes || "");
   }, [currentSong]);
+
+  const getYoutubeId = (url: string) => {
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+  };
+
+  const videoId = currentSong?.youtubeUrl ? getYoutubeId(currentSong.youtubeUrl) : null;
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -104,20 +112,20 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
             <AudioVisualizer analyzer={analyzer} isActive={isPlaying} />
           </div>
 
-          <div className="max-w-4xl w-full space-y-12 z-10">
+          <div className="max-w-4xl w-full space-y-8 z-10">
             {/* Current Song Display */}
-            <div className="text-center space-y-6">
+            <div className="text-center space-y-4">
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-indigo-400 text-xs font-black uppercase tracking-widest">
                 <Music className="w-3 h-3" /> Practicing Now
               </div>
               
-              <h1 className="text-7xl font-black uppercase tracking-tighter leading-none">
+              <h1 className="text-6xl font-black uppercase tracking-tighter leading-none">
                 {currentSong?.name}
               </h1>
               
-              <div className="flex items-center justify-center gap-4 text-2xl font-bold text-slate-400">
+              <div className="flex items-center justify-center gap-4 text-xl font-bold text-slate-400">
                 <span>{currentSong?.artist}</span>
-                <div className="w-2 h-2 rounded-full bg-slate-700" />
+                <div className="w-1.5 h-1.5 rounded-full bg-slate-700" />
                 <span className="text-indigo-400 font-mono">
                   {currentSong?.targetKey}
                   {currentSong?.pitch !== 0 && (
@@ -127,46 +135,67 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
               </div>
             </div>
 
-            {/* Large Visualizer */}
-            <div className="w-full bg-slate-900/40 rounded-3xl border border-white/5 p-8 shadow-2xl">
-              <AudioVisualizer analyzer={analyzer} isActive={isPlaying} />
-              <div className="mt-8 space-y-4">
-                <div className="flex justify-between text-sm font-mono text-slate-400 font-bold">
-                  <span>{formatTime((progress / 100) * duration)}</span>
-                  <span className="text-indigo-500">{(progress).toFixed(1)}% COMPLETE</span>
-                  <span>{formatTime(duration)}</span>
+            {/* Visual Workspace: Visualizer OR Video */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="w-full bg-slate-900/40 rounded-3xl border border-white/5 p-6 shadow-2xl flex flex-col justify-center">
+                <AudioVisualizer analyzer={analyzer} isActive={isPlaying} />
+                <div className="mt-6 space-y-4">
+                  <div className="flex justify-between text-[10px] font-mono text-slate-400 font-bold">
+                    <span>{formatTime((progress / 100) * duration)}</span>
+                    <span className="text-indigo-500">{(progress).toFixed(1)}% COMPLETE</span>
+                    <span>{formatTime(duration)}</span>
+                  </div>
+                  <Progress value={progress} className="h-3 bg-white/5" />
                 </div>
-                <Progress value={progress} className="h-4 bg-white/5" />
               </div>
+
+              {videoId ? (
+                <div className="w-full aspect-video bg-black rounded-3xl border border-white/10 overflow-hidden shadow-2xl">
+                  <iframe 
+                    width="100%" 
+                    height="100%" 
+                    src={`https://www.youtube.com/embed/${videoId}`}
+                    title="Reference Video" 
+                    frameBorder="0" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                    allowFullScreen
+                  />
+                </div>
+              ) : (
+                <div className="w-full aspect-video bg-slate-900/20 rounded-3xl border border-dashed border-white/10 flex flex-col items-center justify-center text-slate-600">
+                  <Youtube className="w-12 h-12 mb-2 opacity-20" />
+                  <p className="text-[10px] font-black uppercase tracking-widest">No Reference Video Linked</p>
+                </div>
+              )}
             </div>
 
             {/* Playback Controls */}
-            <div className="flex flex-col items-center gap-8">
-              <div className="flex items-center gap-12">
+            <div className="flex flex-col items-center gap-6">
+              <div className="flex items-center gap-10">
                 <Button 
                   variant="ghost" 
                   size="icon" 
                   onClick={onPrevious}
-                  className="h-16 w-16 rounded-full hover:bg-white/10"
+                  className="h-14 w-14 rounded-full hover:bg-white/10"
                 >
-                  <SkipBack className="w-8 h-8" />
+                  <SkipBack className="w-7 h-7" />
                 </Button>
                 
                 <Button 
                   size="lg" 
                   onClick={onTogglePlayback}
-                  className="h-32 w-32 rounded-full bg-indigo-600 hover:bg-indigo-700 shadow-[0_0_50px_rgba(79,70,229,0.4)] transition-all hover:scale-110"
+                  className="h-24 w-24 rounded-full bg-indigo-600 hover:bg-indigo-700 shadow-[0_0_50px_rgba(79,70,229,0.4)] transition-all hover:scale-110"
                 >
-                  {isPlaying ? <Pause className="w-16 h-16" /> : <Play className="w-16 h-16 ml-2" />}
+                  {isPlaying ? <Pause className="w-12 h-12" /> : <Play className="w-12 h-12 ml-1" />}
                 </Button>
                 
                 <Button 
                   variant="ghost" 
                   size="icon" 
                   onClick={onNext}
-                  className="h-16 w-16 rounded-full hover:bg-white/10"
+                  className="h-14 w-14 rounded-full hover:bg-white/10"
                 >
-                  <SkipForward className="w-8 h-8" />
+                  <SkipForward className="w-7 h-7" />
                 </Button>
               </div>
             </div>
@@ -198,7 +227,6 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-[10px] text-slate-500 leading-relaxed italic">Changing the key here updates your gig list automatically.</p>
             </div>
           </div>
 
@@ -220,11 +248,6 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
                 onValueChange={(v) => setTempo(v[0])}
                 className="py-4"
               />
-              <div className="flex justify-between text-[8px] font-black text-slate-600 uppercase">
-                <span>Slow Mo</span>
-                <span>Normal</span>
-                <span>Fast</span>
-              </div>
             </div>
           </div>
 
