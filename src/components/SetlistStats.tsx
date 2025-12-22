@@ -18,9 +18,16 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({ songs, goalSeconds = 7200, 
   const totalSongs = songs.length;
   const playedSongs = songs.filter(s => s.isPlayed).length;
   
+  // Only count songs that have "Ready" audio (not an iTunes sample)
   const totalSeconds = songs.reduce((acc, song) => {
-    // Use actual duration if available, fallback to 3:30 (210s)
-    return acc + (song.duration_seconds || 210);
+    const isItunes = song.previewUrl?.includes('apple.com') || song.previewUrl?.includes('itunes-assets');
+    const hasFullAudio = !!song.previewUrl && !isItunes;
+    
+    if (hasFullAudio) {
+      // Use actual duration if available, fallback to 3:30 (210s)
+      return acc + (song.duration_seconds || 210);
+    }
+    return acc;
   }, 0);
 
   const formatDuration = (seconds: number) => {
@@ -32,7 +39,7 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({ songs, goalSeconds = 7200, 
   const readinessPercent = totalSongs > 0 ? (songs.filter(s => s.previewUrl && !s.previewUrl.includes('apple.com')).length / totalSongs) * 100 : 0;
   
   const goalProgress = goalSeconds > 0 ? (totalSeconds / goalSeconds) * 100 : 0;
-  const remainingSeconds = goalSeconds - totalSeconds;
+  const remainingSeconds = Math.max(0, goalSeconds - totalSeconds);
   const isGoalMet = remainingSeconds <= 0;
 
   // Genre distribution

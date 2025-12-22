@@ -932,15 +932,26 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
               {activeTab === 'visual' && (
                 <div className="space-y-12 animate-in fade-in slide-in-from-right-6 duration-500">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-black uppercase tracking-[0.3em] text-indigo-400">Reference Media Link</h3>
-                    <div className="flex gap-4">
-                       <Input 
-                         placeholder="YouTube URL..." 
-                         value={formData.youtubeUrl || ""}
-                         onChange={(e) => handleAutoSave({ youtubeUrl: e.target.value })}
-                         className="bg-white/5 border-white/10 text-sm w-[500px] h-12 rounded-xl"
-                       />
+                    <div>
+                      <h3 className="text-lg font-black uppercase tracking-[0.3em] text-indigo-400">Reference Media Link</h3>
+                      <p className="text-sm text-slate-500 mt-2">Link a performance video or audio master from YouTube.</p>
                     </div>
+                    <Button 
+                      variant="outline"
+                      onClick={handleYoutubeSearch}
+                      className="bg-red-600/10 border-red-600/20 text-red-600 hover:bg-red-600 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 gap-2 px-6 rounded-xl transition-all"
+                    >
+                      <Youtube className="w-3.5 h-3.5" /> Discovery Mode
+                    </Button>
+                  </div>
+
+                  <div className="flex gap-4">
+                     <Input 
+                       placeholder="YouTube URL..." 
+                       value={formData.youtubeUrl || ""}
+                       onChange={(e) => handleAutoSave({ youtubeUrl: e.target.value })}
+                       className="bg-white/5 border-white/10 text-sm flex-1 h-12 rounded-xl"
+                     />
                   </div>
 
                   {videoId ? (
