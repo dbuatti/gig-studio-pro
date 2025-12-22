@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Music, Loader2, Check, Globe, Disc, Star } from 'lucide-react';
@@ -16,17 +16,16 @@ interface ProSyncSearchProps {
 }
 
 const ProSyncSearch: React.FC<ProSyncSearchProps> = ({ isOpen, onClose, onSelect, initialQuery }) => {
-  const [query, setQuery] = useState(initialQuery || "");
+  const [query, setQuery] = useState("");
   const [results, setResults] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const performSearch = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (!query.trim()) return;
+  const performSearch = async (searchQuery: string) => {
+    if (!searchQuery.trim()) return;
 
     setIsLoading(true);
     try {
-      const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=20`);
+      const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(searchQuery)}&entity=song&limit=20`);
       const data = await response.json();
       setResults(data.results || []);
     } catch (err) {
@@ -36,10 +35,18 @@ const ProSyncSearch: React.FC<ProSyncSearchProps> = ({ isOpen, onClose, onSelect
     }
   };
 
-  React.useEffect(() => {
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    performSearch(query);
+  };
+
+  useEffect(() => {
     if (isOpen && initialQuery) {
       setQuery(initialQuery);
-      performSearch();
+      performSearch(initialQuery);
+    } else if (!isOpen) {
+      // Clear results when closing
+      setResults([]);
     }
   }, [isOpen, initialQuery]);
 
@@ -59,7 +66,7 @@ const ProSyncSearch: React.FC<ProSyncSearchProps> = ({ isOpen, onClose, onSelect
             </DialogDescription>
           </DialogHeader>
           
-          <form onSubmit={performSearch} className="flex gap-3 mt-6">
+          <form onSubmit={handleFormSubmit} className="flex gap-3 mt-6">
             <div className="relative flex-1">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-300" />
               <Input 
