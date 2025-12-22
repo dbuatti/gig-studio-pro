@@ -3,16 +3,13 @@
 import React, { useRef, useState, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed, Copy, Upload, Loader2, Sparkles, FileText, ShieldCheck, Edit3, Search, FileDown, FileCheck, SortAsc, SortDesc, LayoutList, Volume2, Headphones, ChevronUp, ChevronDown } from 'lucide-react';
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ALL_KEYS, calculateSemitones } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
-import SongDetailModal from './SongDetailModal';
+import SongStudioModal from './SongStudioModal';
 
 export interface SetlistSong {
   id: string;
@@ -69,10 +66,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   currentSongId 
 }) => {
   const [uploadingId, setUploadingId] = useState<string | null>(null);
-  const [isBulkSyncing, setIsBulkSyncing] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>('none');
-  const [editingSong, setEditingSong] = useState<SetlistSong | null>(null);
-  const [manualLink, setManualLink] = useState("");
+  const [studioSong, setStudioSong] = useState<SetlistSong | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -83,7 +78,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     return `https://www.ultimate-guitar.com/search.php?search_type=title&value=${searchTerm}`;
   };
 
-  // Readiness scoring logic
   const getReadinessScore = (song: SetlistSong) => {
     let score = 0;
     if (song.previewUrl && !isItunesPreview(song.previewUrl)) score += 5;
@@ -265,7 +259,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
             <tr className="bg-slate-50 dark:bg-slate-800/50 border-b">
               <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-12 text-center">Done</th>
               <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Song Title / Resources</th>
-              <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-48 text-center">Reorder</th>
+              <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-32 text-center">Reorder</th>
               <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-48">Harmonic State</th>
               <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-32 text-right">Actions</th>
             </tr>
@@ -278,22 +272,15 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
               const isUploading = uploadingId === song.id;
               const needsSync = !song.isMetadataConfirmed;
 
-              let displayName = song.name;
-              let displayArtist = song.artist;
-              if (!displayArtist && displayName.includes(' - ')) {
-                const parts = displayName.split(' - ');
-                displayName = parts[0];
-                displayArtist = parts[1];
-              }
-              
               return (
                 <tr 
                   key={song.id}
                   onDragOver={(e) => onDragOver(e, song.id)}
                   onDragLeave={() => setDragOverId(null)}
                   onDrop={(e) => onDrop(e, song.id)}
+                  onClick={() => setStudioSong(song)}
                   className={cn(
-                    "transition-all group relative",
+                    "transition-all group relative cursor-pointer",
                     isSelected ? "bg-indigo-50/50 dark:bg-indigo-900/10" : "hover:bg-slate-50/50 dark:hover:bg-slate-800/30",
                     song.isPlayed && "opacity-50",
                     dragOverId === song.id && "bg-indigo-100 border-2 border-dashed border-indigo-400"
@@ -304,23 +291,17 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       {song.isPlayed ? <CheckCircle2 className="w-5 h-5 text-green-500" /> : <CircleDashed className="w-5 h-5 text-slate-300" />}
                     </button>
                   </td>
-                  <td 
-                    className="p-4 cursor-pointer hover:bg-indigo-50/10 transition-colors"
-                    onClick={() => onSelect(song)}
-                  >
+                  <td className="p-4">
                     <div className="flex flex-col">
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] font-mono font-black text-slate-300">{(idx + 1).toString().padStart(2, '0')}</span>
-                        <span className={cn(
-                          "text-sm font-bold tracking-tight",
-                          song.isPlayed && "line-through"
-                        )}>
-                          {displayName}
+                        <span className={cn("text-sm font-bold tracking-tight", song.isPlayed && "line-through")}>
+                          {song.name}
                         </span>
                         {song.isMetadataConfirmed && <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />}
                       </div>
                       
-                      {displayArtist && <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-7">{displayArtist}</span>}
+                      {song.artist && <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-7">{song.artist}</span>}
                       
                       <div className="flex items-center gap-1.5 ml-7 mt-2">
                         <TooltipProvider>
@@ -409,27 +390,24 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       <ArrowRight className="w-3 h-3 text-slate-300" />
                       <div className="flex-1">
                         <span className="text-[8px] font-black uppercase text-indigo-500">Target</span>
-                        <Select 
-                          value={song.targetKey} 
-                          onValueChange={(val) => onUpdateKey(song.id, val)}
-                        >
-                          <SelectTrigger 
-                            className="h-7 text-[11px] font-bold font-mono border-indigo-100 bg-indigo-50/30 text-indigo-600"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {ALL_KEYS.map(k => <SelectItem key={k} value={k} className="font-mono text-[11px]">{k}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
+                        <div className="h-7 text-[11px] font-bold font-mono bg-indigo-50/30 text-indigo-600 px-2 flex items-center rounded border border-indigo-100">
+                          {song.targetKey}
+                        </div>
                       </div>
                     </div>
                   </td>
                   <td className="p-4 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-slate-300 hover:text-indigo-600" onClick={(e) => { e.stopPropagation(); setEditingSong(song); }}><Edit3 className="w-3.5 h-3.5" /></Button>
-                      <Button variant="ghost" size="sm" className={cn("h-8 px-3 text-[10px] font-black uppercase tracking-widest gap-2", !song.previewUrl ? "text-slate-300" : "text-indigo-600")} disabled={!song.previewUrl} onClick={(e) => { e.stopPropagation(); onSelect(song); }}>{isSelected ? "Active" : "Perform"} <Play className="w-3 h-3" /></Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-slate-300 hover:text-indigo-600" onClick={(e) => { e.stopPropagation(); setStudioSong(song); }}><Edit3 className="w-3.5 h-3.5" /></Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className={cn("h-8 px-3 text-[10px] font-black uppercase tracking-widest gap-2", !song.previewUrl ? "text-slate-300" : "text-indigo-600")} 
+                        disabled={!song.previewUrl} 
+                        onClick={(e) => { e.stopPropagation(); onSelect(song); }}
+                      >
+                        {isSelected ? "Active" : "Perform"} <Play className="w-3 h-3" />
+                      </Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300 hover:text-red-500" onClick={(e) => { e.stopPropagation(); onRemove(song.id); }}><Trash2 className="w-4 h-4" /></Button>
                     </div>
                   </td>
@@ -439,7 +417,17 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
           </tbody>
         </table>
       </div>
-      <SongDetailModal song={editingSong} isOpen={!!editingSong} onClose={() => setEditingSong(null)} onSave={onUpdateSong} />
+      <SongStudioModal 
+        song={studioSong} 
+        isOpen={!!studioSong} 
+        onClose={() => setStudioSong(null)} 
+        onSave={onUpdateSong} 
+        onUpdateKey={onUpdateKey}
+        onPerform={(song) => {
+          onSelect(song);
+          setStudioSong(null);
+        }}
+      />
     </div>
   );
 };
