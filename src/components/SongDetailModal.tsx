@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SetlistSong } from './SetlistManager';
 import { ALL_KEYS } from '@/utils/keyUtils';
-import { Music, Clock, FileText, Youtube, User as UserIcon, Settings2, Save, FileCheck } from 'lucide-react';
+import { Music, Clock, FileText, Youtube, User as UserIcon, Settings2, Save, FileCheck, FileDown } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
 interface SongDetailModalProps {
@@ -40,6 +40,7 @@ const SongDetailModal: React.FC<SongDetailModalProps> = ({ song, isOpen, onClose
         targetKey: song.targetKey || "C",
         notes: song.notes || "",
         youtubeUrl: song.youtubeUrl || "",
+        pdfUrl: song.pdfUrl || "",
         resources: song.resources || []
       });
     }
@@ -142,12 +143,12 @@ const SongDetailModal: React.FC<SongDetailModalProps> = ({ song, isOpen, onClose
 
           <div className="space-y-2">
             <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-              <Youtube className="w-3 h-3" /> Video Reference
+              <FileDown className="w-3 h-3" /> PDF Sheet Music
             </Label>
             <Input 
-              placeholder="YouTube URL" 
-              value={formData.youtubeUrl} 
-              onChange={(e) => setFormData(prev => ({ ...prev, youtubeUrl: e.target.value }))}
+              placeholder="Paste PDF URL" 
+              value={formData.pdfUrl} 
+              onChange={(e) => setFormData(prev => ({ ...prev, pdfUrl: e.target.value }))}
               className="text-xs border-indigo-50 focus-visible:ring-indigo-500"
             />
           </div>

@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed, Copy, Upload, Loader2, FileAudio, Sparkles, RefreshCcw, FileText, ExternalLink, ShieldCheck, Edit3, Search, Link as LinkIcon, FileCheck } from 'lucide-react';
+import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed, Copy, Upload, Loader2, Sparkles, FileText, ShieldCheck, Edit3, Search, FileDown, FileCheck, SortAsc, LayoutList } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ALL_KEYS, calculateSemitones } from '@/utils/keyUtils';
@@ -21,6 +20,7 @@ export interface SetlistSong {
   artist?: string;
   previewUrl: string;
   youtubeUrl?: string;
+  pdfUrl?: string;
   originalKey?: string;
   targetKey?: string;
   pitch: number;
@@ -30,7 +30,7 @@ export interface SetlistSong {
   isSyncing?: boolean;
   isMetadataConfirmed?: boolean;
   notes?: string;
-  resources?: string[]; // Array of strings like ['UG', 'FS', 'SM', 'LS', 'PDF']
+  resources?: string[];
 }
 
 interface SetlistManagerProps {
@@ -66,25 +66,33 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 }) => {
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [isBulkSyncing, setIsBulkSyncing] = useState(false);
+  const [isSortMode, setIsSortMode] = useState(false);
   const [editingSong, setEditingSong] = useState<SetlistSong | null>(null);
   const [manualLink, setManualLink] = useState("");
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
 
   const getUGUrl = (song: SetlistSong) => {
     const searchTerm = encodeURIComponent(`${song.name} ${song.artist || ''} chords`);
     return `https://www.ultimate-guitar.com/search.php?search_type=title&value=${searchTerm}`;
   };
 
-  const openYoutubeSearch = (song: SetlistSong) => {
-    const query = encodeURIComponent(`${song.name} ${song.artist || ''} official music video`);
-    window.open(`https://www.youtube.com/results?search_query=${query}`, '_blank');
+  // Readiness scoring logic
+  const getReadinessScore = (song: SetlistSong) => {
+    let score = 0;
+    if (song.previewUrl) score += 5;
+    if (song.isMetadataConfirmed) score += 3;
+    if (song.pdfUrl) score += 3;
+    if (song.youtubeUrl) score += 1;
+    if (song.bpm) score += 1;
+    if (song.notes) score += 1;
+    if (song.resources) score += song.resources.length;
+    return score;
   };
 
-  const handleCopyLink = (url?: string) => {
-    if (url) {
-      navigator.clipboard.writeText(url);
-      showSuccess("YouTube link copied!");
-    }
-  };
+  const processedSongs = useMemo(() => {
+    if (!isSortMode) return songs;
+    return [...songs].sort((a, b) => getReadinessScore(b) - getReadinessScore(a));
+  }, [songs, isSortMode]);
 
   const toggleResource = (song: SetlistSong, resourceId: string) => {
     const currentResources = song.resources || [];
@@ -95,86 +103,79 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     onUpdateSong(song.id, { resources: newResources });
   };
 
-  const copyAllLinks = () => {
-    const links = songs.map(s => s.youtubeUrl).filter(Boolean).join('\n');
-    if (!links) {
-      showError("No YouTube links found.");
-      return;
-    }
-    navigator.clipboard.writeText(links);
-    showSuccess("All YouTube links copied!");
-  };
-
-  const bulkEnrich = async () => {
-    if (!confirm("This will sync professional keys and BPMs for your entire setlist. Continue?")) return;
-    setIsBulkSyncing(true);
-    for (const song of songs) {
-      if (!song.isMetadataConfirmed) {
-        await onSyncProData(song);
-      }
-    }
-    setIsBulkSyncing(false);
-    showSuccess("Full setlist synced with Pro Data");
-  };
-
-  const processFileUpload = async (file: File, songId: string) => {
-    if (!file.type.startsWith('audio/')) {
-      showError("Please drop a valid audio file.");
+  const handlePdfUpload = async (file: File, songId: string) => {
+    if (file.type !== 'application/pdf') {
+      showError("Please drop a PDF file.");
       return;
     }
 
     setUploadingId(songId);
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${songId}-${Math.random()}.${fileExt}`;
-      const filePath = `tracks/${fileName}`;
-
+      const fileName = `sheets/${songId}-${Date.now()}.pdf`;
       const { error: uploadError } = await supabase.storage
         .from('audio_tracks')
-        .upload(filePath, file);
+        .upload(fileName, file);
 
       if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage
         .from('audio_tracks')
-        .getPublicUrl(filePath);
+        .getPublicUrl(fileName);
 
-      onUpdateSong(songId, { previewUrl: publicUrl });
-      showSuccess("Performance track uploaded!");
+      onUpdateSong(songId, { pdfUrl: publicUrl });
+      showSuccess("Sheet music linked!");
     } catch (err) {
       showError("Upload failed.");
     } finally {
       setUploadingId(null);
+      setDragOverId(null);
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, songId: string) => {
-    const file = e.target.files?.[0];
-    if (file) processFileUpload(file, songId);
+  const onDragOver = (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    setDragOverId(id);
+  };
+
+  const onDrop = (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file) handlePdfUpload(file, id);
   };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between px-2">
-        <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Gig Dashboard</h3>
+        <div className="flex items-center gap-3">
+          <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Gig Dashboard</h3>
+          <div className="h-4 w-px bg-slate-200" />
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setIsSortMode(!isSortMode)}
+            className={cn(
+              "h-7 text-[9px] font-black uppercase tracking-tight gap-2",
+              isSortMode ? "bg-indigo-600 text-white hover:bg-indigo-700" : "text-slate-500 hover:bg-slate-100"
+            )}
+          >
+            {isSortMode ? <SortAsc className="w-3 h-3" /> : <LayoutList className="w-3 h-3" />}
+            {isSortMode ? "Ready-First View" : "List Order"}
+          </Button>
+        </div>
         <div className="flex gap-2">
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={bulkEnrich}
-            disabled={isBulkSyncing || songs.length === 0}
+            onClick={() => {
+              setIsBulkSyncing(true);
+              songs.forEach(s => !s.isMetadataConfirmed && onSyncProData(s));
+              setTimeout(() => setIsBulkSyncing(false), 2000);
+            }}
+            disabled={isBulkSyncing}
             className="h-7 text-[9px] font-black uppercase tracking-tight gap-2 border-indigo-200 text-indigo-700 bg-indigo-50/50"
           >
             {isBulkSyncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-            Sync All Pro Info
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={copyAllLinks}
-            className="h-7 text-[9px] font-black uppercase tracking-tight gap-2 border-slate-200 text-slate-600"
-          >
-            <Copy className="w-3 h-3" /> Copy YT Links
+            Sync Pro Info
           </Button>
         </div>
       </div>
@@ -190,185 +191,97 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-            {songs.map((song, idx) => {
+            {processedSongs.map((song, idx) => {
               const isSelected = currentSongId === song.id;
               const hasAudio = !!song.previewUrl;
               const isUploading = uploadingId === song.id;
-              const needsSync = !song.isMetadataConfirmed;
+              const readiness = getReadinessScore(song);
               
               return (
                 <tr 
                   key={song.id}
+                  onDragOver={(e) => onDragOver(e, song.id)}
+                  onDragLeave={() => setDragOverId(null)}
+                  onDrop={(e) => onDrop(e, song.id)}
                   className={cn(
                     "transition-all group relative",
                     isSelected ? "bg-indigo-50/50 dark:bg-indigo-900/10" : "hover:bg-slate-50/50 dark:hover:bg-slate-800/30",
-                    song.isPlayed && "opacity-50"
+                    song.isPlayed && "opacity-50",
+                    dragOverId === song.id && "bg-indigo-100 border-2 border-dashed border-indigo-400"
                   )}
                 >
                   <td className="p-4 text-center">
-                    <button onClick={() => onTogglePlayed(song.id)} className="transition-transform active:scale-90">
-                      {song.isPlayed ? (
-                        <CheckCircle2 className="w-5 h-5 text-green-500" />
-                      ) : (
-                        <CircleDashed className="w-5 h-5 text-slate-300 group-hover:text-indigo-400" />
-                      )}
+                    <button onClick={() => onTogglePlayed(song.id)}>
+                      {song.isPlayed ? <CheckCircle2 className="w-5 h-5 text-green-500" /> : <CircleDashed className="w-5 h-5 text-slate-300" />}
                     </button>
                   </td>
                   <td className="p-4">
                     <div className="flex flex-col">
-                      <div className="flex flex-col">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-mono font-black text-slate-300">{(idx + 1).toString().padStart(2, '0')}</span>
-                          <span className={cn(
-                            "text-sm font-bold tracking-tight",
-                            song.isPlayed && "line-through text-slate-400"
-                          )}>{song.name}</span>
-                          {song.isMetadataConfirmed && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />
-                                </TooltipTrigger>
-                                <TooltipContent className="text-[10px] font-bold">Pro Verified Metadata</TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
-                        </div>
-                        {song.artist && (
-                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-7">
-                            {song.artist}
-                          </span>
-                        )}
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-mono font-black text-slate-300">{(idx + 1).toString().padStart(2, '0')}</span>
+                        <span className="text-sm font-bold tracking-tight">{song.name}</span>
+                        {song.isMetadataConfirmed && <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />}
                         
-                        {/* Resource Toggles */}
-                        <div className="flex items-center gap-1.5 ml-7 mt-2">
-                          <TooltipProvider>
-                            {RESOURCE_TYPES.map(res => {
-                              const isActive = song.resources?.includes(res.id);
-                              return (
-                                <Tooltip key={res.id}>
-                                  <TooltipTrigger asChild>
-                                    <button
-                                      onClick={() => toggleResource(song, res.id)}
-                                      className={cn(
-                                        "text-[8px] font-black px-1.5 py-0.5 rounded border transition-all active:scale-90",
-                                        isActive 
-                                          ? cn(res.color, "shadow-sm opacity-100 scale-105") 
-                                          : "bg-slate-50 text-slate-400 border-slate-100 opacity-40 hover:opacity-100"
-                                      )}
-                                    >
-                                      {res.id}
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent className="text-[9px] font-bold">{res.label}</TooltipContent>
-                                </Tooltip>
-                              );
-                            })}
-                          </TooltipProvider>
-                        </div>
+                        {/* Readiness Tag */}
+                        {isSortMode && (
+                          <Badge variant="outline" className={cn(
+                            "text-[8px] font-black h-4 px-1 border-none",
+                            readiness > 12 ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                          )}>
+                            {readiness > 12 ? "READY" : "WORK"}
+                          </Badge>
+                        )}
                       </div>
+                      
+                      {song.artist && <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-7">{song.artist}</span>}
+                      
+                      <div className="flex items-center gap-1.5 ml-7 mt-2">
+                        <TooltipProvider>
+                          {RESOURCE_TYPES.map(res => {
+                            const isActive = song.resources?.includes(res.id);
+                            return (
+                              <button
+                                key={res.id}
+                                onClick={() => toggleResource(song, res.id)}
+                                className={cn(
+                                  "text-[8px] font-black px-1.5 py-0.5 rounded border transition-all",
+                                  isActive ? cn(res.color, "shadow-sm opacity-100") : "bg-slate-50 text-slate-400 border-slate-100 opacity-40 hover:opacity-100"
+                                )}
+                              >
+                                {res.id}
+                              </button>
+                            );
+                          })}
+                        </TooltipProvider>
+
+                        {/* PDF Badge */}
+                        {song.pdfUrl && (
+                          <a 
+                            href={song.pdfUrl} 
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="text-[8px] font-black px-1.5 py-0.5 rounded bg-red-100 text-red-700 border border-red-200 shadow-sm flex items-center gap-1"
+                          >
+                            <FileDown className="w-2 h-2" /> PDF
+                          </a>
+                        )}
+                      </div>
+
                       <div className="flex items-center gap-3 mt-2 ml-7">
                         <div className="flex items-center gap-2">
-                          <button 
-                            onClick={() => onSyncProData(song)}
-                            className={cn(
-                              "flex items-center gap-1 text-[9px] font-black uppercase transition-all",
-                              needsSync ? "text-indigo-600 animate-pulse font-extrabold" : "text-slate-400 hover:text-indigo-600"
-                            )}
-                            disabled={song.isSyncing}
-                          >
-                            {song.isSyncing ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Sparkles className="w-2.5 h-2.5" />}
-                            {needsSync ? "Sync Pro Data" : "Verified"}
-                          </button>
-                        </div>
-                        
-                        <div className="h-2 w-px bg-slate-200" />
-
-                        <div className="flex items-center gap-2">
-                          <a 
-                            href={getUGUrl(song)} 
-                            target="_blank" 
-                            rel="noreferrer" 
-                            className="flex items-center gap-1 text-[9px] text-amber-600 font-bold hover:underline"
-                          >
+                          <a href={getUGUrl(song)} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-[9px] text-amber-600 font-bold hover:underline">
                             <FileText className="w-2.5 h-2.5" /> Chords
                           </a>
-
-                          {song.youtubeUrl ? (
-                            <div className="flex items-center gap-1">
-                              <button 
-                                onClick={() => onSelect(song)}
-                                className="flex items-center gap-1 text-[9px] text-red-600 font-bold hover:underline"
-                              >
-                                <Youtube className="w-3 h-3" /> Video
-                              </button>
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button onClick={() => handleCopyLink(song.youtubeUrl)} className="text-slate-400 hover:text-indigo-600 p-0.5">
-                                      <Copy className="w-2.5 h-2.5" />
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent className="text-[9px] font-black">Copy Link</TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            </div>
-                          ) : (
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <button className="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase hover:text-indigo-600 transition-colors">
-                                  <Link2 className="w-2.5 h-2.5" /> Link Video
-                                </button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-64 p-3 space-y-3" align="start">
-                                <div className="space-y-1">
-                                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Connect Media</p>
-                                  <p className="text-[9px] text-slate-500 leading-tight">Link a YouTube video for visual reference.</p>
-                                </div>
-                                <div className="flex gap-1">
-                                  <Input 
-                                    placeholder="Paste YouTube Link" 
-                                    className="h-8 text-[10px]"
-                                    value={manualLink}
-                                    onChange={(e) => setManualLink(e.target.value)}
-                                  />
-                                  <Button 
-                                    size="sm" 
-                                    className="h-8 px-3 bg-indigo-600 font-bold"
-                                    onClick={() => {
-                                      if (manualLink.includes('youtube.com') || manualLink.includes('youtu.be')) {
-                                        onUpdateSong(song.id, { youtubeUrl: manualLink });
-                                        showSuccess("Video linked!");
-                                        setManualLink("");
-                                      } else {
-                                        showError("Invalid YouTube URL");
-                                      }
-                                    }}
-                                  >
-                                    LINK
-                                  </Button>
-                                </div>
-                              </PopoverContent>
-                            </Popover>
+                          
+                          {song.youtubeUrl && (
+                            <button onClick={() => onSelect(song)} className="flex items-center gap-1 text-[9px] text-red-600 font-bold hover:underline">
+                              <Youtube className="w-3 h-3" /> Video
+                            </button>
                           )}
-                        </div>
-                        
-                        <div className="h-2 w-px bg-slate-200" />
 
-                        <div className="relative">
-                          <input 
-                            type="file" 
-                            accept="audio/*" 
-                            className="hidden" 
-                            id={`upload-${song.id}`}
-                            onChange={(e) => handleFileUpload(e, song.id)}
-                          />
-                          <label 
-                            htmlFor={`upload-${song.id}`}
-                            className="flex items-center gap-1 text-[9px] font-black text-indigo-600 uppercase hover:underline cursor-pointer"
-                          >
-                            {isUploading ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Upload className="w-2.5 h-2.5" />}
-                            {hasAudio ? "Replace" : "Add MP3"}
+                          <label className="flex items-center gap-1 text-[9px] font-black text-indigo-600 uppercase hover:underline cursor-pointer">
+                            <Upload className="w-2.5 h-2.5" />
+                            {isUploading ? "Uploading..." : "Drop PDF"}
                           </label>
                         </div>
                       </div>
@@ -378,64 +291,37 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                     <div className="flex items-center gap-3">
                       <div className="flex flex-col">
                         <span className="text-[8px] font-black uppercase text-slate-400">Original</span>
-                        <span className={cn(
-                          "text-[11px] font-mono font-bold",
-                          song.originalKey === 'TBC' && "text-amber-500 italic"
-                        )}>{song.originalKey || "TBC"}</span>
+                        <span className="text-[11px] font-mono font-bold">{song.originalKey || "TBC"}</span>
                       </div>
                       <ArrowRight className="w-3 h-3 text-slate-300" />
                       <div className="flex-1">
                         <span className="text-[8px] font-black uppercase text-indigo-500">Target</span>
-                        <Select 
-                          value={song.targetKey} 
-                          onValueChange={(val) => onUpdateKey(song.id, val)}
-                        >
-                          <SelectTrigger className="h-7 text-[11px] py-0 px-2 font-bold font-mono border-indigo-100 bg-indigo-50/30 text-indigo-600 focus:ring-1 focus:ring-indigo-500">
-                            <SelectValue placeholder="Key" />
+                        <Select value={song.targetKey} onValueChange={(val) => onUpdateKey(song.id, val)}>
+                          <SelectTrigger className="h-7 text-[11px] font-bold font-mono border-indigo-100 bg-indigo-50/30 text-indigo-600">
+                            <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {ALL_KEYS.map(k => (
-                              <SelectItem key={k} value={k} className="text-[11px] font-mono">{k}</SelectItem>
-                            ))}
+                            {ALL_KEYS.map(k => <SelectItem key={k} value={k} className="font-mono text-[11px]">{k}</SelectItem>)}
                           </SelectContent>
                         </Select>
                       </div>
-                      {song.pitch !== 0 && (
-                        <Badge variant="secondary" className="text-[9px] h-5 px-1 font-mono bg-indigo-100 text-indigo-700 border-none">
-                          {song.pitch > 0 ? `+${song.pitch}` : song.pitch}ST
-                        </Badge>
-                      )}
                     </div>
                   </td>
                   <td className="p-4 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-8 w-8 rounded-full text-slate-300 hover:text-indigo-600 hover:bg-indigo-50"
-                        onClick={() => setEditingSong(song)}
-                      >
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-slate-300 hover:text-indigo-600" onClick={() => setEditingSong(song)}>
                         <Edit3 className="w-3.5 h-3.5" />
                       </Button>
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        className={cn(
-                          "h-8 px-3 text-[10px] font-black uppercase tracking-widest gap-2",
-                          !hasAudio ? "text-slate-300 cursor-not-allowed" : "text-indigo-600 hover:bg-indigo-50"
-                        )}
+                        className={cn("h-8 px-3 text-[10px] font-black uppercase tracking-widest gap-2", !hasAudio ? "text-slate-300" : "text-indigo-600")}
                         disabled={!hasAudio}
                         onClick={() => onSelect(song)}
                       >
-                        {isSelected ? "Active" : "Perform"}
-                        <Play className={cn("w-3 h-3", isSelected ? "fill-current" : "")} />
+                        {isSelected ? "Active" : "Perform"} <Play className="w-3 h-3" />
                       </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-8 w-8 rounded-full text-slate-300 hover:text-red-500 hover:bg-red-50"
-                        onClick={() => onRemove(song.id)}
-                      >
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300 hover:text-red-500" onClick={() => onRemove(song.id)}>
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
@@ -446,24 +332,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
           </tbody>
         </table>
       </div>
-
-      <SongDetailModal 
-        song={editingSong}
-        isOpen={!!editingSong}
-        onClose={() => setEditingSong(null)}
-        onSave={(id, updates) => {
-          onUpdateSong(id, updates);
-          if (updates.originalKey || updates.targetKey) {
-            const currentSong = songs.find(s => s.id === id);
-            if (currentSong) {
-              const orig = updates.originalKey || currentSong.originalKey || "C";
-              const target = updates.targetKey || currentSong.targetKey || "C";
-              const newPitch = calculateSemitones(orig, target);
-              onUpdateSong(id, { ...updates, pitch: newPitch });
-            }
-          }
-        }}
-      />
+      <SongDetailModal song={editingSong} isOpen={!!editingSong} onClose={() => setEditingSong(null)} onSave={onUpdateSong} />
     </div>
   );
 };
