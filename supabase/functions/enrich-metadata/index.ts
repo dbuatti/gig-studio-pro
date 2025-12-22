@@ -14,7 +14,7 @@ serve(async (req) => {
 
   try {
     const { queries, mode = 'metadata' } = await req.json();
-    console.log(`[AI Engine] Processing ${mode} for ${queries?.length || 0} items using Gemini 3 Flash`);
+    console.log(`[AI Engine] Processing ${mode} for ${queries?.length || 0} items using Gemini 3 Flash Preview`);
     
     // @ts-ignore: Deno global
     const apiKey = Deno.env.get('GEMINI_API_KEY');
@@ -46,8 +46,8 @@ serve(async (req) => {
       Return ONLY the JSON array.`;
     }
 
-    // Using gemini-3-flash on v1 endpoint as recommended for late 2025 compatibility
-    const endpoint = `https://generativelanguage.googleapis.com/v1/models/gemini-3-flash:generateContent?key=${apiKey}`;
+    // Using gemini-3-flash-preview on v1beta endpoint as it's currently in preview
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
     
     const response = await fetch(endpoint, {
       method: 'POST',
