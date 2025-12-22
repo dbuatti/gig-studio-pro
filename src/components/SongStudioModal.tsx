@@ -36,6 +36,8 @@ interface SongStudioModalProps {
 const RESOURCE_TYPES = [
   { id: 'UG', label: 'Ultimate Guitar', color: 'bg-orange-100 text-orange-700 border-orange-200' },
   { id: 'FS', label: 'ForScore', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+  { id: 'SM', label: 'Sheet Music', color: 'bg-blue-100 text-blue-700 border-blue-200' },
+  { id: 'LS', label: 'Lead Sheet', color: 'bg-purple-100 text-purple-700 border-purple-200' },
   { id: 'PDF', label: 'iPad PDF', color: 'bg-red-100 text-red-700 border-red-200' },
 ];
 
@@ -147,7 +149,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
 
   const animate = () => {
     if (playerRef.current && isPlaying) {
-      // Fixed syntactically incorrect arithmetic that caused TS errors
       const currentSeconds = playerRef.current.state === 'started' ? playerRef.current.now() : 0;
       requestRef.current = requestAnimationFrame(animate);
     }
