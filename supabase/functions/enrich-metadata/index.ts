@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { queries } = await req.json(); // Now expects an array of strings
+    const { queries } = await req.json();
     // @ts-ignore: Deno global
     const apiKey = Deno.env.get('GEMINI_API_KEY');
 
@@ -28,7 +28,8 @@ serve(async (req) => {
     const prompt = `Act as a professional music librarian. For the following list of songs, return a JSON array of objects. 
     Each object must have: 
     {
-      "name": "The original song name from the input",
+      "name": "The original song title (clean version, e.g., 'Moon River')",
+      "artist": "The primary artist or composer (e.g., 'Audrey Hepburn' or 'Henry Mancini')",
       "originalKey": "The standard key (e.g., C, F#m, Eb)",
       "bpm": 120,
       "genre": "The genre",

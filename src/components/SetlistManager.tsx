@@ -14,6 +14,7 @@ import { showSuccess, showError } from '@/utils/toast';
 export interface SetlistSong {
   id: string;
   name: string;
+  artist?: string; // Added artist field
   previewUrl: string;
   youtubeUrl?: string;
   originalKey?: string;
@@ -50,7 +51,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 }) => {
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [isBulkSyncing, setIsBulkSyncing] = useState(false);
-  const [dragOverId, setDragOverId] = useState<string | null>(null);
 
   const copyAllLinks = () => {
     const links = songs.map(s => s.youtubeUrl).filter(Boolean).join('\n');
@@ -173,17 +173,24 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                   </td>
                   <td className="p-4">
                     <div className="flex flex-col">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-mono font-black text-slate-300">{(idx + 1).toString().padStart(2, '0')}</span>
-                        <span className={cn(
-                          "text-sm font-bold tracking-tight",
-                          song.isPlayed && "line-through text-slate-400"
-                        )}>{song.name}</span>
-                        {song.isSyncing && (
-                          <Badge variant="outline" className="text-[8px] uppercase border-indigo-200 text-indigo-600 bg-indigo-50 leading-none h-4 animate-pulse">Syncing Pro Data...</Badge>
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-mono font-black text-slate-300">{(idx + 1).toString().padStart(2, '0')}</span>
+                          <span className={cn(
+                            "text-sm font-bold tracking-tight",
+                            song.isPlayed && "line-through text-slate-400"
+                          )}>{song.name}</span>
+                          {song.isSyncing && (
+                            <Badge variant="outline" className="text-[8px] uppercase border-indigo-200 text-indigo-600 bg-indigo-50 leading-none h-4 animate-pulse">Syncing Pro Data...</Badge>
+                          )}
+                        </div>
+                        {song.artist && (
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-7">
+                            {song.artist}
+                          </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-3 mt-1">
+                      <div className="flex items-center gap-3 mt-1 ml-7">
                         <div className="flex items-center gap-2">
                           <button 
                             onClick={() => onSyncProData(song)}

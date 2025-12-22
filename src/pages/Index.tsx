@@ -73,7 +73,7 @@ const Index = () => {
         .eq('id', listId);
       if (error) throw error;
     } catch (err) {
-      // Error handled by toast
+      // Handled silently
     } finally {
       setIsSaving(false);
     }
@@ -82,7 +82,6 @@ const Index = () => {
   const handleBulkSync = async (songsToSync: SetlistSong[]) => {
     if (!currentListId || songsToSync.length === 0) return;
 
-    // Set syncing state for all songs in batch
     setSetlists(prev => prev.map(l => l.id === currentListId ? {
       ...l,
       songs: l.songs.map(s => 
@@ -97,16 +96,21 @@ const Index = () => {
 
       if (error) throw error;
 
-      // Map AI results back to songs by name matching
       setSetlists(prev => {
         const list = prev.find(l => l.id === currentListId);
         if (!list) return prev;
 
         const updatedSongs = list.songs.map(s => {
-          const aiResult = Array.isArray(data) ? data.find((r: any) => r.name === s.name) : null;
+          const aiResult = Array.isArray(data) ? data.find((r: any) => 
+            r.name.toLowerCase().includes(s.name.toLowerCase()) || 
+            s.name.toLowerCase().includes(r.name.toLowerCase())
+          ) : null;
+
           if (aiResult) {
             return {
               ...s,
+              name: aiResult.name || s.name,
+              artist: aiResult.artist,
               originalKey: aiResult.originalKey,
               targetKey: aiResult.originalKey,
               bpm: aiResult.bpm?.toString(),
@@ -115,7 +119,6 @@ const Index = () => {
               isSyncing: false
             };
           }
-          // If not in this batch, return as is (but clear syncing if it was part of this batch)
           return songsToSync.find(ts => ts.id === s.id) ? { ...s, isSyncing: false } : s;
         });
 
@@ -123,7 +126,6 @@ const Index = () => {
         return prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l);
       });
     } catch (err) {
-      // Clear syncing state on error
       setSetlists(prev => prev.map(l => l.id === currentListId ? {
         ...l,
         songs: l.songs.map(s => 
@@ -271,9 +273,7 @@ const Index = () => {
               <div className="flex gap-2">
                 <ImportSetlist onImport={(newSongs) => {
                   if (!currentListId) return;
-                  
                   const songsWithSyncState = newSongs.map(s => ({ ...s, isSyncing: true }));
-                  
                   setSetlists(prev => {
                     const list = prev.find(l => l.id === currentListId);
                     if (!list) return prev;
@@ -281,8 +281,6 @@ const Index = () => {
                     saveList(currentListId, updated);
                     return prev.map(l => l.id === currentListId ? { ...l, songs: updated } : l);
                   });
-                  
-                  // Batch sync in groups of 10 to respect quota
                   for (let i = 0; i < songsWithSyncState.length; i += 10) {
                     const batch = songsWithSyncState.slice(i, i + 10);
                     handleBulkSync(batch);
