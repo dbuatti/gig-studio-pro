@@ -20,7 +20,7 @@ import {
   Globe, Eye, Link as LinkIcon, RotateCcw,
   Zap, Disc, VolumeX, Smartphone, Printer, Search,
   ClipboardPaste, AlignLeft, Apple, Hash, Music2,
-  FileSearch, ChevronRight, Layers
+  FileSearch, ChevronRight, Layers, LayoutGrid
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import AudioVisualizer from './AudioVisualizer';
@@ -31,6 +31,7 @@ import { showSuccess, showError } from '@/utils/toast';
 import { Slider } from '@/components/ui/slider';
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
 import { RESOURCE_TYPES } from '@/utils/constants';
+import ProSyncSearch from './ProSyncSearch';
 
 interface SongStudioModalProps {
   song: SetlistSong | null;
@@ -60,6 +61,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const [isDragOver, setIsDragOver] = useState(false);
   const [isFormattingLyrics, setIsFormattingLyrics] = useState(false);
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
+  const [isProSyncSearchOpen, setIsProSyncSearchOpen] = useState(false);
+  const [isProSyncing, setIsProSyncing] = useState(false);
   
   // Chart Engine State
   const [activeChartType, setActiveChartType] = useState<'pdf' | 'leadsheet'>('pdf');
@@ -129,7 +132,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         isKeyLinked: song.isKeyLinked ?? true,
         isKeyConfirmed: song.isKeyConfirmed ?? false,
         duration_seconds: song.duration_seconds || 0,
-        key_preference: song.key_preference
+        key_preference: song.key_preference,
+        isMetadataConfirmed: song.isMetadataConfirmed
       });
       
       if (song.previewUrl) {
@@ -410,9 +414,47 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   };
 
   const handleProSync = async () => {
-    if (!song || !onSyncProData) return;
-    await onSyncProData(song);
-    showSuccess("Pro Sync data updated");
+    setIsProSyncSearchOpen(true);
+  };
+
+  const handleSelectProSync = async (itunesData: any) => {
+    setIsProSyncSearchOpen(false);
+    setIsProSyncing(true);
+    
+    try {
+      const basicUpdates: Partial<SetlistSong> = {
+        name: itunesData.trackName,
+        artist: itunesData.artistName,
+        genre: itunesData.primaryGenreName,
+        appleMusicUrl: itunesData.trackViewUrl,
+        user_tags: [...(formData.user_tags || []), itunesData.primaryGenreName, new Date(itunesData.releaseDate).getFullYear().toString()],
+        isMetadataConfirmed: true
+      };
+
+      // Trigger AI enrichment for the technical data (Key/BPM)
+      const { data, error } = await supabase.functions.invoke('enrich-metadata', {
+        body: { queries: [`${itunesData.trackName} by ${itunesData.artistName}`] }
+      });
+
+      if (error) throw error;
+      
+      const aiResult = Array.isArray(data) ? data[0] : data;
+      const finalUpdates = {
+        ...basicUpdates,
+        originalKey: aiResult?.originalKey || formData.originalKey,
+        targetKey: aiResult?.originalKey || formData.targetKey,
+        bpm: aiResult?.bpm?.toString() || formData.bpm,
+        pitch: 0, // Reset pitch on sync
+        isKeyConfirmed: true
+      };
+
+      handleAutoSave(finalUpdates);
+      showSuccess(`Successfully Synced "${itunesData.trackName}"`);
+    } catch (err) {
+      showError("Pro Sync failed to complete technical analysis.");
+    } finally {
+      setIsProSyncing(false);
+    }
   };
 
   const handleUgAction = () => {
@@ -580,10 +622,10 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
           </div>
         )}
 
-        {isUploading && (
+        {(isUploading || isProSyncing) && (
           <div className="absolute inset-0 z-[60] bg-black/60 backdrop-blur-md flex flex-col items-center justify-center gap-4">
              <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" />
-             <p className="text-sm font-black uppercase tracking-[0.2em] text-white">Syncing Master Asset...</p>
+             <p className="text-sm font-black uppercase tracking-[0.2em] text-white">{isUploading ? 'Syncing Master Asset...' : 'Analyzing Global Library Data...'}</p>
           </div>
         )}
 
@@ -615,9 +657,15 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
 
               <Button 
                 onClick={handleProSync}
-                className="w-full mt-6 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-[0.2em] text-[10px] h-10 rounded-xl shadow-lg shadow-indigo-600/20 gap-2 transition-all active:scale-95"
+                className={cn(
+                  "w-full mt-6 font-black uppercase tracking-[0.2em] text-[10px] h-10 rounded-xl shadow-lg gap-2 transition-all active:scale-95",
+                  formData.isMetadataConfirmed 
+                    ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20" 
+                    : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/20"
+                )}
               >
-                <Sparkles className="w-4 h-4" /> Pro Sync Engine
+                {formData.isMetadataConfirmed ? <Check className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
+                {formData.isMetadataConfirmed ? "SYNCED FROM ITUNES" : "PRO SYNC ENGINE"}
               </Button>
             </div>
 
@@ -1492,6 +1540,13 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
           </div>
         </div>
       </DialogContent>
+      
+      <ProSyncSearch 
+        isOpen={isProSyncSearchOpen} 
+        onClose={() => setIsProSyncSearchOpen(false)} 
+        onSelect={handleSelectProSync} 
+        initialQuery={`${formData.artist} ${formData.name}`}
+      />
     </Dialog>
   );
 };
