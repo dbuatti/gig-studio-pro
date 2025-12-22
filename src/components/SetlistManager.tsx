@@ -21,7 +21,7 @@ export interface SetlistSong {
   ugUrl?: string; 
   appleMusicUrl?: string;
   pdfUrl?: string;
-  leadsheetUrl?: string; // New: Dedicated lead sheet slot
+  leadsheetUrl?: string;
   originalKey?: string;
   targetKey?: string;
   pitch: number;
@@ -43,7 +43,7 @@ export interface SetlistSong {
 export const RESOURCE_TYPES = [
   { id: 'UG', label: 'Ultimate Guitar', color: 'bg-orange-500/10 text-orange-600 border-orange-500/20' },
   { id: 'LYRICS', label: 'Has Lyrics', color: 'bg-pink-500/10 text-pink-600 border-pink-500/20' },
-  { id: 'LEAD', label: 'Lead Sheet', color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20' }, // Added: LEAD
+  { id: 'LEAD', label: 'Lead Sheet', color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20' },
   { id: 'UGP', label: 'UG Playlist', color: 'bg-yellow-500/10 text-yellow-700 border-yellow-500/20' },
   { id: 'FS', label: 'ForScore', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-200' },
   { id: 'PDF', label: 'Stage PDF', color: 'bg-red-500/10 text-red-700 border-red-200' },
@@ -187,7 +187,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
       <div className="bg-white dark:bg-slate-950 rounded-[2rem] border-4 border-slate-100 dark:border-slate-900 shadow-2xl overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[800px]">
+          <table className="w-full text-left border-collapse min-w-[900px]">
             <thead>
               <tr className="bg-slate-50/50 dark:bg-slate-900/50 border-b dark:border-slate-800">
                 <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 w-16 text-center">Sts</th>
@@ -218,7 +218,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       song.isPlayed && "opacity-40 grayscale-[0.5]"
                     )}
                   >
-                    <td className="py-3 px-6 text-center">
+                    <td className="py-4 px-6 align-middle text-center">
                       <button 
                         onClick={(e) => { e.stopPropagation(); onTogglePlayed(song.id); }}
                         className="transition-transform active:scale-90"
@@ -235,10 +235,10 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       </button>
                     </td>
 
-                    <td className="py-3 px-6">
-                      <div className="flex flex-col gap-1">
+                    <td className="py-4 px-6 align-middle">
+                      <div className="flex flex-col gap-1.5">
                         <div className="flex items-center gap-3">
-                          <span className="text-[10px] font-mono font-black text-slate-300">{(idx + 1).toString().padStart(2, '0')}</span>
+                          <span className="text-[10px] font-mono font-black text-slate-300 min-w-[20px]">{(idx + 1).toString().padStart(2, '0')}</span>
                           <h4 className={cn("text-base font-black tracking-tight leading-none", song.isPlayed && "line-through text-slate-400")}>
                             {song.name}
                           </h4>
@@ -249,8 +249,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                           )} />
                         </div>
                         
-                        <div className="flex items-center gap-2">
-                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none ml-7">
+                        <div className="flex items-center gap-2 ml-[32px]">
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">
                             {song.artist || "Unknown Artist"}
                           </span>
                           <span className="text-slate-200 dark:text-slate-800 text-[8px]">•</span>
@@ -261,7 +261,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                           <span className="text-[9px] font-mono font-bold text-slate-400">{song.bpm ? `${song.bpm} BPM` : 'TEMPO TBC'}</span>
                         </div>
 
-                        <div className="flex items-center gap-1.5 ml-7 mt-1">
+                        <div className="flex items-center gap-1.5 ml-[32px]">
                           <TooltipProvider>
                             {RESOURCE_TYPES.map(res => {
                               const isActive = song.resources?.includes(res.id) || 
@@ -302,7 +302,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       </div>
                     </td>
 
-                    <td className="py-3 px-6">
+                    <td className="py-4 px-6 align-middle text-center">
                       <div className="flex flex-col items-center gap-0.5">
                         <Button 
                           variant="ghost" 
@@ -331,20 +331,20 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       </div>
                     </td>
 
-                    <td className="py-3 px-6">
+                    <td className="py-4 px-6 align-middle">
                       <div className="flex items-center justify-center gap-4">
-                        <div className="text-center">
-                          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Orig</p>
+                        <div className="text-center min-w-[32px]">
+                          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Orig</p>
                           <span className="text-xs font-mono font-bold text-slate-500">{displayOrigKey}</span>
                         </div>
-                        <div className="flex flex-col items-center">
-                          <ArrowRight className="w-3 h-3 text-slate-300 mb-0.5" />
-                          <div className="h-px w-8 bg-slate-100 dark:bg-slate-800" />
+                        <div className="flex flex-col items-center opacity-30">
+                          <ArrowRight className="w-3 h-3 text-slate-300" />
+                          <div className="h-px w-6 bg-slate-100 dark:bg-slate-800" />
                         </div>
-                        <div className="text-center relative">
-                          <p className="text-[8px] font-black text-indigo-500 uppercase tracking-widest mb-0.5">Stage</p>
+                        <div className="text-center min-w-[32px]">
+                          <p className="text-[8px] font-black text-indigo-500 uppercase tracking-widest mb-1">Stage</p>
                           <div className={cn(
-                            "font-mono font-black text-xs px-2.5 py-1 rounded-lg shadow-lg flex items-center gap-1.5",
+                            "font-mono font-black text-xs px-2.5 py-1 rounded-lg shadow-lg flex items-center justify-center gap-1.5",
                             song.isKeyConfirmed 
                               ? "bg-emerald-600 text-white shadow-emerald-500/20" 
                               : "bg-indigo-600 text-white shadow-indigo-500/20"
@@ -356,7 +356,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       </div>
                     </td>
 
-                    <td className="py-3 px-6 text-right pr-10">
+                    <td className="py-4 px-6 align-middle text-right pr-10">
                       <div className="flex items-center justify-end gap-2">
                         <Button 
                           size="sm" 
