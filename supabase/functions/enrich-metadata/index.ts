@@ -37,8 +37,8 @@ serve(async (req) => {
     }
     Return ONLY the JSON. No markdown formatting.`;
 
-    // Using the most standard model identifier and stable v1 endpoint
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+    // Upgraded to Gemini 2.5 Flash on the stable v1 endpoint
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
