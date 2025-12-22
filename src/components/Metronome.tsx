@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import * as Tone from 'tone';
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import { Label } from "@/components/ui/label";
 import { 
   Play, Pause, Minus, Plus, Volume2, 
   Activity, Settings2, Hash, Zap
