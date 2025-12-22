@@ -21,7 +21,7 @@ import {
   Zap, Disc, VolumeX, Smartphone, Printer, Search,
   ClipboardPaste, AlignLeft, Apple, Hash, Music2,
   FileSearch, ChevronRight, Layers, LayoutGrid, ListPlus,
-  Globe2
+  Globe2, ShieldCheck
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import AudioVisualizer from './AudioVisualizer';
@@ -597,20 +597,31 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
 
   const handleDownloadAsset = async (url: string | undefined, filename: string) => {
     if (!url) return;
-    try {
-      const response = await fetch(url);
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
-      showSuccess(`Downloading ${filename}`);
-    } catch (err) {
-      showError("Download failed.");
+    
+    // Check if it's an external URL that might have CORS issues
+    const isSupabaseUrl = url.includes('supabase.co/storage/v1/object/public');
+    
+    if (isSupabaseUrl) {
+      try {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+        showSuccess(`Downloading ${filename}`);
+      } catch (err) {
+        // Fallback for CORS or network errors
+        window.open(url, '_blank');
+      }
+    } else {
+      // Direct open for external links to avoid CORS errors
+      window.open(url, '_blank');
+      showSuccess(`Opening External Asset: ${filename}`);
     }
   };
 
@@ -645,6 +656,13 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     }
   }, [activeChartType, formData.pdfUrl, formData.leadsheetUrl, formData.ugUrl]);
 
+  // Utility to check if a URL is likely to be blocked by framing (X-Frame-Options)
+  const isFramable = (url: string | null) => {
+    if (!url) return true;
+    const blockedSites = ['ultimate-guitar.com', 'musicnotes.com', 'sheetmusicplus.com'];
+    return !blockedSites.some(site => url.includes(site));
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent 
@@ -673,11 +691,22 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                 <X className="w-8 h-8" />
               </Button>
             </div>
-            <iframe 
-              src={`${previewPdfUrl}#toolbar=0&navpanes=0&view=FitH`} 
-              className="flex-1 w-full rounded-2xl bg-white"
-              title="PDF Preview"
-            />
+            {isFramable(previewPdfUrl) ? (
+              <iframe 
+                src={`${previewPdfUrl}#toolbar=0&navpanes=0&view=FitH`} 
+                className="flex-1 w-full rounded-2xl bg-white"
+                title="PDF Preview"
+              />
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center bg-slate-900 rounded-2xl border border-white/5">
+                <ShieldCheck className="w-16 h-16 text-indigo-400 mb-6" />
+                <h4 className="text-2xl font-black uppercase mb-2">Private Asset Encryption</h4>
+                <p className="text-slate-500 mb-8 max-w-sm text-center font-medium">This external provider blocks in-app previews. Launch the official source to view the chart.</p>
+                <Button onClick={() => window.open(previewPdfUrl, '_blank')} className="bg-indigo-600 hover:bg-indigo-700 h-12 px-8 font-black uppercase tracking-widest text-xs rounded-xl shadow-lg shadow-indigo-600/20 gap-3">
+                  <ExternalLink className="w-4 h-4" /> Open Official Source
+                </Button>
+              </div>
+            )}
           </div>
         )}
 
@@ -1335,11 +1364,24 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                   <div className="flex-1 min-h-0 bg-white rounded-[3rem] overflow-hidden shadow-2xl relative group">
                     {currentChartUrl ? (
                       <>
-                        <iframe 
-                          src={currentChartUrl} 
-                          className="w-full h-full"
-                          title="Chart Viewer"
-                        />
+                        {isFramable(currentChartUrl) ? (
+                          <iframe 
+                            src={currentChartUrl} 
+                            className="w-full h-full"
+                            title="Chart Viewer"
+                          />
+                        ) : (
+                          <div className="h-full flex flex-col items-center justify-center bg-slate-900 rounded-[3rem] p-12 text-center">
+                            <ShieldCheck className="w-20 h-20 text-indigo-400 mb-6" />
+                            <h4 className="text-3xl font-black uppercase tracking-tighter mb-4 text-white">External Protection Active</h4>
+                            <p className="text-slate-400 max-w-sm mb-10 font-medium leading-relaxed">
+                              This provider (e.g. Ultimate Guitar) prevents in-app framing. Please open the official source to view your chart during the performance.
+                            </p>
+                            <Button onClick={() => window.open(currentChartUrl, '_blank')} className="bg-indigo-600 hover:bg-indigo-700 h-14 px-10 font-black uppercase tracking-[0.2em] text-xs rounded-2xl shadow-xl shadow-indigo-600/20 gap-3">
+                              <ExternalLink className="w-5 h-5" /> Launch External Source
+                            </Button>
+                          </div>
+                        )}
                         
                         {/* Pull-out selection menu */}
                         <div className={cn(

@@ -11,7 +11,7 @@ import {
   Play, Pause, SkipForward, SkipBack, X, Music, 
   Waves, Activity, ArrowRight, 
   Settings2, Gauge, FileText, Save, Youtube,
-  Monitor, AlignLeft, RotateCcw
+  Monitor, AlignLeft, RotateCcw, ShieldCheck, ExternalLink
 } from 'lucide-react';
 import { SetlistSong } from './SetlistManager';
 import AudioVisualizer from './AudioVisualizer';
@@ -196,6 +196,12 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
     }
   };
 
+  const isFramable = (url: string | null | undefined) => {
+    if (!url) return true;
+    const blockedSites = ['ultimate-guitar.com', 'musicnotes.com', 'sheetmusicplus.com'];
+    return !blockedSites.some(site => url.includes(site));
+  };
+
   const displayCurrentKey = formatKey(currentSong?.targetKey || currentSong?.originalKey, currentPref);
   const displayNextKey = formatKey(nextSong?.targetKey || nextSong?.originalKey, nextPref);
 
@@ -353,12 +359,25 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
             )}
 
             {viewMode === 'pdf' && currentSong?.pdfUrl && (
-              <div className="h-full w-full bg-white rounded-[3rem] overflow-hidden shadow-2xl mx-8 relative">
-                <iframe 
-                  src={`${currentSong.pdfUrl}#toolbar=0&navpanes=0&view=FitH`} 
-                  className="w-full h-full"
-                  title="Sheet Music"
-                />
+              <div className="h-full w-full bg-slate-900 rounded-[3rem] overflow-hidden shadow-2xl mx-8 relative">
+                {isFramable(currentSong.pdfUrl) ? (
+                  <iframe 
+                    src={`${currentSong.pdfUrl}#toolbar=0&navpanes=0&view=FitH`} 
+                    className="w-full h-full bg-white"
+                    title="Sheet Music"
+                  />
+                ) : (
+                  <div className="h-full w-full flex flex-col items-center justify-center p-12 text-center">
+                    <ShieldCheck className="w-24 h-24 text-indigo-400 mb-8" />
+                    <h4 className="text-4xl font-black uppercase tracking-tight mb-4">External Source Protection</h4>
+                    <p className="text-slate-400 max-w-lg mb-12 text-lg font-medium leading-relaxed">
+                      Security policies from this external provider prevent in-app displays. Use the link below to launch the chart in a secure separate window.
+                    </p>
+                    <Button onClick={() => window.open(currentSong.pdfUrl, '_blank')} className="bg-indigo-600 hover:bg-indigo-700 h-16 px-12 font-black uppercase tracking-[0.2em] text-xs rounded-2xl shadow-2xl shadow-indigo-600/20 gap-4">
+                      <ExternalLink className="w-6 h-6" /> Open Performance Link
+                    </Button>
+                  </div>
+                )}
                 
                 {/* Mini Audio Overlay for PDF Mode */}
                 <div className="absolute bottom-8 right-8 bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl animate-in slide-in-from-right duration-500 flex items-center gap-6 min-w-[320px]">
