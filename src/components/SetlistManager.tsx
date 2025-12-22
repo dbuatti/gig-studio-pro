@@ -190,11 +190,11 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
           <table className="w-full text-left border-collapse min-w-[800px]">
             <thead>
               <tr className="bg-slate-50/50 dark:bg-slate-900/50 border-b dark:border-slate-800">
-                <th className="py-5 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 w-16 text-center">Sts</th>
-                <th className="py-5 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Song / Resource Matrix</th>
-                <th className="py-5 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 w-24 text-center">Move</th>
-                <th className="py-5 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 w-48 text-center">Harmonic Map</th>
-                <th className="py-5 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 w-40 text-right pr-10">Command</th>
+                <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 w-16 text-center">Sts</th>
+                <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Song / Resource Matrix</th>
+                <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 w-24 text-center">Move</th>
+                <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 w-48 text-center">Harmonic Map</th>
+                <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 w-40 text-right pr-10">Command</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-900">
@@ -218,7 +218,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       song.isPlayed && "opacity-40 grayscale-[0.5]"
                     )}
                   >
-                    <td className="py-6 px-6 text-center">
+                    <td className="py-3 px-6 text-center">
                       <button 
                         onClick={(e) => { e.stopPropagation(); onTogglePlayed(song.id); }}
                         className="transition-transform active:scale-90"
@@ -235,8 +235,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       </button>
                     </td>
 
-                    <td className="py-6 px-6">
-                      <div className="flex flex-col gap-1.5">
+                    <td className="py-3 px-6">
+                      <div className="flex flex-col gap-1">
                         <div className="flex items-center gap-3">
                           <span className="text-[10px] font-mono font-black text-slate-300">{(idx + 1).toString().padStart(2, '0')}</span>
                           <h4 className={cn("text-base font-black tracking-tight leading-none", song.isPlayed && "line-through text-slate-400")}>
@@ -261,7 +261,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                           <span className="text-[9px] font-mono font-bold text-slate-400">{song.bpm ? `${song.bpm} BPM` : 'TEMPO TBC'}</span>
                         </div>
 
-                        <div className="flex items-center gap-1.5 ml-7 mt-3">
+                        <div className="flex items-center gap-1.5 ml-7 mt-1">
                           <TooltipProvider>
                             {RESOURCE_TYPES.map(res => {
                               const isActive = song.resources?.includes(res.id) || 
@@ -302,7 +302,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       </div>
                     </td>
 
-                    <td className="py-6 px-6">
+                    <td className="py-3 px-6">
                       <div className="flex flex-col items-center gap-0.5">
                         <Button 
                           variant="ghost" 
@@ -331,18 +331,18 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       </div>
                     </td>
 
-                    <td className="py-6 px-6">
+                    <td className="py-3 px-6">
                       <div className="flex items-center justify-center gap-4">
                         <div className="text-center">
-                          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Orig</p>
+                          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Orig</p>
                           <span className="text-xs font-mono font-bold text-slate-500">{displayOrigKey}</span>
                         </div>
                         <div className="flex flex-col items-center">
-                          <ArrowRight className="w-3 h-3 text-slate-300 mb-1" />
+                          <ArrowRight className="w-3 h-3 text-slate-300 mb-0.5" />
                           <div className="h-px w-8 bg-slate-100 dark:bg-slate-800" />
                         </div>
                         <div className="text-center relative">
-                          <p className="text-[8px] font-black text-indigo-500 uppercase tracking-widest mb-1">Stage</p>
+                          <p className="text-[8px] font-black text-indigo-500 uppercase tracking-widest mb-0.5">Stage</p>
                           <div className={cn(
                             "font-mono font-black text-xs px-2.5 py-1 rounded-lg shadow-lg flex items-center gap-1.5",
                             song.isKeyConfirmed 
@@ -356,7 +356,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       </div>
                     </td>
 
-                    <td className="py-6 px-6 text-right pr-10">
+                    <td className="py-3 px-6 text-right pr-10">
                       <div className="flex items-center justify-end gap-2">
                         <Button 
                           size="sm" 
