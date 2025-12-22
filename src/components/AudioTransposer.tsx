@@ -7,7 +7,7 @@ import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Play, Pause, RotateCcw, Upload, Volume2, Info, Waves, Settings2, Gauge, Activity, Link as LinkIcon, Globe, Search } from 'lucide-react';
+import { Play, Pause, RotateCcw, Upload, Volume2, Info, Waves, Settings2, Gauge, Activity, Link as LinkIcon, Globe, Search, Youtube } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import AudioVisualizer from './AudioVisualizer';
@@ -28,6 +28,7 @@ const AudioTransposer = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [url, setUrl] = useState("");
   const [isLoadingUrl, setIsLoadingUrl] = useState(false);
+  const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
 
   const playerRef = useRef<Tone.GrainPlayer | null>(null);
   const limiterRef = useRef<Tone.Limiter | null>(null);
@@ -68,7 +69,13 @@ const AudioTransposer = () => {
     };
   }, []);
 
-  const loadAudioBuffer = async (audioBuffer: AudioBuffer, identifier: string) => {
+  const getYoutubeId = (url: string) => {
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+  };
+
+  const loadAudioBuffer = async (audioBuffer: AudioBuffer, identifier: string, youtubeUrl?: string) => {
     try {
       if (playerRef.current) playerRef.current.dispose();
 
@@ -84,6 +91,13 @@ const AudioTransposer = () => {
       setProgress(0);
       offsetRef.current = 0;
       setIsPlaying(false);
+      
+      if (youtubeUrl) {
+        setActiveVideoId(getYoutubeId(youtubeUrl));
+      } else {
+        setActiveVideoId(null);
+      }
+
       showSuccess("Engine Ready: " + (identifier.length > 20 ? identifier.substring(0, 20) + "..." : identifier));
     } catch (err) {
       showError("Engine initialization failed.");
@@ -100,14 +114,14 @@ const AudioTransposer = () => {
     loadAudioBuffer(audioBuffer, uploadedFile.name);
   };
 
-  const loadFromUrl = async (targetUrl: string, name?: string) => {
+  const loadFromUrl = async (targetUrl: string, name?: string, youtubeUrl?: string) => {
     setIsLoadingUrl(true);
     try {
       const response = await fetch(targetUrl);
       if (!response.ok) throw new Error("Could not fetch file");
       const arrayBuffer = await response.arrayBuffer();
       const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
-      loadAudioBuffer(audioBuffer, name || targetUrl.split('/').pop() || "Remote Audio");
+      loadAudioBuffer(audioBuffer, name || targetUrl.split('/').pop() || "Remote Audio", youtubeUrl);
       if (!name) setUrl("");
     } catch (err) {
       showError("Failed to load audio. Ensure it is a direct link with CORS enabled.");
@@ -268,7 +282,7 @@ const AudioTransposer = () => {
                 </Button>
               </TooltipTrigger>
               <TooltipContent className="max-w-xs">
-                <p>Streaming services are DRM-protected. Use Search to load high-quality previews, or upload full files for complete sessions.</p>
+                <p>Streaming services are DRM-protected. Use Search to load high-quality previews with optional YouTube visual association.</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -284,7 +298,7 @@ const AudioTransposer = () => {
           </TabsList>
           
           <TabsContent value="search" className="space-y-4">
-            <SongSearch onSelectSong={(url, name) => loadFromUrl(url, name)} />
+            <SongSearch onSelectSong={(url, name, yt) => loadFromUrl(url, name, yt)} />
           </TabsContent>
 
           <TabsContent value="upload">
@@ -337,13 +351,26 @@ const AudioTransposer = () => {
                 {isLoadingUrl ? <Activity className="w-4 h-4 animate-spin" /> : "Fetch"}
               </Button>
             </div>
-            <p className="text-[10px] text-muted-foreground text-center italic">Requires a direct link to a file hosted on a CORS-enabled server.</p>
           </TabsContent>
         </Tabs>
 
         {file && (
           <div className="space-y-8 animate-in fade-in zoom-in-95 duration-300 border-t pt-6">
-            <div className="flex flex-col items-center gap-4">
+            <div className="flex flex-col items-center gap-6">
+              {activeVideoId && (
+                <div className="w-full aspect-video rounded-xl overflow-hidden shadow-lg border-b-4 border-red-600 bg-black">
+                  <iframe 
+                    width="100%" 
+                    height="100%" 
+                    src={`https://www.youtube.com/embed/${activeVideoId}`}
+                    title="YouTube video player" 
+                    frameBorder="0" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                    allowFullScreen
+                  />
+                </div>
+              )}
+              
               <div className="w-full">
                 <AudioVisualizer analyzer={analyzerRef.current} isActive={isPlaying} />
               </div>
@@ -420,7 +447,10 @@ const AudioTransposer = () => {
                 </div>
 
                 <div className="pt-4 border-t flex items-center justify-between">
-                  <span className="text-[9px] font-bold text-indigo-600 uppercase">Phase Preservation</span>
+                  <div className="flex items-center gap-2">
+                    <Youtube className="w-3 h-3 text-red-600" />
+                    <span className="text-[9px] font-bold text-indigo-600 uppercase">YouTube Link Active</span>
+                  </div>
                   <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
                 </div>
               </div>
