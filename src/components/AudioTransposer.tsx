@@ -20,9 +20,12 @@ const AudioTransposer = () => {
   const playerRef = useRef<Tone.Player | null>(null);
   const pitchShiftRef = useRef<Tone.PitchShift | null>(null);
   const requestRef = useRef<number>();
+  
+  // Refs for tracking progress manually
+  const playbackStartTimeRef = useRef<number>(0);
+  const offsetRef = useRef<number>(0);
 
   useEffect(() => {
-    // Initialize Tone.js nodes
     pitchShiftRef.current = new Tone.PitchShift(0).toDestination();
     
     return () => {
@@ -54,6 +57,7 @@ const AudioTransposer = () => {
       setFile(uploadedFile);
       setDuration(audioBuffer.duration);
       setProgress(0);
+      offsetRef.current = 0;
       setIsPlaying(false);
       showSuccess("Audio loaded successfully!");
     } catch (err) {
@@ -61,6 +65,35 @@ const AudioTransposer = () => {
       console.error(err);
     }
   };
+
+  const animateProgress = () => {
+    if (isPlaying && playerRef.current) {
+      const elapsed = Tone.now() - playbackStartTimeRef.current;
+      const currentSeconds = offsetRef.current + elapsed;
+      const newProgress = (currentSeconds / duration) * 100;
+      
+      if (currentSeconds >= duration) {
+        setIsPlaying(false);
+        setProgress(0);
+        offsetRef.current = 0;
+        return;
+      }
+      
+      setProgress(newProgress);
+      requestRef.current = requestAnimationFrame(animateProgress);
+    }
+  };
+
+  useEffect(() => {
+    if (isPlaying) {
+      requestRef.current = requestAnimationFrame(animateProgress);
+    } else if (requestRef.current) {
+      cancelAnimationFrame(requestRef.current);
+    }
+    return () => {
+      if (requestRef.current) cancelAnimationFrame(requestRef.current);
+    };
+  }, [isPlaying]);
 
   const togglePlayback = async () => {
     if (!playerRef.current) return;
@@ -71,13 +104,16 @@ const AudioTransposer = () => {
 
     if (isPlaying) {
       playerRef.current.stop();
+      // Store where we stopped
+      const elapsed = Tone.now() - playbackStartTimeRef.current;
+      offsetRef.current += elapsed;
       setIsPlaying(false);
     } else {
-      // Start from current progress percentage
       const startTime = (progress / 100) * duration;
+      offsetRef.current = startTime;
+      playbackStartTimeRef.current = Tone.now();
       playerRef.current.start(0, startTime);
       setIsPlaying(true);
-      animateProgress();
     }
   };
 
@@ -86,22 +122,7 @@ const AudioTransposer = () => {
       playerRef.current.stop();
       setIsPlaying(false);
       setProgress(0);
-    }
-  };
-
-  const animateProgress = () => {
-    if (playerRef.current && isPlaying) {
-      const currentSeconds = playerRef.current.seconds;
-      const newProgress = (currentSeconds / duration) * 100;
-      
-      if (newProgress >= 100) {
-        setIsPlaying(false);
-        setProgress(0);
-        return;
-      }
-      
-      setProgress(newProgress);
-      requestRef.current = requestAnimationFrame(animateProgress);
+      offsetRef.current = 0;
     }
   };
 
@@ -124,10 +145,13 @@ const AudioTransposer = () => {
   const handleSeek = (values: number[]) => {
     const newProgress = values[0];
     setProgress(newProgress);
+    const newOffset = (newProgress / 100) * duration;
+    offsetRef.current = newOffset;
+    
     if (isPlaying && playerRef.current) {
       playerRef.current.stop();
-      const startTime = (newProgress / 100) * duration;
-      playerRef.current.start(0, startTime);
+      playbackStartTimeRef.current = Tone.now();
+      playerRef.current.start(0, newOffset);
     }
   };
 
@@ -143,7 +167,6 @@ const AudioTransposer = () => {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-8">
-        {/* Upload Area */}
         <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-xl transition-colors hover:bg-accent/50 group relative">
           <input
             type="file"
@@ -160,7 +183,6 @@ const AudioTransposer = () => {
 
         {file && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Playback Controls */}
             <div className="flex items-center justify-center gap-4">
               <Button
                 variant="outline"
@@ -177,13 +199,12 @@ const AudioTransposer = () => {
               >
                 {isPlaying ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8 ml-1" />}
               </Button>
-              <div className="w-10" /> {/* Spacer to balance UI */}
+              <div className="w-10" />
             </div>
 
-            {/* Progress Slider */}
             <div className="space-y-2">
               <div className="flex justify-between text-xs text-muted-foreground font-mono">
-                <span>{new Date(progress/100 * duration * 1000).toISOString().substr(14, 5)}</span>
+                <span>{new Date((progress/100 * duration) * 1000).toISOString().substr(14, 5)}</span>
                 <span>{new Date(duration * 1000).toISOString().substr(14, 5)}</span>
               </div>
               <Slider
@@ -196,7 +217,6 @@ const AudioTransposer = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
-              {/* Pitch Control */}
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <Label className="text-sm font-bold">Pitch Shift (Semitones)</Label>
@@ -218,7 +238,6 @@ const AudioTransposer = () => {
                 </div>
               </div>
 
-              {/* Volume Control */}
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <Label className="text-sm font-bold flex items-center gap-2">
