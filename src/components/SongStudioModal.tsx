@@ -71,8 +71,9 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const playbackStartTimeRef = useRef<number>(0);
   const playbackOffsetRef = useRef<number>(0);
 
+  // Sync internal state with the song prop whenever it changes (e.g. after a save)
   useEffect(() => {
-    if (song) {
+    if (song && isOpen) {
       setFormData({
         name: song.name || "",
         artist: song.artist || "",
@@ -95,15 +96,16 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     return () => cleanupAudio();
   }, [song, isOpen]);
 
+  // Debounced auto-save for text inputs
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
-  useEffect(() => {
-    if (!song || !isOpen) return;
+  const handleAutoSave = (updates: Partial<SetlistSong>) => {
+    setFormData(prev => ({ ...prev, ...updates }));
+    
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(() => {
-      onSave(song.id, formData);
+      if (song) onSave(song.id, updates);
     }, 1000);
-    return () => clearTimeout(saveTimeoutRef.current);
-  }, [formData, song?.id, isOpen]);
+  };
 
   const cleanupAudio = () => {
     if (playerRef.current) {
@@ -120,6 +122,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
 
   const prepareAudio = async (url: string, pitch: number) => {
     try {
+      if (url === currentBufferRef.current?.toString()) return; // Already loaded
       cleanupAudio();
       if (Tone.getContext().state !== 'running') await Tone.start();
       
@@ -152,7 +155,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     try {
       const bpm = await analyze(currentBufferRef.current);
       const roundedBpm = Math.round(bpm);
-      setFormData(prev => ({ ...prev, bpm: roundedBpm.toString() }));
+      handleAutoSave({ bpm: roundedBpm.toString() });
       showSuccess(`Detected Tempo: ${roundedBpm} BPM`);
     } catch (err) {
       showError("Could not determine tempo.");
@@ -215,7 +218,11 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       const { data: { publicUrl } } = supabase.storage.from('audio_tracks').getPublicUrl(fileName);
       
       const update = isAudio ? { previewUrl: publicUrl } : { pdfUrl: publicUrl };
+      
+      // Save IMMEDIATELY to parent state for uploads
+      onSave(song.id, update);
       setFormData(prev => ({ ...prev, ...update }));
+      
       if (isAudio) prepareAudio(publicUrl, formData.pitch || 0);
       showSuccess(`Uploaded ${file.name}`);
     } catch (err) {
@@ -226,50 +233,30 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   };
 
   const addTag = () => {
-    if (!newTag.trim()) return;
+    if (!newTag.trim() || !song) return;
     const currentTags = formData.user_tags || [];
     if (!currentTags.includes(newTag.trim())) {
-      setFormData(prev => ({ ...prev, user_tags: [...currentTags, newTag.trim()] }));
+      const updated = [...currentTags, newTag.trim()];
+      handleAutoSave({ user_tags: updated });
     }
     setNewTag("");
   };
 
   const removeTag = (tag: string) => {
-    setFormData(prev => ({ 
-      ...prev, 
-      user_tags: (prev.user_tags || []).filter(t => t !== tag) 
-    }));
+    if (!song) return;
+    const updated = (formData.user_tags || []).filter(t => t !== tag);
+    handleAutoSave({ user_tags: updated });
   };
 
   const toggleResource = (id: string) => {
+    if (!song) return;
     const current = formData.resources || [];
     const updated = current.includes(id) ? current.filter(rid => rid !== id) : [...current, id];
-    setFormData(prev => ({ ...prev, resources: updated }));
-  };
-
-  const handleDownloadAll = () => {
-    const links = [
-      { url: formData.previewUrl, name: `${formData.name}_Audio` },
-      { url: formData.pdfUrl, name: `${formData.name}_Chart` },
-      { url: formData.youtubeUrl, name: `${formData.name}_Reference` }
-    ].filter(l => !!l.url);
-
-    if (links.length === 0) {
-      showError("No downloadable assets found.");
-      return;
-    }
-
-    links.forEach(link => {
-      const a = document.createElement('a');
-      a.href = link.url!;
-      a.download = link.name;
-      a.target = '_blank';
-      a.click();
-    });
-    showSuccess(`Started download for ${links.length} assets.`);
+    handleAutoSave({ resources: updated });
   };
 
   const updateHarmonics = (updates: Partial<SetlistSong>) => {
+    if (!song) return;
     setFormData(prev => {
       const next = { ...prev, ...updates };
       const isLinked = next.isKeyLinked ?? true;
@@ -280,6 +267,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         if (playerRef.current) playerRef.current.detune = diff * 100;
       }
       
+      onSave(song.id, next); // Save harmonic changes immediately
       return next;
     });
   };
@@ -509,6 +497,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                            onValueChange={(v) => {
                              setFormData(prev => ({ ...prev, pitch: v[0] }));
                              if (playerRef.current) playerRef.current.detune = v[0] * 100;
+                             if (song) onSave(song.id, { pitch: v[0] });
                            }} 
                          />
                        </div>
@@ -535,7 +524,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       <Input 
                         placeholder="Manual override BPM..." 
                         value={formData.bpm || ""}
-                        onChange={(e) => setFormData(prev => ({ ...prev, bpm: e.target.value }))}
+                        onChange={(e) => handleAutoSave({ bpm: e.target.value })}
                         className="bg-white/5 border-white/10 font-mono text-indigo-400 h-12"
                       />
                     </div>
@@ -562,7 +551,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Performance Title</Label>
                       <Input 
                         value={formData.name || ""} 
-                        onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                        onChange={(e) => handleAutoSave({ name: e.target.value })}
                         className="bg-white/5 border-white/10 text-xl font-black h-14"
                       />
                     </div>
@@ -570,7 +559,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Primary Artist</Label>
                       <Input 
                         value={formData.artist || ""} 
-                        onChange={(e) => setFormData(prev => ({ ...prev, artist: e.target.value }))}
+                        onChange={(e) => handleAutoSave({ artist: e.target.value })}
                         className="bg-white/5 border-white/10 text-xl font-black h-14"
                       />
                     </div>
@@ -583,7 +572,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                         <Input 
                           placeholder="Paste sheet music URL..." 
                           value={formData.pdfUrl || ""}
-                          onChange={(e) => setFormData(prev => ({ ...prev, pdfUrl: e.target.value }))}
+                          onChange={(e) => handleAutoSave({ pdfUrl: e.target.value })}
                           className="bg-white/5 border-white/10 font-bold"
                         />
                         <Button variant="ghost" className="bg-white/5 h-10 w-10 p-0" onClick={() => window.open(formData.pdfUrl, '_blank')}>
@@ -615,7 +604,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                     <Textarea 
                       placeholder="Cues, transitions, dynamics..."
                       value={formData.notes || ""}
-                      onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                      onChange={(e) => handleAutoSave({ notes: e.target.value })}
                       className="min-h-[250px] bg-white/5 border-white/10 text-sm leading-relaxed"
                     />
                   </div>
@@ -630,7 +619,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                        <Input 
                          placeholder="YouTube URL..." 
                          value={formData.youtubeUrl || ""}
-                         onChange={(e) => setFormData(prev => ({ ...prev, youtubeUrl: e.target.value }))}
+                         onChange={(e) => handleAutoSave({ youtubeUrl: e.target.value })}
                          className="bg-white/5 border-white/10 text-xs w-96 h-10"
                        />
                     </div>
@@ -657,7 +646,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                              <p className="text-[10px] text-slate-400 mt-1">This video will be available as a visual reference during live sets.</p>
                            </div>
                         </div>
-                        <Button variant="ghost" onClick={() => setFormData(prev => ({ ...prev, youtubeUrl: "" }))} className="text-red-400 text-[10px] font-black uppercase hover:bg-red-500/10">Disconnect Link</Button>
+                        <Button variant="ghost" onClick={() => handleAutoSave({ youtubeUrl: "" })} className="text-red-400 text-[10px] font-black uppercase hover:bg-red-500/10">Disconnect Link</Button>
                       </div>
                     </div>
                   ) : (
