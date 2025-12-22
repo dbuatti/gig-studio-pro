@@ -19,7 +19,8 @@ import {
   FileDown, Headphones, Wand2, Download,
   Globe, Eye, Link as LinkIcon, RotateCcw,
   Zap, Disc, VolumeX, Smartphone, Printer, Search,
-  ClipboardPaste, AlignLeft, Apple, Hash, Music2
+  ClipboardPaste, AlignLeft, Apple, Hash, Music2,
+  ChevronUp, ChevronDown, Copy, SmartphoneNfc
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import AudioVisualizer from './AudioVisualizer';
@@ -363,12 +364,17 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     setFormData(prev => {
       const next = { ...prev, ...updates };
       
-      // Only recalculate pitch if keys explicitly change or linking is newly enabled
-      if (updates.hasOwnProperty('isKeyLinked') || updates.hasOwnProperty('originalKey') || updates.hasOwnProperty('targetKey')) {
+      if (updates.hasOwnProperty('isKeyLinked')) {
         if (next.isKeyLinked) {
           const diff = calculateSemitones(next.originalKey || "C", next.targetKey || "C");
           next.pitch = diff;
+        } else {
+          next.pitch = 0;
         }
+      } 
+      else if (next.isKeyLinked) {
+        const diff = calculateSemitones(next.originalKey || "C", next.targetKey || "C");
+        next.pitch = diff;
       }
       
       if (playerRef.current) {
@@ -513,6 +519,24 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     showSuccess("Assets downloaded");
   };
 
+  const handleCopyForOnSong = () => {
+    const displayKey = formatKey(formData.targetKey || formData.originalKey, currentKeyPreference);
+    const content = [
+      `Title: ${formData.name}`,
+      `Artist: ${formData.artist}`,
+      `Key: ${displayKey}`,
+      `Tempo: ${formData.bpm}`,
+      "",
+      formData.lyrics || "No lyrics provided."
+    ].join('\n');
+
+    navigator.clipboard.writeText(content).then(() => {
+      showSuccess("Formatted for OnSong Clipboard Import");
+    }).catch(() => {
+      showError("Clipboard access failed.");
+    });
+  };
+
   if (!song) return null;
   const videoId = formData.youtubeUrl ? formData.youtubeUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)?.[1] : null;
 
@@ -631,7 +655,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                             onClick={() => updateHarmonics({ isKeyLinked: !formData.isKeyLinked })}
                             className={cn(
                               "p-1.5 rounded-lg border transition-all",
-                              formData.isKeyLinked ? "bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/20" : "bg-white/5 border-white/10 text-slate-500"
+                              formData.isKeyLinked ? "bg-indigo-600 border-indigo-500 text-white shadow-lg" : "bg-white/5 border-white/10 text-slate-500"
                             )}
                           >
                             <LinkIcon className="w-3.5 h-3.5" />
@@ -1186,9 +1210,18 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       <h3 className="text-lg font-black uppercase tracking-[0.3em] text-indigo-400">Resource Matrix</h3>
                       <p className="text-sm text-slate-500 mt-2">Centralized management for all song assets and links.</p>
                     </div>
-                    <Button onClick={handleDownloadAll} className="bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-xs h-12 gap-3 px-8 rounded-2xl shadow-xl shadow-indigo-500/20">
-                      <Download className="w-4 h-4" /> Download All Assets
-                    </Button>
+                    <div className="flex gap-3">
+                      <Button 
+                        onClick={handleCopyForOnSong} 
+                        variant="outline"
+                        className="bg-indigo-600/10 border-indigo-600/20 text-indigo-400 hover:bg-indigo-600 hover:text-white font-black uppercase tracking-widest text-[10px] h-12 gap-3 px-8 rounded-2xl transition-all"
+                      >
+                        <SmartphoneNfc className="w-4 h-4" /> Copy for OnSong
+                      </Button>
+                      <Button onClick={handleDownloadAll} className="bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-xs h-12 gap-3 px-8 rounded-2xl shadow-xl shadow-indigo-500/20">
+                        <Download className="w-4 h-4" /> Download All
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-8">
