@@ -6,6 +6,8 @@ import { Search, Library, Music } from 'lucide-react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SetlistSong } from './SetlistManager';
 import { cn } from "@/lib/utils";
+import { formatKey } from '@/utils/keyUtils';
+import { useSettings } from '@/hooks/use-settings';
 
 interface MyLibraryProps {
   repertoire: SetlistSong[];
@@ -13,6 +15,7 @@ interface MyLibraryProps {
 }
 
 const MyLibrary: React.FC<MyLibraryProps> = ({ repertoire, onAddSong }) => {
+  const { keyPreference } = useSettings();
   const [query, setQuery] = useState("");
 
   const filteredRepertoire = useMemo(() => {
@@ -50,22 +53,35 @@ const MyLibrary: React.FC<MyLibraryProps> = ({ repertoire, onAddSong }) => {
       {uniqueSongs.length > 0 ? (
         <ScrollArea className="h-[550px]">
           <div className="divide-y divide-slate-200 dark:divide-slate-800 border-t border-slate-200 dark:border-slate-800">
-            {uniqueSongs.map((song) => (
-              <button 
-                key={song.id} 
-                onClick={() => onAddSong(song)}
-                className="w-full flex items-center gap-2 p-3 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors text-left group"
-              >
-                <Music className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-500 shrink-0" />
-                <div className="flex items-center gap-2 min-w-0 overflow-hidden">
-                  <span className="text-[11px] font-black uppercase tracking-tight truncate">{song.name}</span>
-                  <span className="text-slate-300 dark:text-slate-700 text-[10px]">|</span>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">
-                    {song.artist || "Unknown Artist"}
-                  </span>
-                </div>
-              </button>
-            ))}
+            {uniqueSongs.map((song) => {
+              const displayKey = formatKey(song.targetKey || song.originalKey, keyPreference);
+              return (
+                <button 
+                  key={song.id} 
+                  onClick={() => onAddSong(song)}
+                  className="w-full flex items-center justify-between p-3 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors text-left group"
+                >
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <Music className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-500 shrink-0" />
+                    <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+                      <span className="text-[11px] font-black uppercase tracking-tight truncate">{song.name}</span>
+                      <span className="text-slate-300 dark:text-slate-700 text-[10px]">|</span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">
+                        {song.artist || "Unknown Artist"}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {displayKey !== "TBC" && (
+                    <div className="ml-3 shrink-0">
+                      <span className="text-[9px] font-mono font-black bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full border border-indigo-100 dark:border-indigo-900/50">
+                        {displayKey}
+                      </span>
+                    </div>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </ScrollArea>
       ) : (
