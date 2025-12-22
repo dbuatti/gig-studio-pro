@@ -10,7 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { showSuccess, showError } from '@/utils/toast';
-import { Camera, Copy, Globe, Palette, User, Loader2, ArrowLeft, RotateCcw, Sparkles, ExternalLink } from 'lucide-react';
+import { Camera, Copy, Globe, Palette, User, Loader2, ArrowLeft, RotateCcw, Sparkles, ExternalLink, CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import PublicRepertoireView from '@/components/PublicRepertoireView';
 import { cn } from '@/lib/utils';
@@ -36,18 +36,16 @@ const Profile = () => {
     if (!user) return;
     
     try {
-      // First, attempt to get the profile
       let { data: profileData, error: pError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .maybeSingle();
 
-      // If no profile exists (unlikely now with the SQL fix, but good for safety)
       if (!profileData && !pError) {
         const { data: newData, error: iError } = await supabase
           .from('profiles')
-          .insert([{ id: user.id, first_name: user.email?.split('@')[0] }])
+          .insert([{ id: user.id, first_name: user.email?.split('@')[0], repertoire_threshold: 0 }])
           .select()
           .single();
         
@@ -148,6 +146,8 @@ const Profile = () => {
     </div>
   );
 
+  const thresholdFilteredSongs = songs.filter(s => (s.readiness_score || 0) >= (profile?.repertoire_threshold || 0));
+
   return (
     <div className="h-screen bg-slate-950 text-white flex overflow-hidden">
       {/* Configuration Column */}
@@ -243,6 +243,33 @@ const Profile = () => {
 
             <div className="space-y-4">
               <div className="space-y-2 px-1">
+                <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Visibility Threshold</Label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[0, 50, 75, 100].map((val) => (
+                    <Button
+                      key={val}
+                      variant="ghost"
+                      onClick={() => {
+                        handleUpdateLocal({ repertoire_threshold: val });
+                        saveToDatabase({ repertoire_threshold: val });
+                      }}
+                      className={cn(
+                        "h-10 text-[10px] font-black border uppercase rounded-xl transition-all",
+                        profile?.repertoire_threshold === val 
+                          ? "bg-indigo-600 border-indigo-500 text-white shadow-lg" 
+                          : "bg-white/5 border-white/5 text-slate-500 hover:text-white"
+                      )}
+                    >
+                      {val === 0 ? 'ALL' : `>${val}%`}
+                    </Button>
+                  ))}
+                </div>
+                <p className="text-[9px] text-slate-500 font-bold uppercase mt-2 px-1">
+                  Only showing {thresholdFilteredSongs.length} of {songs.length} songs based on readiness.
+                </p>
+              </div>
+
+              <div className="space-y-2 px-1 pt-4">
                 <Label className="text-[9px] font-bold text-slate-500 uppercase">Unique Repertoire Slug</Label>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
@@ -378,7 +405,7 @@ const Profile = () => {
 
           <div className="flex-1 bg-slate-900 rounded-[2.5rem] border-4 border-white/10 shadow-2xl overflow-hidden relative">
             {profile?.is_repertoire_public ? (
-              <PublicRepertoireView profile={profile} songs={songs} isPreview />
+              <PublicRepertoireView profile={profile} songs={thresholdFilteredSongs} isPreview />
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-md text-center p-12">
                 <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-6">

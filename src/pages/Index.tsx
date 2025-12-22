@@ -15,7 +15,7 @@ import { calculateSemitones } from '@/utils/keyUtils';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { LogOut, User as UserIcon, Loader2, Play, Music, LayoutDashboard, Search as SearchIcon, Rocket, Hash, Music2, Settings, Sparkles, RefreshCw } from 'lucide-react';
+import { LogOut, User as UserIcon, Loader2, Play, Music, LayoutDashboard, Search as SearchIcon, Rocket, Hash, Music2, Settings, Sparkles, RefreshCw, Library } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { useSettings } from '@/hooks/use-settings';
 
@@ -31,6 +31,7 @@ const Index = () => {
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [performanceState, setPerformanceState] = useState({ progress: 0, duration: 0 });
   const [isPlayerActive, setIsPlayerActive] = useState(false);
+  const [isBulkSyncing, setIsBulkSyncing] = useState(false);
   
   const [syncQueue, setSyncQueue] = useState<string[]>([]);
   const [isProcessingQueue, setIsProcessingQueue] = useState(false);
@@ -122,6 +123,48 @@ const Index = () => {
       }
     } catch (err) {
       console.error("Fetch error", err);
+    }
+  };
+
+  const getReadinessScore = (song: SetlistSong) => {
+    let score = 0;
+    const isItunes = song.previewUrl?.includes('apple.com') || song.previewUrl?.includes('itunes-assets');
+    if (song.previewUrl && !isItunes) score += 25;
+    if (song.isKeyConfirmed) score += 20;
+    if (song.lyrics && song.lyrics.length > 20) score += 15;
+    if (song.pdfUrl || song.leadsheetUrl) score += 15;
+    if (song.ugUrl) score += 10;
+    if (song.bpm) score += 5;
+    if (song.notes && song.notes.length > 10) score += 5;
+    if (song.artist && song.artist !== "Unknown Artist") score += 5;
+    return score;
+  };
+
+  const handleBulkRepertoireSync = async () => {
+    if (!songs.length || !user) return;
+    setIsBulkSyncing(true);
+    try {
+      const repertoireData = songs.map(song => ({
+        user_id: user.id,
+        title: song.name,
+        artist: song.artist || 'Unknown Artist',
+        original_key: song.originalKey,
+        bpm: song.bpm,
+        genre: song.genre || (song.user_tags?.[0]),
+        readiness_score: getReadinessScore(song),
+        is_active: true
+      }));
+
+      const { error } = await supabase
+        .from('repertoire')
+        .upsert(repertoireData, { onConflict: 'user_id,title,artist' });
+
+      if (error) throw error;
+      showSuccess(`Sync Complete: ${songs.length} songs pushed to Master.`);
+    } catch (err) {
+      showError("Bulk sync failed.");
+    } finally {
+      setIsBulkSyncing(false);
     }
   };
 
@@ -218,15 +261,11 @@ const Index = () => {
 
   const handleSyncAll = () => {
     if (!currentListId || songs.length === 0) return;
-    
-    // Identify songs that haven't been confirmed or are missing key data
     const songsToSync = songs.filter(s => !s.isMetadataConfirmed || !s.bpm || s.originalKey === 'TBC');
-    
     if (songsToSync.length === 0) {
       showSuccess("All songs are already synced and confirmed.");
       return;
     }
-
     setSyncQueue(prev => [...new Set([...prev, ...songsToSync.map(s => s.id)])]);
     showSuccess(`Queueing ${songsToSync.length} songs for AI metadata enrichment...`);
   };
@@ -378,7 +417,7 @@ const Index = () => {
             <div className="bg-indigo-600 p-1.5 rounded-lg text-white">
               <LayoutDashboard className="w-5 h-5" />
             </div>
-            <span className="font-black uppercase tracking-tighter text-lg">Gig Studio <span className="text-indigo-600">Pro</span></span>
+            <span className="font-black uppercase tracking-tighter text-lg text-slate-900 dark:text-white">Gig Studio <span className="text-indigo-600">Pro</span></span>
           </div>
           <SetlistSelector 
             setlists={setlists} 
@@ -446,7 +485,7 @@ const Index = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase">{currentList?.name}</h2>
-                <div className="flex items-center gap-3 mt-1">
+                <div className="flex items-center gap-4 mt-1">
                   <p className="text-slate-500 text-sm font-medium">{songs.length} Tracks</p>
                   <div className="h-1 w-1 rounded-full bg-slate-300" />
                   <button 
@@ -455,7 +494,16 @@ const Index = () => {
                     className="text-[10px] font-black uppercase text-indigo-600 hover:text-indigo-500 flex items-center gap-1.5 transition-colors disabled:opacity-50"
                   >
                     {syncQueue.length > 0 ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-                    Sync All Metadata
+                    Enrich Metatada
+                  </button>
+                  <div className="h-1 w-1 rounded-full bg-slate-300" />
+                  <button 
+                    onClick={handleBulkRepertoireSync}
+                    disabled={isBulkSyncing || !songs.length}
+                    className="text-[10px] font-black uppercase text-emerald-600 hover:text-emerald-500 flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                  >
+                    {isBulkSyncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Library className="w-3 h-3" />}
+                    Push to Public Master
                   </button>
                 </div>
               </div>

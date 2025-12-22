@@ -29,11 +29,14 @@ const PublicRepertoire = () => {
       if (pError) throw pError;
       setProfile(profileData);
 
+      const threshold = profileData.repertoire_threshold || 0;
+
       const { data: songData, error: sError } = await supabase
         .from('repertoire')
         .select('*')
         .eq('user_id', profileData.id)
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .gte('readiness_score', threshold);
 
       if (sError) throw sError;
       setSongs(songData || []);
