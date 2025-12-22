@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +19,8 @@ import {
   FileDown, Headphones, Wand2, Download,
   Globe, Eye, Link as LinkIcon, RotateCcw,
   Zap, Disc, VolumeX, Smartphone, Printer, Search,
-  ClipboardPaste, AlignLeft, Apple, Hash, Music2
+  ClipboardPaste, AlignLeft, Apple, Hash, Music2,
+  ShieldCheck
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import AudioVisualizer from './AudioVisualizer';
@@ -89,6 +90,25 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   // Use song-specific preference if it exists, otherwise global
   const currentKeyPreference = formData.key_preference || globalPreference;
   const keysToUse = currentKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
+
+  // Calculate Readiness Score
+  const readiness = useMemo(() => {
+    let score = 0;
+    const isItunes = formData.previewUrl?.includes('apple.com') || formData.previewUrl?.includes('itunes-assets');
+    
+    if (formData.previewUrl && !isItunes) score += 25; // Master Audio
+    if (formData.isKeyConfirmed) score += 20; // Key Confirmed
+    if (formData.lyrics?.length && formData.lyrics.length > 20) score += 15; // Lyrics
+    if (formData.pdfUrl || formData.leadsheetUrl) score += 15; // Charts
+    if (formData.ugUrl) score += 10; // UG Link
+    if (formData.bpm) score += 5; // BPM Set
+    if (formData.notes?.length && formData.notes.length > 10) score += 5; // Notes
+    if (formData.artist && formData.artist !== "Unknown Artist") score += 5; // Artist metadata
+
+    return Math.min(100, score);
+  }, [formData]);
+
+  const readinessColor = readiness === 100 ? 'bg-emerald-500' : readiness > 60 ? 'bg-indigo-500' : 'bg-slate-500';
 
   useEffect(() => {
     if (song && isOpen) {
@@ -487,11 +507,19 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent 
-        className="max-w-[95vw] w-[1400px] p-0 overflow-hidden border-none shadow-2xl bg-slate-950 text-white rounded-[2rem]"
+        className="max-w-[95vw] w-[1400px] p-0 overflow-hidden border-none shadow-2xl bg-slate-950 text-white rounded-[2rem] relative"
         onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
         onDragLeave={() => setIsDragOver(false)}
         onDrop={handleDrop}
       >
+        {/* Discrete Top Readiness Strip */}
+        <div className="absolute top-0 left-0 right-0 h-0.5 bg-white/5 z-50">
+          <div 
+            className={cn("h-full transition-all duration-1000", readinessColor)} 
+            style={{ width: `${readiness}%` }} 
+          />
+        </div>
+
         <DialogHeader className="sr-only">
           <DialogTitle>{formData.name || "Song Studio"}</DialogTitle>
           <DialogDescription>Configure song metadata, assets, and harmonic settings.</DialogDescription>
@@ -523,15 +551,22 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                   </div>
                   <span className="font-black uppercase tracking-tighter text-xs">Pro Studio Config</span>
                 </div>
-                <Button 
-                  onClick={handleProSync} 
-                  className="bg-indigo-600 hover:bg-indigo-700 h-8 px-3 text-[9px] font-black uppercase tracking-widest gap-2 shadow-lg shadow-indigo-600/20"
-                >
-                  <Sparkles className="w-3 h-3" /> Pro Sync
-                </Button>
+                
+                {/* Minimalist Readiness Gauge */}
+                <div className="flex items-center gap-2 px-2.5 py-1 bg-white/5 rounded-full border border-white/10">
+                   <div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", readinessColor)} />
+                   <span className="text-[9px] font-black font-mono text-slate-400">{readiness}% READY</span>
+                </div>
               </div>
               <h2 className="text-3xl font-black uppercase tracking-tight leading-none mb-1 truncate">{formData.name || ""}</h2>
               <p className="text-xs font-black text-indigo-400 uppercase tracking-widest truncate">{formData.artist || "Unknown Artist"}</p>
+              
+              <div className="mt-4 flex items-center gap-2">
+                <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden">
+                  <div className={cn("h-full transition-all duration-700", readinessColor)} style={{ width: `${readiness}%` }} />
+                </div>
+                <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Stability Index</span>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-8 space-y-10">
@@ -584,7 +619,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                             onClick={() => updateHarmonics({ isKeyLinked: !formData.isKeyLinked })}
                             className={cn(
                               "p-1.5 rounded-lg border transition-all",
-                              formData.isKeyLinked ? "bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/20" : "bg-white/5 border-white/10 text-slate-500"
+                              formData.isKeyLinked ? "bg-indigo-600 border-indigo-500 text-white shadow-lg" : "bg-white/5 border-white/10 text-slate-500"
                             )}
                           >
                             <LinkIcon className="w-3.5 h-3.5" />
@@ -688,7 +723,14 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                 <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
                 Live Sync: ON
               </div>
-              <span>PRO V2.5</span>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleProSync} 
+                className="h-6 px-2 text-[8px] font-black uppercase text-indigo-400 hover:text-indigo-300"
+              >
+                PRO V2.5-AUTO
+              </Button>
             </div>
           </div>
 
@@ -1104,7 +1146,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       <h3 className="text-lg font-black uppercase tracking-[0.3em] text-indigo-400">Resource Matrix</h3>
                       <p className="text-sm text-slate-500 mt-2">Centralized management for all song assets and links.</p>
                     </div>
-                    <Button onClick={handleDownloadAll} className="bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-xs h-12 gap-3 px-8 rounded-2xl shadow-xl shadow-indigo-600/20">
+                    <Button onClick={handleDownloadAll} className="bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-xs h-12 gap-3 px-8 rounded-2xl shadow-xl shadow-indigo-500/20">
                       <Download className="w-4 h-4" /> Download All Assets
                     </Button>
                   </div>
