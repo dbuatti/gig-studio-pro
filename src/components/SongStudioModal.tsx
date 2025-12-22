@@ -15,7 +15,8 @@ import {
   Sparkles, Waves, Activity, Play, Pause,
   Volume2, Gauge, ExternalLink, Library,
   Upload, Link2, X, Plus, Tag, Check, Loader2,
-  FileDown, FileType, Headphones, Wand2
+  FileDown, FileType, Headphones, Wand2, Download,
+  MoreVertical, Copy, Globe, Eye
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import AudioVisualizer from './AudioVisualizer';
@@ -51,12 +52,15 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   onPerform 
 }) => {
   const [formData, setFormData] = useState<Partial<SetlistSong>>({});
-  const [activeTab, setActiveTab] = useState<'details' | 'audio' | 'visual'>('audio');
+  const [activeTab, setActiveTab] = useState<'details' | 'audio' | 'visual' | 'library'>('audio');
   const [newTag, setNewTag] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   
+  // Custom asset names/captions (stored locally in the song object)
+  const [assetLabels, setAssetLabels] = useState<Record<string, string>>({});
+
   // Audio Engine State
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -226,6 +230,28 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     setFormData(prev => ({ ...prev, resources: updated }));
   };
 
+  const handleDownloadAll = () => {
+    const links = [
+      { url: formData.previewUrl, name: `${formData.name}_Audio` },
+      { url: formData.pdfUrl, name: `${formData.name}_Chart` },
+      { url: formData.youtubeUrl, name: `${formData.name}_Reference` }
+    ].filter(l => !!l.url);
+
+    if (links.length === 0) {
+      showError("No downloadable assets found.");
+      return;
+    }
+
+    links.forEach(link => {
+      const a = document.createElement('a');
+      a.href = link.url!;
+      a.download = link.name;
+      a.target = '_blank';
+      a.click();
+    });
+    showSuccess(`Started download for ${links.length} assets.`);
+  };
+
   if (!song) return null;
   const videoId = formData.youtubeUrl ? formData.youtubeUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)?.[1] : null;
 
@@ -362,7 +388,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
           <div className="flex-1 flex flex-col">
             <div className="h-16 border-b border-white/5 flex items-center px-10 justify-between bg-black/20 shrink-0">
               <div className="flex gap-8">
-                {['audio', 'details', 'visual'].map((tab) => (
+                {['audio', 'details', 'visual', 'library'].map((tab) => (
                   <button 
                     key={tab}
                     onClick={() => setActiveTab(tab as any)}
@@ -474,7 +500,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
 
               {activeTab === 'details' && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  {/* ... same details content as before */}
                   <div className="grid grid-cols-2 gap-8">
                     <div className="space-y-3">
                       <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Performance Title</Label>
@@ -589,6 +614,126 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       </div>
                     </div>
                   )}
+                </div>
+              )}
+
+              {activeTab === 'library' && (
+                <div className="space-y-10 animate-in fade-in slide-in-from-top-4 duration-500">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-black uppercase tracking-[0.2em] text-indigo-400">Resource Matrix</h3>
+                      <p className="text-xs text-slate-500 mt-1">Centralized management for all song assets and links.</p>
+                    </div>
+                    <Button 
+                      onClick={handleDownloadAll}
+                      className="bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] h-10 gap-2 px-6 shadow-lg shadow-indigo-600/20"
+                    >
+                      <Download className="w-3.5 h-3.5" /> Download All
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-6">
+                    {/* Audio Asset Card */}
+                    <div className={cn(
+                      "group p-6 rounded-[2rem] border transition-all relative flex flex-col justify-between h-56",
+                      formData.previewUrl ? "bg-white/5 border-white/10" : "bg-white/5 border-white/5 opacity-40 border-dashed"
+                    )}>
+                      <div className="flex items-center justify-between">
+                        <div className="bg-indigo-600 p-3 rounded-2xl">
+                          <Music className="w-6 h-6" />
+                        </div>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {formData.previewUrl && (
+                            <Button variant="ghost" size="icon" className="h-8 w-8" asChild><a href={formData.previewUrl} download><Download className="w-3.5 h-3.5" /></a></Button>
+                          )}
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => document.getElementById('audio-upload')?.click()}><Upload className="w-3.5 h-3.5" /></Button>
+                        </div>
+                      </div>
+                      <div className="space-y-1 mt-4">
+                        <Label className="text-[9px] font-black uppercase text-indigo-400">Master Performance Audio</Label>
+                        <Input 
+                          placeholder="Filename / Caption..."
+                          className="bg-transparent border-none p-0 h-auto text-lg font-black tracking-tight focus-visible:ring-0"
+                          defaultValue={formData.previewUrl ? "Audio_Stream_Master" : "Not Linked"}
+                        />
+                        <p className="text-[8px] text-slate-500 font-mono truncate">{formData.previewUrl || "No source connected"}</p>
+                      </div>
+                    </div>
+
+                    {/* Sheet Music Card */}
+                    <div className={cn(
+                      "group p-6 rounded-[2rem] border transition-all relative flex flex-col justify-between h-56",
+                      formData.pdfUrl ? "bg-white/5 border-white/10" : "bg-white/5 border-white/5 opacity-40 border-dashed"
+                    )}>
+                      <div className="flex items-center justify-between">
+                        <div className="bg-emerald-600 p-3 rounded-2xl">
+                          <FileText className="w-6 h-6" />
+                        </div>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {formData.pdfUrl && (
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.open(formData.pdfUrl, '_blank')}><Eye className="w-3.5 h-3.5" /></Button>
+                          )}
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setActiveTab('details')}><Settings2 className="w-3.5 h-3.5" /></Button>
+                        </div>
+                      </div>
+                      <div className="space-y-1 mt-4">
+                        <Label className="text-[9px] font-black uppercase text-emerald-400">Stage Chart / PDF</Label>
+                        <Input 
+                          placeholder="Filename / Caption..."
+                          className="bg-transparent border-none p-0 h-auto text-lg font-black tracking-tight focus-visible:ring-0"
+                          defaultValue={formData.pdfUrl ? "Performance_Chart" : "Not Linked"}
+                        />
+                        <p className="text-[8px] text-slate-500 font-mono truncate">{formData.pdfUrl || "No source connected"}</p>
+                      </div>
+                    </div>
+
+                    {/* YouTube Card */}
+                    <div className={cn(
+                      "group p-6 rounded-[2rem] border transition-all relative flex flex-col justify-between h-56",
+                      formData.youtubeUrl ? "bg-white/5 border-white/10" : "bg-white/5 border-white/5 opacity-40 border-dashed"
+                    )}>
+                      <div className="flex items-center justify-between">
+                        <div className="bg-red-600 p-3 rounded-2xl">
+                          <Youtube className="w-6 h-6" />
+                        </div>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.open(formData.youtubeUrl, '_blank')}><Globe className="w-3.5 h-3.5" /></Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setActiveTab('visual')}><Settings2 className="w-3.5 h-3.5" /></Button>
+                        </div>
+                      </div>
+                      <div className="space-y-1 mt-4">
+                        <Label className="text-[9px] font-black uppercase text-red-400">Visual Reference</Label>
+                        <Input 
+                          placeholder="Filename / Caption..."
+                          className="bg-transparent border-none p-0 h-auto text-lg font-black tracking-tight focus-visible:ring-0"
+                          defaultValue={formData.youtubeUrl ? "YouTube_Reference" : "Not Linked"}
+                        />
+                        <p className="text-[8px] text-slate-500 font-mono truncate">{formData.youtubeUrl || "No link provided"}</p>
+                      </div>
+                    </div>
+
+                    {/* Pro Resource Link Card (e.g. Ultimate Guitar) */}
+                    <div className="group p-6 rounded-[2rem] border bg-white/5 border-white/10 transition-all relative flex flex-col justify-between h-56">
+                      <div className="flex items-center justify-between">
+                        <div className="bg-orange-600 p-3 rounded-2xl">
+                          <Link2 className="w-6 h-6" />
+                        </div>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.open(`https://www.ultimate-guitar.com/search.php?value=${formData.artist} ${formData.name}`, '_blank')}><ExternalLink className="w-3.5 h-3.5" /></Button>
+                        </div>
+                      </div>
+                      <div className="space-y-1 mt-4">
+                        <Label className="text-[9px] font-black uppercase text-orange-400">External Pro Link</Label>
+                        <Input 
+                          placeholder="Caption..."
+                          className="bg-transparent border-none p-0 h-auto text-lg font-black tracking-tight focus-visible:ring-0"
+                          defaultValue="Ultimate_Guitar_Chords"
+                          readOnly
+                        />
+                        <p className="text-[8px] text-slate-500 font-mono truncate">Automatic Search Link Enabled</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
