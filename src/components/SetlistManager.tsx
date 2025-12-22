@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
-import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed, Copy, Upload, Loader2, Sparkles, FileText, ShieldCheck, Edit3, Search, FileDown, FileCheck, SortAsc, LayoutList } from 'lucide-react';
+import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed, Copy, Upload, Loader2, Sparkles, FileText, ShieldCheck, Edit3, Search, FileDown, FileCheck, SortAsc, SortDesc, LayoutList } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ALL_KEYS, calculateSemitones } from '@/utils/keyUtils';
@@ -53,6 +53,8 @@ const RESOURCE_TYPES = [
   { id: 'PDF', label: 'iPad PDF', color: 'bg-red-100 text-red-700 border-red-200' },
 ];
 
+type SortMode = 'none' | 'ready' | 'work';
+
 const SetlistManager: React.FC<SetlistManagerProps> = ({ 
   songs, 
   onRemove, 
@@ -66,7 +68,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 }) => {
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [isBulkSyncing, setIsBulkSyncing] = useState(false);
-  const [isSortMode, setIsSortMode] = useState(false);
+  const [sortMode, setSortMode] = useState<SortMode>('none');
   const [editingSong, setEditingSong] = useState<SetlistSong | null>(null);
   const [manualLink, setManualLink] = useState("");
   const [dragOverId, setDragOverId] = useState<string | null>(null);
@@ -90,9 +92,14 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   };
 
   const processedSongs = useMemo(() => {
-    if (!isSortMode) return songs;
-    return [...songs].sort((a, b) => getReadinessScore(b) - getReadinessScore(a));
-  }, [songs, isSortMode]);
+    if (sortMode === 'none') return songs;
+    
+    return [...songs].sort((a, b) => {
+      const scoreA = getReadinessScore(a);
+      const scoreB = getReadinessScore(b);
+      return sortMode === 'ready' ? scoreB - scoreA : scoreA - scoreB;
+    });
+  }, [songs, sortMode]);
 
   const toggleResource = (song: SetlistSong, resourceId: string) => {
     const currentResources = song.resources || [];
@@ -143,6 +150,19 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     if (file) handlePdfUpload(file, id);
   };
 
+  const cycleSortMode = () => {
+    if (sortMode === 'none') setSortMode('ready');
+    else if (sortMode === 'ready') setSortMode('work');
+    else setSortMode('none');
+  };
+
+  const handleCopyLink = (url?: string) => {
+    if (url) {
+      navigator.clipboard.writeText(url);
+      showSuccess("YouTube link copied!");
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between px-2">
@@ -152,14 +172,19 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
           <Button 
             variant="ghost" 
             size="sm" 
-            onClick={() => setIsSortMode(!isSortMode)}
+            onClick={cycleSortMode}
             className={cn(
-              "h-7 text-[9px] font-black uppercase tracking-tight gap-2",
-              isSortMode ? "bg-indigo-600 text-white hover:bg-indigo-700" : "text-slate-500 hover:bg-slate-100"
+              "h-7 text-[9px] font-black uppercase tracking-tight gap-2 transition-all",
+              sortMode !== 'none' ? "bg-indigo-600 text-white hover:bg-indigo-700" : "text-slate-500 hover:bg-slate-100"
             )}
           >
-            {isSortMode ? <SortAsc className="w-3 h-3" /> : <LayoutList className="w-3 h-3" />}
-            {isSortMode ? "Ready-First View" : "List Order"}
+            {sortMode === 'none' && <LayoutList className="w-3 h-3" />}
+            {sortMode === 'ready' && <SortAsc className="w-3 h-3" />}
+            {sortMode === 'work' && <SortDesc className="w-3 h-3" />}
+            
+            {sortMode === 'none' && "List Order"}
+            {sortMode === 'ready' && "Ready-First"}
+            {sortMode === 'work' && "Work-First"}
           </Button>
         </div>
         <div className="flex gap-2">
@@ -223,7 +248,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         {song.isMetadataConfirmed && <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />}
                         
                         {/* Readiness Tag */}
-                        {isSortMode && (
+                        {sortMode !== 'none' && (
                           <Badge variant="outline" className={cn(
                             "text-[8px] font-black h-4 px-1 border-none",
                             readiness > 12 ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
@@ -274,9 +299,14 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                           </a>
                           
                           {song.youtubeUrl && (
-                            <button onClick={() => onSelect(song)} className="flex items-center gap-1 text-[9px] text-red-600 font-bold hover:underline">
-                              <Youtube className="w-3 h-3" /> Video
-                            </button>
+                            <div className="flex items-center gap-1">
+                              <button onClick={() => onSelect(song)} className="flex items-center gap-1 text-[9px] text-red-600 font-bold hover:underline">
+                                <Youtube className="w-3 h-3" /> Video
+                              </button>
+                              <button onClick={() => handleCopyLink(song.youtubeUrl)} className="text-slate-400 hover:text-indigo-600 p-0.5">
+                                <Copy className="w-2.5 h-2.5" />
+                              </button>
+                            </div>
                           )}
 
                           <label className="flex items-center gap-1 text-[9px] font-black text-indigo-600 uppercase hover:underline cursor-pointer">
