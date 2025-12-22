@@ -69,7 +69,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const [isInRepertoire, setIsInRepertoire] = useState(false);
   
   // Chart Engine State
-  const [activeChartType, setActiveChartType] = useState<'pdf' | 'leadsheet' | 'url'>('pdf');
+  const [activeChartType, setActiveChartType] = useState<'pdf' | 'leadsheet' | 'web' | 'ug'>('pdf');
   const [isChartMenuOpen, setIsChartMenuOpen] = useState(false);
 
   // Audio Engine State
@@ -613,7 +613,15 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   if (!song) return null;
   const videoId = formData.youtubeUrl ? formData.youtubeUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)?.[1] : null;
 
-  const currentChartUrl = activeChartType === 'pdf' ? formData.pdfUrl : activeChartType === 'leadsheet' ? formData.leadsheetUrl : formData.ugUrl;
+  const currentChartUrl = useMemo(() => {
+    switch(activeChartType) {
+      case 'pdf': return formData.pdfUrl ? `${formData.pdfUrl}#toolbar=0&navpanes=0&view=FitH` : null;
+      case 'leadsheet': return formData.leadsheetUrl ? `${formData.leadsheetUrl}#toolbar=0&navpanes=0&view=FitH` : null;
+      case 'web': return formData.pdfUrl;
+      case 'ug': return formData.ugUrl;
+      default: return null;
+    }
+  }, [activeChartType, formData.pdfUrl, formData.leadsheetUrl, formData.ugUrl]);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -1275,11 +1283,20 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                         <Button 
                           variant="ghost" 
                           size="sm" 
-                          disabled={!formData.ugUrl}
-                          onClick={() => setActiveChartType('url')}
-                          className={cn("text-[10px] font-black uppercase tracking-widest h-9 px-4 rounded-lg", activeChartType === 'url' ? "bg-indigo-600 text-white" : "text-slate-500 disabled:opacity-20")}
+                          disabled={!formData.pdfUrl}
+                          onClick={() => setActiveChartType('web')}
+                          className={cn("text-[10px] font-black uppercase tracking-widest h-9 px-4 rounded-lg", activeChartType === 'web' ? "bg-indigo-600 text-white" : "text-slate-500 disabled:opacity-20")}
                         >
-                          Web Link
+                          Web Sheet
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          disabled={!formData.ugUrl}
+                          onClick={() => setActiveChartType('ug')}
+                          className={cn("text-[10px] font-black uppercase tracking-widest h-9 px-4 rounded-lg", activeChartType === 'ug' ? "bg-indigo-600 text-white" : "text-slate-500 disabled:opacity-20")}
+                        >
+                          UG Pro
                         </Button>
                       </div>
                       <Button 
@@ -1296,7 +1313,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                     {currentChartUrl ? (
                       <>
                         <iframe 
-                          src={activeChartType === 'url' ? currentChartUrl : `${currentChartUrl}#toolbar=0&navpanes=0&view=FitH`} 
+                          src={currentChartUrl} 
                           className="w-full h-full"
                           title="Chart Viewer"
                         />
@@ -1333,14 +1350,25 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                                   {formData.leadsheetUrl && <Check className="w-3 h-3 opacity-0 group-hover/item:opacity-100" />}
                                 </button>
                                 <button 
-                                  onClick={() => { setActiveChartType('url'); setIsChartMenuOpen(false); }}
+                                  onClick={() => { setActiveChartType('web'); setIsChartMenuOpen(false); }}
+                                  disabled={!formData.pdfUrl}
+                                  className={cn(
+                                    "w-full text-left p-3 rounded-xl transition-all flex items-center justify-between group/item",
+                                    activeChartType === 'web' ? "bg-indigo-600 text-white" : "text-slate-400 hover:bg-white/5 disabled:opacity-20"
+                                  )}
+                                >
+                                  <span className="text-[10px] font-black uppercase tracking-widest">Web Sheet</span>
+                                  {formData.pdfUrl && <Check className="w-3 h-3 opacity-0 group-hover/item:opacity-100" />}
+                                </button>
+                                <button 
+                                  onClick={() => { setActiveChartType('ug'); setIsChartMenuOpen(false); }}
                                   disabled={!formData.ugUrl}
                                   className={cn(
                                     "w-full text-left p-3 rounded-xl transition-all flex items-center justify-between group/item",
-                                    activeChartType === 'url' ? "bg-indigo-600 text-white" : "text-slate-400 hover:bg-white/5 disabled:opacity-20"
+                                    activeChartType === 'ug' ? "bg-indigo-600 text-white" : "text-slate-400 hover:bg-white/5 disabled:opacity-20"
                                   )}
                                 >
-                                  <span className="text-[10px] font-black uppercase tracking-widest">Web Link</span>
+                                  <span className="text-[10px] font-black uppercase tracking-widest">UG Pro Link</span>
                                   {formData.ugUrl && <Check className="w-3 h-3 opacity-0 group-hover/item:opacity-100" />}
                                 </button>
                               </div>
