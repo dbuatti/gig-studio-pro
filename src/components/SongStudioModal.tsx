@@ -21,7 +21,7 @@ import {
   Zap, Disc, VolumeX, Smartphone, Printer, Search,
   ClipboardPaste, AlignLeft, Apple, Hash, Music2,
   FileSearch, ChevronRight, Layers, LayoutGrid, ListPlus,
-  Globe2, ShieldCheck, Timer, FileMusic
+  Globe2, ShieldCheck, Timer, FileMusic, Copy
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import AudioVisualizer from './AudioVisualizer';
@@ -1305,39 +1305,161 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                 </div>
               )}
               {activeTab === 'library' && (
-                <div className="space-y-6 md:space-y-12 animate-in fade-in duration-500">
+                <div className="space-y-8 md:space-y-12 animate-in fade-in duration-500">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                      <h3 className="text-sm md:text-lg font-black uppercase tracking-[0.3em] text-indigo-400">Resource Matrix</h3>
-                      <p className="text-xs md:text-sm text-slate-500 mt-1">Centralized song asset management.</p>
+                      <h3 className="text-xl md:text-2xl font-black uppercase tracking-[0.2em] text-white">RESOURCE MATRIX</h3>
+                      <p className="text-xs md:text-sm text-slate-500 mt-1 font-medium">Centralized management for all song assets and links.</p>
                     </div>
-                    <Button onClick={handleDownloadAll} className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[9px] md:text-xs h-10 md:h-12 gap-2 px-6 md:px-8 rounded-xl md:rounded-2xl">
-                      <Download className="w-4 h-4" /> Download All
+                    <Button 
+                      onClick={handleDownloadAll} 
+                      className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] md:text-xs h-12 md:h-14 gap-2 px-8 md:px-10 rounded-xl md:rounded-2xl shadow-xl shadow-indigo-600/20"
+                    >
+                      <Download className="w-4 h-4" /> DOWNLOAD ALL ASSETS
                     </Button>
                   </div>
                   <div className={cn("grid gap-4 md:gap-8", isMobile ? "grid-cols-1" : "grid-cols-2")}>
-                    {[
-                      { type: 'Audio', icon: <Music className="w-6 h-6 md:w-8 md:h-8" />, color: 'indigo', active: !!formData.previewUrl },
-                      { type: 'Apple', icon: <Apple className="w-6 h-6 md:w-8 md:h-8" />, color: 'red', active: !!formData.appleMusicUrl },
-                      { type: 'UG', icon: <Link2 className="w-6 h-6 md:w-8 md:h-8" />, color: 'orange', active: !!formData.ugUrl },
-                      { type: 'Chart', icon: <FileText className="w-6 h-6 md:w-8 md:h-8" />, color: 'emerald', active: !!formData.pdfUrl }
-                    ].map((item, i) => (
-                      <div key={i} className={cn(
-                        "p-6 md:p-8 border transition-all flex flex-col justify-between h-48 md:h-72",
-                        item.active ? "bg-white/5 border-white/10 shadow-xl" : "bg-white/5 border-white/5 opacity-40 border-dashed",
-                        isMobile ? "rounded-3xl" : "rounded-[2.5rem]"
-                      )}>
-                        <div className="flex items-center justify-between">
-                          <div className={cn("p-3 md:p-4 rounded-xl md:rounded-2xl text-white", `bg-${item.color}-600`)}>
-                            {item.icon}
-                          </div>
+                    {/* Audio Module */}
+                    <div className={cn(
+                      "p-8 md:p-10 border transition-all flex flex-col justify-between h-[280px] md:h-[350px] relative group",
+                      formData.previewUrl ? "bg-slate-900 border-white/10 shadow-2xl" : "bg-white/5 border-white/5 opacity-40 border-dashed",
+                      isMobile ? "rounded-[2rem]" : "rounded-[2.5rem]"
+                    )}>
+                      <div className="flex items-center justify-between">
+                        <div className="bg-indigo-600 p-4 rounded-2xl text-white shadow-xl shadow-indigo-600/20">
+                          <Music className="w-6 h-6 md:w-8 md:h-8" />
                         </div>
-                        <div className="space-y-1 mt-4">
-                          <span className={cn("text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em]", `text-${item.color}-400`)}>{item.type} Asset</span>
-                          <p className="text-lg md:text-2xl font-black tracking-tight">{item.active ? "Linked" : "Offline"}</p>
-                        </div>
+                        {formData.previewUrl && (
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleDownloadAsset(formData.previewUrl, `${formData.name}_master`)}
+                            className="h-10 w-10 bg-white/5 rounded-xl hover:bg-indigo-600 transition-all"
+                          >
+                            <Download className="w-4 h-4" />
+                          </Button>
+                        )}
                       </div>
-                    ))}
+                      <div className="space-y-2">
+                        <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400">MASTER PERFORMANCE AUDIO</span>
+                        <p className="text-xl md:text-3xl font-black tracking-tight truncate">{formData.previewUrl ? `${formData.name}_Stream_Master` : "Not Linked"}</p>
+                      </div>
+                    </div>
+
+                    {/* Apple Music Module */}
+                    <div className={cn(
+                      "p-8 md:p-10 border transition-all flex flex-col justify-between h-[280px] md:h-[350px] relative group",
+                      formData.appleMusicUrl ? "bg-slate-900 border-white/10 shadow-2xl" : "bg-white/5 border-white/5 opacity-40 border-dashed",
+                      isMobile ? "rounded-[2rem]" : "rounded-[2.5rem]"
+                    )}>
+                      <div className="flex items-center justify-between">
+                        <div className="bg-red-600 p-4 rounded-2xl text-white shadow-xl shadow-red-600/20">
+                          <Apple className="w-6 h-6 md:w-8 md:h-8" />
+                        </div>
+                        {formData.appleMusicUrl && (
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => window.open(formData.appleMusicUrl, '_blank')}
+                            className="h-10 w-10 bg-white/5 rounded-xl hover:bg-red-600 transition-all"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] text-red-400">APPLE MUSIC LINK</span>
+                        <p className="text-xl md:text-3xl font-black tracking-tight truncate">{formData.appleMusicUrl ? "Integrated App Link" : "Offline"}</p>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase">Launch directly in Apple Music</p>
+                      </div>
+                    </div>
+
+                    {/* Ultimate Guitar Module */}
+                    <div className={cn(
+                      "p-8 md:p-10 border transition-all flex flex-col justify-between h-[280px] md:h-[350px] relative group",
+                      formData.ugUrl ? "bg-slate-900 border-white/10 shadow-2xl" : "bg-white/5 border-white/5 opacity-40 border-dashed",
+                      isMobile ? "rounded-[2rem]" : "rounded-[2.5rem]"
+                    )}>
+                      <div className="flex items-center justify-between">
+                        <div className="bg-orange-600 p-4 rounded-2xl text-white shadow-xl shadow-orange-600/20">
+                          <Link2 className="w-6 h-6 md:w-8 md:h-8" />
+                        </div>
+                        {formData.ugUrl && (
+                          <div className="flex gap-2">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={handleUgPrint}
+                              className="h-10 w-10 bg-white/5 rounded-xl hover:bg-orange-600 transition-all"
+                            >
+                              <Printer className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => {
+                                navigator.clipboard.writeText(formData.ugUrl || "");
+                                showSuccess("UG Link Copied");
+                              }}
+                              className="h-10 w-10 bg-white/5 rounded-xl hover:bg-orange-600 transition-all"
+                            >
+                              <ClipboardPaste className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => window.open(formData.ugUrl, '_blank')}
+                              className="h-10 w-10 bg-white/5 rounded-xl hover:bg-orange-600 transition-all"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] text-orange-400">ULTIMATE GUITAR PRO</span>
+                        <p className="text-xl md:text-3xl font-black tracking-tight truncate">{formData.ugUrl ? "Verified Official Link" : "Not Linked"}</p>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase">Mobile App Integration Ready</p>
+                      </div>
+                    </div>
+
+                    {/* Stage Chart Module */}
+                    <div className={cn(
+                      "p-8 md:p-10 border transition-all flex flex-col justify-between h-[280px] md:h-[350px] relative group",
+                      formData.pdfUrl ? "bg-slate-900 border-white/10 shadow-2xl" : "bg-white/5 border-white/5 opacity-40 border-dashed",
+                      isMobile ? "rounded-[2rem]" : "rounded-[2.5rem]"
+                    )}>
+                      <div className="flex items-center justify-between">
+                        <div className="bg-emerald-600 p-4 rounded-2xl text-white shadow-xl shadow-emerald-600/20">
+                          <FileText className="w-6 h-6 md:w-8 md:h-8" />
+                        </div>
+                        {formData.pdfUrl && (
+                          <div className="flex gap-2">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => setPreviewPdfUrl(formData.pdfUrl || null)}
+                              className="h-10 w-10 bg-white/5 rounded-xl hover:bg-emerald-600 transition-all"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => handleDownloadAsset(formData.pdfUrl, `${formData.name}_chart`)}
+                              className="h-10 w-10 bg-white/5 rounded-xl hover:bg-emerald-600 transition-all"
+                            >
+                              <Download className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] text-emerald-400">STAGE CHART / PDF</span>
+                        <p className="text-xl md:text-3xl font-black tracking-tight truncate">{formData.pdfUrl ? "Performance_Chart" : "No Asset Linked"}</p>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase">Ready for Stage View</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
