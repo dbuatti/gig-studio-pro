@@ -11,7 +11,6 @@ import {
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { showSuccess } from '@/utils/toast';
 
 interface MetronomeProps {
   initialBpm?: number;
@@ -32,7 +31,10 @@ const Metronome: React.FC<MetronomeProps> = ({ initialBpm = 120 }) => {
   const synthRef = useRef<Tone.MembraneSynth | null>(null);
   const loopRef = useRef<Tone.Loop | null>(null);
 
-  useEffect(() => {
+  // Initialize synth only when needed or after first interaction
+  const initSynth = () => {
+    if (synthRef.current) return synthRef.current;
+    
     synthRef.current = new Tone.MembraneSynth({
       pitchDecay: 0.02,
       octaves: 6,
@@ -44,7 +46,12 @@ const Metronome: React.FC<MetronomeProps> = ({ initialBpm = 120 }) => {
         release: 0.1
       }
     }).toDestination();
+    
+    synthRef.current.volume.value = volume;
+    return synthRef.current;
+  };
 
+  useEffect(() => {
     return () => {
       synthRef.current?.dispose();
       loopRef.current?.dispose();
@@ -75,7 +82,8 @@ const Metronome: React.FC<MetronomeProps> = ({ initialBpm = 120 }) => {
 
   const startMetronome = async () => {
     if (Tone.getContext().state !== 'running') await Tone.start();
-
+    
+    const synth = initSynth();
     Tone.getTransport().bpm.value = bpm;
     const count = getBeatCount();
     const division = getBeatDivision();
@@ -84,7 +92,7 @@ const Metronome: React.FC<MetronomeProps> = ({ initialBpm = 120 }) => {
       setBeat(prev => {
         const next = (prev % count) + 1;
         const freq = next === 1 ? "C5" : "G4";
-        synthRef.current?.triggerAttackRelease(freq, "32n", time, next === 1 ? 1 : 0.4);
+        synth.triggerAttackRelease(freq, "32n", time, next === 1 ? 1 : 0.4);
         return next;
       });
     }, division).start(0);
@@ -102,9 +110,9 @@ const Metronome: React.FC<MetronomeProps> = ({ initialBpm = 120 }) => {
     setBeat(0);
   };
 
-  const toggleMetronome = () => {
+  const toggleMetronome = async () => {
     if (isPlaying) stopMetronome();
-    else startMetronome();
+    else await startMetronome();
   };
 
   const handleTap = () => {
