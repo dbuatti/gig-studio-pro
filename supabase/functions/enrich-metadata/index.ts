@@ -35,10 +35,10 @@ serve(async (req) => {
       "genre": "The genre",
       "isFound": true
     }
-    If unsure, provide the most likely concert key. Return ONLY the JSON.`;
+    Return ONLY the JSON. No markdown formatting.`;
 
-    // Switched to v1 stable endpoint and gemini-1.5-flash-latest
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
+    // Using the most standard model identifier and stable v1 endpoint
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -49,7 +49,7 @@ serve(async (req) => {
     const result = await response.json();
     
     if (!response.ok) {
-      console.error("Gemini API Error:", result);
+      console.error("Gemini API Error:", JSON.stringify(result, null, 2));
       throw new Error(result.error?.message || "AI Provider Error");
     }
 
