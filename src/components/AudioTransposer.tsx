@@ -6,14 +6,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Play, Pause, RotateCcw, Upload, Volume2, Info, Waves, Settings2, Gauge, Activity } from 'lucide-react';
+import { Input } from "@/components/ui/input";
+import { Play, Pause, RotateCcw, Upload, Volume2, Info, Waves, Settings2, Gauge, Activity, Link as LinkIcon, Globe } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import AudioVisualizer from './AudioVisualizer';
 import { cn } from "@/lib/utils";
 
 const AudioTransposer = () => {
-  const [file, setFile] = useState<File | null>(null);
+  const [file, setFile] = useState<{ name: string } | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [pitch, setPitch] = useState(0);
   const [fineTune, setFineTune] = useState(0);
@@ -23,6 +24,8 @@ const AudioTransposer = () => {
   const [duration, setDuration] = useState(0);
   const [eqHigh, setEqHigh] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [url, setUrl] = useState("");
+  const [isLoadingUrl, setIsLoadingUrl] = useState(false);
 
   const playerRef = useRef<Tone.GrainPlayer | null>(null);
   const limiterRef = useRef<Tone.Limiter | null>(null);
@@ -63,16 +66,8 @@ const AudioTransposer = () => {
     };
   }, []);
 
-  const loadAudioFile = async (uploadedFile: File) => {
-    if (!uploadedFile.type.startsWith('audio/')) {
-      showError("Please upload a valid audio file.");
-      return;
-    }
-
+  const loadAudioBuffer = async (audioBuffer: AudioBuffer, identifier: string) => {
     try {
-      const arrayBuffer = await uploadedFile.arrayBuffer();
-      const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
-      
       if (playerRef.current) playerRef.current.dispose();
 
       playerRef.current = new Tone.GrainPlayer(audioBuffer).connect(eqRef.current!);
@@ -82,7 +77,7 @@ const AudioTransposer = () => {
       playerRef.current.playbackRate = tempo;
       playerRef.current.volume.value = volume;
 
-      setFile(uploadedFile);
+      setFile({ name: identifier });
       setDuration(audioBuffer.duration);
       setProgress(0);
       offsetRef.current = 0;
@@ -93,9 +88,36 @@ const AudioTransposer = () => {
     }
   };
 
+  const loadFile = async (uploadedFile: File) => {
+    if (!uploadedFile.type.startsWith('audio/')) {
+      showError("Please upload a valid audio file.");
+      return;
+    }
+    const arrayBuffer = await uploadedFile.arrayBuffer();
+    const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
+    loadAudioBuffer(audioBuffer, uploadedFile.name);
+  };
+
+  const loadFromUrl = async () => {
+    if (!url) return;
+    setIsLoadingUrl(true);
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Could not fetch file");
+      const arrayBuffer = await response.arrayBuffer();
+      const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
+      loadAudioBuffer(audioBuffer, url.split('/').pop() || "Remote Audio");
+      setUrl("");
+    } catch (err) {
+      showError("Failed to load URL. Ensure it is a direct audio link with CORS enabled.");
+    } finally {
+      setIsLoadingUrl(false);
+    }
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFile = e.target.files?.[0];
-    if (uploadedFile) loadAudioFile(uploadedFile);
+    if (uploadedFile) loadFile(uploadedFile);
   };
 
   const onDragOver = (e: React.DragEvent) => {
@@ -111,7 +133,7 @@ const AudioTransposer = () => {
     e.preventDefault();
     setIsDragging(false);
     const droppedFile = e.dataTransfer.files?.[0];
-    if (droppedFile) loadAudioFile(droppedFile);
+    if (droppedFile) loadFile(droppedFile);
   };
 
   const animateProgress = () => {
@@ -245,7 +267,7 @@ const AudioTransposer = () => {
                 </Button>
               </TooltipTrigger>
               <TooltipContent className="max-w-xs">
-                <p>Features independent Pitch and Tempo control using high-order granular synthesis with transient protection.</p>
+                <p>YouTube/Apple Music direct links are blocked by browser security. Use direct audio file URLs or upload local files for processing.</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -253,41 +275,63 @@ const AudioTransposer = () => {
       </CardHeader>
 
       <CardContent className="space-y-6">
-        <div 
-          onDragOver={onDragOver}
-          onDragLeave={onDragLeave}
-          onDrop={onDrop}
-          className={cn(
-            "relative h-24 flex items-center justify-center rounded-xl border-2 border-dashed transition-all duration-200 overflow-hidden group",
-            isDragging 
-              ? "bg-indigo-50 border-indigo-500 scale-[1.01] dark:bg-indigo-900/20" 
-              : "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800"
-          )}
-        >
-          {file ? (
-            <div className="absolute inset-0 z-10 p-2">
-              <AudioVisualizer analyzer={analyzerRef.current} isActive={isPlaying} />
-              <div className="absolute top-2 left-4 px-2 py-1 bg-white/80 dark:bg-slate-800/80 backdrop-blur rounded text-[10px] font-bold border">
-                {file.name}
+        <div className="grid grid-cols-1 gap-4">
+          <div 
+            onDragOver={onDragOver}
+            onDragLeave={onDragLeave}
+            onDrop={onDrop}
+            className={cn(
+              "relative h-24 flex items-center justify-center rounded-xl border-2 border-dashed transition-all duration-200 overflow-hidden group",
+              isDragging 
+                ? "bg-indigo-50 border-indigo-500 scale-[1.01] dark:bg-indigo-900/20" 
+                : "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800"
+            )}
+          >
+            {file ? (
+              <div className="absolute inset-0 z-10 p-2">
+                <AudioVisualizer analyzer={analyzerRef.current} isActive={isPlaying} />
+                <div className="absolute top-2 left-4 px-2 py-1 bg-white/80 dark:bg-slate-800/80 backdrop-blur rounded text-[10px] font-bold border truncate max-w-[200px]">
+                  {file.name}
+                </div>
               </div>
+            ) : (
+              <div className="flex flex-col items-center pointer-events-none">
+                <Upload className={cn(
+                  "w-8 h-8 mb-2 transition-transform",
+                  isDragging ? "text-indigo-600 scale-110" : "text-indigo-400 group-hover:scale-110"
+                )} />
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  {isDragging ? "Drop to load engine" : "Load Mastering Source"}
+                </p>
+              </div>
+            )}
+            <input
+              type="file"
+              accept="audio/*"
+              onChange={handleFileUpload}
+              className="absolute inset-0 opacity-0 cursor-pointer z-20"
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input 
+                placeholder="Paste direct audio link (e.g. .mp3)" 
+                className="pl-9 h-11 text-sm border-slate-200"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+              />
             </div>
-          ) : (
-            <div className="flex flex-col items-center pointer-events-none">
-              <Upload className={cn(
-                "w-8 h-8 mb-2 transition-transform",
-                isDragging ? "text-indigo-600 scale-110" : "text-indigo-400 group-hover:scale-110"
-              )} />
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {isDragging ? "Drop to load engine" : "Load Mastering Source"}
-              </p>
-            </div>
-          )}
-          <input
-            type="file"
-            accept="audio/*"
-            onChange={handleFileUpload}
-            className="absolute inset-0 opacity-0 cursor-pointer z-20"
-          />
+            <Button 
+              onClick={loadFromUrl} 
+              disabled={!url || isLoadingUrl}
+              className="bg-indigo-600 hover:bg-indigo-700 h-11 px-6 font-bold uppercase tracking-wider text-[10px]"
+            >
+              {isLoadingUrl ? <Activity className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4 mr-2" />}
+              Fetch
+            </Button>
+          </div>
         </div>
 
         {file && (
