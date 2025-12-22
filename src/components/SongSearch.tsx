@@ -11,9 +11,10 @@ import { cn } from "@/lib/utils";
 
 interface SongSearchProps {
   onSelectSong: (url: string, name: string, youtubeUrl?: string) => void;
+  onAddToSetlist: (url: string, name: string, youtubeUrl?: string) => void;
 }
 
-const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong }) => {
+const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist }) => {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -156,6 +157,18 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong }) => {
                       </button>
 
                       <div className="flex items-center gap-1 shrink-0 px-2">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button 
+                              onClick={() => onAddToSetlist(song.previewUrl, `${song.trackName} - ${song.artistName}`)}
+                              className="p-2 hover:bg-green-600 hover:text-white text-green-500 rounded-md transition-all"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>Add to Setlist</TooltipContent>
+                        </Tooltip>
+
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <button 

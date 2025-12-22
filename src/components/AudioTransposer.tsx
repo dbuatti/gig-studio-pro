@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import * as Tone from 'tone';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Play, Pause, RotateCcw, Upload, Volume2, Info, Waves, Settings2, Gauge, Activity, Link as LinkIcon, Globe, Search, Youtube } from 'lucide-react';
+import { Play, Pause, RotateCcw, Upload, Volume2, Info, Waves, Settings2, Gauge, Activity, Link as LinkIcon, Globe, Search, Youtube, PlusCircle } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import AudioVisualizer from './AudioVisualizer';
@@ -15,8 +15,18 @@ import SongSearch from './SongSearch';
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-const AudioTransposer = () => {
-  const [file, setFile] = useState<{ name: string } | null>(null);
+export interface AudioTransposerRef {
+  loadFromUrl: (url: string, name: string, youtubeUrl?: string) => Promise<void>;
+  setPitch: (pitch: number) => void;
+  getPitch: () => number;
+}
+
+interface AudioTransposerProps {
+  onAddToSetlist?: (previewUrl: string, name: string, ytUrl?: string, pitch?: number) => void;
+}
+
+const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ onAddToSetlist }, ref) => {
+  const [file, setFile] = useState<{ name: string; url?: string } | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [pitch, setPitch] = useState(0);
   const [fineTune, setFineTune] = useState(0);
@@ -29,6 +39,7 @@ const AudioTransposer = () => {
   const [url, setUrl] = useState("");
   const [isLoadingUrl, setIsLoadingUrl] = useState(false);
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
+  const [activeYoutubeUrl, setActiveYoutubeUrl] = useState<string | undefined>();
 
   const playerRef = useRef<Tone.GrainPlayer | null>(null);
   const limiterRef = useRef<Tone.Limiter | null>(null);
@@ -75,7 +86,7 @@ const AudioTransposer = () => {
     return (match && match[2].length === 11) ? match[2] : null;
   };
 
-  const loadAudioBuffer = async (audioBuffer: AudioBuffer, identifier: string, youtubeUrl?: string) => {
+  const loadAudioBuffer = async (audioBuffer: AudioBuffer, identifier: string, youtubeUrl?: string, previewUrl?: string) => {
     try {
       if (playerRef.current) playerRef.current.dispose();
 
@@ -86,12 +97,13 @@ const AudioTransposer = () => {
       playerRef.current.playbackRate = tempo;
       playerRef.current.volume.value = volume;
 
-      setFile({ name: identifier });
+      setFile({ name: identifier, url: previewUrl });
       setDuration(audioBuffer.duration);
       setProgress(0);
       offsetRef.current = 0;
       setIsPlaying(false);
       
+      setActiveYoutubeUrl(youtubeUrl);
       if (youtubeUrl) {
         setActiveVideoId(getYoutubeId(youtubeUrl));
       } else {
@@ -104,16 +116,6 @@ const AudioTransposer = () => {
     }
   };
 
-  const loadFile = async (uploadedFile: File) => {
-    if (!uploadedFile.type.startsWith('audio/')) {
-      showError("Please upload a valid audio file.");
-      return;
-    }
-    const arrayBuffer = await uploadedFile.arrayBuffer();
-    const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
-    loadAudioBuffer(audioBuffer, uploadedFile.name);
-  };
-
   const loadFromUrl = async (targetUrl: string, name?: string, youtubeUrl?: string) => {
     setIsLoadingUrl(true);
     try {
@@ -121,7 +123,7 @@ const AudioTransposer = () => {
       if (!response.ok) throw new Error("Could not fetch file");
       const arrayBuffer = await response.arrayBuffer();
       const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
-      loadAudioBuffer(audioBuffer, name || targetUrl.split('/').pop() || "Remote Audio", youtubeUrl);
+      await loadAudioBuffer(audioBuffer, name || targetUrl.split('/').pop() || "Remote Audio", youtubeUrl, targetUrl);
       if (!name) setUrl("");
     } catch (err) {
       showError("Failed to load audio. Ensure it is a direct link with CORS enabled.");
@@ -130,9 +132,28 @@ const AudioTransposer = () => {
     }
   };
 
+  useImperativeHandle(ref, () => ({
+    loadFromUrl,
+    setPitch: (newPitch: number) => {
+      setPitch(newPitch);
+      updateDetune(newPitch, fineTune);
+    },
+    getPitch: () => pitch
+  }));
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFile = e.target.files?.[0];
     if (uploadedFile) loadFile(uploadedFile);
+  };
+
+  const loadFile = async (uploadedFile: File) => {
+    if (!uploadedFile.type.startsWith('audio/')) {
+      showError("Please upload a valid audio file.");
+      return;
+    }
+    const arrayBuffer = await uploadedFile.arrayBuffer();
+    const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
+    loadAudioBuffer(audioBuffer, uploadedFile.name);
   };
 
   const onDragOver = (e: React.DragEvent) => {
@@ -253,7 +274,7 @@ const AudioTransposer = () => {
   };
 
   return (
-    <Card className="w-full max-w-3xl mx-auto shadow-2xl border-t-4 border-t-indigo-600 overflow-hidden">
+    <Card className="w-full shadow-2xl border-t-4 border-t-indigo-600 overflow-hidden">
       <div className="bg-indigo-600 px-6 py-3 flex items-center justify-between text-white">
         <div className="flex items-center gap-2">
           <Activity className="w-4 h-4 animate-pulse" />
@@ -274,18 +295,30 @@ const AudioTransposer = () => {
             </CardTitle>
             <CardDescription>Advanced harmonic shifting and time-stretching engine.</CardDescription>
           </div>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full">
-                  <Info className="w-5 h-5 text-muted-foreground" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                <p>Streaming services are DRM-protected. Use Search to load high-quality previews with optional YouTube visual association.</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <div className="flex items-center gap-2">
+            {file && onAddToSetlist && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => onAddToSetlist(file.url || '', file.name, activeYoutubeUrl, pitch)}
+                className="h-9 border-green-200 text-green-600 hover:bg-green-50 font-bold text-[10px] uppercase gap-2"
+              >
+                <PlusCircle className="w-4 h-4" /> Save to Setlist
+              </Button>
+            )}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full">
+                    <Info className="w-5 h-5 text-muted-foreground" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p>Streaming services are DRM-protected. Use Search to load high-quality previews with optional YouTube visual association.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         </div>
       </CardHeader>
 
@@ -298,7 +331,10 @@ const AudioTransposer = () => {
           </TabsList>
           
           <TabsContent value="search" className="space-y-4">
-            <SongSearch onSelectSong={(url, name, yt) => loadFromUrl(url, name, yt)} />
+            <SongSearch 
+              onSelectSong={(url, name, yt) => loadFromUrl(url, name, yt)} 
+              onAddToSetlist={onAddToSetlist || (() => {})}
+            />
           </TabsContent>
 
           <TabsContent value="upload">
@@ -460,6 +496,6 @@ const AudioTransposer = () => {
       </CardContent>
     </Card>
   );
-};
+});
 
 export default AudioTransposer;
