@@ -9,7 +9,7 @@ import {
   Play, Pause, SkipForward, SkipBack, X, Music, 
   Waves, Activity, ArrowRight, Volume2, 
   Settings2, Gauge, FileText, Save, Youtube,
-  Monitor, Sparkles, Tag
+  Monitor, Sparkles, Tag, AlignLeft
 } from 'lucide-react';
 import { SetlistSong } from './SetlistManager';
 import AudioVisualizer from './AudioVisualizer';
@@ -34,7 +34,7 @@ interface PerformanceOverlayProps {
   analyzer: any;
 }
 
-type ViewMode = 'visualizer' | 'video' | 'pdf';
+type ViewMode = 'visualizer' | 'video' | 'pdf' | 'lyrics';
 
 const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
   songs,
@@ -60,7 +60,8 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
 
   useEffect(() => {
     setLocalNotes(currentSong?.notes || "");
-    if (currentSong?.pdfUrl) setViewMode('pdf');
+    if (currentSong?.lyrics) setViewMode('lyrics');
+    else if (currentSong?.pdfUrl) setViewMode('pdf');
     else if (currentSong?.youtubeUrl) setViewMode('video');
     else setViewMode('visualizer');
   }, [currentSong]);
@@ -139,7 +140,16 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
               onClick={() => setViewMode('visualizer')}
               className={cn("text-[10px] font-black uppercase tracking-widest h-9 px-5 gap-2 rounded-xl transition-all", viewMode === 'visualizer' ? "bg-indigo-600 text-white shadow-lg" : "text-slate-400 hover:text-white")}
             >
-              <Waves className="w-3.5 h-3.5" /> Waveform
+              <Waves className="w-3.5 h-3.5" /> Wave
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              disabled={!currentSong?.lyrics}
+              onClick={() => setViewMode('lyrics')}
+              className={cn("text-[10px] font-black uppercase tracking-widest h-9 px-5 gap-2 rounded-xl transition-all", viewMode === 'lyrics' ? "bg-pink-600 text-white shadow-lg" : "text-slate-400 hover:text-white disabled:opacity-20")}
+            >
+              <AlignLeft className="w-3.5 h-3.5" /> Lyrics
             </Button>
             <Button 
               variant="ghost" 
@@ -176,30 +186,21 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
 
           <div className="max-w-6xl w-full h-full flex flex-col space-y-8 z-10">
             {/* HUD Status Matrix */}
-            <div className={cn("text-center transition-all duration-500", viewMode === 'pdf' ? "space-y-1" : "space-y-6")}>
+            <div className={cn("text-center transition-all duration-500", (viewMode === 'pdf' || viewMode === 'lyrics') ? "space-y-1" : "space-y-6")}>
               <div className="inline-flex items-center gap-4 px-6 py-2 bg-indigo-500/10 border border-indigo-500/20 rounded-full font-mono">
                 <Music className="w-4 h-4 text-indigo-400" />
                 <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em]">Channel 01 Active Output</span>
               </div>
               
-              <h1 className={cn("font-black uppercase tracking-tighter leading-none transition-all drop-shadow-2xl", viewMode === 'pdf' ? "text-4xl" : "text-8xl")}>
+              <h1 className={cn("font-black uppercase tracking-tighter leading-none transition-all drop-shadow-2xl", (viewMode === 'pdf' || viewMode === 'lyrics') ? "text-4xl" : "text-8xl")}>
                 {currentSong?.name}
               </h1>
               
-              <div className={cn("flex flex-col items-center gap-4 transition-all", viewMode === 'pdf' ? "mt-2" : "mt-4")}>
+              <div className={cn("flex flex-col items-center gap-4 transition-all", (viewMode === 'pdf' || viewMode === 'lyrics') ? "mt-2" : "mt-4")}>
                 <div className="flex items-center gap-6 font-bold text-slate-400 text-2xl">
                   <span>{currentSong?.artist}</span>
                   <div className="w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_10px_rgba(79,70,229,0.5)]" />
                   <span className="text-indigo-400 font-mono font-black">{displayCurrentKey}</span>
-                </div>
-                
-                {/* Active Tags Display */}
-                <div className="flex gap-2 font-mono">
-                  {(currentSong?.user_tags || []).map(tag => (
-                    <Badge key={tag} className="bg-white/5 hover:bg-white/10 text-slate-400 text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full border border-white/5">
-                      {tag}
-                    </Badge>
-                  ))}
                 </div>
               </div>
             </div>
@@ -211,6 +212,14 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
                   <div className="w-full h-64">
                     <AudioVisualizer analyzer={analyzer} isActive={isPlaying} />
                   </div>
+                </div>
+              )}
+
+              {viewMode === 'lyrics' && currentSong?.lyrics && (
+                <div className="h-full w-full overflow-y-auto p-20 animate-in fade-in duration-500 text-center custom-scrollbar">
+                   <div className="max-w-2xl mx-auto whitespace-pre-wrap text-4xl font-black leading-relaxed uppercase tracking-tight text-white/90 drop-shadow-xl">
+                      {currentSong.lyrics}
+                   </div>
                 </div>
               )}
 

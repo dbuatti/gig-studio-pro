@@ -19,6 +19,7 @@ export interface SetlistSong {
   previewUrl: string;
   youtubeUrl?: string;
   ugUrl?: string; 
+  appleMusicUrl?: string;
   pdfUrl?: string;
   originalKey?: string;
   targetKey?: string;
@@ -29,6 +30,7 @@ export interface SetlistSong {
   isSyncing?: boolean;
   isMetadataConfirmed?: boolean;
   notes?: string;
+  lyrics?: string;
   resources?: string[];
   user_tags?: string[];
   isKeyLinked?: boolean;
@@ -37,7 +39,7 @@ export interface SetlistSong {
 
 export const RESOURCE_TYPES = [
   { id: 'UG', label: 'Ultimate Guitar', color: 'bg-orange-500/10 text-orange-600 border-orange-500/20' },
-  { id: 'OS', label: 'In OnSong', color: 'bg-blue-500/10 text-blue-600 border-blue-200' },
+  { id: 'LYRICS', label: 'Has Lyrics', color: 'bg-pink-500/10 text-pink-600 border-pink-500/20' },
   { id: 'UGP', label: 'UG Playlist', color: 'bg-yellow-500/10 text-yellow-700 border-yellow-500/20' },
   { id: 'FS', label: 'ForScore', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
   { id: 'PDF', label: 'Stage PDF', color: 'bg-red-500/10 text-red-700 border-red-500/20' },
@@ -90,7 +92,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     if (song.isMetadataConfirmed) score += 3;
     if (song.pdfUrl) score += 3;
     if (song.ugUrl) score += 2; 
-    if (song.resources?.includes('OS')) score += 2;
+    if (song.lyrics) score += 2;
     if (song.bpm) score += 1;
     return score;
   };
@@ -248,7 +250,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         <div className="flex items-center gap-1.5 ml-7 mt-3">
                           <TooltipProvider>
                             {RESOURCE_TYPES.map(res => {
-                              const isActive = song.resources?.includes(res.id) || (res.id === 'UG' && song.ugUrl);
+                              const isActive = song.resources?.includes(res.id) || (res.id === 'UG' && song.ugUrl) || (res.id === 'LYRICS' && song.lyrics);
                               if (!isActive) return null;
                               return (
                                 <span key={res.id} className={cn("text-[8px] font-black px-2 py-0.5 rounded-full border shadow-sm", res.color)}>

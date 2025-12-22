@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { SetlistSong } from './SetlistManager';
-import { Music, Youtube, Copy, Play, Activity, Gauge, Sparkles, Tag } from 'lucide-react';
+import { Music, Youtube, Copy, Play, Activity, Gauge, Sparkles, Tag, Apple, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { showSuccess } from '@/utils/toast';
 import { Badge } from '@/components/ui/badge';
@@ -94,6 +94,16 @@ const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song }) => {
                 ))}
               </div>
               <div className="flex items-center gap-2 justify-end">
+                {song.appleMusicUrl && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => window.open(song.appleMusicUrl, '_blank')}
+                    className="h-9 px-4 bg-red-600/10 hover:bg-red-600/20 text-red-400 font-bold text-[10px] uppercase gap-2 rounded-xl font-mono"
+                  >
+                    <Apple className="w-3.5 h-3.5" /> Music
+                  </Button>
+                )}
                 {song.youtubeUrl && (
                   <Button 
                     variant="ghost" 

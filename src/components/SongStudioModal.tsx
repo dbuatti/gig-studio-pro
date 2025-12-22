@@ -19,7 +19,7 @@ import {
   FileDown, Headphones, Wand2, Download,
   Globe, Eye, Link as LinkIcon, RotateCcw,
   Zap, Disc, VolumeX, Smartphone, Printer, Search,
-  ClipboardPaste
+  ClipboardPaste, AlignLeft, Apple
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import AudioVisualizer from './AudioVisualizer';
@@ -42,7 +42,7 @@ interface SongStudioModalProps {
 
 const RESOURCE_TYPES = [
   { id: 'UG', label: 'Ultimate Guitar', color: 'bg-orange-100 text-orange-700 border-orange-200' },
-  { id: 'OS', label: 'In OnSong', color: 'bg-blue-100 text-blue-700 border-blue-200' },
+  { id: 'LYRICS', label: 'Has Lyrics', color: 'bg-pink-100 text-pink-700 border-pink-200' },
   { id: 'UGP', label: 'UG Playlist', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
   { id: 'FS', label: 'ForScore', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
   { id: 'PDF', label: 'Stage PDF', color: 'bg-red-100 text-red-700 border-red-200' },
@@ -59,7 +59,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
 }) => {
   const { keyPreference } = useSettings();
   const [formData, setFormData] = useState<Partial<SetlistSong>>({});
-  const [activeTab, setActiveTab] = useState<'details' | 'audio' | 'visual' | 'library'>('audio');
+  const [activeTab, setActiveTab] = useState<'details' | 'audio' | 'visual' | 'lyrics' | 'library'>('audio');
   const [newTag, setNewTag] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -95,8 +95,10 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         originalKey: song.originalKey || "C",
         targetKey: song.targetKey || "C",
         notes: song.notes || "",
+        lyrics: song.lyrics || "",
         youtubeUrl: song.youtubeUrl || "",
         previewUrl: song.previewUrl || "",
+        appleMusicUrl: song.appleMusicUrl || "",
         pdfUrl: song.pdfUrl || "",
         ugUrl: song.ugUrl || "",
         resources: song.resources || [],
@@ -365,6 +367,11 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     }
   };
 
+  const handleLyricsSearch = () => {
+    const query = encodeURIComponent(`${formData.artist} ${formData.name} lyrics`);
+    window.open(`https://www.google.com/search?q=${query}`, '_blank');
+  };
+
   const handlePasteUgUrl = async () => {
     try {
       const text = await navigator.clipboard.readText();
@@ -379,36 +386,16 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     }
   };
 
-  const handleOnSongImport = () => {
-    if (!formData.ugUrl) {
-      showError("Link an Ultimate Guitar tab first.");
-      return;
-    }
-
-    // OnSong expects metadata to help identify the song
-    // Using the ?url parameter is standard for OnSong deep linking
-    const encodedUrl = encodeURIComponent(formData.ugUrl);
-    const onSongUrl = `onsong://import?url=${encodedUrl}`;
-    
-    window.location.assign(onSongUrl);
-    showSuccess("Launching OnSong...");
-    
-    if (!formData.resources?.includes('OS')) {
-      toggleResource('OS');
-    }
-  };
-
   const handleUgPrint = () => {
     if (!formData.ugUrl) {
       showError("Link a tab first.");
       return;
     }
-    // Most UG tabs can be converted to a printable view by appending /print
     const printUrl = formData.ugUrl.includes('?') 
       ? formData.ugUrl.replace('?', '/print?') 
       : `${formData.ugUrl}/print`;
     window.open(printUrl, '_blank');
-    showSuccess("Opening Print Assistant. Use 'Print to PDF' and upload here.");
+    showSuccess("Opening Print Assistant.");
   };
 
   const handleYoutubeSearch = () => {
@@ -560,7 +547,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                 <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Library Matrix</Label>
                 <div className="grid grid-cols-1 gap-2.5">
                   {RESOURCE_TYPES.map(res => {
-                    const isActive = formData.resources?.includes(res.id) || (res.id === 'UG' && formData.ugUrl);
+                    const isActive = formData.resources?.includes(res.id) || (res.id === 'UG' && formData.ugUrl) || (res.id === 'LYRICS' && formData.lyrics);
                     return (
                       <button
                         key={res.id}
@@ -614,7 +601,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
           <div className="flex-1 flex flex-col">
             <div className="h-20 border-b border-white/5 flex items-center px-12 justify-between bg-black/20 shrink-0">
               <div className="flex gap-12">
-                {['audio', 'details', 'visual', 'library'].map((tab) => (
+                {['audio', 'details', 'lyrics', 'visual', 'library'].map((tab) => (
                   <button 
                     key={tab}
                     onClick={() => setActiveTab(tab as any)}
@@ -903,11 +890,40 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
 
                   <div className="space-y-4">
                     <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Rehearsal & Dynamics Notes</Label>
+                    <div className="relative">
+                      <Textarea 
+                        placeholder="Cues, transitions, dynamics..."
+                        value={formData.notes || ""}
+                        onChange={(e) => handleAutoSave({ notes: e.target.value })}
+                        className="min-h-[350px] bg-white/5 border-white/10 text-lg leading-relaxed rounded-[2rem] p-8"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'lyrics' && (
+                <div className="space-y-10 animate-in fade-in duration-500 h-full flex flex-col">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-black uppercase tracking-[0.3em] text-pink-400">Lyrics Engine</h3>
+                      <p className="text-sm text-slate-500 mt-2">Paste lyrics here to enable the stage teleprompter.</p>
+                    </div>
+                    <Button 
+                      variant="outline"
+                      onClick={handleLyricsSearch}
+                      className="bg-pink-600/10 border-pink-600/20 text-pink-600 hover:bg-pink-600 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 gap-2 px-6 rounded-xl transition-all"
+                    >
+                      <Search className="w-3.5 h-3.5" /> Find Lyrics Online
+                    </Button>
+                  </div>
+
+                  <div className="flex-1 min-h-0">
                     <Textarea 
-                      placeholder="Cues, transitions, dynamics..."
-                      value={formData.notes || ""}
-                      onChange={(e) => handleAutoSave({ notes: e.target.value })}
-                      className="min-h-[350px] bg-white/5 border-white/10 text-lg leading-relaxed rounded-[2rem] p-8"
+                      placeholder="Paste lyrics here (formatted with line breaks)..."
+                      value={formData.lyrics || ""}
+                      onChange={(e) => handleAutoSave({ lyrics: e.target.value })}
+                      className="h-full min-h-[400px] bg-white/5 border-white/10 text-xl leading-relaxed rounded-[2.5rem] p-10 font-medium"
                     />
                   </div>
                 </div>
@@ -984,6 +1000,32 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
 
                     <div className={cn(
                       "group p-8 rounded-[2.5rem] border transition-all relative flex flex-col justify-between h-72",
+                      formData.appleMusicUrl ? "bg-white/5 border-white/10 shadow-xl" : "bg-white/5 border-white/5 opacity-40 border-dashed"
+                    )}>
+                      <div className="flex items-center justify-between">
+                        <div className="bg-red-600 p-4 rounded-2xl shadow-lg shadow-red-600/20">
+                          <Apple className="w-8 h-8" />
+                        </div>
+                        {formData.appleMusicUrl && (
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-10 w-10 text-red-400 hover:bg-red-600 hover:text-white transition-all rounded-xl" 
+                            onClick={() => window.open(formData.appleMusicUrl, '_blank')}
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                      <div className="space-y-2 mt-6">
+                        <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-red-400">Apple Music Link</Label>
+                        <p className="text-2xl font-black tracking-tight">{formData.appleMusicUrl ? "Integrated App Link" : "No Link Found"}</p>
+                        <p className="text-[10px] text-slate-500 font-mono">Launch directly in Apple Music</p>
+                      </div>
+                    </div>
+
+                    <div className={cn(
+                      "group p-8 rounded-[2.5rem] border transition-all relative flex flex-col justify-between h-72",
                       formData.ugUrl || (formData.artist && formData.name) ? "bg-white/5 border-white/10 shadow-xl" : "bg-white/5 border-white/5 opacity-40 border-dashed"
                     )}>
                       <div className="flex items-center justify-between">
@@ -1006,20 +1048,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                               <TooltipContent className="text-[10px] font-black uppercase">Print Assistant (PDF Generator)</TooltipContent>
                             </Tooltip>
                             
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="h-10 w-10 text-orange-400 hover:bg-orange-600 hover:text-white transition-all rounded-xl border border-orange-500/20" 
-                                  onClick={handleOnSongImport}
-                                >
-                                  <Smartphone className="w-4 h-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent className="text-[10px] font-black uppercase">Handover to OnSong</TooltipContent>
-                            </Tooltip>
-
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button 

@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 
 interface SongSearchProps {
   onSelectSong: (url: string, name: string, artist: string, youtubeUrl?: string) => void;
-  onAddToSetlist: (url: string, name: string, artist: string, youtubeUrl?: string, ugUrl?: string) => void;
+  onAddToSetlist: (url: string, name: string, artist: string, youtubeUrl?: string, ugUrl?: string, appleMusicUrl?: string) => void;
   externalQuery?: string;
 }
 
@@ -162,7 +162,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
                   <div key={song.trackId} className="flex flex-col border-b last:border-0 border-slate-100 dark:border-slate-800">
                     <div className="w-full flex items-center gap-3 p-2 hover:bg-white dark:hover:bg-indigo-950/30 rounded-lg transition-all group">
                       <button
-                        onClick={() => onAddToSetlist(song.previewUrl, song.trackName, song.artistName, manualYtUrl, manualUgUrl)}
+                        onClick={() => onAddToSetlist(song.previewUrl, song.trackName, song.artistName, manualYtUrl, manualUgUrl, song.trackViewUrl)}
                         className="flex flex-1 items-center gap-3 text-left min-w-0"
                       >
                         <img 
@@ -269,7 +269,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
                             </div>
 
                             <Button 
-                              onClick={() => onAddToSetlist(song.previewUrl, song.trackName, song.artistName, manualYtUrl, manualUgUrl)}
+                              onClick={() => onAddToSetlist(song.previewUrl, song.trackName, song.artistName, manualYtUrl, manualUgUrl, song.trackViewUrl)}
                               className="w-full bg-indigo-600 hover:bg-indigo-700 h-9 font-black uppercase tracking-widest text-[10px] gap-2 shadow-lg shadow-indigo-600/20"
                             >
                               <Plus className="w-3.5 h-3.5" /> Add to Gig with Links
