@@ -133,12 +133,31 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     onReorder(newSongs);
   };
 
-  const handlePdfUpload = async (file: File, songId: string) => {
-    if (file.type !== 'application/pdf') {
-      showError("Please drop a PDF file.");
-      return;
-    }
+  const processAudioUpload = async (file: File, songId: string) => {
+    setUploadingId(songId);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `tracks/${songId}-${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from('audio_tracks')
+        .upload(fileName, file);
 
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('audio_tracks')
+        .getPublicUrl(fileName);
+
+      onUpdateSong(songId, { previewUrl: publicUrl });
+      showSuccess("Performance track linked!");
+    } catch (err) {
+      showError("Audio upload failed.");
+    } finally {
+      setUploadingId(null);
+    }
+  };
+
+  const handlePdfUpload = async (file: File, songId: string) => {
     setUploadingId(songId);
     try {
       const fileName = `sheets/${songId}-${Date.now()}.pdf`;
@@ -155,10 +174,30 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       onUpdateSong(songId, { pdfUrl: publicUrl });
       showSuccess("Sheet music linked!");
     } catch (err) {
-      showError("Upload failed.");
+      showError("PDF upload failed.");
     } finally {
       setUploadingId(null);
       setDragOverId(null);
+    }
+  };
+
+  const onDragOver = (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    setDragOverId(id);
+  };
+
+  const onDrop = (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    setDragOverId(null);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+
+    if (file.type.startsWith('audio/')) {
+      processAudioUpload(file, id);
+    } else if (file.type === 'application/pdf') {
+      handlePdfUpload(file, id);
+    } else {
+      showError("Unsupported file type. Drop an audio file or PDF.");
     }
   };
 
@@ -251,9 +290,9 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
               return (
                 <tr 
                   key={song.id}
-                  onDragOver={(e) => { e.preventDefault(); setDragOverId(song.id); }}
+                  onDragOver={(e) => onDragOver(e, song.id)}
                   onDragLeave={() => setDragOverId(null)}
-                  onDrop={(e) => { e.preventDefault(); const file = e.dataTransfer.files?.[0]; if (file) handlePdfUpload(file, song.id); }}
+                  onDrop={(e) => onDrop(e, song.id)}
                   className={cn(
                     "transition-all group relative",
                     isSelected ? "bg-indigo-50/50 dark:bg-indigo-900/10" : "hover:bg-slate-50/50 dark:hover:bg-slate-800/30",
@@ -340,14 +379,16 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                             className="flex items-center gap-1 text-[9px] font-black text-indigo-600 uppercase hover:underline cursor-pointer"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <Upload className="w-2.5 h-2.5" /> {isUploading ? "Uploading..." : "Drop PDF"}
+                            <Upload className="w-2.5 h-2.5" /> {isUploading ? "Uploading..." : "Drop Track/PDF"}
                             <input 
                               type="file" 
                               className="hidden" 
-                              accept="application/pdf" 
+                              accept="audio/*,application/pdf" 
                               onChange={(e) => {
                                 const file = e.target.files?.[0];
-                                if (file) handlePdfUpload(file, song.id);
+                                if (!file) return;
+                                if (file.type.startsWith('audio/')) processAudioUpload(file, song.id);
+                                else if (file.type === 'application/pdf') handlePdfUpload(file, song.id);
                               }}
                             />
                           </label>
