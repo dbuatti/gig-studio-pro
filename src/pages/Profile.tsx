@@ -10,10 +10,11 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { showSuccess, showError } from '@/utils/toast';
-import { Camera, Copy, Globe, Palette, User, Loader2, ArrowLeft, RotateCcw, Sparkles, ExternalLink, RefreshCw, Library, ShieldCheck } from 'lucide-react';
+import { Camera, Copy, Globe, Palette, User, Loader2, ArrowLeft, RotateCcw, Sparkles, ExternalLink, RefreshCw, Library, ShieldCheck, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import PublicRepertoireView from '@/components/PublicRepertoireView';
 import { cn } from '@/lib/utils';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const THEMES = [
   { name: 'Dark Pro', primary: '#4f46e5', background: '#020617', text: '#ffffff', border: '#4f46e5' },
@@ -126,7 +127,6 @@ const Profile = () => {
         return score;
       };
 
-      // Deduplicate songs by title and artist to avoid Postgres upsert conflicts
       const uniqueRepertoireMap = new Map();
       
       allSongs.forEach(song => {
@@ -135,7 +135,6 @@ const Profile = () => {
         const key = `${title}-${artist}`.toLowerCase();
         const score = calculateScore(song);
         
-        // If song already in map, keep the one with the higher readiness score
         if (!uniqueRepertoireMap.has(key) || score > uniqueRepertoireMap.get(key).readiness_score) {
           uniqueRepertoireMap.set(key, {
             user_id: user.id,
@@ -182,12 +181,10 @@ const Profile = () => {
 
     setSaving(true);
     try {
-      // Use a distinct filename to avoid cache/overlap issues
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
       const bucketName = 'public_assets';
 
-      // Upload with upsert enabled just in case
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from(bucketName)
         .upload(fileName, file, {
@@ -196,7 +193,9 @@ const Profile = () => {
         });
 
       if (uploadError) {
-         console.error("Storage Error Detail:", uploadError);
+         if (uploadError.message.includes('Failed to fetch')) {
+           throw new Error("Could not reach storage server. Ensure the 'public_assets' bucket exists in your Supabase project.");
+         }
          throw uploadError;
       }
 
@@ -209,7 +208,7 @@ const Profile = () => {
       showSuccess("Photo Updated");
     } catch (err: any) {
       console.error("Upload process failed:", err);
-      showError(`Upload failed: ${err.message || "Network Timeout"}`);
+      showError(`Upload failed: ${err.message || "Network Error"}`);
     } finally {
       setSaving(false);
     }
@@ -232,7 +231,6 @@ const Profile = () => {
 
   return (
     <div className="h-screen bg-slate-950 text-white flex overflow-hidden">
-      {/* Configuration Column */}
       <div className="w-full lg:w-[450px] flex flex-col border-r border-white/10 shrink-0 bg-slate-900/50">
         <div className="p-6 border-b border-white/10 bg-black/20 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-4">
@@ -248,7 +246,6 @@ const Profile = () => {
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
-          {/* Identity Section */}
           <section className="space-y-4">
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Identity</h4>
@@ -296,7 +293,6 @@ const Profile = () => {
             </div>
           </section>
 
-          {/* Repertoire Settings */}
           <section className="space-y-4">
             <div className="flex items-center justify-between p-5 bg-white/5 rounded-[2rem] border border-white/10">
               <div className="flex items-center gap-3">
@@ -392,7 +388,6 @@ const Profile = () => {
             </div>
           </section>
 
-          {/* Style & Themes */}
           <section className="space-y-6 pt-4 border-t border-white/10">
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Branding & Style</h4>
             
@@ -456,9 +451,7 @@ const Profile = () => {
         </div>
       </div>
 
-      {/* Preview Column */}
       <div className="flex-1 bg-slate-950 flex flex-col p-10 relative overflow-hidden">
-        {/* Abstract Background Element */}
         <div 
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] blur-[150px] opacity-20 pointer-events-none rounded-full"
           style={{ background: profile?.custom_colors?.primary || '#4f46e5' }}
