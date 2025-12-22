@@ -14,11 +14,13 @@ import { calculateSemitones } from '@/utils/keyUtils';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { LogOut, User as UserIcon, Loader2, Play, Music, LayoutDashboard, Search as SearchIcon, Rocket } from 'lucide-react';
+import { LogOut, User as UserIcon, Loader2, Play, Music, LayoutDashboard, Search as SearchIcon, Rocket, Hash, Music2 } from 'lucide-react';
 import { cn } from "@/lib/utils";
+import { useSettings } from '@/hooks/use-settings';
 
 const Index = () => {
   const { user, signOut } = useAuth();
+  const { keyPreference, toggleKeyPreference } = useSettings();
   const [setlists, setSetlists] = useState<{ id: string; name: string; songs: SetlistSong[]; time_goal?: number }[]>([]);
   const [currentListId, setCurrentListId] = useState<string | null>(null);
   const [activeSongId, setActiveSongId] = useState<string | null>(null);
@@ -390,7 +392,22 @@ const Index = () => {
           <Button variant="default" size="sm" onClick={startPerformance} className="gap-2 bg-indigo-600 font-bold uppercase tracking-tight">
             <Rocket className="w-4 h-4" /> Start Show
           </Button>
+
           <div className="h-6 w-px bg-slate-200" />
+
+          {/* Key Preference Toggle */}
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={toggleKeyPreference}
+            className="gap-2 font-black uppercase tracking-widest text-[10px] text-slate-500 hover:text-indigo-600"
+          >
+            {keyPreference === 'sharps' ? <Hash className="w-3.5 h-3.5" /> : <Music2 className="w-3.5 h-3.5" />}
+            {keyPreference === 'sharps' ? "Sharps" : "Flats"}
+          </Button>
+
+          <div className="h-6 w-px bg-slate-200" />
+
           <Button variant="ghost" size="sm" onClick={() => setIsStudioOpen(!isStudioOpen)} className={cn("gap-2 font-bold uppercase tracking-tight", isStudioOpen && "text-indigo-600")}>
             <SearchIcon className="w-4 h-4" /> Studio
           </Button>

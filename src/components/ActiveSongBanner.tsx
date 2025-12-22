@@ -6,6 +6,8 @@ import { Music, Youtube, Copy, Play, Activity, Gauge, Sparkles, Tag } from 'luci
 import { Button } from '@/components/ui/button';
 import { showSuccess } from '@/utils/toast';
 import { Badge } from '@/components/ui/badge';
+import { formatKey } from '@/utils/keyUtils';
+import { useSettings } from '@/hooks/use-settings';
 
 interface ActiveSongBannerProps {
   song: SetlistSong | null;
@@ -13,6 +15,7 @@ interface ActiveSongBannerProps {
 }
 
 const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song }) => {
+  const { keyPreference } = useSettings();
   if (!song) return null;
 
   const handleCopyLink = () => {
@@ -22,13 +25,15 @@ const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song }) => {
     }
   };
 
+  const displayKey = formatKey(song.targetKey || song.originalKey, keyPreference);
+
   return (
     <div className="sticky top-0 z-20 mb-6 animate-in slide-in-from-top duration-500">
       <div className="bg-slate-900 rounded-[2rem] shadow-2xl overflow-hidden border-4 border-indigo-600/20">
         <div className="bg-indigo-600 px-6 py-2 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Activity className="w-4 h-4 text-indigo-200 animate-pulse" />
-            <span className="text-[10px] font-black text-indigo-50 uppercase tracking-[0.3em]">Live Performance Telemetry</span>
+            <span className="text-[10px] font-black text-indigo-50 uppercase tracking-[0.3em] font-mono">Live Performance Telemetry</span>
           </div>
           <div className="flex gap-4">
             <div className="flex items-center gap-2">
@@ -50,7 +55,7 @@ const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song }) => {
               <div className="flex items-center gap-3 mt-2">
                 <span className="text-sm font-bold text-slate-400 uppercase tracking-wider">{song.artist || "Unknown Artist"}</span>
                 <div className="w-1.5 h-1.5 rounded-full bg-slate-700" />
-                <span className="text-sm font-mono font-bold text-indigo-400 bg-indigo-400/10 px-2 rounded">{song.targetKey || song.originalKey}</span>
+                <span className="text-sm font-mono font-bold text-indigo-400 bg-indigo-400/10 px-2 rounded">{displayKey}</span>
               </div>
             </div>
           </div>
@@ -59,21 +64,21 @@ const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song }) => {
             {/* Telemetry Stats */}
             <div className="flex gap-8 border-l border-white/5 pl-8">
               <div className="flex flex-col items-center">
-                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1.5 font-mono">
                   <Gauge className="w-3 h-3" /> Tempo
                 </span>
                 <span className="text-xl font-black text-white font-mono">{song.bpm || "--"} <span className="text-[10px] text-slate-500">BPM</span></span>
               </div>
 
               <div className="flex flex-col items-center">
-                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1.5 font-mono">
                   <Sparkles className="w-3 h-3" /> Vibe
                 </span>
                 <span className="text-xl font-black text-white font-mono uppercase truncate max-w-[120px]">{song.genre || "Standard"}</span>
               </div>
 
               <div className="flex flex-col items-center">
-                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1.5 font-mono">
                   <Activity className="w-3 h-3" /> Pitch
                 </span>
                 <span className="text-xl font-black text-white font-mono">{song.pitch > 0 ? '+' : ''}{song.pitch} <span className="text-[10px] text-slate-500">ST</span></span>
@@ -83,7 +88,7 @@ const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song }) => {
             <div className="flex flex-col gap-3">
               <div className="flex flex-wrap gap-1 justify-end max-w-[180px]">
                 {(song.user_tags || []).slice(0, 3).map(tag => (
-                  <Badge key={tag} variant="secondary" className="bg-white/5 text-[8px] font-black uppercase text-indigo-300 border-white/5 px-2 py-0.5">
+                  <Badge key={tag} variant="secondary" className="bg-white/5 text-[8px] font-black uppercase text-indigo-300 border-white/5 px-2 py-0.5 font-mono">
                     {tag}
                   </Badge>
                 ))}
@@ -94,7 +99,7 @@ const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song }) => {
                     variant="ghost" 
                     size="sm" 
                     onClick={handleCopyLink}
-                    className="h-9 px-4 bg-white/5 hover:bg-white/10 text-white font-bold text-[10px] uppercase gap-2 rounded-xl"
+                    className="h-9 px-4 bg-white/5 hover:bg-white/10 text-white font-bold text-[10px] uppercase gap-2 rounded-xl font-mono"
                   >
                     <Copy className="w-3.5 h-3.5" /> Copy Link
                   </Button>

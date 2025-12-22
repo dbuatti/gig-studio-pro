@@ -3,13 +3,14 @@
 import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed, Copy, Upload, Loader2, Sparkles, FileText, ShieldCheck, Edit3, Search, FileDown, FileCheck, SortAsc, SortDesc, LayoutList, Volume2, Headphones, ChevronUp, ChevronDown, BarChart2, Smartphone, Clock } from 'lucide-react';
-import { ALL_KEYS, calculateSemitones } from '@/utils/keyUtils';
+import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, calculateSemitones, formatKey } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import SongStudioModal from './SongStudioModal';
+import { useSettings } from '@/hooks/use-settings';
 
 export interface SetlistSong {
   id: string;
@@ -69,6 +70,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   onReorder,
   currentSongId 
 }) => {
+  const { keyPreference } = useSettings();
   const [sortMode, setSortMode] = useState<SortMode>(() => {
     const saved = localStorage.getItem('gig_sort_mode');
     return (saved as SortMode) || 'none';
@@ -187,9 +189,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                 const isReady = readinessScore >= 8;
                 const hasAudio = !!song.previewUrl && !isItunesPreview(song.previewUrl);
                 
-                // Cleanup malformed keys if they were durations
-                const displayOrigKey = /^\d{1,2}:\d{2}$/.test(song.originalKey || "") ? "TBC" : (song.originalKey || "TBC");
-                const displayTargetKey = /^\d{1,2}:\d{2}$/.test(song.targetKey || "") ? displayOrigKey : (song.targetKey || displayOrigKey);
+                const displayOrigKey = formatKey(song.originalKey, keyPreference);
+                const displayTargetKey = formatKey(song.targetKey || song.originalKey, keyPreference);
 
                 return (
                   <tr 

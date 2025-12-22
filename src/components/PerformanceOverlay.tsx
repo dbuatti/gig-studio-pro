@@ -14,9 +14,10 @@ import {
 import { SetlistSong } from './SetlistManager';
 import AudioVisualizer from './AudioVisualizer';
 import Metronome from './Metronome';
-import { ALL_KEYS } from '@/utils/keyUtils';
+import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, formatKey } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
 import { Badge } from './ui/badge';
+import { useSettings } from '@/hooks/use-settings';
 
 interface PerformanceOverlayProps {
   songs: SetlistSong[];
@@ -49,10 +50,13 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
   onUpdateKey,
   analyzer
 }) => {
+  const { keyPreference } = useSettings();
   const currentSong = songs[currentIndex];
   const nextSong = songs[currentIndex + 1];
   const [localNotes, setLocalNotes] = useState(currentSong?.notes || "");
   const [viewMode, setViewMode] = useState<ViewMode>('visualizer');
+
+  const keysToUse = keyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
 
   useEffect(() => {
     setLocalNotes(currentSong?.notes || "");
@@ -81,6 +85,9 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
     }
   };
 
+  const displayCurrentKey = formatKey(currentSong?.targetKey || currentSong?.originalKey, keyPreference);
+  const displayNextKey = formatKey(nextSong?.targetKey || nextSong?.originalKey, keyPreference);
+
   return (
     <div className="fixed inset-0 z-[100] bg-slate-950 text-white flex flex-col animate-in fade-in zoom-in duration-300">
       {/* Practice Header */}
@@ -90,7 +97,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
             <Activity className="w-8 h-8 animate-pulse text-white" />
           </div>
           <div>
-            <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400 mb-1">Mission Control V2.5</h2>
+            <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400 mb-1 font-mono">Mission Control V2.5</h2>
             <div className="flex items-center gap-4">
               <span className="text-2xl font-black uppercase tracking-tight">Active Performance</span>
               <div className="flex gap-1.5">
@@ -109,23 +116,23 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
         </div>
 
         {/* Real-time HUD stats */}
-        <div className="hidden lg:flex items-center gap-12 border-x border-white/5 px-12 mx-8">
+        <div className="hidden lg:flex items-center gap-12 border-x border-white/5 px-12 mx-8 font-mono">
            <div className="flex flex-col items-center">
               <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Master Tempo</span>
-              <span className="text-xl font-black font-mono text-indigo-400">{currentSong?.bpm || "--"} <span className="text-[10px] text-slate-600">BPM</span></span>
+              <span className="text-xl font-black text-indigo-400">{currentSong?.bpm || "--"} <span className="text-[10px] text-slate-600">BPM</span></span>
            </div>
            <div className="flex flex-col items-center">
               <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Vibe Profile</span>
-              <span className="text-xl font-black font-mono text-white uppercase">{currentSong?.genre || "STD"}</span>
+              <span className="text-xl font-black text-white uppercase">{currentSong?.genre || "STD"}</span>
            </div>
            <div className="flex flex-col items-center">
               <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Pitch Offset</span>
-              <span className="text-xl font-black font-mono text-indigo-400">{currentSong?.pitch > 0 ? '+' : ''}{currentSong?.pitch}ST</span>
+              <span className="text-xl font-black text-indigo-400">{currentSong?.pitch > 0 ? '+' : ''}{currentSong?.pitch}ST</span>
            </div>
         </div>
 
         <div className="flex items-center gap-6">
-          <div className="flex bg-slate-800/50 p-1.5 rounded-2xl border border-white/10 shadow-inner">
+          <div className="flex bg-slate-800/50 p-1.5 rounded-2xl border border-white/10 shadow-inner font-mono">
             <Button 
               variant="ghost" 
               size="sm" 
@@ -170,7 +177,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
           <div className="max-w-6xl w-full h-full flex flex-col space-y-8 z-10">
             {/* HUD Status Matrix */}
             <div className={cn("text-center transition-all duration-500", viewMode === 'pdf' ? "space-y-1" : "space-y-6")}>
-              <div className="inline-flex items-center gap-4 px-6 py-2 bg-indigo-500/10 border border-indigo-500/20 rounded-full">
+              <div className="inline-flex items-center gap-4 px-6 py-2 bg-indigo-500/10 border border-indigo-500/20 rounded-full font-mono">
                 <Music className="w-4 h-4 text-indigo-400" />
                 <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em]">Channel 01 Active Output</span>
               </div>
@@ -183,11 +190,11 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
                 <div className="flex items-center gap-6 font-bold text-slate-400 text-2xl">
                   <span>{currentSong?.artist}</span>
                   <div className="w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_10px_rgba(79,70,229,0.5)]" />
-                  <span className="text-indigo-400 font-mono font-black">{currentSong?.targetKey}</span>
+                  <span className="text-indigo-400 font-mono font-black">{displayCurrentKey}</span>
                 </div>
                 
                 {/* Active Tags Display */}
-                <div className="flex gap-2">
+                <div className="flex gap-2 font-mono">
                   {(currentSong?.user_tags || []).map(tag => (
                     <Badge key={tag} className="bg-white/5 hover:bg-white/10 text-slate-400 text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full border border-white/5">
                       {tag}
@@ -288,7 +295,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
         <aside className="w-[450px] bg-slate-900/40 backdrop-blur-2xl p-10 space-y-10 overflow-y-auto shrink-0 border-l border-white/5 scrollbar-hide">
           {/* Metronome Utility */}
           <div className="space-y-5">
-            <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 flex items-center gap-2">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 flex items-center gap-2 font-mono">
               <Gauge className="w-4 h-4" /> Live Click Track
             </h3>
             <Metronome initialBpm={parseInt(currentSong?.bpm || "120")} />
@@ -296,30 +303,30 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
 
           {/* Harmonic HUD */}
           <div className="space-y-5">
-            <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 flex items-center gap-2">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 flex items-center gap-2 font-mono">
               <Settings2 className="w-4 h-4" /> Harmonic Processor
             </h3>
             <div className="bg-white/5 rounded-[2rem] p-6 border border-white/10 space-y-6">
               <div className="flex justify-between items-center">
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Master Key</span>
-                  <span className="text-2xl font-mono font-black text-indigo-400">{currentSong?.targetKey}</span>
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest font-mono">Master Key</span>
+                  <span className="text-2xl font-mono font-black text-indigo-400">{displayCurrentKey}</span>
                 </div>
                 <div className="h-10 w-px bg-white/5" />
                 <div className="flex flex-col items-end">
-                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Shift Offset</span>
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest font-mono">Shift Offset</span>
                   <span className="text-2xl font-mono font-black text-slate-300">{currentSong?.pitch > 0 ? '+' : ''}{currentSong?.pitch}ST</span>
                 </div>
               </div>
               <Select 
                 value={currentSong?.targetKey} 
-                onValueChange={(val) => onUpdateKey(currentSong.id, val)}
+                onValueChange={(val) => onUpdateKey(currentSong!.id, val)}
               >
                 <SelectTrigger className="bg-slate-950 border-white/10 text-sm font-black font-mono h-12 rounded-xl">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-900 border-white/10 text-white">
-                  {ALL_KEYS.map(k => (
+                  {keysToUse.map(k => (
                     <SelectItem key={k} value={k} className="font-mono font-bold">{k}</SelectItem>
                   ))}
                 </SelectContent>
@@ -330,10 +337,10 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
           {/* Artist Stage Cues */}
           <div className="space-y-5">
             <div className="flex items-center justify-between">
-              <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 flex items-center gap-2">
+              <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 flex items-center gap-2 font-mono">
                 <FileText className="w-4 h-4" /> Stage Cues & Coda
               </h3>
-              <Badge className="bg-indigo-600/10 text-indigo-400 text-[8px] border-indigo-600/20">MEMO SYNCED</Badge>
+              <Badge className="bg-indigo-600/10 text-indigo-400 text-[8px] border-indigo-600/20 font-mono">MEMO SYNCED</Badge>
             </div>
             <div className="space-y-4">
               <Textarea 
@@ -344,7 +351,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
               />
               <Button 
                 onClick={handleSaveNotes}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-[0.2em] text-[10px] h-12 gap-3 rounded-2xl shadow-lg shadow-indigo-600/20 transition-all active:scale-95"
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-[0.2em] text-[10px] h-12 gap-3 rounded-2xl shadow-lg shadow-indigo-600/20 transition-all active:scale-95 font-mono"
               >
                 <Save className="w-4 h-4" /> Save Stage Memo
               </Button>
@@ -354,7 +361,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
           {/* Next Deck Preview */}
           {nextSong && (
             <div className="pt-10 border-t border-white/5">
-              <div className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-6">On Deck: Next Sequence</div>
+              <div className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-6 font-mono">On Deck: Next Sequence</div>
               <div 
                 className="bg-white/5 border border-white/5 rounded-[2rem] p-6 flex items-center gap-6 group cursor-pointer hover:bg-white/10 transition-all hover:scale-[1.02] active:scale-98" 
                 onClick={onNext}
@@ -365,9 +372,9 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
                 <div className="flex flex-col min-w-0">
                   <span className="text-lg font-black uppercase truncate">{nextSong.name}</span>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{nextSong.artist}</span>
+                    <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest font-mono">{nextSong.artist}</span>
                     <span className="text-slate-700 text-xs">•</span>
-                    <span className="text-[10px] font-mono font-bold text-indigo-500">{nextSong.targetKey}</span>
+                    <span className="text-[10px] font-mono font-bold text-indigo-500">{displayNextKey}</span>
                   </div>
                 </div>
               </div>
@@ -377,7 +384,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
       </div>
 
       {/* Stage Status Footer */}
-      <div className="h-16 border-t border-white/10 px-10 flex items-center justify-between text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 bg-slate-900/30 shrink-0">
+      <div className="h-16 border-t border-white/10 px-10 flex items-center justify-between text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 bg-slate-900/30 shrink-0 font-mono">
         <div className="flex gap-12">
           <div className="flex items-center gap-3">
             <Monitor className="w-4 h-4 text-indigo-500" />

@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { SetlistSong } from './SetlistManager';
-import { ALL_KEYS, calculateSemitones } from '@/utils/keyUtils';
+import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, calculateSemitones, formatKey } from '@/utils/keyUtils';
 import { 
   Music, FileText, Youtube, Settings2, 
   Sparkles, Waves, Activity, Play, Pause,
@@ -28,6 +28,7 @@ import { analyze } from 'web-audio-beat-detector';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { Slider } from '@/components/ui/slider';
+import { useSettings } from '@/hooks/use-settings';
 
 interface SongStudioModalProps {
   song: SetlistSong | null;
@@ -56,6 +57,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   onSyncProData,
   onPerform 
 }) => {
+  const { keyPreference } = useSettings();
   const [formData, setFormData] = useState<Partial<SetlistSong>>({});
   const [activeTab, setActiveTab] = useState<'details' | 'audio' | 'visual' | 'library'>('audio');
   const [newTag, setNewTag] = useState("");
@@ -81,6 +83,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   
   const playbackStartTimeRef = useRef<number>(0);
   const playbackOffsetRef = useRef<number>(0);
+
+  const keysToUse = keyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
 
   useEffect(() => {
     if (song && isOpen) {
@@ -527,7 +531,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-slate-900 border-white/10 text-white">
-                        {ALL_KEYS.map(k => <SelectItem key={k} value={k} className="font-mono">{k}</SelectItem>)}
+                        {keysToUse.map(k => <SelectItem key={k} value={k} className="font-mono">{k}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
@@ -545,7 +549,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-slate-900 border-white/10 text-white">
-                        {ALL_KEYS.map(k => <SelectItem key={k} value={k} className="font-mono">{k}</SelectItem>)}
+                        {keysToUse.map(k => <SelectItem key={k} value={k} className="font-mono">{k}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
