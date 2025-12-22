@@ -18,7 +18,7 @@ import {
   Upload, Link2, X, Plus, Tag, Check, Loader2,
   FileDown, Headphones, Wand2, Download,
   Globe, Eye, Link as LinkIcon, RotateCcw,
-  Zap, Disc
+  Zap, Disc, VolumeX
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import AudioVisualizer from './AudioVisualizer';
@@ -67,11 +67,14 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const [tempo, setTempo] = useState(1);
   const [volume, setVolume] = useState(-6);
   const [fineTune, setFineTune] = useState(0);
+  const [isMetronomeActive, setIsMetronomeActive] = useState(false);
 
   const playerRef = useRef<Tone.GrainPlayer | null>(null);
   const analyzerRef = useRef<Tone.Analyser | null>(null);
   const currentBufferRef = useRef<AudioBuffer | null>(null);
   const requestRef = useRef<number>();
+  const metronomeSynthRef = useRef<Tone.MembraneSynth | null>(null);
+  const metronomeLoopRef = useRef<Tone.Loop | null>(null);
   
   const playbackStartTimeRef = useRef<number>(0);
   const playbackOffsetRef = useRef<number>(0);
@@ -99,8 +102,21 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         prepareAudio(song.previewUrl, song.pitch || 0);
       }
     }
-    return () => cleanupAudio();
+    return () => {
+      cleanupAudio();
+      stopMetronome();
+    };
   }, [song?.id, isOpen]);
+
+  // Update metronome BPM in real-time if it's active
+  useEffect(() => {
+    if (isMetronomeActive && formData.bpm) {
+      const bpmValue = parseInt(formData.bpm);
+      if (!isNaN(bpmValue) && bpmValue > 0) {
+        Tone.getTransport().bpm.value = bpmValue;
+      }
+    }
+  }, [formData.bpm, isMetronomeActive]);
 
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
   const handleAutoSave = (updates: Partial<SetlistSong>) => {
@@ -123,6 +139,49 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     setProgress(0);
     playbackOffsetRef.current = 0;
     currentBufferRef.current = null;
+  };
+
+  const stopMetronome = () => {
+    Tone.getTransport().stop();
+    metronomeLoopRef.current?.stop();
+    setIsMetronomeActive(false);
+  };
+
+  const toggleMetronome = async () => {
+    if (!formData.bpm) {
+      showError("Set a BPM first.");
+      return;
+    }
+
+    if (isMetronomeActive) {
+      stopMetronome();
+    } else {
+      if (Tone.getContext().state !== 'running') await Tone.start();
+      
+      if (!metronomeSynthRef.current) {
+        metronomeSynthRef.current = new Tone.MembraneSynth({
+          pitchDecay: 0.05,
+          octaves: 4,
+          oscillator: { type: "sine" }
+        }).toDestination();
+      }
+      
+      const bpmValue = parseInt(formData.bpm);
+      if (isNaN(bpmValue) || bpmValue <= 0) return;
+      
+      Tone.getTransport().bpm.value = bpmValue;
+      
+      if (!metronomeLoopRef.current) {
+        metronomeLoopRef.current = new Tone.Loop((time) => {
+          metronomeSynthRef.current?.triggerAttackRelease("C4", "32n", time);
+        }, "4n").start(0);
+      } else {
+        metronomeLoopRef.current.start(0);
+      }
+      
+      Tone.getTransport().start();
+      setIsMetronomeActive(true);
+    }
   };
 
   const prepareAudio = async (url: string, pitch: number) => {
@@ -635,11 +694,24 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                      <div className="flex items-center gap-6">
                         <div className="flex flex-col">
                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Library BPM</span>
-                           <Input 
-                             value={formData.bpm || ""}
-                             onChange={(e) => handleAutoSave({ bpm: e.target.value })}
-                             className="bg-transparent border-none p-0 h-auto text-xl font-black font-mono text-indigo-400 focus-visible:ring-0"
-                           />
+                           <div className="flex items-center gap-3">
+                             <Input 
+                               value={formData.bpm || ""}
+                               onChange={(e) => handleAutoSave({ bpm: e.target.value })}
+                               className="bg-transparent border-none p-0 h-auto text-xl font-black font-mono text-indigo-400 focus-visible:ring-0 w-16"
+                             />
+                             <Button 
+                               variant="ghost" 
+                               size="icon" 
+                               onClick={toggleMetronome}
+                               className={cn(
+                                 "h-8 w-8 rounded-lg transition-all",
+                                 isMetronomeActive ? "bg-indigo-600 text-white shadow-lg" : "bg-white/5 text-slate-400"
+                               )}
+                             >
+                               {isMetronomeActive ? <Volume2 className="w-4 h-4 animate-pulse" /> : <VolumeX className="w-4 h-4" />}
+                             </Button>
+                           </div>
                         </div>
                         <div className="flex gap-2">
                           <Button 
