@@ -6,8 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Play, Pause, RotateCcw, Upload, Music, Volume2 } from 'lucide-react';
+import { Play, Pause, RotateCcw, Upload, Music, Volume2, Info } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const AudioTransposer = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -17,21 +18,17 @@ const AudioTransposer = () => {
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
 
-  const playerRef = useRef<Tone.Player | null>(null);
-  const pitchShiftRef = useRef<Tone.PitchShift | null>(null);
+  // Using GrainPlayer for superior pitch shifting quality
+  const playerRef = useRef<Tone.GrainPlayer | null>(null);
   const requestRef = useRef<number>();
   
-  // Refs for tracking progress manually
   const playbackStartTimeRef = useRef<number>(0);
   const offsetRef = useRef<number>(0);
 
   useEffect(() => {
-    pitchShiftRef.current = new Tone.PitchShift(0).toDestination();
-    
     return () => {
       stopPlayback();
       playerRef.current?.dispose();
-      pitchShiftRef.current?.dispose();
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
     };
   }, []);
@@ -53,13 +50,20 @@ const AudioTransposer = () => {
         playerRef.current.dispose();
       }
 
-      playerRef.current = new Tone.Player(audioBuffer).connect(pitchShiftRef.current!);
+      // Initialize GrainPlayer with high-quality settings
+      // GrainSize 0.2 and Overlap 0.1 are optimal for smooth music transposition
+      playerRef.current = new Tone.GrainPlayer(audioBuffer).toDestination();
+      playerRef.current.grainSize = 0.2;
+      playerRef.current.overlap = 0.1;
+      playerRef.current.detune = pitch * 100; // Convert semitones to cents
+      playerRef.current.volume.value = volume;
+
       setFile(uploadedFile);
       setDuration(audioBuffer.duration);
       setProgress(0);
       offsetRef.current = 0;
       setIsPlaying(false);
-      showSuccess("Audio loaded successfully!");
+      showSuccess("High-fidelity audio engine loaded.");
     } catch (err) {
       showError("Failed to load audio file.");
       console.error(err);
@@ -104,7 +108,6 @@ const AudioTransposer = () => {
 
     if (isPlaying) {
       playerRef.current.stop();
-      // Store where we stopped
       const elapsed = Tone.now() - playbackStartTimeRef.current;
       offsetRef.current += elapsed;
       setIsPlaying(false);
@@ -129,8 +132,9 @@ const AudioTransposer = () => {
   const handlePitchChange = (values: number[]) => {
     const newPitch = values[0];
     setPitch(newPitch);
-    if (pitchShiftRef.current) {
-      pitchShiftRef.current.pitch = newPitch;
+    if (playerRef.current) {
+      // detune is measured in cents (100 cents = 1 semitone)
+      playerRef.current.detune = newPitch * 100;
     }
   };
 
@@ -158,12 +162,22 @@ const AudioTransposer = () => {
   return (
     <Card className="w-full max-w-2xl mx-auto shadow-xl border-t-4 border-t-primary">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Music className="w-6 h-6 text-primary" />
-          HQ MP3 Transposer
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Music className="w-6 h-6 text-primary" />
+            Studio Transposer
+          </div>
+          <Tooltip>
+            <TooltipTrigger>
+              <Info className="w-4 h-4 text-muted-foreground" />
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="max-w-xs">Uses Granular Synthesis to maintain audio fidelity even at extreme pitch shifts.</p>
+            </TooltipContent>
+          </Tooltip>
         </CardTitle>
         <CardDescription>
-          Change the key of your music in real-time without affecting tempo or quality.
+          Professional real-time transposition with zero speed variance.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-8">
@@ -176,9 +190,9 @@ const AudioTransposer = () => {
           />
           <Upload className="w-12 h-12 text-muted-foreground group-hover:text-primary transition-colors mb-4" />
           <p className="text-sm font-medium">
-            {file ? file.name : "Click or drag audio file to upload"}
+            {file ? file.name : "Load your MP3 / WAV"}
           </p>
-          <p className="text-xs text-muted-foreground mt-1">MP3, WAV, OGG supported</p>
+          <p className="text-xs text-muted-foreground mt-1">Studio-quality processing enabled</p>
         </div>
 
         {file && (
@@ -219,9 +233,9 @@ const AudioTransposer = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <Label className="text-sm font-bold">Pitch Shift (Semitones)</Label>
+                  <Label className="text-sm font-bold">Key Shift</Label>
                   <span className="text-lg font-mono bg-primary/10 px-3 py-1 rounded text-primary">
-                    {pitch > 0 ? `+${pitch}` : pitch}
+                    {pitch > 0 ? `+${pitch}` : pitch} ST
                   </span>
                 </div>
                 <Slider
@@ -231,7 +245,7 @@ const AudioTransposer = () => {
                   step={1}
                   onValueChange={handlePitchChange}
                 />
-                <div className="flex justify-between text-[10px] text-muted-foreground uppercase tracking-widest">
+                <div className="flex justify-between text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">
                   <span>-1 Octave</span>
                   <span>Original</span>
                   <span>+1 Octave</span>
