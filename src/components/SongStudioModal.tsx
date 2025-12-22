@@ -59,21 +59,19 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   
-  // Audio Engine State
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [duration, setDuration] = useState(0);
   const playerRef = useRef<Tone.GrainPlayer | null>(null);
   const analyzerRef = useRef<Tone.Analyser | null>(null);
   const currentBufferRef = useRef<AudioBuffer | null>(null);
   const requestRef = useRef<number>();
   
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
   const playbackStartTimeRef = useRef<number>(0);
   const playbackOffsetRef = useRef<number>(0);
 
   useEffect(() => {
     if (song && isOpen) {
-      // Initialize with full song data to ensure all assets are tracked
       setFormData({
         name: song.name || "",
         artist: song.artist || "",
@@ -84,6 +82,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         youtubeUrl: song.youtubeUrl || "",
         previewUrl: song.previewUrl || "",
         pdfUrl: song.pdfUrl || "",
+        ugUrl: song.ugUrl || "",
         resources: song.resources || [],
         pitch: song.pitch || 0,
         user_tags: song.user_tags || [],
@@ -95,7 +94,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       }
     }
     return () => cleanupAudio();
-  }, [song?.id, isOpen]); // Use song.id to prevent unnecessary re-runs if other fields change during sync
+  }, [song?.id, isOpen]);
 
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
   const handleAutoSave = (updates: Partial<SetlistSong>) => {
@@ -213,7 +212,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       const folder = isAudio ? 'tracks' : 'sheets';
       const fileName = `${folder}/${song.id}-${Date.now()}.${file.name.split('.').pop()}`;
 
-      // Upload to public storage
       const { error: uploadError } = await supabase.storage.from('audio_tracks').upload(fileName, file);
       if (uploadError) throw uploadError;
 
@@ -221,17 +219,13 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       
       const update = isAudio ? { previewUrl: publicUrl } : { pdfUrl: publicUrl };
       
-      // Update local state first for immediate UI response
       setFormData(prev => ({ ...prev, ...update }));
-      
-      // Persist to DB
       onSave(song.id, update);
       
       if (isAudio) prepareAudio(publicUrl, formData.pitch || 0);
       showSuccess(`Successfully linked ${file.name}`);
     } catch (err) {
-      console.error("Upload Error:", err);
-      showError("Asset upload failed. Please check storage bucket permissions.");
+      showError("Asset upload failed.");
     } finally {
       setIsUploading(false);
     }
@@ -281,7 +275,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     const links = [
       { url: formData.previewUrl, name: `${formData.name}_Audio` },
       { url: formData.pdfUrl, name: `${formData.name}_Chart` },
-      { url: formData.youtubeUrl, name: `${formData.name}_Reference` }
+      { url: formData.youtubeUrl, name: `${formData.name}_Reference` },
+      { url: formData.ugUrl, name: `${formData.name}_UG_Chords` }
     ].filter(l => !!l.url);
 
     if (links.length === 0) {
@@ -299,6 +294,17 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     showSuccess(`Started download for ${links.length} assets.`);
   };
 
+  const handleUgAction = () => {
+    if (formData.ugUrl) {
+      window.open(formData.ugUrl, '_blank');
+    } else {
+      // Direct search targeting Official tabs (type=600)
+      const query = encodeURIComponent(`${formData.artist} ${formData.name}`);
+      const searchUrl = `https://www.ultimate-guitar.com/search.php?search_type=title&value=${query}&type=600`;
+      window.open(searchUrl, '_blank');
+    }
+  };
+
   if (!song) return null;
   const videoId = formData.youtubeUrl ? formData.youtubeUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)?.[1] : null;
 
@@ -309,13 +315,10 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
         onDragLeave={() => setIsDragOver(false)}
         onDrop={handleDrop}
-        aria-describedby="song-studio-description"
       >
         <DialogHeader className="sr-only">
           <DialogTitle>{formData.name || "Song Studio"}</DialogTitle>
-          <DialogDescription id="song-studio-description">
-            Configure song metadata, assets, and harmonic settings.
-          </DialogDescription>
+          <DialogDescription>Configure song metadata, assets, and harmonic settings.</DialogDescription>
         </DialogHeader>
 
         {isDragOver && (
@@ -328,14 +331,13 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         )}
 
         {isUploading && (
-          <div className="absolute inset-0 z-[60] bg-black/60 backdrop-blur-md flex flex-col items-center justify-center gap-4 animate-in fade-in">
+          <div className="absolute inset-0 z-[60] bg-black/60 backdrop-blur-md flex flex-col items-center justify-center gap-4">
              <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" />
              <p className="text-sm font-black uppercase tracking-[0.2em] text-white">Syncing Master Asset...</p>
           </div>
         )}
 
         <div className="flex h-[800px]">
-          {/* Left Sidebar: Settings */}
           <div className="w-80 bg-slate-900/50 border-r border-white/5 flex flex-col">
             <div className="p-8 border-b border-white/5 bg-black/20">
               <div className="flex items-center gap-2 mb-4">
@@ -349,7 +351,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
             </div>
 
             <div className="flex-1 overflow-y-auto p-8 space-y-10">
-              {/* Harmonic Engine */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Harmonic Engine</Label>
@@ -406,12 +407,11 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                 </div>
               </div>
 
-              {/* Resources */}
               <div className="space-y-4">
                 <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Library Matrix</Label>
                 <div className="grid grid-cols-1 gap-2">
                   {RESOURCE_TYPES.map(res => {
-                    const isActive = formData.resources?.includes(res.id);
+                    const isActive = formData.resources?.includes(res.id) || (res.id === 'UG' && formData.ugUrl);
                     return (
                       <button
                         key={res.id}
@@ -431,7 +431,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                 </div>
               </div>
 
-              {/* Custom Tags */}
               <div className="space-y-4">
                 <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Custom Tags</Label>
                 <div className="flex flex-wrap gap-2 mb-3">
@@ -463,7 +462,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
             </div>
           </div>
 
-          {/* Main Area: Dynamic Studio View */}
           <div className="flex-1 flex flex-col">
             <div className="h-16 border-b border-white/5 flex items-center px-10 justify-between bg-black/20 shrink-0">
               <div className="flex gap-8">
@@ -494,15 +492,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       <h3 className="text-sm font-black uppercase tracking-[0.2em] text-indigo-400">Audio Transposition Matrix</h3>
                       <p className="text-xs text-slate-500 mt-1">Real-time pitch and time-stretching processing.</p>
                     </div>
-                    {formData.previewUrl ? (
-                      <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-emerald-500 text-[10px] font-black uppercase">
-                        <Waves className="w-3 h-3" /> Processor Connected
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-full text-amber-500 text-[10px] font-black uppercase">
-                        <Headphones className="w-3 h-3" /> No Audio Linked
-                      </div>
-                    )}
                   </div>
 
                   <div className="bg-slate-900/50 rounded-[2.5rem] border border-white/5 p-10 space-y-10">
@@ -615,20 +604,17 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       </div>
                     </div>
                     <div className="space-y-3">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Performance Status Notes</Label>
-                      <div className="flex gap-4 p-4 bg-white/5 rounded-2xl border border-white/10">
-                         <div className="flex flex-col items-center flex-1 gap-1">
-                            <span className="text-[8px] font-black text-slate-500 uppercase">Audio</span>
-                            {formData.previewUrl ? <Check className="w-4 h-4 text-emerald-500" /> : <X className="w-4 h-4 text-red-500" />}
-                         </div>
-                         <div className="flex flex-col items-center flex-1 gap-1">
-                            <span className="text-[8px] font-black text-slate-500 uppercase">Charts</span>
-                            {formData.pdfUrl ? <Check className="w-4 h-4 text-emerald-500" /> : <X className="w-4 h-4 text-red-500" />}
-                         </div>
-                         <div className="flex flex-col items-center flex-1 gap-1">
-                            <span className="text-[8px] font-black text-slate-500 uppercase">Verified</span>
-                            {formData.isMetadataConfirmed ? <Check className="w-4 h-4 text-emerald-500" /> : <Activity className="w-4 h-4 text-amber-500" />}
-                         </div>
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Ultimate Guitar Pro Link</Label>
+                      <div className="flex gap-2">
+                        <Input 
+                          placeholder="Paste Direct Official Tab URL..." 
+                          value={formData.ugUrl || ""}
+                          onChange={(e) => handleAutoSave({ ugUrl: e.target.value })}
+                          className="bg-white/5 border-white/10 font-bold text-orange-400"
+                        />
+                        <Button variant="ghost" className="bg-white/5 h-10 w-10 p-0 text-orange-400" onClick={handleUgAction}>
+                          <Link2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -672,16 +658,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                           allowFullScreen
                         />
                       </div>
-                      <div className="flex items-center justify-between p-6 bg-indigo-600/10 border border-indigo-500/20 rounded-3xl">
-                        <div className="flex items-center gap-4">
-                           <Sparkles className="w-6 h-6 text-indigo-400" />
-                           <div>
-                             <p className="text-xs font-black uppercase tracking-widest">Stage Sync Connected</p>
-                             <p className="text-[10px] text-slate-400 mt-1">This video will be available as a visual reference during live sets.</p>
-                           </div>
-                        </div>
-                        <Button variant="ghost" onClick={() => handleAutoSave({ youtubeUrl: "" })} className="text-red-400 text-[10px] font-black uppercase hover:bg-red-500/10">Disconnect Link</Button>
-                      </div>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center py-32 bg-white/5 rounded-[3rem] border border-dashed border-white/10 space-y-6">
@@ -690,7 +666,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       </div>
                       <div className="text-center">
                         <p className="text-sm font-black uppercase tracking-widest text-slate-500">Visual Engine Standby</p>
-                        <p className="text-xs text-slate-600 mt-2 max-w-[300px]">Paste a YouTube link above to enable visual references during performance.</p>
                       </div>
                     </div>
                   )}
@@ -704,10 +679,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       <h3 className="text-sm font-black uppercase tracking-[0.2em] text-indigo-400">Resource Matrix</h3>
                       <p className="text-xs text-slate-500 mt-1">Centralized management for all song assets and links.</p>
                     </div>
-                    <Button 
-                      onClick={handleDownloadAll}
-                      className="bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] h-10 gap-2 px-6 shadow-lg shadow-indigo-600/20"
-                    >
+                    <Button onClick={handleDownloadAll} className="bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] h-10 gap-2 px-6">
                       <Download className="w-3.5 h-3.5" /> Download All
                     </Button>
                   </div>
@@ -721,21 +693,34 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                         <div className="bg-indigo-600 p-3 rounded-2xl">
                           <Music className="w-6 h-6" />
                         </div>
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {formData.previewUrl && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8" asChild><a href={formData.previewUrl} download><Download className="w-3.5 h-3.5" /></a></Button>
-                          )}
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => document.getElementById('audio-upload')?.click()}><Upload className="w-3.5 h-3.5" /></Button>
-                        </div>
                       </div>
                       <div className="space-y-1 mt-4">
                         <Label className="text-[9px] font-black uppercase text-indigo-400">Master Performance Audio</Label>
-                        <Input 
-                          placeholder="Filename / Caption..."
-                          className="bg-transparent border-none p-0 h-auto text-lg font-black tracking-tight focus-visible:ring-0"
-                          defaultValue={formData.previewUrl ? "Audio_Stream_Master" : "Not Linked"}
-                        />
-                        <p className="text-[8px] text-slate-500 font-mono truncate">{formData.previewUrl || "No source connected"}</p>
+                        <p className="text-lg font-black tracking-tight">{formData.previewUrl ? "Audio_Stream_Master" : "Not Linked"}</p>
+                      </div>
+                    </div>
+
+                    <div className={cn(
+                      "group p-6 rounded-[2rem] border transition-all relative flex flex-col justify-between h-56",
+                      formData.ugUrl || (formData.artist && formData.name) ? "bg-white/5 border-white/10" : "bg-white/5 border-white/5 opacity-40 border-dashed"
+                    )}>
+                      <div className="flex items-center justify-between">
+                        <div className="bg-orange-600 p-3 rounded-2xl">
+                          <Link2 className="w-6 h-6" />
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-orange-400" 
+                          onClick={handleUgAction}
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                      <div className="space-y-1 mt-4">
+                        <Label className="text-[9px] font-black uppercase text-orange-400">Ultimate Guitar Pro</Label>
+                        <p className="text-lg font-black tracking-tight">{formData.ugUrl ? "Verified Official Link" : "Auto-Search Active"}</p>
+                        <p className="text-[8px] text-slate-500 font-mono">{formData.ugUrl || "Targeting Official Tab Type 600"}</p>
                       </div>
                     </div>
 
@@ -747,66 +732,10 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                         <div className="bg-emerald-600 p-3 rounded-2xl">
                           <FileText className="w-6 h-6" />
                         </div>
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {formData.pdfUrl && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.open(formData.pdfUrl, '_blank')}><Eye className="w-3.5 h-3.5" /></Button>
-                          )}
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setActiveTab('details')}><Settings2 className="w-3.5 h-3.5" /></Button>
-                        </div>
                       </div>
                       <div className="space-y-1 mt-4">
                         <Label className="text-[9px] font-black uppercase text-emerald-400">Stage Chart / PDF</Label>
-                        <Input 
-                          placeholder="Filename / Caption..."
-                          className="bg-transparent border-none p-0 h-auto text-lg font-black tracking-tight focus-visible:ring-0"
-                          defaultValue={formData.pdfUrl ? "Performance_Chart" : "Not Linked"}
-                        />
-                        <p className="text-[8px] text-slate-500 font-mono truncate">{formData.pdfUrl || "No source connected"}</p>
-                      </div>
-                    </div>
-
-                    <div className={cn(
-                      "group p-6 rounded-[2rem] border transition-all relative flex flex-col justify-between h-56",
-                      formData.youtubeUrl ? "bg-white/5 border-white/10" : "bg-white/5 border-white/5 opacity-40 border-dashed"
-                    )}>
-                      <div className="flex items-center justify-between">
-                        <div className="bg-red-600 p-3 rounded-2xl">
-                          <Youtube className="w-6 h-6" />
-                        </div>
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.open(formData.youtubeUrl, '_blank')}><Globe className="w-3.5 h-3.5" /> </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setActiveTab('visual')}><Settings2 className="w-3.5 h-3.5" /></Button>
-                        </div>
-                      </div>
-                      <div className="space-y-1 mt-4">
-                        <Label className="text-[9px] font-black uppercase text-red-400">Visual Reference</Label>
-                        <Input 
-                          placeholder="Filename / Caption..."
-                          className="bg-transparent border-none p-0 h-auto text-lg font-black tracking-tight focus-visible:ring-0"
-                          defaultValue={formData.youtubeUrl ? "YouTube_Reference" : "Not Linked"}
-                        />
-                        <p className="text-[8px] text-slate-500 font-mono truncate">{formData.youtubeUrl || "No link provided"}</p>
-                      </div>
-                    </div>
-
-                    <div className="group p-6 rounded-[2rem] border bg-white/5 border-white/10 transition-all relative flex flex-col justify-between h-56">
-                      <div className="flex items-center justify-between">
-                        <div className="bg-orange-600 p-3 rounded-2xl">
-                          <Link2 className="w-6 h-6" />
-                        </div>
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.open(`https://www.ultimate-guitar.com/search.php?value=${formData.artist} ${formData.name}`, '_blank')}><ExternalLink className="w-3.5 h-3.5" /></Button>
-                        </div>
-                      </div>
-                      <div className="space-y-1 mt-4">
-                        <Label className="text-[9px] font-black uppercase text-orange-400">External Pro Link</Label>
-                        <Input 
-                          placeholder="Caption..."
-                          className="bg-transparent border-none p-0 h-auto text-lg font-black tracking-tight focus-visible:ring-0"
-                          defaultValue="Ultimate_Guitar_Chords"
-                          readOnly
-                        />
-                        <p className="text-[8px] text-slate-500 font-mono truncate">Automatic Search Link Enabled</p>
+                        <p className="text-lg font-black tracking-tight">{formData.pdfUrl ? "Performance_Chart" : "Not Linked"}</p>
                       </div>
                     </div>
                   </div>

@@ -17,6 +17,7 @@ export interface SetlistSong {
   artist?: string;
   previewUrl: string;
   youtubeUrl?: string;
+  ugUrl?: string; // Direct Ultimate Guitar Link
   pdfUrl?: string;
   originalKey?: string;
   targetKey?: string;
@@ -29,7 +30,7 @@ export interface SetlistSong {
   notes?: string;
   resources?: string[];
   user_tags?: string[];
-  isKeyLinked?: boolean; // New property
+  isKeyLinked?: boolean;
 }
 
 interface SetlistManagerProps {
@@ -74,7 +75,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   const [studioSong, setStudioSong] = useState<SetlistSong | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Persist sort mode
   useEffect(() => {
     localStorage.setItem('gig_sort_mode', sortMode);
   }, [sortMode]);
@@ -86,6 +86,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     if (song.previewUrl && !isItunesPreview(song.previewUrl)) score += 5;
     if (song.isMetadataConfirmed) score += 3;
     if (song.pdfUrl) score += 3;
+    if (song.ugUrl) score += 2; // Extra points for direct UG link
     if (song.youtubeUrl) score += 1;
     if (song.bpm) score += 1;
     return score;
@@ -108,7 +109,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   }, [songs, sortMode, searchTerm]);
 
   const handleMove = (id: string, direction: 'up' | 'down') => {
-    // Reordering only allowed in manual 'none' mode without search filter
     if (sortMode !== 'none' || searchTerm) return;
 
     const index = songs.findIndex(s => s.id === id);
@@ -190,7 +190,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       song.isPlayed && "opacity-40 grayscale-[0.5]"
                     )}
                   >
-                    {/* Status Column */}
                     <td className="py-6 px-6 text-center">
                       <button 
                         onClick={(e) => { e.stopPropagation(); onTogglePlayed(song.id); }}
@@ -208,7 +207,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       </button>
                     </td>
 
-                    {/* Metadata Column */}
                     <td className="py-6 px-6">
                       <div className="flex flex-col gap-1.5">
                         <div className="flex items-center gap-3">
@@ -234,7 +232,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         <div className="flex items-center gap-1.5 ml-7 mt-3">
                           <TooltipProvider>
                             {RESOURCE_TYPES.map(res => {
-                              const isActive = song.resources?.includes(res.id);
+                              const isActive = song.resources?.includes(res.id) || (res.id === 'UG' && song.ugUrl);
                               if (!isActive) return null;
                               return (
                                 <span key={res.id} className={cn("text-[8px] font-black px-2 py-0.5 rounded-full border shadow-sm", res.color)}>
@@ -269,7 +267,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       </div>
                     </td>
 
-                    {/* Reorder Column */}
                     <td className="py-6 px-6">
                       <div className="flex flex-col items-center gap-0.5">
                         <Button 
@@ -299,7 +296,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       </div>
                     </td>
 
-                    {/* Harmonic Map Column */}
                     <td className="py-6 px-6">
                       <div className="flex items-center justify-center gap-4">
                         <div className="text-center">
@@ -319,7 +315,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       </div>
                     </td>
 
-                    {/* Actions Column */}
                     <td className="py-6 px-6 text-right pr-10">
                       <div className="flex items-center justify-end gap-2">
                         <Button 
