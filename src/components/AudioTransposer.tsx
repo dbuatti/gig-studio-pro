@@ -7,11 +7,13 @@ import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Play, Pause, RotateCcw, Upload, Volume2, Info, Waves, Settings2, Gauge, Activity, Link as LinkIcon, Globe } from 'lucide-react';
+import { Play, Pause, RotateCcw, Upload, Volume2, Info, Waves, Settings2, Gauge, Activity, Link as LinkIcon, Globe, Search } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import AudioVisualizer from './AudioVisualizer';
+import SongSearch from './SongSearch';
 import { cn } from "@/lib/utils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const AudioTransposer = () => {
   const [file, setFile] = useState<{ name: string } | null>(null);
@@ -82,7 +84,7 @@ const AudioTransposer = () => {
       setProgress(0);
       offsetRef.current = 0;
       setIsPlaying(false);
-      showSuccess("Pro Studio Engine Ready");
+      showSuccess("Engine Ready: " + (identifier.length > 20 ? identifier.substring(0, 20) + "..." : identifier));
     } catch (err) {
       showError("Engine initialization failed.");
     }
@@ -98,18 +100,17 @@ const AudioTransposer = () => {
     loadAudioBuffer(audioBuffer, uploadedFile.name);
   };
 
-  const loadFromUrl = async () => {
-    if (!url) return;
+  const loadFromUrl = async (targetUrl: string, name?: string) => {
     setIsLoadingUrl(true);
     try {
-      const response = await fetch(url);
+      const response = await fetch(targetUrl);
       if (!response.ok) throw new Error("Could not fetch file");
       const arrayBuffer = await response.arrayBuffer();
       const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
-      loadAudioBuffer(audioBuffer, url.split('/').pop() || "Remote Audio");
-      setUrl("");
+      loadAudioBuffer(audioBuffer, name || targetUrl.split('/').pop() || "Remote Audio");
+      if (!name) setUrl("");
     } catch (err) {
-      showError("Failed to load URL. Ensure it is a direct audio link with CORS enabled.");
+      showError("Failed to load audio. Ensure it is a direct link with CORS enabled.");
     } finally {
       setIsLoadingUrl(false);
     }
@@ -267,7 +268,7 @@ const AudioTransposer = () => {
                 </Button>
               </TooltipTrigger>
               <TooltipContent className="max-w-xs">
-                <p>YouTube/Apple Music direct links are blocked by browser security. Use direct audio file URLs or upload local files for processing.</p>
+                <p>Streaming services are DRM-protected. Use Search to load high-quality previews, or upload full files for complete sessions.</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -275,81 +276,93 @@ const AudioTransposer = () => {
       </CardHeader>
 
       <CardContent className="space-y-6">
-        <div className="grid grid-cols-1 gap-4">
-          <div 
-            onDragOver={onDragOver}
-            onDragLeave={onDragLeave}
-            onDrop={onDrop}
-            className={cn(
-              "relative h-24 flex items-center justify-center rounded-xl border-2 border-dashed transition-all duration-200 overflow-hidden group",
-              isDragging 
-                ? "bg-indigo-50 border-indigo-500 scale-[1.01] dark:bg-indigo-900/20" 
-                : "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800"
-            )}
-          >
-            {file ? (
-              <div className="absolute inset-0 z-10 p-2">
-                <AudioVisualizer analyzer={analyzerRef.current} isActive={isPlaying} />
-                <div className="absolute top-2 left-4 px-2 py-1 bg-white/80 dark:bg-slate-800/80 backdrop-blur rounded text-[10px] font-bold border truncate max-w-[200px]">
-                  {file.name}
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center pointer-events-none">
+        <Tabs defaultValue="search" className="w-full">
+          <TabsList className="grid w-full grid-cols-3 mb-4">
+            <TabsTrigger value="search" className="gap-2"><Search className="w-4 h-4" /> Search</TabsTrigger>
+            <TabsTrigger value="upload" className="gap-2"><Upload className="w-4 h-4" /> Upload</TabsTrigger>
+            <TabsTrigger value="url" className="gap-2"><Globe className="w-4 h-4" /> URL</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="search" className="space-y-4">
+            <SongSearch onSelectSong={(url, name) => loadFromUrl(url, name)} />
+          </TabsContent>
+
+          <TabsContent value="upload">
+            <div 
+              onDragOver={onDragOver}
+              onDragLeave={onDragLeave}
+              onDrop={onDrop}
+              className={cn(
+                "relative h-32 flex items-center justify-center rounded-xl border-2 border-dashed transition-all duration-200 overflow-hidden group",
+                isDragging 
+                  ? "bg-indigo-50 border-indigo-500 scale-[1.01] dark:bg-indigo-900/20" 
+                  : "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800"
+              )}
+            >
+              <div className="flex flex-col items-center pointer-events-none text-center p-4">
                 <Upload className={cn(
                   "w-8 h-8 mb-2 transition-transform",
                   isDragging ? "text-indigo-600 scale-110" : "text-indigo-400 group-hover:scale-110"
                 )} />
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  {isDragging ? "Drop to load engine" : "Load Mastering Source"}
+                  {isDragging ? "Drop to load engine" : "Drop High-Res Audio File"}
                 </p>
+                <p className="text-[10px] text-muted-foreground mt-1 italic">Supports .mp3, .wav, .m4a, .flac</p>
               </div>
-            )}
-            <input
-              type="file"
-              accept="audio/*"
-              onChange={handleFileUpload}
-              className="absolute inset-0 opacity-0 cursor-pointer z-20"
-            />
-          </div>
-
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input 
-                placeholder="Paste direct audio link (e.g. .mp3)" 
-                className="pl-9 h-11 text-sm border-slate-200"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
+              <input
+                type="file"
+                accept="audio/*"
+                onChange={handleFileUpload}
+                className="absolute inset-0 opacity-0 cursor-pointer z-20"
               />
             </div>
-            <Button 
-              onClick={loadFromUrl} 
-              disabled={!url || isLoadingUrl}
-              className="bg-indigo-600 hover:bg-indigo-700 h-11 px-6 font-bold uppercase tracking-wider text-[10px]"
-            >
-              {isLoadingUrl ? <Activity className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4 mr-2" />}
-              Fetch
-            </Button>
-          </div>
-        </div>
+          </TabsContent>
+
+          <TabsContent value="url" className="space-y-4">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Paste direct audio link (e.g. .mp3)" 
+                  className="pl-9 h-11 text-sm border-slate-200"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                />
+              </div>
+              <Button 
+                onClick={() => loadFromUrl(url)} 
+                disabled={!url || isLoadingUrl}
+                className="bg-indigo-600 hover:bg-indigo-700 h-11 px-6 font-bold uppercase tracking-wider text-[10px]"
+              >
+                {isLoadingUrl ? <Activity className="w-4 h-4 animate-spin" /> : "Fetch"}
+              </Button>
+            </div>
+            <p className="text-[10px] text-muted-foreground text-center italic">Requires a direct link to a file hosted on a CORS-enabled server.</p>
+          </TabsContent>
+        </Tabs>
 
         {file && (
-          <div className="space-y-8 animate-in fade-in zoom-in-95 duration-300">
-            <div className="flex items-center justify-center gap-6">
-              <Button variant="outline" size="icon" onClick={stopPlayback} className="rounded-full h-12 w-12 border-indigo-100">
-                <RotateCcw className="w-5 h-5" />
-              </Button>
-              <Button size="lg" onClick={togglePlayback} className="w-20 h-20 rounded-full shadow-2xl bg-indigo-600 hover:bg-indigo-700 transition-all hover:scale-110 group">
-                {isPlaying ? <Pause className="w-10 h-10" /> : <Play className="w-10 h-10 ml-1 group-hover:text-white" />}
-              </Button>
-              <div className="w-12" />
+          <div className="space-y-8 animate-in fade-in zoom-in-95 duration-300 border-t pt-6">
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-full">
+                <AudioVisualizer analyzer={analyzerRef.current} isActive={isPlaying} />
+              </div>
+              
+              <div className="flex items-center justify-center gap-6">
+                <Button variant="outline" size="icon" onClick={stopPlayback} className="rounded-full h-12 w-12 border-indigo-100">
+                  <RotateCcw className="w-5 h-5" />
+                </Button>
+                <Button size="lg" onClick={togglePlayback} className="w-20 h-20 rounded-full shadow-2xl bg-indigo-600 hover:bg-indigo-700 transition-all hover:scale-110 group">
+                  {isPlaying ? <Pause className="w-10 h-10" /> : <Play className="w-10 h-10 ml-1 group-hover:text-white" />}
+                </Button>
+                <div className="w-12" />
+              </div>
             </div>
 
             <div className="space-y-3">
               <div className="flex justify-between text-[10px] font-mono text-indigo-500 font-bold uppercase tracking-tighter">
                 <span>{new Date((progress/100 * duration) * 1000).toISOString().substr(14, 5)}</span>
-                <span className="opacity-40">Timeline Position</span>
+                <span className="opacity-40 truncate max-w-[200px]">{file.name}</span>
                 <span>{new Date(duration * 1000).toISOString().substr(14, 5)}</span>
               </div>
               <Slider value={[progress]} max={100} step={0.1} onValueChange={handleSeek} className="cursor-pointer" />
