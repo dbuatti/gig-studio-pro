@@ -584,8 +584,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     return !blockedSites.some(site => url.includes(site));
   };
 
-  const renderSidebarContent = () => (
-    <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-8 md:space-y-10">
+  const renderSidebarContent = (noScroll?: boolean) => (
+    <div className={cn("flex-1 p-6 md:p-8 space-y-8 md:space-y-10", noScroll ? "" : "overflow-y-auto")}>
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Harmonic Engine</Label>
@@ -749,7 +749,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       <DialogContent
         className={cn(
           "max-w-[95vw] w-[1400px] max-h-[95vh] p-0 overflow-hidden border-none shadow-2xl bg-slate-950 text-white md:rounded-[2rem]",
-          isMobile ? "w-full max-w-none h-screen max-h-none rounded-none" : ""
+          isMobile ? "w-full max-w-none h-[100dvh] max-h-none rounded-none" : ""
         )}
         onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
         onDragLeave={() => setIsDragOver(false)}
@@ -805,7 +805,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
              <p className="text-sm font-black uppercase tracking-[0.2em] text-white">{isUploading ? 'Syncing Master Asset...' : 'Analyzing Global Library Data...'}</p>
           </div>
         )}
-        <div className={cn("flex overflow-hidden", isMobile ? "flex-col h-screen" : "h-[90vh] min-h-[800px]")}>
+        <div className={cn("flex overflow-hidden", isMobile ? "flex-col h-[100dvh]" : "h-[90vh] min-h-[800px]")}>
           {!isMobile && (
             <div className="w-96 bg-slate-900/50 border-r border-white/5 flex flex-col shrink-0">
               <div className="p-8 border-b border-white/5 bg-black/20">
@@ -933,7 +933,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                     </div>
                   </div>
                   <div className="bg-slate-900/50 rounded-3xl border border-white/5 p-2">
-                    {renderSidebarContent()}
+                    {renderSidebarContent(true)}
                   </div>
                 </div>
               )}
@@ -1341,7 +1341,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                   </div>
                 </div>
               )}
-              {activeTab === 'config' && isMobile && renderSidebarContent()}
+              {activeTab === 'config' && isMobile && renderSidebarContent(true)}
             </div>
           </div>
         </div>
