@@ -99,7 +99,6 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
   const currentTime = (progress / 100) * duration;
   const adjustedTime = currentTime * scrollSpeed;
 
-  // Detect manual scrolling to temporarily disable auto-scroll interference
   useEffect(() => {
     const container = lyricsContainerRef.current;
     if (!container) return;
@@ -111,11 +110,12 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
       clearTimeout(timeout);
       timeout = setTimeout(() => {
         isUserScrolling.current = false;
-      }, 1500); // Resume auto after 1.5s of inactivity
+      }, 1500); 
     };
 
-    container.addEventListener('scroll', handleScroll);
-    container.addEventListener('touchmove', handleScroll);
+    // Use passive: true to avoid [Violation] warnings and improve performance
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    container.addEventListener('touchmove', handleScroll, { passive: true });
 
     return () => {
       container.removeEventListener('scroll', handleScroll);
@@ -124,7 +124,6 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
     };
   }, []);
 
-  // Smooth auto-scroll using requestAnimationFrame
   useEffect(() => {
     if (viewMode !== 'lyrics' || !autoScrollEnabled || !lyricsContainerRef.current || duration === 0 || isUserScrolling.current) {
       if (autoScrollRaf.current) cancelAnimationFrame(autoScrollRaf.current);
@@ -150,10 +149,9 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
         targetScroll = (adjustedTime / duration) * scrollHeight - container.clientHeight * 0.35;
       }
 
-      // Smooth easing
       const diff = targetScroll - container.scrollTop;
       if (Math.abs(diff) > 2) {
-        container.scrollTop += diff * 0.15; // Ease factor
+        container.scrollTop += diff * 0.15; 
         autoScrollRaf.current = requestAnimationFrame(performScroll);
       } else {
         container.scrollTop = Math.max(0, targetScroll);
@@ -207,7 +205,6 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
 
   return (
     <div className="fixed inset-0 z-[100] bg-slate-950 text-white flex flex-col">
-      {/* Header */}
       <div className="h-24 border-b border-white/10 px-10 flex items-center justify-between bg-slate-900/50 backdrop-blur-xl shrink-0">
         <div className="flex items-center gap-6">
           <div className="bg-indigo-600 p-2.5 rounded-2xl shadow-lg shadow-indigo-600/20">
@@ -273,14 +270,12 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
         </div>
       </div>
 
-      {/* Main Flex Area */}
       <div className="flex-1 flex overflow-hidden">
         <div className="flex-1 flex flex-col">
           <div className="absolute inset-0 opacity-10 pointer-events-none blur-3xl scale-150">
             <AudioVisualizer analyzer={analyzer} isActive={isPlaying} />
           </div>
 
-          {/* Title */}
           <div className={cn("text-center pt-12 pb-8 px-12 transition-all duration-700 z-10", viewMode === 'lyrics' ? "pt-8 pb-6" : "pt-16")}>
             <h1 className={cn(
               "font-black tracking-tight leading-none drop-shadow-2xl transition-all duration-700",
@@ -294,7 +289,6 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
             </div>
           </div>
 
-          {/* Content */}
           <div className="flex-1 overflow-hidden px-8 relative">
             {viewMode === 'visualizer' && (
               <div className="h-full flex items-center justify-center">
@@ -379,7 +373,6 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
                   </div>
                 )}
                 
-                {/* Mini Audio Overlay for PDF Mode */}
                 <div className="absolute bottom-8 right-8 bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl animate-in slide-in-from-right duration-500 flex items-center gap-6 min-w-[320px]">
                   <Button 
                     onClick={onTogglePlayback}
@@ -406,8 +399,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
                     size="icon" 
                     className="text-slate-400 hover:text-white"
                     onClick={() => {
-                      // Internal reset logic - this will rely on the parent transposer to stop
-                      onTogglePlayback(); // Toggle to stop if playing
+                      onTogglePlayback(); 
                     }}
                   >
                     <RotateCcw className="w-5 h-5" />
@@ -418,7 +410,6 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
           </div>
         </div>
 
-        {/* Sidebar */}
         <aside className="w-[450px] bg-slate-900/60 backdrop-blur-2xl p-10 space-y-10 overflow-y-auto border-l border-white/5">
           <div className="space-y-5">
             <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 flex items-center gap-2 font-mono">
@@ -524,7 +515,6 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
         </aside>
       </div>
 
-      {/* Fixed Bottom Playback Bar */}
       <div className="h-20 border-t border-white/10 bg-slate-900/90 backdrop-blur-xl px-10 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-8 text-sm font-mono">
           <span className="text-indigo-400 font-bold">{formatTime(currentTime)}</span>
