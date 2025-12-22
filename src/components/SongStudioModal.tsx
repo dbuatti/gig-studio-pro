@@ -381,19 +381,12 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       return;
     }
 
-    if (formData.ugUrl.includes('search.php')) {
-      showError("Select a specific tab before importing.");
-      return;
-    }
-
-    // OnSong expects metadata to help identify the song if the URL is tricky
-    const name = encodeURIComponent(formData.name || "");
-    const artist = encodeURIComponent(formData.artist || "");
-    const url = encodeURIComponent(formData.ugUrl);
+    // OnSong expects metadata to help identify the song
+    // Using the ?url parameter is standard for OnSong deep linking
+    const encodedUrl = encodeURIComponent(formData.ugUrl);
+    const onSongUrl = `onsong://import?url=${encodedUrl}`;
     
-    const onSongUrl = `onsong://import?url=${url}&title=${name}&artist=${artist}`;
-    
-    window.location.href = onSongUrl;
+    window.location.assign(onSongUrl);
     showSuccess("Launching OnSong...");
     
     if (!formData.resources?.includes('OS')) {
@@ -707,6 +700,17 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                         </Button>
                       </div>
                     )}
+                  </div>
+
+                  {/* YouTube Discovery Button - Always Visible */}
+                  <div className="flex justify-center mt-6">
+                    <Button 
+                      variant="outline"
+                      onClick={handleYoutubeSearch}
+                      className="bg-red-600/10 border-red-600/20 text-red-600 hover:bg-red-600 hover:text-white font-black uppercase tracking-widest text-xs h-12 gap-3 px-8 rounded-2xl transition-all"
+                    >
+                      <Youtube className="w-4 h-4" /> Find Full YouTube Version
+                    </Button>
                   </div>
 
                   <div className="grid grid-cols-2 gap-10">
