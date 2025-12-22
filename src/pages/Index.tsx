@@ -300,8 +300,8 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col">
-      <nav className="h-16 bg-white dark:bg-slate-900 border-b px-6 flex items-center justify-between sticky top-0 z-30 shadow-sm">
+    <div className="h-screen bg-slate-50 dark:bg-slate-950 flex flex-col overflow-hidden">
+      <nav className="h-16 bg-white dark:bg-slate-900 border-b px-6 flex items-center justify-between z-30 shadow-sm shrink-0">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
             <div className="bg-indigo-600 p-1.5 rounded-lg text-white">
@@ -366,7 +366,7 @@ const Index = () => {
       </nav>
 
       <div className="flex-1 flex overflow-hidden">
-        <main className="flex-1 overflow-y-auto p-8 relative">
+        <main className="flex-1 overflow-y-auto p-8 relative scroll-smooth">
           <div className="max-w-4xl mx-auto space-y-8">
             <div className="flex items-center justify-between">
               <div>
@@ -404,7 +404,6 @@ const Index = () => {
               onUpdateKey={handleUpdateKey}
               onTogglePlayed={handleTogglePlayed}
               onSyncProData={async (song) => {
-                // Fixed: Made handler async to match (song: SetlistSong) => Promise<void>
                 setSyncQueue(prev => [...new Set([...prev, song.id])]);
               }}
               onLinkAudio={(name) => {
@@ -419,8 +418,8 @@ const Index = () => {
         </main>
 
         <aside className={cn(
-          "w-[450px] bg-white dark:bg-slate-900 border-l shadow-2xl transition-all duration-500 ease-in-out transform",
-          isStudioOpen ? "translate-x-0" : "translate-x-full opacity-0 pointer-events-none"
+          "w-[450px] bg-white dark:bg-slate-900 border-l shadow-2xl transition-all duration-500 ease-in-out shrink-0",
+          isStudioOpen ? "translate-x-0" : "translate-x-full absolute right-0 top-16 bottom-0"
         )}>
           <div className="h-full flex flex-col">
             <div className="p-4 border-b flex items-center justify-between bg-slate-50 dark:bg-slate-800/50">

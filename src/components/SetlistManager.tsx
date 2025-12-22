@@ -3,7 +3,7 @@
 import React, { useRef, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed, Copy, Upload, Loader2, FileAudio, Sparkles, RefreshCcw, FileText, ExternalLink, ShieldCheck, Edit3 } from 'lucide-react';
+import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed, Copy, Upload, Loader2, FileAudio, Sparkles, RefreshCcw, FileText, ExternalLink, ShieldCheck, Edit3, Search, Link as LinkIcon } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ALL_KEYS, calculateSemitones } from '@/utils/keyUtils';
@@ -11,6 +11,8 @@ import { cn } from "@/lib/utils";
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
 import SongDetailModal from './SongDetailModal';
 
 export interface SetlistSong {
@@ -56,10 +58,16 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [isBulkSyncing, setIsBulkSyncing] = useState(false);
   const [editingSong, setEditingSong] = useState<SetlistSong | null>(null);
+  const [manualLink, setManualLink] = useState("");
 
   const getUGUrl = (song: SetlistSong) => {
     const searchTerm = encodeURIComponent(`${song.name} ${song.artist || ''} chords`);
     return `https://www.ultimate-guitar.com/search.php?search_type=title&value=${searchTerm}`;
+  };
+
+  const openYoutubeSearch = (song: SetlistSong) => {
+    const query = encodeURIComponent(`${song.name} ${song.artist || ''} official music video`);
+    window.open(`https://www.youtube.com/results?search_query=${query}`, '_blank');
   };
 
   const copyAllLinks = () => {
@@ -251,9 +259,67 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                               <Youtube className="w-3 h-3" /> Video
                             </button>
                           ) : (
-                            <button onClick={() => onLinkAudio(song.name)} className="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase hover:underline">
-                              <Link2 className="w-2.5 h-2.5" /> Find Video
-                            </button>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <button className="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase hover:text-indigo-600 transition-colors">
+                                  <Link2 className="w-2.5 h-2.5" /> Link Video
+                                </button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-64 p-3 space-y-3" align="start">
+                                <div className="space-y-1">
+                                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Connect Media</p>
+                                  <p className="text-[9px] text-slate-500 leading-tight">Link a YouTube video for visual reference or search for one.</p>
+                                </div>
+                                <div className="space-y-2">
+                                  <div className="flex gap-1">
+                                    <Input 
+                                      placeholder="Paste YouTube Link" 
+                                      className="h-8 text-[10px] border-indigo-100"
+                                      value={manualLink}
+                                      onChange={(e) => setManualLink(e.target.value)}
+                                    />
+                                    <Button 
+                                      size="sm" 
+                                      className="h-8 px-3 bg-indigo-600 font-bold"
+                                      onClick={() => {
+                                        if (manualLink.includes('youtube.com') || manualLink.includes('youtu.be')) {
+                                          onUpdateSong(song.id, { youtubeUrl: manualLink });
+                                          showSuccess("Video linked!");
+                                          setManualLink("");
+                                        } else {
+                                          showError("Invalid YouTube URL");
+                                        }
+                                      }}
+                                    >
+                                      LINK
+                                    </Button>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-slate-300 py-1">
+                                    <div className="h-px bg-slate-100 flex-1" />
+                                    <span className="text-[8px] font-black">OR</span>
+                                    <div className="h-px bg-slate-100 flex-1" />
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm" 
+                                      className="h-8 text-[9px] font-bold gap-1 border-red-100 text-red-600 hover:bg-red-50"
+                                      onClick={() => openYoutubeSearch(song)}
+                                    >
+                                      <Search className="w-3 h-3" /> Search
+                                    </Button>
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm" 
+                                      className="h-8 text-[9px] font-bold gap-1 border-indigo-100 text-indigo-600 hover:bg-indigo-50"
+                                      onClick={() => onLinkAudio(song.name)}
+                                    >
+                                      <Sparkles className="w-3 h-3" /> Auto
+                                    </Button>
+                                  </div>
+                                </div>
+                              </PopoverContent>
+                            </Popover>
                           )}
                         </div>
                         
@@ -357,7 +423,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
         onClose={() => setEditingSong(null)}
         onSave={(id, updates) => {
           onUpdateSong(id, updates);
-          // If keys changed, we need to recalculate pitch
           if (updates.originalKey || updates.targetKey) {
             const currentSong = songs.find(s => s.id === id);
             if (currentSong) {
