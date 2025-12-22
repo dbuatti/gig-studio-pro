@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -59,16 +59,18 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
   const [viewMode, setViewMode] = useState<ViewMode>('visualizer');
   const [scrollSpeed, setScrollSpeed] = useState(1.0);
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
+  
   const lyricsContainerRef = useRef<HTMLDivElement>(null);
   const lyricsLinesRef = useRef<HTMLDivElement[]>([]);
   const isUserScrolling = useRef(false);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout>();
   const autoScrollRaf = useRef<number | null>(null);
 
   const currentPref = currentSong?.key_preference || globalPreference;
   const nextPref = nextSong?.key_preference || globalPreference;
   const keysToUse = currentPref === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
 
-  const parseLyricsWithTimestamps = (lyrics: string) => {
+  const parseLyricsWithTimestamps = useCallback((lyrics: string) => {
     const lines = lyrics.split('\n');
     const sections: { time: number; text: string }[] = [];
     let currentText: string[] = [];
@@ -91,11 +93,14 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
       sections.push({ time: -1, text: currentText.join('\n') });
     }
     return sections;
-  };
+  }, []);
 
-  const lyricsSections = currentSong?.lyrics ? parseLyricsWithTimestamps(currentSong.lyrics) : [];
+  const lyricsSections = useMemo(() => 
+    currentSong?.lyrics ? parseLyricsWithTimestamps(currentSong.lyrics) : [], 
+    [currentSong?.lyrics, parseLyricsWithTimestamps]
+  );
+  
   const hasTimestamps = lyricsSections.some(s => s.time >= 0);
-
   const currentTime = (progress / 100) * duration;
   const adjustedTime = currentTime * scrollSpeed;
 
@@ -103,24 +108,21 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
     const container = lyricsContainerRef.current;
     if (!container) return;
 
-    let timeout: NodeJS.Timeout;
-
     const handleScroll = () => {
       isUserScrolling.current = true;
-      clearTimeout(timeout);
-      timeout = setTimeout(() => {
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+      scrollTimeoutRef.current = setTimeout(() => {
         isUserScrolling.current = false;
       }, 1500); 
     };
 
-    // Use passive: true to avoid [Violation] warnings and improve performance
     container.addEventListener('scroll', handleScroll, { passive: true });
     container.addEventListener('touchmove', handleScroll, { passive: true });
 
     return () => {
       container.removeEventListener('scroll', handleScroll);
       container.removeEventListener('touchmove', handleScroll);
-      clearTimeout(timeout);
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
     };
   }, []);
 

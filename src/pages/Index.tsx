@@ -56,13 +56,25 @@ const Index = () => {
     });
   }, [setlists]);
 
-  // Global Audio Resume on first click
-  const handleUserInteraction = async () => {
-    if (Tone.getContext().state !== 'running') {
-      await Tone.start();
-      console.log("Gig Studio: Audio Engine Resumed via User Gesture");
-    }
-  };
+  // Global Audio Resume on first click with passive listener
+  useEffect(() => {
+    const handleGesture = async () => {
+      if (Tone.getContext().state !== 'running') {
+        await Tone.start();
+        console.log("Gig Studio: Audio Engine Resumed");
+      }
+      window.removeEventListener('click', handleGesture);
+      window.removeEventListener('keydown', handleGesture);
+    };
+
+    window.addEventListener('click', handleGesture, { passive: true });
+    window.addEventListener('keydown', handleGesture, { passive: true });
+
+    return () => {
+      window.removeEventListener('click', handleGesture);
+      window.removeEventListener('keydown', handleGesture);
+    };
+  }, []);
 
   useEffect(() => {
     if (user) fetchSetlists();
@@ -394,8 +406,6 @@ const Index = () => {
   };
 
   const handleSelectSong = async (song: SetlistSong) => {
-    await handleUserInteraction();
-    
     setActiveSongId(song.id);
     setIsStudioOpen(true);
     if (song.previewUrl && transposerRef.current) {
@@ -434,8 +444,6 @@ const Index = () => {
   };
 
   const startPerformance = async () => {
-    await handleUserInteraction();
-    
     const firstPlayable = songs.find(s => !!s.previewUrl);
     if (!firstPlayable) {
       showError("No audio tracks found.");
@@ -447,7 +455,7 @@ const Index = () => {
   };
 
   return (
-    <div className="h-screen bg-slate-50 dark:bg-slate-950 flex flex-col overflow-hidden" onClick={handleUserInteraction}>
+    <div className="h-screen bg-slate-50 dark:bg-slate-950 flex flex-col overflow-hidden">
       <nav className="h-16 bg-white dark:bg-slate-900 border-b px-6 flex items-center justify-between z-30 shadow-sm shrink-0">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
