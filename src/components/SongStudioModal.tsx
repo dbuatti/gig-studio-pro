@@ -18,7 +18,8 @@ import {
   Upload, Link2, X, Plus, Tag, Check, Loader2,
   FileDown, Headphones, Wand2, Download,
   Globe, Eye, Link as LinkIcon, RotateCcw,
-  Zap, Disc, VolumeX, Smartphone, Printer, Search
+  Zap, Disc, VolumeX, Smartphone, Printer, Search,
+  ClipboardPaste
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import AudioVisualizer from './AudioVisualizer';
@@ -357,6 +358,20 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     } else if (formData.name && formData.artist) {
       const query = encodeURIComponent(`${formData.artist} ${formData.name} official tab`);
       window.open(`https://www.ultimate-guitar.com/search.php?search_type=title&value=${query}`, '_blank');
+    }
+  };
+
+  const handlePasteUgUrl = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text.includes('ultimate-guitar.com')) {
+        handleAutoSave({ ugUrl: text });
+        showSuccess("Ultimate Guitar link updated");
+      } else {
+        showError("Clipboard does not contain a valid Ultimate Guitar link");
+      }
+    } catch (err) {
+      showError("Could not access clipboard");
     }
   };
 
@@ -997,6 +1012,20 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent className="text-[10px] font-black uppercase">Handover to OnSong</TooltipContent>
+                            </Tooltip>
+
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-10 w-10 text-orange-400 hover:bg-orange-600 hover:text-white transition-all rounded-xl border border-orange-500/20" 
+                                  onClick={handlePasteUgUrl}
+                                >
+                                  <ClipboardPaste className="w-4 h-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent className="text-[10px] font-black uppercase">Paste UG Link from Clipboard</TooltipContent>
                             </Tooltip>
 
                             <Button 
