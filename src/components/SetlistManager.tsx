@@ -22,6 +22,7 @@ export interface SetlistSong {
   isPlayed?: boolean;
   bpm?: string;
   genre?: string;
+  isSyncing?: boolean;
 }
 
 interface SetlistManagerProps {
@@ -32,6 +33,7 @@ interface SetlistManagerProps {
   onTogglePlayed: (id: string) => void;
   onLinkAudio: (songName: string) => void;
   onUpdateSong: (id: string, updates: Partial<SetlistSong>) => void;
+  onSyncProData: (song: SetlistSong) => Promise<void>;
   currentSongId?: string;
 }
 
@@ -43,10 +45,10 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   onTogglePlayed,
   onLinkAudio,
   onUpdateSong,
+  onSyncProData,
   currentSongId 
 }) => {
   const [uploadingId, setUploadingId] = useState<string | null>(null);
-  const [enrichingId, setEnrichingId] = useState<string | null>(null);
   const [isBulkSyncing, setIsBulkSyncing] = useState(false);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
 
@@ -60,39 +62,16 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     showSuccess("All YouTube links copied!");
   };
 
-  const enrichSong = async (song: SetlistSong) => {
-    setEnrichingId(song.id);
-    try {
-      const { data, error } = await supabase.functions.invoke('enrich-metadata', {
-        body: { query: song.name }
-      });
-      if (error) throw error;
-      
-      onUpdateSong(song.id, {
-        originalKey: data.originalKey,
-        targetKey: data.originalKey, // Match target to new original initially
-        bpm: data.bpm?.toString(),
-        genre: data.genre,
-        pitch: 0
-      });
-      showSuccess(`Verified "${song.name}" is in ${data.originalKey}`);
-    } catch (err) {
-      showError(`Could not verify "${song.name}"`);
-    } finally {
-      setEnrichingId(null);
-    }
-  };
-
   const bulkEnrich = async () => {
-    if (!confirm("This will fetch professional keys and BPMs for your entire setlist. Continue?")) return;
+    if (!confirm("This will sync professional keys and BPMs for your entire setlist. Continue?")) return;
     setIsBulkSyncing(true);
     for (const song of songs) {
       if (song.originalKey === 'TBC' || !song.bpm) {
-        await enrichSong(song);
+        await onSyncProData(song);
       }
     }
     setIsBulkSyncing(false);
-    showSuccess("Full setlist verified with Pro Metadata");
+    showSuccess("Full setlist synced with Pro Data");
   };
 
   const processFileUpload = async (file: File, songId: string) => {
@@ -118,7 +97,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
         .getPublicUrl(filePath);
 
       onUpdateSong(songId, { previewUrl: publicUrl });
-      showSuccess("Performance track uploaded and linked!");
+      showSuccess("Performance track uploaded!");
     } catch (err) {
       showError("Upload failed.");
     } finally {
@@ -128,22 +107,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, songId: string) => {
     const file = e.target.files?.[0];
-    if (file) processFileUpload(file, songId);
-  };
-
-  const onDragOver = (e: React.DragEvent, songId: string) => {
-    e.preventDefault();
-    setDragOverId(songId);
-  };
-
-  const onDragLeave = () => {
-    setDragOverId(null);
-  };
-
-  const onDrop = (e: React.DragEvent, songId: string) => {
-    e.preventDefault();
-    setDragOverId(null);
-    const file = e.dataTransfer.files?.[0];
     if (file) processFileUpload(file, songId);
   };
 
@@ -160,7 +123,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
             className="h-7 text-[9px] font-black uppercase tracking-tight gap-2 border-indigo-200 text-indigo-700 bg-indigo-50/50"
           >
             {isBulkSyncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-            Verify All Keys
+            Sync All Pro Info
           </Button>
           <Button 
             variant="outline" 
@@ -188,20 +151,14 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
               const isSelected = currentSongId === song.id;
               const hasAudio = !!song.previewUrl;
               const isUploading = uploadingId === song.id;
-              const isEnriching = enrichingId === song.id;
-              const isDraggingOver = dragOverId === song.id;
-              const needsVerification = song.originalKey === 'TBC' || !song.bpm;
+              const needsSync = song.originalKey === 'TBC' || !song.bpm;
               
               return (
                 <tr 
                   key={song.id}
-                  onDragOver={(e) => onDragOver(e, song.id)}
-                  onDragLeave={onDragLeave}
-                  onDrop={(e) => onDrop(e, song.id)}
                   className={cn(
                     "transition-all group relative",
                     isSelected ? "bg-indigo-50/50 dark:bg-indigo-900/10" : "hover:bg-slate-50/50 dark:hover:bg-slate-800/30",
-                    isDraggingOver && "bg-indigo-100/50 ring-2 ring-inset ring-indigo-500",
                     song.isPlayed && "opacity-50"
                   )}
                 >
@@ -222,25 +179,22 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                           "text-sm font-bold tracking-tight",
                           song.isPlayed && "line-through text-slate-400"
                         )}>{song.name}</span>
-                        {!hasAudio && !isUploading && (
-                          <Badge variant="outline" className="text-[8px] uppercase border-amber-200 text-amber-600 bg-amber-50 leading-none h-4">No Audio</Badge>
-                        )}
-                        {isUploading && (
-                          <Badge variant="outline" className="text-[8px] uppercase border-indigo-200 text-indigo-600 bg-indigo-50 leading-none h-4 animate-pulse">Uploading...</Badge>
+                        {song.isSyncing && (
+                          <Badge variant="outline" className="text-[8px] uppercase border-indigo-200 text-indigo-600 bg-indigo-50 leading-none h-4 animate-pulse">Syncing Pro Data...</Badge>
                         )}
                       </div>
                       <div className="flex items-center gap-3 mt-1">
                         <div className="flex items-center gap-2">
                           <button 
-                            onClick={() => enrichSong(song)}
+                            onClick={() => onSyncProData(song)}
                             className={cn(
                               "flex items-center gap-1 text-[9px] font-black uppercase transition-all",
-                              needsVerification ? "text-indigo-600 animate-pulse font-extrabold" : "text-slate-400 hover:text-indigo-600"
+                              needsSync ? "text-indigo-600 animate-pulse font-extrabold" : "text-slate-400 hover:text-indigo-600"
                             )}
-                            disabled={isEnriching}
+                            disabled={song.isSyncing}
                           >
-                            {isEnriching ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Sparkles className="w-2.5 h-2.5" />}
-                            {needsVerification ? "Verify Key" : "Verified"}
+                            {song.isSyncing ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Sparkles className="w-2.5 h-2.5" />}
+                            {needsSync ? "Sync Pro Data" : "Verified"}
                           </button>
                           {song.bpm && <span className="text-[8px] font-mono bg-slate-100 dark:bg-slate-800 px-1 rounded text-slate-500">{song.bpm} BPM</span>}
                           {song.genre && <span className="text-[8px] uppercase font-bold text-slate-400 tracking-widest">{song.genre}</span>}
@@ -271,16 +225,11 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                             className="flex items-center gap-1 text-[9px] font-black text-indigo-600 uppercase hover:underline cursor-pointer"
                           >
                             {isUploading ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Upload className="w-2.5 h-2.5" />}
-                            {hasAudio ? "Replace Audio" : "Drop MP3 here"}
+                            {hasAudio ? "Replace Audio" : "Add MP3"}
                           </label>
                         </div>
                       </div>
                     </div>
-                    {isDraggingOver && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-indigo-600/10 pointer-events-none">
-                        <FileAudio className="w-8 h-8 text-indigo-600 animate-bounce" />
-                      </div>
-                    )}
                   </td>
                   <td className="p-4">
                     <div className="flex items-center gap-3">

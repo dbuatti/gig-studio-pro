@@ -66,15 +66,53 @@ const Index = () => {
     if (!user) return;
     setIsSaving(true);
     try {
+      // Clean temporary UI states like isSyncing before saving
+      const cleanedSongs = updatedSongs.map(({ isSyncing, ...rest }) => rest);
       const { error } = await supabase
         .from('setlists')
-        .update({ songs: updatedSongs, updated_at: new Date().toISOString() })
+        .update({ songs: cleanedSongs, updated_at: new Date().toISOString() })
         .eq('id', listId);
       if (error) throw error;
     } catch (err) {
       showError("Sync failed.");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSyncProData = async (song: SetlistSong) => {
+    if (!currentListId) return;
+    
+    // Update UI to show syncing state
+    setSetlists(prev => prev.map(l => l.id === currentListId ? {
+      ...l,
+      songs: l.songs.map(s => s.id === song.id ? { ...s, isSyncing: true } : s)
+    } : l));
+
+    try {
+      const { data, error } = await supabase.functions.invoke('enrich-metadata', {
+        body: { query: song.name }
+      });
+      if (error) throw error;
+      
+      const updates = {
+        originalKey: data.originalKey,
+        targetKey: data.originalKey,
+        bpm: data.bpm?.toString(),
+        genre: data.genre,
+        pitch: 0,
+        isSyncing: false
+      };
+
+      const updatedSongs = songs.map(s => s.id === song.id ? { ...s, ...updates } : s);
+      setSetlists(prev => prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l));
+      saveList(currentListId, updatedSongs);
+    } catch (err) {
+      // Fail silently but clear syncing state
+      setSetlists(prev => prev.map(l => l.id === currentListId ? {
+        ...l,
+        songs: l.songs.map(s => s.id === song.id ? { ...s, isSyncing: false } : s)
+      } : l));
     }
   };
 
@@ -85,40 +123,26 @@ const Index = () => {
     saveList(currentListId, updatedSongs);
   };
 
-  const handleCreateList = async () => {
-    const name = prompt("Enter Gig Name:", `Gig ${setlists.length + 1}`);
-    if (!name) return;
-    const { data, error } = await supabase.from('setlists').insert([{ user_id: user?.id, name, songs: [] }]).select().single();
-    if (data) {
-      setSetlists(prev => [{ id: data.id, name: data.name, songs: [] }, ...prev]);
-      setCurrentListId(data.id);
-      showSuccess(`Gig "${name}" Created`);
-    }
-  };
-
-  const handleDeleteList = async (id: string) => {
-    if (!confirm("Are you sure?")) return;
-    await supabase.from('setlists').delete().eq('id', id);
-    const updated = setlists.filter(l => l.id !== id);
-    setSetlists(updated);
-    if (updated.length > 0) setCurrentListId(updated[0].id);
-  };
-
-  const handleAddToSetlist = (previewUrl: string, name: string, youtubeUrl?: string, pitch: number = 0) => {
+  const handleAddToSetlist = async (previewUrl: string, name: string, youtubeUrl?: string, pitch: number = 0) => {
     if (!currentListId) return;
+    const newSongId = Math.random().toString(36).substr(2, 9);
     const newSong: SetlistSong = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: newSongId,
       name,
       previewUrl,
       youtubeUrl,
       pitch,
       originalKey: "TBC",
       targetKey: "TBC",
-      isPlayed: false
+      isPlayed: false,
+      isSyncing: true
     };
+    
     const updatedSongs = [...songs, newSong];
     setSetlists(prev => prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l));
-    saveList(currentListId, updatedSongs);
+    
+    // Fire and forget enrichment
+    handleSyncProData(newSong);
   };
 
   const handleUpdateKey = (songId: string, targetKey: string) => {
@@ -165,8 +189,18 @@ const Index = () => {
             setlists={setlists} 
             currentId={currentListId || ''} 
             onSelect={setCurrentListId}
-            onCreate={handleCreateList}
-            onDelete={handleDeleteList}
+            onCreate={async () => {
+              const name = prompt("Enter Gig Name:");
+              if (!name) return;
+              const { data } = await supabase.from('setlists').insert([{ user_id: user?.id, name, songs: [] }]).select().single();
+              if (data) fetchSetlists();
+            }}
+            onDelete={async (id) => {
+              if (confirm("Delete this gig?")) {
+                await supabase.from('setlists').delete().eq('id', id);
+                fetchSetlists();
+              }
+            }}
           />
         </div>
 
@@ -197,14 +231,17 @@ const Index = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase">{currentList?.name}</h2>
-                <p className="text-slate-500 text-sm font-medium">Gig Date: February 2026 • {songs.length} Songs Loaded</p>
+                <p className="text-slate-500 text-sm font-medium">{songs.length} Songs Loaded</p>
               </div>
               <div className="flex gap-2">
                 <ImportSetlist onImport={(newSongs) => {
                   if (!currentListId) return;
-                  const updated = [...songs, ...newSongs];
+                  const songsToSync = newSongs.map(s => ({ ...s, isSyncing: true }));
+                  const updated = [...songs, ...songsToSync];
                   setSetlists(prev => prev.map(l => l.id === currentListId ? { ...l, songs: updated } : l));
-                  saveList(currentListId, updated);
+                  
+                  // Trigger bulk sync for new imports
+                  songsToSync.forEach(s => handleSyncProData(s));
                 }} />
               </div>
             </div>
@@ -219,6 +256,7 @@ const Index = () => {
               onSelect={handleSelectSong}
               onUpdateKey={handleUpdateKey}
               onTogglePlayed={handleTogglePlayed}
+              onSyncProData={handleSyncProData}
               onLinkAudio={(name) => {
                 setIsStudioOpen(true);
                 transposerRef.current?.triggerSearch(name);
