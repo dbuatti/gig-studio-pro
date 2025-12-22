@@ -17,13 +17,13 @@ import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const THEMES = [
-  { name: 'Dark Pro', primary: '#4f46e5', background: '#020617', text: '#ffffff', border: '#4f46e5' },
   { name: 'Vibrant Light', primary: '#9333ea', background: '#ffffff', text: '#1e1b4b', border: '#9333ea' },
+  { name: 'Dark Pro', primary: '#4f46e5', background: '#020617', text: '#ffffff', border: '#4f46e5' },
   { name: 'Classic Black', primary: '#ffffff', background: '#000000', text: '#ffffff', border: '#ffffff' },
   { name: 'Purple Energy', primary: '#c084fc', background: '#2e1065', text: '#f5f3ff', border: '#c084fc' },
 ];
 
-const DEFAULT_COLORS = { primary: '#4f46e5', background: '#020617', text: '#ffffff', border: '#4f46e5' };
+const DEFAULT_COLORS = { primary: '#9333ea', background: '#ffffff', text: '#1e1b4b', border: '#9333ea' };
 
 const Profile = () => {
   const { user } = useAuth();
@@ -47,7 +47,7 @@ const Profile = () => {
       if (!profileData && !pError) {
         const { data: newData, error: iError } = await supabase
           .from('profiles')
-          .insert([{ id: user.id, first_name: user.email?.split('@')[0], repertoire_threshold: 0 }])
+          .insert([{ id: user.id, first_name: user.email?.split('@')[0], repertoire_threshold: 0, custom_colors: DEFAULT_COLORS }])
           .select()
           .single();
         
@@ -174,7 +174,6 @@ const Profile = () => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
-    // File size validation (5MB)
     if (file.size > 5 * 1024 * 1024) {
       showError("Photo must be less than 5MB");
       return;
@@ -252,7 +251,7 @@ const Profile = () => {
               <div className="relative group cursor-pointer" onClick={() => document.getElementById('photo-upload')?.click()}>
                 <div 
                   className="w-28 h-28 rounded-full border-4 flex items-center justify-center overflow-hidden bg-slate-800 shadow-2xl transition-transform hover:scale-105"
-                  style={{ borderColor: profile?.custom_colors?.primary || '#4f46e5' }}
+                  style={{ borderColor: profile?.custom_colors?.primary || DEFAULT_COLORS.primary }}
                 >
                   {profile?.avatar_url ? (
                     <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
@@ -465,7 +464,7 @@ const Profile = () => {
       <div className="flex-1 bg-slate-950 flex flex-col p-10 relative overflow-hidden">
         <div 
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] blur-[150px] opacity-20 pointer-events-none rounded-full"
-          style={{ background: profile?.custom_colors?.primary || '#4f46e5' }}
+          style={{ background: profile?.custom_colors?.primary || DEFAULT_COLORS.primary }}
         />
 
         <div className="relative z-10 h-full flex flex-col gap-6">
