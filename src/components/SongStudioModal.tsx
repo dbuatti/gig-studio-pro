@@ -365,11 +365,22 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       showError("Link an Ultimate Guitar tab first.");
       return;
     }
-    const onSongUrl = `onsong://import?url=${encodeURIComponent(formData.ugUrl)}`;
-    window.location.href = onSongUrl;
-    showSuccess("Attempting OnSong Handover...");
+
+    if (formData.ugUrl.includes('search.php')) {
+      showError("Select a specific tab before importing.");
+      return;
+    }
+
+    // OnSong expects metadata to help identify the song if the URL is tricky
+    const name = encodeURIComponent(formData.name || "");
+    const artist = encodeURIComponent(formData.artist || "");
+    const url = encodeURIComponent(formData.ugUrl);
     
-    // Automatically mark as OS (In OnSong) if not already marked
+    const onSongUrl = `onsong://import?url=${url}&title=${name}&artist=${artist}`;
+    
+    window.location.href = onSongUrl;
+    showSuccess("Launching OnSong...");
+    
     if (!formData.resources?.includes('OS')) {
       toggleResource('OS');
     }
