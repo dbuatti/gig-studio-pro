@@ -6,7 +6,7 @@ import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Play, Pause, RotateCcw, Upload, Volume2, Waves, Settings2, Activity, Link as LinkIcon, Globe, Search, Youtube, PlusCircle, Library, Sparkles, Check, FileText, ExternalLink, Subtitles } from 'lucide-react';
+import { Play, Pause, RotateCcw, Upload, Volume2, Waves, Settings2, Activity, Link as LinkIcon, Globe, Search, Youtube, PlusCircle, Library, Sparkles, Check, FileText, ExternalLink, Subtitles, X } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import AudioVisualizer from './AudioVisualizer';
 import SongSearch from './SongSearch';
@@ -22,6 +22,7 @@ export interface AudioTransposerRef {
   getPitch: () => number;
   triggerSearch: (query: string) => void;
   togglePlayback: () => Promise<void>;
+  stopPlayback: () => void;
   getProgress: () => { progress: number; duration: number };
   getAnalyzer: () => Tone.Analyser | null;
   getIsPlaying: () => boolean;
@@ -165,6 +166,16 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
     }
   };
 
+  const stopPlayback = () => {
+    if (playerRef.current) {
+      playerRef.current.stop();
+      setIsPlaying(false);
+      if (onPlaybackChange) onPlaybackChange(false);
+      setProgress(0);
+      offsetRef.current = 0;
+    }
+  };
+
   const suggestedKey = useMemo(() => {
     const activeKey = file?.originalKey || currentSong?.originalKey;
     if (!activeKey || activeKey === "TBC") return null;
@@ -190,6 +201,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
       setActiveTab("search");
     },
     togglePlayback,
+    stopPlayback,
     getProgress: () => ({ progress, duration }),
     getAnalyzer: () => analyzerRef.current,
     getIsPlaying: () => isPlaying
@@ -205,16 +217,6 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
     const arrayBuffer = await uploadedFile.arrayBuffer();
     const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
     loadAudioBuffer(audioBuffer, uploadedFile.name, "Manual Upload");
-  };
-
-  const stopPlayback = () => {
-    if (playerRef.current) {
-      playerRef.current.stop();
-      setIsPlaying(false);
-      if (onPlaybackChange) onPlaybackChange(false);
-      setProgress(0);
-      offsetRef.current = 0;
-    }
   };
 
   const animateProgress = () => {

@@ -422,6 +422,10 @@ const Index = () => {
               song={activeSong} 
               isPlaying={isPlayerActive}
               onTogglePlayback={() => transposerRef.current?.togglePlayback()}
+              onClear={() => {
+                setActiveSongId(null);
+                transposerRef.current?.stopPlayback();
+              }}
             />
             
             <div className="flex items-center justify-between">

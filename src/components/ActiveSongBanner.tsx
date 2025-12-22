@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { SetlistSong } from './SetlistManager';
-import { Music, Youtube, Copy, Play, Pause, Activity, Gauge, Sparkles, Tag, Apple, ExternalLink } from 'lucide-react';
+import { Music, Youtube, Copy, Play, Pause, Activity, Gauge, Sparkles, Tag, Apple, ExternalLink, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { showSuccess } from '@/utils/toast';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +16,7 @@ interface ActiveSongBannerProps {
   onClear?: () => void;
 }
 
-const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song, isPlaying, onTogglePlayback }) => {
+const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song, isPlaying, onTogglePlayback, onClear }) => {
   const { keyPreference: globalPreference } = useSettings();
   if (!song) return null;
 
@@ -38,11 +38,19 @@ const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song, isPlaying, on
             <Activity className="w-4 h-4 text-indigo-200 animate-pulse" />
             <span className="text-[10px] font-black text-indigo-50 uppercase tracking-[0.3em] font-mono">Live Performance Telemetry</span>
           </div>
-          <div className="flex gap-4">
+          <div className="flex gap-4 items-center">
             <div className="flex items-center gap-2">
               <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
               <span className="text-[9px] font-mono text-indigo-100 font-bold uppercase">Engine: Stable</span>
             </div>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={onClear}
+              className="h-6 w-6 text-indigo-100 hover:text-white hover:bg-white/10 rounded-full"
+            >
+              <X className="w-3.5 h-3.5" />
+            </Button>
           </div>
         </div>
         
