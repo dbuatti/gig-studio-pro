@@ -20,7 +20,8 @@ import {
   Globe, Eye, Link as LinkIcon, RotateCcw,
   Zap, Disc, VolumeX, Smartphone, Printer, Search,
   ClipboardPaste, AlignLeft, Apple, Hash, Music2,
-  ChevronUp, ChevronDown, Copy, SmartphoneNfc
+  ChevronUp, ChevronDown, Copy, SmartphoneNfc,
+  ExternalLink as LaunchIcon
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import AudioVisualizer from './AudioVisualizer';
@@ -519,9 +520,9 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     showSuccess("Assets downloaded");
   };
 
-  const handleCopyForOnSong = () => {
+  const getOnSongFormattedContent = () => {
     const displayKey = formatKey(formData.targetKey || formData.originalKey, currentKeyPreference);
-    const content = [
+    return [
       `Title: ${formData.name}`,
       `Artist: ${formData.artist}`,
       `Key: ${displayKey}`,
@@ -529,12 +530,22 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       "",
       formData.lyrics || "No lyrics provided."
     ].join('\n');
+  };
 
+  const handleCopyForOnSong = () => {
+    const content = getOnSongFormattedContent();
     navigator.clipboard.writeText(content).then(() => {
       showSuccess("Formatted for OnSong Clipboard Import");
     }).catch(() => {
       showError("Clipboard access failed.");
     });
+  };
+
+  const handleLaunchInOnSong = () => {
+    const content = getOnSongFormattedContent();
+    const encoded = encodeURIComponent(content);
+    window.location.href = `onsong://import?text=${encoded}`;
+    showSuccess("Opening OnSong App...");
   };
 
   if (!song) return null;
@@ -1212,14 +1223,20 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                     </div>
                     <div className="flex gap-3">
                       <Button 
+                        onClick={handleLaunchInOnSong} 
+                        className="bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-xs h-12 gap-3 px-8 rounded-2xl shadow-xl shadow-indigo-500/20"
+                      >
+                        <LaunchIcon className="w-4 h-4" /> Launch in OnSong
+                      </Button>
+                      <Button 
                         onClick={handleCopyForOnSong} 
                         variant="outline"
                         className="bg-indigo-600/10 border-indigo-600/20 text-indigo-400 hover:bg-indigo-600 hover:text-white font-black uppercase tracking-widest text-[10px] h-12 gap-3 px-8 rounded-2xl transition-all"
                       >
                         <SmartphoneNfc className="w-4 h-4" /> Copy for OnSong
                       </Button>
-                      <Button onClick={handleDownloadAll} className="bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-xs h-12 gap-3 px-8 rounded-2xl shadow-xl shadow-indigo-500/20">
-                        <Download className="w-4 h-4" /> Download All
+                      <Button onClick={handleDownloadAll} className="bg-indigo-600/5 text-slate-400 hover:text-indigo-400 font-black uppercase tracking-widest text-[10px] h-12 gap-3 px-8 rounded-2xl border border-white/5 transition-all">
+                        <Download className="w-4 h-4" /> Download Assets
                       </Button>
                     </div>
                   </div>
