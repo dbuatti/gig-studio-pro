@@ -27,7 +27,7 @@ const Index = () => {
   const [currentListId, setCurrentListId] = useState<string | null>(null);
   const [activeSongId, setActiveSongId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [isStudioOpen, setIsStudioOpen] = useState(true);
+  const [isStudioOpen, setIsStudioOpen] = useState(false);
   const [isPerformanceMode, setIsPerformanceMode] = useState(false);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [performanceState, setPerformanceState] = useState({ progress: 0, duration: 0 });
