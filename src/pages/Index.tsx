@@ -145,27 +145,41 @@ const Index = () => {
     if (!songs.length || !user) return;
     setIsBulkSyncing(true);
     try {
-      // Sanitize data for the repertoire table
-      const repertoireData = songs.map(song => ({
-        user_id: user.id,
-        title: song.name,
-        artist: song.artist || 'Unknown Artist',
-        original_key: song.originalKey || null,
-        bpm: song.bpm || null,
-        genre: song.genre || (song.user_tags?.[0]) || null,
-        readiness_score: getReadinessScore(song),
-        is_active: true
-      }));
+      // Deduplicate songs by title and artist to avoid Postgres upsert conflicts
+      const uniqueRepertoireMap = new Map();
+      
+      songs.forEach(song => {
+        const title = song.name;
+        const artist = song.artist || 'Unknown Artist';
+        const key = `${title}-${artist}`.toLowerCase();
+        const score = getReadinessScore(song);
+        
+        // If song already in map, keep the one with the higher readiness score
+        if (!uniqueRepertoireMap.has(key) || score > uniqueRepertoireMap.get(key).readiness_score) {
+          uniqueRepertoireMap.set(key, {
+            user_id: user.id,
+            title,
+            artist,
+            original_key: song.originalKey || null,
+            bpm: song.bpm || null,
+            genre: song.genre || (song.user_tags?.[0]) || null,
+            readiness_score: score,
+            is_active: true
+          });
+        }
+      });
+
+      const finalData = Array.from(uniqueRepertoireMap.values());
 
       const { error } = await supabase
         .from('repertoire')
-        .upsert(repertoireData, { 
+        .upsert(finalData, { 
           onConflict: 'user_id,title,artist',
           ignoreDuplicates: false 
         });
 
       if (error) throw error;
-      showSuccess(`Sync Complete: ${songs.length} songs pushed to Master.`);
+      showSuccess(`Sync Complete: ${finalData.length} unique songs pushed to Master.`);
     } catch (err: any) {
       console.error("Sync Error:", err);
       showError(`Sync failed: ${err.message || 'Server Error'}`);

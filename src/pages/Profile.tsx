@@ -126,28 +126,42 @@ const Profile = () => {
         return score;
       };
 
-      // Sanitize data for the repertoire table
-      const repertoireData = allSongs.map(song => ({
-        user_id: user.id,
-        title: song.name,
-        artist: song.artist || 'Unknown Artist',
-        original_key: song.originalKey || null,
-        bpm: song.bpm || null,
-        genre: song.genre || (song.user_tags?.[0]) || null,
-        readiness_score: calculateScore(song),
-        is_active: true
-      }));
+      // Deduplicate songs by title and artist to avoid Postgres upsert conflicts
+      const uniqueRepertoireMap = new Map();
+      
+      allSongs.forEach(song => {
+        const title = song.name;
+        const artist = song.artist || 'Unknown Artist';
+        const key = `${title}-${artist}`.toLowerCase();
+        const score = calculateScore(song);
+        
+        // If song already in map, keep the one with the higher readiness score
+        if (!uniqueRepertoireMap.has(key) || score > uniqueRepertoireMap.get(key).readiness_score) {
+          uniqueRepertoireMap.set(key, {
+            user_id: user.id,
+            title,
+            artist,
+            original_key: song.originalKey || null,
+            bpm: song.bpm || null,
+            genre: song.genre || (song.user_tags?.[0]) || null,
+            readiness_score: score,
+            is_active: true
+          });
+        }
+      });
+
+      const finalData = Array.from(uniqueRepertoireMap.values());
 
       const { error: uError } = await supabase
         .from('repertoire')
-        .upsert(repertoireData, { 
+        .upsert(finalData, { 
           onConflict: 'user_id,title,artist',
           ignoreDuplicates: false 
         });
 
       if (uError) throw uError;
 
-      showSuccess(`Successfully Synced ${repertoireData.length} unique songs!`);
+      showSuccess(`Successfully Synced ${finalData.length} unique songs!`);
       fetchData();
     } catch (err: any) {
       console.error("Bulk sync error:", err);
