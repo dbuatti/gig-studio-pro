@@ -272,6 +272,28 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     });
   };
 
+  const handleDownloadAll = () => {
+    const links = [
+      { url: formData.previewUrl, name: `${formData.name}_Audio` },
+      { url: formData.pdfUrl, name: `${formData.name}_Chart` },
+      { url: formData.youtubeUrl, name: `${formData.name}_Reference` }
+    ].filter(l => !!l.url);
+
+    if (links.length === 0) {
+      showError("No downloadable assets found.");
+      return;
+    }
+
+    links.forEach(link => {
+      const a = document.createElement('a');
+      a.href = link.url!;
+      a.download = link.name;
+      a.target = '_blank';
+      a.click();
+    });
+    showSuccess(`Started download for ${links.length} assets.`);
+  };
+
   if (!song) return null;
   const videoId = formData.youtubeUrl ? formData.youtubeUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)?.[1] : null;
 
@@ -559,7 +581,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Primary Artist</Label>
                       <Input 
                         value={formData.artist || ""} 
-                        onChange={(e) => handleAutoSave({ artist: e.target.value })}
+                        onChange={(e) => setFormData(prev => ({ ...prev, artist: e.target.value }))}
                         className="bg-white/5 border-white/10 text-xl font-black h-14"
                       />
                     </div>
@@ -604,7 +626,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                     <Textarea 
                       placeholder="Cues, transitions, dynamics..."
                       value={formData.notes || ""}
-                      onChange={(e) => handleAutoSave({ notes: e.target.value })}
+                      onChange={(e) => handleAutoSave({ notes: e.target.value }))}
                       className="min-h-[250px] bg-white/5 border-white/10 text-sm leading-relaxed"
                     />
                   </div>
@@ -619,7 +641,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                        <Input 
                          placeholder="YouTube URL..." 
                          value={formData.youtubeUrl || ""}
-                         onChange={(e) => handleAutoSave({ youtubeUrl: e.target.value })}
+                         onChange={(e) => handleAutoSave({ youtubeUrl: e.target.value }))}
                          className="bg-white/5 border-white/10 text-xs w-96 h-10"
                        />
                     </div>
@@ -646,7 +668,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                              <p className="text-[10px] text-slate-400 mt-1">This video will be available as a visual reference during live sets.</p>
                            </div>
                         </div>
-                        <Button variant="ghost" onClick={() => handleAutoSave({ youtubeUrl: "" })} className="text-red-400 text-[10px] font-black uppercase hover:bg-red-500/10">Disconnect Link</Button>
+                        <Button variant="ghost" onClick={() => handleAutoSave({ youtubeUrl: "" }))} className="text-red-400 text-[10px] font-black uppercase hover:bg-red-500/10">Disconnect Link</Button>
                       </div>
                     </div>
                   ) : (
