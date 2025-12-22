@@ -28,7 +28,8 @@ export interface SetlistSong {
   isMetadataConfirmed?: boolean;
   notes?: string;
   resources?: string[];
-  user_tags?: string[]; // Added to fix compile-time errors
+  user_tags?: string[];
+  isKeyLinked?: boolean; // New property
 }
 
 interface SetlistManagerProps {
@@ -47,9 +48,9 @@ interface SetlistManagerProps {
 const RESOURCE_TYPES = [
   { id: 'UG', label: 'Ultimate Guitar', color: 'bg-orange-500/10 text-orange-600 border-orange-500/20' },
   { id: 'FS', label: 'ForScore', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
-  { id: 'SM', label: 'Sheet Music', color: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
-  { id: 'LS', label: 'Lead Sheet', color: 'bg-purple-500/10 text-purple-600 border-purple-500/20' },
-  { id: 'PDF', label: 'iPad PDF', color: 'bg-red-500/10 text-red-600 border-red-500/20' },
+  { id: 'SM', label: 'Sheet Music', color: 'bg-blue-500/10 text-blue-600 border-blue-200' },
+  { id: 'LS', label: 'Lead Sheet', color: 'bg-purple-500/10 text-purple-600 border-purple-200' },
+  { id: 'PDF', label: 'iPad PDF', color: 'bg-red-100 text-red-700 border-red-200' },
 ];
 
 type SortMode = 'none' | 'ready' | 'work';

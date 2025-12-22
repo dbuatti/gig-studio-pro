@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,15 +8,16 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { SetlistSong } from './SetlistManager';
-import { ALL_KEYS } from '@/utils/keyUtils';
+import { ALL_KEYS, calculateSemitones } from '@/utils/keyUtils';
 import { 
   Music, FileText, Youtube, Settings2, 
   Sparkles, Waves, Activity, Play, Pause,
   Volume2, Gauge, ExternalLink, Library,
   Upload, Link2, X, Plus, Tag, Check, Loader2,
-  FileDown, FileType, Headphones, Wand2, Download,
-  MoreVertical, Copy, Globe, Eye
+  FileDown, Headphones, Wand2, Download,
+  Globe, Eye, Link as LinkIcon
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import AudioVisualizer from './AudioVisualizer';
@@ -83,7 +84,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         pdfUrl: song.pdfUrl || "",
         resources: song.resources || [],
         pitch: song.pitch || 0,
-        user_tags: song.user_tags || []
+        user_tags: song.user_tags || [],
+        isKeyLinked: song.isKeyLinked ?? true
       });
       
       if (song.previewUrl) {
@@ -267,6 +269,21 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     showSuccess(`Started download for ${links.length} assets.`);
   };
 
+  const updateHarmonics = (updates: Partial<SetlistSong>) => {
+    setFormData(prev => {
+      const next = { ...prev, ...updates };
+      const isLinked = next.isKeyLinked ?? true;
+      
+      if (isLinked) {
+        const diff = calculateSemitones(next.originalKey || "C", next.targetKey || "C");
+        next.pitch = diff;
+        if (playerRef.current) playerRef.current.detune = diff * 100;
+      }
+      
+      return next;
+    });
+  };
+
   if (!song) return null;
   const videoId = formData.youtubeUrl ? formData.youtubeUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)?.[1] : null;
 
@@ -314,13 +331,30 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Harmonic Engine</Label>
-                  {isUploading && <Loader2 className="w-3 h-3 animate-spin text-indigo-500" />}
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button 
+                          onClick={() => updateHarmonics({ isKeyLinked: !formData.isKeyLinked })}
+                          className={cn(
+                            "p-1.5 rounded-lg border transition-all",
+                            formData.isKeyLinked ? "bg-indigo-600 border-indigo-500 text-white" : "bg-white/5 border-white/10 text-slate-500"
+                          )}
+                        >
+                          <LinkIcon className="w-3 h-3" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent className="text-[10px] font-black uppercase">
+                        {formData.isKeyLinked ? "Keys are Linked to Pitch" : "Pitch is Independent"}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
                 
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label className="text-[9px] font-bold text-slate-400 uppercase">Original Key</Label>
-                    <Select value={formData.originalKey || "C"} onValueChange={(val) => setFormData(prev => ({ ...prev, originalKey: val }))}>
+                    <Select value={formData.originalKey || "C"} onValueChange={(val) => updateHarmonics({ originalKey: val })}>
                       <SelectTrigger className="bg-white/5 border-white/10 text-white font-bold font-mono h-11">
                         <SelectValue />
                       </SelectTrigger>
@@ -336,7 +370,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       <span className="text-[9px] font-mono text-slate-500">{(formData.pitch || 0) > 0 ? '+' : ''}{formData.pitch || 0} ST</span>
                     </div>
                     <Select value={formData.targetKey || "C"} onValueChange={(val) => {
-                      setFormData(prev => ({ ...prev, targetKey: val }));
+                      updateHarmonics({ targetKey: val });
                       onUpdateKey(song.id, val);
                     }}>
                       <SelectTrigger className="bg-indigo-600 border-none text-white font-bold font-mono h-11 shadow-lg shadow-indigo-500/20">
@@ -717,7 +751,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                           <Youtube className="w-6 h-6" />
                         </div>
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.open(formData.youtubeUrl, '_blank')}><Globe className="w-3.5 h-3.5" /></Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.open(formData.youtubeUrl, '_blank')}><Globe className="w-3.5 h-3.5" /> </Button>
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setActiveTab('visual')}><Settings2 className="w-3.5 h-3.5" /></Button>
                         </div>
                       </div>
