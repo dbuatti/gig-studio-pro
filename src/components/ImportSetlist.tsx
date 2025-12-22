@@ -4,7 +4,9 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ClipboardPaste, AlertCircle, HelpCircle, ListPlus } from 'lucide-react';
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { ClipboardPaste, AlertCircle, HelpCircle, ListPlus, Youtube } from 'lucide-react';
 import { SetlistSong } from './SetlistManager';
 
 interface ImportSetlistProps {
@@ -14,12 +16,14 @@ interface ImportSetlistProps {
 const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport }) => {
   const [text, setText] = useState("");
   const [isOpen, setIsOpen] = useState(false);
+  const [includeYoutube, setIncludeYoutube] = useState(true);
 
   const handleImport = () => {
     const lines = text.split('\n');
     const newSongs: SetlistSong[] = [];
     
     lines.forEach(line => {
+      // Look for standard table/list patterns
       if (line.includes('|') && !line.includes('---') && !line.includes('Song Title')) {
         const columns = line.split('|').map(c => c.trim()).filter(c => c !== "");
         
@@ -28,8 +32,11 @@ const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport }) => {
           const title = columns[1].replace(/\*\*/g, '');
           const originalKey = (columns[5] || "C").replace(/\*\*/g, '');
           
-          const ytMatch = line.match(/\((https:\/\/www\.youtube\.com\/watch\?v=[^)]+)\)/);
-          const youtubeUrl = ytMatch ? ytMatch[1] : undefined;
+          let youtubeUrl = undefined;
+          if (includeYoutube) {
+            const ytMatch = line.match(/\((https:\/\/www\.youtube\.com\/watch\?v=[^)]+)\)/);
+            youtubeUrl = ytMatch ? ytMatch[1] : undefined;
+          }
 
           newSongs.push({
             id: Math.random().toString(36).substr(2, 9),
@@ -70,6 +77,23 @@ const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport }) => {
         </DialogHeader>
         
         <div className="space-y-4 py-4">
+          <div className="bg-slate-50 dark:bg-slate-900 border rounded-lg p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="bg-red-100 p-2 rounded-lg">
+                <Youtube className="w-4 h-4 text-red-600" />
+              </div>
+              <div>
+                <Label htmlFor="yt-toggle" className="text-sm font-bold">Import YouTube References</Label>
+                <p className="text-[10px] text-slate-500">Extracts video links if present in the pasted text.</p>
+              </div>
+            </div>
+            <Switch 
+              id="yt-toggle" 
+              checked={includeYoutube} 
+              onCheckedChange={setIncludeYoutube}
+            />
+          </div>
+
           <div className="bg-slate-50 dark:bg-slate-900 border rounded-lg p-4 space-y-3">
             <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
               <HelpCircle className="w-3 h-3" /> Quick Instructions
