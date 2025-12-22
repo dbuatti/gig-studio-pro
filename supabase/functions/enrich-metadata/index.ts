@@ -13,21 +13,19 @@ serve(async (req) => {
 
   try {
     const { query } = await req.json();
-    // @ts-ignore: Deno global only available in edge functions
+    // @ts-ignore: Deno global
     const apiKey = Deno.env.get('GEMINI_API_KEY');
 
-    if (!apiKey) {
-      throw new Error("GEMINI_API_KEY not configured");
-    }
+    if (!apiKey) throw new Error("GEMINI_API_KEY is not set in Supabase Secrets.");
 
-    const prompt = `Act as a professional music librarian. For the song "${query}", provide the following metadata in a JSON format:
+    const prompt = `Act as a professional music librarian. For the song "${query}", return ONLY a JSON object with this exact structure:
     {
-      "originalKey": "The standard original key (e.g., C, F#m, Eb)",
-      "bpm": "The average BPM (number)",
-      "genre": "The primary genre",
-      "energy": "A scale of 1-5"
+      "originalKey": "The standard key (e.g., C, F#m, Eb)",
+      "bpm": "The numeric BPM",
+      "genre": "The genre",
+      "isFound": true
     }
-    Only return the JSON object, nothing else. If you are unsure, provide your best professional estimate.`;
+    If you are unsure of the key, return your best estimate based on the most famous recording. Do not include markdown formatting or any text other than the JSON object.`;
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
@@ -37,16 +35,26 @@ serve(async (req) => {
       })
     });
 
-    const data = await response.json();
-    const text = data.candidates[0].content.parts[0].text;
-    const jsonStr = text.replace(/```json|```/g, '').trim();
-    const metadata = JSON.parse(jsonStr);
+    const result = await response.json();
+    
+    if (!response.ok) {
+      console.error("Gemini API Error:", result);
+      throw new Error(result.error?.message || "AI Provider Error");
+    }
+
+    let text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error("AI returned an empty response.");
+
+    // Strip any potential markdown wrappers the AI might have added
+    text = text.replace(/```json|```/g, '').trim();
+    const metadata = JSON.parse(text);
 
     return new Response(JSON.stringify(metadata), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
   } catch (error) {
+    console.error("Metadata Function Failure:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

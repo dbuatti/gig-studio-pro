@@ -54,8 +54,12 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
   const playbackStartTimeRef = useRef<number>(0);
   const offsetRef = useRef<number>(0);
 
-  // Initialize engine nodes lazily to avoid AudioContext warnings
-  const initEngine = () => {
+  // Initialize engine nodes ONLY after a user interaction
+  const initEngine = async () => {
+    if (Tone.getContext().state !== 'running') {
+      await Tone.start();
+    }
+    
     if (analyzerRef.current) return;
 
     analyzerRef.current = new Tone.Analyser("fft", 256);
@@ -96,7 +100,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
 
   const loadAudioBuffer = async (audioBuffer: AudioBuffer, identifier: string, youtubeUrl?: string, previewUrl?: string) => {
     try {
-      initEngine();
+      await initEngine();
       if (playerRef.current) playerRef.current.dispose();
 
       playerRef.current = new Tone.GrainPlayer(audioBuffer).connect(eqRef.current!);
@@ -210,12 +214,8 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
   }, [isPlaying, tempo]);
 
   const togglePlayback = async () => {
+    await initEngine();
     if (!playerRef.current) return;
-    
-    // Explicitly start/resume Tone context on user interaction
-    if (Tone.getContext().state !== 'running') {
-      await Tone.start();
-    }
 
     if (isPlaying) {
       playerRef.current.stop();
