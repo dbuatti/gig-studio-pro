@@ -347,6 +347,7 @@ const Index = () => {
                 <ImportSetlist onImport={(newSongs) => {
                   if (!currentListId) return;
                   const songsWithSyncState = newSongs.map(s => ({ ...s, isSyncing: true, isMetadataConfirmed: false }));
+                  
                   setSetlists(prev => {
                     const list = prev.find(l => l.id === currentListId);
                     if (!list) return prev;
@@ -354,10 +355,19 @@ const Index = () => {
                     saveList(currentListId, updated);
                     return prev.map(l => l.id === currentListId ? { ...l, songs: updated } : l);
                   });
-                  for (let i = 0; i < songsWithSyncState.length; i += 10) {
-                    const batch = songsWithSyncState.slice(i, i + 10);
-                    handleBulkSync(batch);
-                  }
+
+                  // Sequential throttled batching to prevent 429 errors
+                  const syncAllBatches = async () => {
+                    for (let i = 0; i < songsWithSyncState.length; i += 10) {
+                      const batch = songsWithSyncState.slice(i, i + 10);
+                      await handleBulkSync(batch);
+                      // Wait 3 seconds between batches to respect rate limits
+                      if (i + 10 < songsWithSyncState.length) {
+                        await new Promise(resolve => setTimeout(resolve, 3000));
+                      }
+                    }
+                  };
+                  syncAllBatches();
                 }} />
               </div>
             </div>
