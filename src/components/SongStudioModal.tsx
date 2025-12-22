@@ -17,7 +17,8 @@ import {
   Volume2, Gauge, ExternalLink, Library,
   Upload, Link2, X, Plus, Tag, Check, Loader2,
   FileDown, Headphones, Wand2, Download,
-  Globe, Eye, Link as LinkIcon
+  Globe, Eye, Link as LinkIcon, RotateCcw,
+  Zap, Disc
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import AudioVisualizer from './AudioVisualizer';
@@ -59,14 +60,19 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   
+  // Audio Engine State
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [tempo, setTempo] = useState(1);
+  const [volume, setVolume] = useState(-6);
+  const [fineTune, setFineTune] = useState(0);
+
   const playerRef = useRef<Tone.GrainPlayer | null>(null);
   const analyzerRef = useRef<Tone.Analyser | null>(null);
   const currentBufferRef = useRef<AudioBuffer | null>(null);
   const requestRef = useRef<number>();
   
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [duration, setDuration] = useState(0);
   const playbackStartTimeRef = useRef<number>(0);
   const playbackOffsetRef = useRef<number>(0);
 
@@ -138,7 +144,12 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       if (playerRef.current) playerRef.current.dispose();
       playerRef.current = new Tone.GrainPlayer(buffer).toDestination();
       playerRef.current.connect(analyzerRef.current);
-      playerRef.current.detune = pitch * 100;
+      playerRef.current.detune = (pitch * 100) + fineTune;
+      playerRef.current.playbackRate = tempo;
+      playerRef.current.volume.value = volume;
+      playerRef.current.grainSize = 0.18;
+      playerRef.current.overlap = 0.1;
+      
       setDuration(buffer.duration);
     } catch (err) {
       console.error("Audio Load Error:", err);
@@ -168,7 +179,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     if (!playerRef.current) return;
     if (isPlaying) {
       playerRef.current.stop();
-      const elapsed = Tone.now() - playbackStartTimeRef.current;
+      const elapsed = (Tone.now() - playbackStartTimeRef.current) * tempo;
       playbackOffsetRef.current += elapsed;
       setIsPlaying(false);
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
@@ -182,9 +193,19 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     }
   };
 
+  const stopPlayback = () => {
+    if (playerRef.current) {
+      playerRef.current.stop();
+      setIsPlaying(false);
+      setProgress(0);
+      playbackOffsetRef.current = 0;
+      if (requestRef.current) cancelAnimationFrame(requestRef.current);
+    }
+  };
+
   const animate = () => {
     if (playerRef.current && isPlaying) {
-      const elapsed = Tone.now() - playbackStartTimeRef.current;
+      const elapsed = (Tone.now() - playbackStartTimeRef.current) * tempo;
       const currentSeconds = playbackOffsetRef.current + elapsed;
       const newProgress = (currentSeconds / duration) * 100;
 
@@ -263,7 +284,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       if (isLinked) {
         const diff = calculateSemitones(next.originalKey || "C", next.targetKey || "C");
         next.pitch = diff;
-        if (playerRef.current) playerRef.current.detune = diff * 100;
+        if (playerRef.current) playerRef.current.detune = (diff * 100) + fineTune;
       }
       
       onSave(song.id, next);
@@ -298,7 +319,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     if (formData.ugUrl) {
       window.open(formData.ugUrl, '_blank');
     } else {
-      // Direct search targeting Official tabs (type=600)
       const query = encodeURIComponent(`${formData.artist} ${formData.name}`);
       const searchUrl = `https://www.ultimate-guitar.com/search.php?search_type=title&value=${query}&type=600`;
       window.open(searchUrl, '_blank');
@@ -458,7 +478,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                 <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
                 Live Sync: ON
               </div>
-              <span>PRO V2.1</span>
+              <span>PRO V2.5</span>
             </div>
           </div>
 
@@ -486,18 +506,44 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
 
             <div className="flex-1 overflow-y-auto p-10">
               {activeTab === 'audio' && (
-                <div className="space-y-10 animate-in fade-in duration-500">
+                <div className="space-y-8 animate-in fade-in duration-500">
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-sm font-black uppercase tracking-[0.2em] text-indigo-400">Audio Transposition Matrix</h3>
-                      <p className="text-xs text-slate-500 mt-1">Real-time pitch and time-stretching processing.</p>
+                      <p className="text-xs text-slate-500 mt-1">Direct stream processing with real-time pitch and time-stretching.</p>
+                    </div>
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600/10 border border-indigo-500/20 rounded-full">
+                       <Zap className="w-3 h-3 text-indigo-400" />
+                       <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Active Processing</span>
                     </div>
                   </div>
 
                   <div className="bg-slate-900/50 rounded-[2.5rem] border border-white/5 p-10 space-y-10">
                     <AudioVisualizer analyzer={analyzerRef.current} isActive={isPlaying} />
                     
-                    <div className="flex flex-col items-center gap-6">
+                    <div className="space-y-6">
+                      <div className="flex justify-between text-[10px] font-mono font-black text-slate-500 uppercase">
+                        <span>{new Date((progress/100 * duration) * 1000).toISOString().substr(14, 5)}</span>
+                        <span>Transport Position</span>
+                        <span>{new Date(duration * 1000).toISOString().substr(14, 5)}</span>
+                      </div>
+                      <Slider value={[progress]} max={100} step={0.1} onValueChange={(v) => {
+                        const p = v[0];
+                        setProgress(p);
+                        const offset = (p / 100) * duration;
+                        playbackOffsetRef.current = offset;
+                        if (isPlaying && playerRef.current) {
+                          playerRef.current.stop();
+                          playbackStartTimeRef.current = Tone.now();
+                          playerRef.current.start(0, offset);
+                        }
+                      }} />
+                    </div>
+
+                    <div className="flex items-center justify-center gap-8">
+                       <Button variant="ghost" size="icon" onClick={stopPlayback} className="h-14 w-14 rounded-full border border-white/5 hover:bg-white/5">
+                         <RotateCcw className="w-6 h-6" />
+                       </Button>
                        <Button 
                          size="lg" 
                          disabled={!formData.previewUrl}
@@ -506,63 +552,116 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                        >
                          {isPlaying ? <Pause className="w-10 h-10" /> : <Play className="w-10 h-10 ml-1.5 fill-current" />}
                        </Button>
-                       
-                       <div className="w-full max-w-md space-y-3">
-                         <div className="flex justify-between text-[10px] font-mono font-black text-indigo-400 uppercase">
-                           <span>Pitch Processor</span>
-                           <span>{(formData.pitch || 0) > 0 ? '+' : ''}{formData.pitch || 0} ST</span>
-                         </div>
-                         <Slider 
-                           value={[formData.pitch || 0]} 
-                           min={-12} 
-                           max={12} 
-                           step={1} 
-                           onValueChange={(v) => {
-                             setFormData(prev => ({ ...prev, pitch: v[0] }));
-                             if (playerRef.current) playerRef.current.detune = v[0] * 100;
-                             if (song) onSave(song.id, { pitch: v[0] });
-                           }} 
-                         />
-                       </div>
+                       <div className="h-14 w-14" /> {/* Spacer */}
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="p-6 bg-white/5 rounded-3xl border border-white/5 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                          <Gauge className="w-3.5 h-3.5 text-indigo-400" /> BPM Engine
-                        </Label>
+                  <div className="grid grid-cols-2 gap-8">
+                    <div className="space-y-8 bg-white/5 p-8 rounded-[2rem] border border-white/5">
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Pitch Processor</Label>
+                          <span className="text-sm font-mono font-black text-indigo-400">{(formData.pitch || 0) > 0 ? '+' : ''}{formData.pitch || 0} ST</span>
+                        </div>
+                        <Slider 
+                          value={[formData.pitch || 0]} 
+                          min={-12} 
+                          max={12} 
+                          step={1} 
+                          onValueChange={(v) => {
+                            setFormData(prev => ({ ...prev, pitch: v[0] }));
+                            if (playerRef.current) playerRef.current.detune = (v[0] * 100) + fineTune;
+                            if (song) onSave(song.id, { pitch: v[0] });
+                          }} 
+                        />
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Fine Tune</Label>
+                          <span className="text-sm font-mono font-black text-slate-500">{fineTune > 0 ? '+' : ''}{fineTune} Cents</span>
+                        </div>
+                        <Slider 
+                          value={[fineTune]} 
+                          min={-100} 
+                          max={100} 
+                          step={1} 
+                          onValueChange={(v) => {
+                            setFineTune(v[0]);
+                            if (playerRef.current) playerRef.current.detune = ((formData.pitch || 0) * 100) + v[0];
+                          }} 
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-8 bg-white/5 p-8 rounded-[2rem] border border-white/5">
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Time Stretch (Tempo)</Label>
+                          <span className="text-sm font-mono font-black text-indigo-400">{tempo.toFixed(2)}x</span>
+                        </div>
+                        <Slider 
+                          value={[tempo]} 
+                          min={0.5} 
+                          max={1.5} 
+                          step={0.01} 
+                          onValueChange={(v) => {
+                            setTempo(v[0]);
+                            if (playerRef.current) playerRef.current.playbackRate = v[0];
+                          }} 
+                        />
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Output Gain</Label>
+                          <span className="text-sm font-mono font-black text-slate-500">{Math.round((volume + 60) * 1.66)}%</span>
+                        </div>
+                        <Slider 
+                          value={[volume]} 
+                          min={-60} 
+                          max={0} 
+                          step={1} 
+                          onValueChange={(v) => {
+                            setVolume(v[0]);
+                            if (playerRef.current) playerRef.current.volume.value = v[0];
+                          }} 
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-6 bg-slate-900 rounded-[2rem] border border-white/5 flex items-center justify-between">
+                     <div className="flex items-center gap-6">
+                        <div className="flex flex-col">
+                           <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Library BPM</span>
+                           <Input 
+                             value={formData.bpm || ""}
+                             onChange={(e) => handleAutoSave({ bpm: e.target.value })}
+                             className="bg-transparent border-none p-0 h-auto text-xl font-black font-mono text-indigo-400 focus-visible:ring-0"
+                           />
+                        </div>
                         <Button 
                           variant="ghost" 
                           size="sm" 
                           onClick={handleDetectBPM}
                           disabled={isAnalyzing || !formData.previewUrl}
-                          className="h-7 px-3 bg-indigo-600/10 text-indigo-400 hover:bg-indigo-600 hover:text-white font-black uppercase tracking-widest text-[8px] gap-1.5"
+                          className="h-10 px-4 bg-indigo-600/10 text-indigo-400 hover:bg-indigo-600 hover:text-white font-black uppercase tracking-widest text-[10px] gap-2 rounded-xl"
                         >
-                          {isAnalyzing ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Wand2 className="w-2.5 h-2.5" />}
-                          Scan Tempo
+                          {isAnalyzing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Disc className="w-3.5 h-3.5" />}
+                          Scan Master Tempo
                         </Button>
-                      </div>
-                      <Input 
-                        placeholder="Manual override BPM..." 
-                        value={formData.bpm || ""}
-                        onChange={(e) => handleAutoSave({ bpm: e.target.value })}
-                        className="bg-white/5 border-white/10 font-mono text-indigo-400 h-12"
-                      />
-                    </div>
-                    <div 
-                      className="p-6 bg-indigo-600/5 rounded-3xl border border-dashed border-indigo-500/30 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-indigo-600/10 transition-all"
-                      onClick={() => document.getElementById('audio-upload')?.click()}
-                    >
-                      <Upload className="w-6 h-6 text-indigo-400 mb-2" />
-                      <p className="text-[10px] font-black uppercase tracking-widest">Update Master Track</p>
-                      <p className="text-[8px] text-slate-500 mt-1">MP3, WAV, AIFF Supported</p>
-                      <input id="audio-upload" type="file" className="hidden" accept="audio/*" onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleDrop({ preventDefault: () => {}, dataTransfer: { files: [file] } } as any);
-                      }} />
-                    </div>
+                     </div>
+                     <div className="flex items-center gap-10 pr-4">
+                        <div className="flex flex-col items-end">
+                           <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Sample Rate</span>
+                           <span className="text-xs font-mono font-bold text-slate-400">44.1 kHz</span>
+                        </div>
+                        <div className="flex flex-col items-end">
+                           <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Latency Mode</span>
+                           <span className="text-xs font-mono font-bold text-emerald-500 uppercase">Interactive</span>
+                        </div>
+                     </div>
                   </div>
                 </div>
               )}
