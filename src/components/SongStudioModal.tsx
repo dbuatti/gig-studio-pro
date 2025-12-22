@@ -127,6 +127,34 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     return Math.min(100, score);
   }, [formData]);
 
+  const readinessColor = useMemo(() => {
+    if (readiness >= 90) return "bg-emerald-500";
+    if (readiness >= 50) return "bg-indigo-500";
+    return "bg-amber-500";
+  }, [readiness]);
+
+  const toggleResource = (id: string) => {
+    const current = formData.resources || [];
+    const updated = current.includes(id) 
+      ? current.filter(r => r !== id) 
+      : [...current, id];
+    handleAutoSave({ resources: updated });
+  };
+
+  const addTag = () => {
+    if (!newTag.trim()) return;
+    const current = formData.user_tags || [];
+    if (!current.includes(newTag.trim())) {
+      handleAutoSave({ user_tags: [...current, newTag.trim()] });
+    }
+    setNewTag("");
+  };
+
+  const removeTag = (tag: string) => {
+    const current = formData.user_tags || [];
+    handleAutoSave({ user_tags: current.filter(t => t !== tag) });
+  };
+
   useEffect(() => {
     if (song && isOpen) {
       setFormData({
@@ -173,27 +201,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     setIsInRepertoire(!!data);
   };
 
-  const addToPublicRepertoire = async () => {
-    if (!song || !user) return;
-    try {
-      const { error } = await supabase
-        .from('repertoire')
-        .insert({
-          user_id: user.id,
-          title: formData.name || song.name,
-          artist: formData.artist || song.artist || 'Unknown Artist',
-          original_key: formData.originalKey,
-          bpm: formData.bpm,
-          genre: formData.genre || (formData.user_tags?.[0])
-        });
-      if (error) throw error;
-      setIsInRepertoire(true);
-      showSuccess("Added to Master Repertoire");
-    } catch (err) {
-      showError("Failed to add to repertoire");
-    }
-  };
-
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
   const handleAutoSave = (updates: Partial<SetlistSong>) => {
     setFormData(prev => ({ ...prev, ...updates }));
@@ -220,37 +227,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     Tone.getTransport().stop();
     metronomeLoopRef.current?.stop();
     setIsMetronomeActive(false);
-  };
-
-  const toggleMetronome = async () => {
-    if (!formData.bpm) {
-      showError("Set a BPM first.");
-      return;
-    }
-    if (isMetronomeActive) {
-      stopMetronome();
-    } else {
-      if (Tone.getContext().state !== 'running') await Tone.start();
-      if (!metronomeSynthRef.current) {
-        metronomeSynthRef.current = new Tone.MembraneSynth({
-          pitchDecay: 0.05,
-          octaves: 4,
-          oscillator: { type: "sine" }
-        }).toDestination();
-      }
-      const bpmValue = parseInt(formData.bpm);
-      if (isNaN(bpmValue) || bpmValue <= 0) return;
-      Tone.getTransport().bpm.value = bpmValue;
-      if (!metronomeLoopRef.current) {
-        metronomeLoopRef.current = new Tone.Loop((time) => {
-          metronomeSynthRef.current?.triggerAttackRelease("C4", "32n", time);
-        }, "4n").start(0);
-      } else {
-        metronomeLoopRef.current.start(0);
-      }
-      Tone.getTransport().start();
-      setIsMetronomeActive(true);
-    }
   };
 
   const prepareAudio = async (url: string, pitch: number) => {
@@ -308,8 +284,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       setIsFormattingLyrics(false);
     }
   };
-
-  const handleProSync = async () => setIsProSyncSearchOpen(true);
 
   const handleSelectProSync = async (itunesData: any) => {
     setIsProSyncSearchOpen(false);
