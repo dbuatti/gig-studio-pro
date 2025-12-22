@@ -10,7 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { showSuccess, showError } from '@/utils/toast';
-import { Camera, Copy, Globe, Palette, User, Loader2, ArrowLeft, RotateCcw, Sparkles, ExternalLink, RefreshCw, Library, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Camera, Copy, Globe, Palette, User, Loader2, ArrowLeft, RotateCcw, Sparkles, ExternalLink, RefreshCw, Library, ShieldCheck, AlertCircle, Link as LinkIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import PublicRepertoireView from '@/components/PublicRepertoireView';
 import { cn } from '@/lib/utils';
@@ -183,7 +183,6 @@ const Profile = () => {
     setSaving(true);
     try {
       const fileExt = file.name.split('.').pop();
-      // Using a simple path to avoid complex RLS parsing errors
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
       const bucketName = 'public_assets';
 
@@ -266,25 +265,40 @@ const Profile = () => {
                 </div>
                 <input id="photo-upload" type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
               </div>
-              
-              <div className="grid grid-cols-2 gap-4 w-full">
+
+              <div className="w-full space-y-4">
                 <div className="space-y-1.5">
-                  <Label className="text-[9px] font-bold text-slate-500 uppercase">First Name</Label>
+                  <Label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-2">
+                    <LinkIcon className="w-3 h-3" /> Image URL Fallback
+                  </Label>
                   <Input 
-                    defaultValue={profile?.first_name}
-                    onBlur={(e) => saveToDatabase({ first_name: e.target.value })}
-                    onChange={(e) => handleUpdateLocal({ first_name: e.target.value })}
+                    placeholder="https://example.com/photo.jpg"
+                    defaultValue={profile?.avatar_url}
+                    onBlur={(e) => saveToDatabase({ avatar_url: e.target.value })}
+                    onChange={(e) => handleUpdateLocal({ avatar_url: e.target.value })}
                     className="h-9 text-xs bg-black/20 border-white/10"
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[9px] font-bold text-slate-500 uppercase">Last Name</Label>
-                  <Input 
-                    defaultValue={profile?.last_name}
-                    onBlur={(e) => saveToDatabase({ last_name: e.target.value })}
-                    onChange={(e) => handleUpdateLocal({ last_name: e.target.value })}
-                    className="h-9 text-xs bg-black/20 border-white/10"
-                  />
+
+                <div className="grid grid-cols-2 gap-4 w-full">
+                  <div className="space-y-1.5">
+                    <Label className="text-[9px] font-bold text-slate-500 uppercase">First Name</Label>
+                    <Input 
+                      defaultValue={profile?.first_name}
+                      onBlur={(e) => saveToDatabase({ first_name: e.target.value })}
+                      onChange={(e) => handleUpdateLocal({ first_name: e.target.value })}
+                      className="h-9 text-xs bg-black/20 border-white/10"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[9px] font-bold text-slate-500 uppercase">Last Name</Label>
+                    <Input 
+                      defaultValue={profile?.last_name}
+                      onBlur={(e) => saveToDatabase({ last_name: e.target.value })}
+                      onChange={(e) => handleUpdateLocal({ last_name: e.target.value })}
+                      className="h-9 text-xs bg-black/20 border-white/10"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
