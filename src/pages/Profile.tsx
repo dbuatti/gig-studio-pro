@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -10,8 +10,19 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { showSuccess, showError } from '@/utils/toast';
-import { Camera, Copy, ExternalLink, Globe, Palette, User, Loader2, ArrowLeft } from 'lucide-react';
+import { Camera, Copy, Globe, Palette, User, Loader2, ArrowLeft, RotateCcw, Sparkles, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import PublicRepertoireView from '@/components/PublicRepertoireView';
+import { cn } from '@/lib/utils';
+
+const THEMES = [
+  { name: 'Dark Pro', primary: '#4f46e5', background: '#020617', text: '#ffffff', border: '#4f46e5' },
+  { name: 'Vibrant Light', primary: '#9333ea', background: '#ffffff', text: '#1e1b4b', border: '#9333ea' },
+  { name: 'Classic Black', primary: '#ffffff', background: '#000000', text: '#ffffff', border: '#ffffff' },
+  { name: 'Purple Energy', primary: '#c084fc', background: '#2e1065', text: '#f5f3ff', border: '#c084fc' },
+];
+
+const DEFAULT_COLORS = { primary: '#4f46e5', background: '#020617', text: '#ffffff', border: '#4f46e5' };
 
 const Profile = () => {
   const { user } = useAuth();
@@ -19,13 +30,15 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<any>(null);
-  const [songCount, setSongCount] = useState(0);
+  const [songs, setSongs] = useState<any[]>([]);
 
   useEffect(() => {
-    if (user) fetchProfile();
+    if (user) {
+      fetchData();
+    }
   }, [user]);
 
-  const fetchProfile = async () => {
+  const fetchData = async () => {
     try {
       const { data: profileData, error: pError } = await supabase
         .from('profiles')
@@ -36,21 +49,26 @@ const Profile = () => {
       if (pError) throw pError;
       setProfile(profileData);
 
-      const { count, error: cError } = await supabase
+      const { data: songData, error: sError } = await supabase
         .from('repertoire')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user?.id);
+        .select('*')
+        .eq('user_id', user?.id)
+        .eq('is_active', true);
 
-      if (cError) throw cError;
-      setSongCount(count || 0);
+      if (sError) throw sError;
+      setSongs(songData || []);
     } catch (err) {
-      showError("Failed to load profile settings");
+      showError("Failed to load data");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSave = async (updates: any) => {
+  const handleUpdateLocal = (updates: any) => {
+    setProfile((prev: any) => ({ ...prev, ...updates }));
+  };
+
+  const saveToDatabase = async (updates: any) => {
     setSaving(true);
     try {
       const { error } = await supabase
@@ -59,8 +77,7 @@ const Profile = () => {
         .eq('id', user?.id);
 
       if (error) throw error;
-      setProfile({ ...profile, ...updates });
-      showSuccess("Settings updated");
+      showSuccess("Settings Saved");
     } catch (err: any) {
       showError(err.message || "Failed to save settings");
     } finally {
@@ -80,11 +97,11 @@ const Profile = () => {
     setSaving(true);
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}-${Math.random()}.${fileExt}`;
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
       const filePath = `avatars/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from('audio_tracks') // Using existing bucket for simplicity, usually separate
+        .from('audio_tracks')
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
@@ -93,12 +110,20 @@ const Profile = () => {
         .from('audio_tracks')
         .getPublicUrl(filePath);
 
-      await handleSave({ avatar_url: publicUrl });
+      handleUpdateLocal({ avatar_url: publicUrl });
+      await saveToDatabase({ avatar_url: publicUrl });
     } catch (err) {
       showError("Photo upload failed");
     } finally {
       setSaving(false);
     }
+  };
+
+  const publicUrl = `${window.location.origin}/repertoire/${profile?.repertoire_slug || 'your-link'}`;
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(publicUrl);
+    showSuccess("Share Link Copied!");
   };
 
   if (loading) return (
@@ -107,148 +132,256 @@ const Profile = () => {
     </div>
   );
 
-  const publicUrl = `${window.location.origin}/repertoire/${profile?.repertoire_slug || 'your-link'}`;
-
   return (
-    <div className="min-h-screen bg-slate-950 text-white p-4 md:p-8">
-      <div className="max-w-4xl mx-auto space-y-8">
-        <div className="flex items-center gap-4 mb-8">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="rounded-full">
-            <ArrowLeft className="w-6 h-6" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-black uppercase tracking-tight">Public Presence</h1>
-            <p className="text-slate-500 font-medium">Configure how clients see your repertoire.</p>
+    <div className="h-screen bg-slate-950 text-white flex overflow-hidden">
+      {/* Configuration Column */}
+      <div className="w-full lg:w-[450px] flex flex-col border-r border-white/10 shrink-0 bg-slate-900/50">
+        <div className="p-6 border-b border-white/10 bg-black/20 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="rounded-full hover:bg-white/10">
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div>
+              <h1 className="text-xl font-black uppercase tracking-tight">Public Presence</h1>
+              <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Global Profile Engine</p>
+            </div>
           </div>
+          {saving && <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <Card className="md:col-span-1 bg-slate-900 border-white/5 text-white overflow-hidden rounded-[2rem]">
-            <CardHeader className="text-center pb-2">
-              <CardTitle className="text-sm font-black uppercase tracking-widest text-indigo-400">Identity</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col items-center gap-6">
-              <div className="relative group">
+        <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
+          {/* Identity Section */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Identity</h4>
+              <span className="text-[10px] font-black text-indigo-500 uppercase">{songs.length} Tracks Live</span>
+            </div>
+            
+            <div className="flex flex-col items-center gap-6 p-6 bg-white/5 rounded-[2rem] border border-white/5">
+              <div className="relative group cursor-pointer" onClick={() => document.getElementById('photo-upload')?.click()}>
                 <div 
-                  className="w-40 h-40 rounded-full border-4 border-indigo-600 bg-slate-800 flex items-center justify-center overflow-hidden"
+                  className="w-28 h-28 rounded-full border-4 flex items-center justify-center overflow-hidden bg-slate-800 shadow-2xl transition-transform hover:scale-105"
                   style={{ borderColor: profile?.custom_colors?.primary || '#4f46e5' }}
                 >
                   {profile?.avatar_url ? (
                     <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
                   ) : (
-                    <User className="w-16 h-16 text-slate-700" />
+                    <User className="w-12 h-12 text-slate-700" />
                   )}
                 </div>
-                <label className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-full cursor-pointer">
-                  <Camera className="w-8 h-8 text-white" />
-                  <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
-                </label>
+                <div className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
+                  <Camera className="w-6 h-6 text-white" />
+                </div>
+                <input id="photo-upload" type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
               </div>
-              <div className="text-center">
-                <h3 className="text-xl font-bold">{profile?.first_name} {profile?.last_name}</h3>
-                <p className="text-xs font-black uppercase tracking-widest text-slate-500 mt-1">{songCount} Songs in Library</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="md:col-span-2 space-y-8">
-            <Card className="bg-slate-900 border-white/5 text-white rounded-[2rem]">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
-                      <Globe className="w-5 h-5 text-indigo-400" /> Public Repertoire
-                    </CardTitle>
-                    <CardDescription className="text-slate-500">Make your set list shareable with a unique link.</CardDescription>
-                  </div>
-                  <Switch 
-                    checked={profile?.is_repertoire_public} 
-                    onCheckedChange={(checked) => {
-                      if (checked && songCount < 1) {
-                        showError("Add some songs to your repertoire before making it public.");
-                        return;
-                      }
-                      handleSave({ is_repertoire_public: checked });
-                    }}
+              
+              <div className="grid grid-cols-2 gap-4 w-full">
+                <div className="space-y-1.5">
+                  <Label className="text-[9px] font-bold text-slate-500 uppercase">First Name</Label>
+                  <Input 
+                    defaultValue={profile?.first_name}
+                    onBlur={(e) => saveToDatabase({ first_name: e.target.value })}
+                    onChange={(e) => handleUpdateLocal({ first_name: e.target.value })}
+                    className="h-9 text-xs bg-black/20 border-white/10"
                   />
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Unique URL Slug</Label>
-                  <div className="flex gap-2">
+                <div className="space-y-1.5">
+                  <Label className="text-[9px] font-bold text-slate-500 uppercase">Last Name</Label>
+                  <Input 
+                    defaultValue={profile?.last_name}
+                    onBlur={(e) => saveToDatabase({ last_name: e.target.value })}
+                    onChange={(e) => handleUpdateLocal({ last_name: e.target.value })}
+                    className="h-9 text-xs bg-black/20 border-white/10"
+                  />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Repertoire Settings */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between p-5 bg-white/5 rounded-[2rem] border border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-600/10 rounded-xl">
+                  <Globe className="w-4 h-4 text-indigo-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold">Public Status</p>
+                  <p className="text-[9px] text-slate-500 font-black uppercase">Clients can view list</p>
+                </div>
+              </div>
+              <Switch 
+                checked={profile?.is_repertoire_public} 
+                className="data-[state=checked]:bg-indigo-600 border border-white/10"
+                onCheckedChange={(checked) => {
+                  if (checked && songs.length === 0) {
+                    showError("Add songs to library first");
+                    return;
+                  }
+                  handleUpdateLocal({ is_repertoire_public: checked });
+                  saveToDatabase({ is_repertoire_public: checked });
+                  if (checked) showSuccess("Repertoire is now Live!");
+                }}
+              />
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-2 px-1">
+                <Label className="text-[9px] font-bold text-slate-500 uppercase">Unique Repertoire Slug</Label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-500 font-mono">/repertoire/</span>
                     <Input 
-                      placeholder="e.g. heroes-duo" 
+                      placeholder="heroes-duo" 
                       defaultValue={profile?.repertoire_slug}
-                      onBlur={(e) => handleSave({ repertoire_slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })}
-                      className="bg-white/5 border-white/10 font-bold"
-                    />
-                    <Button 
-                      variant="outline" 
-                      onClick={() => {
-                        navigator.clipboard.writeText(publicUrl);
-                        showSuccess("Link copied!");
+                      onBlur={(e) => {
+                        const slug = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+                        saveToDatabase({ repertoire_slug: slug });
                       }}
-                      className="border-white/10"
-                    >
-                      <Copy className="w-4 h-4" />
-                    </Button>
+                      onChange={(e) => handleUpdateLocal({ repertoire_slug: e.target.value })}
+                      className="h-10 pl-24 text-xs bg-white/5 border-white/10 font-bold"
+                    />
                   </div>
-                  {profile?.is_repertoire_public && (
-                    <a href={`/repertoire/${profile.repertoire_slug}`} target="_blank" className="text-[10px] text-indigo-400 font-bold flex items-center gap-1 hover:underline">
-                      View Live Page <ExternalLink className="w-3 h-3" />
-                    </a>
-                  )}
                 </div>
+              </div>
 
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Page Bio / Subtitle</Label>
-                  <Textarea 
-                    defaultValue={profile?.repertoire_bio}
-                    onBlur={(e) => handleSave({ repertoire_bio: e.target.value })}
-                    className="bg-white/5 border-white/10 min-h-[100px]"
-                  />
-                </div>
-              </CardContent>
-            </Card>
+              <div className="space-y-2 px-1">
+                <Label className="text-[9px] font-bold text-slate-500 uppercase">Repertoire Bio / Mission</Label>
+                <Textarea 
+                  defaultValue={profile?.repertoire_bio}
+                  onBlur={(e) => saveToDatabase({ repertoire_bio: e.target.value })}
+                  onChange={(e) => handleUpdateLocal({ repertoire_bio: e.target.value })}
+                  className="bg-white/5 border-white/10 min-h-[100px] text-xs resize-none rounded-xl"
+                  placeholder="Tell clients about your vibe..."
+                />
+              </div>
+            </div>
+          </section>
 
-            <Card className="bg-slate-900 border-white/5 text-white rounded-[2rem]">
-              <CardHeader>
-                <CardTitle className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
-                  <Palette className="w-5 h-5 text-indigo-400" /> Branding & Style
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Primary Color</Label>
-                    <div className="flex gap-3">
-                      <div className="w-10 h-10 rounded-lg border border-white/10 shrink-0" style={{ backgroundColor: profile?.custom_colors?.primary }} />
+          {/* Style & Themes */}
+          <section className="space-y-6 pt-4 border-t border-white/10">
+            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Branding & Style</h4>
+            
+            <div className="grid grid-cols-2 gap-3">
+              {THEMES.map(theme => (
+                <Button 
+                  key={theme.name}
+                  variant="ghost" 
+                  onClick={() => {
+                    const colors = { primary: theme.primary, background: theme.background, text: theme.text, border: theme.border };
+                    handleUpdateLocal({ custom_colors: colors });
+                    saveToDatabase({ custom_colors: colors });
+                  }}
+                  className="h-14 bg-white/5 border border-white/5 hover:border-indigo-500/50 justify-start px-4 rounded-xl gap-3 group transition-all"
+                >
+                  <div className="w-4 h-4 rounded-full border border-white/10" style={{ background: theme.primary }} />
+                  <span className="text-[10px] font-bold uppercase tracking-tight">{theme.name}</span>
+                </Button>
+              ))}
+            </div>
+
+            <div className="space-y-4 bg-white/5 p-6 rounded-[2rem] border border-white/5">
+              {[
+                { label: 'Primary Accent', key: 'primary' },
+                { label: 'Background', key: 'background' },
+                { label: 'Text Color', key: 'text' },
+              ].map(color => (
+                <div key={color.key} className="flex items-center justify-between">
+                  <Label className="text-[10px] font-black uppercase text-slate-400">{color.label}</Label>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg border-2 border-white/10 shadow-inner overflow-hidden relative">
                       <Input 
                         type="color" 
-                        value={profile?.custom_colors?.primary} 
-                        onChange={(e) => setProfile({...profile, custom_colors: {...profile.custom_colors, primary: e.target.value}})}
-                        onBlur={() => handleSave({ custom_colors: profile.custom_colors })}
-                        className="h-10 bg-transparent border-none p-0 w-full"
+                        value={profile?.custom_colors?.[color.key] || DEFAULT_COLORS[color.key]} 
+                        onChange={(e) => {
+                          const newColors = { ...profile.custom_colors, [color.key]: e.target.value };
+                          handleUpdateLocal({ custom_colors: newColors });
+                        }}
+                        onBlur={() => saveToDatabase({ custom_colors: profile.custom_colors })}
+                        className="absolute inset-0 w-[200%] h-[200%] -translate-x-1/4 -translate-y-1/4 cursor-pointer"
                       />
                     </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Background Color</Label>
-                    <div className="flex gap-3">
-                      <div className="w-10 h-10 rounded-lg border border-white/10 shrink-0" style={{ backgroundColor: profile?.custom_colors?.background }} />
-                      <Input 
-                        type="color" 
-                        value={profile?.custom_colors?.background} 
-                        onChange={(e) => setProfile({...profile, custom_colors: {...profile.custom_colors, background: e.target.value}})}
-                        onBlur={() => handleSave({ custom_colors: profile.custom_colors })}
-                        className="h-10 bg-transparent border-none p-0 w-full"
-                      />
-                    </div>
+                    <span className="text-[10px] font-mono font-bold text-slate-500 uppercase">{profile?.custom_colors?.[color.key]}</span>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+              ))}
+              
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => {
+                  handleUpdateLocal({ custom_colors: DEFAULT_COLORS });
+                  saveToDatabase({ custom_colors: DEFAULT_COLORS });
+                }}
+                className="w-full mt-2 text-[9px] font-black uppercase text-slate-500 hover:text-white gap-2"
+              >
+                <RotateCcw className="w-3 h-3" /> Reset to Defaults
+              </Button>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      {/* Preview Column */}
+      <div className="flex-1 bg-slate-950 flex flex-col p-10 relative overflow-hidden">
+        {/* Abstract Background Element */}
+        <div 
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] blur-[150px] opacity-20 pointer-events-none rounded-full"
+          style={{ background: profile?.custom_colors?.primary || '#4f46e5' }}
+        />
+
+        <div className="relative z-10 h-full flex flex-col gap-6">
+          <div className="flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-4">
+              <div className="bg-indigo-600 p-2 rounded-xl shadow-lg shadow-indigo-600/20">
+                <Sparkles className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-widest">Live Studio Preview</h3>
+                <p className="text-[10px] text-slate-500 font-bold uppercase">Real-time Rendering Engine Active</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="bg-slate-900 border border-white/10 rounded-xl px-4 py-2 flex items-center gap-4 shadow-xl">
+                 <span className="text-[10px] font-mono text-slate-400 truncate max-w-[200px]">{publicUrl}</span>
+                 <Button onClick={copyLink} size="sm" className="bg-indigo-600 hover:bg-indigo-700 h-8 px-4 text-[10px] font-black uppercase rounded-lg">
+                   <Copy className="w-3.5 h-3.5 mr-2" /> Copy Link
+                 </Button>
+              </div>
+              <a 
+                href={publicUrl} 
+                target="_blank" 
+                className="h-10 w-10 bg-white/5 border border-white/10 flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all"
+                title="Open in new tab"
+              >
+                <ExternalLink className="w-4 h-4" />
+              </a>
+            </div>
+          </div>
+
+          <div className="flex-1 bg-slate-900 rounded-[2.5rem] border-4 border-white/10 shadow-2xl overflow-hidden relative">
+            {profile?.is_repertoire_public ? (
+              <PublicRepertoireView profile={profile} songs={songs} isPreview />
+            ) : (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-md text-center p-12">
+                <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-6">
+                  <Globe className="w-10 h-10 text-slate-700" />
+                </div>
+                <h2 className="text-2xl font-black uppercase tracking-tight mb-3">Preview Offline</h2>
+                <p className="text-slate-500 max-w-sm font-medium">Your repertoire is currently private. Toggle the Public Status switch to enable the live link and see the preview.</p>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    handleUpdateLocal({ is_repertoire_public: true });
+                    saveToDatabase({ is_repertoire_public: true });
+                  }}
+                  className="mt-8 border-indigo-500/50 text-indigo-400 font-black uppercase tracking-widest text-[10px] h-12 px-8 rounded-2xl"
+                >
+                  Go Live Now
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>
