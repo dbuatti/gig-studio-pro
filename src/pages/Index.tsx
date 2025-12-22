@@ -11,7 +11,7 @@ import { calculateSemitones } from '@/utils/keyUtils';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { LogOut, User as UserIcon, Loader2, Play, Music, LayoutDashboard } from 'lucide-react';
+import { LogOut, User as UserIcon, Loader2, Play, Music, LayoutDashboard, Search as SearchIcon } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
 const Index = () => {
@@ -20,6 +20,7 @@ const Index = () => {
   const [currentListId, setCurrentListId] = useState<string | null>(null);
   const [activeSongId, setActiveSongId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isStudioOpen, setIsStudioOpen] = useState(true);
   const transposerRef = useRef<AudioTransposerRef>(null);
 
   const currentList = setlists.find(l => l.id === currentListId);
@@ -143,6 +144,7 @@ const Index = () => {
 
   const handleSelectSong = async (song: SetlistSong) => {
     setActiveSongId(song.id);
+    setIsStudioOpen(true);
     if (song.previewUrl && transposerRef.current) {
       await transposerRef.current.loadFromUrl(song.previewUrl, song.name, song.youtubeUrl);
       transposerRef.current.setPitch(song.pitch);
@@ -169,6 +171,15 @@ const Index = () => {
         </div>
 
         <div className="flex items-center gap-4">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setIsStudioOpen(!isStudioOpen)}
+            className={cn("gap-2 font-bold uppercase tracking-tight", isStudioOpen && "text-indigo-600")}
+          >
+            <SearchIcon className="w-4 h-4" /> Song Studio
+          </Button>
+          <div className="h-6 w-px bg-slate-200" />
           <div className="flex items-center gap-2 px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full">
             <UserIcon className="w-3 h-3 text-slate-500" />
             <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">{user?.email?.split('@')[0]}</span>
@@ -208,7 +219,10 @@ const Index = () => {
               onSelect={handleSelectSong}
               onUpdateKey={handleUpdateKey}
               onTogglePlayed={handleTogglePlayed}
-              onLinkAudio={(name) => transposerRef.current?.triggerSearch(name)}
+              onLinkAudio={(name) => {
+                setIsStudioOpen(true);
+                transposerRef.current?.triggerSearch(name);
+              }}
               onUpdateSong={handleUpdateSong}
               currentSongId={activeSongId || undefined}
             />
@@ -218,20 +232,20 @@ const Index = () => {
 
         <aside className={cn(
           "w-[450px] bg-white dark:bg-slate-900 border-l shadow-2xl transition-all duration-500 ease-in-out transform",
-          activeSongId ? "translate-x-0" : "translate-x-full opacity-0 pointer-events-none"
+          isStudioOpen ? "translate-x-0" : "translate-x-full opacity-0 pointer-events-none"
         )}>
           <div className="h-full flex flex-col">
             <div className="p-4 border-b flex items-center justify-between bg-slate-50 dark:bg-slate-800/50">
               <div className="flex items-center gap-3">
                 <div className="bg-indigo-600 p-2 rounded-full text-white animate-pulse">
-                  <Play className="w-4 h-4 fill-current" />
+                  {activeSongId ? <Play className="w-4 h-4 fill-current" /> : <SearchIcon className="w-4 h-4" />}
                 </div>
                 <div>
-                  <h3 className="text-xs font-black uppercase tracking-widest text-indigo-600">Performing Now</h3>
-                  <p className="text-sm font-bold truncate max-w-[200px]">{activeSong?.name}</p>
+                  <h3 className="text-xs font-black uppercase tracking-widest text-indigo-600">{activeSongId ? "Performing Now" : "Inspiration Studio"}</h3>
+                  <p className="text-sm font-bold truncate max-w-[200px]">{activeSongId ? activeSong?.name : "Find & Add Songs"}</p>
                 </div>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => setActiveSongId(null)} className="text-[10px] font-bold uppercase tracking-tighter">Close Engine</Button>
+              <Button variant="ghost" size="sm" onClick={() => setIsStudioOpen(false)} className="text-[10px] font-bold uppercase tracking-tighter">Close Studio</Button>
             </div>
             <div className="flex-1 overflow-y-auto p-6">
               <AudioTransposer ref={transposerRef} onAddToSetlist={handleAddToSetlist} />
@@ -240,12 +254,12 @@ const Index = () => {
         </aside>
       </div>
 
-      {!activeSongId && songs.length > 0 && (
+      {!isStudioOpen && (
         <button 
-          onClick={() => { if(songs[0]) handleSelectSong(songs[0]); }}
+          onClick={() => setIsStudioOpen(true)}
           className="fixed bottom-8 right-8 bg-indigo-600 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition-all z-50 group"
         >
-          <Music className="w-6 h-6" />
+          <SearchIcon className="w-6 h-6" />
         </button>
       )}
     </div>

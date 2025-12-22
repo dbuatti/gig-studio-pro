@@ -3,10 +3,10 @@
 import React, { useRef, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed, Copy, Upload, Loader2, FileAudio } from 'lucide-react';
+import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed, Copy, Upload, Loader2, FileAudio, Sparkles, RefreshCcw } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ALL_KEYS } from '@/utils/keyUtils';
+import { ALL_KEYS, calculateSemitones } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
@@ -20,6 +20,8 @@ export interface SetlistSong {
   targetKey?: string;
   pitch: number;
   isPlayed?: boolean;
+  bpm?: string;
+  genre?: string;
 }
 
 interface SetlistManagerProps {
@@ -44,16 +46,51 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   currentSongId 
 }) => {
   const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [enrichingId, setEnrichingId] = useState<string | null>(null);
+  const [isBulkSyncing, setIsBulkSyncing] = useState(false);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
 
   const copyAllLinks = () => {
     const links = songs.map(s => s.youtubeUrl).filter(Boolean).join('\n');
     if (!links) {
-      showError("No YouTube links found in this setlist.");
+      showError("No YouTube links found.");
       return;
     }
     navigator.clipboard.writeText(links);
-    showSuccess("All YouTube links copied to clipboard!");
+    showSuccess("All YouTube links copied!");
+  };
+
+  const enrichSong = async (song: SetlistSong) => {
+    setEnrichingId(song.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('enrich-metadata', {
+        body: { query: song.name }
+      });
+      if (error) throw error;
+      
+      onUpdateSong(song.id, {
+        originalKey: data.originalKey,
+        targetKey: data.originalKey, // Reset target key to new original
+        bpm: data.bpm?.toString(),
+        genre: data.genre,
+        pitch: 0
+      });
+      showSuccess(`Metadata updated for "${song.name}"`);
+    } catch (err) {
+      showError(`Could not enrich "${song.name}"`);
+    } finally {
+      setEnrichingId(null);
+    }
+  };
+
+  const bulkEnrich = async () => {
+    if (!confirm("This will overwrite existing keys and metadata with professional data. Continue?")) return;
+    setIsBulkSyncing(true);
+    for (const song of songs) {
+      await enrichSong(song);
+    }
+    setIsBulkSyncing(false);
+    showSuccess("Full setlist enriched with Pro Metadata");
   };
 
   const processFileUpload = async (file: File, songId: string) => {
@@ -112,14 +149,26 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     <div className="space-y-4">
       <div className="flex items-center justify-between px-2">
         <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Gig Dashboard</h3>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={copyAllLinks}
-          className="h-7 text-[9px] font-black uppercase tracking-tight gap-2 border-indigo-100 text-indigo-600"
-        >
-          <Copy className="w-3 h-3" /> Copy All YT Links
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={bulkEnrich}
+            disabled={isBulkSyncing || songs.length === 0}
+            className="h-7 text-[9px] font-black uppercase tracking-tight gap-2 border-indigo-200 text-indigo-700 bg-indigo-50/50"
+          >
+            {isBulkSyncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+            Sync All Pro Data
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={copyAllLinks}
+            className="h-7 text-[9px] font-black uppercase tracking-tight gap-2 border-slate-200 text-slate-600"
+          >
+            <Copy className="w-3 h-3" /> Copy YT Links
+          </Button>
+        </div>
       </div>
 
       <div className="bg-white dark:bg-slate-900 rounded-2xl border shadow-sm overflow-hidden">
@@ -127,8 +176,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
           <thead>
             <tr className="bg-slate-50 dark:bg-slate-800/50 border-b">
               <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-12 text-center">Done</th>
-              <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Song Title / Metadata</th>
-              <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-48">Key Signature</th>
+              <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Song Title / Pro Info</th>
+              <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-48">Harmonic State</th>
               <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-32 text-right">Actions</th>
             </tr>
           </thead>
@@ -137,6 +186,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
               const isSelected = currentSongId === song.id;
               const hasAudio = !!song.previewUrl;
               const isUploading = uploadingId === song.id;
+              const isEnriching = enrichingId === song.id;
               const isDraggingOver = dragOverId === song.id;
               
               return (
@@ -177,12 +227,27 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         )}
                       </div>
                       <div className="flex items-center gap-3 mt-1">
+                        <div className="flex items-center gap-2">
+                          <button 
+                            onClick={() => enrichSong(song)}
+                            className="flex items-center gap-1 text-[9px] font-black text-indigo-400 uppercase hover:text-indigo-600 transition-colors"
+                            disabled={isEnriching}
+                          >
+                            {isEnriching ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Sparkles className="w-2.5 h-2.5" />}
+                            Pro Sync
+                          </button>
+                          {song.bpm && <span className="text-[8px] font-mono bg-slate-100 dark:bg-slate-800 px-1 rounded text-slate-500">{song.bpm} BPM</span>}
+                          {song.genre && <span className="text-[8px] uppercase font-bold text-slate-400 tracking-widest">{song.genre}</span>}
+                        </div>
+                        
+                        <div className="h-2 w-px bg-slate-200" />
+
                         {song.youtubeUrl ? (
                           <a href={song.youtubeUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-[9px] text-red-600 font-bold hover:underline">
-                            <Youtube className="w-3 h-3" /> Video Linked
+                            <Youtube className="w-3 h-3" /> Video
                           </a>
                         ) : (
-                          <button onClick={() => onLinkAudio(song.name)} className="flex items-center gap-1 text-[9px] font-black text-indigo-400 uppercase hover:underline">
+                          <button onClick={() => onLinkAudio(song.name)} className="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase hover:underline">
                             <Link2 className="w-2.5 h-2.5" /> Find Video
                           </button>
                         )}
