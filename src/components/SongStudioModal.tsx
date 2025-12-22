@@ -108,7 +108,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     };
   }, [song?.id, isOpen]);
 
-  // Update metronome BPM in real-time if it's active
   useEffect(() => {
     if (isMetronomeActive && formData.bpm) {
       const bpmValue = parseInt(formData.bpm);
@@ -338,12 +337,27 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     if (!song) return;
     setFormData(prev => {
       const next = { ...prev, ...updates };
-      const isLinked = next.isKeyLinked ?? true;
       
-      if (isLinked) {
+      // Case 1: Toggling link state
+      if (updates.hasOwnProperty('isKeyLinked')) {
+        if (next.isKeyLinked) {
+          // Turning ON: Recalculate pitch based on keys
+          const diff = calculateSemitones(next.originalKey || "C", next.targetKey || "C");
+          next.pitch = diff;
+        } else {
+          // Turning OFF: Reset pitch to 0 as requested
+          next.pitch = 0;
+        }
+      } 
+      // Case 2: Changing keys while link is active
+      else if (next.isKeyLinked) {
         const diff = calculateSemitones(next.originalKey || "C", next.targetKey || "C");
         next.pitch = diff;
-        if (playerRef.current) playerRef.current.detune = (diff * 100) + fineTune;
+      }
+      
+      // Apply to engine if needed
+      if (playerRef.current) {
+        playerRef.current.detune = ((next.pitch || 0) * 100) + fineTune;
       }
       
       onSave(song.id, next);
@@ -390,7 +404,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent 
-        className="max-w-5xl p-0 overflow-hidden border-none shadow-2xl bg-slate-950 text-white rounded-[2rem]"
+        className="max-w-[95vw] w-[1400px] p-0 overflow-hidden border-none shadow-2xl bg-slate-950 text-white rounded-[2rem]"
         onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
         onDragLeave={() => setIsDragOver(false)}
         onDrop={handleDrop}
@@ -416,8 +430,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
           </div>
         )}
 
-        <div className="flex h-[800px]">
-          <div className="w-80 bg-slate-900/50 border-r border-white/5 flex flex-col">
+        <div className="flex h-[90vh] min-h-[800px]">
+          <div className="w-96 bg-slate-900/50 border-r border-white/5 flex flex-col">
             <div className="p-8 border-b border-white/5 bg-black/20">
               <div className="flex items-center gap-2 mb-4">
                 <div className="bg-indigo-600 p-1.5 rounded-lg">
@@ -425,8 +439,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                 </div>
                 <span className="font-black uppercase tracking-tighter text-xs">Pro Studio Config</span>
               </div>
-              <h2 className="text-2xl font-black uppercase tracking-tight leading-none mb-1 truncate">{formData.name || ""}</h2>
-              <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest truncate">{formData.artist || "Unknown Artist"}</p>
+              <h2 className="text-3xl font-black uppercase tracking-tight leading-none mb-1 truncate">{formData.name || ""}</h2>
+              <p className="text-xs font-black text-indigo-400 uppercase tracking-widest truncate">{formData.artist || "Unknown Artist"}</p>
             </div>
 
             <div className="flex-1 overflow-y-auto p-8 space-y-10">
@@ -440,10 +454,10 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                           onClick={() => updateHarmonics({ isKeyLinked: !formData.isKeyLinked })}
                           className={cn(
                             "p-1.5 rounded-lg border transition-all",
-                            formData.isKeyLinked ? "bg-indigo-600 border-indigo-500 text-white" : "bg-white/5 border-white/10 text-slate-500"
+                            formData.isKeyLinked ? "bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/20" : "bg-white/5 border-white/10 text-slate-500"
                           )}
                         >
-                          <LinkIcon className="w-3 h-3" />
+                          <LinkIcon className="w-3.5 h-3.5" />
                         </button>
                       </TooltipTrigger>
                       <TooltipContent className="text-[10px] font-black uppercase">
@@ -457,7 +471,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                   <div className="space-y-2">
                     <Label className="text-[9px] font-bold text-slate-400 uppercase">Original Key</Label>
                     <Select value={formData.originalKey || "C"} onValueChange={(val) => updateHarmonics({ originalKey: val })}>
-                      <SelectTrigger className="bg-white/5 border-white/10 text-white font-bold font-mono h-11">
+                      <SelectTrigger className="bg-white/5 border-white/10 text-white font-bold font-mono h-12 text-lg">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-slate-900 border-white/10 text-white">
@@ -475,7 +489,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       updateHarmonics({ targetKey: val });
                       onUpdateKey(song.id, val);
                     }}>
-                      <SelectTrigger className="bg-indigo-600 border-none text-white font-bold font-mono h-11 shadow-lg shadow-indigo-500/20">
+                      <SelectTrigger className="bg-indigo-600 border-none text-white font-bold font-mono h-12 shadow-xl shadow-indigo-500/20 text-lg">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-slate-900 border-white/10 text-white">
@@ -488,7 +502,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
 
               <div className="space-y-4">
                 <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Library Matrix</Label>
-                <div className="grid grid-cols-1 gap-2">
+                <div className="grid grid-cols-1 gap-2.5">
                   {RESOURCE_TYPES.map(res => {
                     const isActive = formData.resources?.includes(res.id) || (res.id === 'UG' && formData.ugUrl);
                     return (
@@ -496,14 +510,14 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                         key={res.id}
                         onClick={() => toggleResource(res.id)}
                         className={cn(
-                          "flex items-center justify-between p-3 rounded-xl border transition-all text-left",
+                          "flex items-center justify-between p-4 rounded-xl border transition-all text-left group",
                           isActive 
                             ? "bg-indigo-600/20 border-indigo-500 text-indigo-400" 
                             : "bg-white/5 text-slate-500 border-white/5 hover:border-white/10"
                         )}
                       >
-                        <span className="text-[10px] font-black uppercase tracking-widest">{res.label}</span>
-                        {isActive ? <Check className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5 opacity-30" />}
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em]">{res.label}</span>
+                        {isActive ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4 opacity-30 group-hover:opacity-100" />}
                       </button>
                     );
                   })}
@@ -514,8 +528,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                 <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Custom Tags</Label>
                 <div className="flex flex-wrap gap-2 mb-3">
                   {(formData.user_tags || []).map(t => (
-                    <Badge key={t} variant="secondary" className="bg-white/5 text-indigo-300 border-white/10 px-2 py-1 gap-1 text-[9px] font-bold uppercase">
-                      {t} <button onClick={() => removeTag(t)}><X className="w-2.5 h-2.5 hover:text-white" /></button>
+                    <Badge key={t} variant="secondary" className="bg-white/5 text-indigo-300 border-white/10 px-3 py-1.5 gap-2 text-[10px] font-bold uppercase rounded-lg">
+                      {t} <button onClick={() => removeTag(t)}><X className="w-3 h-3 hover:text-white" /></button>
                     </Badge>
                   ))}
                 </div>
@@ -525,14 +539,14 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                     value={newTag}
                     onChange={(e) => setNewTag(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && addTag()}
-                    className="h-9 text-[10px] bg-white/5 border-white/10 font-bold uppercase"
+                    className="h-10 text-xs bg-white/5 border-white/10 font-bold uppercase"
                   />
-                  <Button size="icon" variant="ghost" className="h-9 w-9 bg-white/5" onClick={addTag}><Tag className="w-3.5 h-3.5" /></Button>
+                  <Button size="icon" variant="ghost" className="h-10 w-10 bg-white/5" onClick={addTag}><Tag className="w-4 h-4" /></Button>
                 </div>
               </div>
             </div>
 
-            <div className="p-6 border-t border-white/5 flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-slate-600">
+            <div className="p-6 border-t border-white/5 flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-slate-600">
               <div className="flex items-center gap-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
                 Live Sync: ON
@@ -542,14 +556,14 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
           </div>
 
           <div className="flex-1 flex flex-col">
-            <div className="h-16 border-b border-white/5 flex items-center px-10 justify-between bg-black/20 shrink-0">
-              <div className="flex gap-8">
+            <div className="h-20 border-b border-white/5 flex items-center px-12 justify-between bg-black/20 shrink-0">
+              <div className="flex gap-12">
                 {['audio', 'details', 'visual', 'library'].map((tab) => (
                   <button 
                     key={tab}
                     onClick={() => setActiveTab(tab as any)}
                     className={cn(
-                      "text-[10px] font-black uppercase tracking-[0.3em] h-16 transition-all border-b-4",
+                      "text-xs font-black uppercase tracking-[0.4em] h-20 transition-all border-b-4",
                       activeTab === tab ? "text-indigo-400 border-indigo-500" : "text-slate-500 border-transparent hover:text-white"
                     )}
                   >
@@ -557,33 +571,35 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                   </button>
                 ))}
               </div>
-              <div className="flex items-center gap-4">
-                 <div className="h-8 w-px bg-white/5" />
-                 <Button variant="ghost" size="sm" onClick={onClose} className="text-slate-500 hover:text-white font-bold uppercase tracking-widest text-[10px]">Close Studio</Button>
+              <div className="flex items-center gap-6">
+                 <div className="h-10 w-px bg-white/5" />
+                 <Button variant="ghost" size="sm" onClick={onClose} className="text-slate-400 hover:text-white font-black uppercase tracking-[0.3em] text-xs">Close Studio</Button>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-10">
+            <div className="flex-1 overflow-y-auto p-12">
               {activeTab === 'audio' && (
-                <div className="space-y-8 animate-in fade-in duration-500">
+                <div className="space-y-12 animate-in fade-in duration-500">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-sm font-black uppercase tracking-[0.2em] text-indigo-400">Audio Transposition Matrix</h3>
-                      <p className="text-xs text-slate-500 mt-1">Direct stream processing with real-time pitch and time-stretching.</p>
+                      <h3 className="text-lg font-black uppercase tracking-[0.2em] text-indigo-400">Audio Transposition Matrix</h3>
+                      <p className="text-sm text-slate-500 mt-2">Direct stream processing with real-time pitch and time-stretching.</p>
                     </div>
-                    <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600/10 border border-indigo-500/20 rounded-full">
-                       <Zap className="w-3 h-3 text-indigo-400" />
-                       <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Active Processing</span>
+                    <div className="flex items-center gap-3 px-4 py-2 bg-indigo-600/10 border border-indigo-500/20 rounded-full">
+                       <Zap className="w-4 h-4 text-indigo-400" />
+                       <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">Active Processing</span>
                     </div>
                   </div>
 
-                  <div className="bg-slate-900/50 rounded-[2.5rem] border border-white/5 p-10 space-y-10">
-                    <AudioVisualizer analyzer={analyzerRef.current} isActive={isPlaying} />
+                  <div className="bg-slate-900/50 rounded-[3rem] border border-white/5 p-12 space-y-12">
+                    <div className="h-40">
+                      <AudioVisualizer analyzer={analyzerRef.current} isActive={isPlaying} />
+                    </div>
                     
-                    <div className="space-y-6">
-                      <div className="flex justify-between text-[10px] font-mono font-black text-slate-500 uppercase">
-                        <span>{new Date((progress/100 * duration) * 1000).toISOString().substr(14, 5)}</span>
-                        <span>Transport Position</span>
+                    <div className="space-y-8">
+                      <div className="flex justify-between text-xs font-mono font-black text-slate-500 uppercase tracking-widest">
+                        <span className="text-indigo-400">{new Date((progress/100 * duration) * 1000).toISOString().substr(14, 5)}</span>
+                        <span>Transport Master Clock</span>
                         <span>{new Date(duration * 1000).toISOString().substr(14, 5)}</span>
                       </div>
                       <Slider value={[progress]} max={100} step={0.1} onValueChange={(v) => {
@@ -599,28 +615,28 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       }} />
                     </div>
 
-                    <div className="flex items-center justify-center gap-8">
-                       <Button variant="ghost" size="icon" onClick={stopPlayback} className="h-14 w-14 rounded-full border border-white/5 hover:bg-white/5">
-                         <RotateCcw className="w-6 h-6" />
+                    <div className="flex items-center justify-center gap-12">
+                       <Button variant="ghost" size="icon" onClick={stopPlayback} className="h-20 w-20 rounded-full border border-white/5 hover:bg-white/5 hover:scale-110 transition-all">
+                         <RotateCcw className="w-8 h-8" />
                        </Button>
                        <Button 
                          size="lg" 
                          disabled={!formData.previewUrl}
                          onClick={togglePlayback}
-                         className="h-24 w-24 rounded-full bg-indigo-600 hover:bg-indigo-700 shadow-2xl shadow-indigo-600/40 transition-all hover:scale-105"
+                         className="h-32 w-32 rounded-full bg-indigo-600 hover:bg-indigo-700 shadow-[0_0_60px_rgba(79,70,229,0.4)] transition-all hover:scale-105 active:scale-95"
                        >
-                         {isPlaying ? <Pause className="w-10 h-10" /> : <Play className="w-10 h-10 ml-1.5 fill-current" />}
+                         {isPlaying ? <Pause className="w-12 h-12" /> : <Play className="w-12 h-12 ml-2 fill-current" />}
                        </Button>
-                       <div className="h-14 w-14" /> {/* Spacer */}
+                       <div className="h-20 w-20" /> {/* Spacer */}
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-8">
-                    <div className="space-y-8 bg-white/5 p-8 rounded-[2rem] border border-white/5">
-                      <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-10">
+                    <div className="space-y-10 bg-white/5 p-10 rounded-[2.5rem] border border-white/5">
+                      <div className="space-y-6">
                         <div className="flex justify-between items-center">
-                          <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Pitch Processor</Label>
-                          <span className="text-sm font-mono font-black text-indigo-400">{(formData.pitch || 0) > 0 ? '+' : ''}{formData.pitch || 0} ST</span>
+                          <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Pitch Processor</Label>
+                          <span className="text-lg font-mono font-black text-indigo-400">{(formData.pitch || 0) > 0 ? '+' : ''}{formData.pitch || 0} ST</span>
                         </div>
                         <Slider 
                           value={[formData.pitch || 0]} 
@@ -635,10 +651,10 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                         />
                       </div>
 
-                      <div className="space-y-4">
+                      <div className="space-y-6">
                         <div className="flex justify-between items-center">
-                          <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Fine Tune</Label>
-                          <span className="text-sm font-mono font-black text-slate-500">{fineTune > 0 ? '+' : ''}{fineTune} Cents</span>
+                          <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Fine Tune Matrix</Label>
+                          <span className="text-lg font-mono font-black text-slate-500">{fineTune > 0 ? '+' : ''}{fineTune} Cents</span>
                         </div>
                         <Slider 
                           value={[fineTune]} 
@@ -653,11 +669,11 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       </div>
                     </div>
 
-                    <div className="space-y-8 bg-white/5 p-8 rounded-[2rem] border border-white/5">
-                      <div className="space-y-4">
+                    <div className="space-y-10 bg-white/5 p-10 rounded-[2.5rem] border border-white/5">
+                      <div className="space-y-6">
                         <div className="flex justify-between items-center">
-                          <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Time Stretch (Tempo)</Label>
-                          <span className="text-sm font-mono font-black text-indigo-400">{tempo.toFixed(2)}x</span>
+                          <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Time Stretch (Tempo)</Label>
+                          <span className="text-lg font-mono font-black text-indigo-400">{tempo.toFixed(2)}x</span>
                         </div>
                         <Slider 
                           value={[tempo]} 
@@ -671,10 +687,10 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                         />
                       </div>
 
-                      <div className="space-y-4">
+                      <div className="space-y-6">
                         <div className="flex justify-between items-center">
-                          <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Output Gain</Label>
-                          <span className="text-sm font-mono font-black text-slate-500">{Math.round((volume + 60) * 1.66)}%</span>
+                          <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Master Output Gain</Label>
+                          <span className="text-lg font-mono font-black text-slate-500">{Math.round((volume + 60) * 1.66)}%</span>
                         </div>
                         <Slider 
                           value={[volume]} 
@@ -690,59 +706,59 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                     </div>
                   </div>
 
-                  <div className="p-6 bg-slate-900 rounded-[2rem] border border-white/5 flex items-center justify-between">
-                     <div className="flex items-center gap-6">
+                  <div className="p-8 bg-slate-900 rounded-[2.5rem] border border-white/5 flex items-center justify-between">
+                     <div className="flex items-center gap-10">
                         <div className="flex flex-col">
-                           <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Library BPM</span>
-                           <div className="flex items-center gap-3">
+                           <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Library BPM</span>
+                           <div className="flex items-center gap-4 mt-1">
                              <Input 
                                value={formData.bpm || ""}
                                onChange={(e) => handleAutoSave({ bpm: e.target.value })}
-                               className="bg-transparent border-none p-0 h-auto text-xl font-black font-mono text-indigo-400 focus-visible:ring-0 w-16"
+                               className="bg-transparent border-none p-0 h-auto text-3xl font-black font-mono text-indigo-400 focus-visible:ring-0 w-20"
                              />
                              <Button 
                                variant="ghost" 
                                size="icon" 
                                onClick={toggleMetronome}
                                className={cn(
-                                 "h-8 w-8 rounded-lg transition-all",
+                                 "h-10 w-10 rounded-xl transition-all",
                                  isMetronomeActive ? "bg-indigo-600 text-white shadow-lg" : "bg-white/5 text-slate-400"
                                )}
                              >
-                               {isMetronomeActive ? <Volume2 className="w-4 h-4 animate-pulse" /> : <VolumeX className="w-4 h-4" />}
+                               {isMetronomeActive ? <Volume2 className="w-5 h-5 animate-pulse" /> : <VolumeX className="w-5 h-5" />}
                              </Button>
                            </div>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-4">
                           <Button 
                             variant="ghost" 
                             size="sm" 
                             onClick={handleDetectBPM}
                             disabled={isAnalyzing || !formData.previewUrl}
-                            className="h-10 px-4 bg-indigo-600/10 text-indigo-400 hover:bg-indigo-600 hover:text-white font-black uppercase tracking-widest text-[10px] gap-2 rounded-xl"
+                            className="h-12 px-6 bg-indigo-600/10 text-indigo-400 hover:bg-indigo-600 hover:text-white font-black uppercase tracking-widest text-[10px] gap-3 rounded-2xl transition-all"
                           >
-                            {isAnalyzing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Disc className="w-3.5 h-3.5" />}
+                            {isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Disc className="w-4 h-4" />}
                             Scan Master Tempo
                           </Button>
                           <Button 
                             variant="ghost" 
                             size="sm" 
                             onClick={() => window.open('https://www.beatsperminuteonline.com/', '_blank')}
-                            className="h-10 px-4 bg-white/5 text-slate-400 hover:bg-white/10 font-black uppercase tracking-widest text-[10px] gap-2 rounded-xl"
+                            className="h-12 px-6 bg-white/5 text-slate-400 hover:bg-white/10 font-black uppercase tracking-widest text-[10px] gap-3 rounded-2xl transition-all"
                           >
-                            <ExternalLink className="w-3.5 h-3.5" />
+                            <ExternalLink className="w-4 h-4" />
                             Tap BPM Tool
                           </Button>
                         </div>
                      </div>
-                     <div className="flex items-center gap-10 pr-4">
+                     <div className="flex items-center gap-12 pr-6">
                         <div className="flex flex-col items-end">
-                           <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Sample Rate</span>
-                           <span className="text-xs font-mono font-bold text-slate-400">44.1 kHz</span>
+                           <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Sample Rate</span>
+                           <span className="text-sm font-mono font-bold text-slate-400">44.1 kHz</span>
                         </div>
                         <div className="flex flex-col items-end">
-                           <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Latency Mode</span>
-                           <span className="text-xs font-mono font-bold text-emerald-500 uppercase">Interactive</span>
+                           <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Latency Mode</span>
+                           <span className="text-sm font-mono font-bold text-emerald-500 uppercase">Interactive</span>
                         </div>
                      </div>
                   </div>
@@ -750,86 +766,86 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
               )}
 
               {activeTab === 'details' && (
-                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  <div className="grid grid-cols-2 gap-8">
-                    <div className="space-y-3">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Performance Title</Label>
+                <div className="space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-500">
+                  <div className="grid grid-cols-2 gap-10">
+                    <div className="space-y-4">
+                      <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Performance Title</Label>
                       <Input 
                         value={formData.name || ""} 
                         onChange={(e) => handleAutoSave({ name: e.target.value })}
-                        className="bg-white/5 border-white/10 text-xl font-black h-14"
+                        className="bg-white/5 border-white/10 text-2xl font-black h-16 rounded-2xl"
                       />
                     </div>
-                    <div className="space-y-3">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Primary Artist</Label>
+                    <div className="space-y-4">
+                      <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Primary Artist</Label>
                       <Input 
                         value={formData.artist || ""} 
                         onChange={(e) => handleAutoSave({ artist: e.target.value })}
-                        className="bg-white/5 border-white/10 text-xl font-black h-14"
+                        className="bg-white/5 border-white/10 text-2xl font-black h-16 rounded-2xl"
                       />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-8">
-                    <div className="space-y-3">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Sheet Music Link (PDF/Web)</Label>
-                      <div className="flex gap-2">
+                  <div className="grid grid-cols-2 gap-10">
+                    <div className="space-y-4">
+                      <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Sheet Music Link (PDF/Web)</Label>
+                      <div className="flex gap-3">
                         <Input 
                           placeholder="Paste sheet music URL..." 
                           value={formData.pdfUrl || ""}
                           onChange={(e) => handleAutoSave({ pdfUrl: e.target.value })}
-                          className="bg-white/5 border-white/10 font-bold"
+                          className="bg-white/5 border-white/10 font-bold h-12 rounded-xl"
                         />
-                        <Button variant="ghost" className="bg-white/5 h-10 w-10 p-0" onClick={() => window.open(formData.pdfUrl, '_blank')}>
-                          <ExternalLink className="w-4 h-4" />
+                        <Button variant="ghost" className="bg-white/5 h-12 w-12 p-0 rounded-xl" onClick={() => window.open(formData.pdfUrl, '_blank')}>
+                          <ExternalLink className="w-5 h-5" />
                         </Button>
                       </div>
                     </div>
-                    <div className="space-y-3">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Ultimate Guitar Pro Link</Label>
-                      <div className="flex gap-2">
+                    <div className="space-y-4">
+                      <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Ultimate Guitar Pro Link</Label>
+                      <div className="flex gap-3">
                         <Input 
                           placeholder="Paste Direct Official Tab URL..." 
                           value={formData.ugUrl || ""}
                           onChange={(e) => handleAutoSave({ ugUrl: e.target.value })}
-                          className="bg-white/5 border-white/10 font-bold text-orange-400"
+                          className="bg-white/5 border-white/10 font-bold text-orange-400 h-12 rounded-xl"
                         />
-                        <Button variant="ghost" className="bg-white/5 h-10 w-10 p-0 text-orange-400" onClick={handleUgAction}>
-                          <Link2 className="w-4 h-4" />
+                        <Button variant="ghost" className="bg-white/5 h-12 w-12 p-0 text-orange-400 rounded-xl" onClick={handleUgAction}>
+                          <Link2 className="w-5 h-5" />
                         </Button>
                       </div>
                     </div>
                   </div>
 
-                  <div className="space-y-3">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Rehearsal & Dynamics Notes</Label>
+                  <div className="space-y-4">
+                    <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Rehearsal & Dynamics Notes</Label>
                     <Textarea 
                       placeholder="Cues, transitions, dynamics..."
                       value={formData.notes || ""}
                       onChange={(e) => handleAutoSave({ notes: e.target.value })}
-                      className="min-h-[250px] bg-white/5 border-white/10 text-sm leading-relaxed"
+                      className="min-h-[350px] bg-white/5 border-white/10 text-lg leading-relaxed rounded-[2rem] p-8"
                     />
                   </div>
                 </div>
               )}
 
               {activeTab === 'visual' && (
-                <div className="space-y-10 animate-in fade-in slide-in-from-right-4 duration-500">
+                <div className="space-y-12 animate-in fade-in slide-in-from-right-6 duration-500">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-black uppercase tracking-[0.2em] text-indigo-400">Reference Media Link</h3>
-                    <div className="flex gap-2">
+                    <h3 className="text-lg font-black uppercase tracking-[0.3em] text-indigo-400">Reference Media Link</h3>
+                    <div className="flex gap-4">
                        <Input 
                          placeholder="YouTube URL..." 
                          value={formData.youtubeUrl || ""}
                          onChange={(e) => handleAutoSave({ youtubeUrl: e.target.value })}
-                         className="bg-white/5 border-white/10 text-xs w-96 h-10"
+                         className="bg-white/5 border-white/10 text-sm w-[500px] h-12 rounded-xl"
                        />
                     </div>
                   </div>
 
                   {videoId ? (
-                    <div className="space-y-6">
-                      <div className="aspect-video w-full rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/10 bg-black">
+                    <div className="space-y-8">
+                      <div className="aspect-video w-full rounded-[3rem] overflow-hidden shadow-2xl border border-white/10 bg-black">
                         <iframe 
                           width="100%" 
                           height="100%" 
@@ -842,12 +858,12 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       </div>
                     </div>
                   ) : (
-                    <div className="flex flex-col items-center justify-center py-32 bg-white/5 rounded-[3rem] border border-dashed border-white/10 space-y-6">
-                      <div className="h-20 w-20 bg-white/5 rounded-full flex items-center justify-center">
-                        <Youtube className="w-10 h-10 text-slate-700" />
+                    <div className="flex flex-col items-center justify-center py-48 bg-white/5 rounded-[4rem] border border-dashed border-white/10 space-y-8">
+                      <div className="h-24 w-24 bg-white/5 rounded-full flex items-center justify-center">
+                        <Youtube className="w-12 h-12 text-slate-700" />
                       </div>
                       <div className="text-center">
-                        <p className="text-sm font-black uppercase tracking-widest text-slate-500">Visual Engine Standby</p>
+                        <p className="text-lg font-black uppercase tracking-[0.4em] text-slate-500">Visual Engine Standby</p>
                       </div>
                     </div>
                   )}
@@ -855,69 +871,69 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
               )}
 
               {activeTab === 'library' && (
-                <div className="space-y-10 animate-in fade-in slide-in-from-top-4 duration-500">
+                <div className="space-y-12 animate-in fade-in slide-in-from-top-6 duration-500">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-sm font-black uppercase tracking-[0.2em] text-indigo-400">Resource Matrix</h3>
-                      <p className="text-xs text-slate-500 mt-1">Centralized management for all song assets and links.</p>
+                      <h3 className="text-lg font-black uppercase tracking-[0.3em] text-indigo-400">Resource Matrix</h3>
+                      <p className="text-sm text-slate-500 mt-2">Centralized management for all song assets and links.</p>
                     </div>
-                    <Button onClick={handleDownloadAll} className="bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] h-10 gap-2 px-6">
-                      <Download className="w-3.5 h-3.5" /> Download All
+                    <Button onClick={handleDownloadAll} className="bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-xs h-12 gap-3 px-8 rounded-2xl shadow-xl shadow-indigo-600/20">
+                      <Download className="w-4 h-4" /> Download All Assets
                     </Button>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-6">
+                  <div className="grid grid-cols-2 gap-8">
                     <div className={cn(
-                      "group p-6 rounded-[2rem] border transition-all relative flex flex-col justify-between h-56",
-                      formData.previewUrl ? "bg-white/5 border-white/10" : "bg-white/5 border-white/5 opacity-40 border-dashed"
+                      "group p-8 rounded-[2.5rem] border transition-all relative flex flex-col justify-between h-72",
+                      formData.previewUrl ? "bg-white/5 border-white/10 shadow-xl" : "bg-white/5 border-white/5 opacity-40 border-dashed"
                     )}>
                       <div className="flex items-center justify-between">
-                        <div className="bg-indigo-600 p-3 rounded-2xl">
-                          <Music className="w-6 h-6" />
+                        <div className="bg-indigo-600 p-4 rounded-2xl shadow-lg shadow-indigo-600/20">
+                          <Music className="w-8 h-8" />
                         </div>
                       </div>
-                      <div className="space-y-1 mt-4">
-                        <Label className="text-[9px] font-black uppercase text-indigo-400">Master Performance Audio</Label>
-                        <p className="text-lg font-black tracking-tight">{formData.previewUrl ? "Audio_Stream_Master" : "Not Linked"}</p>
+                      <div className="space-y-2 mt-6">
+                        <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400">Master Performance Audio</Label>
+                        <p className="text-2xl font-black tracking-tight">{formData.previewUrl ? "Audio_Stream_Master" : "Not Linked"}</p>
                       </div>
                     </div>
 
                     <div className={cn(
-                      "group p-6 rounded-[2rem] border transition-all relative flex flex-col justify-between h-56",
-                      formData.ugUrl || (formData.artist && formData.name) ? "bg-white/5 border-white/10" : "bg-white/5 border-white/5 opacity-40 border-dashed"
+                      "group p-8 rounded-[2.5rem] border transition-all relative flex flex-col justify-between h-72",
+                      formData.ugUrl || (formData.artist && formData.name) ? "bg-white/5 border-white/10 shadow-xl" : "bg-white/5 border-white/5 opacity-40 border-dashed"
                     )}>
                       <div className="flex items-center justify-between">
-                        <div className="bg-orange-600 p-3 rounded-2xl">
-                          <Link2 className="w-6 h-6" />
+                        <div className="bg-orange-600 p-4 rounded-2xl shadow-lg shadow-orange-600/20">
+                          <Link2 className="w-8 h-8" />
                         </div>
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="h-8 w-8 text-orange-400" 
+                          className="h-10 w-10 text-orange-400 hover:bg-orange-600 hover:text-white transition-all rounded-xl" 
                           onClick={handleUgAction}
                         >
-                          <ExternalLink className="w-3.5 h-3.5" />
+                          <ExternalLink className="w-4 h-4" />
                         </Button>
                       </div>
-                      <div className="space-y-1 mt-4">
-                        <Label className="text-[9px] font-black uppercase text-orange-400">Ultimate Guitar Pro</Label>
-                        <p className="text-lg font-black tracking-tight">{formData.ugUrl ? "Verified Official Link" : "Auto-Search Active"}</p>
-                        <p className="text-[8px] text-slate-500 font-mono">{formData.ugUrl || "Targeting Official Tab Type 600"}</p>
+                      <div className="space-y-2 mt-6">
+                        <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-400">Ultimate Guitar Pro</Label>
+                        <p className="text-2xl font-black tracking-tight">{formData.ugUrl ? "Verified Official Link" : "Auto-Search Active"}</p>
+                        <p className="text-[10px] text-slate-500 font-mono">{formData.ugUrl || "Targeting Official Tab Type 600"}</p>
                       </div>
                     </div>
 
                     <div className={cn(
-                      "group p-6 rounded-[2rem] border transition-all relative flex flex-col justify-between h-56",
-                      formData.pdfUrl ? "bg-white/5 border-white/10" : "bg-white/5 border-white/5 opacity-40 border-dashed"
+                      "group p-8 rounded-[2.5rem] border transition-all relative flex flex-col justify-between h-72",
+                      formData.pdfUrl ? "bg-white/5 border-white/10 shadow-xl" : "bg-white/5 border-white/5 opacity-40 border-dashed"
                     )}>
                       <div className="flex items-center justify-between">
-                        <div className="bg-emerald-600 p-3 rounded-2xl">
-                          <FileText className="w-6 h-6" />
+                        <div className="bg-emerald-600 p-4 rounded-2xl shadow-lg shadow-emerald-600/20">
+                          <FileText className="w-8 h-8" />
                         </div>
                       </div>
-                      <div className="space-y-1 mt-4">
-                        <Label className="text-[9px] font-black uppercase text-emerald-400">Stage Chart / PDF</Label>
-                        <p className="text-lg font-black tracking-tight">{formData.pdfUrl ? "Performance_Chart" : "Not Linked"}</p>
+                      <div className="space-y-2 mt-6">
+                        <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400">Stage Chart / PDF</Label>
+                        <p className="text-2xl font-black tracking-tight">{formData.pdfUrl ? "Performance_Chart" : "Not Linked"}</p>
                       </div>
                     </div>
                   </div>
