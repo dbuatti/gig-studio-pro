@@ -7,6 +7,8 @@ import { AuthProvider, useAuth } from "./components/AuthProvider";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
+import Profile from "./pages/Profile";
+import PublicRepertoire from "./pages/PublicRepertoire";
 
 const queryClient = new QueryClient();
 
@@ -28,9 +30,15 @@ const App = () => (
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/repertoire/:slug" element={<PublicRepertoire />} />
             <Route path="/" element={
               <ProtectedRoute>
                 <Index />
+              </ProtectedRoute>
+            } />
+            <Route path="/profile" element={
+              <ProtectedRoute>
+                <Profile />
               </ProtectedRoute>
             } />
             <Route path="*" element={<NotFound />} />

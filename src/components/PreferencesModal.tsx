@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useSettings } from '@/hooks/use-settings';
-import { Settings2, Hash, Music2, Moon, Sun, LogOut, ShieldCheck, Zap, Coffee, Heart } from 'lucide-react';
+import { Settings2, Hash, Music2, LogOut, ShieldCheck, Zap, Coffee, Heart, Globe, User } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { cn } from "@/lib/utils";
+import { useNavigate } from 'react-router-dom';
 
 interface PreferencesModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ interface PreferencesModalProps {
 const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) => {
   const { keyPreference, setKeyPreference } = useSettings();
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -35,6 +37,29 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
         </DialogHeader>
 
         <div className="py-6 space-y-6">
+          <div className="space-y-4">
+            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Public Presence</h4>
+            <Button 
+              variant="outline" 
+              className="w-full justify-between h-14 bg-white/5 border-white/10 rounded-2xl group hover:bg-white/10 transition-all"
+              onClick={() => {
+                navigate('/profile');
+                onClose();
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-600/10 rounded-lg group-hover:bg-indigo-600/20">
+                  <Globe className="w-4 h-4 text-indigo-400" />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-bold">Repertoire Link</p>
+                  <p className="text-[9px] text-slate-500 uppercase font-black">Configure your public page</p>
+                </div>
+              </div>
+              <User className="w-4 h-4 text-slate-600" />
+            </Button>
+          </div>
+
           <div className="space-y-4">
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Display Engine</h4>
             
@@ -57,40 +82,6 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
                 <span className={cn("text-[10px] font-black uppercase", keyPreference === 'sharps' ? "text-indigo-400" : "text-slate-600")}>Sharps</span>
               </div>
             </div>
-
-            <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-600/10 rounded-lg">
-                  <Zap className="w-4 h-4 text-indigo-400" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold">Performance Sync</p>
-                  <p className="text-[10px] text-slate-500 uppercase font-black">Ultra-Low Latency</p>
-                </div>
-              </div>
-              <ShieldCheck className="w-5 h-5 text-emerald-500" />
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Community & Support</h4>
-            <a 
-              href="https://buymeacoffee.com/danielebuatti" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="flex items-center justify-between p-4 bg-amber-500/10 rounded-2xl border border-amber-500/20 hover:bg-amber-500/20 transition-all group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-amber-500/20 rounded-lg group-hover:scale-110 transition-transform">
-                  <Coffee className="w-4 h-4 text-amber-500" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-amber-100">Support the Developer</p>
-                  <p className="text-[9px] text-amber-500/80 uppercase font-black">Keeping the Studio free for all</p>
-                </div>
-              </div>
-              <Heart className="w-4 h-4 text-amber-500 fill-amber-500/20" />
-            </a>
           </div>
 
           <div className="space-y-4">

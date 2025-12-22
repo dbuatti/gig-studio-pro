@@ -20,7 +20,7 @@ import {
   Globe, Eye, Link as LinkIcon, RotateCcw,
   Zap, Disc, VolumeX, Smartphone, Printer, Search,
   ClipboardPaste, AlignLeft, Apple, Hash, Music2,
-  FileSearch, ChevronRight, Layers, LayoutGrid
+  FileSearch, ChevronRight, Layers, LayoutGrid, ListPlus
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import AudioVisualizer from './AudioVisualizer';
@@ -32,6 +32,7 @@ import { Slider } from '@/components/ui/slider';
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
 import { RESOURCE_TYPES } from '@/utils/constants';
 import ProSyncSearch from './ProSyncSearch';
+import { useAuth } from './AuthProvider';
 
 interface SongStudioModalProps {
   song: SetlistSong | null;
@@ -52,6 +53,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   onSyncProData,
   onPerform 
 }) => {
+  const { user } = useAuth();
   const { keyPreference: globalPreference } = useSettings();
   const [formData, setFormData] = useState<Partial<SetlistSong>>({});
   const [activeTab, setActiveTab] = useState<'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library'>('audio');
@@ -63,6 +65,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [isProSyncSearchOpen, setIsProSyncSearchOpen] = useState(false);
   const [isProSyncing, setIsProSyncing] = useState(false);
+  const [isInRepertoire, setIsInRepertoire] = useState(false);
   
   // Chart Engine State
   const [activeChartType, setActiveChartType] = useState<'pdf' | 'leadsheet'>('pdf');
@@ -136,6 +139,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         isMetadataConfirmed: song.isMetadataConfirmed
       });
       
+      checkRepertoireStatus();
       if (song.previewUrl) {
         prepareAudio(song.previewUrl, song.pitch || 0);
       }
@@ -145,6 +149,40 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       stopMetronome();
     };
   }, [song?.id, isOpen]);
+
+  const checkRepertoireStatus = async () => {
+    if (!song || !user) return;
+    const { data } = await supabase
+      .from('repertoire')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('title', song.name)
+      .eq('artist', song.artist || 'Unknown Artist')
+      .maybeSingle();
+    setIsInRepertoire(!!data);
+  };
+
+  const addToPublicRepertoire = async () => {
+    if (!song || !user) return;
+    try {
+      const { error } = await supabase
+        .from('repertoire')
+        .insert({
+          user_id: user.id,
+          title: formData.name || song.name,
+          artist: formData.artist || song.artist || 'Unknown Artist',
+          original_key: formData.originalKey,
+          bpm: formData.bpm,
+          genre: formData.genre || (formData.user_tags?.[0])
+        });
+
+      if (error) throw error;
+      setIsInRepertoire(true);
+      showSuccess("Added to Master Repertoire");
+    } catch (err) {
+      showError("Failed to add to repertoire");
+    }
+  };
 
   useEffect(() => {
     if (isMetronomeActive && formData.bpm) {
@@ -654,18 +692,34 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                 <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Stability Index</span>
               </div>
 
-              <Button 
-                onClick={handleProSync}
-                className={cn(
-                  "w-full mt-6 font-black uppercase tracking-[0.2em] text-[10px] h-10 rounded-xl shadow-lg gap-2 transition-all active:scale-95",
-                  formData.isMetadataConfirmed 
-                    ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20" 
-                    : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/20"
-                )}
-              >
-                {formData.isMetadataConfirmed ? <Check className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
-                {formData.isMetadataConfirmed ? "SYNCED FROM ITUNES" : "PRO SYNC ENGINE"}
-              </Button>
+              <div className="flex flex-col gap-2 mt-6">
+                <Button 
+                  onClick={handleProSync}
+                  className={cn(
+                    "w-full font-black uppercase tracking-[0.2em] text-[10px] h-10 rounded-xl shadow-lg gap-2 transition-all active:scale-95",
+                    formData.isMetadataConfirmed 
+                      ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20" 
+                      : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/20"
+                  )}
+                >
+                  {formData.isMetadataConfirmed ? <Check className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
+                  {formData.isMetadataConfirmed ? "SYNCED FROM ITUNES" : "PRO SYNC ENGINE"}
+                </Button>
+
+                <Button 
+                  onClick={addToPublicRepertoire}
+                  disabled={isInRepertoire}
+                  className={cn(
+                    "w-full font-black uppercase tracking-[0.2em] text-[10px] h-10 rounded-xl gap-2 transition-all",
+                    isInRepertoire 
+                      ? "bg-emerald-600/10 text-emerald-400 border border-emerald-600/20" 
+                      : "bg-white/5 hover:bg-white/10 text-white border border-white/10"
+                  )}
+                >
+                  {isInRepertoire ? <Check className="w-4 h-4" /> : <ListPlus className="w-4 h-4" />}
+                  {isInRepertoire ? "IN PUBLIC REPERTOIRE" : "ADD TO PUBLIC LIST"}
+                </Button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-8 space-y-10">
