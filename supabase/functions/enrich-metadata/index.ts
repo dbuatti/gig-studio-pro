@@ -25,15 +25,17 @@ serve(async (req) => {
 
     const songsList = Array.isArray(queries) ? queries : [queries];
     
-    const prompt = `Act as a professional music librarian. For the following list of songs, return a JSON array of objects. 
+    const prompt = `Act as a professional music librarian and performance consultant. For the following list of songs, return a JSON array of objects. 
+    Ensure the "originalKey" is the official concert key of the most popular version.
+    
     Each object must have: 
     {
-      "name": "The original song title (clean version, e.g., 'Moon River')",
-      "artist": "The primary artist or composer (e.g., 'Audrey Hepburn' or 'Henry Mancini')",
+      "name": "The original song title (clean version)",
+      "artist": "The primary artist or composer",
       "originalKey": "The standard key (e.g., C, F#m, Eb)",
       "bpm": 120,
-      "genre": "The genre",
-      "isFound": true
+      "genre": "The specific genre",
+      "isMetadataConfirmed": true
     }
     
     Songs to process:

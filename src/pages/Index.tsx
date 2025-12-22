@@ -115,6 +115,7 @@ const Index = () => {
               targetKey: aiResult.originalKey,
               bpm: aiResult.bpm?.toString(),
               genre: aiResult.genre,
+              isMetadataConfirmed: true,
               pitch: 0,
               isSyncing: false
             };
@@ -158,7 +159,8 @@ const Index = () => {
       originalKey: "TBC",
       targetKey: "TBC",
       isPlayed: false,
-      isSyncing: true
+      isSyncing: true,
+      isMetadataConfirmed: false
     };
     
     setSetlists(prev => {
@@ -273,7 +275,7 @@ const Index = () => {
               <div className="flex gap-2">
                 <ImportSetlist onImport={(newSongs) => {
                   if (!currentListId) return;
-                  const songsWithSyncState = newSongs.map(s => ({ ...s, isSyncing: true }));
+                  const songsWithSyncState = newSongs.map(s => ({ ...s, isSyncing: true, isMetadataConfirmed: false }));
                   setSetlists(prev => {
                     const list = prev.find(l => l.id === currentListId);
                     if (!list) return prev;

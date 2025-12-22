@@ -3,18 +3,19 @@
 import React, { useRef, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed, Copy, Upload, Loader2, FileAudio, Sparkles, RefreshCcw } from 'lucide-react';
+import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed, Copy, Upload, Loader2, FileAudio, Sparkles, RefreshCcw, FileText, ExternalLink, ShieldCheck } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ALL_KEYS, calculateSemitones } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 export interface SetlistSong {
   id: string;
   name: string;
-  artist?: string; // Added artist field
+  artist?: string;
   previewUrl: string;
   youtubeUrl?: string;
   originalKey?: string;
@@ -24,6 +25,7 @@ export interface SetlistSong {
   bpm?: string;
   genre?: string;
   isSyncing?: boolean;
+  isMetadataConfirmed?: boolean;
 }
 
 interface SetlistManagerProps {
@@ -52,6 +54,11 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [isBulkSyncing, setIsBulkSyncing] = useState(false);
 
+  const getUGUrl = (song: SetlistSong) => {
+    const searchTerm = encodeURIComponent(`${song.name} ${song.artist || ''} chords`);
+    return `https://www.ultimate-guitar.com/search.php?search_type=title&value=${searchTerm}`;
+  };
+
   const copyAllLinks = () => {
     const links = songs.map(s => s.youtubeUrl).filter(Boolean).join('\n');
     if (!links) {
@@ -66,7 +73,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     if (!confirm("This will sync professional keys and BPMs for your entire setlist. Continue?")) return;
     setIsBulkSyncing(true);
     for (const song of songs) {
-      if (song.originalKey === 'TBC' || !song.bpm) {
+      if (!song.isMetadataConfirmed) {
         await onSyncProData(song);
       }
     }
@@ -151,7 +158,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
               const isSelected = currentSongId === song.id;
               const hasAudio = !!song.previewUrl;
               const isUploading = uploadingId === song.id;
-              const needsSync = song.originalKey === 'TBC' || !song.bpm;
+              const needsSync = !song.isMetadataConfirmed;
               
               return (
                 <tr 
@@ -180,8 +187,18 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                             "text-sm font-bold tracking-tight",
                             song.isPlayed && "line-through text-slate-400"
                           )}>{song.name}</span>
+                          {song.isMetadataConfirmed && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />
+                                </TooltipTrigger>
+                                <TooltipContent className="text-[10px] font-bold">Pro Verified Metadata</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
                           {song.isSyncing && (
-                            <Badge variant="outline" className="text-[8px] uppercase border-indigo-200 text-indigo-600 bg-indigo-50 leading-none h-4 animate-pulse">Syncing Pro Data...</Badge>
+                            <Badge variant="outline" className="text-[8px] uppercase border-indigo-200 text-indigo-600 bg-indigo-50 leading-none h-4 animate-pulse">Syncing...</Badge>
                           )}
                         </div>
                         {song.artist && (
@@ -204,21 +221,33 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                             {needsSync ? "Sync Pro Data" : "Verified"}
                           </button>
                           {song.bpm && <span className="text-[8px] font-mono bg-slate-100 dark:bg-slate-800 px-1 rounded text-slate-500">{song.bpm} BPM</span>}
-                          {song.genre && <span className="text-[8px] uppercase font-bold text-slate-400 tracking-widest">{song.genre}</span>}
                         </div>
                         
                         <div className="h-2 w-px bg-slate-200" />
 
-                        {song.youtubeUrl ? (
-                          <a href={song.youtubeUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-[9px] text-red-600 font-bold hover:underline">
-                            <Youtube className="w-3 h-3" /> Video
+                        <div className="flex items-center gap-2">
+                          <a 
+                            href={getUGUrl(song)} 
+                            target="_blank" 
+                            rel="noreferrer" 
+                            className="flex items-center gap-1 text-[9px] text-amber-600 font-bold hover:underline"
+                          >
+                            <FileText className="w-2.5 h-2.5" /> Chords
                           </a>
-                        ) : (
-                          <button onClick={() => onLinkAudio(song.name)} className="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase hover:underline">
-                            <Link2 className="w-2.5 h-2.5" /> Find Video
-                          </button>
-                        )}
+
+                          {song.youtubeUrl ? (
+                            <a href={song.youtubeUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-[9px] text-red-600 font-bold hover:underline">
+                              <Youtube className="w-3 h-3" /> Video
+                            </a>
+                          ) : (
+                            <button onClick={() => onLinkAudio(song.name)} className="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase hover:underline">
+                              <Link2 className="w-2.5 h-2.5" /> Find Video
+                            </button>
+                          )}
+                        </div>
                         
+                        <div className="h-2 w-px bg-slate-200" />
+
                         <div className="relative">
                           <input 
                             type="file" 
@@ -232,7 +261,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                             className="flex items-center gap-1 text-[9px] font-black text-indigo-600 uppercase hover:underline cursor-pointer"
                           >
                             {isUploading ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Upload className="w-2.5 h-2.5" />}
-                            {hasAudio ? "Replace Audio" : "Add MP3"}
+                            {hasAudio ? "Replace" : "Add MP3"}
                           </label>
                         </div>
                       </div>
