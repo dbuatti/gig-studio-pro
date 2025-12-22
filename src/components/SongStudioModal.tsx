@@ -29,6 +29,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { Slider } from '@/components/ui/slider';
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
+import { RESOURCE_TYPES } from '@/utils/constants';
 
 interface SongStudioModalProps {
   song: SetlistSong | null;
@@ -39,15 +40,6 @@ interface SongStudioModalProps {
   onSyncProData?: (song: SetlistSong) => Promise<void>;
   onPerform?: (song: SetlistSong) => void;
 }
-
-const RESOURCE_TYPES = [
-  { id: 'UG', label: 'Ultimate Guitar', color: 'bg-orange-100 text-orange-700 border-orange-200' },
-  { id: 'LYRICS', label: 'Has Lyrics', color: 'bg-pink-100 text-pink-700 border-pink-200' },
-  { id: 'LEAD', label: 'Lead Sheet', color: 'bg-indigo-100 text-indigo-700 border-indigo-200' },
-  { id: 'UGP', label: 'UG Playlist', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
-  { id: 'FS', label: 'ForScore', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-  { id: 'PDF', label: 'Stage PDF', color: 'bg-red-100 text-red-700 border-red-200' },
-];
 
 const SongStudioModal: React.FC<SongStudioModalProps> = ({ 
   song, 
@@ -1083,7 +1075,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                           className="bg-white/5 border-white/10 font-bold text-orange-400 h-12 rounded-xl"
                         />
                         <Button variant="ghost" className="bg-white/5 h-12 w-12 p-0 text-orange-400 rounded-xl" onClick={handleUgAction}>
-                          {formData.ugUrl ? <LinkIcon className="w-5 h-5" /> : <ExternalLink className="w-5 h-5" />}
+                          {formData.ugUrl ? <LinkIcon className="w-4 h-4" /> : <ExternalLink className="w-4 h-4" />}
                         </Button>
                       </div>
                     </div>

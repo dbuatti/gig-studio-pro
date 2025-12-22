@@ -13,10 +13,13 @@ serve(async (req) => {
 
   try {
     const { queries, mode = 'metadata' } = await req.json();
+    console.log(`Processing ${mode} request for:`, queries);
+    
     // @ts-ignore: Deno global
     const apiKey = Deno.env.get('GEMINI_API_KEY');
 
     if (!apiKey) {
+      console.error("GEMINI_API_KEY is not configured in Edge Function environment");
       return new Response(JSON.stringify({ error: "AI Configuration Missing" }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -65,23 +68,31 @@ serve(async (req) => {
     const result = await response.json();
     
     if (!response.ok) {
+      console.error("Gemini API Error Response:", result);
       throw new Error(result.error?.message || "AI Provider Error");
     }
 
     const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) throw new Error("Empty AI response");
+    if (!text) {
+      console.error("Gemini API returned empty candidates:", result);
+      throw new Error("Empty AI response");
+    }
+
+    console.log("Raw AI Response Text:", text);
 
     const jsonMatch = text.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
-    if (!jsonMatch) throw new Error("Invalid response format");
+    if (!jsonMatch) {
+      console.error("Failed to find JSON in AI response:", text);
+      throw new Error("Invalid response format");
+    }
     
     const output = JSON.parse(jsonMatch[0]);
-
     return new Response(JSON.stringify(output), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
   } catch (error) {
-    console.error("Edge Function Error:", error.message);
+    console.error("Edge Function Error:", error.message, error.stack);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
