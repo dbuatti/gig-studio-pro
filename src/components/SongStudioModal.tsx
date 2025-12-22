@@ -19,8 +19,7 @@ import {
   FileDown, Headphones, Wand2, Download,
   Globe, Eye, Link as LinkIcon, RotateCcw,
   Zap, Disc, VolumeX, Smartphone, Printer, Search,
-  ClipboardPaste, AlignLeft, Apple, Hash, Music2,
-  ShieldCheck
+  ClipboardPaste, AlignLeft, Apple, Hash, Music2
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import AudioVisualizer from './AudioVisualizer';
@@ -507,13 +506,13 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent 
-        className="max-w-[95vw] w-[1400px] p-0 overflow-hidden border-none shadow-2xl bg-slate-950 text-white rounded-[2rem] relative"
+        className="max-w-[95vw] w-[1400px] max-h-[95vh] p-0 overflow-hidden border-none shadow-2xl bg-slate-950 text-white rounded-[2rem]"
         onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
         onDragLeave={() => setIsDragOver(false)}
         onDrop={handleDrop}
       >
         {/* Discrete Top Readiness Strip */}
-        <div className="absolute top-0 left-0 right-0 h-0.5 bg-white/5 z-50">
+        <div className="absolute top-0 left-0 right-0 h-0.5 bg-white/5 z-50 overflow-hidden rounded-t-[2rem]">
           <div 
             className={cn("h-full transition-all duration-1000", readinessColor)} 
             style={{ width: `${readiness}%` }} 
@@ -541,8 +540,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
           </div>
         )}
 
-        <div className="flex h-[90vh] min-h-[800px]">
-          <div className="w-96 bg-slate-900/50 border-r border-white/5 flex flex-col">
+        <div className="flex h-[90vh] min-h-[800px] overflow-hidden">
+          <div className="w-96 bg-slate-900/50 border-r border-white/5 flex flex-col shrink-0">
             <div className="p-8 border-b border-white/5 bg-black/20">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
@@ -619,7 +618,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                             onClick={() => updateHarmonics({ isKeyLinked: !formData.isKeyLinked })}
                             className={cn(
                               "p-1.5 rounded-lg border transition-all",
-                              formData.isKeyLinked ? "bg-indigo-600 border-indigo-500 text-white shadow-lg" : "bg-white/5 border-white/10 text-slate-500"
+                              formData.isKeyLinked ? "bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/20" : "bg-white/5 border-white/10 text-slate-500"
                             )}
                           >
                             <LinkIcon className="w-3.5 h-3.5" />
@@ -718,7 +717,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
               </div>
             </div>
 
-            <div className="p-6 border-t border-white/5 flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-slate-600">
+            <div className="p-6 border-t border-white/5 flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-slate-600 shrink-0">
               <div className="flex items-center gap-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
                 Live Sync: ON
@@ -734,7 +733,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
             </div>
           </div>
 
-          <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex flex-col min-w-0">
             <div className="h-20 border-b border-white/5 flex items-center px-12 justify-between bg-black/20 shrink-0">
               <div className="flex gap-12">
                 {['audio', 'details', 'lyrics', 'visual', 'library'].map((tab) => (
