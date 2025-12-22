@@ -303,7 +303,23 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       const isLeadSheet = isPDF && file.name.toLowerCase().includes('leadsheet');
       
       const folder = isAudio ? 'tracks' : 'sheets';
-      const fileName = `${folder}/${song.id}-${Date.now()}.${file.name.split('.').pop()}`;
+      const extension = file.name.split('.').pop();
+      
+      let customFileName = `${song.id}-${Date.now()}.${extension}`;
+      
+      if (isPDF) {
+        if (isLeadSheet) {
+          // Preserve leadsheet name but prefix with ID for storage unique routing
+          customFileName = `${song.id}-${file.name}`;
+        } else {
+          // Automatically rename based on song details
+          const safeTitle = (formData.name || "Untitled").replace(/[/\\?%*:|"<>]/g, '-');
+          const safeArtist = (formData.artist || "Unknown").replace(/[/\\?%*:|"<>]/g, '-');
+          customFileName = `${song.id}-${safeTitle} - ${safeArtist}.${extension}`;
+        }
+      }
+
+      const fileName = `${folder}/${customFileName}`;
 
       const { error: uploadError } = await supabase.storage.from('audio_tracks').upload(fileName, file);
       if (uploadError) throw uploadError;
@@ -319,7 +335,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       onSave(song.id, update);
       
       if (isAudio) prepareAudio(publicUrl, formData.pitch || 0);
-      showSuccess(`Successfully linked ${file.name}`);
+      showSuccess(`Linked: ${isPDF && !isLeadSheet ? `${formData.name} - ${formData.artist}` : file.name}`);
     } catch (err) {
       showError("Asset upload failed.");
     } finally {
