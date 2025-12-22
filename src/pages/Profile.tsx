@@ -174,6 +174,7 @@ const Profile = () => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
+    // File size validation (5MB)
     if (file.size > 5 * 1024 * 1024) {
       showError("Photo must be less than 5MB");
       return;
@@ -185,6 +186,7 @@ const Profile = () => {
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
       const bucketName = 'public_assets';
 
+      // Attempt the upload
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from(bucketName)
         .upload(fileName, file, {
@@ -193,22 +195,26 @@ const Profile = () => {
         });
 
       if (uploadError) {
-         if (uploadError.message.includes('Failed to fetch')) {
-           throw new Error("Could not reach storage server. Ensure the 'public_assets' bucket exists in your Supabase project.");
-         }
-         throw uploadError;
+        throw uploadError;
       }
 
+      // Get the final public URL
       const { data: { publicUrl } } = supabase.storage
         .from(bucketName)
         .getPublicUrl(fileName);
 
+      // Update the profile in the database with the new URL
       handleUpdateLocal({ avatar_url: publicUrl });
       await saveToDatabase({ avatar_url: publicUrl });
       showSuccess("Photo Updated");
     } catch (err: any) {
       console.error("Upload process failed:", err);
-      showError(`Upload failed: ${err.message || "Network Error"}`);
+      // More specific error message for the user
+      if (err.message === 'Failed to fetch' || err.status === 0) {
+        showError("Network error: Could not reach the storage server. Check your connection.");
+      } else {
+        showError(`Upload failed: ${err.message || "Unknown error"}`);
+      }
     } finally {
       setSaving(false);
     }
