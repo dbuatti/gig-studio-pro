@@ -20,7 +20,8 @@ import {
   Globe, Eye, Link as LinkIcon, RotateCcw,
   Zap, Disc, VolumeX, Smartphone, Printer, Search,
   ClipboardPaste, AlignLeft, Apple, Hash, Music2,
-  FileSearch, ChevronRight, Layers, LayoutGrid, ListPlus
+  FileSearch, ChevronRight, Layers, LayoutGrid, ListPlus,
+  Globe2
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import AudioVisualizer from './AudioVisualizer';
@@ -68,7 +69,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const [isInRepertoire, setIsInRepertoire] = useState(false);
   
   // Chart Engine State
-  const [activeChartType, setActiveChartType] = useState<'pdf' | 'leadsheet'>('pdf');
+  const [activeChartType, setActiveChartType] = useState<'pdf' | 'leadsheet' | 'url'>('pdf');
   const [isChartMenuOpen, setIsChartMenuOpen] = useState(false);
 
   // Audio Engine State
@@ -612,7 +613,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   if (!song) return null;
   const videoId = formData.youtubeUrl ? formData.youtubeUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)?.[1] : null;
 
-  const currentChartUrl = activeChartType === 'pdf' ? formData.pdfUrl : formData.leadsheetUrl;
+  const currentChartUrl = activeChartType === 'pdf' ? formData.pdfUrl : activeChartType === 'leadsheet' ? formData.leadsheetUrl : formData.ugUrl;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -1252,26 +1253,35 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       <p className="text-sm text-slate-500 mt-2">Active stage chart rendering with multi-layer support.</p>
                     </div>
                     <div className="flex gap-4">
-                      {formData.pdfUrl && formData.leadsheetUrl && (
-                        <div className="flex bg-white/5 border border-white/10 p-1 rounded-xl">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => setActiveChartType('pdf')}
-                            className={cn("text-[10px] font-black uppercase tracking-widest h-9 px-4 rounded-lg", activeChartType === 'pdf' ? "bg-indigo-600 text-white" : "text-slate-500")}
-                          >
-                            Stage PDF
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => setActiveChartType('leadsheet')}
-                            className={cn("text-[10px] font-black uppercase tracking-widest h-9 px-4 rounded-lg", activeChartType === 'leadsheet' ? "bg-indigo-600 text-white" : "text-slate-500")}
-                          >
-                            Lead Sheet
-                          </Button>
-                        </div>
-                      )}
+                      <div className="flex bg-white/5 border border-white/10 p-1 rounded-xl">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          disabled={!formData.pdfUrl}
+                          onClick={() => setActiveChartType('pdf')}
+                          className={cn("text-[10px] font-black uppercase tracking-widest h-9 px-4 rounded-lg", activeChartType === 'pdf' ? "bg-indigo-600 text-white" : "text-slate-500 disabled:opacity-20")}
+                        >
+                          Stage PDF
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          disabled={!formData.leadsheetUrl}
+                          onClick={() => setActiveChartType('leadsheet')}
+                          className={cn("text-[10px] font-black uppercase tracking-widest h-9 px-4 rounded-lg", activeChartType === 'leadsheet' ? "bg-indigo-600 text-white" : "text-slate-500 disabled:opacity-20")}
+                        >
+                          Lead Sheet
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          disabled={!formData.ugUrl}
+                          onClick={() => setActiveChartType('url')}
+                          className={cn("text-[10px] font-black uppercase tracking-widest h-9 px-4 rounded-lg", activeChartType === 'url' ? "bg-indigo-600 text-white" : "text-slate-500 disabled:opacity-20")}
+                        >
+                          Web Link
+                        </Button>
+                      </div>
                       <Button 
                         variant="outline" 
                         onClick={handlePdfAction}
@@ -1286,54 +1296,63 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                     {currentChartUrl ? (
                       <>
                         <iframe 
-                          src={`${currentChartUrl}#toolbar=0&navpanes=0&view=FitH`} 
+                          src={activeChartType === 'url' ? currentChartUrl : `${currentChartUrl}#toolbar=0&navpanes=0&view=FitH`} 
                           className="w-full h-full"
                           title="Chart Viewer"
                         />
                         
                         {/* Pull-out selection menu */}
-                        {(formData.pdfUrl || formData.leadsheetUrl) && (
-                          <div className={cn(
-                            "absolute left-0 top-1/2 -translate-y-1/2 z-10 transition-all duration-500",
-                            isChartMenuOpen ? "translate-x-0" : "-translate-x-[calc(100%-12px)]"
-                          )}>
-                            <div className="flex items-center">
-                              <div className="bg-slate-900 border border-white/10 rounded-r-3xl p-6 shadow-2xl space-y-6 min-w-[200px]">
-                                <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-white/5 pb-2">Select Matrix</h4>
-                                <div className="space-y-3">
-                                  <button 
-                                    onClick={() => { setActiveChartType('pdf'); setIsChartMenuOpen(false); }}
-                                    disabled={!formData.pdfUrl}
-                                    className={cn(
-                                      "w-full text-left p-3 rounded-xl transition-all flex items-center justify-between group/item",
-                                      activeChartType === 'pdf' ? "bg-indigo-600 text-white" : "text-slate-400 hover:bg-white/5 disabled:opacity-20"
-                                    )}
-                                  >
-                                    <span className="text-[10px] font-black uppercase tracking-widest">Stage PDF</span>
-                                    {formData.pdfUrl && <Check className="w-3 h-3 opacity-0 group-hover/item:opacity-100" />}
-                                  </button>
-                                  <button 
-                                    onClick={() => { setActiveChartType('leadsheet'); setIsChartMenuOpen(false); }}
-                                    disabled={!formData.leadsheetUrl}
-                                    className={cn(
-                                      "w-full text-left p-3 rounded-xl transition-all flex items-center justify-between group/item",
-                                      activeChartType === 'leadsheet' ? "bg-indigo-600 text-white" : "text-slate-400 hover:bg-white/5 disabled:opacity-20"
-                                    )}
-                                  >
-                                    <span className="text-[10px] font-black uppercase tracking-widest">Lead Sheet</span>
-                                    {formData.leadsheetUrl && <Check className="w-3 h-3 opacity-0 group-hover/item:opacity-100" />}
-                                  </button>
-                                </div>
+                        <div className={cn(
+                          "absolute left-0 top-1/2 -translate-y-1/2 z-10 transition-all duration-500",
+                          isChartMenuOpen ? "translate-x-0" : "-translate-x-[calc(100%-12px)]"
+                        )}>
+                          <div className="flex items-center">
+                            <div className="bg-slate-900 border border-white/10 rounded-r-3xl p-6 shadow-2xl space-y-6 min-w-[200px]">
+                              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-white/5 pb-2">Select Matrix</h4>
+                              <div className="space-y-3">
+                                <button 
+                                  onClick={() => { setActiveChartType('pdf'); setIsChartMenuOpen(false); }}
+                                  disabled={!formData.pdfUrl}
+                                  className={cn(
+                                    "w-full text-left p-3 rounded-xl transition-all flex items-center justify-between group/item",
+                                    activeChartType === 'pdf' ? "bg-indigo-600 text-white" : "text-slate-400 hover:bg-white/5 disabled:opacity-20"
+                                  )}
+                                >
+                                  <span className="text-[10px] font-black uppercase tracking-widest">Stage PDF</span>
+                                  {formData.pdfUrl && <Check className="w-3 h-3 opacity-0 group-hover/item:opacity-100" />}
+                                </button>
+                                <button 
+                                  onClick={() => { setActiveChartType('leadsheet'); setIsChartMenuOpen(false); }}
+                                  disabled={!formData.leadsheetUrl}
+                                  className={cn(
+                                    "w-full text-left p-3 rounded-xl transition-all flex items-center justify-between group/item",
+                                    activeChartType === 'leadsheet' ? "bg-indigo-600 text-white" : "text-slate-400 hover:bg-white/5 disabled:opacity-20"
+                                  )}
+                                >
+                                  <span className="text-[10px] font-black uppercase tracking-widest">Lead Sheet</span>
+                                  {formData.leadsheetUrl && <Check className="w-3 h-3 opacity-0 group-hover/item:opacity-100" />}
+                                </button>
+                                <button 
+                                  onClick={() => { setActiveChartType('url'); setIsChartMenuOpen(false); }}
+                                  disabled={!formData.ugUrl}
+                                  className={cn(
+                                    "w-full text-left p-3 rounded-xl transition-all flex items-center justify-between group/item",
+                                    activeChartType === 'url' ? "bg-indigo-600 text-white" : "text-slate-400 hover:bg-white/5 disabled:opacity-20"
+                                  )}
+                                >
+                                  <span className="text-[10px] font-black uppercase tracking-widest">Web Link</span>
+                                  {formData.ugUrl && <Check className="w-3 h-3 opacity-0 group-hover/item:opacity-100" />}
+                                </button>
                               </div>
-                              <button 
-                                onClick={() => setIsChartMenuOpen(!isChartMenuOpen)}
-                                className="bg-slate-900 border-y border-r border-white/10 h-16 w-8 rounded-r-xl flex items-center justify-center text-indigo-400 hover:text-white transition-all shadow-lg"
-                              >
-                                {isChartMenuOpen ? <X className="w-4 h-4" /> : <Layers className="w-4 h-4" />}
-                              </button>
                             </div>
+                            <button 
+                              onClick={() => setIsChartMenuOpen(!isChartMenuOpen)}
+                              className="bg-slate-900 border-y border-r border-white/10 h-16 w-8 rounded-r-xl flex items-center justify-center text-indigo-400 hover:text-white transition-all shadow-lg"
+                            >
+                              {isChartMenuOpen ? <X className="w-4 h-4" /> : <Layers className="w-4 h-4" />}
+                            </button>
                           </div>
-                        )}
+                        </div>
                       </>
                     ) : (
                       <div className="h-full flex flex-col items-center justify-center p-12 bg-slate-100">
