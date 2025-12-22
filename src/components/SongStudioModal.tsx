@@ -22,13 +22,13 @@ import {
   ClipboardPaste, AlignLeft, Apple
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
+import AudioVisualizer from './AudioVisualizer';
 import * as Tone from 'tone';
 import { analyze } from 'web-audio-beat-detector';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { Slider } from '@/components/ui/slider';
 import { useSettings } from '@/hooks/use-settings';
-import AudioVisualizer from './AudioVisualizer';
 
 interface SongStudioModalProps {
   song: SetlistSong | null;
@@ -105,6 +105,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         pitch: song.pitch || 0,
         user_tags: song.user_tags || [],
         isKeyLinked: song.isKeyLinked ?? true,
+        isKeyConfirmed: song.isKeyConfirmed ?? false,
         duration_seconds: song.duration_seconds || 0
       });
       
@@ -491,22 +492,41 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                 <div className="flex items-center justify-between">
                   <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Harmonic Engine</Label>
                   <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button 
-                          onClick={() => updateHarmonics({ isKeyLinked: !formData.isKeyLinked })}
-                          className={cn(
-                            "p-1.5 rounded-lg border transition-all",
-                            formData.isKeyLinked ? "bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/20" : "bg-white/5 border-white/10 text-slate-500"
-                          )}
-                        >
-                          <LinkIcon className="w-3.5 h-3.5" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent className="text-[10px] font-black uppercase">
-                        {formData.isKeyLinked ? "Keys are Linked to Pitch" : "Pitch is Independent"}
-                      </TooltipContent>
-                    </Tooltip>
+                    <div className="flex gap-2">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button 
+                            onClick={() => updateHarmonics({ isKeyConfirmed: !formData.isKeyConfirmed })}
+                            className={cn(
+                              "p-1.5 rounded-lg border transition-all",
+                              formData.isKeyConfirmed ? "bg-emerald-600 border-emerald-500 text-white shadow-lg shadow-emerald-600/20" : "bg-white/5 border-white/10 text-slate-500"
+                            )}
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="text-[10px] font-black uppercase">
+                          {formData.isKeyConfirmed ? "Key is Verified" : "Confirm Stage Key"}
+                        </TooltipContent>
+                      </Tooltip>
+
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button 
+                            onClick={() => updateHarmonics({ isKeyLinked: !formData.isKeyLinked })}
+                            className={cn(
+                              "p-1.5 rounded-lg border transition-all",
+                              formData.isKeyLinked ? "bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/20" : "bg-white/5 border-white/10 text-slate-500"
+                            )}
+                          >
+                            <LinkIcon className="w-3.5 h-3.5" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="text-[10px] font-black uppercase">
+                          {formData.isKeyLinked ? "Keys are Linked to Pitch" : "Pitch is Independent"}
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                   </TooltipProvider>
                 </div>
                 
@@ -532,7 +552,10 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       updateHarmonics({ targetKey: val });
                       onUpdateKey(song.id, val);
                     }}>
-                      <SelectTrigger className="bg-indigo-600 border-none text-white font-bold font-mono h-12 shadow-xl shadow-indigo-500/20 text-lg">
+                      <SelectTrigger className={cn(
+                        "border-none text-white font-bold font-mono h-12 shadow-xl text-lg transition-colors",
+                        formData.isKeyConfirmed ? "bg-emerald-600 shadow-emerald-500/20" : "bg-indigo-600 shadow-indigo-500/20"
+                      )}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-slate-900 border-white/10 text-white">
@@ -996,7 +1019,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                 <div className="space-y-12 animate-in fade-in slide-in-from-top-6 duration-500">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-lg font-black uppercase tracking-[0.2em] text-indigo-400">Resource Matrix</h3>
+                      <h3 className="text-lg font-black uppercase tracking-[0.3em] text-indigo-400">Resource Matrix</h3>
                       <p className="text-sm text-slate-500 mt-2">Centralized management for all song assets and links.</p>
                     </div>
                     <Button onClick={handleDownloadAll} className="bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-xs h-12 gap-3 px-8 rounded-2xl shadow-xl shadow-indigo-600/20">

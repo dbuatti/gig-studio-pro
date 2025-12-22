@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed, Copy, Upload, Loader2, Sparkles, FileText, ShieldCheck, Edit3, Search, FileDown, FileCheck, SortAsc, SortDesc, LayoutList, Volume2, Headphones, ChevronUp, ChevronDown, BarChart2, Smartphone, Clock } from 'lucide-react';
+import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed, Copy, Upload, Loader2, Sparkles, FileText, ShieldCheck, Edit3, Search, FileDown, FileCheck, SortAsc, SortDesc, LayoutList, Volume2, Headphones, ChevronUp, ChevronDown, BarChart2, Smartphone, Clock, Check } from 'lucide-react';
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, calculateSemitones, formatKey } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
 import { supabase } from '@/integrations/supabase/client';
@@ -29,6 +29,7 @@ export interface SetlistSong {
   genre?: string;
   isSyncing?: boolean;
   isMetadataConfirmed?: boolean;
+  isKeyConfirmed?: boolean;
   notes?: string;
   lyrics?: string;
   resources?: string[];
@@ -41,8 +42,8 @@ export const RESOURCE_TYPES = [
   { id: 'UG', label: 'Ultimate Guitar', color: 'bg-orange-500/10 text-orange-600 border-orange-500/20' },
   { id: 'LYRICS', label: 'Has Lyrics', color: 'bg-pink-500/10 text-pink-600 border-pink-500/20' },
   { id: 'UGP', label: 'UG Playlist', color: 'bg-yellow-500/10 text-yellow-700 border-yellow-500/20' },
-  { id: 'FS', label: 'ForScore', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
-  { id: 'PDF', label: 'Stage PDF', color: 'bg-red-500/10 text-red-700 border-red-500/20' },
+  { id: 'FS', label: 'ForScore', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-200' },
+  { id: 'PDF', label: 'Stage PDF', color: 'bg-red-500/10 text-red-700 border-red-200' },
 ];
 
 interface SetlistManagerProps {
@@ -89,7 +90,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   const getReadinessScore = (song: SetlistSong) => {
     let score = 0;
     if (song.previewUrl && !isItunesPreview(song.previewUrl)) score += 5;
-    if (song.isMetadataConfirmed) score += 3;
+    if (song.isKeyConfirmed) score += 4; // High weight for verified keys
+    if (song.isMetadataConfirmed) score += 2;
     if (song.pdfUrl) score += 3;
     if (song.ugUrl) score += 2; 
     if (song.lyrics) score += 2;
@@ -324,10 +326,16 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                           <ArrowRight className="w-3 h-3 text-slate-300 mb-1" />
                           <div className="h-px w-8 bg-slate-100 dark:bg-slate-800" />
                         </div>
-                        <div className="text-center">
+                        <div className="text-center relative">
                           <p className="text-[8px] font-black text-indigo-500 uppercase tracking-widest mb-1">Stage</p>
-                          <div className="bg-indigo-600 text-white font-mono font-black text-xs px-2.5 py-1 rounded-lg shadow-lg shadow-indigo-500/20">
+                          <div className={cn(
+                            "font-mono font-black text-xs px-2.5 py-1 rounded-lg shadow-lg flex items-center gap-1.5",
+                            song.isKeyConfirmed 
+                              ? "bg-emerald-600 text-white shadow-emerald-500/20" 
+                              : "bg-indigo-600 text-white shadow-indigo-500/20"
+                          )}>
                             {displayTargetKey}
+                            {song.isKeyConfirmed && <Check className="w-3 h-3" />}
                           </div>
                         </div>
                       </div>
