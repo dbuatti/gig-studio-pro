@@ -6,6 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch"; // Add this import for toggle
 import { 
   Play, Pause, SkipForward, SkipBack, X, Music, 
   Waves, Activity, ArrowRight, Volume2, 
@@ -57,8 +58,10 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
   const [localNotes, setLocalNotes] = useState(currentSong?.notes || "");
   const [viewMode, setViewMode] = useState<ViewMode>('visualizer');
   const [scrollSpeed, setScrollSpeed] = useState(1.0);
+  const [autoScrollEnabled, setAutoScrollEnabled] = useState(true); // New: toggle for auto-scroll
   const lyricsContainerRef = useRef<HTMLDivElement>(null);
   const lyricsLinesRef = useRef<HTMLDivElement[]>([]);
+  const scrollIntervalRef = useRef<NodeJS.Timeout | null>(null); // For smooth manual override
 
   const currentPref = currentSong?.key_preference || globalPreference;
   const nextPref = nextSong?.key_preference || globalPreference;
@@ -95,29 +98,45 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
   const currentTime = (progress / 100) * duration;
   const adjustedTime = currentTime * scrollSpeed;
 
+  // Auto-scroll logic (only if enabled)
   useEffect(() => {
-    if (viewMode !== 'lyrics' || !lyricsContainerRef.current || duration === 0) return;
-
-    if (hasTimestamps) {
-      let targetIndex = lyricsSections.findIndex(s => s.time > adjustedTime);
-      if (targetIndex === -1) targetIndex = lyricsSections.length;
-      targetIndex = Math.max(0, targetIndex - 1);
-
-      const targetEl = lyricsLinesRef.current[targetIndex];
-      if (targetEl && lyricsContainerRef.current) {
-        const container = lyricsContainerRef.current;
-        const offset = targetEl.offsetTop - container.offsetTop - container.clientHeight * 0.35;
-        container.scrollTop = offset;
-      }
-    } else {
-      const scrollHeight = lyricsContainerRef.current.scrollHeight - lyricsContainerRef.current.clientHeight;
-      const targetScroll = (adjustedTime / duration) * scrollHeight - lyricsContainerRef.current.clientHeight * 0.35;
-      lyricsContainerRef.current.scrollTop = Math.max(0, targetScroll);
+    if (viewMode !== 'lyrics' || !autoScrollEnabled || !lyricsContainerRef.current || duration === 0) {
+      if (scrollIntervalRef.current) clearInterval(scrollIntervalRef.current);
+      return;
     }
-  }, [progress, duration, viewMode, hasTimestamps, scrollSpeed, lyricsSections]);
+
+    const scrollUpdate = () => {
+      const container = lyricsContainerRef.current;
+      if (!container) return;
+
+      let targetScroll = 0;
+      if (hasTimestamps) {
+        let targetIndex = lyricsSections.findIndex(s => s.time > adjustedTime);
+        if (targetIndex === -1) targetIndex = lyricsSections.length;
+        targetIndex = Math.max(0, targetIndex - 1);
+
+        const targetEl = lyricsLinesRef.current[targetIndex];
+        if (targetEl) {
+          targetScroll = targetEl.offsetTop - container.offsetTop - container.clientHeight * 0.35;
+        }
+      } else {
+        const scrollHeight = container.scrollHeight - container.clientHeight;
+        targetScroll = (adjustedTime / duration) * scrollHeight - container.clientHeight * 0.35;
+      }
+
+      container.scrollTop = Math.max(0, targetScroll);
+    };
+
+    scrollIntervalRef.current = setInterval(scrollUpdate, 100); // Smooth updates every 100ms
+
+    return () => {
+      if (scrollIntervalRef.current) clearInterval(scrollIntervalRef.current);
+    };
+  }, [progress, duration, viewMode, hasTimestamps, scrollSpeed, autoScrollEnabled, lyricsSections, adjustedTime]);
 
   useEffect(() => {
     setLocalNotes(currentSong?.notes || "");
+    setAutoScrollEnabled(true); // Reset to auto on song change
     if (currentSong?.lyrics) setViewMode('lyrics');
     else if (currentSong?.pdfUrl) setViewMode('pdf');
     else if (currentSong?.youtubeUrl) setViewMode('video');
@@ -156,7 +175,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
             <Activity className="w-8 h-8 animate-pulse text-white" />
           </div>
           <div>
-            <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400 mb-1 font-mono">Mission Control V2.9</h2>
+            <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400 mb-1 font-mono">Mission Control V3.0</h2>
             <div className="flex items-center gap-4">
               <span className="text-2xl font-black uppercase tracking-tight">Active Performance</span>
               <div className="flex gap-1.5">
@@ -236,8 +255,8 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
             </div>
           </div>
 
-          {/* Scrollable Content */}
-          <div className="flex-1 overflow-hidden px-8 pb-32"> {/* Reserves space for compact controls */}
+          {/* Scrollable Content – Increased pb for no overlap */}
+          <div className="flex-1 overflow-hidden px-8 pb-40 lg:pb-48"> {/* Increased padding bottom for safe space */}
             {viewMode === 'visualizer' && (
               <div className="h-full flex items-center justify-center">
                 <div className="w-full max-w-5xl">
@@ -313,7 +332,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
           </div>
         </div>
 
-        {/* Sidebar */}
+        {/* Sidebar – Enhanced for Best Practice Machine */}
         <aside className="w-[450px] bg-slate-900/60 backdrop-blur-2xl p-10 space-y-10 overflow-y-auto border-l border-white/5">
           <div className="space-y-5">
             <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 flex items-center gap-2 font-mono">
@@ -323,28 +342,37 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
           </div>
 
           {viewMode === 'lyrics' && (
-            <div className="space-y-5">
-              <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-pink-400 flex items-center gap-2 font-mono">
-                <Activity className="w-4 h-4" /> Scroll Speed
-              </h3>
-              <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
-                <div className="flex justify-between mb-3">
-                  <span className="text-sm font-mono text-slate-400">Speed</span>
-                  <span className="text-lg font-black text-pink-400 font-mono">{scrollSpeed.toFixed(2)}x</span>
+            <>
+              <div className="space-y-5">
+                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-pink-400 flex items-center gap-2 font-mono">
+                  <Activity className="w-4 h-4" /> Lyrics Controls
+                </h3>
+                <div className="bg-white/5 rounded-2xl p-6 border border-white/10 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-mono text-slate-400">Auto-Scroll</span>
+                    <Switch 
+                      checked={autoScrollEnabled}
+                      onCheckedChange={setAutoScrollEnabled}
+                      className="data-[state=checked]:bg-pink-600"
+                    />
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-mono text-slate-400">Scroll Speed</span>
+                    <span className="text-lg font-black text-pink-400 font-mono">{scrollSpeed.toFixed(2)}x</span>
+                  </div>
+                  <Slider
+                    value={[scrollSpeed]}
+                    onValueChange={([v]) => setScrollSpeed(v)}
+                    min={0.5}
+                    max={2.0}
+                    step={0.05}
+                    className="w-full"
+                  />
                 </div>
-                <Slider
-                  value={[scrollSpeed]}
-                  onValueChange={([v]) => setScrollSpeed(v)}
-                  min={0.5}
-                  max={2.0}
-                  step={0.05}
-                  className="w-full"
-                />
               </div>
-            </div>
+            </>
           )}
 
-          {/* Other sidebar sections unchanged */}
           <div className="space-y-5">
             <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 flex items-center gap-2 font-mono">
               <Settings2 className="w-4 h-4" /> Harmonic Processor
@@ -409,52 +437,33 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
         </aside>
       </div>
 
-      {/* Compact Floating Playback Bar – No Longer Giant */}
-      <div className="absolute bottom-0 left-0 right-0 px-8 pb-8 pointer-events-none">
-        <div className="max-w-6xl mx-auto pointer-events-auto">
-          <div className="bg-slate-900/90 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-8 text-sm font-mono text-slate-400">
-                <span className="text-indigo-400 font-bold">{formatTime(currentTime)}</span>
-                <span className="text-emerald-400 flex items-center gap-2 text-xs">
-                  <Activity className="w-3 h-3 animate-pulse" /> ENGAGED
-                </span>
-              </div>
-              <div className="flex items-center gap-8 text-sm font-mono text-slate-400">
-                <span>{Math.round(progress)}%</span>
-                <span>{formatTime(duration)}</span>
-              </div>
-            </div>
-
-            <Progress value={progress} className="h-2 mb-6 bg-white/10" />
-
-            <div className="flex items-center justify-center gap-10">
-              <Button variant="ghost" size="icon" onClick={onPrevious} className="h-14 w-14 rounded-full hover:bg-white/10">
-                <SkipBack className="w-8 h-8" />
-              </Button>
-
-              <Button 
-                onClick={onTogglePlayback}
-                className="h-20 w-20 rounded-full bg-gradient-to-br from-indigo-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 shadow-xl transition-all hover:scale-110 active:scale-95"
-              >
-                {isPlaying ? <Pause className="w-10 h-10" /> : <Play className="w-10 h-10 ml-1" />}
-              </Button>
-
-              <Button variant="ghost" size="icon" onClick={onNext} className="h-14 w-14 rounded-full hover:bg-white/10">
-                <SkipForward className="w-8 h-8" />
-              </Button>
-            </div>
-          </div>
+      {/* Playback Bar – Positioned at Bottom with No Overlap */}
+      <div className="border-t border-white/10 bg-slate-900/90 backdrop-blur-xl p-4 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-6 text-sm font-mono text-slate-400">
+          <span className="text-indigo-400 font-bold">{formatTime(currentTime)}</span>
+          <Progress value={progress} className="w-48 h-1.5 bg-white/10" />
+          <span>{formatTime(duration)}</span>
+          <span>{Math.round(progress)}%</span>
         </div>
-      </div>
-
-      {/* Minimal Footer */}
-      <div className="h-12 border-t border-white/10 px-10 flex items-center justify-between text-[9px] font-black uppercase tracking-[0.3em] text-slate-600 bg-slate-900/40 font-mono">
-        <div className="flex gap-8">
-          <span>{viewMode.toUpperCase()} MODE</span>
-          <span className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-green-500" />SYNC</span>
+        <div className="flex items-center gap-6">
+          <Button variant="ghost" size="icon" onClick={onPrevious} className="h-10 w-10 rounded-full hover:bg-white/10">
+            <SkipBack className="w-6 h-6" />
+          </Button>
+          <Button 
+            onClick={onTogglePlayback}
+            className="h-14 w-14 rounded-full bg-gradient-to-br from-indigo-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 shadow-md transition-all hover:scale-105 active:scale-95"
+          >
+            {isPlaying ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8 ml-1" />}
+          </Button>
+          <Button variant="ghost" size="icon" onClick={onNext} className="h-10 w-10 rounded-full hover:bg-white/10">
+            <SkipForward className="w-6 h-6" />
+          </Button>
         </div>
-        <span className="text-indigo-400">GIG STUDIO PRO v2.9</span>
+        <div className="flex items-center gap-6 text-[10px] font-black uppercase tracking-widest text-slate-500">
+          <span>{viewMode.toUpperCase()}</span>
+          <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-green-500" />SYNCED</span>
+          <span className="text-indigo-400">GIG STUDIO PRO v3.0</span>
+        </div>
       </div>
     </div>
   );
