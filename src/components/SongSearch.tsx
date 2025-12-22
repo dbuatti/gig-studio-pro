@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Music, Loader2, Youtube, ExternalLink, Link as LinkIcon, Check, PlayCircle } from 'lucide-react';
+import { Search, Music, Loader2, Youtube, ExternalLink, Link as LinkIcon, Check, PlayCircle, AlertCircle } from 'lucide-react';
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
@@ -21,6 +21,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong }) => {
   
   const [ytSearchLoading, setYtSearchLoading] = useState(false);
   const [ytResults, setYtResults] = useState<any[]>([]);
+  const [ytError, setYtError] = useState(false);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,18 +43,38 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong }) => {
   const fetchYoutubeResults = async (track: string, artist: string) => {
     setYtSearchLoading(true);
     setYtResults([]);
-    try {
-      // Using a public Invidious instance API for unauthenticated YT search
-      const searchQuery = encodeURIComponent(`${artist} ${track} official music video`);
-      const response = await fetch(`https://vid.puffyan.us/api/v1/search?q=${searchQuery}`);
-      const data = await response.json();
-      // Filter for video types only
-      setYtResults(data.filter((item: any) => item.type === "video").slice(0, 3));
-    } catch (err) {
-      console.error("YT Search failed", err);
-    } finally {
-      setYtSearchLoading(false);
+    setYtError(false);
+    
+    // We try a more reliable public Invidious instance
+    const instances = [
+      'https://yewtu.be',
+      'https://invidious.flokinet.to',
+      'https://iv.ggtyler.dev'
+    ];
+
+    let success = false;
+    for (const instance of instances) {
+      if (success) break;
+      try {
+        const searchQuery = encodeURIComponent(`${artist} ${track} official music video`);
+        const response = await fetch(`${instance}/api/v1/search?q=${searchQuery}`);
+        
+        if (!response.ok) continue;
+        
+        const data = await response.json();
+        const videos = data.filter((item: any) => item.type === "video").slice(0, 3);
+        
+        if (videos.length > 0) {
+          setYtResults(videos);
+          success = true;
+        }
+      } catch (err) {
+        console.warn(`Instance ${instance} failed, trying next...`);
+      }
     }
+
+    if (!success) setYtError(true);
+    setYtSearchLoading(false);
   };
 
   const toggleExpand = (song: any) => {
@@ -155,7 +176,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong }) => {
                                 className="flex items-center gap-3 p-1.5 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg text-left transition-all border border-transparent hover:border-red-100 group/item"
                               >
                                 <div className="relative w-20 aspect-video rounded overflow-hidden shadow-sm">
-                                  <img src={yt.videoThumbnails[0].url} className="w-full h-full object-cover" />
+                                  <img src={yt.videoThumbnails?.[0]?.url || yt.videoThumbnails?.[1]?.url} className="w-full h-full object-cover" />
                                   <div className="absolute inset-0 bg-black/20 group-hover/item:bg-black/0 transition-colors flex items-center justify-center">
                                     <PlayCircle className="w-5 h-5 text-white opacity-0 group-hover/item:opacity-100 transition-opacity" />
                                   </div>
@@ -167,8 +188,16 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong }) => {
                                 <Check className="w-3 h-3 text-red-500 opacity-0 group-hover/item:opacity-100" />
                               </button>
                             ))}
-                            {!ytSearchLoading && ytResults.length === 0 && (
-                              <p className="text-[10px] text-center py-2 text-muted-foreground italic">No visual matches found.</p>
+                            
+                            {!ytSearchLoading && ytError && (
+                              <div className="flex items-center justify-center gap-2 py-4 text-red-500">
+                                <AlertCircle className="w-4 h-4" />
+                                <p className="text-[10px] font-bold uppercase tracking-wider">Search Provider Timeout</p>
+                              </div>
+                            )}
+
+                            {!ytSearchLoading && !ytError && ytResults.length === 0 && (
+                              <p className="text-[10px] text-center py-2 text-muted-foreground italic">No matching videos found.</p>
                             )}
                           </div>
                         </div>
