@@ -6,7 +6,7 @@ import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Play, Pause, RotateCcw, Upload, Volume2, Waves, Settings2, Activity, Link as LinkIcon, Globe, Search, Youtube, PlusCircle, Library, Sparkles, Check, FileText, ExternalLink, Subtitles, X } from 'lucide-react';
+import { Play, Pause, RotateCcw, Upload, Volume2, Waves, Settings2, Activity, Link as LinkIcon, Globe, Search, Youtube, PlusCircle, Library, Sparkles, Check, FileText, ExternalLink, Subtitles, X, ChevronUp, ChevronDown } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import AudioVisualizer from './AudioVisualizer';
 import SongSearch from './SongSearch';
@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SetlistSong } from './SetlistManager';
 import { transposeKey } from '@/utils/keyUtils';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 export interface AudioTransposerRef {
   loadFromUrl: (url: string, name: string, artist: string, youtubeUrl?: string, originalKey?: string, ugUrl?: string) => Promise<void>;
@@ -186,6 +187,29 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
     if (currentSong && suggestedKey && onUpdateSongKey) {
       onUpdateSongKey(currentSong.id, suggestedKey);
       showSuccess(`Applied ${suggestedKey}`);
+    }
+  };
+
+  const handleOctaveShift = (direction: 'up' | 'down') => {
+    const shift = direction === 'up' ? 12 : -12;
+    const newPitch = pitch + shift;
+    
+    if (newPitch > 24 || newPitch < -24) {
+      showError("Range limit reached.");
+      return;
+    }
+
+    setPitch(newPitch);
+    if (playerRef.current) {
+      playerRef.current.detune = (newPitch * 100) + fineTune;
+    }
+    
+    if (currentSong && onUpdateSongKey) {
+      const activeKey = file?.originalKey || currentSong?.originalKey;
+      if (activeKey && activeKey !== "TBC") {
+        const newTarget = transposeKey(activeKey, newPitch);
+        onUpdateSongKey(currentSong.id, newTarget);
+      }
     }
   };
 
@@ -419,14 +443,42 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
                   <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
                     <Settings2 className="w-3 h-3 text-indigo-500" /> Key Transposer
                   </Label>
-                  <span className="text-sm font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
-                    {pitch > 0 ? `+${pitch}` : pitch} ST
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
+                      {pitch > 0 ? `+${pitch}` : pitch} ST
+                    </span>
+                    <div className="flex bg-slate-200/50 dark:bg-slate-800/50 rounded-lg border p-0.5 shadow-inner">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button 
+                              onClick={() => handleOctaveShift('down')}
+                              className="p-1 hover:bg-white dark:hover:bg-slate-700 rounded text-slate-500 hover:text-indigo-600 transition-colors border-r"
+                            >
+                              <ChevronDown className="w-3 h-3" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent className="text-[9px] font-black uppercase">-12 ST</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button 
+                              onClick={() => handleOctaveShift('up')}
+                              className="p-1 hover:bg-white dark:hover:bg-slate-700 rounded text-slate-500 hover:text-indigo-600 transition-colors"
+                            >
+                              <ChevronUp className="w-3 h-3" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent className="text-[9px] font-black uppercase">+12 ST</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  </div>
                 </div>
                 
                 <div className="flex gap-4 items-center">
                   <div className="flex-1">
-                    <Slider value={[pitch]} min={-12} max={12} step={1} onValueChange={(v) => {
+                    <Slider value={[pitch]} min={-24} max={24} step={1} onValueChange={(v) => {
                       setPitch(v[0]);
                       if (playerRef.current) playerRef.current.detune = (v[0] * 100) + fineTune;
                     }} />

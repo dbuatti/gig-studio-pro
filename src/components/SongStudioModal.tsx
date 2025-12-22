@@ -19,7 +19,8 @@ import {
   FileDown, Headphones, Wand2, Download,
   Globe, Eye, Link as LinkIcon, RotateCcw,
   Zap, Disc, VolumeX, Smartphone, Printer, Search,
-  ClipboardPaste, AlignLeft, Apple, Hash, Music2
+  ClipboardPaste, AlignLeft, Apple, Hash, Music2,
+  ChevronUp, ChevronDown
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import AudioVisualizer from './AudioVisualizer';
@@ -383,6 +384,25 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       onSave(song.id, next);
       return next;
     });
+  };
+
+  const handleOctaveShift = (direction: 'up' | 'down') => {
+    const currentPitch = formData.pitch || 0;
+    const shift = direction === 'up' ? 12 : -12;
+    const newPitch = currentPitch + shift;
+    
+    // Safety: Most engines break beyond 2 octaves, let's cap at +/- 24
+    if (newPitch > 24 || newPitch < -24) {
+      showError("Maximum transposition range reached.");
+      return;
+    }
+
+    setFormData(prev => ({ ...prev, pitch: newPitch }));
+    if (playerRef.current) {
+      playerRef.current.detune = (newPitch * 100) + fineTune;
+    }
+    if (song) onSave(song.id, { pitch: newPitch });
+    showSuccess(`Octave Shift Applied: ${newPitch > 0 ? '+' : ''}${newPitch} ST`);
   };
 
   const handleProSync = async () => {
@@ -842,12 +862,40 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       <div className="space-y-6">
                         <div className="flex justify-between items-center">
                           <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Pitch Processor</Label>
-                          <span className="text-lg font-mono font-black text-indigo-400">{(formData.pitch || 0) > 0 ? '+' : ''}{formData.pitch || 0} ST</span>
+                          <div className="flex items-center gap-3">
+                            <span className="text-lg font-mono font-black text-indigo-400">{(formData.pitch || 0) > 0 ? '+' : ''}{formData.pitch || 0} ST</span>
+                            <div className="flex bg-white/5 rounded-lg border border-white/10 p-0.5">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button 
+                                      onClick={() => handleOctaveShift('down')}
+                                      className="p-1 hover:bg-white/10 rounded text-slate-400 hover:text-white transition-colors border-r border-white/5"
+                                    >
+                                      <ChevronDown className="w-3.5 h-3.5" />
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="text-[9px] font-black uppercase">-12 ST (Inv)</TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button 
+                                      onClick={() => handleOctaveShift('up')}
+                                      className="p-1 hover:bg-white/10 rounded text-slate-400 hover:text-white transition-colors"
+                                    >
+                                      <ChevronUp className="w-3.5 h-3.5" />
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="text-[9px] font-black uppercase">+12 ST (Inv)</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </div>
+                          </div>
                         </div>
                         <Slider 
                           value={[formData.pitch || 0]} 
-                          min={-12} 
-                          max={12} 
+                          min={-24} 
+                          max={24} 
                           step={1} 
                           onValueChange={(v) => {
                             const newPitch = v[0];
