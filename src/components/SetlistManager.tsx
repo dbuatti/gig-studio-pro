@@ -28,6 +28,7 @@ export interface SetlistSong {
   isMetadataConfirmed?: boolean;
   notes?: string;
   resources?: string[];
+  user_tags?: string[]; // Added to fix compile-time errors
 }
 
 interface SetlistManagerProps {
@@ -184,7 +185,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                     onClick={() => setStudioSong(song)}
                     className={cn(
                       "transition-all group relative cursor-pointer",
-                      isSelected ? "bg-indigo-50/50 dark:bg-indigo-900/10" : "hover:bg-slate-50/30 dark:hover:bg-slate-900/50",
+                      isSelected ? "bg-indigo-50/50 dark:bg-indigo-900/10" : "hover:bg-slate-50/30 dark:hover:bg-slate-800/50",
                       song.isPlayed && "opacity-40 grayscale-[0.5]"
                     )}
                   >

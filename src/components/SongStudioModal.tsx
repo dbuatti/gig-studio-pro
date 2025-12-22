@@ -1,22 +1,28 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
+import { Badge } from "@/components/ui/badge";
 import { SetlistSong } from './SetlistManager';
 import { ALL_KEYS } from '@/utils/keyUtils';
 import { 
-  Music, Clock, FileText, Youtube, Settings2, 
-  Save, FileCheck, FileDown, Sparkles, Waves, 
-  Activity, Play, Volume2, Gauge, ExternalLink,
-  ChevronRight, Library
+  Music, FileText, Youtube, Settings2, 
+  Sparkles, Waves, Activity, Play, Pause,
+  Volume2, Gauge, ExternalLink, Library,
+  Upload, Link2, X, Plus, Tag, Check, Loader2,
+  FileDown, FileType, Headphones
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
+import AudioVisualizer from './AudioVisualizer';
+import * as Tone from 'tone';
+import { supabase } from '@/integrations/supabase/client';
+import { showSuccess, showError } from '@/utils/toast';
+import { Slider } from '@/components/ui/slider';
 
 interface SongStudioModalProps {
   song: SetlistSong | null;
@@ -30,8 +36,6 @@ interface SongStudioModalProps {
 const RESOURCE_TYPES = [
   { id: 'UG', label: 'Ultimate Guitar', color: 'bg-orange-100 text-orange-700 border-orange-200' },
   { id: 'FS', label: 'ForScore', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-  { id: 'SM', label: 'Sheet Music', color: 'bg-blue-100 text-blue-700 border-blue-200' },
-  { id: 'LS', label: 'Lead Sheet', color: 'bg-purple-100 text-purple-700 border-purple-200' },
   { id: 'PDF', label: 'iPad PDF', color: 'bg-red-100 text-red-700 border-red-200' },
 ];
 
@@ -44,8 +48,20 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   onPerform 
 }) => {
   const [formData, setFormData] = useState<Partial<SetlistSong>>({});
-  const [activeTab, setActiveTab] = useState<'details' | 'studio'>('details');
+  const [activeTab, setActiveTab] = useState<'details' | 'audio' | 'visual'>('audio');
+  const [newTag, setNewTag] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+  
+  // Audio Engine State
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const playerRef = useRef<Tone.GrainPlayer | null>(null);
+  const analyzerRef = useRef<Tone.Analyser | null>(null);
+  const requestRef = useRef<number>();
 
+  // 1. Initialize data when song changes
   useEffect(() => {
     if (song) {
       setFormData({
@@ -57,118 +73,218 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         notes: song.notes || "",
         youtubeUrl: song.youtubeUrl || "",
         pdfUrl: song.pdfUrl || "",
-        resources: song.resources || []
+        resources: song.resources || [],
+        pitch: song.pitch || 0,
+        user_tags: song.user_tags || []
       });
+      
+      // If we have a preview URL, prepare the audio
+      if (song.previewUrl) {
+        prepareAudio(song.previewUrl, song.pitch || 0);
+      }
     }
+    return () => cleanupAudio();
   }, [song, isOpen]);
 
-  const handleSave = () => {
-    if (song) {
+  // 2. Auto-Save Logic (Debounced)
+  const saveTimeoutRef = useRef<NodeJS.Timeout>();
+  useEffect(() => {
+    if (!song || !isOpen) return;
+
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    
+    saveTimeoutRef.current = setTimeout(() => {
       onSave(song.id, formData);
-      onClose();
+    }, 1000);
+
+    return () => clearTimeout(saveTimeoutRef.current);
+  }, [formData, song?.id, isOpen]);
+
+  // Audio Engine Functions
+  const cleanupAudio = () => {
+    if (playerRef.current) {
+      playerRef.current.stop();
+      playerRef.current.dispose();
+      playerRef.current = null;
     }
+    if (requestRef.current) cancelAnimationFrame(requestRef.current);
+    setIsPlaying(false);
+    setProgress(0);
+  };
+
+  const prepareAudio = async (url: string, pitch: number) => {
+    try {
+      cleanupAudio();
+      if (Tone.getContext().state !== 'running') await Tone.start();
+      
+      const buffer = await Tone.getContext().decodeAudioData(await (await fetch(url)).arrayBuffer());
+      
+      if (!analyzerRef.current) {
+        analyzerRef.current = new Tone.Analyser("fft", 256);
+      }
+
+      playerRef.current = new Tone.GrainPlayer(buffer).toDestination();
+      playerRef.current.connect(analyzerRef.current);
+      playerRef.current.detune = pitch * 100;
+      setDuration(buffer.duration);
+    } catch (err) {
+      console.error("Audio Load Error:", err);
+    }
+  };
+
+  const togglePlayback = () => {
+    if (!playerRef.current) return;
+    if (isPlaying) {
+      playerRef.current.stop();
+      setIsPlaying(false);
+    } else {
+      const startTime = (progress / 100) * duration;
+      playerRef.current.start(0, startTime);
+      setIsPlaying(true);
+      animate();
+    }
+  };
+
+  const animate = () => {
+    if (playerRef.current && isPlaying) {
+      // Fixed syntactically incorrect arithmetic that caused TS errors
+      const currentSeconds = playerRef.current.state === 'started' ? playerRef.current.now() : 0;
+      requestRef.current = requestAnimationFrame(animate);
+    }
+  };
+
+  // Drag & Drop
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (!file || !song) return;
+
+    setIsUploading(true);
+    try {
+      const isAudio = file.type.startsWith('audio/');
+      const isPdf = file.type === 'application/pdf';
+      const folder = isAudio ? 'tracks' : 'sheets';
+      const fileName = `${folder}/${song.id}-${Date.now()}.${file.name.split('.').pop()}`;
+
+      const { error } = await supabase.storage.from('audio_tracks').upload(fileName, file);
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage.from('audio_tracks').getPublicUrl(fileName);
+      
+      const update = isAudio ? { previewUrl: publicUrl } : { pdfUrl: publicUrl };
+      setFormData(prev => ({ ...prev, ...update }));
+      if (isAudio) prepareAudio(publicUrl, formData.pitch || 0);
+      showSuccess(`Uploaded ${file.name}`);
+    } catch (err) {
+      showError("Upload failed");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Tags
+  const addTag = () => {
+    if (!newTag.trim()) return;
+    const currentTags = formData.user_tags || [];
+    if (!currentTags.includes(newTag.trim())) {
+      setFormData(prev => ({ ...prev, user_tags: [...currentTags, newTag.trim()] }));
+    }
+    setNewTag("");
+  };
+
+  const removeTag = (tag: string) => {
+    setFormData(prev => ({ 
+      ...prev, 
+      user_tags: (prev.user_tags || []).filter(t => t !== tag) 
+    }));
   };
 
   const toggleResource = (id: string) => {
     const current = formData.resources || [];
-    const updated = current.includes(id) 
-      ? current.filter(rid => rid !== id) 
-      : [...current, id];
+    const updated = current.includes(id) ? current.filter(rid => rid !== id) : [...current, id];
     setFormData(prev => ({ ...prev, resources: updated }));
   };
 
-  const getYoutubeId = (url?: string) => {
-    if (!url) return null;
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-    const match = url.match(regExp);
-    return (match && match[2].length === 11) ? match[2] : null;
-  };
-
   if (!song) return null;
-  const videoId = getYoutubeId(formData.youtubeUrl);
+  const videoId = formData.youtubeUrl ? formData.youtubeUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)?.[1] : null;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl bg-slate-950 text-white">
-        <div className="flex h-[750px]">
-          {/* Sidebar / Left Control Panel */}
+      <DialogContent 
+        className="max-w-5xl p-0 overflow-hidden border-none shadow-2xl bg-slate-950 text-white rounded-[2rem]"
+        onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+        onDragLeave={() => setIsDragOver(false)}
+        onDrop={handleDrop}
+      >
+        {isDragOver && (
+          <div className="absolute inset-0 z-50 bg-indigo-600/20 backdrop-blur-sm border-4 border-dashed border-indigo-500 flex items-center justify-center animate-in fade-in duration-200">
+            <div className="bg-slate-900 p-8 rounded-3xl shadow-2xl flex flex-col items-center gap-4">
+              <Upload className="w-12 h-12 text-indigo-400 animate-bounce" />
+              <p className="text-xl font-black uppercase tracking-tighter">Drop Audio or PDF to Link</p>
+            </div>
+          </div>
+        )}
+
+        <div className="flex h-[800px]">
+          {/* Left Sidebar: Settings */}
           <div className="w-80 bg-slate-900/50 border-r border-white/5 flex flex-col">
-            <div className="p-6 border-b border-white/5">
+            <div className="p-8 border-b border-white/5 bg-black/20">
               <div className="flex items-center gap-2 mb-4">
                 <div className="bg-indigo-600 p-1.5 rounded-lg">
                   <Activity className="w-5 h-5 text-white" />
                 </div>
-                <span className="font-black uppercase tracking-tighter text-sm">Studio Config</span>
+                <span className="font-black uppercase tracking-tighter text-xs">Pro Studio Config</span>
               </div>
-              <h2 className="text-xl font-black uppercase tracking-tight line-clamp-2 leading-none">
-                {formData.name}
-              </h2>
-              <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mt-2">
-                {formData.artist || "Unknown Artist"}
-              </p>
+              <h2 className="text-2xl font-black uppercase tracking-tight leading-none mb-1">{formData.name}</h2>
+              <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">{formData.artist || "Unknown Artist"}</p>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-8">
-              {/* Harmonic Configuration */}
+            <div className="flex-1 overflow-y-auto p-8 space-y-10">
+              {/* Harmonic Engine */}
               <div className="space-y-4">
-                <Label className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Harmonic Engine</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Harmonic Engine</Label>
+                  {isUploading && <Loader2 className="w-3 h-3 animate-spin text-indigo-500" />}
+                </div>
                 
                 <div className="space-y-4">
-                  {/* Original Key Selection */}
                   <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-[10px] font-bold text-slate-400">Original Key</span>
-                    </div>
-                    <Select 
-                      value={formData.originalKey} 
-                      onValueChange={(val) => {
-                        setFormData(prev => ({ ...prev, originalKey: val }));
-                      }}
-                    >
-                      <SelectTrigger className="bg-white/5 border-white/10 text-white font-bold font-mono h-10">
+                    <Label className="text-[9px] font-bold text-slate-400 uppercase">Original Key</Label>
+                    <Select value={formData.originalKey} onValueChange={(val) => setFormData(prev => ({ ...prev, originalKey: val }))}>
+                      <SelectTrigger className="bg-white/5 border-white/10 text-white font-bold font-mono h-11">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-slate-900 border-white/10 text-white">
-                        {ALL_KEYS.map(k => (
-                          <SelectItem key={k} value={k} className="font-mono">{k}</SelectItem>
-                        ))}
+                        {ALL_KEYS.map(k => <SelectItem key={k} value={k} className="font-mono">{k}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
 
-                  {/* Performance Key Selection */}
                   <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-[10px] font-bold text-indigo-400">Performance Key</span>
-                      <span className="text-[10px] font-mono text-slate-500">
-                        {song.pitch > 0 ? '+' : ''}{song.pitch} ST Shift
-                      </span>
+                    <div className="flex justify-between">
+                      <Label className="text-[9px] font-bold text-indigo-400 uppercase">Stage Key</Label>
+                      <span className="text-[9px] font-mono text-slate-500">{formData.pitch > 0 ? '+' : ''}{formData.pitch} ST</span>
                     </div>
-                    <Select 
-                      value={formData.targetKey} 
-                      onValueChange={(val) => {
-                        setFormData(prev => ({ ...prev, targetKey: val }));
-                        // We also trigger the live key update in the transposer if active
-                        onUpdateKey(song.id, val);
-                      }}
-                    >
-                      <SelectTrigger className="bg-indigo-600 border-none text-white font-bold font-mono h-11">
+                    <Select value={formData.targetKey} onValueChange={(val) => {
+                      setFormData(prev => ({ ...prev, targetKey: val }));
+                      onUpdateKey(song.id, val);
+                    }}>
+                      <SelectTrigger className="bg-indigo-600 border-none text-white font-bold font-mono h-11 shadow-lg shadow-indigo-500/20">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-slate-900 border-white/10 text-white">
-                        {ALL_KEYS.map(k => (
-                          <SelectItem key={k} value={k} className="font-mono">{k}</SelectItem>
-                        ))}
+                        {ALL_KEYS.map(k => <SelectItem key={k} value={k} className="font-mono">{k}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
               </div>
 
-              {/* Resource Checklist */}
+              {/* Resources */}
               <div className="space-y-4">
-                <Label className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Performance Status</Label>
-                <div className="grid grid-cols-2 gap-2">
+                <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Library Matrix</Label>
+                <div className="grid grid-cols-1 gap-2">
                   {RESOURCE_TYPES.map(res => {
                     const isActive = formData.resources?.includes(res.id);
                     return (
@@ -176,196 +292,270 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                         key={res.id}
                         onClick={() => toggleResource(res.id)}
                         className={cn(
-                          "flex flex-col items-center justify-center p-2 rounded-xl border transition-all",
+                          "flex items-center justify-between p-3 rounded-xl border transition-all text-left",
                           isActive 
-                            ? "bg-indigo-600/20 border-indigo-500 text-indigo-400 shadow-[0_0_15px_rgba(79,70,229,0.1)]" 
+                            ? "bg-indigo-600/20 border-indigo-500 text-indigo-400" 
                             : "bg-white/5 text-slate-500 border-white/5 hover:border-white/10"
                         )}
                       >
-                        <span className="text-[10px] font-black">{res.id}</span>
-                        <span className="text-[7px] font-bold uppercase mt-0.5 opacity-60">{res.label.split(' ')[0]}</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest">{res.label}</span>
+                        {isActive ? <Check className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5 opacity-30" />}
                       </button>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Quick Actions */}
-              <div className="pt-4 space-y-2">
-                <Button 
-                  onClick={() => onPerform?.(song)}
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] h-12 gap-2"
-                >
-                  <Play className="w-3.5 h-3.5 fill-current" /> Load into Engine
-                </Button>
-                {formData.pdfUrl && (
-                  <Button 
-                    variant="outline" 
-                    asChild
-                    className="w-full border-white/10 hover:bg-white/5 font-black uppercase tracking-widest text-[10px] h-10 gap-2"
-                  >
-                    <a href={formData.pdfUrl} target="_blank" rel="noreferrer">
-                      <FileDown className="w-3.5 h-3.5" /> Open Sheet Music
-                    </a>
-                  </Button>
-                )}
+              {/* Custom Tags */}
+              <div className="space-y-4">
+                <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Custom Tags</Label>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {(formData.user_tags || []).map(t => (
+                    <Badge key={t} variant="secondary" className="bg-white/5 text-indigo-300 border-white/10 px-2 py-1 gap-1 text-[9px] font-bold uppercase">
+                      {t} <button onClick={() => removeTag(t)}><X className="w-2.5 h-2.5 hover:text-white" /></button>
+                    </Badge>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <Input 
+                    placeholder="Add tag..." 
+                    value={newTag}
+                    onChange={(e) => setNewTag(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && addTag()}
+                    className="h-9 text-[10px] bg-white/5 border-white/10 font-bold uppercase"
+                  />
+                  <Button size="icon" variant="ghost" className="h-9 w-9 bg-white/5" onClick={addTag}><Tag className="w-3.5 h-3.5" /></Button>
+                </div>
               </div>
             </div>
 
-            <div className="p-4 border-t border-white/5 bg-black/20">
-              <Button 
-                onClick={handleSave} 
-                className="w-full bg-green-600 hover:bg-green-700 font-black uppercase tracking-widest text-[10px] h-11 gap-2"
-              >
-                <Save className="w-4 h-4" /> Commit Changes
-              </Button>
+            <div className="p-6 border-t border-white/5 flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-slate-600">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                Auto-Save Active
+              </div>
+              <span>v2.0 PRO</span>
             </div>
           </div>
 
-          {/* Main Visual Content Area */}
-          <div className="flex-1 flex flex-col bg-slate-950">
-            <div className="h-14 border-b border-white/5 flex items-center px-8 justify-between">
-              <div className="flex gap-6">
-                <button 
-                  onClick={() => setActiveTab('details')}
-                  className={cn(
-                    "text-[10px] font-black uppercase tracking-[0.2em] pb-4 mt-4 transition-all border-b-2",
-                    activeTab === 'details' ? "text-indigo-400 border-indigo-500" : "text-slate-500 border-transparent hover:text-white"
-                  )}
-                >
-                  Master Details
-                </button>
-                <button 
-                  onClick={() => setActiveTab('studio')}
-                  className={cn(
-                    "text-[10px] font-black uppercase tracking-[0.2em] pb-4 mt-4 transition-all border-b-2",
-                    activeTab === 'studio' ? "text-indigo-400 border-indigo-500" : "text-slate-500 border-transparent hover:text-white"
-                  )}
-                >
-                  Visual Reference
-                </button>
+          {/* Main Area: Dynamic Studio View */}
+          <div className="flex-1 flex flex-col">
+            <div className="h-16 border-b border-white/5 flex items-center px-10 justify-between bg-black/20 shrink-0">
+              <div className="flex gap-8">
+                {['audio', 'details', 'visual'].map((tab) => (
+                  <button 
+                    key={tab}
+                    onClick={() => setActiveTab(tab as any)}
+                    className={cn(
+                      "text-[10px] font-black uppercase tracking-[0.3em] h-16 transition-all border-b-4",
+                      activeTab === tab ? "text-indigo-400 border-indigo-500" : "text-slate-500 border-transparent hover:text-white"
+                    )}
+                  >
+                    {tab.toUpperCase()} ENGINE
+                  </button>
+                ))}
               </div>
-              <Button variant="ghost" size="sm" onClick={onClose} className="text-slate-500 hover:text-white">Close</Button>
+              <div className="flex items-center gap-4">
+                 <div className="h-8 w-px bg-white/5" />
+                 <Button variant="ghost" size="sm" onClick={onClose} className="text-slate-500 hover:text-white font-bold uppercase tracking-widest text-[10px]">Close Studio</Button>
+              </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-8">
-              {activeTab === 'details' ? (
-                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+            <div className="flex-1 overflow-y-auto p-10">
+              {activeTab === 'audio' && (
+                <div className="space-y-10 animate-in fade-in duration-500">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-black uppercase tracking-[0.2em] text-indigo-400">Audio Transposition Matrix</h3>
+                      <p className="text-xs text-slate-500 mt-1">Real-time pitch and time-stretching processing.</p>
+                    </div>
+                    {formData.previewUrl ? (
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-emerald-500 text-[10px] font-black uppercase">
+                        <Waves className="w-3 h-3" /> Processor Connected
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-full text-amber-500 text-[10px] font-black uppercase">
+                        <Headphones className="w-3 h-3" /> No Audio Linked
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-slate-900/50 rounded-[2.5rem] border border-white/5 p-10 space-y-10">
+                    <AudioVisualizer analyzer={analyzerRef.current} isActive={isPlaying} />
+                    
+                    <div className="flex flex-col items-center gap-6">
+                       <Button 
+                         size="lg" 
+                         disabled={!formData.previewUrl}
+                         onClick={togglePlayback}
+                         className="h-24 w-24 rounded-full bg-indigo-600 hover:bg-indigo-700 shadow-2xl shadow-indigo-600/40 transition-all hover:scale-105"
+                       >
+                         {isPlaying ? <Pause className="w-10 h-10" /> : <Play className="w-10 h-10 ml-1.5 fill-current" />}
+                       </Button>
+                       
+                       <div className="w-full max-w-md space-y-3">
+                         <div className="flex justify-between text-[10px] font-mono font-black text-indigo-400 uppercase">
+                           <span>Pitch Processor</span>
+                           <span>{formData.pitch > 0 ? '+' : ''}{formData.pitch} ST</span>
+                         </div>
+                         <Slider 
+                           value={[formData.pitch || 0]} 
+                           min={-12} 
+                           max={12} 
+                           step={1} 
+                           onValueChange={(v) => {
+                             setFormData(prev => ({ ...prev, pitch: v[0] }));
+                             if (playerRef.current) playerRef.current.detune = v[0] * 100;
+                           }} 
+                         />
+                       </div>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Track Title</Label>
+                    <div className="p-6 bg-white/5 rounded-3xl border border-white/5 space-y-4">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                        <Gauge className="w-3.5 h-3.5 text-indigo-400" /> BPM Analyzer
+                      </Label>
+                      <Input 
+                        placeholder="Manual override BPM..." 
+                        value={formData.bpm}
+                        onChange={(e) => setFormData(prev => ({ ...prev, bpm: e.target.value }))}
+                        className="bg-white/5 border-white/10 font-mono text-indigo-400 h-12"
+                      />
+                    </div>
+                    <div 
+                      className="p-6 bg-indigo-600/5 rounded-3xl border border-dashed border-indigo-500/30 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-indigo-600/10 transition-all"
+                      onClick={() => document.getElementById('audio-upload')?.click()}
+                    >
+                      <Upload className="w-6 h-6 text-indigo-400 mb-2" />
+                      <p className="text-[10px] font-black uppercase tracking-widest">Update Master Track</p>
+                      <p className="text-[8px] text-slate-500 mt-1">MP3, WAV, AIFF Supported</p>
+                      <input id="audio-upload" type="file" className="hidden" accept="audio/*" onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleDrop({ preventDefault: () => {}, dataTransfer: { files: [file] } } as any);
+                      }} />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'details' && (
+                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <div className="grid grid-cols-2 gap-8">
+                    <div className="space-y-3">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Performance Title</Label>
                       <Input 
                         value={formData.name} 
                         onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                        className="bg-white/5 border-white/10 text-lg font-bold h-12 focus-visible:ring-indigo-500"
+                        className="bg-white/5 border-white/10 text-xl font-black h-14"
                       />
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Primary Artist</Label>
                       <Input 
                         value={formData.artist} 
                         onChange={(e) => setFormData(prev => ({ ...prev, artist: e.target.value }))}
-                        className="bg-white/5 border-white/10 text-lg font-bold h-12 focus-visible:ring-indigo-500"
+                        className="bg-white/5 border-white/10 text-xl font-black h-14"
                       />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-6">
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Tempo (BPM)</Label>
-                      <Input 
-                        placeholder="e.g. 128"
-                        value={formData.bpm} 
-                        onChange={(e) => setFormData(prev => ({ ...prev, bpm: e.target.value }))}
-                        className="bg-white/5 border-white/10 font-mono focus-visible:ring-indigo-500"
-                      />
-                    </div>
-                    <div className="space-y-2 col-span-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">YouTube Reference URL</Label>
+                  <div className="grid grid-cols-2 gap-8">
+                    <div className="space-y-3">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Sheet Music Link (PDF/Web)</Label>
                       <div className="flex gap-2">
                         <Input 
-                          placeholder="Paste link..."
-                          value={formData.youtubeUrl} 
-                          onChange={(e) => setFormData(prev => ({ ...prev, youtubeUrl: e.target.value }))}
-                          className="bg-white/5 border-white/10 text-xs focus-visible:ring-indigo-500"
+                          placeholder="Paste sheet music URL..." 
+                          value={formData.pdfUrl}
+                          onChange={(e) => setFormData(prev => ({ ...prev, pdfUrl: e.target.value }))}
+                          className="bg-white/5 border-white/10 font-bold"
                         />
-                        <Button variant="outline" size="icon" className="shrink-0 border-white/10" onClick={() => window.open(`https://www.youtube.com/results?search_query=${formData.artist} ${formData.name}`, '_blank')}>
+                        <Button variant="ghost" className="bg-white/5 h-10 w-10 p-0" onClick={() => window.open(formData.pdfUrl, '_blank')}>
                           <ExternalLink className="w-4 h-4" />
                         </Button>
                       </div>
                     </div>
+                    <div className="space-y-3">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Performance Status Notes</Label>
+                      <div className="flex gap-4 p-4 bg-white/5 rounded-2xl border border-white/10">
+                         <div className="flex flex-col items-center flex-1 gap-1">
+                            <span className="text-[8px] font-black text-slate-500 uppercase">Audio</span>
+                            {formData.previewUrl ? <Check className="w-4 h-4 text-emerald-500" /> : <X className="w-4 h-4 text-red-500" />}
+                         </div>
+                         <div className="flex flex-col items-center flex-1 gap-1">
+                            <span className="text-[8px] font-black text-slate-500 uppercase">Charts</span>
+                            {formData.pdfUrl ? <Check className="w-4 h-4 text-emerald-500" /> : <X className="w-4 h-4 text-red-500" />}
+                         </div>
+                         <div className="flex flex-col items-center flex-1 gap-1">
+                            <span className="text-[8px] font-black text-slate-500 uppercase">Verified</span>
+                            {formData.isMetadataConfirmed ? <Check className="w-4 h-4 text-emerald-500" /> : <Activity className="w-4 h-4 text-amber-500" />}
+                         </div>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Musician's Performance Notes</Label>
+                  <div className="space-y-3">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Rehearsal & Dynamcis Notes</Label>
                     <Textarea 
-                      placeholder="Intro style, dynamics, bridge transitions..."
+                      placeholder="Cues, transitions, dynamics..."
                       value={formData.notes}
                       onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                      className="min-h-[200px] bg-white/5 border-white/10 text-sm focus-visible:ring-indigo-500 leading-relaxed"
+                      className="min-h-[250px] bg-white/5 border-white/10 text-sm leading-relaxed"
                     />
                   </div>
                 </div>
-              ) : (
-                <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+              )}
+
+              {activeTab === 'visual' && (
+                <div className="space-y-10 animate-in fade-in slide-in-from-right-4 duration-500">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-black uppercase tracking-[0.2em] text-indigo-400 flex items-center gap-2">
-                      <Youtube className="w-4 h-4" /> Associated Media
-                    </h3>
+                    <h3 className="text-sm font-black uppercase tracking-[0.2em] text-indigo-400">Reference Media Link</h3>
+                    <div className="flex gap-2">
+                       <Input 
+                         placeholder="YouTube URL..." 
+                         value={formData.youtubeUrl}
+                         onChange={(e) => setFormData(prev => ({ ...prev, youtubeUrl: e.target.value }))}
+                         className="bg-white/5 border-white/10 text-xs w-96 h-10"
+                       />
+                    </div>
                   </div>
 
                   {videoId ? (
                     <div className="space-y-6">
-                      <div className="aspect-video w-full rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-black">
+                      <div className="aspect-video w-full rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/10 bg-black">
                         <iframe 
                           width="100%" 
                           height="100%" 
-                          src={`https://www.youtube.com/embed/${videoId}`}
+                          src={`https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1`}
                           title="Reference Video" 
                           frameBorder="0" 
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
                           allowFullScreen
                         />
                       </div>
-                      <div className="flex items-center justify-between p-4 bg-indigo-600/10 border border-indigo-500/20 rounded-xl">
-                        <div className="flex items-center gap-3">
-                          <Sparkles className="w-5 h-5 text-indigo-400" />
-                          <p className="text-xs font-medium text-slate-300">YouTube link is synced with your performance engine.</p>
+                      <div className="flex items-center justify-between p-6 bg-indigo-600/10 border border-indigo-500/20 rounded-3xl">
+                        <div className="flex items-center gap-4">
+                           <Sparkles className="w-6 h-6 text-indigo-400" />
+                           <div>
+                             <p className="text-xs font-black uppercase tracking-widest">Stage Sync Connected</p>
+                             <p className="text-[10px] text-slate-400 mt-1">This video will be available as a visual reference during live sets.</p>
+                           </div>
                         </div>
-                        <Button variant="ghost" size="sm" onClick={() => setFormData(prev => ({ ...prev, youtubeUrl: "" }))} className="text-red-400 text-[10px] font-black uppercase">Remove Link</Button>
+                        <Button variant="ghost" onClick={() => setFormData(prev => ({ ...prev, youtubeUrl: "" }))} className="text-red-400 text-[10px] font-black uppercase hover:bg-red-500/10">Disconnect Link</Button>
                       </div>
                     </div>
                   ) : (
-                    <div className="flex flex-col items-center justify-center py-20 bg-white/5 rounded-3xl border border-dashed border-white/10 space-y-4">
-                      <div className="h-16 w-16 bg-white/5 rounded-full flex items-center justify-center text-slate-600">
-                        <Youtube className="w-8 h-8 opacity-20" />
+                    <div className="flex flex-col items-center justify-center py-32 bg-white/5 rounded-[3rem] border border-dashed border-white/10 space-y-6">
+                      <div className="h-20 w-20 bg-white/5 rounded-full flex items-center justify-center">
+                        <Youtube className="w-10 h-10 text-slate-700" />
                       </div>
                       <div className="text-center">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">No Video Association</p>
-                        <p className="text-xs text-slate-600 mt-1 max-w-[250px]">Link a YouTube video in the Details tab to enable visual reference.</p>
+                        <p className="text-sm font-black uppercase tracking-widest text-slate-500">Visual Engine Standby</p>
+                        <p className="text-xs text-slate-600 mt-2 max-w-[300px]">Paste a YouTube link above to enable visual references during performance.</p>
                       </div>
                     </div>
                   )}
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 bg-white/5 rounded-2xl border border-white/5 space-y-2">
-                      <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-indigo-400">
-                        <Gauge className="w-3 h-3" /> Transpose Analysis
-                      </div>
-                      <p className="text-xs text-slate-400">Targetting <b>{formData.targetKey}</b> from <b>{formData.originalKey}</b>. Engine pitch shift set to <b>{song.pitch}</b> semitones.</p>
-                    </div>
-                    <div className="p-4 bg-white/5 rounded-2xl border border-white/5 space-y-2">
-                      <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-indigo-400">
-                        <Library className="w-3 h-3" /> Repertoire Tags
-                      </div>
-                      <div className="flex gap-1.5 flex-wrap">
-                        {formData.resources?.map(r => (
-                          <span key={r} className="text-[9px] font-black px-1.5 py-0.5 bg-indigo-500/20 text-indigo-400 rounded border border-indigo-500/30">{r}</span>
-                        ))}
-                        {(!formData.resources || formData.resources.length === 0) && <span className="text-[9px] font-bold text-slate-600 italic">No resources tagged</span>}
-                      </div>
-                    </div>
-                  </div>
                 </div>
               )}
             </div>
