@@ -425,6 +425,7 @@ const Index = () => {
       }
     } else {
       setIsPerformanceMode(false);
+      setActiveSongId(null);
       showSuccess("Gig Finished!");
     }
   };
@@ -452,6 +453,13 @@ const Index = () => {
     setIsPerformanceMode(true);
     handleSelectSong(firstPlayable);
     setTimeout(() => transposerRef.current?.togglePlayback(), 1000);
+  };
+
+  const handleMainClick = (e: React.MouseEvent) => {
+    // If studio is open and the user clicks the background whitespace of the main area
+    if (isStudioOpen && (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('main-inner-container'))) {
+      setIsStudioOpen(false);
+    }
   };
 
   return (
@@ -524,8 +532,11 @@ const Index = () => {
       </nav>
 
       <div className="flex-1 flex overflow-hidden">
-        <main className="flex-1 overflow-y-auto p-8 relative scroll-smooth">
-          <div className="max-w-6xl mx-auto space-y-8">
+        <main 
+          className="flex-1 overflow-y-auto p-8 relative scroll-smooth cursor-default"
+          onClick={handleMainClick}
+        >
+          <div className="max-w-6xl mx-auto space-y-8 main-inner-container">
             <ActiveSongBanner 
               song={activeSong} 
               isPlaying={isPlayerActive}
