@@ -223,7 +223,9 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       playerRef.current.overlap = 0.1;
       
       setDuration(buffer.duration);
-      if (song && !song.duration_seconds) {
+      
+      // Force update duration if it's different (e.g., overriding a preview)
+      if (song && Math.abs((song.duration_seconds || 0) - buffer.duration) > 1) {
         handleAutoSave({ duration_seconds: buffer.duration });
       }
     } catch (err) {
