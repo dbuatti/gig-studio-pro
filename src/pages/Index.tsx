@@ -80,18 +80,19 @@ const Index = () => {
     }
   };
 
-  const handleSyncProData = async (song: SetlistSong) => {
+  // UPDATED: Now uses functional updates to prevent race conditions
+  const handleSyncProData = async (songId: string, songName: string) => {
     if (!currentListId) return;
     
-    // Update UI to show syncing state
+    // Set syncing state using functional update to ensure we don't overwrite other changes
     setSetlists(prev => prev.map(l => l.id === currentListId ? {
       ...l,
-      songs: l.songs.map(s => s.id === song.id ? { ...s, isSyncing: true } : s)
+      songs: l.songs.map(s => s.id === songId ? { ...s, isSyncing: true } : s)
     } : l));
 
     try {
       const { data, error } = await supabase.functions.invoke('enrich-metadata', {
-        body: { query: song.name }
+        body: { query: songName }
       });
       if (error) throw error;
       
@@ -104,23 +105,36 @@ const Index = () => {
         isSyncing: false
       };
 
-      const updatedSongs = songs.map(s => s.id === song.id ? { ...s, ...updates } : s);
-      setSetlists(prev => prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l));
-      saveList(currentListId, updatedSongs);
+      // Apply the AI results using functional state to be thread-safe
+      setSetlists(prev => {
+        const list = prev.find(l => l.id === currentListId);
+        if (!list) return prev;
+        
+        const newSongs = list.songs.map(s => s.id === songId ? { ...s, ...updates } : s);
+        
+        // Trigger save with the absolute latest song list
+        saveList(currentListId, newSongs);
+        
+        return prev.map(l => l.id === currentListId ? { ...l, songs: newSongs } : l);
+      });
     } catch (err) {
-      // Fail silently but clear syncing state
+      // Clear syncing state on error
       setSetlists(prev => prev.map(l => l.id === currentListId ? {
         ...l,
-        songs: l.songs.map(s => s.id === song.id ? { ...s, isSyncing: false } : s)
+        songs: l.songs.map(s => s.id === songId ? { ...s, isSyncing: false } : s)
       } : l));
     }
   };
 
   const handleUpdateSong = (songId: string, updates: Partial<SetlistSong>) => {
     if (!currentListId) return;
-    const updatedSongs = songs.map(s => s.id === songId ? { ...s, ...updates } : s);
-    setSetlists(prev => prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l));
-    saveList(currentListId, updatedSongs);
+    setSetlists(prev => {
+      const list = prev.find(l => l.id === currentListId);
+      if (!list) return prev;
+      const updatedSongs = list.songs.map(s => s.id === songId ? { ...s, ...updates } : s);
+      saveList(currentListId, updatedSongs);
+      return prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l);
+    });
   };
 
   const handleAddToSetlist = async (previewUrl: string, name: string, youtubeUrl?: string, pitch: number = 0) => {
@@ -138,32 +152,46 @@ const Index = () => {
       isSyncing: true
     };
     
-    const updatedSongs = [...songs, newSong];
-    setSetlists(prev => prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l));
+    setSetlists(prev => {
+      const list = prev.find(l => l.id === currentListId);
+      if (!list) return prev;
+      const updatedSongs = [...list.songs, newSong];
+      saveList(currentListId, updatedSongs);
+      return prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l);
+    });
     
-    // Fire and forget enrichment
-    handleSyncProData(newSong);
+    handleSyncProData(newSongId, name);
   };
 
   const handleUpdateKey = (songId: string, targetKey: string) => {
     if (!currentListId) return;
-    const updatedSongs = songs.map(s => {
-      if (s.id === songId) {
-        const pitch = calculateSemitones(s.originalKey || "C", targetKey);
-        if (activeSongId === songId && transposerRef.current) transposerRef.current.setPitch(pitch);
-        return { ...s, targetKey, pitch };
-      }
-      return s;
+    setSetlists(prev => {
+      const list = prev.find(l => l.id === currentListId);
+      if (!list) return prev;
+      
+      const updatedSongs = list.songs.map(s => {
+        if (s.id === songId) {
+          const pitch = calculateSemitones(s.originalKey || "C", targetKey);
+          if (activeSongId === songId && transposerRef.current) transposerRef.current.setPitch(pitch);
+          return { ...s, targetKey, pitch };
+        }
+        return s;
+      });
+      
+      saveList(currentListId, updatedSongs);
+      return prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l);
     });
-    setSetlists(prev => prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l));
-    saveList(currentListId, updatedSongs);
   };
 
   const handleTogglePlayed = (songId: string) => {
     if (!currentListId) return;
-    const updatedSongs = songs.map(s => s.id === songId ? { ...s, isPlayed: !s.isPlayed } : s);
-    setSetlists(prev => prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l));
-    saveList(currentListId, updatedSongs);
+    setSetlists(prev => {
+      const list = prev.find(l => l.id === currentListId);
+      if (!list) return prev;
+      const updatedSongs = list.songs.map(s => s.id === songId ? { ...s, isPlayed: !s.isPlayed } : s);
+      saveList(currentListId, updatedSongs);
+      return prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l);
+    });
   };
 
   const handleSelectSong = async (song: SetlistSong) => {
@@ -236,12 +264,20 @@ const Index = () => {
               <div className="flex gap-2">
                 <ImportSetlist onImport={(newSongs) => {
                   if (!currentListId) return;
-                  const songsToSync = newSongs.map(s => ({ ...s, isSyncing: true }));
-                  const updated = [...songs, ...songsToSync];
-                  setSetlists(prev => prev.map(l => l.id === currentListId ? { ...l, songs: updated } : l));
                   
-                  // Trigger bulk sync for new imports
-                  songsToSync.forEach(s => handleSyncProData(s));
+                  const songsWithSyncState = newSongs.map(s => ({ ...s, isSyncing: true }));
+                  
+                  // Use functional update to add songs first
+                  setSetlists(prev => {
+                    const list = prev.find(l => l.id === currentListId);
+                    if (!list) return prev;
+                    const updated = [...list.songs, ...songsWithSyncState];
+                    saveList(currentListId, updated);
+                    return prev.map(l => l.id === currentListId ? { ...l, songs: updated } : l);
+                  });
+                  
+                  // Trigger sync for each new song
+                  songsWithSyncState.forEach(s => handleSyncProData(s.id, s.name));
                 }} />
               </div>
             </div>
@@ -249,14 +285,18 @@ const Index = () => {
             <SetlistManager 
               songs={songs} 
               onRemove={(id) => {
-                const updated = songs.filter(s => s.id !== id);
-                setSetlists(prev => prev.map(l => l.id === currentListId ? { ...l, songs: updated } : l));
-                saveList(currentListId!, updated);
+                setSetlists(prev => {
+                  const list = prev.find(l => l.id === currentListId);
+                  if (!list) return prev;
+                  const updated = list.songs.filter(s => s.id !== id);
+                  saveList(currentListId!, updated);
+                  return prev.map(l => l.id === currentListId ? { ...l, songs: updated } : l);
+                });
               }}
               onSelect={handleSelectSong}
               onUpdateKey={handleUpdateKey}
               onTogglePlayed={handleTogglePlayed}
-              onSyncProData={handleSyncProData}
+              onSyncProData={(song) => handleSyncProData(song.id, song.name)}
               onLinkAudio={(name) => {
                 setIsStudioOpen(true);
                 transposerRef.current?.triggerSearch(name);
