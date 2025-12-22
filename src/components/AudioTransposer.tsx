@@ -18,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SetlistSong } from './SetlistManager';
 
 export interface AudioTransposerRef {
-  loadFromUrl: (url: string, name: string, youtubeUrl?: string) => Promise<void>;
+  loadFromUrl: (url: string, name: string, artist: string, youtubeUrl?: string) => Promise<void>;
   setPitch: (pitch: number) => void;
   getPitch: () => number;
   triggerSearch: (query: string) => void;
@@ -29,14 +29,14 @@ export interface AudioTransposerRef {
 }
 
 interface AudioTransposerProps {
-  onAddToSetlist?: (previewUrl: string, name: string, ytUrl?: string, pitch?: number) => void;
+  onAddToSetlist?: (previewUrl: string, name: string, artist: string, ytUrl?: string, pitch?: number) => void;
   onAddExistingSong?: (song: SetlistSong) => void;
   onSongEnded?: () => void;
   repertoire?: SetlistSong[];
 }
 
 const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ onAddToSetlist, onAddExistingSong, onSongEnded, repertoire = [] }, ref) => {
-  const [file, setFile] = useState<{ name: string; url?: string } | null>(null);
+  const [file, setFile] = useState<{ name: string; artist?: string; url?: string } | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [pitch, setPitch] = useState(0);
   const [fineTune, setFineTune] = useState(0);
@@ -107,7 +107,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
     return (match && match[2].length === 11) ? match[2] : null;
   };
 
-  const loadAudioBuffer = async (audioBuffer: AudioBuffer, identifier: string, youtubeUrl?: string, previewUrl?: string) => {
+  const loadAudioBuffer = async (audioBuffer: AudioBuffer, name: string, artist: string, youtubeUrl?: string, previewUrl?: string) => {
     try {
       await initEngine();
       if (playerRef.current) playerRef.current.dispose();
@@ -119,7 +119,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
       playerRef.current.playbackRate = tempo;
       playerRef.current.volume.value = volume;
 
-      setFile({ name: identifier, url: previewUrl });
+      setFile({ name, artist, url: previewUrl });
       setDuration(audioBuffer.duration);
       setProgress(0);
       offsetRef.current = 0;
@@ -139,14 +139,14 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
     }
   };
 
-  const loadFromUrl = async (targetUrl: string, name?: string, youtubeUrl?: string) => {
+  const loadFromUrl = async (targetUrl: string, name: string, artist: string, youtubeUrl?: string) => {
     setIsLoadingUrl(true);
     try {
       const response = await fetch(targetUrl);
       if (!response.ok) throw new Error("Could not fetch file");
       const arrayBuffer = await response.arrayBuffer();
       const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
-      await loadAudioBuffer(audioBuffer, name || "Remote Audio", youtubeUrl, targetUrl);
+      await loadAudioBuffer(audioBuffer, name, artist, youtubeUrl, targetUrl);
       if (!name) setUrl("");
     } catch (err) {
       showError("Failed to load audio stream.");
@@ -202,7 +202,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
     }
     const arrayBuffer = await uploadedFile.arrayBuffer();
     const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
-    loadAudioBuffer(audioBuffer, uploadedFile.name);
+    loadAudioBuffer(audioBuffer, uploadedFile.name, "Uploaded Track");
   };
 
   const stopPlayback = () => {
@@ -265,7 +265,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={() => onAddToSetlist(file.url || '', file.name, activeYoutubeUrl, pitch)}
+                onClick={() => onAddToSetlist(file.url || '', file.name, file.artist || "Unknown", activeYoutubeUrl, pitch)}
                 className="h-9 border-green-200 text-green-600 hover:bg-green-50 font-bold text-[10px] uppercase gap-2"
               >
                 <PlusCircle className="w-4 h-4" /> Save
@@ -286,8 +286,8 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
           
           <TabsContent value="search" className="space-y-4">
             <SongSearch 
-              onSelectSong={(url, name, yt) => loadFromUrl(url, name, yt)} 
-              onAddToSetlist={onAddToSetlist || (() => {})}
+              onSelectSong={(url, name, artist, yt) => loadFromUrl(url, name, artist, yt)} 
+              onAddToSetlist={(url, name, artist, yt) => onAddToSetlist?.(url, name, artist, yt)}
               externalQuery={searchQuery}
             />
           </TabsContent>
@@ -328,7 +328,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
                 />
               </div>
               <Button 
-                onClick={() => loadFromUrl(url)} 
+                onClick={() => loadFromUrl(url, "Remote Link", "Web Stream")} 
                 disabled={!url || isLoadingUrl}
                 className="bg-indigo-600 hover:bg-indigo-700 h-11 px-6 font-bold uppercase text-[10px]"
               >

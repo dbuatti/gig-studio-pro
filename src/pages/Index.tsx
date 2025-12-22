@@ -206,12 +206,13 @@ const Index = () => {
     });
   };
 
-  const handleAddToSetlist = async (previewUrl: string, name: string, youtubeUrl?: string, pitch: number = 0) => {
+  const handleAddToSetlist = async (previewUrl: string, name: string, artist: string, youtubeUrl?: string, pitch: number = 0) => {
     if (!currentListId) return;
     const newSongId = Math.random().toString(36).substr(2, 9);
     const newSong: SetlistSong = {
       id: newSongId,
       name,
+      artist,
       previewUrl,
       youtubeUrl,
       pitch,
@@ -287,7 +288,7 @@ const Index = () => {
     setActiveSongId(song.id);
     setIsStudioOpen(true);
     if (song.previewUrl && transposerRef.current) {
-      await transposerRef.current.loadFromUrl(song.previewUrl, song.name, song.youtubeUrl);
+      await transposerRef.current.loadFromUrl(song.previewUrl, song.name, song.artist || "Unknown", song.youtubeUrl);
       transposerRef.current.setPitch(song.pitch);
     }
   };

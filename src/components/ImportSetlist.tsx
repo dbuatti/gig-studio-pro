@@ -23,14 +23,19 @@ const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport }) => {
     const newSongs: SetlistSong[] = [];
     
     lines.forEach(line => {
-      // Look for standard table/list patterns
+      // Look for standard table/list patterns (e.g. | 01 | Title | Artist | Key | ...)
       if (line.includes('|') && !line.includes('---') && !line.includes('Song Title')) {
         const columns = line.split('|').map(c => c.trim()).filter(c => c !== "");
         
         if (columns.length >= 2) {
-          // Clean up bold markers (**) from Title and Key
+          // Clean up bold markers (**) and determine columns
+          // index 0: index/number
+          // index 1: title
+          // index 2: artist
+          // index 3: originalKey
           const title = columns[1].replace(/\*\*/g, '');
-          const originalKey = (columns[5] || "C").replace(/\*\*/g, '');
+          const artist = columns[2]?.replace(/\*\*/g, '') || "Unknown Artist";
+          const originalKey = (columns[3] || "C").replace(/\*\*/g, '');
           
           let youtubeUrl = undefined;
           if (includeYoutube) {
@@ -41,6 +46,7 @@ const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport }) => {
           newSongs.push({
             id: Math.random().toString(36).substr(2, 9),
             name: title,
+            artist: artist,
             previewUrl: "", 
             youtubeUrl,
             originalKey: originalKey,

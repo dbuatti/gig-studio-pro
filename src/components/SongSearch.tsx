@@ -10,8 +10,8 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { cn } from "@/lib/utils";
 
 interface SongSearchProps {
-  onSelectSong: (url: string, name: string, youtubeUrl?: string) => void;
-  onAddToSetlist: (url: string, name: string, youtubeUrl?: string) => void;
+  onSelectSong: (url: string, name: string, artist: string, youtubeUrl?: string) => void;
+  onAddToSetlist: (url: string, name: string, artist: string, youtubeUrl?: string) => void;
   externalQuery?: string;
 }
 
@@ -153,9 +153,8 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
                 {results.map((song) => (
                   <div key={song.trackId} className="flex flex-col border-b last:border-0 border-slate-100 dark:border-slate-800">
                     <div className="w-full flex items-center gap-3 p-2 hover:bg-white dark:hover:bg-indigo-950/30 rounded-lg transition-all group">
-                      {/* Clicking the main area now adds to setlist */}
                       <button
-                        onClick={() => onAddToSetlist(song.previewUrl, `${song.trackName} - ${song.artistName}`)}
+                        onClick={() => onAddToSetlist(song.previewUrl, song.trackName, song.artistName)}
                         className="flex flex-1 items-center gap-3 text-left min-w-0"
                       >
                         <img 
@@ -189,7 +188,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <button
-                              onClick={() => onSelectSong(song.previewUrl, `${song.trackName} - ${song.artistName}`)}
+                              onClick={() => onSelectSong(song.previewUrl, song.trackName, song.artistName)}
                               className="p-2 hover:bg-indigo-600 hover:text-white text-indigo-400 rounded-md transition-all"
                             >
                               <Music className="w-4 h-4" />
@@ -212,7 +211,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
                             {ytResults.map((yt) => (
                               <button
                                 key={yt.videoId}
-                                onClick={() => onSelectSong(song.previewUrl, `${song.trackName} - ${song.artistName}`, `https://youtube.com/watch?v=${yt.videoId}`)}
+                                onClick={() => onSelectSong(song.previewUrl, song.trackName, song.artistName, `https://youtube.com/watch?v=${yt.videoId}`)}
                                 className="flex items-center gap-3 p-1.5 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg text-left transition-all border border-transparent hover:border-red-100 group/item"
                               >
                                 <div className="relative w-20 aspect-video rounded overflow-hidden shadow-sm bg-slate-100">
@@ -263,7 +262,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
                                       size="sm" 
                                       className="h-9 bg-red-600 hover:bg-red-700 font-bold px-4"
                                       disabled={!manualYtUrl}
-                                      onClick={() => onSelectSong(song.previewUrl, `${song.trackName} - ${song.artistName}`, manualYtUrl)}
+                                      onClick={() => onSelectSong(song.previewUrl, song.trackName, song.artistName, manualYtUrl)}
                                     >
                                       LINK
                                     </Button>
