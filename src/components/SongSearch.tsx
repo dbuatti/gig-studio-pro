@@ -45,13 +45,12 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong }) => {
     setYtResults([]);
     setYtError(false);
     
-    // Expanded list of public instances to bypass potential CORS/downtime
+    // Using a public CORS proxy to bypass browser blocks
+    const proxyUrl = "https://api.allorigins.win/get?url=";
     const instances = [
       'https://iv.ggtyler.dev',
-      'https://invidious.flokinet.to',
-      'https://invidious.projectsegfau.lt',
       'https://yewtu.be',
-      'https://inv.vern.cc'
+      'https://invidious.flokinet.to'
     ];
 
     let success = false;
@@ -59,11 +58,12 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong }) => {
       if (success) break;
       try {
         const searchQuery = encodeURIComponent(`${artist} ${track} official music video`);
-        // We add a timeout to each fetch to keep the UI responsive
+        const targetUrl = encodeURIComponent(`${instance}/api/v1/search?q=${searchQuery}`);
+        
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000);
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-        const response = await fetch(`${instance}/api/v1/search?q=${searchQuery}`, {
+        const response = await fetch(`${proxyUrl}${targetUrl}`, {
           signal: controller.signal
         });
         
@@ -71,14 +71,16 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong }) => {
         if (!response.ok) continue;
         
         const data = await response.json();
-        const videos = data.filter((item: any) => item.type === "video").slice(0, 3);
+        // allorigins wraps the response in a 'contents' string
+        const parsedData = JSON.parse(data.contents);
+        const videos = parsedData.filter((item: any) => item.type === "video").slice(0, 3);
         
         if (videos.length > 0) {
           setYtResults(videos);
           success = true;
         }
       } catch (err) {
-        console.warn(`Instance ${instance} failed or timed out, trying next...`);
+        console.warn(`Node ${instance} failed or timed out, trying next...`);
       }
     }
 
@@ -203,15 +205,15 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong }) => {
                             {!ytSearchLoading && ytError && (
                               <div className="flex flex-col items-center justify-center gap-2 py-6 text-center">
                                 <AlertCircle className="w-6 h-6 text-red-500 mb-1" />
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-red-600">All Search Nodes Busy</p>
-                                <p className="text-[9px] text-muted-foreground max-w-[180px]">Browser security (CORS) is blocking direct visual matching. Try one more time?</p>
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-red-600">Proxy Required</p>
+                                <p className="text-[9px] text-muted-foreground max-w-[180px]">Direct search is being blocked by browser security. Click below to try via proxy.</p>
                                 <Button 
                                   variant="outline" 
                                   size="sm" 
                                   onClick={() => fetchYoutubeResults(song.trackName, song.artistName)}
                                   className="h-7 text-[9px] mt-2 gap-2 border-red-100"
                                 >
-                                  <RefreshCw className="w-3 h-3" /> Retry Visual Search
+                                  <RefreshCw className="w-3 h-3" /> Retry via Proxy
                                 </Button>
                               </div>
                             )}
