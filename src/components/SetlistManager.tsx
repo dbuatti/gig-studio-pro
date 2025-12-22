@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
-import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed, Copy, Upload, Loader2, Sparkles, FileText, ShieldCheck, Edit3, Search, FileDown, FileCheck, SortAsc, SortDesc, LayoutList } from 'lucide-react';
+import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed, Copy, Upload, Loader2, Sparkles, FileText, ShieldCheck, Edit3, Search, FileDown, FileCheck, SortAsc, SortDesc, LayoutList, Volume2 } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ALL_KEYS, calculateSemitones } from '@/utils/keyUtils';
@@ -262,34 +262,48 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       
                       <div className="flex items-center gap-1.5 ml-7 mt-2">
                         <TooltipProvider>
-                          {RESOURCE_TYPES.map(res => {
-                            const isActive = song.resources?.includes(res.id);
-                            return (
-                              <button
-                                key={res.id}
-                                onClick={() => toggleResource(song, res.id)}
-                                className={cn(
-                                  "text-[8px] font-black px-1.5 py-0.5 rounded border transition-all",
-                                  isActive ? cn(res.color, "shadow-sm opacity-100") : "bg-slate-50 text-slate-400 border-slate-100 opacity-40 hover:opacity-100"
-                                )}
-                              >
-                                {res.id}
-                              </button>
-                            );
-                          })}
-                        </TooltipProvider>
+                          <div className="flex items-center gap-1.5">
+                            {RESOURCE_TYPES.map(res => {
+                              const isActive = song.resources?.includes(res.id);
+                              return (
+                                <button
+                                  key={res.id}
+                                  onClick={() => toggleResource(song, res.id)}
+                                  className={cn(
+                                    "text-[8px] font-black px-1.5 py-0.5 rounded border transition-all",
+                                    isActive ? cn(res.color, "shadow-sm opacity-100") : "bg-slate-50 text-slate-400 border-slate-100 opacity-40 hover:opacity-100"
+                                  )}
+                                >
+                                  {res.id}
+                                </button>
+                              );
+                            })}
 
-                        {/* PDF Badge */}
-                        {song.pdfUrl && (
-                          <a 
-                            href={song.pdfUrl} 
-                            target="_blank" 
-                            rel="noreferrer"
-                            className="text-[8px] font-black px-1.5 py-0.5 rounded bg-red-100 text-red-700 border border-red-200 shadow-sm flex items-center gap-1"
-                          >
-                            <FileDown className="w-2 h-2" /> PDF
-                          </a>
-                        )}
+                            <div className="w-1.5" /> {/* Spacing between resources and audio indicator */}
+
+                            {hasAudio && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="text-[8px] font-black px-1.5 py-0.5 rounded border bg-indigo-100 text-indigo-700 border-indigo-200 shadow-sm flex items-center gap-1 animate-in zoom-in duration-300">
+                                    <Volume2 className="w-2 h-2" /> AUD
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent className="text-[9px] font-bold">Audio Track Ready</TooltipContent>
+                              </Tooltip>
+                            )}
+
+                            {song.pdfUrl && (
+                              <a 
+                                href={song.pdfUrl} 
+                                target="_blank" 
+                                rel="noreferrer"
+                                className="text-[8px] font-black px-1.5 py-0.5 rounded bg-red-100 text-red-700 border border-red-200 shadow-sm flex items-center gap-1"
+                              >
+                                <FileDown className="w-2 h-2" /> PDF
+                              </a>
+                            )}
+                          </div>
+                        </TooltipProvider>
                       </div>
 
                       <div className="flex items-center gap-3 mt-2 ml-7">
