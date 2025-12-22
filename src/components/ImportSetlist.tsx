@@ -24,8 +24,9 @@ const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport }) => {
         const columns = line.split('|').map(c => c.trim()).filter(c => c !== "");
         
         if (columns.length >= 2) {
+          // Clean up bold markers (**) from Title and Key
           const title = columns[1].replace(/\*\*/g, '');
-          const originalKey = columns[5] || "C";
+          const originalKey = (columns[5] || "C").replace(/\*\*/g, '');
           
           const ytMatch = line.match(/\((https:\/\/www\.youtube\.com\/watch\?v=[^)]+)\)/);
           const youtubeUrl = ytMatch ? ytMatch[1] : undefined;
