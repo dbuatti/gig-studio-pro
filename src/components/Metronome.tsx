@@ -7,10 +7,11 @@ import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { 
   Play, Pause, Minus, Plus, Volume2, 
-  Activity, Settings2, Hash, Zap
+  Activity, Settings2, Hash, Zap, Timer
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { showSuccess } from '@/utils/toast';
 
 interface MetronomeProps {
   initialBpm?: number;
@@ -24,6 +25,9 @@ const Metronome: React.FC<MetronomeProps> = ({ initialBpm = 120 }) => {
   const [beat, setBeat] = useState(0);
   const [timeSignature, setTimeSignature] = useState("4/4");
   const [volume, setVolume] = useState(-12);
+  
+  // Tap Tempo State
+  const tapTimes = useRef<number[]>([]);
 
   const synthRef = useRef<Tone.MembraneSynth | null>(null);
   const loopRef = useRef<Tone.Loop | null>(null);
@@ -53,7 +57,6 @@ const Metronome: React.FC<MetronomeProps> = ({ initialBpm = 120 }) => {
     }
   }, [volume]);
 
-  // Handle Logic for Beats based on Time Signature
   const getBeatCount = () => {
     return parseInt(timeSignature.split('/')[0]);
   };
@@ -65,7 +68,6 @@ const Metronome: React.FC<MetronomeProps> = ({ initialBpm = 120 }) => {
 
   useEffect(() => {
     if (isPlaying) {
-      // Re-initialize loop if settings change while running
       stopMetronome();
       startMetronome();
     }
@@ -105,16 +107,42 @@ const Metronome: React.FC<MetronomeProps> = ({ initialBpm = 120 }) => {
     else startMetronome();
   };
 
+  const handleTap = () => {
+    const now = Date.now();
+    // Reset if more than 2 seconds since last tap
+    if (tapTimes.current.length > 0 && now - tapTimes.current[tapTimes.current.length - 1] > 2000) {
+      tapTimes.current = [];
+    }
+    
+    tapTimes.current.push(now);
+    
+    if (tapTimes.current.length > 1) {
+      if (tapTimes.current.length > 4) tapTimes.current.shift();
+      
+      const intervals = [];
+      for (let i = 1; i < tapTimes.current.length; i++) {
+        intervals.push(tapTimes.current[i] - tapTimes.current[i - 1]);
+      }
+      
+      const avgInterval = intervals.reduce((a, b) => a + b) / intervals.length;
+      const calculatedBpm = Math.round(60000 / avgInterval);
+      
+      if (calculatedBpm >= 40 && calculatedBpm <= 240) {
+        setBpm(calculatedBpm);
+      }
+    }
+  };
+
   return (
     <div className="bg-slate-900/60 border border-white/5 rounded-[2rem] p-6 space-y-6 shadow-2xl backdrop-blur-xl">
       <div className="flex items-center justify-between border-b border-white/5 pb-4">
         <div className="flex items-center gap-3">
           <div className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse shadow-[0_0_10px_rgba(79,70,229,0.5)]" />
-          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Timing Engine v2.0</span>
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Timing Engine v2.1</span>
         </div>
         <div className="flex items-center gap-2">
            <Zap className="w-3 h-3 text-indigo-400" />
-           <span className="text-[9px] font-black text-indigo-400 uppercase">Jitter: Ultra Low</span>
+           <span className="text-[9px] font-black text-indigo-400 uppercase">Latency: Ultra Low</span>
         </div>
       </div>
 
@@ -124,18 +152,28 @@ const Metronome: React.FC<MetronomeProps> = ({ initialBpm = 120 }) => {
           <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mt-1">BPM</span>
         </div>
 
-        <Button 
-          size="lg" 
-          onClick={toggleMetronome}
-          className={cn(
-            "h-20 w-20 rounded-full transition-all hover:scale-105 active:scale-95 shadow-xl",
-            isPlaying 
-              ? "bg-red-600 hover:bg-red-700 shadow-red-600/20" 
-              : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20"
-          )}
-        >
-          {isPlaying ? <Pause className="w-8 h-8 fill-current" /> : <Play className="w-8 h-8 fill-current ml-1" />}
-        </Button>
+        <div className="flex flex-col gap-2">
+          <Button 
+            size="lg" 
+            onClick={toggleMetronome}
+            className={cn(
+              "h-16 w-16 rounded-full transition-all hover:scale-105 active:scale-95 shadow-xl",
+              isPlaying 
+                ? "bg-red-600 hover:bg-red-700 shadow-red-600/20" 
+                : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20"
+            )}
+          >
+            {isPlaying ? <Pause className="w-7 h-7 fill-current" /> : <Play className="w-7 h-7 fill-current ml-1" />}
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={handleTap}
+            className="h-10 w-16 bg-white/5 text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-white rounded-xl gap-2"
+          >
+            <Timer className="w-3 h-3" /> Tap
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">

@@ -16,7 +16,7 @@ import { calculateSemitones } from '@/utils/keyUtils';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { LogOut, User as UserIcon, Loader2, Play, Music, LayoutDashboard, Search as SearchIcon, Rocket, Hash, Music2, Settings, Sparkles, RefreshCw, Library } from 'lucide-react';
+import { LogOut, User as UserIcon, Loader2, Play, Music, LayoutDashboard, Search as SearchIcon, Rocket, Hash, Music2, Settings, Sparkles, RefreshCw, Library, Clock } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { useSettings } from '@/hooks/use-settings';
 
@@ -33,6 +33,7 @@ const Index = () => {
   const [performanceState, setPerformanceState] = useState({ progress: 0, duration: 0 });
   const [isPlayerActive, setIsPlayerActive] = useState(false);
   const [isBulkSyncing, setIsBulkSyncing] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
   
   const [syncQueue, setSyncQueue] = useState<string[]>([]);
   const [isProcessingQueue, setIsProcessingQueue] = useState(false);
@@ -57,6 +58,12 @@ const Index = () => {
 
   useEffect(() => {
     if (user) fetchSetlists();
+    
+    const clockInterval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    
+    return () => clearInterval(clockInterval);
   }, [user]);
 
   useEffect(() => {
@@ -145,7 +152,6 @@ const Index = () => {
     if (!songs.length || !user) return;
     setIsBulkSyncing(true);
     try {
-      // Deduplicate songs by title and artist to avoid Postgres upsert conflicts
       const uniqueRepertoireMap = new Map();
       
       songs.forEach(song => {
@@ -154,7 +160,6 @@ const Index = () => {
         const key = `${title}-${artist}`.toLowerCase();
         const score = getReadinessScore(song);
         
-        // If song already in map, keep the one with the higher readiness score
         if (!uniqueRepertoireMap.has(key) || score > uniqueRepertoireMap.get(key).readiness_score) {
           uniqueRepertoireMap.set(key, {
             user_id: user.id,
@@ -381,7 +386,6 @@ const Index = () => {
   };
 
   const handleSelectSong = async (song: SetlistSong) => {
-    // Audio Context Gesture
     if (Tone.getContext().state !== 'running') await Tone.start();
     
     setActiveSongId(song.id);
@@ -422,7 +426,6 @@ const Index = () => {
   };
 
   const startPerformance = async () => {
-    // Audio Context Gesture
     if (Tone.getContext().state !== 'running') await Tone.start();
     
     const firstPlayable = songs.find(s => !!s.previewUrl);
@@ -464,34 +467,43 @@ const Index = () => {
           />
         </div>
 
-        <div className="flex items-center gap-4">
-          {syncQueue.length > 0 && (
-            <div className="flex items-center gap-2 px-3 py-1 bg-amber-50 border border-amber-100 rounded-full animate-pulse">
-              <Loader2 className="w-3 h-3 animate-spin text-amber-600" />
-              <span className="text-[10px] font-black text-amber-700 uppercase">AI Queue: {syncQueue.length}</span>
-            </div>
-          )}
-          
-          <Button variant="default" size="sm" onClick={startPerformance} className="gap-2 bg-indigo-600 font-bold uppercase tracking-tight">
-            <Rocket className="w-4 h-4" /> Start Show
-          </Button>
+        <div className="flex items-center gap-6">
+          <div className="hidden lg:flex items-center gap-2 bg-slate-50 dark:bg-slate-800/50 px-4 py-1.5 rounded-full border border-slate-100 dark:border-white/5">
+            <Clock className="w-3.5 h-3.5 text-indigo-500" />
+            <span className="text-[11px] font-black font-mono text-slate-600 dark:text-slate-300">
+              {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </span>
+          </div>
 
-          <div className="h-6 w-px bg-slate-200" />
+          <div className="flex items-center gap-4">
+            {syncQueue.length > 0 && (
+              <div className="flex items-center gap-2 px-3 py-1 bg-amber-50 border border-amber-100 rounded-full animate-pulse">
+                <Loader2 className="w-3 h-3 animate-spin text-amber-600" />
+                <span className="text-[10px] font-black text-amber-700 uppercase">AI Queue: {syncQueue.length}</span>
+              </div>
+            )}
+            
+            <Button variant="default" size="sm" onClick={startPerformance} className="gap-2 bg-indigo-600 font-bold uppercase tracking-tight shadow-lg shadow-indigo-600/20">
+              <Rocket className="w-4 h-4" /> Start Show
+            </Button>
 
-          <Button variant="ghost" size="sm" onClick={() => setIsStudioOpen(!isStudioOpen)} className={cn("gap-2 font-bold uppercase tracking-tight", isStudioOpen && "text-indigo-600")}>
-            <SearchIcon className="w-4 h-4" /> Studio
-          </Button>
-          <div className="h-6 w-px bg-slate-200" />
-          
-          <button 
-            onClick={() => setIsPreferencesOpen(true)}
-            className="flex items-center gap-2 px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-          >
-            <UserIcon className="w-3 h-3 text-slate-500" />
-            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">{user?.email?.split('@')[0]}</span>
-            {isSaving && <Loader2 className="w-3 h-3 animate-spin text-indigo-500 ml-1" />}
-            <Settings className="w-3 h-3 text-slate-400 ml-1" />
-          </button>
+            <div className="h-6 w-px bg-slate-200" />
+
+            <Button variant="ghost" size="sm" onClick={() => setIsStudioOpen(!isStudioOpen)} className={cn("gap-2 font-bold uppercase tracking-tight", isStudioOpen && "text-indigo-600")}>
+              <SearchIcon className="w-4 h-4" /> Studio
+            </Button>
+            <div className="h-6 w-px bg-slate-200" />
+            
+            <button 
+              onClick={() => setIsPreferencesOpen(true)}
+              className="flex items-center gap-2 px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+            >
+              <UserIcon className="w-3 h-3 text-slate-500" />
+              <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">{user?.email?.split('@')[0]}</span>
+              {isSaving && <Loader2 className="w-3 h-3 animate-spin text-indigo-500 ml-1" />}
+              <Settings className="w-3 h-3 text-slate-400 ml-1" />
+            </button>
+          </div>
         </div>
       </nav>
 

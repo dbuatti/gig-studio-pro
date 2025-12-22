@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed, Copy, Upload, Loader2, Sparkles, FileText, ShieldCheck, Edit3, Search, FileDown, FileCheck, SortAsc, SortDesc, LayoutList, Volume2, Headphones, ChevronUp, ChevronDown, BarChart2, Smartphone, Clock, Check } from 'lucide-react';
+import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed, Copy, Upload, Loader2, Sparkles, FileText, ShieldCheck, Edit3, Search, FileDown, FileCheck, SortAsc, SortDesc, LayoutList, Volume2, Headphones, ChevronUp, ChevronDown, BarChart2, Smartphone, Clock, Check, ClipboardList } from 'lucide-react';
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, calculateSemitones, formatKey } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
 import { supabase } from '@/integrations/supabase/client';
@@ -124,6 +124,17 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     onReorder(newSongs);
   };
 
+  const handleCopySetlist = () => {
+    const text = songs.map((s, i) => {
+      const currentPref = s.key_preference || globalPreference;
+      const keyStr = s.targetKey ? ` (${formatKey(s.targetKey, currentPref)})` : "";
+      return `${(i + 1).toString().padStart(2, '0')}. ${s.name} - ${s.artist || 'Unknown'}${keyStr}`;
+    }).join('\n');
+    
+    navigator.clipboard.writeText(text);
+    showSuccess("Setlist copied to clipboard");
+  };
+
   const formatSecs = (s: number = 0) => {
     const m = Math.floor(s / 60);
     const rs = Math.floor(s % 60);
@@ -162,6 +173,14 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
               <SortDesc className="w-3 h-3" /> Work Needed
             </Button>
           </div>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={handleCopySetlist}
+            className="h-8 px-4 text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:bg-indigo-50 rounded-xl gap-2"
+          >
+            <ClipboardList className="w-3.5 h-3.5" /> Copy Text
+          </Button>
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto">
