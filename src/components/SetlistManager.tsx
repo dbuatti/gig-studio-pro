@@ -1,15 +1,15 @@
 "use client";
 
-import React from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import React, { useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed } from 'lucide-react';
+import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed, Copy, Upload, Loader2 } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ALL_KEYS } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
-import { Checkbox } from "@/components/ui/checkbox";
+import { supabase } from '@/integrations/supabase/client';
+import { showSuccess, showError } from '@/utils/toast';
 
 export interface SetlistSong {
   id: string;
@@ -29,6 +29,7 @@ interface SetlistManagerProps {
   onUpdateKey: (id: string, targetKey: string) => void;
   onTogglePlayed: (id: string) => void;
   onLinkAudio: (songName: string) => void;
+  onUpdateSong: (id: string, updates: Partial<SetlistSong>) => void;
   currentSongId?: string;
 }
 
@@ -39,10 +40,65 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   onUpdateKey, 
   onTogglePlayed,
   onLinkAudio,
+  onUpdateSong,
   currentSongId 
 }) => {
+  const [uploadingId, setUploadingId] = React.useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const copyAllLinks = () => {
+    const links = songs.map(s => s.youtubeUrl).filter(Boolean).join('\n');
+    if (!links) {
+      showError("No YouTube links found in this setlist.");
+      return;
+    }
+    navigator.clipboard.writeText(links);
+    showSuccess("All YouTube links copied to clipboard!");
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, songId: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingId(songId);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${songId}-${Math.random()}.${fileExt}`;
+      const filePath = `tracks/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('audio_tracks')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('audio_tracks')
+        .getPublicUrl(filePath);
+
+      onUpdateSong(songId, { previewUrl: publicUrl });
+      showSuccess("Performance track uploaded and linked!");
+    } catch (err) {
+      showError("Upload failed.");
+    } finally {
+      setUploadingId(null);
+    }
+  };
+
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between px-2">
+        <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Gig Dashboard</h3>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={copyAllLinks}
+          className="h-7 text-[9px] font-black uppercase tracking-tight gap-2 border-indigo-100 text-indigo-600"
+        >
+          <Copy className="w-3 h-3" /> Copy All YT Links
+        </Button>
+      </div>
+
       <div className="bg-white dark:bg-slate-900 rounded-2xl border shadow-sm overflow-hidden">
         <table className="w-full text-left border-collapse">
           <thead>
@@ -56,7 +112,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {songs.map((song, idx) => {
               const isSelected = currentSongId === song.id;
-              const needsAudio = !song.previewUrl;
+              const hasAudio = !!song.previewUrl;
               
               return (
                 <tr 
@@ -84,20 +140,37 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                           "text-sm font-bold tracking-tight",
                           song.isPlayed && "line-through text-slate-400"
                         )}>{song.name}</span>
-                        {needsAudio && (
+                        {!hasAudio && (
                           <Badge variant="outline" className="text-[8px] uppercase border-amber-200 text-amber-600 bg-amber-50 leading-none h-4">No Audio</Badge>
                         )}
                       </div>
                       <div className="flex items-center gap-3 mt-1">
-                        {song.youtubeUrl && <Youtube className="w-3 h-3 text-red-500 opacity-60" />}
-                        {needsAudio && (
-                          <button 
-                            onClick={() => onLinkAudio(song.name)}
-                            className="flex items-center gap-1 text-[9px] font-black text-indigo-500 uppercase hover:underline"
-                          >
-                            <Link2 className="w-2.5 h-2.5" /> Link Performance Audio
+                        {song.youtubeUrl ? (
+                          <a href={song.youtubeUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-[9px] text-red-600 font-bold hover:underline">
+                            <Youtube className="w-3 h-3" /> Video Linked
+                          </a>
+                        ) : (
+                          <button onClick={() => onLinkAudio(song.name)} className="flex items-center gap-1 text-[9px] font-black text-indigo-400 uppercase hover:underline">
+                            <Link2 className="w-2.5 h-2.5" /> Find Video
                           </button>
                         )}
+                        
+                        <div className="relative">
+                          <input 
+                            type="file" 
+                            accept="audio/*" 
+                            className="hidden" 
+                            id={`upload-${song.id}`}
+                            onChange={(e) => handleFileUpload(e, song.id)}
+                          />
+                          <label 
+                            htmlFor={`upload-${song.id}`}
+                            className="flex items-center gap-1 text-[9px] font-black text-indigo-600 uppercase hover:underline cursor-pointer"
+                          >
+                            {uploadingId === song.id ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Upload className="w-2.5 h-2.5" />}
+                            {hasAudio ? "Replace Audio" : "Upload MP3"}
+                          </label>
+                        </div>
                       </div>
                     </div>
                   </td>
@@ -138,9 +211,9 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         size="sm" 
                         className={cn(
                           "h-8 px-3 text-[10px] font-black uppercase tracking-widest gap-2",
-                          needsAudio ? "text-slate-300 cursor-not-allowed" : "text-indigo-600 hover:bg-indigo-50"
+                          !hasAudio ? "text-slate-300 cursor-not-allowed" : "text-indigo-600 hover:bg-indigo-50"
                         )}
-                        disabled={needsAudio}
+                        disabled={!hasAudio}
                         onClick={() => onSelect(song)}
                       >
                         {isSelected ? "Active" : "Perform"}
@@ -161,14 +234,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
             })}
           </tbody>
         </table>
-        {songs.length === 0 && (
-          <div className="p-12 text-center">
-            <Music className="w-12 h-12 text-slate-200 mx-auto mb-4" />
-            <h3 className="text-lg font-bold text-slate-400 uppercase tracking-tighter">Your Gig Log is Empty</h3>
-            <p className="text-sm text-slate-400 mb-6">Start by pasting a song list or searching for your performance tracks.</p>
-            <Button onClick={() => onLinkAudio("")} className="bg-indigo-600 font-bold uppercase tracking-widest text-[10px]">Add Your First Song</Button>
-          </div>
-        )}
       </div>
     </div>
   );

@@ -11,7 +11,7 @@ import { calculateSemitones } from '@/utils/keyUtils';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { LogOut, User as UserIcon, Loader2, Play, Music, LayoutDashboard, Settings } from 'lucide-react';
+import { LogOut, User as UserIcon, Loader2, Play, Music, LayoutDashboard } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
 const Index = () => {
@@ -75,6 +75,13 @@ const Index = () => {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleUpdateSong = (songId: string, updates: Partial<SetlistSong>) => {
+    if (!currentListId) return;
+    const updatedSongs = songs.map(s => s.id === songId ? { ...s, ...updates } : s);
+    setSetlists(prev => prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l));
+    saveList(currentListId, updatedSongs);
   };
 
   const handleCreateList = async () => {
@@ -144,7 +151,6 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col">
-      {/* Top Navigation Bar */}
       <nav className="h-16 bg-white dark:bg-slate-900 border-b px-6 flex items-center justify-between sticky top-0 z-30 shadow-sm">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
@@ -175,7 +181,6 @@ const Index = () => {
       </nav>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Main Dashboard Area */}
         <main className="flex-1 overflow-y-auto p-8 relative">
           <div className="max-w-4xl mx-auto space-y-8">
             <div className="flex items-center justify-between">
@@ -204,15 +209,13 @@ const Index = () => {
               onUpdateKey={handleUpdateKey}
               onTogglePlayed={handleTogglePlayed}
               onLinkAudio={(name) => transposerRef.current?.triggerSearch(name)}
+              onUpdateSong={handleUpdateSong}
               currentSongId={activeSongId || undefined}
             />
           </div>
-          
-          <div className="h-20" /> {/* Spacer for footer visibility */}
           <MadeWithDyad />
         </main>
 
-        {/* Floating/Side Performance Feature Area */}
         <aside className={cn(
           "w-[450px] bg-white dark:bg-slate-900 border-l shadow-2xl transition-all duration-500 ease-in-out transform",
           activeSongId ? "translate-x-0" : "translate-x-full opacity-0 pointer-events-none"
@@ -237,14 +240,12 @@ const Index = () => {
         </aside>
       </div>
 
-      {/* Global Quick-Action Toggle (if engine hidden) */}
       {!activeSongId && songs.length > 0 && (
         <button 
           onClick={() => { if(songs[0]) handleSelectSong(songs[0]); }}
           className="fixed bottom-8 right-8 bg-indigo-600 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition-all z-50 group"
         >
           <Music className="w-6 h-6" />
-          <span className="absolute right-full mr-4 bg-slate-900 text-white text-[10px] font-black uppercase px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Open Studio</span>
         </button>
       )}
     </div>
