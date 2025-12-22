@@ -36,7 +36,7 @@ export interface SetlistSong {
 
 export const RESOURCE_TYPES = [
   { id: 'UG', label: 'Ultimate Guitar', color: 'bg-orange-500/10 text-orange-600 border-orange-500/20' },
-  { id: 'OS', label: 'In OnSong', color: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
+  { id: 'OS', label: 'In OnSong', color: 'bg-blue-500/10 text-blue-600 border-blue-200' },
   { id: 'UGP', label: 'UG Playlist', color: 'bg-yellow-500/10 text-yellow-700 border-yellow-500/20' },
   { id: 'FS', label: 'ForScore', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
   { id: 'PDF', label: 'Stage PDF', color: 'bg-red-500/10 text-red-700 border-red-500/20' },
