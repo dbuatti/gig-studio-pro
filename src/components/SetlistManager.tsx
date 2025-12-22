@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed, Copy, Upload, Loader2 } from 'lucide-react';
+import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed, Copy, Upload, Loader2, FileAudio } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ALL_KEYS } from '@/utils/keyUtils';
@@ -43,8 +43,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   onUpdateSong,
   currentSongId 
 }) => {
-  const [uploadingId, setUploadingId] = React.useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
 
   const copyAllLinks = () => {
     const links = songs.map(s => s.youtubeUrl).filter(Boolean).join('\n');
@@ -56,9 +56,11 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     showSuccess("All YouTube links copied to clipboard!");
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, songId: string) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const processFileUpload = async (file: File, songId: string) => {
+    if (!file.type.startsWith('audio/')) {
+      showError("Please drop a valid audio file.");
+      return;
+    }
 
     setUploadingId(songId);
     try {
@@ -83,6 +85,27 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     } finally {
       setUploadingId(null);
     }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, songId: string) => {
+    const file = e.target.files?.[0];
+    if (file) processFileUpload(file, songId);
+  };
+
+  const onDragOver = (e: React.DragEvent, songId: string) => {
+    e.preventDefault();
+    setDragOverId(songId);
+  };
+
+  const onDragLeave = () => {
+    setDragOverId(null);
+  };
+
+  const onDrop = (e: React.DragEvent, songId: string) => {
+    e.preventDefault();
+    setDragOverId(null);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processFileUpload(file, songId);
   };
 
   return (
@@ -113,13 +136,19 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
             {songs.map((song, idx) => {
               const isSelected = currentSongId === song.id;
               const hasAudio = !!song.previewUrl;
+              const isUploading = uploadingId === song.id;
+              const isDraggingOver = dragOverId === song.id;
               
               return (
                 <tr 
                   key={song.id}
+                  onDragOver={(e) => onDragOver(e, song.id)}
+                  onDragLeave={onDragLeave}
+                  onDrop={(e) => onDrop(e, song.id)}
                   className={cn(
-                    "transition-colors group",
+                    "transition-all group relative",
                     isSelected ? "bg-indigo-50/50 dark:bg-indigo-900/10" : "hover:bg-slate-50/50 dark:hover:bg-slate-800/30",
+                    isDraggingOver && "bg-indigo-100/50 ring-2 ring-inset ring-indigo-500",
                     song.isPlayed && "opacity-50"
                   )}
                 >
@@ -140,8 +169,11 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                           "text-sm font-bold tracking-tight",
                           song.isPlayed && "line-through text-slate-400"
                         )}>{song.name}</span>
-                        {!hasAudio && (
+                        {!hasAudio && !isUploading && (
                           <Badge variant="outline" className="text-[8px] uppercase border-amber-200 text-amber-600 bg-amber-50 leading-none h-4">No Audio</Badge>
+                        )}
+                        {isUploading && (
+                          <Badge variant="outline" className="text-[8px] uppercase border-indigo-200 text-indigo-600 bg-indigo-50 leading-none h-4 animate-pulse">Uploading...</Badge>
                         )}
                       </div>
                       <div className="flex items-center gap-3 mt-1">
@@ -167,12 +199,17 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                             htmlFor={`upload-${song.id}`}
                             className="flex items-center gap-1 text-[9px] font-black text-indigo-600 uppercase hover:underline cursor-pointer"
                           >
-                            {uploadingId === song.id ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Upload className="w-2.5 h-2.5" />}
-                            {hasAudio ? "Replace Audio" : "Upload MP3"}
+                            {isUploading ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Upload className="w-2.5 h-2.5" />}
+                            {hasAudio ? "Replace Audio" : "Drop MP3 here"}
                           </label>
                         </div>
                       </div>
                     </div>
+                    {isDraggingOver && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-indigo-600/10 pointer-events-none">
+                        <FileAudio className="w-8 h-8 text-indigo-600 animate-bounce" />
+                      </div>
+                    )}
                   </td>
                   <td className="p-4">
                     <div className="flex items-center gap-3">
