@@ -25,6 +25,10 @@ const Index = () => {
   const [isPerformanceMode, setIsPerformanceMode] = useState(false);
   const [performanceState, setPerformanceState] = useState({ progress: 0, duration: 0 });
   
+  // NEW: Global Sync Queue state
+  const [syncQueue, setSyncQueue] = useState<string[]>([]);
+  const [isProcessingQueue, setIsProcessingQueue] = useState(false);
+
   const transposerRef = useRef<AudioTransposerRef>(null);
 
   const currentList = setlists.find(l => l.id === currentListId);
@@ -48,6 +52,32 @@ const Index = () => {
     }
     return () => clearInterval(interval);
   }, [isPerformanceMode]);
+
+  // QUEUE WORKER: Processes pending syncs with a safety delay
+  useEffect(() => {
+    if (syncQueue.length === 0 || isProcessingQueue || !currentListId) return;
+
+    const processNextBatch = async () => {
+      setIsProcessingQueue(true);
+      
+      // Process in small batches of 5 to be extremely safe
+      const batchIds = syncQueue.slice(0, 5);
+      const batchSongs = songs.filter(s => batchIds.includes(s.id));
+
+      if (batchSongs.length > 0) {
+        // We call the existing bulk sync logic
+        await handleBulkSync(batchSongs, true);
+        
+        // Safety Delay: Wait 6 seconds before allowing the next batch
+        await new Promise(resolve => setTimeout(resolve, 6000));
+      }
+
+      setSyncQueue(prev => prev.filter(id => !batchIds.includes(id)));
+      setIsProcessingQueue(false);
+    };
+
+    processNextBatch();
+  }, [syncQueue, isProcessingQueue, currentListId]);
 
   const fetchSetlists = async () => {
     try {
@@ -97,8 +127,14 @@ const Index = () => {
     }
   };
 
-  const handleBulkSync = async (songsToSync: SetlistSong[]) => {
+  const handleBulkSync = async (songsToSync: SetlistSong[], fromQueue = false) => {
     if (!currentListId || songsToSync.length === 0) return;
+
+    // If not from queue, just add them to the queue and let the worker handle it
+    if (!fromQueue) {
+      setSyncQueue(prev => [...new Set([...prev, ...songsToSync.map(s => s.id)])]);
+      return;
+    }
 
     setSetlists(prev => prev.map(l => l.id === currentListId ? {
       ...l,
@@ -189,7 +225,8 @@ const Index = () => {
       return prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l);
     });
     
-    handleBulkSync([newSong]);
+    // Manual additions also go into the global throttled queue
+    setSyncQueue(prev => [...prev, newSongId]);
   };
 
   const handleUpdateKey = (songId: string, targetKey: string) => {
@@ -306,6 +343,13 @@ const Index = () => {
         </div>
 
         <div className="flex items-center gap-4">
+          {syncQueue.length > 0 && (
+            <div className="flex items-center gap-2 px-3 py-1 bg-amber-50 border border-amber-100 rounded-full animate-pulse">
+              <Loader2 className="w-3 h-3 animate-spin text-amber-600" />
+              <span className="text-[10px] font-black text-amber-700 uppercase">AI Processing Queue: {syncQueue.length}</span>
+            </div>
+          )}
+          
           <Button 
             variant="default" 
             size="sm" 
@@ -354,10 +398,9 @@ const Index = () => {
                     saveList(currentListId, updated);
                     return prev.map(l => l.id === currentListId ? { ...l, songs: updated } : l);
                   });
-                  for (let i = 0; i < songsWithSyncState.length; i += 10) {
-                    const batch = songsWithSyncState.slice(i, i + 10);
-                    handleBulkSync(batch);
-                  }
+                  
+                  // NEW: Add IDs to the throttled global queue instead of calling AI immediately
+                  setSyncQueue(prev => [...prev, ...songsWithSyncState.map(s => s.id)]);
                 }} />
               </div>
             </div>
@@ -376,7 +419,10 @@ const Index = () => {
               onSelect={handleSelectSong}
               onUpdateKey={handleUpdateKey}
               onTogglePlayed={handleTogglePlayed}
-              onSyncProData={(song) => handleBulkSync([song])}
+              onSyncProData={(song) => {
+                // Add single song to queue for throttled processing
+                setSyncQueue(prev => [...new Set([...prev, song.id])]);
+              }}
               onLinkAudio={(name) => {
                 setIsStudioOpen(true);
                 transposerRef.current?.triggerSearch(name);
