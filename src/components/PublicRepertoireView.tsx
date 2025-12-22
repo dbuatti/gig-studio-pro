@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, User, Music, ArrowUpDown, Clock, Hash } from 'lucide-react';
+import { Search, User, Music, ArrowUpDown, UserCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface PublicRepertoireViewProps {
@@ -20,8 +20,7 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
     const q = searchTerm.toLowerCase();
     return songs.filter(s => 
       (s.title || s.name || "").toLowerCase().includes(q) || 
-      (s.artist || "").toLowerCase().includes(q) ||
-      (s.genre || "").toLowerCase().includes(q)
+      (s.artist || "").toLowerCase().includes(q)
     );
   }, [songs, searchTerm]);
 
@@ -88,11 +87,11 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
       </header>
 
       <main className={cn("max-w-4xl mx-auto px-6 pb-20", isPreview ? "py-6" : "py-12")}>
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-12">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-8">
           <div className="relative w-full md:w-64">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 opacity-40" />
             <Input 
-              placeholder="Filter list..." 
+              placeholder="Search..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="bg-white/5 border-white/10 h-10 pl-10 rounded-xl focus-visible:ring-indigo-500 text-sm"
@@ -110,7 +109,7 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
               )}
               style={{ color: sortMode === 'artist' ? colors.primary : colors.text }}
             >
-              <User className="w-3 h-3" /> Group by Artist
+              <User className="w-3 h-3" /> Artist
             </Button>
             <Button 
               variant="ghost" 
@@ -121,81 +120,43 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
               )}
               style={{ color: sortMode === 'alphabetical' ? colors.primary : colors.text }}
             >
-              <ArrowUpDown className="w-3 h-3" /> A-Z Title
+              <ArrowUpDown className="w-3 h-3" /> A-Z
             </Button>
           </div>
         </div>
 
-        <div className="space-y-12">
+        <div className="space-y-8">
           {songs.length === 0 ? (
-            <div className="text-center py-20 opacity-30 border border-dashed border-white/10 rounded-[2.5rem]">
-              <Music className="w-12 h-12 mx-auto mb-4" />
-              <p className="text-[10px] font-black uppercase tracking-[0.3em]">Repertoire Matrix Empty</p>
+            <div className="text-center py-10 opacity-30 border border-dashed border-white/10 rounded-2xl">
+              <Music className="w-10 h-10 mx-auto mb-2" />
+              <p className="text-[10px] font-black uppercase tracking-widest">Add songs to see them here</p>
             </div>
           ) : (
             sortMode === 'artist' ? (
               (groupedSongs as any[]).map((group) => (
-                <section key={group.artist} className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    <h3 className="text-xs font-black uppercase tracking-[0.25em] whitespace-nowrap" style={{ color: colors.primary }}>
-                      {group.artist}
-                    </h3>
-                    <div className="h-px w-full bg-white/5" />
-                  </div>
-                  <div className="grid grid-cols-1 gap-2">
+                <section key={group.artist} className="space-y-3">
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40 border-b border-white/5 pb-1" style={{ color: colors.primary }}>
+                    {group.artist}
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
                     {group.songs.map((song: any) => (
-                      <div key={song.id} className="flex items-center justify-between py-3 px-4 rounded-xl hover:bg-white/5 transition-all group border border-transparent hover:border-white/5">
-                        <div className="flex flex-col">
-                          <span className="text-sm font-bold tracking-tight">{song.title || song.name}</span>
-                          {song.genre && (
-                            <span className="text-[9px] font-black uppercase opacity-20 tracking-widest mt-0.5">{song.genre}</span>
-                          )}
-                        </div>
-                        
-                        <div className="flex items-center gap-6 opacity-40 group-hover:opacity-100 transition-opacity">
-                          {song.original_key && song.original_key !== 'TBC' && (
-                            <div className="flex flex-col items-end">
-                              <span className="text-[7px] font-black uppercase tracking-tighter opacity-40">Key</span>
-                              <span className="text-[10px] font-mono font-bold">{song.original_key}</span>
-                            </div>
-                          )}
-                          {song.bpm && (
-                            <div className="flex flex-col items-end">
-                              <span className="text-[7px] font-black uppercase tracking-tighter opacity-40">BPM</span>
-                              <span className="text-[10px] font-mono font-bold">{song.bpm}</span>
-                            </div>
-                          )}
-                        </div>
+                      <div key={song.id} className="flex items-center justify-between py-0.5 group">
+                        <span className="text-sm font-bold tracking-tight group-hover:translate-x-1 transition-transform">{song.title || song.name}</span>
+                        {song.genre && <span className="text-[8px] font-black uppercase opacity-20">{song.genre}</span>}
                       </div>
                     ))}
                   </div>
                 </section>
               ))
             ) : (
-              <div className="grid grid-cols-1 gap-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3">
                 {(groupedSongs as any[]).map((song) => (
-                  <div key={song.id} className="flex items-center justify-between py-4 px-6 border-b border-white/5 hover:bg-white/5 transition-all group">
+                  <div key={song.id} className="flex items-center justify-between py-1 border-b border-white/5 group">
                     <div className="flex flex-col">
-                      <span className="text-base font-bold tracking-tight">{song.title || song.name}</span>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: colors.primary }}>{song.artist}</span>
-                        {song.genre && (
-                          <>
-                            <span className="text-[8px] opacity-20">•</span>
-                            <span className="text-[10px] font-black uppercase opacity-30 tracking-widest">{song.genre}</span>
-                          </>
-                        )}
-                      </div>
+                      <span className="text-sm font-bold tracking-tight">{song.title || song.name}</span>
+                      <span className="text-[9px] font-black uppercase opacity-40 tracking-widest">{song.artist}</span>
                     </div>
-                    
-                    <div className="flex items-center gap-8">
-                       {song.original_key && song.original_key !== 'TBC' && (
-                         <span className="text-xs font-mono font-black opacity-30 group-hover:opacity-100 transition-opacity">{song.original_key}</span>
-                       )}
-                       {song.bpm && (
-                         <span className="text-xs font-mono font-black opacity-30 group-hover:opacity-100 transition-opacity">{song.bpm} BPM</span>
-                       )}
-                    </div>
+                    {song.genre && <span className="text-[8px] font-black uppercase opacity-20">{song.genre}</span>}
                   </div>
                 ))}
               </div>
