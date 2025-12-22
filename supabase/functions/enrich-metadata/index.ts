@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { queries } = await req.json();
+    const { queries, mode = 'metadata' } = await req.json();
     // @ts-ignore: Deno global
     const apiKey = Deno.env.get('GEMINI_API_KEY');
 
@@ -23,25 +23,36 @@ serve(async (req) => {
       });
     }
 
-    const songsList = Array.isArray(queries) ? queries : [queries];
+    let prompt = "";
     
-    const prompt = `Act as a professional music librarian. For the following list of songs, return a JSON array of objects. 
-    
-    Each object must have: 
-    {
-      "name": "The original song title",
-      "artist": "The primary artist",
-      "originalKey": "The standard key (e.g., C, F#m, Eb)",
-      "bpm": 120,
-      "genre": "The specific genre",
-      "ugUrl": "The most likely official Ultimate Guitar URL for the chords/tabs (usually https://www.ultimate-guitar.com/search.php?search_type=title&value=ARTIST+NAME+SONG+NAME)",
-      "isMetadataConfirmed": true
+    if (mode === 'lyrics') {
+      const lyricsText = queries[0];
+      prompt = `Act as a professional stage manager and music director. 
+      The following lyrics were pasted from a source that stripped verse breaks. 
+      Please return ONLY the JSON object: {"lyrics": "The lyrics formatted with double newlines between verses and proper punctuation for easy reading on stage"}.
+      
+      Lyrics to format:
+      ${lyricsText}`;
+    } else {
+      const songsList = Array.isArray(queries) ? queries : [queries];
+      prompt = `Act as a professional music librarian. For the following list of songs, return a JSON array of objects. 
+      
+      Each object must have: 
+      {
+        "name": "The original song title",
+        "artist": "The primary artist",
+        "originalKey": "The standard key (e.g., C, F#m, Eb)",
+        "bpm": 120,
+        "genre": "The specific genre",
+        "ugUrl": "The most likely official Ultimate Guitar URL",
+        "isMetadataConfirmed": true
+      }
+      
+      Songs to process:
+      ${songsList.join('\n')}
+      
+      Return ONLY the JSON array.`;
     }
-    
-    Songs to process:
-    ${songsList.join('\n')}
-    
-    Return ONLY the JSON array.`;
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${apiKey}`, {
       method: 'POST',
@@ -60,12 +71,12 @@ serve(async (req) => {
     const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) throw new Error("Empty AI response");
 
-    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    const jsonMatch = text.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
     if (!jsonMatch) throw new Error("Invalid response format");
     
-    const metadata = JSON.parse(jsonMatch[0]);
+    const output = JSON.parse(jsonMatch[0]);
 
-    return new Response(JSON.stringify(metadata), {
+    return new Response(JSON.stringify(output), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 

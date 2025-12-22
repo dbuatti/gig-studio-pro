@@ -19,7 +19,8 @@ import {
   FileDown, Headphones, Wand2, Download,
   Globe, Eye, Link as LinkIcon, RotateCcw,
   Zap, Disc, VolumeX, Smartphone, Printer, Search,
-  ClipboardPaste, AlignLeft, Apple, Hash, Music2
+  ClipboardPaste, AlignLeft, Apple, Hash, Music2,
+  Wand
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import AudioVisualizer from './AudioVisualizer';
@@ -64,6 +65,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [isFormattingLyrics, setIsFormattingLyrics] = useState(false);
   
   // Audio Engine State
   const [isPlaying, setIsPlaying] = useState(false);
@@ -224,7 +226,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       
       setDuration(buffer.duration);
       
-      // Force update duration if it's different (e.g., overriding a preview)
       if (song && Math.abs((song.duration_seconds || 0) - buffer.duration) > 1) {
         handleAutoSave({ duration_seconds: buffer.duration });
       }
@@ -376,6 +377,30 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const handleLyricsSearch = () => {
     const query = encodeURIComponent(`${formData.artist} ${formData.name} lyrics`);
     window.open(`https://www.google.com/search?q=${query}`, '_blank');
+  };
+
+  const handleMagicFormatLyrics = async () => {
+    if (!formData.lyrics?.trim()) {
+      showError("Paste lyrics first.");
+      return;
+    }
+
+    setIsFormattingLyrics(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('enrich-metadata', {
+        body: { queries: [formData.lyrics], mode: 'lyrics' }
+      });
+
+      if (error) throw error;
+      if (data?.lyrics) {
+        handleAutoSave({ lyrics: data.lyrics });
+        showSuccess("Lyrics Structuring Complete");
+      }
+    } catch (err) {
+      showError("Lyrics Engine Error.");
+    } finally {
+      setIsFormattingLyrics(false);
+    }
   };
 
   const handlePasteUgUrl = async () => {
@@ -542,7 +567,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                             onClick={() => updateHarmonics({ isKeyLinked: !formData.isKeyLinked })}
                             className={cn(
                               "p-1.5 rounded-lg border transition-all",
-                              formData.isKeyLinked ? "bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/20" : "bg-white/5 border-white/10 text-slate-500"
+                              formData.isKeyLinked ? "bg-indigo-600 border-indigo-500 text-white shadow-lg" : "bg-white/5 border-white/10 text-slate-500"
                             )}
                           >
                             <LinkIcon className="w-3.5 h-3.5" />
@@ -969,13 +994,24 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       <h3 className="text-lg font-black uppercase tracking-[0.3em] text-pink-400">Lyrics Engine</h3>
                       <p className="text-sm text-slate-500 mt-2">Paste lyrics here to enable the stage teleprompter.</p>
                     </div>
-                    <Button 
-                      variant="outline"
-                      onClick={handleLyricsSearch}
-                      className="bg-pink-600/10 border-pink-600/20 text-pink-600 hover:bg-pink-600 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 gap-2 px-6 rounded-xl transition-all"
-                    >
-                      <Search className="w-3.5 h-3.5" /> Find Lyrics Online
-                    </Button>
+                    <div className="flex gap-3">
+                      <Button 
+                        variant="outline"
+                        onClick={handleMagicFormatLyrics}
+                        disabled={isFormattingLyrics || !formData.lyrics}
+                        className="bg-indigo-600/10 border-indigo-600/20 text-indigo-600 hover:bg-indigo-600 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 gap-2 px-6 rounded-xl transition-all"
+                      >
+                        {isFormattingLyrics ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} 
+                        Magic Format
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        onClick={handleLyricsSearch}
+                        className="bg-pink-600/10 border-pink-600/20 text-pink-600 hover:bg-pink-600 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 gap-2 px-6 rounded-xl transition-all"
+                      >
+                        <Search className="w-3.5 h-3.5" /> Find Online
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="flex-1 min-h-0">
@@ -1139,7 +1175,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                               className="h-10 w-10 text-orange-400 hover:bg-orange-600 hover:text-white transition-all rounded-xl" 
                               onClick={handleUgAction}
                             >
-                              {formData.ugUrl ? <ExternalLink className="w-4 h-4" /> : <Search className="w-4 h-4" />}
+                              <ExternalLink className="w-4 h-4" />
                             </Button>
                           </TooltipProvider>
                         </div>
