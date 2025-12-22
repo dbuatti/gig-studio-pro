@@ -2,9 +2,9 @@
 
 import React from 'react';
 import { SetlistSong } from './SetlistManager';
-import { Music, Youtube, Copy, Play, Pause, Activity, Gauge, Sparkles, Tag, Apple, ExternalLink, X } from 'lucide-react';
+import { Music, Youtube, Copy, Play, Pause, Activity, Gauge, Sparkles, Tag, Apple, ExternalLink, X, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { showSuccess } from '@/utils/toast';
+import { showSuccess, showError } from '@/utils/toast';
 import { Badge } from '@/components/ui/badge';
 import { formatKey } from '@/utils/keyUtils';
 import { useSettings } from '@/hooks/use-settings';
@@ -24,6 +24,22 @@ const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song, isPlaying, on
     if (song.youtubeUrl) {
       navigator.clipboard.writeText(song.youtubeUrl);
       showSuccess("YouTube link copied to clipboard");
+    }
+  };
+
+  const handleOnSongImport = () => {
+    if (!song.ugUrl && !song.lyrics) {
+      showError("No chords or link available to import.");
+      return;
+    }
+
+    if (song.ugUrl) {
+      window.location.href = `onsong://import?url=${encodeURIComponent(song.ugUrl)}`;
+      showSuccess("Opening OnSong Import...");
+    } else {
+      const text = `${song.name}\n${song.artist}\nKey: ${song.targetKey || song.originalKey}\nTempo: ${song.bpm}\n---\n${song.lyrics}`;
+      window.location.href = `onsong://import?text=${encodeURIComponent(text)}`;
+      showSuccess("Sending chords to OnSong...");
     }
   };
 
@@ -111,6 +127,14 @@ const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song, isPlaying, on
                 ))}
               </div>
               <div className="flex items-center gap-2 justify-end">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={handleOnSongImport}
+                  className="h-9 px-4 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 font-bold text-[10px] uppercase gap-2 rounded-xl font-mono"
+                >
+                  <Smartphone className="w-3.5 h-3.5" /> OnSong
+                </Button>
                 {song.appleMusicUrl && (
                   <Button 
                     variant="ghost" 
