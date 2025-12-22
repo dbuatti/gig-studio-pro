@@ -276,7 +276,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
               const isPreview = isItunesPreview(song.previewUrl);
               const hasAudio = !!song.previewUrl && !isPreview;
               const isUploading = uploadingId === song.id;
-              const readiness = getReadinessScore(song);
               const needsSync = !song.isMetadataConfirmed;
 
               let displayName = song.name;
@@ -319,11 +318,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                           {displayName}
                         </span>
                         {song.isMetadataConfirmed && <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />}
-                        {sortMode !== 'none' && (
-                          <Badge className={cn("text-[8px] font-black h-4 px-1 border-none", readiness > 12 ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700")}>
-                            {readiness > 12 ? "READY" : "WORK"}
-                          </Badge>
-                        )}
                       </div>
                       
                       {displayArtist && <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-7">{displayArtist}</span>}
