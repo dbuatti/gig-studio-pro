@@ -118,34 +118,40 @@ const Profile = () => {
 
       const calculateScore = (s: any) => {
         let score = 0;
-        if (s.previewUrl && !s.previewUrl.includes('apple.com')) score += 25;
+        const isItunes = s.previewUrl?.includes('apple.com') || s.previewUrl?.includes('itunes-assets');
+        if (s.previewUrl && !isItunes) score += 25;
         if (s.isKeyConfirmed) score += 25;
         if (s.lyrics) score += 25;
         if (s.bpm) score += 25;
         return score;
       };
 
+      // Sanitize data for the repertoire table
       const repertoireData = allSongs.map(song => ({
         user_id: user.id,
         title: song.name,
         artist: song.artist || 'Unknown Artist',
-        original_key: song.originalKey,
-        bpm: song.bpm,
-        genre: song.genre || (song.user_tags?.[0]),
+        original_key: song.originalKey || null,
+        bpm: song.bpm || null,
+        genre: song.genre || (song.user_tags?.[0]) || null,
         readiness_score: calculateScore(song),
         is_active: true
       }));
 
       const { error: uError } = await supabase
         .from('repertoire')
-        .upsert(repertoireData, { onConflict: 'user_id,title,artist' });
+        .upsert(repertoireData, { 
+          onConflict: 'user_id,title,artist',
+          ignoreDuplicates: false 
+        });
 
       if (uError) throw uError;
 
       showSuccess(`Successfully Synced ${repertoireData.length} unique songs!`);
       fetchData();
-    } catch (err) {
-      showError("Bulk sync failed.");
+    } catch (err: any) {
+      console.error("Bulk sync error:", err);
+      showError(`Sync failed: ${err.message || 'Server Error'}`);
     } finally {
       setIsSyncing(false);
     }

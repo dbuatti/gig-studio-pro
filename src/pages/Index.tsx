@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import * as Tone from 'tone';
 import AudioTransposer, { AudioTransposerRef } from "@/components/AudioTransposer";
 import SetlistManager, { SetlistSong } from "@/components/SetlistManager";
 import SetlistSelector from "@/components/SetlistSelector";
@@ -144,25 +145,30 @@ const Index = () => {
     if (!songs.length || !user) return;
     setIsBulkSyncing(true);
     try {
+      // Sanitize data for the repertoire table
       const repertoireData = songs.map(song => ({
         user_id: user.id,
         title: song.name,
         artist: song.artist || 'Unknown Artist',
-        original_key: song.originalKey,
-        bpm: song.bpm,
-        genre: song.genre || (song.user_tags?.[0]),
+        original_key: song.originalKey || null,
+        bpm: song.bpm || null,
+        genre: song.genre || (song.user_tags?.[0]) || null,
         readiness_score: getReadinessScore(song),
         is_active: true
       }));
 
       const { error } = await supabase
         .from('repertoire')
-        .upsert(repertoireData, { onConflict: 'user_id,title,artist' });
+        .upsert(repertoireData, { 
+          onConflict: 'user_id,title,artist',
+          ignoreDuplicates: false 
+        });
 
       if (error) throw error;
       showSuccess(`Sync Complete: ${songs.length} songs pushed to Master.`);
-    } catch (err) {
-      showError("Bulk sync failed.");
+    } catch (err: any) {
+      console.error("Sync Error:", err);
+      showError(`Sync failed: ${err.message || 'Server Error'}`);
     } finally {
       setIsBulkSyncing(false);
     }
@@ -361,6 +367,9 @@ const Index = () => {
   };
 
   const handleSelectSong = async (song: SetlistSong) => {
+    // Audio Context Gesture
+    if (Tone.getContext().state !== 'running') await Tone.start();
+    
     setActiveSongId(song.id);
     setIsStudioOpen(true);
     if (song.previewUrl && transposerRef.current) {
@@ -398,7 +407,10 @@ const Index = () => {
     }
   };
 
-  const startPerformance = () => {
+  const startPerformance = async () => {
+    // Audio Context Gesture
+    if (Tone.getContext().state !== 'running') await Tone.start();
+    
     const firstPlayable = songs.find(s => !!s.previewUrl);
     if (!firstPlayable) {
       showError("No audio tracks found.");
