@@ -25,7 +25,6 @@ const Index = () => {
   const [isPerformanceMode, setIsPerformanceMode] = useState(false);
   const [performanceState, setPerformanceState] = useState({ progress: 0, duration: 0 });
   
-  // NEW: Global Sync Queue state
   const [syncQueue, setSyncQueue] = useState<string[]>([]);
   const [isProcessingQueue, setIsProcessingQueue] = useState(false);
 
@@ -40,7 +39,6 @@ const Index = () => {
     if (user) fetchSetlists();
   }, [user]);
 
-  // Sync performance UI stats
   useEffect(() => {
     let interval: number;
     if (isPerformanceMode) {
@@ -53,22 +51,16 @@ const Index = () => {
     return () => clearInterval(interval);
   }, [isPerformanceMode]);
 
-  // QUEUE WORKER: Processes pending syncs with a safety delay
   useEffect(() => {
     if (syncQueue.length === 0 || isProcessingQueue || !currentListId) return;
 
     const processNextBatch = async () => {
       setIsProcessingQueue(true);
-      
-      // Process in small batches of 5 to be extremely safe
       const batchIds = syncQueue.slice(0, 5);
       const batchSongs = songs.filter(s => batchIds.includes(s.id));
 
       if (batchSongs.length > 0) {
-        // We call the existing bulk sync logic
         await handleBulkSync(batchSongs, true);
-        
-        // Safety Delay: Wait 6 seconds before allowing the next batch
         await new Promise(resolve => setTimeout(resolve, 6000));
       }
 
@@ -130,7 +122,6 @@ const Index = () => {
   const handleBulkSync = async (songsToSync: SetlistSong[], fromQueue = false) => {
     if (!currentListId || songsToSync.length === 0) return;
 
-    // If not from queue, just add them to the queue and let the worker handle it
     if (!fromQueue) {
       setSyncQueue(prev => [...new Set([...prev, ...songsToSync.map(s => s.id)])]);
       return;
@@ -225,7 +216,6 @@ const Index = () => {
       return prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l);
     });
     
-    // Manual additions also go into the global throttled queue
     setSyncQueue(prev => [...prev, newSongId]);
   };
 
@@ -276,7 +266,6 @@ const Index = () => {
       const song = songs[nextIndex];
       handleSelectSong(song);
       if (isPerformanceMode) {
-        // Wait a small bit for loading then play
         setTimeout(() => transposerRef.current?.togglePlayback(), 1000);
       }
     } else {
@@ -287,8 +276,6 @@ const Index = () => {
 
   const handlePreviousSong = () => {
     if (!currentList) return;
-    
-    // Polyfill for findLastIndex to support older TypeScript targets
     let prevIndex = -1;
     for (let i = activeSongIndex - 1; i >= 0; i--) {
       if (songs[i].previewUrl) {
@@ -296,7 +283,6 @@ const Index = () => {
         break;
       }
     }
-    
     if (prevIndex !== -1) {
       handleSelectSong(songs[prevIndex]);
     }
@@ -398,8 +384,6 @@ const Index = () => {
                     saveList(currentListId, updated);
                     return prev.map(l => l.id === currentListId ? { ...l, songs: updated } : l);
                   });
-                  
-                  // NEW: Add IDs to the throttled global queue instead of calling AI immediately
                   setSyncQueue(prev => [...prev, ...songsWithSyncState.map(s => s.id)]);
                 }} />
               </div>
@@ -419,8 +403,8 @@ const Index = () => {
               onSelect={handleSelectSong}
               onUpdateKey={handleUpdateKey}
               onTogglePlayed={handleTogglePlayed}
-              onSyncProData={(song) => {
-                // Add single song to queue for throttled processing
+              onSyncProData={async (song) => {
+                // Fixed: Made handler async to match (song: SetlistSong) => Promise<void>
                 setSyncQueue(prev => [...new Set([...prev, song.id])]);
               }}
               onLinkAudio={(name) => {
