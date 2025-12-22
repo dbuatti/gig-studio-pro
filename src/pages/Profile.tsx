@@ -186,35 +186,29 @@ const Profile = () => {
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
       const bucketName = 'public_assets';
 
-      // Attempt the upload
+      // Explicitly set the content type to avoid sniffing timeouts
+      const contentType = file.type || 'image/jpeg';
+
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from(bucketName)
         .upload(fileName, file, {
           cacheControl: '3600',
-          upsert: true
+          upsert: false, // Set to false to reduce initial request complexity
+          contentType: contentType
         });
 
-      if (uploadError) {
-        throw uploadError;
-      }
+      if (uploadError) throw uploadError;
 
-      // Get the final public URL
       const { data: { publicUrl } } = supabase.storage
         .from(bucketName)
         .getPublicUrl(fileName);
 
-      // Update the profile in the database with the new URL
       handleUpdateLocal({ avatar_url: publicUrl });
       await saveToDatabase({ avatar_url: publicUrl });
       showSuccess("Photo Updated");
     } catch (err: any) {
       console.error("Upload process failed:", err);
-      // More specific error message for the user
-      if (err.message === 'Failed to fetch' || err.status === 0) {
-        showError("Network error: Could not reach the storage server. Check your connection.");
-      } else {
-        showError(`Upload failed: ${err.message || "Unknown error"}`);
-      }
+      showError(`Upload failed: ${err.message || "Network Timeout. Please try a smaller image or check your connection."}`);
     } finally {
       setSaving(false);
     }
