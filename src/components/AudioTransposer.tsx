@@ -56,9 +56,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
   const [volume, setVolume] = useState(-6);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [url, setUrl] = useState("");
   const [activeTab, setActiveTab] = useState("search");
-  const [isLoadingUrl, setIsLoadingUrl] = useState(false);
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
   const [activeYoutubeUrl, setActiveYoutubeUrl] = useState<string | undefined>();
   const [activeUgUrl, setActiveUgUrl] = useState<string | undefined>();
@@ -132,18 +130,14 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
   };
 
   const loadFromUrl = async (targetUrl: string, name: string, artist: string, youtubeUrl?: string, originalKey?: string, ugUrl?: string) => {
-    setIsLoadingUrl(true);
     try {
       const response = await fetch(targetUrl);
       if (!response.ok) throw new Error("Fetch error");
       const arrayBuffer = await response.arrayBuffer();
       const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
       await loadAudioBuffer(audioBuffer, name, artist, youtubeUrl, targetUrl, originalKey, ugUrl);
-      if (!name) setUrl("");
     } catch (err) {
       showError("Load failed.");
-    } finally {
-      setIsLoadingUrl(false);
     }
   };
 
@@ -244,18 +238,6 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
     getIsPlaying: () => isPlaying
   }));
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const uploadedFile = e.target.files?.[0];
-    if (uploadedFile) loadFile(uploadedFile);
-  };
-
-  const loadFile = async (uploadedFile: File) => {
-    if (!uploadedFile.type.startsWith('audio/')) return;
-    const arrayBuffer = await uploadedFile.arrayBuffer();
-    const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
-    loadAudioBuffer(audioBuffer, uploadedFile.name, "Manual Upload");
-  };
-
   const animateProgress = () => {
     if (isPlaying && playerRef.current) {
       const elapsed = (Tone.now() - playbackStartTimeRef.current) * tempo;
@@ -312,11 +294,9 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 h-9 bg-slate-100 dark:bg-slate-800 p-1 mb-6">
-            <TabsTrigger value="search" className="text-[10px] uppercase font-bold gap-1.5"><Search className="w-3 h-3" /> iTunes</TabsTrigger>
-            <TabsTrigger value="repertoire" className="text-[10px] uppercase font-bold gap-1.5"><Library className="w-3 h-3" /> Lib</TabsTrigger>
-            <TabsTrigger value="upload" className="text-[10px] uppercase font-bold gap-1.5"><Upload className="w-3 h-3" /> Up</TabsTrigger>
-            <TabsTrigger value="url" className="text-[10px] uppercase font-bold gap-1.5"><Globe className="w-3 h-3" /> URL</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 h-9 bg-slate-100 dark:bg-slate-800 p-1 mb-6">
+            <TabsTrigger value="search" className="text-[10px] uppercase font-bold gap-1.5"><Search className="w-3 h-3" /> iTunes Search</TabsTrigger>
+            <TabsTrigger value="repertoire" className="text-[10px] uppercase font-bold gap-1.5"><Library className="w-3 h-3" /> My Library</TabsTrigger>
           </TabsList>
           
           <TabsContent value="search" className="mt-0 space-y-4">
@@ -332,28 +312,6 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
               repertoire={repertoire} 
               onAddSong={(song) => onAddExistingSong?.(song)}
             />
-          </TabsContent>
-
-          <TabsContent value="upload" className="mt-0">
-            <div className="relative h-24 flex items-center justify-center rounded-xl border-2 border-dashed bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 transition-all hover:border-indigo-500 group">
-              <div className="flex flex-col items-center pointer-events-none text-center p-4">
-                <Upload className="w-6 h-6 mb-1 text-indigo-400 group-hover:scale-110 transition-transform" />
-                <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Drop Studio Master</p>
-              </div>
-              <input type="file" accept="audio/*" onChange={handleFileUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
-            </div>
-          </TabsContent>
-
-          <TabsContent value="url" className="mt-0 space-y-4">
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input placeholder="Direct .mp3 URL" className="pl-9 h-10 text-xs" value={url} onChange={(e) => setUrl(e.target.value)} />
-              </div>
-              <Button onClick={() => loadFromUrl(url, "Remote Link", "Web Stream")} disabled={!url || isLoadingUrl} className="bg-indigo-600 h-10 px-5 font-bold uppercase text-[10px]">
-                {isLoadingUrl ? <Activity className="w-3.5 h-3.5 animate-spin" /> : "Fetch"}
-              </Button>
-            </div>
           </TabsContent>
         </Tabs>
 
