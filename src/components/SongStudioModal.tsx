@@ -18,7 +18,7 @@ import {
   Upload, Link2, X, Plus, Tag, Check, Loader2,
   FileDown, Headphones, Wand2, Download,
   Globe, Eye, Link as LinkIcon, RotateCcw,
-  Zap, Disc, VolumeX
+  Zap, Disc, VolumeX, Smartphone, Printer
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import AudioVisualizer from './AudioVisualizer';
@@ -119,36 +119,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       }
     }
   }, [formData.bpm, isMetronomeActive]);
-
-  // Dedicated progress animation loop
-  const animateProgress = () => {
-    if (playerRef.current && isPlaying) {
-      const elapsed = (Tone.now() - playbackStartTimeRef.current) * tempo;
-      const currentSeconds = playbackOffsetRef.current + elapsed;
-      const newProgress = (currentSeconds / duration) * 100;
-
-      if (currentSeconds >= duration) {
-        setIsPlaying(false);
-        setProgress(0);
-        playbackOffsetRef.current = 0;
-        return;
-      }
-
-      setProgress(newProgress);
-      requestRef.current = requestAnimationFrame(animateProgress);
-    }
-  };
-
-  useEffect(() => {
-    if (isPlaying) {
-      requestRef.current = requestAnimationFrame(animateProgress);
-    } else if (requestRef.current) {
-      cancelAnimationFrame(requestRef.current);
-    }
-    return () => {
-      if (requestRef.current) cancelAnimationFrame(requestRef.current);
-    };
-  }, [isPlaying, tempo, duration]);
 
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
   const handleAutoSave = (updates: Partial<SetlistSong>) => {
@@ -388,6 +358,29 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       const query = encodeURIComponent(`${formData.artist} ${formData.name} official tab`);
       window.open(`https://www.ultimate-guitar.com/search.php?search_type=title&value=${query}`, '_blank');
     }
+  };
+
+  const handleOnSongImport = () => {
+    if (!formData.ugUrl) {
+      showError("Link an Ultimate Guitar tab first.");
+      return;
+    }
+    const onSongUrl = `onsong://import?url=${encodeURIComponent(formData.ugUrl)}`;
+    window.location.href = onSongUrl;
+    showSuccess("Attempting OnSong Handover...");
+  };
+
+  const handleUgPrint = () => {
+    if (!formData.ugUrl) {
+      showError("Link a tab first.");
+      return;
+    }
+    // Most UG tabs can be converted to a printable view by appending /print
+    const printUrl = formData.ugUrl.includes('?') 
+      ? formData.ugUrl.replace('?', '/print?') 
+      : `${formData.ugUrl}/print`;
+    window.open(printUrl, '_blank');
+    showSuccess("Opening Print Assistant. Use 'Print to PDF' and upload here.");
   };
 
   const handleDownloadAll = async () => {
@@ -936,19 +929,51 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                         <div className="bg-orange-600 p-4 rounded-2xl shadow-lg shadow-orange-600/20">
                           <Link2 className="w-8 h-8" />
                         </div>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-10 w-10 text-orange-400 hover:bg-orange-600 hover:text-white transition-all rounded-xl" 
-                          onClick={handleUgAction}
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                        </Button>
+                        <div className="flex gap-2">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-10 w-10 text-orange-400 hover:bg-orange-600 hover:text-white transition-all rounded-xl border border-orange-500/20" 
+                                  onClick={handleUgPrint}
+                                >
+                                  <Printer className="w-4 h-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent className="text-[10px] font-black uppercase">Print Assistant (PDF Generator)</TooltipContent>
+                            </Tooltip>
+                            
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-10 w-10 text-orange-400 hover:bg-orange-600 hover:text-white transition-all rounded-xl border border-orange-500/20" 
+                                  onClick={handleOnSongImport}
+                                >
+                                  <Smartphone className="w-4 h-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent className="text-[10px] font-black uppercase">Handover to OnSong</TooltipContent>
+                            </Tooltip>
+
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-10 w-10 text-orange-400 hover:bg-orange-600 hover:text-white transition-all rounded-xl" 
+                              onClick={handleUgAction}
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </Button>
+                          </TooltipProvider>
+                        </div>
                       </div>
                       <div className="space-y-2 mt-6">
                         <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-400">Ultimate Guitar Pro</Label>
                         <p className="text-2xl font-black tracking-tight">{formData.ugUrl ? "Verified Official Link" : "Auto-Search Active"}</p>
-                        <p className="text-[10px] text-slate-500 font-mono">{formData.ugUrl || "Targeting Official Tab Type 600"}</p>
+                        <p className="text-[10px] text-slate-500 font-mono">Mobile App Integration Ready</p>
                       </div>
                     </div>
 
@@ -964,6 +989,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       <div className="space-y-2 mt-6">
                         <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400">Stage Chart / PDF</Label>
                         <p className="text-2xl font-black tracking-tight">{formData.pdfUrl ? "Performance_Chart" : "Not Linked"}</p>
+                        <p className="text-[10px] text-slate-500 font-mono">Ready for Stage View</p>
                       </div>
                     </div>
                   </div>
