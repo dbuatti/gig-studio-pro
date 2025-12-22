@@ -563,7 +563,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     showSuccess("All assets queued for download");
   };
 
-  if (!song) return null;
   const videoId = formData.youtubeUrl ? formData.youtubeUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)?.[1] : null;
 
   const currentChartUrl = useMemo(() => {
@@ -584,6 +583,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     { id: 'visual', label: 'Visual', title: 'Visual Reference Engine' },
     { id: 'library', label: 'Library', title: 'Library Asset Matrix' },
   ];
+
+  if (!song) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
