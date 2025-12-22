@@ -19,7 +19,8 @@ import {
   FileDown, Headphones, Wand2, Download,
   Globe, Eye, Link as LinkIcon, RotateCcw,
   Zap, Disc, VolumeX, Smartphone, Printer, Search,
-  ClipboardPaste, AlignLeft, Apple, Hash, Music2
+  ClipboardPaste, AlignLeft, Apple, Hash, Music2,
+  Type, Layout, BookOpen
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import AudioVisualizer from './AudioVisualizer';
@@ -133,6 +134,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         name: song.name || "",
         artist: song.artist || "",
         bpm: song.bpm || "",
+        genre: song.genre || "",
         originalKey: song.originalKey || "C",
         targetKey: song.targetKey || "C",
         notes: song.notes || "",
@@ -242,7 +244,10 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     try {
       const bpm = await analyze(currentBufferRef.current);
       handleAutoSave({ bpm: Math.round(bpm).toString() });
-    } catch (err) {} finally { setIsAnalyzing(false); }
+      showSuccess(`Detected BPM: ${Math.round(bpm)}`);
+    } catch (err) {
+      showError("BPM detection failed.");
+    } finally { setIsAnalyzing(false); }
   };
 
   const togglePlayback = async () => {
@@ -348,7 +353,10 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     try {
       const { data, error } = await supabase.functions.invoke('enrich-metadata', { body: { queries: [formData.lyrics], mode: 'lyrics' } });
       if (data?.lyrics) handleAutoSave({ lyrics: data.lyrics });
-    } catch (err) {} finally { setIsFormattingLyrics(false); }
+      showSuccess("Lyrics formatted by AI");
+    } catch (err) {
+      showError("AI formatting failed.");
+    } finally { setIsFormattingLyrics(false); }
   };
 
   const handlePasteUgUrl = async () => {
@@ -624,15 +632,186 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
               {activeTab === 'details' && (
                 <div className="space-y-10 animate-in fade-in duration-500">
                   <div className="grid grid-cols-2 gap-10">
-                    <div className="space-y-4">
-                      <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Sheet Music Link</Label>
-                      <div className="flex gap-3">
-                        <Input placeholder="Paste URL..." value={formData.pdfUrl || ""} onChange={(e) => handleAutoSave({ pdfUrl: e.target.value })} className="bg-white/5 border-white/10 font-bold h-12 rounded-xl" />
-                        <Button variant="ghost" className="bg-white/5 h-12 w-12 p-0 rounded-xl" onClick={handlePdfAction}>
-                          {formData.pdfUrl ? <LinkIcon className="w-5 h-5" /> : <ExternalLink className="w-5 h-5" />}
+                    <div className="space-y-6">
+                      <div className="space-y-4">
+                        <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Primary Artist</Label>
+                        <Input value={formData.artist || ""} onChange={(e) => handleAutoSave({ artist: e.target.value })} className="bg-white/5 border-white/10 font-bold h-12 rounded-xl" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-4">
+                          <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Tempo (BPM)</Label>
+                          <div className="flex gap-2">
+                            <Input type="number" value={formData.bpm || ""} onChange={(e) => handleAutoSave({ bpm: e.target.value })} className="bg-white/5 border-white/10 font-bold h-12 rounded-xl" />
+                            <Button variant="ghost" size="icon" className="h-12 w-12 bg-white/5 rounded-xl text-indigo-400" onClick={handleDetectBPM} disabled={isAnalyzing}>
+                              {isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Headphones className="w-4 h-4" />}
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="space-y-4">
+                          <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Genre / Style</Label>
+                          <Input value={formData.genre || ""} onChange={(e) => handleAutoSave({ genre: e.target.value })} className="bg-white/5 border-white/10 font-bold h-12 rounded-xl" />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-6">
+                      <div className="space-y-4">
+                        <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Sheet Music Link (PDF)</Label>
+                        <div className="flex gap-3">
+                          <Input placeholder="Paste URL..." value={formData.pdfUrl || ""} onChange={(e) => handleAutoSave({ pdfUrl: e.target.value })} className="bg-white/5 border-white/10 font-bold h-12 rounded-xl" />
+                          <Button variant="ghost" className="bg-white/5 h-12 w-12 p-0 rounded-xl" onClick={handlePdfAction}>
+                            {formData.pdfUrl ? <FileDown className="w-5 h-5 text-red-400" /> : <Search className="w-5 h-5" />}
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="space-y-4">
+                        <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Leadsheet Matrix (Link)</Label>
+                        <div className="flex gap-3">
+                          <Input placeholder="Paste Leadsheet URL..." value={formData.leadsheetUrl || ""} onChange={(e) => handleAutoSave({ leadsheetUrl: e.target.value })} className="bg-white/5 border-white/10 font-bold h-12 rounded-xl" />
+                          <Button variant="ghost" className="bg-white/5 h-12 w-12 p-0 rounded-xl">
+                            <Upload className="w-5 h-5 text-indigo-400" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Stage Memo / Technical Notes</Label>
+                    <Textarea value={formData.notes || ""} onChange={(e) => handleAutoSave({ notes: e.target.value })} className="min-h-[200px] bg-white/5 border-white/10 rounded-2xl p-6 text-base" />
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'lyrics' && (
+                <div className="space-y-8 animate-in fade-in duration-500 h-full flex flex-col">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-black uppercase tracking-[0.2em] text-pink-400">Lyric Management Engine</h3>
+                      <p className="text-sm text-slate-500 mt-2">Professional formatting for stage teleprompters.</p>
+                    </div>
+                    <div className="flex gap-4">
+                      <Button variant="outline" onClick={handleLyricsSearch} className="bg-slate-800 border-white/5 h-10 px-6 font-black uppercase text-[10px] gap-2 rounded-xl">
+                        <Search className="w-3.5 h-3.5" /> Find Online
+                      </Button>
+                      <Button onClick={handleMagicFormatLyrics} disabled={isFormattingLyrics || !formData.lyrics} className="bg-pink-600 hover:bg-pink-700 h-10 px-6 font-black uppercase text-[10px] gap-2 rounded-xl shadow-lg shadow-pink-600/20">
+                        {isFormattingLyrics ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />} Magic Format
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex-1 bg-white/5 rounded-[2.5rem] border border-white/5 p-10">
+                    <Textarea 
+                      placeholder="Paste your lyrics here..." 
+                      value={formData.lyrics || ""} 
+                      onChange={(e) => handleAutoSave({ lyrics: e.target.value })}
+                      className="h-full min-h-[500px] bg-transparent border-none text-2xl font-black uppercase tracking-tight leading-relaxed focus-visible:ring-0 p-0 text-white/80"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'library' && (
+                <div className="space-y-12 animate-in fade-in duration-500">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                    <div className="space-y-8">
+                      <div className="p-8 bg-white/5 rounded-[2rem] border border-white/5 space-y-6">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-black uppercase tracking-[0.2em] text-orange-400">Ultimate Guitar Integration</h4>
+                          <button onClick={handleUgPrint} className="text-[10px] font-black text-slate-500 hover:text-white uppercase">Open Print View</button>
+                        </div>
+                        <div className="flex gap-3">
+                          <Input placeholder="UG Tab URL" value={formData.ugUrl || ""} onChange={(e) => handleAutoSave({ ugUrl: e.target.value })} className="bg-slate-950 border-white/10 text-xs font-bold" />
+                          <Button variant="ghost" size="icon" className="bg-slate-950" onClick={handlePasteUgUrl}><ClipboardPaste className="w-4 h-4" /></Button>
+                        </div>
+                        <Button onClick={handleUgAction} className="w-full h-12 bg-orange-600 hover:bg-orange-700 font-black uppercase tracking-widest text-[10px] gap-2 rounded-xl shadow-lg shadow-orange-600/20">
+                          <ExternalLink className="w-4 h-4" /> Load External Tab
+                        </Button>
+                      </div>
+
+                      <div className="p-8 bg-white/5 rounded-[2rem] border border-white/5 space-y-6">
+                        <h4 className="text-xs font-black uppercase tracking-[0.2em] text-red-500">YouTube Reference Engine</h4>
+                        <div className="flex gap-3">
+                          <Input placeholder="YouTube URL" value={formData.youtubeUrl || ""} onChange={(e) => handleAutoSave({ youtubeUrl: e.target.value })} className="bg-slate-950 border-white/10 text-xs font-bold" />
+                          <Button variant="ghost" size="icon" className="bg-slate-950" onClick={handleYoutubeSearch}><Search className="w-4 h-4" /></Button>
+                        </div>
+                        {videoId && (
+                          <div className="aspect-video rounded-2xl overflow-hidden border border-white/10 shadow-xl bg-black">
+                            <iframe width="100%" height="100%" src={`https://www.youtube.com/embed/${videoId}`} frameBorder="0" allowFullScreen />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-8">
+                      <div className="p-8 bg-indigo-600/10 rounded-[2rem] border border-indigo-600/20 space-y-6">
+                        <h4 className="text-xs font-black uppercase tracking-[0.2em] text-indigo-400">Asset Management Matrix</h4>
+                        <div className="grid grid-cols-1 gap-4">
+                           <div className="flex items-center justify-between p-4 bg-slate-950/50 rounded-xl border border-white/5">
+                             <div className="flex items-center gap-3">
+                               <div className={cn("p-2 rounded-lg", formData.previewUrl ? "bg-green-600" : "bg-slate-800")}>
+                                 <Headphones className="w-4 h-4 text-white" />
+                               </div>
+                               <div>
+                                 <p className="text-[10px] font-black uppercase">Master Audio</p>
+                                 <p className="text-[9px] text-slate-500 truncate max-w-[150px]">{formData.previewUrl ? "Synchronized" : "Empty Slot"}</p>
+                               </div>
+                             </div>
+                             <Button variant="ghost" size="sm" className="h-8 text-[9px] font-black uppercase" onClick={handleDownloadAll}>Verify</Button>
+                           </div>
+                           <div className="flex items-center justify-between p-4 bg-slate-950/50 rounded-xl border border-white/5">
+                             <div className="flex items-center gap-3">
+                               <div className={cn("p-2 rounded-lg", formData.pdfUrl ? "bg-red-600" : "bg-slate-800")}>
+                                 <FileText className="w-4 h-4 text-white" />
+                               </div>
+                               <div>
+                                 <p className="text-[10px] font-black uppercase">Sheet Music</p>
+                                 <p className="text-[9px] text-slate-500 truncate max-w-[150px]">{formData.pdfUrl ? "Linked" : "Empty Slot"}</p>
+                               </div>
+                             </div>
+                             <Button variant="ghost" size="sm" className="h-8 text-[9px] font-black uppercase">Link</Button>
+                           </div>
+                        </div>
+                        <Button onClick={handleDownloadAll} className="w-full h-12 bg-white/5 hover:bg-white/10 text-white font-black uppercase tracking-widest text-[10px] gap-2 rounded-xl">
+                          <Download className="w-4 h-4" /> Export All Assets (.zip)
                         </Button>
                       </div>
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'visual' && (
+                <div className="space-y-12 animate-in fade-in duration-500">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-black uppercase tracking-[0.2em] text-indigo-400">Visual Performance Matrix</h3>
+                      <p className="text-sm text-slate-500 mt-2">Cues and visual triggers for stage performance.</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                     <div className="bg-white/5 rounded-[2.5rem] p-10 border border-white/5 flex flex-col items-center justify-center text-center space-y-6">
+                        <div className="h-24 w-24 bg-indigo-600 rounded-3xl flex items-center justify-center text-white shadow-2xl shadow-indigo-600/20">
+                          <Layout className="w-12 h-12" />
+                        </div>
+                        <div>
+                          <h4 className="text-xl font-black uppercase tracking-tighter">Stage HUD Configuration</h4>
+                          <p className="text-xs text-slate-500 mt-2">Visual cues are automatically derived from metadata and performance state.</p>
+                        </div>
+                     </div>
+                     <div className="bg-white/5 rounded-[2.5rem] p-10 border border-white/5 space-y-6">
+                        <div className="flex items-center gap-3 mb-4">
+                          <Eye className="w-5 h-5 text-indigo-400" />
+                          <span className="text-xs font-black uppercase tracking-widest">Visibility Preview</span>
+                        </div>
+                        <div className="space-y-4">
+                           <div className="p-4 bg-indigo-600 rounded-xl">
+                             <span className="text-[8px] font-black uppercase text-indigo-200">Stage Key</span>
+                             <p className="text-2xl font-black">{formData.targetKey || formData.originalKey}</p>
+                           </div>
+                           <div className="p-4 bg-slate-900 rounded-xl border border-white/5">
+                             <span className="text-[8px] font-black uppercase text-slate-500">Tempo Confidence</span>
+                             <p className="text-2xl font-black">{formData.bpm ? "100%" : "0%"}</p>
+                           </div>
+                        </div>
+                     </div>
                   </div>
                 </div>
               )}
