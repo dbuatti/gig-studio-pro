@@ -10,6 +10,7 @@ import { Play, Pause, RotateCcw, Upload, Volume2, Info, Waves, Settings2, Gauge,
 import { showSuccess, showError } from '@/utils/toast';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import AudioVisualizer from './AudioVisualizer';
+import { cn } from "@/lib/utils";
 
 const AudioTransposer = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -21,6 +22,7 @@ const AudioTransposer = () => {
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [eqHigh, setEqHigh] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
 
   const playerRef = useRef<Tone.GrainPlayer | null>(null);
   const limiterRef = useRef<Tone.Limiter | null>(null);
@@ -61,9 +63,11 @@ const AudioTransposer = () => {
     };
   }, []);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const uploadedFile = e.target.files?.[0];
-    if (!uploadedFile) return;
+  const loadAudioFile = async (uploadedFile: File) => {
+    if (!uploadedFile.type.startsWith('audio/')) {
+      showError("Please upload a valid audio file.");
+      return;
+    }
 
     try {
       const arrayBuffer = await uploadedFile.arrayBuffer();
@@ -87,6 +91,27 @@ const AudioTransposer = () => {
     } catch (err) {
       showError("Engine initialization failed.");
     }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const uploadedFile = e.target.files?.[0];
+    if (uploadedFile) loadAudioFile(uploadedFile);
+  };
+
+  const onDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const onDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const droppedFile = e.dataTransfer.files?.[0];
+    if (droppedFile) loadAudioFile(droppedFile);
   };
 
   const animateProgress = () => {
@@ -228,7 +253,17 @@ const AudioTransposer = () => {
       </CardHeader>
 
       <CardContent className="space-y-6">
-        <div className="relative h-24 flex items-center justify-center bg-slate-50 dark:bg-slate-900 rounded-xl border-2 border-dashed overflow-hidden group">
+        <div 
+          onDragOver={onDragOver}
+          onDragLeave={onDragLeave}
+          onDrop={onDrop}
+          className={cn(
+            "relative h-24 flex items-center justify-center rounded-xl border-2 border-dashed transition-all duration-200 overflow-hidden group",
+            isDragging 
+              ? "bg-indigo-50 border-indigo-500 scale-[1.01] dark:bg-indigo-900/20" 
+              : "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800"
+          )}
+        >
           {file ? (
             <div className="absolute inset-0 z-10 p-2">
               <AudioVisualizer analyzer={analyzerRef.current} isActive={isPlaying} />
@@ -237,9 +272,14 @@ const AudioTransposer = () => {
               </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center">
-              <Upload className="w-8 h-8 text-indigo-400 mb-2 group-hover:scale-110 transition-transform" />
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Load Mastering Source</p>
+            <div className="flex flex-col items-center pointer-events-none">
+              <Upload className={cn(
+                "w-8 h-8 mb-2 transition-transform",
+                isDragging ? "text-indigo-600 scale-110" : "text-indigo-400 group-hover:scale-110"
+              )} />
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {isDragging ? "Drop to load engine" : "Load Mastering Source"}
+              </p>
             </div>
           )}
           <input
