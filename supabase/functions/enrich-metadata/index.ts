@@ -57,8 +57,8 @@ serve(async (req) => {
       Return ONLY the JSON array.`;
     }
 
-    // Switched to v1beta and gemini-pro for better reliability across regions
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
+    // Using gemini-1.5-flash on v1beta which is the current free tier standard
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
