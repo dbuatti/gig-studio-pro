@@ -2,10 +2,10 @@
 
 import React from 'react';
 import { SetlistSong } from './SetlistManager';
-import { Music, Youtube, Copy, Play, Activity } from 'lucide-react';
+import { Music, Youtube, Copy, Play, Activity, Gauge, Sparkles, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { showSuccess, showError } from '@/utils/toast';
-import { cn } from '@/lib/utils';
+import { showSuccess } from '@/utils/toast';
+import { Badge } from '@/components/ui/badge';
 
 interface ActiveSongBannerProps {
   song: SetlistSong | null;
@@ -23,48 +23,83 @@ const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song }) => {
   };
 
   return (
-    <div className="sticky top-0 z-20 mb-6 animate-in slide-in-from-top duration-300">
-      <div className="bg-indigo-600 rounded-2xl shadow-xl overflow-hidden border-b-4 border-indigo-800">
-        <div className="bg-indigo-700/50 px-4 py-1.5 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Activity className="w-3 h-3 text-indigo-200 animate-pulse" />
-            <span className="text-[9px] font-black text-indigo-100 uppercase tracking-[0.2em]">Active Performance Slot</span>
+    <div className="sticky top-0 z-20 mb-6 animate-in slide-in-from-top duration-500">
+      <div className="bg-slate-900 rounded-[2rem] shadow-2xl overflow-hidden border-4 border-indigo-600/20">
+        <div className="bg-indigo-600 px-6 py-2 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Activity className="w-4 h-4 text-indigo-200 animate-pulse" />
+            <span className="text-[10px] font-black text-indigo-50 uppercase tracking-[0.3em]">Live Performance Telemetry</span>
           </div>
-          <div className="text-[9px] font-mono text-indigo-200 uppercase">Engine: Low Latency</div>
+          <div className="flex gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
+              <span className="text-[9px] font-mono text-indigo-100 font-bold uppercase">Engine: Stable</span>
+            </div>
+          </div>
         </div>
         
-        <div className="p-4 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4 min-w-0">
-            <div className="h-12 w-12 bg-white/10 rounded-xl flex items-center justify-center shrink-0">
-              <Play className="w-6 h-6 text-white fill-current" />
+        <div className="p-8 flex items-center justify-between gap-8 bg-gradient-to-br from-slate-900 to-indigo-950/30">
+          <div className="flex items-center gap-6 min-w-0">
+            <div className="h-16 w-16 bg-indigo-600 rounded-2xl flex items-center justify-center shrink-0 shadow-lg shadow-indigo-600/20">
+              <Play className="w-8 h-8 text-white fill-current ml-1" />
             </div>
             <div className="min-w-0">
-              <h2 className="text-xl font-black text-white uppercase tracking-tight truncate leading-none">
+              <h2 className="text-3xl font-black text-white uppercase tracking-tighter truncate leading-none">
                 {song.name}
               </h2>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-xs font-bold text-indigo-100 uppercase tracking-wider opacity-80">{song.artist || "Unknown Artist"}</span>
-                <div className="w-1 h-1 rounded-full bg-indigo-400" />
-                <span className="text-xs font-mono font-bold text-white bg-indigo-500/50 px-1.5 rounded">{song.targetKey || song.originalKey}</span>
+              <div className="flex items-center gap-3 mt-2">
+                <span className="text-sm font-bold text-slate-400 uppercase tracking-wider">{song.artist || "Unknown Artist"}</span>
+                <div className="w-1.5 h-1.5 rounded-full bg-slate-700" />
+                <span className="text-sm font-mono font-bold text-indigo-400 bg-indigo-400/10 px-2 rounded">{song.targetKey || song.originalKey}</span>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            {song.youtubeUrl && (
-              <Button 
-                variant="secondary" 
-                size="sm" 
-                onClick={handleCopyLink}
-                className="bg-white/10 hover:bg-white/20 border-white/10 text-white font-bold text-[10px] uppercase gap-2 h-9"
-              >
-                <Copy className="w-4 h-4" /> Copy URL
-              </Button>
-            )}
-            <div className="h-9 w-px bg-white/10 mx-1" />
-            <div className="flex flex-col items-end">
-              <span className="text-[8px] font-black text-indigo-200 uppercase tracking-widest">Pitch Shift</span>
-              <span className="text-sm font-mono font-bold text-white">{song.pitch > 0 ? '+' : ''}{song.pitch} ST</span>
+          <div className="flex items-center gap-10 shrink-0">
+            {/* Telemetry Stats */}
+            <div className="flex gap-8 border-l border-white/5 pl-8">
+              <div className="flex flex-col items-center">
+                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                  <Gauge className="w-3 h-3" /> Tempo
+                </span>
+                <span className="text-xl font-black text-white font-mono">{song.bpm || "--"} <span className="text-[10px] text-slate-500">BPM</span></span>
+              </div>
+
+              <div className="flex flex-col items-center">
+                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                  <Sparkles className="w-3 h-3" /> Vibe
+                </span>
+                <span className="text-xl font-black text-white font-mono uppercase truncate max-w-[120px]">{song.genre || "Standard"}</span>
+              </div>
+
+              <div className="flex flex-col items-center">
+                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                  <Activity className="w-3 h-3" /> Pitch
+                </span>
+                <span className="text-xl font-black text-white font-mono">{song.pitch > 0 ? '+' : ''}{song.pitch} <span className="text-[10px] text-slate-500">ST</span></span>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap gap-1 justify-end max-w-[180px]">
+                {(song.user_tags || []).slice(0, 3).map(tag => (
+                  <Badge key={tag} variant="secondary" className="bg-white/5 text-[8px] font-black uppercase text-indigo-300 border-white/5 px-2 py-0.5">
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+              <div className="flex items-center gap-2 justify-end">
+                {song.youtubeUrl && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={handleCopyLink}
+                    className="h-9 px-4 bg-white/5 hover:bg-white/10 text-white font-bold text-[10px] uppercase gap-2 rounded-xl"
+                  >
+                    <Copy className="w-3.5 h-3.5" /> Copy Link
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </div>
