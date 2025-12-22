@@ -252,9 +252,9 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
           <div>
             <CardTitle className="flex items-center gap-2 text-2xl">
               <Waves className="w-6 h-6 text-indigo-600" />
-              Transposer Studio
+              Song Studio
             </CardTitle>
-            <CardDescription>Shift keys and tempo in real-time.</CardDescription>
+            <CardDescription>Shift keys and prepare your repertoire.</CardDescription>
           </div>
           <div className="flex items-center gap-2">
             {file && onAddToSetlist && (

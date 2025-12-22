@@ -153,8 +153,9 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
                 {results.map((song) => (
                   <div key={song.trackId} className="flex flex-col border-b last:border-0 border-slate-100 dark:border-slate-800">
                     <div className="w-full flex items-center gap-3 p-2 hover:bg-white dark:hover:bg-indigo-950/30 rounded-lg transition-all group">
+                      {/* Clicking the main area now adds to setlist */}
                       <button
-                        onClick={() => onSelectSong(song.previewUrl, `${song.trackName} - ${song.artistName}`)}
+                        onClick={() => onAddToSetlist(song.previewUrl, `${song.trackName} - ${song.artistName}`)}
                         className="flex flex-1 items-center gap-3 text-left min-w-0"
                       >
                         <img 
@@ -165,22 +166,11 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-bold truncate">{song.trackName}</p>
                           <p className="text-[10px] text-muted-foreground truncate uppercase tracking-wider font-semibold">{song.artistName}</p>
+                          <p className="text-[8px] text-indigo-500 font-black uppercase tracking-tighter mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">Click to Add to Gig</p>
                         </div>
                       </button>
 
                       <div className="flex items-center gap-1 shrink-0 px-2">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button 
-                              onClick={() => onAddToSetlist(song.previewUrl, `${song.trackName} - ${song.artistName}`)}
-                              className="p-2 hover:bg-green-600 hover:text-white text-green-500 rounded-md transition-all"
-                            >
-                              <Plus className="w-4 h-4" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent>Add to Setlist</TooltipContent>
-                        </Tooltip>
-
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <button 
@@ -205,7 +195,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
                               <Music className="w-4 h-4" />
                             </button>
                           </TooltipTrigger>
-                          <TooltipContent>Load High-Fidelity Preview</TooltipContent>
+                          <TooltipContent>Preview Audio</TooltipContent>
                         </Tooltip>
                       </div>
                     </div>
