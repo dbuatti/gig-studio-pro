@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Music, Loader2, Check, Globe, Disc, Star } from 'lucide-react';
+import { Search, Music, Loader2, Check, Globe, Disc, Star, X } from 'lucide-react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
@@ -25,7 +25,7 @@ const ProSyncSearch: React.FC<ProSyncSearchProps> = ({ isOpen, onClose, onSelect
 
     setIsLoading(true);
     try {
-      const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(searchQuery)}&entity=song&limit=20`);
+      const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(searchQuery)}&entity=song&limit=25`);
       const data = await response.json();
       setResults(data.results || []);
     } catch (err) {
@@ -45,15 +45,21 @@ const ProSyncSearch: React.FC<ProSyncSearchProps> = ({ isOpen, onClose, onSelect
       setQuery(initialQuery);
       performSearch(initialQuery);
     } else if (!isOpen) {
-      // Clear results when closing
       setResults([]);
     }
   }, [isOpen, initialQuery]);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl bg-slate-950 border-white/10 text-white rounded-[2rem] p-0 overflow-hidden">
-        <div className="p-8 bg-indigo-600">
+      <DialogContent className="max-w-2xl w-[90vw] max-h-[85vh] bg-slate-950 border-white/10 text-white rounded-[2rem] p-0 overflow-hidden flex flex-col shadow-2xl">
+        <div className="p-8 bg-indigo-600 shrink-0 relative">
+          <button 
+            onClick={onClose}
+            className="absolute top-6 right-6 p-2 rounded-full hover:bg-white/10 text-white/70 hover:text-white transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          
           <DialogHeader>
             <div className="flex items-center gap-3 mb-2">
               <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">
@@ -80,39 +86,39 @@ const ProSyncSearch: React.FC<ProSyncSearchProps> = ({ isOpen, onClose, onSelect
             <Button 
               type="submit" 
               disabled={isLoading}
-              className="bg-white text-indigo-600 hover:bg-indigo-50 h-12 px-8 font-black uppercase tracking-widest text-xs rounded-xl shadow-lg"
+              className="bg-white text-indigo-600 hover:bg-indigo-50 h-12 px-8 font-black uppercase tracking-widest text-xs rounded-xl shadow-lg shrink-0"
             >
               {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Search"}
             </Button>
           </form>
         </div>
 
-        <div className="p-4 bg-slate-900/50">
-          <ScrollArea className="h-[400px] pr-4">
-            <div className="space-y-2">
+        <div className="flex-1 overflow-hidden bg-slate-900/50 p-4">
+          <ScrollArea className="h-full">
+            <div className="space-y-2 pr-4">
               {results.length > 0 ? (
                 results.map((song) => (
                   <button
                     key={song.trackId}
                     onClick={() => onSelect(song)}
-                    className="w-full flex items-center gap-4 p-3 hover:bg-white/5 rounded-2xl transition-all group border border-transparent hover:border-white/5"
+                    className="w-full flex items-center gap-4 p-3 hover:bg-white/5 rounded-2xl transition-all group border border-transparent hover:border-white/5 text-left"
                   >
                     <div className="relative shrink-0">
                       <img 
                         src={song.artworkUrl100} 
                         alt={song.trackName} 
-                        className="w-14 h-14 rounded-xl shadow-lg group-hover:scale-105 transition-transform" 
+                        className="w-14 h-14 rounded-xl shadow-lg group-hover:scale-105 transition-transform object-cover" 
                       />
                       <div className="absolute inset-0 bg-indigo-600/20 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center">
                         <Check className="w-6 h-6 text-white" />
                       </div>
                     </div>
-                    <div className="flex-1 text-left min-w-0">
+                    <div className="flex-1 min-w-0">
                       <p className="font-black text-sm uppercase tracking-tight truncate">{song.trackName}</p>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">{song.artistName}</span>
                         <span className="text-slate-700 text-[8px]">•</span>
-                        <span className="text-[10px] font-bold text-indigo-400 uppercase truncate max-w-[150px]">{song.collectionName}</span>
+                        <span className="text-[10px] font-bold text-indigo-400 uppercase truncate">{song.collectionName}</span>
                       </div>
                       <div className="flex items-center gap-3 mt-1.5">
                         <span className="text-[9px] font-black bg-white/5 text-slate-500 px-2 py-0.5 rounded border border-white/5 uppercase tracking-tighter">
@@ -123,7 +129,7 @@ const ProSyncSearch: React.FC<ProSyncSearchProps> = ({ isOpen, onClose, onSelect
                         )}
                       </div>
                     </div>
-                    <div className="shrink-0 flex flex-col items-end gap-1">
+                    <div className="shrink-0 flex flex-col items-end gap-1 ml-auto">
                       <Disc className="w-4 h-4 text-slate-600 group-hover:text-indigo-400 transition-colors" />
                       <span className="text-[9px] font-mono font-bold text-slate-500">
                         {new Date(song.releaseDate).getFullYear()}
@@ -143,12 +149,12 @@ const ProSyncSearch: React.FC<ProSyncSearchProps> = ({ isOpen, onClose, onSelect
           </ScrollArea>
         </div>
         
-        <div className="p-6 border-t border-white/5 bg-slate-900 flex items-center justify-between">
+        <div className="p-6 border-t border-white/5 bg-slate-900 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
             <Star className="w-3.5 h-3.5 text-indigo-500 fill-indigo-500" />
             <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Global Master Library Active</span>
           </div>
-          <Button variant="ghost" onClick={onClose} className="text-xs font-black uppercase tracking-widest text-slate-400 hover:text-white">Cancel</Button>
+          <p className="text-[9px] font-mono text-slate-600 uppercase">Pro Sync Engine v2.5</p>
         </div>
       </DialogContent>
     </Dialog>
