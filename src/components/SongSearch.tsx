@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Music, Loader2, Youtube, ExternalLink, Link as LinkIcon, Check, PlayCircle, AlertCircle, RefreshCw, Plus } from 'lucide-react';
@@ -12,9 +12,10 @@ import { cn } from "@/lib/utils";
 interface SongSearchProps {
   onSelectSong: (url: string, name: string, youtubeUrl?: string) => void;
   onAddToSetlist: (url: string, name: string, youtubeUrl?: string) => void;
+  externalQuery?: string;
 }
 
-const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist }) => {
+const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, externalQuery }) => {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -25,14 +26,20 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist })
   const [ytError, setYtError] = useState(false);
   const [manualYtUrl, setManualYtUrl] = useState("");
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!query.trim()) return;
+  useEffect(() => {
+    if (externalQuery) {
+      setQuery(externalQuery);
+      performSearch(externalQuery);
+    }
+  }, [externalQuery]);
+
+  const performSearch = async (searchTerm: string) => {
+    if (!searchTerm.trim()) return;
 
     setIsLoading(true);
     setExpandingId(null);
     try {
-      const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=10`);
+      const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(searchTerm)}&entity=song&limit=10`);
       const data = await response.json();
       setResults(data.results || []);
     } catch (err) {
@@ -40,6 +47,11 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist })
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    performSearch(query);
   };
 
   const openYoutubeSearch = (track: string, artist: string) => {

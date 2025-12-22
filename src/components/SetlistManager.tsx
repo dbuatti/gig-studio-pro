@@ -4,11 +4,12 @@ import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ListMusic, Trash2, Play, GripVertical, Music, Youtube, ArrowRight } from 'lucide-react';
+import { ListMusic, Trash2, Play, GripVertical, Music, Youtube, ArrowRight, CheckCircle2, Circle, Link2 } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ALL_KEYS } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export interface SetlistSong {
   id: string;
@@ -18,6 +19,7 @@ export interface SetlistSong {
   originalKey?: string;
   targetKey?: string;
   pitch: number;
+  isPlayed?: boolean;
 }
 
 interface SetlistManagerProps {
@@ -25,10 +27,22 @@ interface SetlistManagerProps {
   onRemove: (id: string) => void;
   onSelect: (song: SetlistSong) => void;
   onUpdateKey: (id: string, targetKey: string) => void;
+  onTogglePlayed: (id: string) => void;
+  onLinkAudio: (songName: string) => void;
   currentSongId?: string;
 }
 
-const SetlistManager: React.FC<SetlistManagerProps> = ({ songs, onRemove, onSelect, onUpdateKey, currentSongId }) => {
+const SetlistManager: React.FC<SetlistManagerProps> = ({ 
+  songs, 
+  onRemove, 
+  onSelect, 
+  onUpdateKey, 
+  onTogglePlayed,
+  onLinkAudio,
+  currentSongId 
+}) => {
+  const playedCount = songs.filter(s => s.isPlayed).length;
+
   return (
     <Card className="h-full border-slate-200 dark:border-slate-800 shadow-lg">
       <CardHeader className="pb-3 border-b bg-slate-50/50 dark:bg-slate-900/50">
@@ -37,7 +51,11 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({ songs, onRemove, onSele
             <ListMusic className="w-4 h-4 text-indigo-600" />
             Setlist / Gig Log
           </CardTitle>
-          <Badge variant="secondary" className="font-mono">{songs.length} SONGS</Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="font-mono text-[10px] border-green-200 text-green-600 bg-green-50">
+              {playedCount}/{songs.length} PLAYED
+            </Badge>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="p-0">
@@ -57,28 +75,42 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({ songs, onRemove, onSele
                 return (
                   <div 
                     key={song.id}
-                    className={`group flex flex-col p-3 transition-colors ${
-                      isSelected 
-                        ? "bg-indigo-50 dark:bg-indigo-950/30 border-l-4 border-l-indigo-600" 
-                        : "hover:bg-slate-50 dark:hover:bg-slate-900"
-                    }`}
+                    className={cn(
+                      "group flex flex-col p-3 transition-all",
+                      isSelected ? "bg-indigo-50 dark:bg-indigo-950/30 border-l-4 border-l-indigo-600 shadow-sm" : "hover:bg-slate-50 dark:hover:bg-slate-900",
+                      song.isPlayed && !isSelected && "opacity-60 grayscale-[0.5]"
+                    )}
                   >
                     <div className="flex items-center gap-3">
-                      <GripVertical className="w-4 h-4 text-slate-300 group-hover:text-slate-400 shrink-0 cursor-grab" />
+                      <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox 
+                          checked={song.isPlayed} 
+                          onCheckedChange={() => onTogglePlayed(song.id)}
+                          className="h-4 w-4 rounded-full border-slate-300 data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
+                        />
+                      </div>
                       
                       <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onSelect(song)}>
                         <p className={cn(
-                          "text-xs font-bold truncate leading-none mb-1",
-                          needsAudio && "text-slate-400"
+                          "text-xs font-bold truncate leading-none mb-1 transition-all",
+                          song.isPlayed && "line-through text-slate-400 decoration-slate-300",
+                          needsAudio && "text-amber-600"
                         )}>
                           {song.name}
-                          {needsAudio && <span className="ml-2 text-[8px] uppercase font-black text-amber-500 bg-amber-50 px-1 rounded">Metadata Only</span>}
                         </p>
                         <div className="flex items-center gap-2">
                           <Badge variant="outline" className="text-[9px] h-4 px-1 font-mono border-indigo-200 text-indigo-600">
                             {song.pitch > 0 ? `+${song.pitch}` : song.pitch} ST
                           </Badge>
                           {song.youtubeUrl && <Youtube className="w-3 h-3 text-red-500 opacity-60" />}
+                          {needsAudio && (
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); onLinkAudio(song.name); }}
+                              className="flex items-center gap-1 text-[8px] font-black text-amber-600 uppercase hover:text-amber-700 transition-colors"
+                            >
+                              <Link2 className="w-2.5 h-2.5" /> Link Engine
+                            </button>
+                          )}
                         </div>
                       </div>
 
@@ -94,7 +126,11 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({ songs, onRemove, onSele
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="h-8 w-8 rounded-full text-indigo-600 hover:bg-indigo-50"
+                          className={cn(
+                            "h-8 w-8 rounded-full transition-all",
+                            needsAudio ? "text-slate-300 cursor-not-allowed" : "text-indigo-600 hover:bg-indigo-50"
+                          )}
+                          disabled={needsAudio}
                           onClick={() => onSelect(song)}
                         >
                           <Play className="w-4 h-4 fill-current" />

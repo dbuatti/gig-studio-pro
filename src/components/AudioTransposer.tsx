@@ -19,6 +19,7 @@ export interface AudioTransposerRef {
   loadFromUrl: (url: string, name: string, youtubeUrl?: string) => Promise<void>;
   setPitch: (pitch: number) => void;
   getPitch: () => number;
+  triggerSearch: (query: string) => void;
 }
 
 interface AudioTransposerProps {
@@ -37,9 +38,11 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
   const [eqHigh, setEqHigh] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [url, setUrl] = useState("");
+  const [activeTab, setActiveTab] = useState("search");
   const [isLoadingUrl, setIsLoadingUrl] = useState(false);
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
   const [activeYoutubeUrl, setActiveYoutubeUrl] = useState<string | undefined>();
+  const [searchQuery, setSearchQuery] = useState("");
 
   const playerRef = useRef<Tone.GrainPlayer | null>(null);
   const limiterRef = useRef<Tone.Limiter | null>(null);
@@ -138,7 +141,11 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
       setPitch(newPitch);
       updateDetune(newPitch, fineTune);
     },
-    getPitch: () => pitch
+    getPitch: () => pitch,
+    triggerSearch: (query: string) => {
+      setSearchQuery(query);
+      setActiveTab("search");
+    }
   }));
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -323,7 +330,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
       </CardHeader>
 
       <CardContent className="space-y-6">
-        <Tabs defaultValue="search" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3 mb-4">
             <TabsTrigger value="search" className="gap-2"><Search className="w-4 h-4" /> Search</TabsTrigger>
             <TabsTrigger value="upload" className="gap-2"><Upload className="w-4 h-4" /> Upload</TabsTrigger>
@@ -334,6 +341,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
             <SongSearch 
               onSelectSong={(url, name, yt) => loadFromUrl(url, name, yt)} 
               onAddToSetlist={onAddToSetlist || (() => {})}
+              externalQuery={searchQuery}
             />
           </TabsContent>
 
