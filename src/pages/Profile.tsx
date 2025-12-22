@@ -104,7 +104,6 @@ const Profile = () => {
     if (!user) return;
     setIsSyncing(true);
     try {
-      // 1. Fetch all setlists to get all songs
       const { data: setlists, error: sError } = await supabase
         .from('setlists')
         .select('songs');
@@ -117,7 +116,6 @@ const Profile = () => {
         return;
       }
 
-      // 2. Helper to calculate readiness (Simplified for bulk)
       const calculateScore = (s: any) => {
         let score = 0;
         if (s.previewUrl && !s.previewUrl.includes('apple.com')) score += 25;
@@ -127,7 +125,6 @@ const Profile = () => {
         return score;
       };
 
-      // 3. Upsert into repertoire table
       const repertoireData = allSongs.map(song => ({
         user_id: user.id,
         title: song.name,
@@ -146,7 +143,7 @@ const Profile = () => {
       if (uError) throw uError;
 
       showSuccess(`Successfully Synced ${repertoireData.length} unique songs!`);
-      fetchData(); // Refresh list
+      fetchData();
     } catch (err) {
       showError("Bulk sync failed.");
     } finally {
@@ -165,24 +162,34 @@ const Profile = () => {
 
     setSaving(true);
     try {
+      // Use a distinct filename to avoid cache/overlap issues
       const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+      const bucketName = 'public_assets';
 
-      const { error: uploadError } = await supabase.storage
-        .from('audio_tracks')
-        .upload(filePath, file);
+      // Upload with upsert enabled just in case
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from(bucketName)
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: true
+        });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+         console.error("Storage Error Detail:", uploadError);
+         throw uploadError;
+      }
 
       const { data: { publicUrl } } = supabase.storage
-        .from('audio_tracks')
-        .getPublicUrl(filePath);
+        .from(bucketName)
+        .getPublicUrl(fileName);
 
       handleUpdateLocal({ avatar_url: publicUrl });
       await saveToDatabase({ avatar_url: publicUrl });
-    } catch (err) {
-      showError("Photo upload failed");
+      showSuccess("Photo Updated");
+    } catch (err: any) {
+      console.error("Upload process failed:", err);
+      showError(`Upload failed: ${err.message || "Network Timeout"}`);
     } finally {
       setSaving(false);
     }
