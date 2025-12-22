@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState, useMemo } from 'react';
+import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, Link2, CheckCircle2, CircleDashed, Copy, Upload, Loader2, Sparkles, FileText, ShieldCheck, Edit3, Search, FileDown, FileCheck, SortAsc, SortDesc, LayoutList, Volume2, Headphones, ChevronUp, ChevronDown, BarChart2 } from 'lucide-react';
 import { ALL_KEYS, calculateSemitones } from '@/utils/keyUtils';
@@ -59,16 +59,23 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   onSelect, 
   onUpdateKey, 
   onTogglePlayed,
+  onLinkAudio,
   onUpdateSong,
   onSyncProData,
   onReorder,
   currentSongId 
 }) => {
-  const [uploadingId, setUploadingId] = useState<string | null>(null);
-  const [sortMode, setSortMode] = useState<SortMode>('none');
+  const [sortMode, setSortMode] = useState<SortMode>(() => {
+    const saved = localStorage.getItem('gig_sort_mode');
+    return (saved as SortMode) || 'none';
+  });
   const [studioSong, setStudioSong] = useState<SetlistSong | null>(null);
-  const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Persist sort mode
+  useEffect(() => {
+    localStorage.setItem('gig_sort_mode', sortMode);
+  }, [sortMode]);
 
   const isItunesPreview = (url: string) => url && (url.includes('apple.com') || url.includes('itunes-assets'));
 
@@ -99,6 +106,9 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   }, [songs, sortMode, searchTerm]);
 
   const handleMove = (id: string, direction: 'up' | 'down') => {
+    // Reordering only allowed in manual 'none' mode without search filter
+    if (sortMode !== 'none' || searchTerm) return;
+
     const index = songs.findIndex(s => s.id === id);
     if (index === -1) return;
     if (direction === 'up' && index === 0) return;
@@ -109,6 +119,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     [newSongs[index], newSongs[targetIndex]] = [newSongs[targetIndex], newSongs[index]];
     onReorder(newSongs);
   };
+
+  const isReorderingEnabled = sortMode === 'none' && !searchTerm;
 
   return (
     <div className="space-y-6">
@@ -121,7 +133,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
               onClick={() => setSortMode('none')}
               className={cn("h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-2", sortMode === 'none' && "bg-white dark:bg-slate-700 shadow-sm")}
             >
-              <LayoutList className="w-3 h-3" /> List
+              <LayoutList className="w-3 h-3" /> List Order
             </Button>
             <Button 
               variant="ghost" 
@@ -261,18 +273,24 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="h-7 w-7 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50" 
+                          className={cn(
+                            "h-7 w-7 transition-all",
+                            isReorderingEnabled ? "text-slate-300 hover:text-indigo-600 hover:bg-indigo-50" : "text-slate-100 opacity-20 cursor-not-allowed"
+                          )} 
                           onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'up'); }} 
-                          disabled={idx === 0}
+                          disabled={!isReorderingEnabled || idx === 0}
                         >
                           <ChevronUp className="w-4 h-4" />
                         </Button>
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="h-7 w-7 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50" 
+                          className={cn(
+                            "h-7 w-7 transition-all",
+                            isReorderingEnabled ? "text-slate-300 hover:text-indigo-600 hover:bg-indigo-50" : "text-slate-100 opacity-20 cursor-not-allowed"
+                          )} 
                           onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'down'); }} 
-                          disabled={idx === processedSongs.length - 1}
+                          disabled={!isReorderingEnabled || idx === processedSongs.length - 1}
                         >
                           <ChevronDown className="w-4 h-4" />
                         </Button>
