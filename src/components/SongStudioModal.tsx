@@ -942,7 +942,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                           className="bg-white/5 border-white/10 font-bold text-orange-400 h-12 rounded-xl"
                         />
                         <Button variant="ghost" className="bg-white/5 h-12 w-12 p-0 text-orange-400 rounded-xl" onClick={handleUgAction}>
-                          <Link2 className="w-5 h-5" />
+                          {formData.ugUrl ? <ExternalLink className="w-5 h-5" /> : <Search className="w-5 h-5" />}
                         </Button>
                       </div>
                     </div>
@@ -1139,7 +1139,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                               className="h-10 w-10 text-orange-400 hover:bg-orange-600 hover:text-white transition-all rounded-xl" 
                               onClick={handleUgAction}
                             >
-                              <ExternalLink className="w-4 h-4" />
+                              {formData.ugUrl ? <ExternalLink className="w-4 h-4" /> : <Search className="w-4 h-4" />}
                             </Button>
                           </TooltipProvider>
                         </div>
