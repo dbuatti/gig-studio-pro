@@ -43,7 +43,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
       const data = await response.json();
       setResults(data.results || []);
     } catch (err) {
-      console.error("Search failed", err);
+      // Silent failure
     } finally {
       setIsLoading(false);
     }
@@ -87,7 +87,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
           const targetUrl = encodeURIComponent(`${instance}/api/v1/search?q=${searchQuery}`);
           
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 3000);
+          const timeoutId = setTimeout(() => controller.abort(), 2500);
 
           const response = await fetch(`${proxy}${targetUrl}`, {
             signal: controller.signal
@@ -99,14 +99,14 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
           const data = await response.json();
           const rawData = typeof data.contents === 'string' ? JSON.parse(data.contents) : data;
           
-          const videos = rawData.filter((item: any) => item.type === "video").slice(0, 3);
+          const videos = rawData?.filter?.((item: any) => item.type === "video").slice(0, 3);
           
-          if (videos.length > 0) {
+          if (videos && videos.length > 0) {
             setYtResults(videos);
             success = true;
           }
         } catch (err) {
-          console.warn(`Node ${instance} via ${proxy} failed...`);
+          // Fail silently to keep console clean
         }
       }
     }
