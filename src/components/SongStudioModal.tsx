@@ -19,8 +19,7 @@ import {
   FileDown, Headphones, Wand2, Download,
   Globe, Eye, Link as LinkIcon, RotateCcw,
   Zap, Disc, VolumeX, Smartphone, Printer, Search,
-  ClipboardPaste, AlignLeft, Apple, Hash, Music2,
-  ChevronUp, ChevronDown
+  ClipboardPaste, AlignLeft, Apple, Hash, Music2
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import AudioVisualizer from './AudioVisualizer';
@@ -364,17 +363,12 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     setFormData(prev => {
       const next = { ...prev, ...updates };
       
-      if (updates.hasOwnProperty('isKeyLinked')) {
+      // Only recalculate pitch if keys explicitly change or linking is newly enabled
+      if (updates.hasOwnProperty('isKeyLinked') || updates.hasOwnProperty('originalKey') || updates.hasOwnProperty('targetKey')) {
         if (next.isKeyLinked) {
           const diff = calculateSemitones(next.originalKey || "C", next.targetKey || "C");
           next.pitch = diff;
-        } else {
-          next.pitch = 0;
         }
-      } 
-      else if (next.isKeyLinked) {
-        const diff = calculateSemitones(next.originalKey || "C", next.targetKey || "C");
-        next.pitch = diff;
       }
       
       if (playerRef.current) {
@@ -391,7 +385,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     const shift = direction === 'up' ? 12 : -12;
     const newPitch = currentPitch + shift;
     
-    // Safety: Most engines break beyond 2 octaves, let's cap at +/- 24
     if (newPitch > 24 || newPitch < -24) {
       showError("Maximum transposition range reached.");
       return;
@@ -870,23 +863,23 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                                   <TooltipTrigger asChild>
                                     <button 
                                       onClick={() => handleOctaveShift('down')}
-                                      className="p-1 hover:bg-white/10 rounded text-slate-400 hover:text-white transition-colors border-r border-white/5"
+                                      className="h-7 px-2 hover:bg-white/10 rounded text-[10px] font-black uppercase text-slate-400 hover:text-white transition-colors border-r border-white/5"
                                     >
-                                      <ChevronDown className="w-3.5 h-3.5" />
+                                      - oct
                                     </button>
                                   </TooltipTrigger>
-                                  <TooltipContent className="text-[9px] font-black uppercase">-12 ST (Inv)</TooltipContent>
+                                  <TooltipContent className="text-[9px] font-black uppercase">-12 Semitones</TooltipContent>
                                 </Tooltip>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <button 
                                       onClick={() => handleOctaveShift('up')}
-                                      className="p-1 hover:bg-white/10 rounded text-slate-400 hover:text-white transition-colors"
+                                      className="h-7 px-2 hover:bg-white/10 rounded text-[10px] font-black uppercase text-slate-400 hover:text-white transition-colors"
                                     >
-                                      <ChevronUp className="w-3.5 h-3.5" />
+                                      + oct
                                     </button>
                                   </TooltipTrigger>
-                                  <TooltipContent className="text-[9px] font-black uppercase">+12 ST (Inv)</TooltipContent>
+                                  <TooltipContent className="text-[9px] font-black uppercase">+12 Semitones</TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
                             </div>

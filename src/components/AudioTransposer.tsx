@@ -453,9 +453,9 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
                           <TooltipTrigger asChild>
                             <button 
                               onClick={() => handleOctaveShift('down')}
-                              className="p-1 hover:bg-white dark:hover:bg-slate-700 rounded text-slate-500 hover:text-indigo-600 transition-colors border-r"
+                              className="h-7 px-2 hover:bg-white dark:hover:bg-slate-700 rounded text-[10px] font-black uppercase text-slate-500 hover:text-indigo-600 transition-colors border-r"
                             >
-                              <ChevronDown className="w-3 h-3" />
+                              - oct
                             </button>
                           </TooltipTrigger>
                           <TooltipContent className="text-[9px] font-black uppercase">-12 ST</TooltipContent>
@@ -464,9 +464,9 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
                           <TooltipTrigger asChild>
                             <button 
                               onClick={() => handleOctaveShift('up')}
-                              className="p-1 hover:bg-white dark:hover:bg-slate-700 rounded text-slate-500 hover:text-indigo-600 transition-colors"
+                              className="h-7 px-2 hover:bg-white dark:hover:bg-slate-700 rounded text-[10px] font-black uppercase text-slate-500 hover:text-indigo-600 transition-colors"
                             >
-                              <ChevronUp className="w-3 h-3" />
+                              + oct
                             </button>
                           </TooltipTrigger>
                           <TooltipContent className="text-[9px] font-black uppercase">+12 ST</TooltipContent>
