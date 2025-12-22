@@ -70,6 +70,13 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     window.open(`https://www.youtube.com/results?search_query=${query}`, '_blank');
   };
 
+  const handleCopyLink = (url?: string) => {
+    if (url) {
+      navigator.clipboard.writeText(url);
+      showSuccess("YouTube link copied!");
+    }
+  };
+
   const copyAllLinks = () => {
     const links = songs.map(s => s.youtubeUrl).filter(Boolean).join('\n');
     if (!links) {
@@ -252,12 +259,24 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                           </a>
 
                           {song.youtubeUrl ? (
-                            <button 
-                              onClick={() => onSelect(song)}
-                              className="flex items-center gap-1 text-[9px] text-red-600 font-bold hover:underline"
-                            >
-                              <Youtube className="w-3 h-3" /> Video
-                            </button>
+                            <div className="flex items-center gap-1">
+                              <button 
+                                onClick={() => onSelect(song)}
+                                className="flex items-center gap-1 text-[9px] text-red-600 font-bold hover:underline"
+                              >
+                                <Youtube className="w-3 h-3" /> Video
+                              </button>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button onClick={() => handleCopyLink(song.youtubeUrl)} className="text-slate-400 hover:text-indigo-600 p-0.5">
+                                      <Copy className="w-2.5 h-2.5" />
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="text-[9px] font-black">Copy Link</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </div>
                           ) : (
                             <Popover>
                               <PopoverTrigger asChild>

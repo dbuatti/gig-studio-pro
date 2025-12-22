@@ -6,6 +6,7 @@ import SetlistManager, { SetlistSong } from "@/components/SetlistManager";
 import SetlistSelector from "@/components/SetlistSelector";
 import ImportSetlist from "@/components/ImportSetlist";
 import PerformanceOverlay from "@/components/PerformanceOverlay";
+import ActiveSongBanner from "@/components/ActiveSongBanner";
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { showSuccess, showError } from '@/utils/toast';
 import { calculateSemitones } from '@/utils/keyUtils';
@@ -33,7 +34,7 @@ const Index = () => {
   const currentList = setlists.find(l => l.id === currentListId);
   const songs = currentList?.songs || [];
   const activeSongIndex = songs.findIndex(s => s.id === activeSongId);
-  const activeSong = songs[activeSongIndex];
+  const activeSong = songs[activeSongIndex] || null;
 
   useEffect(() => {
     if (user) fetchSetlists();
@@ -368,6 +369,8 @@ const Index = () => {
       <div className="flex-1 flex overflow-hidden">
         <main className="flex-1 overflow-y-auto p-8 relative scroll-smooth">
           <div className="max-w-4xl mx-auto space-y-8">
+            <ActiveSongBanner song={activeSong} />
+
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase">{currentList?.name}</h2>
