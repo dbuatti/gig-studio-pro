@@ -444,8 +444,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         originalKey: aiResult?.originalKey || formData.originalKey,
         targetKey: aiResult?.originalKey || formData.targetKey,
         bpm: aiResult?.bpm?.toString() || formData.bpm,
-        pitch: 0, // Reset pitch on sync
-        isKeyConfirmed: true
+        pitch: 0 // Reset pitch on sync
       };
 
       handleAutoSave(finalUpdates);
