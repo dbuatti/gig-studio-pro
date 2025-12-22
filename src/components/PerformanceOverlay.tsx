@@ -3,12 +3,17 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Slider } from "@/components/ui/slider";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Play, Pause, SkipForward, SkipBack, X, Music, 
-  Waves, ListMusic, Activity, ArrowRight, Volume2 
+  Waves, ListMusic, Activity, ArrowRight, Volume2, 
+  Settings2, Gauge, FileText, Save, Clock
 } from 'lucide-react';
 import { SetlistSong } from './SetlistManager';
 import AudioVisualizer from './AudioVisualizer';
+import { ALL_KEYS } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
 
 interface PerformanceOverlayProps {
@@ -21,6 +26,8 @@ interface PerformanceOverlayProps {
   onNext: () => void;
   onPrevious: () => void;
   onClose: () => void;
+  onUpdateSong: (id: string, updates: Partial<SetlistSong>) => void;
+  onUpdateKey: (id: string, targetKey: string) => void;
   analyzer: any;
 }
 
@@ -34,10 +41,18 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
   onNext,
   onPrevious,
   onClose,
+  onUpdateSong,
+  onUpdateKey,
   analyzer
 }) => {
   const currentSong = songs[currentIndex];
   const nextSong = songs[currentIndex + 1];
+  const [localNotes, setLocalNotes] = useState(currentSong?.notes || "");
+  const [tempo, setTempo] = useState(1);
+
+  useEffect(() => {
+    setLocalNotes(currentSong?.notes || "");
+  }, [currentSong]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -45,18 +60,24 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const handleSaveNotes = () => {
+    if (currentSong) {
+      onUpdateSong(currentSong.id, { notes: localNotes });
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[100] bg-slate-950 text-white flex flex-col animate-in fade-in zoom-in duration-300">
-      {/* Stage Header */}
+      {/* Practice Header */}
       <div className="h-20 border-b border-white/10 px-8 flex items-center justify-between bg-slate-900/50 backdrop-blur-xl">
         <div className="flex items-center gap-4">
           <div className="bg-indigo-600 p-2 rounded-lg">
             <Activity className="w-6 h-6 animate-pulse" />
           </div>
           <div>
-            <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400">Live Stage Mode</h2>
+            <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400">Musician's Practice Studio</h2>
             <div className="flex items-center gap-2">
-              <span className="text-xl font-black uppercase tracking-tight">Gig in Progress</span>
+              <span className="text-xl font-black uppercase tracking-tight">Practice Session</span>
               <div className="flex gap-1 ml-4">
                 {songs.map((_, i) => (
                   <div 
@@ -76,108 +97,188 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
         </Button>
       </div>
 
-      {/* Stage Content */}
-      <div className="flex-1 flex flex-col items-center justify-center p-12 relative overflow-hidden">
-        {/* Background Visualizer Ambient */}
-        <div className="absolute inset-0 opacity-10 pointer-events-none scale-150 blur-3xl">
-          <AudioVisualizer analyzer={analyzer} isActive={isPlaying} />
+      <div className="flex-1 flex overflow-hidden">
+        {/* Main Workspace */}
+        <div className="flex-1 flex flex-col items-center justify-center p-12 relative overflow-hidden border-r border-white/5">
+          <div className="absolute inset-0 opacity-10 pointer-events-none scale-150 blur-3xl">
+            <AudioVisualizer analyzer={analyzer} isActive={isPlaying} />
+          </div>
+
+          <div className="max-w-4xl w-full space-y-12 z-10">
+            {/* Current Song Display */}
+            <div className="text-center space-y-6">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-indigo-400 text-xs font-black uppercase tracking-widest">
+                <Music className="w-3 h-3" /> Practicing Now
+              </div>
+              
+              <h1 className="text-7xl font-black uppercase tracking-tighter leading-none">
+                {currentSong?.name}
+              </h1>
+              
+              <div className="flex items-center justify-center gap-4 text-2xl font-bold text-slate-400">
+                <span>{currentSong?.artist}</span>
+                <div className="w-2 h-2 rounded-full bg-slate-700" />
+                <span className="text-indigo-400 font-mono">
+                  {currentSong?.targetKey}
+                  {currentSong?.pitch !== 0 && (
+                    <span className="text-sm ml-2">({currentSong.pitch > 0 ? '+' : ''}{currentSong.pitch}ST)</span>
+                  )}
+                </span>
+              </div>
+            </div>
+
+            {/* Large Visualizer */}
+            <div className="w-full bg-slate-900/40 rounded-3xl border border-white/5 p-8 shadow-2xl">
+              <AudioVisualizer analyzer={analyzer} isActive={isPlaying} />
+              <div className="mt-8 space-y-4">
+                <div className="flex justify-between text-sm font-mono text-slate-400 font-bold">
+                  <span>{formatTime((progress / 100) * duration)}</span>
+                  <span className="text-indigo-500">{(progress).toFixed(1)}% COMPLETE</span>
+                  <span>{formatTime(duration)}</span>
+                </div>
+                <Progress value={progress} className="h-4 bg-white/5" />
+              </div>
+            </div>
+
+            {/* Playback Controls */}
+            <div className="flex flex-col items-center gap-8">
+              <div className="flex items-center gap-12">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={onPrevious}
+                  className="h-16 w-16 rounded-full hover:bg-white/10"
+                >
+                  <SkipBack className="w-8 h-8" />
+                </Button>
+                
+                <Button 
+                  size="lg" 
+                  onClick={onTogglePlayback}
+                  className="h-32 w-32 rounded-full bg-indigo-600 hover:bg-indigo-700 shadow-[0_0_50px_rgba(79,70,229,0.4)] transition-all hover:scale-110"
+                >
+                  {isPlaying ? <Pause className="w-16 h-16" /> : <Play className="w-16 h-16 ml-2" />}
+                </Button>
+                
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={onNext}
+                  className="h-16 w-16 rounded-full hover:bg-white/10"
+                >
+                  <SkipForward className="w-8 h-8" />
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="max-w-4xl w-full space-y-12 z-10">
-          {/* Current Song Display */}
-          <div className="text-center space-y-6">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-indigo-400 text-xs font-black uppercase tracking-widest">
-              <Music className="w-3 h-3" /> Now Performing
-            </div>
-            
-            <h1 className="text-7xl font-black uppercase tracking-tighter leading-none">
-              {currentSong?.name}
-            </h1>
-            
-            <div className="flex items-center justify-center gap-4 text-2xl font-bold text-slate-400">
-              <span>{currentSong?.artist}</span>
-              <div className="w-2 h-2 rounded-full bg-slate-700" />
-              <span className="text-indigo-400 font-mono">
-                {currentSong?.targetKey}
-                {currentSong?.pitch !== 0 && (
-                  <span className="text-sm ml-2">({currentSong.pitch > 0 ? '+' : ''}{currentSong.pitch}ST)</span>
-                )}
-              </span>
-            </div>
-          </div>
-
-          {/* Large Visualizer */}
-          <div className="w-full bg-slate-900/40 rounded-3xl border border-white/5 p-8 shadow-2xl">
-            <AudioVisualizer analyzer={analyzer} isActive={isPlaying} />
-            <div className="mt-8 space-y-4">
-              <div className="flex justify-between text-sm font-mono text-slate-400 font-bold">
-                <span>{formatTime((progress / 100) * duration)}</span>
-                <span className="text-indigo-500">{(progress).toFixed(1)}% COMPLETE</span>
-                <span>{formatTime(duration)}</span>
+        {/* Practice Sidebar */}
+        <aside className="w-96 bg-slate-900/30 backdrop-blur-xl p-8 space-y-8 overflow-y-auto">
+          {/* Real-time Transposer */}
+          <div className="space-y-4">
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-indigo-400 flex items-center gap-2">
+              <Settings2 className="w-3 h-3" /> Transpose Engine
+            </h3>
+            <div className="bg-white/5 rounded-2xl p-4 border border-white/5 space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-bold text-slate-400">Target Performance Key</span>
+                <span className="text-lg font-mono font-bold text-indigo-400">{currentSong?.targetKey}</span>
               </div>
-              <Progress value={progress} className="h-4 bg-white/5" />
+              <Select 
+                value={currentSong?.targetKey} 
+                onValueChange={(val) => onUpdateKey(currentSong.id, val)}
+              >
+                <SelectTrigger className="bg-slate-950 border-white/10 text-xs font-bold font-mono">
+                  <SelectValue placeholder="Select Key" />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-900 border-white/10 text-white">
+                  {ALL_KEYS.map(k => (
+                    <SelectItem key={k} value={k} className="font-mono">{k}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-slate-500 leading-relaxed italic">Changing the key here updates your gig list automatically.</p>
             </div>
           </div>
 
-          {/* Playback Controls */}
-          <div className="flex flex-col items-center gap-8">
-            <div className="flex items-center gap-12">
+          {/* Speed Control */}
+          <div className="space-y-4">
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-indigo-400 flex items-center gap-2">
+              <Clock className="w-3 h-3" /> Practice Speed
+            </h3>
+            <div className="bg-white/5 rounded-2xl p-4 border border-white/5 space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-bold text-slate-400">Playback Rate</span>
+                <span className="text-lg font-mono font-bold text-indigo-400">{tempo.toFixed(2)}x</span>
+              </div>
+              <Slider 
+                value={[tempo]} 
+                min={0.5} 
+                max={1.5} 
+                step={0.01} 
+                onValueChange={(v) => setTempo(v[0])}
+                className="py-4"
+              />
+              <div className="flex justify-between text-[8px] font-black text-slate-600 uppercase">
+                <span>Slow Mo</span>
+                <span>Normal</span>
+                <span>Fast</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Musician's Notes */}
+          <div className="space-y-4">
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-indigo-400 flex items-center gap-2">
+              <FileText className="w-3 h-3" /> Musician's Notes
+            </h3>
+            <div className="space-y-3">
+              <Textarea 
+                placeholder="Intro: 4 bars solo... Watch the bridge tempo..."
+                className="bg-slate-950/50 border-white/10 min-h-[150px] text-sm resize-none focus-visible:ring-indigo-500"
+                value={localNotes}
+                onChange={(e) => setLocalNotes(e.target.value)}
+              />
               <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={onPrevious}
-                className="h-16 w-16 rounded-full hover:bg-white/10"
+                onClick={handleSaveNotes}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 font-bold uppercase tracking-widest text-[10px] gap-2"
               >
-                <SkipBack className="w-8 h-8" />
-              </Button>
-              
-              <Button 
-                size="lg" 
-                onClick={onTogglePlayback}
-                className="h-32 w-32 rounded-full bg-indigo-600 hover:bg-indigo-700 shadow-[0_0_50px_rgba(79,70,229,0.4)] transition-all hover:scale-110"
-              >
-                {isPlaying ? <Pause className="w-16 h-16" /> : <Play className="w-16 h-16 ml-2" />}
-              </Button>
-              
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={onNext}
-                className="h-16 w-16 rounded-full hover:bg-white/10"
-              >
-                <SkipForward className="w-8 h-8" />
+                <Save className="w-3 h-3" /> Save Note
               </Button>
             </div>
+          </div>
 
-            {/* Next Song Preview */}
-            {nextSong && (
-              <div className="bg-slate-900/50 border border-white/5 rounded-2xl p-6 flex items-center gap-6 group cursor-pointer hover:bg-slate-800 transition-colors" onClick={onNext}>
-                <div className="text-xs font-black uppercase tracking-widest text-slate-500">Up Next</div>
+          {/* Up Next Preview */}
+          {nextSong && (
+            <div className="pt-8 border-t border-white/5">
+              <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-4">Up Next in Session</div>
+              <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex items-center gap-4 group cursor-pointer hover:bg-white/10 transition-colors" onClick={onNext}>
                 <ArrowRight className="w-4 h-4 text-indigo-500 group-hover:translate-x-2 transition-transform" />
-                <div className="flex items-center gap-3">
-                  <span className="text-lg font-bold">{nextSong.name}</span>
-                  <span className="text-sm text-slate-500">{nextSong.artist}</span>
+                <div className="flex flex-col">
+                  <span className="text-sm font-bold">{nextSong.name}</span>
+                  <span className="text-[10px] text-slate-500 uppercase font-black">{nextSong.artist}</span>
                 </div>
               </div>
-            )}
-          </div>
-        </div>
+            </div>
+          )}
+        </aside>
       </div>
 
-      {/* Stage Footer Status */}
+      {/* Footer Status */}
       <div className="h-16 border-t border-white/10 px-8 flex items-center justify-between text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 bg-slate-900/30">
         <div className="flex gap-8">
           <div className="flex items-center gap-2">
             <Volume2 className="w-3 h-3 text-indigo-500" />
-            Audio Output: Stage Main
+            Output: Practice Monitors
           </div>
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
-            Transposition: Active Sync
+            Cloud Save: Active
           </div>
         </div>
         <div>
-          Gig Studio Pro | Live v1.0
+          Gig Studio Pro | Practice Mode v1.2
         </div>
       </div>
     </div>

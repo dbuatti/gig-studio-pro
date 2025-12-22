@@ -26,6 +26,7 @@ export interface SetlistSong {
   genre?: string;
   isSyncing?: boolean;
   isMetadataConfirmed?: boolean;
+  notes?: string; // Added notes field
 }
 
 interface SetlistManagerProps {
@@ -205,6 +206,11 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-7">
                             {song.artist}
                           </span>
+                        )}
+                        {song.notes && (
+                          <p className="text-[10px] text-indigo-400 font-medium ml-7 mt-0.5 line-clamp-1 italic">
+                            {song.notes}
+                          </p>
                         )}
                       </div>
                       <div className="flex items-center gap-3 mt-1 ml-7">
