@@ -6,7 +6,7 @@ import {
   ListMusic, Trash2, Play, Music, Youtube, ArrowRight, 
   CircleDashed, CheckCircle2, Volume2, ChevronUp, ChevronDown, 
   Search, LayoutList, SortAsc, SortDesc, ClipboardList, Clock, 
-  ShieldCheck, Check, MoreVertical, Settings2, FileText
+  ShieldCheck, Check, MoreVertical, Settings2, FileText, Filter
 } from 'lucide-react';
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, formatKey, transposeKey, calculateSemitones } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
@@ -18,6 +18,7 @@ import { useSettings, KeyPreference } from '@/hooks/use-settings';
 import { RESOURCE_TYPES } from '@/utils/constants';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import SetlistFilters, { FilterState } from './SetlistFilters';
 
 export interface SetlistSong {
   id: string; // Unique for the setlist entry
@@ -81,12 +82,24 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     const saved = localStorage.getItem('gig_sort_mode');
     return (saved as SortMode) || 'none';
   });
+  const [activeFilters, setActiveFilters] = useState<FilterState>(() => {
+    const saved = localStorage.getItem('gig_active_filters');
+    return saved ? JSON.parse(saved) : {
+      hasAudio: 'all',
+      hasVideo: 'all',
+      hasChart: 'all',
+      isConfirmed: 'all',
+      isPlayed: 'all'
+    };
+  });
   const [studioSong, setStudioSong] = useState<SetlistSong | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('gig_sort_mode', sortMode);
-  }, [sortMode]);
+    localStorage.setItem('gig_active_filters', JSON.stringify(activeFilters));
+  }, [sortMode, activeFilters]);
 
   const isItunesPreview = (url: string) => url && (url.includes('apple.com') || url.includes('itunes-assets'));
 
@@ -104,10 +117,30 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
   const processedSongs = useMemo(() => {
     let base = songs;
+    
+    // Search Filtering
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase();
       base = base.filter(s => s.name.toLowerCase().includes(q) || s.artist?.toLowerCase().includes(q));
     }
+
+    // Asset Filtering
+    base = base.filter(s => {
+      if (activeFilters.hasAudio === 'full' && (isItunesPreview(s.previewUrl) || !s.previewUrl)) return false;
+      if (activeFilters.hasAudio === 'itunes' && !isItunesPreview(s.previewUrl)) return false;
+      if (activeFilters.hasAudio === 'none' && s.previewUrl) return false;
+      
+      if (activeFilters.hasVideo === 'yes' && !s.youtubeUrl) return false;
+      if (activeFilters.hasVideo === 'no' && s.youtubeUrl) return false;
+
+      if (activeFilters.hasChart === 'yes' && !(s.pdfUrl || s.leadsheetUrl || s.ugUrl)) return false;
+      if (activeFilters.hasChart === 'no' && (s.pdfUrl || s.leadsheetUrl || s.ugUrl)) return false;
+
+      if (activeFilters.isConfirmed === 'yes' && !s.isKeyConfirmed) return false;
+      if (activeFilters.isConfirmed === 'no' && s.isKeyConfirmed) return false;
+
+      return true;
+    });
 
     if (sortMode === 'none') return base;
     
@@ -116,7 +149,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       const scoreB = getReadinessScore(b);
       return sortMode === 'ready' ? scoreB - scoreA : scoreA - scoreB;
     });
-  }, [songs, sortMode, searchTerm]);
+  }, [songs, sortMode, searchTerm, activeFilters]);
 
   const handleMove = (id: string, direction: 'up' | 'down') => {
     if (sortMode !== 'none' || searchTerm) return;
@@ -155,12 +188,12 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     <div className="space-y-4 md:space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-2">
         <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg w-full sm:w-auto overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-full sm:w-auto overflow-x-auto no-scrollbar">
             <Button 
               variant="ghost" 
               size="sm" 
               onClick={() => setSortMode('none')}
-              className={cn("h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0", sortMode === 'none' && "bg-white dark:bg-slate-700 shadow-sm")}
+              className={cn("h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg", sortMode === 'none' && "bg-white dark:bg-slate-700 shadow-sm")}
             >
               <LayoutList className="w-3 h-3" /> <span className="hidden sm:inline">List Order</span>
             </Button>
@@ -168,7 +201,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
               variant="ghost" 
               size="sm" 
               onClick={() => setSortMode('ready')}
-              className={cn("h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0", sortMode === 'ready' && "bg-white dark:bg-slate-700 shadow-sm text-indigo-600")}
+              className={cn("h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg", sortMode === 'ready' && "bg-white dark:bg-slate-700 shadow-sm text-indigo-600")}
             >
               <SortAsc className="w-3 h-3" /> <span className="hidden sm:inline">Readiness</span>
             </Button>
@@ -176,18 +209,22 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
               variant="ghost" 
               size="sm" 
               onClick={() => setSortMode('work')}
-              className={cn("h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0", sortMode === 'work' && "bg-white dark:bg-slate-700 shadow-sm text-orange-600")}
+              className={cn("h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg", sortMode === 'work' && "bg-white dark:bg-slate-700 shadow-sm text-orange-600")}
             >
               <SortDesc className="w-3 h-3" /> <span className="hidden sm:inline">Work Needed</span>
             </Button>
           </div>
+          
           <Button 
             variant="ghost" 
             size="sm" 
-            onClick={handleCopySetlist}
-            className="h-8 px-2 sm:px-4 text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:bg-indigo-50 rounded-xl gap-1.5 shrink-0"
+            onClick={() => setIsFilterOpen(!isFilterOpen)}
+            className={cn(
+              "h-8 px-4 text-[10px] font-black uppercase tracking-widest rounded-xl gap-2 transition-all",
+              isFilterOpen ? "bg-indigo-50 text-indigo-600" : "text-slate-500 hover:bg-slate-100"
+            )}
           >
-            <ClipboardList className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Copy</span>
+            <Filter className="w-3.5 h-3.5" /> Filter Matrix
           </Button>
         </div>
 
@@ -203,6 +240,10 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
           </div>
         </div>
       </div>
+
+      {isFilterOpen && (
+        <SetlistFilters activeFilters={activeFilters} onFilterChange={setActiveFilters} />
+      )}
 
       {isMobile ? (
         <div className="space-y-3 px-1 pb-4">
@@ -224,6 +265,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                   song.isPlayed && "opacity-50 grayscale-[0.2]"
                 )}
               >
+                {/* Mobile Item Content (Same as before but filtered) */}
                 <div className="flex items-start justify-between">
                   <div className="flex gap-3">
                     <button 
