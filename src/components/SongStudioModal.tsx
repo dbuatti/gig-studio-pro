@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +36,37 @@ import ProSyncSearch from './ProSyncSearch';
 import { useAuth } from './AuthProvider';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { calculateReadiness } from '@/utils/repertoireSync';
+
+// Sub-component for inputs to prevent modal-wide re-renders
+const StudioInput = memo(({ label, value, onChange, placeholder, className, isTextarea = false, type = "text" }: any) => {
+  const [localValue, setLocalValue] = useState(value || "");
+
+  useEffect(() => {
+    setLocalValue(value || "");
+  }, [value]);
+
+  const handleChange = (val: string) => {
+    setLocalValue(val);
+    onChange(val);
+  };
+
+  const Comp = isTextarea ? Textarea : Input;
+
+  return (
+    <div className="space-y-4">
+      {label && <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">{label}</Label>}
+      <Comp
+        type={type}
+        placeholder={placeholder}
+        value={localValue}
+        onChange={(e: any) => handleChange(e.target.value)}
+        className={className}
+      />
+    </div>
+  );
+});
+
+StudioInput.displayName = 'StudioInput';
 
 interface SongStudioModalProps {
   song: SetlistSong | null;
@@ -120,22 +151,20 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const readinessColor = readiness === 100 ? 'bg-emerald-500' : readiness > 60 ? 'bg-indigo-500' : 'bg-slate-500';
 
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
-  const handleAutoSave = (updates: Partial<SetlistSong>) => {
-    console.log(`[STUDIO] handleAutoSave triggered. New data piece:`, updates);
+  const handleAutoSave = useCallback((updates: Partial<SetlistSong>) => {
     setFormData(prev => {
       const next = { ...prev, ...updates };
       
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
       saveTimeoutRef.current = setTimeout(() => {
         if (song) {
-          console.log(`[STUDIO] Save timer fired. Dispatching to parent:`, updates);
           onSave(song.id, updates);
         }
       }, 800);
 
       return next;
     });
-  };
+  }, [song, onSave]);
 
   const cleanupAudio = () => {
     if (playerRef.current) {
@@ -546,7 +575,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
 
   useEffect(() => {
     if (song && isOpen) {
-      console.log(`[STUDIO] Initializing for song ${song.id}. Master ID: ${song.master_id || 'NONE'}`);
       const initialData = {
         name: song.name || "",
         artist: song.artist || "",
@@ -598,7 +626,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const addToPublicRepertoire = async () => {
     if (!song || !user) return;
     try {
-      console.log(`[STUDIO] Activating Public Presence for ${song.id}`);
       onSave(song.id, { is_active: true });
       setIsInRepertoire(true);
       showSuccess("Added to Master Repertoire");
@@ -1169,32 +1196,28 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
               {activeTab === 'details' && (
                 <div className="space-y-6 md:space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-500">
                   <div className={cn("grid gap-6 md:gap-10", isMobile ? "grid-cols-1" : "grid-cols-2")}>
-                    <div className="space-y-4">
-                      <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Performance Title</Label>
-                      <Input
-                        value={formData.name || ""}
-                        onChange={(e) => handleAutoSave({ name: e.target.value })}
-                        className="bg-white/5 border-white/10 text-xl md:text-2xl font-black h-12 md:h-16 rounded-xl md:rounded-2xl"
-                      />
-                    </div>
-                    <div className="space-y-4">
-                      <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Primary Artist</Label>
-                      <Input
-                        value={formData.artist || ""}
-                        onChange={(e) => handleAutoSave({ artist: e.target.value })}
-                        className="bg-white/5 border-white/10 text-xl md:text-2xl font-black h-12 md:h-16 rounded-xl md:rounded-2xl"
-                      />
-                    </div>
+                    <StudioInput 
+                      label="Performance Title"
+                      value={formData.name}
+                      onChange={(val: string) => handleAutoSave({ name: val })}
+                      className="bg-white/5 border-white/10 text-xl md:text-2xl font-black h-12 md:h-16 rounded-xl md:rounded-2xl"
+                    />
+                    <StudioInput 
+                      label="Primary Artist"
+                      value={formData.artist}
+                      onChange={(val: string) => handleAutoSave({ artist: val })}
+                      className="bg-white/5 border-white/10 text-xl md:text-2xl font-black h-12 md:h-16 rounded-xl md:rounded-2xl"
+                    />
                   </div>
                   <div className={cn("grid gap-6 md:gap-10", isMobile ? "grid-cols-1" : "grid-cols-2")}>
                     <div className="space-y-4">
                       <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Sheet Music Link</Label>
                       <div className="flex gap-2 md:gap-3">
-                        <Input
+                        <StudioInput 
+                          value={formData.pdfUrl}
+                          onChange={(val: string) => handleAutoSave({ pdfUrl: val })}
                           placeholder="Paste sheet music URL..."
-                          value={formData.pdfUrl || ""}
-                          onChange={(e) => handleAutoSave({ pdfUrl: e.target.value })}
-                          className="bg-white/5 border-white/10 font-bold h-10 md:h-12 rounded-xl"
+                          className="bg-white/5 border-white/10 font-bold h-10 md:h-12 rounded-xl w-full"
                         />
                         <Button 
                           variant="outline" 
@@ -1212,11 +1235,11 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                     <div className="space-y-4">
                       <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Ultimate Guitar Link</Label>
                       <div className="flex gap-2 md:gap-3">
-                        <Input
+                        <StudioInput 
+                          value={formData.ugUrl}
+                          onChange={(val: string) => handleAutoSave({ ugUrl: val })}
                           placeholder="Paste URL..."
-                          value={formData.ugUrl || ""}
-                          onChange={(e) => handleAutoSave({ ugUrl: e.target.value })}
-                          className="bg-white/5 border-white/10 font-bold text-orange-400 h-10 md:h-12 rounded-xl"
+                          className="bg-white/5 border-white/10 font-bold text-orange-400 h-10 md:h-12 rounded-xl w-full"
                         />
                         <Button 
                           variant="outline" 
@@ -1232,15 +1255,14 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       </div>
                     </div>
                   </div>
-                  <div className="space-y-4">
-                    <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Rehearsal & Dynamics Notes</Label>
-                    <Textarea
-                      placeholder="Cues, transitions, dynamics..."
-                      value={formData.notes || ""}
-                      onChange={(e) => handleAutoSave({ notes: e.target.value })}
-                      className={cn("bg-white/5 border-white/10 text-base md:text-lg leading-relaxed p-6 md:p-8 whitespace-pre-wrap", isMobile ? "min-h-[200px] rounded-2xl" : "min-h-[350px] rounded-[2rem]")}
-                    />
-                  </div>
+                  <StudioInput 
+                    label="Rehearsal & Dynamics Notes"
+                    isTextarea
+                    value={formData.notes}
+                    onChange={(val: string) => handleAutoSave({ notes: val })}
+                    placeholder="Cues, transitions, dynamics..."
+                    className={cn("bg-white/5 border-white/10 text-base md:text-lg leading-relaxed p-6 md:p-8 whitespace-pre-wrap", isMobile ? "min-h-[200px] rounded-2xl" : "min-h-[350px] rounded-[2rem]")}
+                  />
                 </div>
               )}
               {activeTab === 'charts' && (
@@ -1322,10 +1344,11 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                     </div>
                   </div>
                   <div className="flex-1 min-h-0">
-                    <Textarea
+                    <StudioInput 
+                      isTextarea
                       placeholder="Paste lyrics here..."
-                      value={formData.lyrics || ""}
-                      onChange={(e) => handleAutoSave({ lyrics: e.target.value })}
+                      value={formData.lyrics}
+                      onChange={(val: string) => handleAutoSave({ lyrics: val })}
                       className={cn("h-full bg-white/5 border-white/10 text-lg md:text-xl leading-relaxed p-6 md:p-10 font-medium whitespace-pre-wrap", isMobile ? "min-h-[300px] rounded-2xl" : "min-h-[400px] rounded-[2.5rem]")}
                     />
                   </div>
@@ -1340,11 +1363,11 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                     </div>
                   </div>
                   <div className="flex gap-4">
-                     <Input
+                     <StudioInput 
                        placeholder="YouTube URL..."
-                       value={formData.youtubeUrl || ""}
-                       onChange={(e) => handleAutoSave({ youtubeUrl: e.target.value })}
-                       className="bg-white/5 border-white/10 text-sm flex-1 h-10 md:h-12 rounded-xl"
+                       value={formData.youtubeUrl}
+                       onChange={(val: string) => handleAutoSave({ youtubeUrl: val })}
+                       className="bg-white/5 border-white/10 text-sm flex-1 h-10 md:h-12 rounded-xl w-full"
                      />
                      <Button
                         variant="outline"
