@@ -228,6 +228,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       }
     } catch (err) {
       console.error("Audio Load Error:", err);
+      showError("Could not link audio engine.");
     }
   };
 
@@ -486,9 +487,13 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       const { data: { publicUrl } } = supabase.storage
         .from(bucket)
         .getPublicUrl(fileName);
+      
       if (isAudio) {
+        // Force immediate update to formData before prepareAudio
+        const nextData = { ...formData, previewUrl: publicUrl };
+        setFormData(nextData);
         handleAutoSave({ previewUrl: publicUrl });
-        prepareAudio(publicUrl, formData.pitch || 0);
+        await prepareAudio(publicUrl, formData.pitch || 0);
         showSuccess("Master Audio Linked");
       } else {
         handleAutoSave({ pdfUrl: publicUrl });
