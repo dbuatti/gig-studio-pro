@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Sparkles, Loader2, Music, Search, PlusCircle, Filter, Target, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { SetlistSong } from './SetlistManager';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from '@/lib/utils';
+import { Label } from './ui/label';
 
 interface SongSuggestionsProps {
   repertoire: SetlistSong[];
@@ -18,6 +19,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [seedSongId, setSeedSongId] = useState<string | null>(null);
+  const initialLoadAttempted = useRef(false);
 
   const seedSong = useMemo(() => 
     repertoire.find(s => s.id === seedSongId), 
@@ -44,6 +46,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
       });
 
       setSuggestions(filtered);
+      initialLoadAttempted.current = true;
     } catch (err) {
       console.error("Failed to fetch suggestions", err);
     } finally {
@@ -51,16 +54,12 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
     }
   };
 
+  // Initial load only
   useEffect(() => {
-    if (repertoire.length > 0 && suggestions.length === 0) {
+    if (repertoire.length > 0 && !initialLoadAttempted.current && suggestions.length === 0) {
       fetchSuggestions();
     }
   }, [repertoire]);
-
-  // Refetch when seed song changes
-  useEffect(() => {
-    if (seedSongId) fetchSuggestions();
-  }, [seedSongId]);
 
   if (repertoire.length === 0) {
     return (
@@ -86,7 +85,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
             disabled={isLoading}
             className="h-7 text-[9px] font-black uppercase hover:bg-indigo-50 text-indigo-600"
           >
-            {isLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : "Refresh"}
+            {isLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : "Refresh Suggestions"}
           </Button>
         </div>
 
@@ -97,7 +96,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
             </Label>
             {seedSongId && (
               <button 
-                onClick={() => { setSeedSongId(null); fetchSuggestions(); }}
+                onClick={() => { setSeedSongId(null); }}
                 className="text-[8px] font-black text-indigo-500 uppercase hover:text-indigo-600"
               >
                 Clear Seed
@@ -160,7 +159,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
             ) : (
               <div className="py-20 text-center opacity-30">
                 <Sparkles className="w-10 h-10 mb-4 mx-auto" />
-                <p className="text-[10px] font-black uppercase tracking-[0.2em]">Discovery engine complete.</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em]">Discovery engine ready.</p>
               </div>
             )
           )}
@@ -170,5 +169,4 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
   );
 };
 
-import { Label } from './ui/label';
 export default SongSuggestions;
