@@ -1170,6 +1170,17 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                           onChange={(e) => handleAutoSave({ pdfUrl: e.target.value })}
                           className="bg-white/5 border-white/10 font-bold h-10 md:h-12 rounded-xl"
                         />
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-10 md:h-12 border-white/10 text-slate-400 hover:bg-white/10 px-4 rounded-xl font-bold text-[10px] uppercase gap-2 shrink-0"
+                          onClick={() => {
+                            const query = encodeURIComponent(`${formData.artist} ${formData.name} sheet music pdf`);
+                            window.open(`https://www.google.com/search?q=${query}`, '_blank');
+                          }}
+                        >
+                          <Search className="w-3.5 h-3.5" /> Find
+                        </Button>
                       </div>
                     </div>
                     <div className="space-y-4">
@@ -1181,6 +1192,17 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                           onChange={(e) => handleAutoSave({ ugUrl: e.target.value })}
                           className="bg-white/5 border-white/10 font-bold text-orange-400 h-10 md:h-12 rounded-xl"
                         />
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-10 md:h-12 border-white/10 text-orange-400 hover:bg-orange-600/10 px-4 rounded-xl font-bold text-[10px] uppercase gap-2 shrink-0"
+                          onClick={() => {
+                            const query = encodeURIComponent(`${formData.artist} ${formData.name} chords`);
+                            window.open(`https://www.ultimate-guitar.com/search.php?search_type=title&value=${query}`, '_blank');
+                          }}
+                        >
+                          <Search className="w-3.5 h-3.5" /> Find
+                        </Button>
                       </div>
                     </div>
                   </div>
