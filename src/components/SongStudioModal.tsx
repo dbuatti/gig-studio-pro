@@ -36,6 +36,7 @@ import ProSyncSearch from './ProSyncSearch';
 import { useAuth } from './AuthProvider';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { calculateReadiness } from '@/utils/repertoireSync';
+import { useToneAudio } from '@/hooks/use-tone-audio';
 
 // Sub-component for inputs to prevent modal-wide re-renders
 const StudioInput = memo(({ label, value, onChange, placeholder, className, isTextarea = false, type = "text" }: any) => {
@@ -92,6 +93,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const isMobile = useIsMobile();
   const { user } = useAuth();
   const { keyPreference: globalPreference } = useSettings();
+  const audio = useToneAudio();
+  
   const [formData, setFormData] = useState<Partial<SetlistSong>>({});
   const [activeTab, setActiveTab] = useState<StudioTab>('audio');
   const [newTag, setNewTag] = useState("");
@@ -106,26 +109,17 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   
   const [activeChartType, setActiveChartType] = useState<'pdf' | 'leadsheet' | 'web' | 'ug'>('pdf');
 
-  // Audio Engine State
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [tempo, setTempo] = useState(1);
-  const [volume, setVolume] = useState(-6);
-  const [fineTune, setFineTune] = useState(0);
-  const [isMetronomeActive, setIsMetronomeActive] = useState(false);
+  // Audio Engine State from hook
+  const { 
+    isPlaying, progress, duration, pitch, tempo, volume, fineTune, analyzer, currentBuffer,
+    setPitch, setTempo, setVolume, setFineTune, setProgress,
+    loadFromUrl, togglePlayback, stopPlayback, resetEngine
+  } = audio;
 
-  const playerRef = useRef<Tone.GrainPlayer | null>(null);
-  const analyzerRef = useRef<Tone.Analyser | null>(null);
-  const currentBufferRef = useRef<AudioBuffer | null>(null);
-  const requestRef = useRef<number>();
+  // Metronome State (separate from main audio engine)
+  const [isMetronomeActive, setIsMetronomeActive] = useState(false);
   const metronomeSynthRef = useRef<Tone.MembraneSynth | null>(null);
   const metronomeLoopRef = useRef<Tone.Loop | null>(null);
-  
-  const playbackStartTimeRef = useRef<number>(0);
-  const playbackOffsetRef = useRef<number>(0);
-  
-  const touchStartX = useRef<number>(0);
 
   const tabOrder: StudioTab[] = isMobile 
     ? ['audio', 'config', 'details', 'charts', 'lyrics', 'visual', 'library']
@@ -147,6 +141,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   }, [isOpen, isMobile, tabOrder]);
 
   // Mobile Swipe logic
+  const touchStartX = useRef<number>(0);
   useEffect(() => {
     if (!isOpen || !isMobile) return;
 
@@ -158,7 +153,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       const touchEndX = e.changedTouches[0].clientX;
       const distance = touchEndX - touchStartX.current;
       
-      // If swipe right > 150px and not inside a textarea
       const target = e.target as HTMLElement;
       const isInput = target.tagName === 'TEXTAREA' || target.tagName === 'INPUT';
       
@@ -196,19 +190,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       return next;
     });
   }, [song, onSave]);
-
-  const cleanupAudio = () => {
-    if (playerRef.current) {
-      playerRef.current.stop();
-      playerRef.current.dispose();
-      playerRef.current = null;
-    }
-    if (requestRef.current) cancelAnimationFrame(requestRef.current);
-    setIsPlaying(false);
-    setProgress(0);
-    playbackOffsetRef.current = 0;
-    currentBufferRef.current = null;
-  };
 
   const stopMetronome = () => {
     Tone.getTransport().stop();
@@ -253,10 +234,10 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   };
 
   const handleDetectBPM = async () => {
-    if (!currentBufferRef.current) return;
+    if (!currentBuffer) return;
     setIsAnalyzing(true);
     try {
-      const bpm = await analyze(currentBufferRef.current);
+      const bpm = await analyze(currentBuffer);
       const roundedBpm = Math.round(bpm);
       handleAutoSave({ bpm: roundedBpm.toString() });
       showSuccess(`BPM Detected: ${roundedBpm}`);
@@ -264,97 +245,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       showError("BPM detection failed.");
     } finally {
       setIsAnalyzing(false);
-    }
-  };
-
-  const prepareAudio = async (url: string, pitch: number) => {
-    if (!url) return;
-    try {
-      if (Tone.getContext().state !== 'running') await Tone.start();
-      
-      const response = await fetch(url);
-      if (!response.ok) throw new Error("Audio fetch failed");
-      const arrayBuffer = await response.arrayBuffer();
-      const buffer = await Tone.getContext().decodeAudioData(arrayBuffer);
-      
-      currentBufferRef.current = buffer;
-      
-      if (!analyzerRef.current) {
-        analyzerRef.current = new Tone.Analyser("fft", 256);
-      }
-      if (playerRef.current) playerRef.current.dispose();
-      playerRef.current = new Tone.GrainPlayer(buffer).toDestination();
-      playerRef.current.connect(analyzerRef.current!);
-      playerRef.current.detune = (pitch * 100) + fineTune;
-      playerRef.current.playbackRate = tempo;
-      playerRef.current.volume.value = volume;
-      playerRef.current.grainSize = 0.18;
-      playerRef.current.overlap = 0.1;
-      
-      setDuration(buffer.duration);
-      
-      if (song && Math.abs((song.duration_seconds || 0) - buffer.duration) > 1) {
-        handleAutoSave({ duration_seconds: buffer.duration });
-      }
-    } catch (err) {
-      console.error("Audio Load Error:", err);
-      showError("Could not link audio engine.");
-    }
-  };
-
-  const animateProgress = useCallback(() => {
-    if (playerRef.current && playerRef.current.state === "started") {
-      const elapsed = (Tone.now() - playbackStartTimeRef.current) * tempo;
-      const currentSeconds = playbackOffsetRef.current + elapsed;
-      
-      if (duration > 0) {
-        const newProgress = Math.min(100, (currentSeconds / duration) * 100);
-        setProgress(newProgress);
-        
-        if (currentSeconds >= duration) {
-          setIsPlaying(false);
-          setProgress(0);
-          playbackOffsetRef.current = 0;
-          return;
-        }
-      }
-      requestRef.current = requestAnimationFrame(animateProgress);
-    }
-  }, [duration, tempo]);
-
-  useEffect(() => {
-    if (isPlaying) {
-      requestRef.current = requestAnimationFrame(animateProgress);
-    } else if (requestRef.current) {
-      cancelAnimationFrame(requestRef.current);
-    }
-    return () => {
-      if (requestRef.current) cancelAnimationFrame(requestRef.current);
-    };
-  }, [isPlaying, animateProgress]);
-
-  const togglePlayback = () => {
-    if (!playerRef.current) return;
-    if (isPlaying) {
-      playerRef.current.stop();
-      const elapsed = (Tone.now() - playbackStartTimeRef.current) * tempo;
-      playbackOffsetRef.current += elapsed;
-      setIsPlaying(false);
-    } else {
-      const startTime = (progress / 100) * duration;
-      playbackOffsetRef.current = startTime;
-      playbackStartTimeRef.current = Tone.now();
-      playerRef.current.start(0, startTime);
-      setIsPlaying(true);
-    }
-  };
-
-  const stopPlayback = () => {
-    if (playerRef.current) {
-      playerRef.current.stop();
-      setIsPlaying(false);
-      setProgress(0);
-      playbackOffsetRef.current = 0;
     }
   };
 
@@ -390,11 +280,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         if (next.isKeyLinked) {
           const diff = calculateSemitones(next.originalKey || "C", next.targetKey || "C");
           next.pitch = diff;
+          setPitch(diff);
         }
-      }
-      
-      if (playerRef.current) {
-        playerRef.current.detune = ((next.pitch || 0) * 100) + fineTune;
       }
       
       onSave(song.id, next);
@@ -412,9 +299,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       return;
     }
     setFormData(prev => ({ ...prev, pitch: newPitch }));
-    if (playerRef.current) {
-      playerRef.current.detune = (newPitch * 100) + fineTune;
-    }
+    setPitch(newPitch);
+    
     if (song) {
       onSave(song.id, { pitch: newPitch });
     }
@@ -453,6 +339,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         pitch: 0 
       };
       handleAutoSave(finalUpdates);
+      setPitch(0);
       showSuccess(`Successfully Synced "${itunesData.trackName}"`);
     } catch (err) {
       showError("Pro Sync failed to complete technical analysis.");
@@ -580,7 +467,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         const nextData = { ...formData, previewUrl: publicUrl };
         setFormData(nextData);
         handleAutoSave({ previewUrl: publicUrl });
-        await prepareAudio(publicUrl, formData.pitch || 0);
+        await loadFromUrl(publicUrl, formData.pitch || 0);
         showSuccess("Master Audio Linked");
       } else {
         handleAutoSave({ pdfUrl: publicUrl });
@@ -633,12 +520,13 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       setFormData(initialData);
       
       checkRepertoireStatus();
+      resetEngine();
       if (song.previewUrl) {
-        prepareAudio(song.previewUrl, song.pitch || 0);
+        loadFromUrl(song.previewUrl, song.pitch || 0);
       }
     }
     return () => {
-      cleanupAudio();
+      resetEngine();
       stopMetronome();
     };
   }, [song?.id, isOpen]);
@@ -877,8 +765,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center bg-slate-900 rounded-2xl border border-white/5 p-6 text-center">
                 <ShieldCheck className="w-12 h-12 md:w-16 md:h-16 text-indigo-400 mb-6" />
-                <h4 className="text-xl md:text-2xl font-black uppercase mb-2">Private Asset Encryption</h4>
-                <p className="text-slate-500 mb-8 max-w-sm font-medium">This external provider blocks in-app previews. Launch the official source to view the chart.</p>
+                <h4 className="text-xl md:text-2xl font-black uppercase mb-4 text-white">External Protection</h4>
+                <p className="text-slate-500 mb-8 max-w-sm font-medium">This external provider blocks in-app previews. Use the button below to launch in a secure dedicated performance window.</p>
                 <Button onClick={() => window.open(previewPdfUrl, '_blank')} className="bg-indigo-600 hover:bg-indigo-700 h-12 px-8 font-black uppercase tracking-widest text-xs rounded-xl shadow-lg shadow-indigo-600/20 gap-3">
                   <ExternalLink className="w-4 h-4" /> Open Official Source
                 </Button>
@@ -1051,7 +939,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                   </div>
                   <div className={cn("bg-slate-900/50 border border-white/5 space-y-6 md:space-y-12", isMobile ? "p-6 rounded-3xl" : "p-12 rounded-[3rem]")}>
                     <div className={cn(isMobile ? "h-24" : "h-40")}>
-                      <AudioVisualizer analyzer={analyzerRef.current} isActive={isPlaying} />
+                      <AudioVisualizer analyzer={analyzer} isActive={isPlaying} />
                     </div>
                     
                     {formData.previewUrl ? (
@@ -1062,17 +950,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                             <span className="hidden md:inline">Transport Master Clock</span>
                             <span>{new Date(duration * 1000).toISOString().substr(14, 5)}</span>
                           </div>
-                          <Slider value={[progress]} max={100} step={0.1} onValueChange={(v) => {
-                            const p = v[0];
-                            setProgress(p);
-                            const offset = (p / 100) * duration;
-                            playbackOffsetRef.current = offset;
-                            if (isPlaying && playerRef.current) {
-                              playerRef.current.stop();
-                              playbackStartTimeRef.current = Tone.now();
-                              playerRef.current.start(0, offset);
-                            }
-                          }} />
+                          <Slider value={[progress]} max={100} step={0.1} onValueChange={([v]) => setProgress(v)} />
                         </div>
                         <div className="flex items-center justify-center gap-8 md:gap-12">
                            <Button variant="ghost" size="icon" onClick={stopPlayback} className="h-12 w-12 md:h-20 md:w-20 rounded-full border border-white/5">
@@ -1106,7 +984,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                         <div className="flex justify-between items-center">
                           <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Pitch Processor</Label>
                           <div className="flex items-center gap-2 md:gap-3">
-                            <span className="text-sm md:text-lg font-mono font-black text-indigo-400">{(formData.pitch || 0) > 0 ? '+' : ''}{formData.pitch || 0} ST</span>
+                            <span className="text-sm md:text-lg font-mono font-black text-indigo-400">{(pitch || 0) > 0 ? '+' : ''}{pitch || 0} ST</span>
                             <div className="flex bg-white/5 rounded-lg border border-white/10 p-0.5">
                               <button onClick={() => handleOctaveShift('down')} className="h-7 px-2 text-[8px] md:text-[10px] font-black uppercase text-slate-400 border-r border-white/5">- oct</button>
                               <button onClick={() => handleOctaveShift('up')} className="h-7 px-2 text-[8px] md:text-[10px] font-black uppercase text-slate-400">+ oct</button>
@@ -1114,7 +992,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                           </div>
                         </div>
                         <Slider
-                          value={[formData.pitch || 0]}
+                          value={[pitch || 0]}
                           min={-24}
                           max={24}
                           step={1}
@@ -1122,7 +1000,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                             const newPitch = v[0];
                             const newTargetKey = transposeKey(formData.originalKey || "C", newPitch);
                             setFormData(prev => ({ ...prev, pitch: newPitch, targetKey: newTargetKey }));
-                            if (playerRef.current) playerRef.current.detune = (newPitch * 100) + fineTune;
+                            setPitch(newPitch);
                             if (song) {
                               onSave(song.id, { pitch: newPitch, targetKey: newTargetKey });
                               onUpdateKey(song.id, newTargetKey);
@@ -1140,17 +1018,14 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                           min={-100}
                           max={100}
                           step={1}
-                          onValueChange={(v) => {
-                            setFineTune(v[0]);
-                            if (playerRef.current) playerRef.current.detune = ((formData.pitch || 0) * 100) + v[0];
-                          }}
+                          onValueChange={([v]) => setFineTune(v)}
                         />
                       </div>
                     </div>
                     <div className={cn("space-y-6 md:space-y-10 bg-white/5 border border-white/5", isMobile ? "p-6 rounded-3xl" : "p-10 rounded-[2.5rem]")}>
                       <div className="space-y-4 md:space-y-6">
                         <div className="flex justify-between items-center">
-                          <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Tempo Stretch</Label>
+                          <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Tempo Stretch</Label>
                           <span className="text-sm md:text-lg font-mono font-black text-indigo-400">{tempo.toFixed(2)}x</span>
                         </div>
                         <Slider
@@ -1158,15 +1033,14 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                           min={0.5}
                           max={1.5}
                           step={0.01}
-                          onValueChange={(v) => {
-                            setTempo(v[0]);
-                            if (playerRef.current) playerRef.current.playbackRate = v[0];
-                          }}
+                          onValueChange={([v]) => setTempo(v)}
                         />
                       </div>
                       <div className="space-y-4 md:space-y-6">
                         <div className="flex justify-between items-center">
-                          <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Master Gain</Label>
+                          <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
+                            <Volume2 className="w-3 h-3 text-indigo-500" /> Master Gain
+                          </Label>
                           <span className="text-sm md:text-lg font-mono font-black text-slate-500">{Math.round((volume + 60) * 1.66)}%</span>
                         </div>
                         <Slider
@@ -1174,10 +1048,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                           min={-60}
                           max={0}
                           step={1}
-                          onValueChange={(v) => {
-                            setVolume(v[0]);
-                            if (playerRef.current) playerRef.current.volume.value = v[0];
-                          }}
+                          onValueChange={([v]) => setVolume(v)}
                         />
                       </div>
                     </div>

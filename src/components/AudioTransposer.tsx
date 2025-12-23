@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SetlistSong } from './SetlistManager';
 import { transposeKey } from '@/utils/keyUtils';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { useToneAudio } from '@/hooks/use-tone-audio';
 
 export interface AudioTransposerRef {
   loadFromUrl: (url: string, name: string, artist: string, youtubeUrl?: string, originalKey?: string, ugUrl?: string) => Promise<void>;
@@ -50,46 +51,33 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
   repertoire = [],
   currentSong
 }, ref) => {
+  const audio = useToneAudio();
+  
   const [file, setFile] = useState<{ id?: string; name: string; artist?: string; url?: string; originalKey?: string; ugUrl?: string } | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [pitch, setPitch] = useState(0);
-  const [fineTune, setFineTune] = useState(0);
-  const [tempo, setTempo] = useState(1);
-  const [volume, setVolume] = useState(-6);
-  const [progress, setProgress] = useState(0);
-  const [duration, setDuration] = useState(0);
   const [activeTab, setActiveTab] = useState("search");
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
   const [activeYoutubeUrl, setActiveYoutubeUrl] = useState<string | undefined>();
   const [activeUgUrl, setActiveUgUrl] = useState<string | undefined>();
   const [searchQuery, setSearchQuery] = useState("");
 
-  const playerRef = useRef<Tone.GrainPlayer | null>(null);
-  const analyzerRef = useRef<Tone.Analyser | null>(null);
-  const requestRef = useRef<number>();
-  
-  const playbackStartTimeRef = useRef<number>(0);
-  const offsetRef = useRef<number>(0);
+  // Sync hook state to local component state for UI controls
+  const { 
+    isPlaying, progress, duration, pitch, tempo, volume, fineTune, analyzer,
+    setPitch, setTempo, setVolume, setFineTune, setProgress,
+    loadFromUrl: hookLoadFromUrl, togglePlayback: hookTogglePlayback, stopPlayback: hookStopPlayback, resetEngine
+  } = audio;
 
-  const initEngine = async () => {
-    if (Tone.getContext().state !== 'running') {
-      await Tone.start();
-    }
-    
-    if (!analyzerRef.current) {
-      analyzerRef.current = new Tone.Analyser("fft", 256);
-    }
-    return true;
-  };
-
+  // Notify parent component of playback changes
   useEffect(() => {
-    return () => {
-      stopPlayback();
-      playerRef.current?.dispose();
-      analyzerRef.current?.dispose();
-      if (requestRef.current) cancelAnimationFrame(requestRef.current);
-    };
-  }, []);
+    if (onPlaybackChange) onPlaybackChange(isPlaying);
+  }, [isPlaying, onPlaybackChange]);
+
+  // Handle song ending
+  useEffect(() => {
+    if (duration > 0 && progress >= 100) {
+      if (onSongEnded) onSongEnded();
+    }
+  }, [progress, duration, onSongEnded]);
 
   const getYoutubeId = (url: string) => {
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
@@ -97,80 +85,30 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
     return (match && match[2].length === 11) ? match[2] : null;
   };
 
-  const loadAudioBuffer = async (audioBuffer: AudioBuffer, name: string, artist: string, youtubeUrl?: string, previewUrl?: string, originalKey?: string, ugUrl?: string) => {
-    try {
-      await initEngine();
-      if (playerRef.current) playerRef.current.dispose();
-
-      playerRef.current = new Tone.GrainPlayer(audioBuffer).toDestination();
-      playerRef.current.connect(analyzerRef.current!);
-      playerRef.current.grainSize = 0.18;
-      playerRef.current.overlap = 0.1;
-      playerRef.current.detune = (pitch * 100) + fineTune;
-      playerRef.current.playbackRate = tempo;
-      playerRef.current.volume.value = volume;
-
-      setFile({ id: currentSong?.id, name, artist, url: previewUrl, originalKey, ugUrl });
-      setDuration(audioBuffer.duration);
-      setProgress(0);
-      offsetRef.current = 0;
-      setIsPlaying(false);
-      if (onPlaybackChange) onPlaybackChange(false);
-      
-      setActiveYoutubeUrl(youtubeUrl);
-      setActiveUgUrl(ugUrl);
-      if (youtubeUrl) {
-        setActiveVideoId(getYoutubeId(youtubeUrl));
-      } else {
-        setActiveVideoId(null);
-      }
-
-      showSuccess("Audio Matrix Loaded");
-    } catch (err) {
-      showError("Engine error.");
-    }
-  };
-
   const loadFromUrl = async (targetUrl: string, name: string, artist: string, youtubeUrl?: string, originalKey?: string, ugUrl?: string) => {
-    try {
-      const response = await fetch(targetUrl);
-      if (!response.ok) throw new Error("Fetch error");
-      const arrayBuffer = await response.arrayBuffer();
-      const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
-      await loadAudioBuffer(audioBuffer, name, artist, youtubeUrl, targetUrl, originalKey, ugUrl);
-    } catch (err) {
-      showError("Load failed.");
+    resetEngine();
+    
+    // Use the pitch from the current song if available, otherwise default to 0
+    const initialPitch = currentSong?.pitch || 0;
+    await hookLoadFromUrl(targetUrl, initialPitch);
+    
+    setFile({ id: currentSong?.id, name, artist, url: targetUrl, originalKey, ugUrl });
+    
+    setActiveYoutubeUrl(youtubeUrl);
+    setActiveUgUrl(ugUrl);
+    if (youtubeUrl) {
+      setActiveVideoId(getYoutubeId(youtubeUrl));
+    } else {
+      setActiveVideoId(null);
     }
   };
 
   const togglePlayback = async () => {
-    await initEngine();
-    if (!playerRef.current) return;
-
-    if (isPlaying) {
-      playerRef.current.stop();
-      const elapsed = (Tone.now() - playbackStartTimeRef.current) * tempo;
-      offsetRef.current += elapsed;
-      setIsPlaying(false);
-      if (onPlaybackChange) onPlaybackChange(false);
-    } else {
-      const startTime = (progress / 100) * duration;
-      offsetRef.current = startTime;
-      playbackStartTimeRef.current = Tone.now();
-      playerRef.current.start(0, startTime);
-      setIsPlaying(true);
-      if (onPlaybackChange) onPlaybackChange(true);
-    }
+    await hookTogglePlayback();
   };
 
   const stopPlayback = () => {
-    if (playerRef.current) {
-      playerRef.current.stop();
-      setIsPlaying(false);
-      if (onPlaybackChange) onPlaybackChange(false);
-      setProgress(0);
-      offsetRef.current = 0;
-    }
+    hookStopPlayback();
   };
 
   const suggestedKey = useMemo(() => {
@@ -196,9 +134,6 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
     }
 
     setPitch(newPitch);
-    if (playerRef.current) {
-      playerRef.current.detune = (newPitch * 100) + fineTune;
-    }
     
     if (currentSong && onUpdateSongKey) {
       const activeKey = file?.originalKey || currentSong?.originalKey;
@@ -230,7 +165,6 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
   const handleImportGlobal = (songData: Partial<SetlistSong>) => {
     if (onAddExistingSong) {
       // Create a fresh song object without ANY IDs from the community database
-      // This ensures it becomes a new private copy for the user
       const { id, master_id, ...dataToClone } = songData;
       const newSong = {
         ...dataToClone,
@@ -242,10 +176,11 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
   };
 
   useImperativeHandle(ref, () => ({
-    loadFromUrl,
+    loadFromUrl: async (targetUrl, name, artist, youtubeUrl, originalKey, ugUrl) => {
+      await loadFromUrl(targetUrl, name, artist, youtubeUrl, originalKey, ugUrl);
+    },
     setPitch: (newPitch: number) => {
       setPitch(newPitch);
-      if (playerRef.current) playerRef.current.detune = (newPitch * 100) + fineTune;
     },
     getPitch: () => pitch,
     triggerSearch: (query: string) => {
@@ -254,36 +189,10 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
     },
     togglePlayback,
     stopPlayback,
-    getProgress: () => ({ progress, duration }),
-    getAnalyzer: () => analyzerRef.current,
+    getProgress: () => ({ progress: audio.progress, duration: audio.duration }),
+    getAnalyzer: () => analyzer,
     getIsPlaying: () => isPlaying
   }));
-
-  const animateProgress = () => {
-    if (isPlaying && playerRef.current) {
-      const elapsed = (Tone.now() - playbackStartTimeRef.current) * tempo;
-      const currentSeconds = offsetRef.current + elapsed;
-      const newProgress = (currentSeconds / duration) * 100;
-      
-      if (currentSeconds >= duration) {
-        setIsPlaying(false);
-        if (onPlaybackChange) onPlaybackChange(false);
-        setProgress(0);
-        offsetRef.current = 0;
-        if (onSongEnded) onSongEnded();
-        return;
-      }
-      
-      setProgress(newProgress);
-      requestRef.current = requestAnimationFrame(animateProgress);
-    }
-  };
-
-  useEffect(() => {
-    if (isPlaying) requestRef.current = requestAnimationFrame(animateProgress);
-    else if (requestRef.current) cancelAnimationFrame(requestRef.current);
-    return () => { if (requestRef.current) cancelAnimationFrame(requestRef.current); };
-  }, [isPlaying, tempo]);
 
   return (
     <div className="flex flex-col h-full">
@@ -358,7 +267,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
               )}
               
               <div className="w-full">
-                <AudioVisualizer analyzer={analyzerRef.current} isActive={isPlaying} />
+                <AudioVisualizer analyzer={analyzer} isActive={isPlaying} />
               </div>
               
               <div className="flex items-center justify-center gap-6">
@@ -378,17 +287,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
                 <span className="opacity-60 truncate max-w-[180px]">{file.name}</span>
                 <span>{new Date(duration * 1000).toISOString().substr(14, 5)}</span>
               </div>
-              <Slider value={[progress]} max={100} step={0.1} onValueChange={(v) => {
-                const p = v[0];
-                setProgress(p);
-                const offset = (p / 100) * duration;
-                offsetRef.current = offset;
-                if (isPlaying && playerRef.current) {
-                  playerRef.current.stop();
-                  playbackStartTimeRef.current = Tone.now();
-                  playerRef.current.start(0, offset);
-                }
-              }} />
+              <Slider value={[progress]} max={100} step={0.1} onValueChange={([v]) => setProgress(v)} />
             </div>
 
             <div className="bg-slate-50 dark:bg-slate-900/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-4">
@@ -490,10 +389,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
                 
                 <div className="flex gap-4 items-center">
                   <div className="flex-1">
-                    <Slider value={[pitch]} min={-24} max={24} step={1} onValueChange={(v) => {
-                      setPitch(v[0]);
-                      if (playerRef.current) playerRef.current.detune = (v[0] * 100) + fineTune;
-                    }} />
+                    <Slider value={[pitch]} min={-24} max={24} step={1} onValueChange={([v]) => setPitch(v)} />
                   </div>
                   {suggestedKey && (
                     <Button onClick={handleApplyKey} size="sm" className="bg-indigo-50 text-indigo-600 h-9 px-3 text-[10px] uppercase font-black gap-1">
@@ -507,12 +403,9 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Tempo</Label>
-                    <span className="text-xs font-mono text-indigo-600 font-bold">{tempo.toFixed(2)}x</span>
+                    <span className="text-xs font-mono font-bold text-indigo-600">{tempo.toFixed(2)}x</span>
                   </div>
-                  <Slider value={[tempo]} min={0.5} max={1.5} step={0.01} onValueChange={(v) => {
-                    setTempo(v[0]);
-                    if (playerRef.current) playerRef.current.playbackRate = v[0];
-                  }} />
+                  <Slider value={[tempo]} min={0.5} max={1.5} step={0.01} onValueChange={([v]) => setTempo(v)} />
                 </div>
 
                 <div className="space-y-3">
@@ -522,10 +415,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
                     </Label>
                     <span className="text-[10px] font-mono font-bold text-slate-600">{Math.round((volume + 60) * 1.66)}%</span>
                   </div>
-                  <Slider value={[volume]} min={-60} max={0} step={1} onValueChange={(v) => {
-                    setVolume(v[0]);
-                    if (playerRef.current) playerRef.current.volume.value = v[0];
-                  }} />
+                  <Slider value={[volume]} min={-60} max={0} step={1} onValueChange={([v]) => setVolume(v)} />
                 </div>
               </div>
             </div>
