@@ -133,12 +133,55 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const readinessColor = readiness === 100 ? 'bg-emerald-500' : readiness > 60 ? 'bg-indigo-500' : 'bg-slate-500';
 
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
+
+  const syncToMasterRepertoire = useCallback(async (updates: Partial<SetlistSong>) => {
+    if (!user || !song) return;
+    
+    // Check if this song exists in the repertoire table
+    const { data: existing } = await supabase
+      .from('repertoire')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('title', updates.name || song.name)
+      .eq('artist', updates.artist || song.artist || 'Unknown Artist')
+      .maybeSingle();
+
+    if (existing) {
+      const masterUpdates: any = {};
+      if (updates.originalKey) masterUpdates.original_key = updates.originalKey;
+      if (updates.bpm) masterUpdates.bpm = updates.bpm;
+      if (updates.genre) masterUpdates.genre = updates.genre;
+      
+      // Always recalculate readiness score for master
+      let score = 0;
+      const finalName = updates.name || song.name;
+      const finalArtist = updates.artist || song.artist;
+      const finalPreview = updates.previewUrl || song.previewUrl;
+      const isItunes = finalPreview?.includes('apple.com') || finalPreview?.includes('itunes-assets');
+      
+      if (finalPreview && !isItunes) score += 25;
+      if (updates.isKeyConfirmed ?? song.isKeyConfirmed) score += 20;
+      if ((updates.lyrics || song.lyrics || "").length > 20) score += 15;
+      if (updates.pdfUrl || song.pdfUrl) score += 15;
+      if (updates.ugUrl || song.ugUrl) score += 10;
+      if (updates.bpm || song.bpm) score += 5;
+      if (finalArtist && finalArtist !== "Unknown Artist") score += 5;
+      
+      masterUpdates.readiness_score = score;
+
+      await supabase.from('repertoire').update(masterUpdates).eq('id', existing.id);
+    }
+  }, [user, song]);
+
   const handleAutoSave = (updates: Partial<SetlistSong>) => {
     setFormData(prev => ({ ...prev, ...updates }));
     
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(() => {
-      if (song) onSave(song.id, updates);
+      if (song) {
+        onSave(song.id, updates);
+        syncToMasterRepertoire(updates);
+      }
     }, 800);
   };
 
@@ -346,6 +389,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       }
       
       onSave(song.id, next);
+      syncToMasterRepertoire(next);
       return next;
     });
   };
@@ -363,7 +407,10 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     if (playerRef.current) {
       playerRef.current.detune = (newPitch * 100) + fineTune;
     }
-    if (song) onSave(song.id, { pitch: newPitch });
+    if (song) {
+      onSave(song.id, { pitch: newPitch });
+      syncToMasterRepertoire({ pitch: newPitch });
+    }
     showSuccess(`Octave Shift Applied: ${newPitch > 0 ? '+' : ''}${newPitch} ST`);
   };
 
@@ -1529,20 +1576,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              onClick={async () => {
-                                if (formData.pdfUrl) {
-                                  const response = await fetch(formData.pdfUrl);
-                                  const blob = await response.blob();
-                                  const url = window.URL.createObjectURL(blob);
-                                  const link = document.createElement('a');
-                                  link.href = url;
-                                  link.download = `${formData.name}_chart.pdf`;
-                                  document.body.appendChild(link);
-                                  link.click();
-                                  document.body.removeChild(link);
-                                  window.URL.revokeObjectURL(url);
-                                }
-                              }}
+                              onClick={() => handleDownloadAsset(formData.pdfUrl, `${formData.name}_chart`)}
                               className="h-10 w-10 bg-white/5 rounded-xl hover:bg-emerald-600 transition-all"
                             >
                               <Download className="w-4 h-4" />

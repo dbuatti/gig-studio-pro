@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -13,11 +13,7 @@ const PublicRepertoire = () => {
   const [songs, setSongs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (slug) fetchPublicData();
-  }, [slug]);
-
-  const fetchPublicData = async () => {
+  const fetchPublicData = useCallback(async () => {
     try {
       const { data: profileData, error: pError } = await supabase
         .from('profiles')
@@ -41,11 +37,36 @@ const PublicRepertoire = () => {
       if (sError) throw sError;
       setSongs(songData || []);
     } catch (err) {
-      console.error(err);
+      console.error("Public Fetch Error:", err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [slug]);
+
+  useEffect(() => {
+    if (slug) {
+      fetchPublicData();
+
+      // Subscribe to real-time changes for this profile and its repertoire
+      const profileChannel = supabase
+        .channel('public_profile_changes')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'profiles', filter: `repertoire_slug=eq.${slug}` },
+          () => fetchPublicData()
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'repertoire' },
+          () => fetchPublicData()
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(profileChannel);
+      };
+    }
+  }, [slug, fetchPublicData]);
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-slate-950">
@@ -57,7 +78,7 @@ const PublicRepertoire = () => {
     <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 text-white p-8 text-center">
       <div className="bg-slate-900 p-12 rounded-[3rem] border border-white/5 space-y-6">
         <UserCircle2 className="w-24 h-24 text-slate-700 mx-auto" />
-        <h1 className="text-4xl font-black uppercase tracking-tight">Studio Link Expired</h1>
+        <h1 className="text-4xl font-black uppercase tracking-tight">Studio Link Offline</h1>
         <p className="text-slate-500 max-w-sm">This repertoire is currently private or does not exist.</p>
         <Button onClick={() => window.location.href = '/'} className="bg-indigo-600 hover:bg-indigo-700 font-bold uppercase tracking-widest px-8">Return to Gig Studio</Button>
       </div>
