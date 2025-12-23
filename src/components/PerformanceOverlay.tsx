@@ -213,7 +213,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
 
     return () => {
       container.removeEventListener('wheel', handleUserInteractionStart);
-      container.removeEventListener('touchstart', handleUserInteractionStart);
+      container.removeEventListener('touchstart', handleTouchStart);
       container.removeEventListener('touchend', handleUserInteractionEnd);
       container.removeEventListener('mousedown', handleUserInteractionStart);
       container.removeEventListener('mouseup', handleUserInteractionEnd);
@@ -480,7 +480,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
                   />
                 ) : (
                   <div className="h-full w-full flex flex-col items-center justify-center p-6 md:p-12 text-center bg-slate-950">
-                    <ShieldCheck className="w-16 h-16 md:w-32 md:h-32 text-indigo-400 mb-6 md:mb-10" />
+                    <ShieldCheck className="w-12 h-12 md:w-16 md:h-16 text-indigo-400 mb-6 md:mb-10" />
                     <h4 className="text-3xl md:text-5xl font-black uppercase tracking-tight mb-4 md:mb-6 text-white">Asset Protected</h4>
                     <p className="text-slate-500 max-w-xl mb-8 md:mb-16 text-lg md:text-xl font-medium leading-relaxed">
                       External security prevents in-app display. Use the button below to launch in a secure dedicated performance window.
@@ -574,11 +574,14 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
 
               <div className="flex gap-3">
                 <div className="flex-1">
-                  <Select value={currentSong?.targetKey} onValueChange={(val) => onUpdateKey(currentSong!.id, val)}>
+                  <Select 
+                    value={formatKey(currentSong?.targetKey || currentSong?.originalKey, currentPref)} 
+                    onValueChange={(val) => onUpdateKey(currentSong!.id, val)}
+                  >
                     <SelectTrigger className="bg-slate-950 border-white/10 text-xs font-black font-mono h-12 rounded-xl">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-900 border-white/10 text-white">
+                    <SelectContent className="bg-slate-900 border-white/10 text-white z-[300]">
                       {keysToUse.map(k => (
                         <SelectItem key={k} value={k} className="font-mono font-bold">{k}</SelectItem>
                       ))}

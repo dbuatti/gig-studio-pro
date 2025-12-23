@@ -753,11 +753,14 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         <div className="space-y-4">
           <div className="space-y-2">
             <Label className="text-[9px] font-bold text-slate-400 uppercase">Original Key</Label>
-            <Select value={formData.originalKey || "C"} onValueChange={(val) => updateHarmonics({ originalKey: val })}>
+            <Select 
+              value={formatKey(formData.originalKey || "C", currentKeyPreference)} 
+              onValueChange={(val) => updateHarmonics({ originalKey: val })}
+            >
               <SelectTrigger className="bg-white/5 border-white/10 text-white font-bold font-mono h-12 text-lg">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-slate-900 border-white/10 text-white">
+              <SelectContent className="bg-slate-900 border-white/10 text-white z-[300]">
                 {keysToUse.map(k => <SelectItem key={k} value={k} className="font-mono">{k}</SelectItem>)}
               </SelectContent>
             </Select>
@@ -767,17 +770,20 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
               <Label className="text-[9px] font-bold text-indigo-400 uppercase">Stage Key</Label>
               <span className="text-[9px] font-mono text-slate-500">{(formData.pitch || 0) > 0 ? '+' : ''}{formData.pitch || 0} ST</span>
             </div>
-            <Select value={formData.targetKey || "C"} onValueChange={(val) => {
-              updateHarmonics({ targetKey: val });
-              if (song) onUpdateKey(song.id, val);
-            }}>
+            <Select 
+              value={formatKey(formData.targetKey || formData.originalKey || "C", currentKeyPreference)} 
+              onValueChange={(val) => {
+                updateHarmonics({ targetKey: val });
+                if (song) onUpdateKey(song.id, val);
+              }}
+            >
               <SelectTrigger className={cn(
                 "border-none text-white font-bold font-mono h-12 shadow-xl text-lg transition-colors",
                 formData.isKeyConfirmed ? "bg-emerald-600 shadow-emerald-500/20" : "bg-indigo-600 shadow-indigo-500/20"
               )}>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-slate-900 border-white/10 text-white">
+              <SelectContent className="bg-slate-900 border-white/10 text-white z-[300]">
                 {keysToUse.map(k => <SelectItem key={k} value={k} className="font-mono">{k}</SelectItem>)}
               </SelectContent>
             </Select>
