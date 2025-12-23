@@ -37,6 +37,9 @@ const Index = () => {
   const [isPlayerActive, setIsPlayerActive] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   
+  // Real Repertoire state (Source of Truth)
+  const [masterRepertoire, setMasterRepertoire] = useState<SetlistSong[]>([]);
+  
   const [syncQueue, setSyncQueue] = useState<string[]>([]);
   const [isProcessingQueue, setIsProcessingQueue] = useState(false);
 
@@ -46,17 +49,6 @@ const Index = () => {
   const songs = currentList?.songs || [];
   const activeSongIndex = songs.findIndex(s => s.id === activeSongId);
   const activeSong = songs[activeSongIndex] || null;
-
-  const fullRepertoire = useMemo(() => {
-    const all = setlists.flatMap(list => list.songs);
-    const seen = new Set();
-    return all.filter(song => {
-      const key = `${song.name}-${song.artist}`.toLowerCase();
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  }, [setlists]);
 
   useEffect(() => {
     const handleGesture = async () => {
@@ -77,7 +69,10 @@ const Index = () => {
   }, []);
 
   useEffect(() => {
-    if (user) fetchSetlists();
+    if (user) {
+      fetchSetlists();
+      fetchMasterRepertoire();
+    }
     
     const clockInterval = setInterval(() => {
       setCurrentTime(new Date());
@@ -117,6 +112,44 @@ const Index = () => {
 
     processNextBatch();
   }, [syncQueue, isProcessingQueue, currentListId, songs]);
+
+  const fetchMasterRepertoire = async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('repertoire')
+        .select('*')
+        .eq('user_id', user.id);
+      
+      if (error) throw error;
+      
+      const mapped = (data || []).map(d => ({
+        id: d.id,
+        name: d.title,
+        artist: d.artist,
+        bpm: d.bpm,
+        lyrics: d.lyrics,
+        originalKey: d.original_key,
+        targetKey: d.target_key,
+        pitch: d.pitch,
+        ugUrl: d.ug_url,
+        previewUrl: d.preview_url,
+        youtubeUrl: d.youtube_url,
+        appleMusicUrl: d.apple_music_url,
+        pdfUrl: d.pdf_url,
+        isMetadataConfirmed: d.is_metadata_confirmed,
+        isKeyConfirmed: d.is_key_confirmed,
+        duration_seconds: d.duration_seconds,
+        notes: d.notes,
+        user_tags: d.user_tags || [],
+        resources: d.resources || []
+      }));
+      
+      setMasterRepertoire(mapped);
+    } catch (err) {
+      console.error("Master Repertoire fetch error", err);
+    }
+  };
 
   const fetchSetlists = async () => {
     try {
@@ -169,10 +202,10 @@ const Index = () => {
         .eq('id', listId);
       if (error) throw error;
 
-      // HEADLESS SYNC: Automatically propagate the updated list to the Master Repertoire
-      if (user) {
-        syncToMasterRepertoire(user.id, updatedSongs);
-      }
+      // Sync to Master Repertoire
+      await syncToMasterRepertoire(user.id, updatedSongs);
+      // Refresh the library view
+      fetchMasterRepertoire();
     } catch (err) {
       // Silent error
     } finally {
@@ -267,9 +300,18 @@ const Index = () => {
   };
 
   const handleAddToSetlist = async (previewUrl: string, name: string, artist: string, youtubeUrl?: string, pitch: number = 0, ugUrl?: string) => {
-    if (!currentListId) return;
+    if (!currentListId || !user) return;
+    
+    // Check if song already exists in master repertoire
+    const existing = masterRepertoire.find(s => s.name.toLowerCase() === name.toLowerCase());
+    
     const newSongId = Math.random().toString(36).substr(2, 9);
-    const newSong: SetlistSong = {
+    const newSong: SetlistSong = existing ? {
+      ...existing,
+      id: newSongId,
+      isPlayed: false,
+      isSyncing: false
+    } : {
       id: newSongId,
       name,
       artist,
@@ -292,7 +334,11 @@ const Index = () => {
       return prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l);
     });
     
-    setSyncQueue(prev => [...prev, newSongId]);
+    if (!existing) {
+      setSyncQueue(prev => [...prev, newSongId]);
+    } else {
+      showSuccess(`Added "${name}" from Library`);
+    }
   };
 
   const handleAddExistingSong = (song: SetlistSong) => {
@@ -591,7 +637,7 @@ const Index = () => {
                 onUpdateSongKey={handleUpdateKey}
                 onSongEnded={handleNextSong}
                 onPlaybackChange={setIsPlayerActive}
-                repertoire={fullRepertoire}
+                repertoire={masterRepertoire}
                 currentSong={activeSong}
               />
             </div>
