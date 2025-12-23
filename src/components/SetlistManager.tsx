@@ -122,10 +122,14 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       // Completion Logic
       if (score > activeFilters.readiness) return false;
 
-      // Asset Logic
-      if (activeFilters.hasAudio === 'full' && (isItunesPreview(s.previewUrl) || !s.previewUrl)) return false;
-      if (activeFilters.hasAudio === 'itunes' && !isItunesPreview(s.previewUrl)) return false;
-      if (activeFilters.hasAudio === 'none' && s.previewUrl) return false;
+      // Audio Filter Logic (iTunes is treated as 'no audio' when filtering for 'Full')
+      const hasPreview = !!s.previewUrl;
+      const isItunes = hasPreview && isItunesPreview(s.previewUrl);
+      const hasFullAudio = hasPreview && !isItunes;
+
+      if (activeFilters.hasAudio === 'full' && !hasFullAudio) return false;
+      if (activeFilters.hasAudio === 'itunes' && !isItunes) return false;
+      if (activeFilters.hasAudio === 'none' && hasFullAudio) return false;
       
       if (activeFilters.hasVideo === 'yes' && !s.youtubeUrl) return false;
       if (activeFilters.hasVideo === 'no' && s.youtubeUrl) return false;
@@ -133,11 +137,9 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       if (activeFilters.hasChart === 'yes' && !(s.pdfUrl || s.leadsheetUrl || s.ugUrl)) return false;
       if (activeFilters.hasChart === 'no' && (s.pdfUrl || s.leadsheetUrl || s.ugUrl)) return false;
 
-      // Specific PDF logic
       if (activeFilters.hasPdf === 'yes' && !(s.pdfUrl || s.leadsheetUrl)) return false;
       if (activeFilters.hasPdf === 'no' && (s.pdfUrl || s.leadsheetUrl)) return false;
 
-      // Specific UG logic
       if (activeFilters.hasUg === 'yes' && !s.ugUrl) return false;
       if (activeFilters.hasUg === 'no' && s.ugUrl) return false;
 
@@ -168,23 +170,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     [newSongs[index], newSongs[targetIndex]] = [newSongs[targetIndex], newSongs[index]];
     onReorder(newSongs);
-  };
-
-  const handleCopySetlist = () => {
-    const text = songs.map((s, i) => {
-      const currentPref = s.key_preference || globalPreference;
-      const keyStr = s.targetKey ? ` (${formatKey(s.targetKey, currentPref)})` : "";
-      return `${(i + 1).toString().padStart(2, '0')}. ${s.name} - ${s.artist || 'Unknown'}${keyStr}`;
-    }).join('\n');
-    
-    navigator.clipboard.writeText(text);
-    showSuccess("Setlist copied to clipboard");
-  };
-
-  const formatSecs = (s: number = 0) => {
-    const m = Math.floor(s / 60);
-    const rs = Math.floor(s % 60);
-    return `${m}:${rs.toString().padStart(2, '0')}`;
   };
 
   const isReorderingEnabled = sortMode === 'none' && !searchTerm;
@@ -341,7 +326,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
                   <div className="flex gap-2">
                     {hasAudio && <Volume2 className="w-3.5 h-3.5 text-indigo-500" />}
-                    {(song.pdfUrl || song.leadsheetUrl) && <FileText className="w-3.5 h-3.5 text-red-500" />}
                     <Button 
                       size="sm" 
                       className={cn(
@@ -430,7 +414,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                             </span>
                             <span className="text-slate-200 dark:text-slate-800 text-[8px]">•</span>
                             <span className="text-[9px] font-mono font-bold text-slate-400 flex items-center gap-1.5">
-                              <Clock className="w-3 h-3" /> {formatSecs(song.duration_seconds)}
+                              <Clock className="w-3 h-3" /> {Math.floor((song.duration_seconds || 0) / 60)}:{(Math.floor((song.duration_seconds || 0) % 60)).toString().padStart(2, '0')}
                             </span>
                             <span className="text-slate-200 dark:text-slate-800 text-[8px]">•</span>
                             <span className="text-[9px] font-mono font-bold text-slate-400">{song.bpm ? `${song.bpm} BPM` : 'TEMPO TBC'}</span>

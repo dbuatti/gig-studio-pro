@@ -29,14 +29,13 @@ serve(async (req) => {
       prompt = `Act as a professional stage manager. Format these lyrics with double newlines between verses and proper punctuation for stage reading. Return ONLY a JSON object: {"lyrics": "formatted_lyrics_here"}. Lyrics: ${queries[0]}`;
     } else {
       const songsList = Array.isArray(queries) ? queries : [queries];
-      prompt = `Act as a professional music librarian. For these songs, return a JSON array of objects. Each object: {"name": "title", "artist": "primary artist", "originalKey": "standard key (C, F#m, etc)", "bpm": number, "genre": "genre", "ugUrl": "official ultimate guitar url", "isMetadataConfirmed": true}. Songs: ${songsList.join('\n')}. Return ONLY the JSON array. No markdown.`;
+      prompt = `Act as a professional music librarian. For these songs, return a JSON array of objects. Each object: {"name": "title", "artist": "primary artist", "originalKey": "standard key (C, F#m, etc)", "bpm": number, "genre": "genre", "isMetadataConfirmed": true}. CRITICAL: Do NOT return any URLs or links. Songs: ${songsList.join('\n')}. Return ONLY the JSON array. No markdown.`;
     }
 
     let lastError = null;
     
     for (const apiKey of keys) {
       try {
-        // Updated to gemini-2.5-flash-lite and stable v1
         const endpoint = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`;
         
         const response = await fetch(endpoint, {
