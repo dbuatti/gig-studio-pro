@@ -38,19 +38,30 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
     const payloads = songsArray.map(song => ({
       user_id: userId,
       title: song.name,
-      // If the artist is 'Unknown Artist' or empty, we keep it, but the database upsert 
-      // will allow us to overwrite this later when a real name is provided.
       artist: song.artist || 'Unknown Artist',
       original_key: song.originalKey || null,
+      target_key: song.targetKey || null,
       bpm: song.bpm || null,
+      lyrics: song.lyrics || null,
+      notes: song.notes || null,
+      pitch: song.pitch || 0,
+      ug_url: song.ugUrl || null,
+      pdf_url: song.pdfUrl || null,
+      leadsheet_url: song.leadsheetUrl || null,
+      youtube_url: song.youtubeUrl || null,
+      preview_url: song.previewUrl || null,
+      apple_music_url: song.appleMusicUrl || null,
+      is_metadata_confirmed: song.isMetadataConfirmed || false,
+      is_key_confirmed: song.isKeyConfirmed || false,
+      duration_seconds: song.duration_seconds || 0,
       genre: song.genre || (song.user_tags?.[0]) || null,
+      user_tags: song.user_tags || [],
+      resources: song.resources || [],
       readiness_score: calculateReadiness(song),
       is_active: true,
       updated_at: new Date().toISOString()
     }));
 
-    // The unique constraint (user_id, title) ensures that we update the existing row
-    // if a song with the same title already exists for this user.
     const { error } = await supabase
       .from('repertoire')
       .upsert(payloads, { 
