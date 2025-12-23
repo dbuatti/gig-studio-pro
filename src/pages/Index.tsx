@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import * as Tone from 'tone';
 import AudioTransposer, { AudioTransposerRef } from "@/components/AudioTransposer";
 import SetlistManager, { SetlistSong } from "@/components/SetlistManager";
@@ -16,16 +16,16 @@ import { calculateSemitones } from '@/utils/keyUtils';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { LogOut, User as UserIcon, Loader2, Play, Music, LayoutDashboard, Search as SearchIcon, Rocket, Hash, Music2, Settings, Sparkles, RefreshCw, Library, Clock, ShieldCheck } from 'lucide-react';
+import { User as UserIcon, Loader2, Play, LayoutDashboard, Search as SearchIcon, Rocket, Settings, Sparkles, Clock, ShieldCheck, Music } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { useSettings } from '@/hooks/use-settings';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { syncToMasterRepertoire } from '@/utils/repertoireSync';
 
 const Index = () => {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const isMobile = useIsMobile();
-  const { keyPreference, setKeyPreference } = useSettings();
+  const { keyPreference } = useSettings();
   const [setlists, setSetlists] = useState<{ id: string; name: string; songs: SetlistSong[]; time_goal?: number }[]>([]);
   const [currentListId, setCurrentListId] = useState<string | null>(null);
   const [activeSongId, setActiveSongId] = useState<string | null>(null);
@@ -42,7 +42,7 @@ const Index = () => {
   const [isProcessingQueue, setIsProcessingQueue] = useState(false);
 
   const isSyncingRef = useRef(false);
-  const saveQueueRef = useRef<{ listId: string; songs: SetlistSong[]; updates: any; skipMasterSync?: boolean }[]>([]);
+  const saveQueueRef = useRef<{ listId: string; songs: SetlistSong[]; updates: any; songsToSync?: SetlistSong[] }[]>([]);
 
   const transposerRef = useRef<AudioTransposerRef>(null);
 
@@ -116,11 +116,11 @@ const Index = () => {
     } catch (err) {}
   };
 
-  const saveList = async (listId: string, updatedSongs: SetlistSong[], updates: Partial<any> = {}, skipMasterSync: boolean = false) => {
+  const saveList = async (listId: string, updatedSongs: SetlistSong[], updates: Partial<any> = {}, songsToSync?: SetlistSong[]) => {
     if (!user) return;
 
     if (isSyncingRef.current) {
-      saveQueueRef.current = [{ listId, songs: updatedSongs, updates, skipMasterSync }];
+      saveQueueRef.current.push({ listId, songs: updatedSongs, updates, songsToSync });
       return;
     }
 
@@ -130,9 +130,15 @@ const Index = () => {
     try {
       let finalSongs = updatedSongs;
       
-      // Only sync with the master repertoire if explicitly needed (e.g., metadata changed)
-      if (!skipMasterSync) {
-        finalSongs = await syncToMasterRepertoire(user.id, updatedSongs);
+      // Only sync specific songs with master repertoire if provided
+      if (songsToSync && songsToSync.length > 0) {
+        const syncedBatch = await syncToMasterRepertoire(user.id, songsToSync);
+        
+        // Merge synced songs back into the full list
+        finalSongs = updatedSongs.map(s => {
+          const synced = syncedBatch.find(sb => sb.id === s.id);
+          return synced || s;
+        });
       }
       
       setSetlists(prev => prev.map(l => l.id === listId ? { ...l, songs: finalSongs, ...updates } : l));
@@ -144,7 +150,9 @@ const Index = () => {
         ...updates 
       }).eq('id', listId);
       
-      if (!skipMasterSync) fetchMasterRepertoire();
+      if (songsToSync && songsToSync.length > 0) {
+        fetchMasterRepertoire();
+      }
     } catch (err) {
       console.error("[Gig Studio] Save failure:", err);
     } finally {
@@ -153,7 +161,7 @@ const Index = () => {
       
       if (saveQueueRef.current.length > 0) {
         const next = saveQueueRef.current.shift()!;
-        saveList(next.listId, next.songs, next.updates, next.skipMasterSync);
+        saveList(next.listId, next.songs, next.updates, next.songsToSync);
       }
     }
   };
@@ -163,14 +171,15 @@ const Index = () => {
     setSetlists(prev => {
       const list = prev.find(l => l.id === currentListId);
       if (!list) return prev;
-      const updatedSongs = list.songs.map(s => s.id === songId ? { ...s, ...updates } : s);
       
-      // Determine if we should sync to master repertoire
-      // We skip if the update only contains "local" fields like isPlayed or notes
-      const masterFields = ['name', 'artist', 'previewUrl', 'youtubeUrl', 'originalKey', 'targetKey', 'pitch', 'bpm', 'lyrics', 'pdfUrl'];
+      const updatedSongs = list.songs.map(s => s.id === songId ? { ...s, ...updates } : s);
+      const updatedSong = updatedSongs.find(s => s.id === songId);
+
+      // Determine if we should sync this specific song to master repertoire
+      const masterFields = ['name', 'artist', 'previewUrl', 'youtubeUrl', 'originalKey', 'targetKey', 'pitch', 'bpm', 'lyrics', 'pdfUrl', 'ugUrl', 'isMetadataConfirmed', 'isKeyConfirmed'];
       const needsMasterSync = Object.keys(updates).some(key => masterFields.includes(key));
       
-      saveList(currentListId, updatedSongs, {}, !needsMasterSync);
+      saveList(currentListId, updatedSongs, {}, needsMasterSync && updatedSong ? [updatedSong] : undefined);
       return prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l);
     });
   };
@@ -183,7 +192,7 @@ const Index = () => {
     const list = setlists.find(l => l.id === currentListId);
     if (!list) return;
     const updatedSongs = [...list.songs, newSong];
-    await saveList(currentListId, updatedSongs);
+    await saveList(currentListId, updatedSongs, {}, [newSong]);
     if (!existing) setSyncQueue(prev => [...prev, newSongId]);
     else showSuccess(`Added "${name}" from Library`);
   };
@@ -193,8 +202,9 @@ const Index = () => {
     const newSongId = Math.random().toString(36).substr(2, 9);
     const list = setlists.find(l => l.id === currentListId);
     if (!list) return;
-    const updatedSongs = [...list.songs, { ...song, id: newSongId, master_id: song.master_id || song.id, isPlayed: false }];
-    saveList(currentListId, updatedSongs);
+    const newEntry = { ...song, id: newSongId, master_id: song.master_id || song.id, isPlayed: false };
+    const updatedSongs = [...list.songs, newEntry];
+    saveList(currentListId, updatedSongs, {}, [newEntry]);
     showSuccess(`Imported "${song.name}"`);
   };
 
@@ -210,7 +220,8 @@ const Index = () => {
       }
       return s;
     });
-    saveList(currentListId, updatedSongs);
+    const updatedSong = updatedSongs.find(s => s.id === songId);
+    saveList(currentListId, updatedSongs, {}, updatedSong ? [updatedSong] : undefined);
   };
 
   const handleTogglePlayed = (songId: string) => {
@@ -218,8 +229,7 @@ const Index = () => {
     const list = setlists.find(l => l.id === currentListId);
     if (!list) return;
     const updatedSongs = list.songs.map(s => s.id === songId ? { ...s, isPlayed: !s.isPlayed } : s);
-    // played status is local-only, skip master sync
-    saveList(currentListId, updatedSongs, {}, true);
+    saveList(currentListId, updatedSongs, {}, undefined);
   };
 
   const handleSelectSong = async (song: SetlistSong) => {
@@ -266,15 +276,20 @@ const Index = () => {
         body: { queries: batchSongs.map(s => `${s.name} by ${s.artist}`) }
       });
       if (error) throw error;
+      
+      const syncedSongs: SetlistSong[] = [];
       const updatedSongs = songs.map(s => {
         const aiData = data.find((d: any) => d.name.toLowerCase() === s.name.toLowerCase());
         if (aiData) {
           const targetKey = aiData.originalKey || s.originalKey;
-          return { ...s, originalKey: aiData.originalKey, targetKey, bpm: aiData.bpm?.toString(), genre: aiData.genre, ugUrl: aiData.ugUrl, isMetadataConfirmed: true, isSyncing: false };
+          const updated = { ...s, originalKey: aiData.originalKey, targetKey, bpm: aiData.bpm?.toString(), genre: aiData.genre, ugUrl: aiData.ugUrl, isMetadataConfirmed: true, isSyncing: false };
+          syncedSongs.push(updated);
+          return updated;
         }
         return s;
       });
-      saveList(currentListId, updatedSongs);
+      
+      saveList(currentListId, updatedSongs, {}, syncedSongs);
     } catch (err) {}
   };
 
@@ -342,12 +357,12 @@ const Index = () => {
               <ImportSetlist onImport={(newSongs) => {
                 if (!currentListId) return;
                 const songsWithSync = newSongs.map(s => ({ ...s, isSyncing: true }));
-                saveList(currentListId, [...songs, ...songsWithSync]);
+                saveList(currentListId, [...songs, ...songsWithSync], {}, songsWithSync);
                 setSyncQueue(prev => [...prev, ...songsWithSync.map(s => s.id)]);
               }} />
             </div>
-            <SetlistStats songs={songs} goalSeconds={currentList?.time_goal} onUpdateGoal={(s) => currentListId && saveList(currentListId, songs, { time_goal: s }, true)} />
-            <SetlistManager songs={songs} onRemove={(id) => currentListId && saveList(currentListId, songs.filter(s => s.id !== id))} onSelect={handleSelectSong} onUpdateKey={handleUpdateKey} onTogglePlayed={handleTogglePlayed} onSyncProData={async (s) => setSyncQueue(p => [...new Set([...p, s.id])])} onLinkAudio={(n) => { setIsStudioOpen(true); transposerRef.current?.triggerSearch(n); }} onUpdateSong={handleUpdateSong} onReorder={(ns) => currentListId && saveList(currentListId, ns, {}, true)} currentSongId={activeSongId || undefined} />
+            <SetlistStats songs={songs} goalSeconds={currentList?.time_goal} onUpdateGoal={(s) => currentListId && saveList(currentListId, songs, { time_goal: s }, undefined)} />
+            <SetlistManager songs={songs} onRemove={(id) => currentListId && saveList(currentListId, songs.filter(s => s.id !== id), {}, undefined)} onSelect={handleSelectSong} onUpdateKey={handleUpdateKey} onTogglePlayed={handleTogglePlayed} onSyncProData={async (s) => setSyncQueue(p => [...new Set([...p, s.id])])} onLinkAudio={(n) => { setIsStudioOpen(true); transposerRef.current?.triggerSearch(n); }} onUpdateSong={handleUpdateSong} onReorder={(ns) => currentListId && saveList(currentListId, ns, {}, undefined)} currentSongId={activeSongId || undefined} />
           </div>
           <MadeWithDyad />
         </main>
