@@ -190,19 +190,20 @@ const Index = () => {
     if (!user) return;
     setIsSaving(true);
     try {
-      // First, sync to repertoire and get the real Master IDs back
+      // Sync and get the songs back with their real Master IDs
       const syncedSongs = await syncToMasterRepertoire(user.id, updatedSongs);
       
-      // Update local state with the synced songs (now containing master_ids)
+      // Critical fix: We MUST update the local 'setlists' state with 'syncedSongs' 
+      // so that every subsequent auto-save uses the real Master UUIDs.
       setSetlists(prev => prev.map(l => l.id === listId ? { ...l, songs: syncedSongs } : l));
 
-      // Clean songs for setlist JSON storage
-      const cleanedSongs = syncedSongs.map(({ isSyncing, ...rest }) => rest);
+      // Clean sync state for JSON storage
+      const cleanedSongsForJson = syncedSongs.map(({ isSyncing, ...rest }) => rest);
       
       const { error } = await supabase
         .from('setlists')
         .update({ 
-          songs: cleanedSongs, 
+          songs: cleanedSongsForJson, 
           updated_at: new Date().toISOString(),
           ...updates
         })
@@ -210,7 +211,7 @@ const Index = () => {
       
       if (error) throw error;
       
-      // Refresh the library view
+      // Update library reference
       fetchMasterRepertoire();
     } catch (err) {
       console.error("Save List error:", err);

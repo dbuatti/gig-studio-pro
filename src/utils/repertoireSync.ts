@@ -25,6 +25,7 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
 
 /**
  * Syncs songs to the master repertoire table and returns the updated songs with their DB IDs.
+ * Identity is strictly controlled by the 'id' column to allow for renames.
  */
 export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong | SetlistSong[]): Promise<SetlistSong[]> => {
   if (!userId) return Array.isArray(songs) ? songs : [songs];
@@ -34,8 +35,9 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
 
   try {
     const payloads = songsArray.map(song => ({
-      // Use master_id as the primary key if it exists, otherwise omit it so the DB can match on title
-      ...(song.master_id ? { id: song.master_id } : {}),
+      // Identity Pivot: We only include the ID if it's a valid existing UUID.
+      // This ensures that if we rename a song, the ID remains the anchor.
+      ...(song.master_id && song.master_id.length > 20 ? { id: song.master_id } : {}),
       user_id: userId,
       title: song.name,
       artist: song.artist || 'Unknown Artist',
@@ -62,11 +64,12 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       updated_at: new Date().toISOString()
     }));
 
-    // We upsert and request the inserted/updated rows back to get their real IDs
+    // HARD PIVOT: Target 'id' for conflict resolution.
+    // This resolves the 'repertoire_pkey' conflict and supports renames.
     const { data, error } = await supabase
       .from('repertoire')
       .upsert(payloads, { 
-        onConflict: 'user_id,title' 
+        onConflict: 'id' 
       })
       .select();
 
@@ -75,8 +78,9 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       return songsArray;
     }
 
-    // Map the database results back to the setlist song format
+    // Map the DB IDs back to the local objects
     return songsArray.map(song => {
+      // Find the match in the returned data based on the title we just sent
       const match = data?.find(d => d.title === song.name);
       if (match) {
         return { ...song, master_id: match.id };
