@@ -124,7 +124,8 @@ const Index = () => {
       if (error) throw error;
       
       const mapped = (data || []).map(d => ({
-        id: d.id,
+        id: d.id, // This is the master UUID
+        master_id: d.id,
         name: d.title,
         artist: d.artist,
         bpm: d.bpm,
@@ -308,7 +309,8 @@ const Index = () => {
     const newSongId = Math.random().toString(36).substr(2, 9);
     const newSong: SetlistSong = existing ? {
       ...existing,
-      id: newSongId,
+      id: newSongId, // Maintain unique setlist instance ID
+      master_id: existing.master_id, // Preserve master row UUID
       isPlayed: false,
       isSyncing: false
     } : {
@@ -346,7 +348,8 @@ const Index = () => {
     const newSongId = Math.random().toString(36).substr(2, 9);
     const clonedSong: SetlistSong = {
       ...song,
-      id: newSongId,
+      id: newSongId, // Unique setlist instance ID
+      master_id: song.master_id || song.id, // Ensure master UUID is carried over
       isPlayed: false 
     };
     

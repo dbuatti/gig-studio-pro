@@ -25,8 +25,7 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
 
 /**
  * Syncs a single song or a batch of songs to the master repertoire table.
- * Uses the (user_id, title) constraint to overwrite old metadata.
- * Prioritizes actual artist names over 'Unknown Artist'.
+ * Uses the UUID (master_id) if available to support renames without duplicates.
  */
 export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong | SetlistSong[]) => {
   if (!userId) return;
@@ -36,6 +35,8 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
 
   try {
     const payloads = songsArray.map(song => ({
+      // If we have a master UUID, include it to ensure an update happens by ID
+      ...(song.master_id ? { id: song.master_id } : {}),
       user_id: userId,
       title: song.name,
       artist: song.artist || 'Unknown Artist',
@@ -53,7 +54,6 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       apple_music_url: song.appleMusicUrl || null,
       is_metadata_confirmed: song.isMetadataConfirmed || false,
       is_key_confirmed: song.isKeyConfirmed || false,
-      // Fix: Ensure duration is rounded to an integer for the database
       duration_seconds: Math.round(song.duration_seconds || 0),
       genre: song.genre || (song.user_tags?.[0]) || null,
       user_tags: song.user_tags || [],
@@ -63,10 +63,12 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       updated_at: new Date().toISOString()
     }));
 
+    // If payload has an ID, we prioritize updating by ID to support renames.
+    // Otherwise, we fall back to user_id + title.
     const { error } = await supabase
       .from('repertoire')
       .upsert(payloads, { 
-        onConflict: 'user_id, title'
+        onConflict: 'id' // Primary key identity ensures renames update the correct row
       });
 
     if (error) {

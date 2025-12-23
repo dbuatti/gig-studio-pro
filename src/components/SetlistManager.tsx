@@ -20,7 +20,8 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 export interface SetlistSong {
-  id: string;
+  id: string; // Unique for the setlist entry
+  master_id?: string; // The UUID from the repertoire table
   name: string;
   artist?: string;
   previewUrl: string;
@@ -458,7 +459,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                             <div className="h-px w-6 bg-slate-100 dark:bg-slate-800" />
                           </div>
                           <div className="text-center min-w-[32px] relative">
-                            <p className="text-[8px] font-black text-indigo-500 uppercase tracking-widest mb-0.5">Stage</p>
+                            <p className="text-[8px] font-black text-indigo-50 uppercase tracking-widest mb-0.5">Stage</p>
                             <div className={cn(
                               "font-mono font-black text-xs px-2.5 py-1 rounded-lg shadow-lg flex items-center justify-center gap-1.5 leading-none h-6",
                               song.isKeyConfirmed 
