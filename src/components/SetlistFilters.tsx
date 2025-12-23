@@ -3,11 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Slider } from "@/components/ui/slider";
 import { 
   Filter, Music, Youtube, FileText, CheckCircle2, 
   X, Star, Save, Trash2, Headphones, Sparkles, Hash,
   CircleDashed, ChevronDown, ListFilter, Music2, 
-  VideoOff, FileX2, VolumeX, BarChart3, TrendingUp, TrendingDown
+  VideoOff, FileX2, VolumeX, BarChart3, TrendingUp, TrendingDown,
+  Target
 } from 'lucide-react';
 import { 
   DropdownMenu, 
@@ -25,7 +27,7 @@ export interface FilterState {
   hasChart: 'all' | 'yes' | 'no';
   isConfirmed: 'all' | 'yes' | 'no';
   isPlayed: 'all' | 'yes' | 'no';
-  readiness: 'all' | 'high' | 'mid' | 'low';
+  readiness: number; // 0 to 100
 }
 
 const DEFAULT_FILTERS: FilterState = {
@@ -34,7 +36,7 @@ const DEFAULT_FILTERS: FilterState = {
   hasChart: 'all',
   isConfirmed: 'all',
   isPlayed: 'all',
-  readiness: 'all'
+  readiness: 0
 };
 
 interface SetlistFiltersProps {
@@ -52,8 +54,8 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
   const [presets, setPresets] = useState<SavedPreset[]>(() => {
     const saved = localStorage.getItem('gig_filter_presets');
     return saved ? JSON.parse(saved) : [
-      { id: 'stage-ready', name: 'Stage Ready', filters: { ...DEFAULT_FILTERS, readiness: 'high', hasAudio: 'full', isConfirmed: 'yes' } },
-      { id: 'work-needed', name: 'Critical Fixes', filters: { ...DEFAULT_FILTERS, readiness: 'low' } }
+      { id: 'stage-ready', name: 'Stage Ready', filters: { ...DEFAULT_FILTERS, readiness: 80, hasAudio: 'full', isConfirmed: 'yes' } },
+      { id: 'work-needed', name: 'Work Needed', filters: { ...DEFAULT_FILTERS, readiness: 0 } }
     ];
   });
 
@@ -90,8 +92,8 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
   );
 
   return (
-    <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-500">
-      <div className="flex flex-wrap items-center gap-3">
+    <div className="space-y-6 animate-in fade-in slide-in-from-top-2 duration-500 bg-slate-50/50 dark:bg-slate-900/30 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
+      <div className="flex flex-wrap items-center gap-4">
         {/* Presets Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -122,28 +124,18 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
 
         <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden sm:block" />
 
-        {/* Readiness Filter */}
-        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl">
-          <FilterButton 
-            label="High >80%" 
-            active={activeFilters.readiness === 'high'} 
-            onClick={() => onFilterChange({ ...activeFilters, readiness: activeFilters.readiness === 'high' ? 'all' : 'high' })}
-            icon={TrendingUp}
-            colorClass="text-emerald-500"
-          />
-          <FilterButton 
-            label="Mid >50%" 
-            active={activeFilters.readiness === 'mid'} 
-            onClick={() => onFilterChange({ ...activeFilters, readiness: activeFilters.readiness === 'mid' ? 'all' : 'mid' })}
-            icon={BarChart3}
-            colorClass="text-indigo-500"
-          />
-          <FilterButton 
-            label="Low <50%" 
-            active={activeFilters.readiness === 'low'} 
-            onClick={() => onFilterChange({ ...activeFilters, readiness: activeFilters.readiness === 'low' ? 'all' : 'low' })}
-            icon={TrendingDown}
-            colorClass="text-orange-500"
+        {/* Readiness Slider */}
+        <div className="flex items-center gap-4 bg-white dark:bg-slate-900 px-4 py-1.5 rounded-xl border border-slate-100 dark:border-slate-800 flex-1 min-w-[200px] max-w-sm">
+          <div className="flex items-center gap-2 shrink-0">
+             <Target className="w-3.5 h-3.5 text-indigo-600" />
+             <span className="text-[10px] font-black uppercase text-slate-400 whitespace-nowrap">Min Ready: <span className="text-indigo-600 font-mono">{activeFilters.readiness}%</span></span>
+          </div>
+          <Slider 
+            value={[activeFilters.readiness]} 
+            max={100} 
+            step={5} 
+            onValueChange={([v]) => onFilterChange({ ...activeFilters, readiness: v })}
+            className="flex-1"
           />
         </div>
 
@@ -198,13 +190,13 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
           <span className="text-[9px] font-black uppercase text-slate-400 flex items-center gap-2 mr-2">
             <ListFilter className="w-3 h-3" /> Active Criteria:
           </span>
-          {activeFilters.readiness !== 'all' && (
+          {activeFilters.readiness > 0 && (
             <Badge 
               variant="secondary" 
               className="bg-slate-100 text-slate-900 border-slate-200 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-red-50 hover:text-red-600 transition-all"
-              onClick={() => onFilterChange({ ...activeFilters, readiness: 'all' })}
+              onClick={() => onFilterChange({ ...activeFilters, readiness: 0 })}
             >
-              Completion: {activeFilters.readiness}
+              Readiness: ≥{activeFilters.readiness}%
             </Badge>
           )}
           {activeFilters.hasAudio !== 'all' && (

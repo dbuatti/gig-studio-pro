@@ -91,7 +91,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       hasChart: 'all',
       isConfirmed: 'all',
       isPlayed: 'all',
-      readiness: 'all'
+      readiness: 0
     };
   });
   const [studioSong, setStudioSong] = useState<SetlistSong | null>(null);
@@ -118,10 +118,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     base = base.filter(s => {
       const score = calculateReadiness(s);
 
-      // Completion Logic
-      if (activeFilters.readiness === 'high' && score < 80) return false;
-      if (activeFilters.readiness === 'mid' && (score < 50 || score >= 80)) return false;
-      if (activeFilters.readiness === 'low' && score >= 50) return false;
+      // Completion Logic (Numerical threshold)
+      if (score < activeFilters.readiness) return false;
 
       // Asset Logic
       if (activeFilters.hasAudio === 'full' && (isItunesPreview(s.previewUrl) || !s.previewUrl)) return false;
