@@ -9,7 +9,7 @@ import {
   X, Star, Save, Trash2, Headphones, Sparkles, Hash,
   CircleDashed, ChevronDown, ListFilter, Music2, 
   VideoOff, FileX2, VolumeX, BarChart3, TrendingUp, TrendingDown,
-  Target, AlertCircle
+  Target, AlertCircle, Link as LinkIcon, FileSearch
 } from 'lucide-react';
 import { 
   DropdownMenu, 
@@ -27,6 +27,8 @@ export interface FilterState {
   hasAudio: 'all' | 'full' | 'itunes' | 'none';
   hasVideo: 'all' | 'yes' | 'no';
   hasChart: 'all' | 'yes' | 'no';
+  hasPdf: 'all' | 'yes' | 'no';
+  hasUg: 'all' | 'yes' | 'no';
   isConfirmed: 'all' | 'yes' | 'no';
   readiness: number; // 0 to 100
 }
@@ -35,8 +37,10 @@ const DEFAULT_FILTERS: FilterState = {
   hasAudio: 'all',
   hasVideo: 'all',
   hasChart: 'all',
+  hasPdf: 'all',
+  hasUg: 'all',
   isConfirmed: 'all',
-  readiness: 100 // Default to 100 so all songs (0-100) are shown
+  readiness: 100 
 };
 
 interface SetlistFiltersProps {
@@ -110,7 +114,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
 
         <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden sm:block" />
 
-        {/* Readiness Slider (Max threshold) */}
+        {/* Readiness Slider */}
         <div className="flex items-center gap-4 bg-white dark:bg-slate-900 px-4 py-1.5 rounded-xl border border-slate-100 dark:border-slate-800 flex-1 min-w-[220px] max-w-sm">
           <div className="flex items-center gap-2 shrink-0">
              <AlertCircle className="w-3.5 h-3.5 text-orange-500" />
@@ -125,7 +129,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
           />
         </div>
 
-        {/* Audio Consolidated Toggle */}
+        {/* Audio Toggle */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button 
@@ -149,7 +153,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* Video Consolidated Toggle */}
+        {/* PDF Toggle */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button 
@@ -157,22 +161,22 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
               size="sm" 
               className={cn(
                 "h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-tight gap-2 border transition-all",
-                activeFilters.hasVideo !== 'all' ? "bg-red-600 text-white shadow-lg" : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-500"
+                activeFilters.hasPdf !== 'all' ? "bg-emerald-600 text-white shadow-lg" : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-500"
               )}
             >
-              <Youtube className="w-3.5 h-3.5" /> Video <ChevronDown className="w-3 h-3 opacity-50" />
+              <FileText className="w-3.5 h-3.5" /> Sheet Music <ChevronDown className="w-3 h-3 opacity-50" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-slate-950 border-white/10 text-white">
-            <DropdownMenuRadioGroup value={activeFilters.hasVideo} onValueChange={(v) => onFilterChange({ ...activeFilters, hasVideo: v as any })}>
+            <DropdownMenuRadioGroup value={activeFilters.hasPdf} onValueChange={(v) => onFilterChange({ ...activeFilters, hasPdf: v as any })}>
               <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Has Video</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-10 rounded-xl text-red-400">No Video</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Has PDF</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-10 rounded-xl text-red-400">Missing PDF</DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* Chart Consolidated Toggle */}
+        {/* UG Toggle */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button 
@@ -180,17 +184,17 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
               size="sm" 
               className={cn(
                 "h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-tight gap-2 border transition-all",
-                activeFilters.hasChart !== 'all' ? "bg-emerald-600 text-white shadow-lg" : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-500"
+                activeFilters.hasUg !== 'all' ? "bg-orange-600 text-white shadow-lg" : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-500"
               )}
             >
-              <FileText className="w-3.5 h-3.5" /> Charts <ChevronDown className="w-3 h-3 opacity-50" />
+              <FileSearch className="w-3.5 h-3.5" /> Ultimate Guitar <ChevronDown className="w-3 h-3 opacity-50" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-slate-950 border-white/10 text-white">
-            <DropdownMenuRadioGroup value={activeFilters.hasChart} onValueChange={(v) => onFilterChange({ ...activeFilters, hasChart: v as any })}>
+            <DropdownMenuRadioGroup value={activeFilters.hasUg} onValueChange={(v) => onFilterChange({ ...activeFilters, hasUg: v as any })}>
               <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Has Chart</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-10 rounded-xl text-red-400">No Chart</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Has UG Link</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-10 rounded-xl text-red-400">Missing UG Link</DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -231,22 +235,22 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
               Audio: {activeFilters.hasAudio} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
             </Badge>
           )}
-          {activeFilters.hasVideo !== 'all' && (
-            <Badge 
-              variant="secondary" 
-              className="bg-red-50 text-red-600 border-red-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-red-50 hover:text-red-600 transition-all group"
-              onClick={() => onFilterChange({ ...activeFilters, hasVideo: 'all' })}
-            >
-              Video: {activeFilters.hasVideo} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
-            </Badge>
-          )}
-          {activeFilters.hasChart !== 'all' && (
+          {activeFilters.hasPdf !== 'all' && (
             <Badge 
               variant="secondary" 
               className="bg-emerald-50 text-emerald-600 border-emerald-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-red-50 hover:text-red-600 transition-all group"
-              onClick={() => onFilterChange({ ...activeFilters, hasChart: 'all' })}
+              onClick={() => onFilterChange({ ...activeFilters, hasPdf: 'all' })}
             >
-              Chart: {activeFilters.hasChart} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
+              PDF: {activeFilters.hasPdf} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
+            </Badge>
+          )}
+          {activeFilters.hasUg !== 'all' && (
+            <Badge 
+              variant="secondary" 
+              className="bg-orange-50 text-orange-600 border-orange-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-red-50 hover:text-red-600 transition-all group"
+              onClick={() => onFilterChange({ ...activeFilters, hasUg: 'all' })}
+            >
+              UG: {activeFilters.hasUg} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
             </Badge>
           )}
         </div>

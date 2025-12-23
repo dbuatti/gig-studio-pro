@@ -89,6 +89,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       hasAudio: 'all',
       hasVideo: 'all',
       hasChart: 'all',
+      hasPdf: 'all',
+      hasUg: 'all',
       isConfirmed: 'all',
       readiness: 100
     };
@@ -117,7 +119,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     base = base.filter(s => {
       const score = calculateReadiness(s);
 
-      // Completion Logic (Numerical threshold - now inverted to "Anything below")
+      // Completion Logic
       if (score > activeFilters.readiness) return false;
 
       // Asset Logic
@@ -130,6 +132,14 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
       if (activeFilters.hasChart === 'yes' && !(s.pdfUrl || s.leadsheetUrl || s.ugUrl)) return false;
       if (activeFilters.hasChart === 'no' && (s.pdfUrl || s.leadsheetUrl || s.ugUrl)) return false;
+
+      // Specific PDF logic
+      if (activeFilters.hasPdf === 'yes' && !(s.pdfUrl || s.leadsheetUrl)) return false;
+      if (activeFilters.hasPdf === 'no' && (s.pdfUrl || s.leadsheetUrl)) return false;
+
+      // Specific UG logic
+      if (activeFilters.hasUg === 'yes' && !s.ugUrl) return false;
+      if (activeFilters.hasUg === 'no' && s.ugUrl) return false;
 
       if (activeFilters.isConfirmed === 'yes' && !s.isKeyConfirmed) return false;
       if (activeFilters.isConfirmed === 'no' && s.isKeyConfirmed) return false;
