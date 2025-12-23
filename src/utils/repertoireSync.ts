@@ -24,8 +24,8 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
 };
 
 /**
- * Syncs songs to the master repertoire table and returns the updated songs with their DB IDs.
- * Identity is strictly controlled by the 'id' column to allow for renames.
+ * Syncs songs to the master repertoire table using the ID as the primary key.
+ * This allows renames to happen seamlessly now that the unique title constraint is removed.
  */
 export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong | SetlistSong[]): Promise<SetlistSong[]> => {
   if (!userId) return Array.isArray(songs) ? songs : [songs];
@@ -35,8 +35,7 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
 
   try {
     const payloads = songsArray.map(song => ({
-      // Identity Pivot: We only include the ID if it's a valid existing UUID.
-      // This ensures that if we rename a song, the ID remains the anchor.
+      // Pivot to ID: If we have a master UUID, we use it to target the existing row.
       ...(song.master_id && song.master_id.length > 20 ? { id: song.master_id } : {}),
       user_id: userId,
       title: song.name,
@@ -48,7 +47,7 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       notes: song.notes || null,
       pitch: song.pitch || 0,
       ug_url: song.ugUrl || null,
-      pdf_url: song.pdfUrl || null,
+      pdf_url: song.pdf_url || null,
       leadsheet_url: song.leadsheetUrl || null,
       youtube_url: song.youtubeUrl || null,
       preview_url: song.previewUrl || null,
@@ -64,8 +63,7 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       updated_at: new Date().toISOString()
     }));
 
-    // HARD PIVOT: Target 'id' for conflict resolution.
-    // This resolves the 'repertoire_pkey' conflict and supports renames.
+    // The 'id' is now our only identity anchor.
     const { data, error } = await supabase
       .from('repertoire')
       .upsert(payloads, { 
@@ -78,9 +76,8 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       return songsArray;
     }
 
-    // Map the DB IDs back to the local objects
+    // Map the returned IDs back to our local state so we don't lose the anchor.
     return songsArray.map(song => {
-      // Find the match in the returned data based on the title we just sent
       const match = data?.find(d => d.title === song.name);
       if (match) {
         return { ...song, master_id: match.id };
