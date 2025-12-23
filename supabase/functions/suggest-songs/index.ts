@@ -14,7 +14,7 @@ serve(async (req) => {
   try {
     const { repertoire } = await req.json();
     
-    // Key rotation logic using globalThis for safe access
+    // Key rotation logic
     const keys = [
       (globalThis as any).Deno.env.get('GEMINI_API_KEY'),
       (globalThis as any).Deno.env.get('GEMINI_API_KEY_2'),
@@ -22,18 +22,17 @@ serve(async (req) => {
     ].filter(Boolean);
 
     if (keys.length === 0) {
-      console.error("[Suggest Engine] No API keys found in environment.");
-      return new Response(JSON.stringify({ error: "No API keys configured" }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      throw new Error("Missing API Key configuration.");
     }
 
-    const songList = repertoire.map((s: any) => `${s.name} - ${s.artist}`).join(', ');
+    if (!repertoire || !Array.isArray(repertoire) || repertoire.length === 0) {
+       return new Response(JSON.stringify([]), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    const songList = repertoire.map((s: any) => `${s.name || 'Unknown'} - ${s.artist || 'Unknown'}`).join(', ');
     const prompt = `Act as a professional music curator. Based on this repertoire: [${songList}], suggest 10 similar songs that would fit this artist's style. 
-    Focus on variety within the same genres.
     Return ONLY a JSON array of objects: [{"name": "Song Title", "artist": "Artist Name", "reason": "Short reason why"}]
-    Do not include markdown formatting or any other text.`;
+    No markdown blocks, no intro text.`;
 
     let lastError = null;
 
@@ -52,23 +51,16 @@ serve(async (req) => {
         const result = await response.json();
         
         if (response.status === 429 || response.status >= 500) {
-          console.warn(`[Suggest Engine] Key fail ${response.status}. Trying fallback...`);
           lastError = result.error?.message || response.statusText;
           continue;
         }
 
-        if (!response.ok) {
-          throw new Error(result.error?.message || "API Error");
-        }
+        if (!response.ok) throw new Error(result.error?.message || "Gemini Error");
 
         const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!text) throw new Error("Empty AI response");
-
         const jsonMatch = text.match(/\[[\s\S]*\]/);
-        if (!jsonMatch) {
-          console.error("[Suggest Engine] Failed to find JSON array in response:", text);
-          throw new Error("Invalid AI format");
-        }
+        
+        if (!jsonMatch) throw new Error("Invalid format from AI");
         
         return new Response(jsonMatch[0], {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -76,14 +68,12 @@ serve(async (req) => {
 
       } catch (err) {
         lastError = err.message;
-        console.error(`[Suggest Engine] Attempt with key failed: ${err.message}`);
       }
     }
 
-    throw new Error(`All keys failed. Last error: ${lastError}`);
+    throw new Error(`Engine exhausted all keys. Final error: ${lastError}`);
 
   } catch (error) {
-    console.error("[Suggest Engine] Global Failure:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

@@ -1352,13 +1352,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       <h3 className="text-sm md:text-lg font-black uppercase tracking-[0.3em] text-indigo-400">Reference Media</h3>
                       <p className="text-xs md:text-sm text-slate-500 mt-1">YouTube performance video or audio master link.</p>
                     </div>
-                    <Button
-                      variant="outline"
-                      onClick={handleYoutubeSearch}
-                      className="bg-red-600/10 border-red-600/20 text-red-600 hover:bg-red-600 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 gap-2 px-4 md:px-6 rounded-xl"
-                    >
-                      <Youtube className="w-3.5 h-3.5" /> Discovery
-                    </Button>
                   </div>
                   <div className="flex gap-4">
                      <Input
@@ -1536,7 +1529,20 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              onClick={() => handleDownloadAsset(formData.pdfUrl, `${formData.name}_chart`)}
+                              onClick={async () => {
+                                if (formData.pdfUrl) {
+                                  const response = await fetch(formData.pdfUrl);
+                                  const blob = await response.blob();
+                                  const url = window.URL.createObjectURL(blob);
+                                  const link = document.createElement('a');
+                                  link.href = url;
+                                  link.download = `${formData.name}_chart.pdf`;
+                                  document.body.appendChild(link);
+                                  link.click();
+                                  document.body.removeChild(link);
+                                  window.URL.revokeObjectURL(url);
+                                }
+                              }}
                               className="h-10 w-10 bg-white/5 rounded-xl hover:bg-emerald-600 transition-all"
                             >
                               <Download className="w-4 h-4" />
