@@ -193,25 +193,25 @@ const Index = () => {
   const saveList = async (listId: string, updatedSongs: SetlistSong[], updates: Partial<any> = {}) => {
     if (!user) return;
 
-    // If already syncing, queue this update for after the current one finishes
     if (isSyncingRef.current) {
+      console.log("[DASHBOARD] Sync already in progress. Queueing follow-up save...");
       savePendingRef.current = { listId, songs: updatedSongs, updates };
       return;
     }
 
+    console.log(`[DASHBOARD] Initializing Save. Updated count: ${updatedSongs.length}`);
     isSyncingRef.current = true;
     setIsSaving(true);
 
     try {
-      // Sync to repertoire table and get the confirmed IDs back
       const syncedSongs = await syncToMasterRepertoire(user.id, updatedSongs);
       
-      // Update local state immediately with synced version (crucial for master_id preservation)
+      console.log("[DASHBOARD] Sync Engine returned data. Updating main state.");
       setSetlists(prev => prev.map(l => l.id === listId ? { ...l, songs: syncedSongs, ...updates } : l));
 
-      // Save the confirmed setlist state to Supabase
       const cleanedSongsForJson = syncedSongs.map(({ isSyncing, ...rest }) => rest);
       
+      console.log("[DASHBOARD] Persisting JSON state to setlists table...");
       const { error } = await supabase
         .from('setlists')
         .update({ 
@@ -223,16 +223,16 @@ const Index = () => {
       
       if (error) throw error;
       
-      // Refresh the library reference
+      console.log("[DASHBOARD] Save Sequence Complete.");
       fetchMasterRepertoire();
     } catch (err) {
-      console.error("[Gig Studio] Save sequence failed:", err);
+      console.error("[DASHBOARD] CRITICAL SAVE ERROR:", err);
     } finally {
       setIsSaving(false);
       isSyncingRef.current = false;
       
-      // If a save request came in while we were busy, process it now
       if (savePendingRef.current) {
+        console.log("[DASHBOARD] Processing queued follow-up save...");
         const next = savePendingRef.current;
         savePendingRef.current = null;
         saveList(next.listId, next.songs, next.updates);
@@ -317,6 +317,7 @@ const Index = () => {
     if (!currentListId) return;
     const list = setlists.find(l => l.id === currentListId);
     if (!list) return;
+    console.log(`[DASHBOARD] handleUpdateSong called for ${songId}. Updates:`, updates);
     const updatedSongs = list.songs.map(s => s.id === songId ? { ...s, ...updates } : s);
     saveList(currentListId, updatedSongs);
   };

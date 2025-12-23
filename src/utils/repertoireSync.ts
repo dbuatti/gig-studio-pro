@@ -3,9 +3,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { SetlistSong } from "@/components/SetlistManager";
 
-/**
- * Calculates a readiness score (0-100) based on available assets and metadata.
- */
 export const calculateReadiness = (song: Partial<SetlistSong>): number => {
   let score = 0;
   const preview = song.previewUrl || "";
@@ -23,38 +20,41 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
   return Math.min(100, score);
 };
 
-/**
- * Syncs songs to the master repertoire table.
- * Implements a "smart-match" logic:
- * 1. If we have a master_id, use it (allows renames).
- * 2. If no master_id, search for an existing record with the same title+artist.
- * 3. Only if no match is found, create a new record.
- */
 export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong | SetlistSong[]): Promise<SetlistSong[]> => {
   if (!userId) return Array.isArray(songs) ? songs : [songs];
   
   const songsArray = Array.isArray(songs) ? songs : [songs];
   if (songsArray.length === 0) return [];
 
+  console.group(`[SYNC ENGINE] Processing ${songsArray.length} items`);
+  
   try {
     const results: SetlistSong[] = [];
 
-    // Process songs sequentially to avoid race conditions with duplicate inserts
     for (const song of songsArray) {
+      console.log(`[SYNC: ${song.name}] Start. Current Master ID: ${song.master_id || 'NONE'}`);
+      
       let targetId = song.master_id;
 
-      // Fallback: If no master_id, try to find an existing record by title + artist
-      if (!targetId || targetId.length < 20) {
-        const { data: existing } = await supabase
+      // If we don't have a master_id, we MUST check if this title/artist already exists 
+      // to avoid creating a duplicate if it's just a "re-import" or a song that lost its link.
+      if (!targetId || targetId.length < 10) {
+        console.log(`[SYNC: ${song.name}] No Master ID found. Searching DB for existing match...`);
+        const { data: existing, error: searchError } = await supabase
           .from('repertoire')
-          .select('id')
+          .select('id, title')
           .eq('user_id', userId)
           .eq('title', song.name)
           .eq('artist', song.artist || 'Unknown Artist')
           .maybeSingle();
         
+        if (searchError) console.error(`[SYNC: ${song.name}] Search Error:`, searchError);
+        
         if (existing) {
+          console.log(`[SYNC: ${song.name}] Found existing entry in DB: ${existing.id}. Linking...`);
           targetId = existing.id;
+        } else {
+          console.log(`[SYNC: ${song.name}] No existing match in DB. A new record will be created.`);
         }
       }
 
@@ -86,6 +86,8 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
         updated_at: new Date().toISOString()
       };
 
+      console.log(`[SYNC: ${song.name}] Executing UPSERT...`, { id: targetId, title: song.name });
+      
       const { data, error } = await supabase
         .from('repertoire')
         .upsert(payload, { onConflict: 'id' })
@@ -93,16 +95,19 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
         .single();
 
       if (error) {
-        console.error(`[Sync Engine] Failed for "${song.name}":`, error);
+        console.error(`[SYNC: ${song.name}] UPSERT FAILED:`, error);
         results.push(song);
       } else {
+        console.log(`[SYNC: ${song.name}] SUCCESS. New/Confirmed Master ID: ${data.id}`);
         results.push({ ...song, master_id: data.id });
       }
     }
 
+    console.groupEnd();
     return results;
   } catch (err) {
-    console.error("[Sync Engine] Critical failure:", err);
+    console.error("[SYNC ENGINE] CRITICAL FAILURE:", err);
+    console.groupEnd();
     return songsArray;
   }
 };

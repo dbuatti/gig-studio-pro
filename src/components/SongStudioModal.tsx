@@ -121,14 +121,14 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
 
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
   const handleAutoSave = (updates: Partial<SetlistSong>) => {
+    console.log(`[STUDIO] handleAutoSave triggered. New data piece:`, updates);
     setFormData(prev => {
       const next = { ...prev, ...updates };
       
-      // Auto-save logic: only report back to parent. 
-      // Parent (Index.tsx) handles the library sync once to prevent duplicates.
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
       saveTimeoutRef.current = setTimeout(() => {
         if (song) {
+          console.log(`[STUDIO] Save timer fired. Dispatching to parent:`, updates);
           onSave(song.id, updates);
         }
       }, 800);
@@ -546,6 +546,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
 
   useEffect(() => {
     if (song && isOpen) {
+      console.log(`[STUDIO] Initializing for song ${song.id}. Master ID: ${song.master_id || 'NONE'}`);
       const initialData = {
         name: song.name || "",
         artist: song.artist || "",
@@ -597,7 +598,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const addToPublicRepertoire = async () => {
     if (!song || !user) return;
     try {
-      // Use the onSave to trigger the parent sync correctly
+      console.log(`[STUDIO] Activating Public Presence for ${song.id}`);
       onSave(song.id, { is_active: true });
       setIsInRepertoire(true);
       showSuccess("Added to Master Repertoire");
