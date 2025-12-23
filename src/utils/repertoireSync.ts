@@ -25,7 +25,7 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
 
 /**
  * Syncs a single song or a batch of songs to the master repertoire table.
- * Uses the UUID (master_id) if available to support renames without duplicates.
+ * Uses the master_id (UUID) to handle renames safely.
  */
 export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong | SetlistSong[]) => {
   if (!userId) return;
@@ -35,7 +35,7 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
 
   try {
     const payloads = songsArray.map(song => ({
-      // If we have a master UUID, include it to ensure an update happens by ID
+      // Prioritize the permanent database ID to allow renames
       ...(song.master_id ? { id: song.master_id } : {}),
       user_id: userId,
       title: song.name,
@@ -63,16 +63,18 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       updated_at: new Date().toISOString()
     }));
 
-    // If payload has an ID, we prioritize updating by ID to support renames.
-    // Otherwise, we fall back to user_id + title.
+    // Perform the UPSERT. If 'id' is present, it updates that specific row.
+    // If not, it uses 'user_id, title' to merge.
     const { error } = await supabase
       .from('repertoire')
       .upsert(payloads, { 
-        onConflict: 'id' // Primary key identity ensures renames update the correct row
+        onConflict: 'user_id, title' 
       });
 
     if (error) {
-      console.error("[Sync Engine] Background update failed:", error);
+      // If we get a conflict error while trying to upsert by title, 
+      // it means we might be trying to rename a song to a title that already exists.
+      console.error("[Sync Engine] Conflict or error:", error);
     }
   } catch (err) {
     console.error("[Sync Engine] Critical failure:", err);
