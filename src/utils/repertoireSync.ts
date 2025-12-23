@@ -53,7 +53,8 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       apple_music_url: song.appleMusicUrl || null,
       is_metadata_confirmed: song.isMetadataConfirmed || false,
       is_key_confirmed: song.isKeyConfirmed || false,
-      duration_seconds: song.duration_seconds || 0,
+      // Fix: Ensure duration is rounded to an integer for the database
+      duration_seconds: Math.round(song.duration_seconds || 0),
       genre: song.genre || (song.user_tags?.[0]) || null,
       user_tags: song.user_tags || [],
       resources: song.resources || [],
