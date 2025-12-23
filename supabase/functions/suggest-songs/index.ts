@@ -36,8 +36,8 @@ serve(async (req) => {
 
     for (const apiKey of keys) {
       try {
-        // Switching to stable v1
-        const endpoint = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        // Updated to gemini-2.5-flash-lite and stable v1
+        const endpoint = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`;
         
         const response = await fetch(endpoint, {
           method: 'POST',

@@ -36,8 +36,8 @@ serve(async (req) => {
     
     for (const apiKey of keys) {
       try {
-        // Switching to stable v1 and gemini-1.5-flash
-        const endpoint = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        // Updated to gemini-2.5-flash-lite and stable v1
+        const endpoint = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`;
         
         const response = await fetch(endpoint, {
           method: 'POST',
@@ -59,7 +59,6 @@ serve(async (req) => {
         }
 
         const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-        // More robust JSON extraction for code blocks or stray text
         const jsonMatch = text.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
         
         if (!jsonMatch) throw new Error("Invalid AI format: " + text);
