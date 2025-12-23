@@ -12,7 +12,7 @@ import {
   Waves, Activity, ArrowRight, Shuffle,
   Settings2, Gauge, FileText, Save, Youtube,
   Monitor, AlignLeft, RotateCcw, ShieldCheck, ExternalLink,
-  Clock, Timer, ChevronRight, Zap, Minus, Plus, Edit3
+  Clock, Timer, ChevronRight, Zap, Minus, Plus, Edit3, Check
 } from 'lucide-react';
 import { SetlistSong } from './SetlistManager';
 import AudioVisualizer from './AudioVisualizer';
@@ -81,15 +81,12 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
   const nextPref = nextSong?.key_preference || globalPreference;
   const keysToUse = currentPref === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
 
-  // Key listener for shortcuts
+  // Key listener for shortcuts - fixed closure by adding isStudioOpen to dependencies
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger if user is typing in an input/textarea
       if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) return;
 
       if (e.key === 'Escape') {
-        // If the studio modal is open, let its internal logic handle the Escape key.
-        // We only call onClose() if the modal is closed.
         if (!isStudioOpen) {
           onClose();
         }
@@ -388,7 +385,10 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
             )}>
               <span className="truncate max-w-[300px]">{currentSong?.artist}</span>
               <div className="w-1.5 h-1.5 rounded-full bg-slate-800 shrink-0" />
-              <span className="text-indigo-400 font-mono drop-shadow-[0_0_15px_rgba(129,140,248,0.3)]">{displayCurrentKey}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-indigo-400 font-mono drop-shadow-[0_0_15px_rgba(129,140,248,0.3)]">{displayCurrentKey}</span>
+                {currentSong?.isKeyConfirmed && <Check className="w-6 h-6 text-emerald-500 drop-shadow-[0_0_10px_rgba(16,185,129,0.5)]" />}
+              </div>
             </div>
           </div>
 
@@ -537,7 +537,10 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
                 <div className="h-10 w-px bg-white/10 absolute left-1/2 -translate-x-1/2 top-2" />
                 <div className="flex flex-col items-end">
                   <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest font-mono mb-1">Stage Key</span>
-                  <span className="text-2xl font-mono font-black text-white">{displayCurrentKey}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl font-mono font-black text-white">{displayCurrentKey}</span>
+                    {currentSong?.isKeyConfirmed && <Check className="w-5 h-5 text-emerald-500" />}
+                  </div>
                 </div>
               </div>
 

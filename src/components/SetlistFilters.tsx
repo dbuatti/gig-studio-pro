@@ -9,7 +9,7 @@ import {
   X, Star, Save, Trash2, Headphones, Sparkles, Hash,
   CircleDashed, ChevronDown, ListFilter, Music2, 
   VideoOff, FileX2, VolumeX, BarChart3, TrendingUp, TrendingDown,
-  Target, AlertCircle, Link as LinkIcon, FileSearch
+  Target, AlertCircle, Link as LinkIcon, FileSearch, ShieldCheck
 } from 'lucide-react';
 import { 
   DropdownMenu, 
@@ -59,7 +59,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
     const saved = localStorage.getItem('gig_filter_presets');
     return saved ? JSON.parse(saved) : [
       { id: 'broken', name: 'Needs Attention', filters: { ...DEFAULT_FILTERS, readiness: 40 } },
-      { id: 'stage-ready', name: 'Performance Ready', filters: { ...DEFAULT_FILTERS, readiness: 100, hasAudio: 'full', hasChart: 'yes' } }
+      { id: 'stage-ready', name: 'Performance Ready', filters: { ...DEFAULT_FILTERS, readiness: 100, hasAudio: 'full', hasChart: 'yes', isConfirmed: 'yes' } }
     ];
   });
 
@@ -128,6 +128,29 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
             className="flex-1"
           />
         </div>
+
+        {/* Confirmed Toggle */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className={cn(
+                "h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-tight gap-2 border transition-all",
+                activeFilters.isConfirmed !== 'all' ? "bg-emerald-600 text-white shadow-lg" : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-500"
+              )}
+            >
+              <ShieldCheck className="w-3.5 h-3.5" /> Key Verified <ChevronDown className="w-3 h-3 opacity-50" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-slate-950 border-white/10 text-white">
+            <DropdownMenuRadioGroup value={activeFilters.isConfirmed} onValueChange={(v) => onFilterChange({ ...activeFilters, isConfirmed: v as any })}>
+              <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Status</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Verified Only</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-10 rounded-xl text-red-400">Unverified Only</DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* Audio Toggle */}
         <DropdownMenu>
@@ -247,6 +270,15 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
               onClick={() => onFilterChange({ ...activeFilters, readiness: 100 })}
             >
               Readiness: ≤{activeFilters.readiness}% <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
+            </Badge>
+          )}
+          {activeFilters.isConfirmed !== 'all' && (
+            <Badge 
+              variant="secondary" 
+              className="bg-emerald-50 text-emerald-600 border-emerald-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-red-50 hover:text-red-600 transition-all group"
+              onClick={() => onFilterChange({ ...activeFilters, isConfirmed: 'all' })}
+            >
+              Key Verified: {activeFilters.isConfirmed} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
             </Badge>
           )}
           {activeFilters.hasAudio !== 'all' && (
