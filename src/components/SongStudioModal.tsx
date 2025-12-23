@@ -1158,29 +1158,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       </div>
                     </div>
                     <div className="space-y-4">
-                      <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Leadsheet Link</Label>
-                      <div className="flex gap-2 md:gap-3">
-                        <StudioInput 
-                          value={formData.leadsheetUrl}
-                          onChange={(val: string) => handleAutoSave({ leadsheetUrl: val })}
-                          placeholder="Paste URL..."
-                          className="bg-white/5 border-white/10 font-bold text-emerald-400 h-10 md:h-12 rounded-xl w-full"
-                        />
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="h-10 md:h-12 border-white/10 text-emerald-400 hover:bg-emerald-600/10 px-4 rounded-xl font-bold text-[10px] uppercase gap-2 shrink-0 min-w-[120px]"
-                          onClick={() => {
-                            const query = encodeURIComponent(`${formData.artist} ${formData.name} lead sheet pdf`);
-                            window.open(`https://www.google.com/search?q=${query}`, '_blank');
-                          }}
-                        >
-                          <Search className="w-3.5 h-3.5" /> Find
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="space-y-4">
                       <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Ultimate Guitar Link</Label>
                       <div className="flex gap-2 md:gap-3">
                         <StudioInput 
@@ -1201,6 +1178,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                           <Search className="w-3.5 h-3.5" /> Find
                         </Button>
                       </div>
+                    </div>
                   </div>
                   <StudioInput 
                     label="Rehearsal & Dynamics Notes"
@@ -1277,8 +1255,38 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
               )}
               {activeTab === 'lyrics' && (
                 <div className="space-y-6 md:space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-500 h-full flex flex-col flex-1">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
+                    <div>
+                      <h3 className="text-sm md:text-lg font-black uppercase tracking-[0.3em] text-pink-400">Lyrics Engine</h3>
+                      <p className="text-xs md:text-sm text-slate-500 mt-1">Stage teleprompter source data.</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2 md:gap-4">
+                      <Button
+                        variant="outline"
+                        onClick={handleLyricsSearch}
+                        className="bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 gap-2 px-4 md:px-6 rounded-xl min-w-[140px]"
+                      >
+                        <Search className="w-3.5 h-3.5" /> Find Lyrics
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={handleMagicFormatLyrics}
+                        disabled={isFormattingLyrics || !formData.lyrics}
+                        className="bg-indigo-600/10 border-indigo-600/20 text-indigo-600 hover:bg-indigo-600 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 gap-2 px-4 md:px-6 rounded-xl min-w-[140px]"
+                      >
+                        {isFormattingLyrics ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                        Magic Format
+                      </Button>
+                    </div>
+                  </div>
                   <div className="flex-1 min-h-0">
-                    <StudioInput isTextarea placeholder="Paste lyrics here..." value={formData.lyrics} onChange={(val: string) => handleAutoSave({ lyrics: val })} className={cn("bg-white/5 border-white/10 text-lg md:text-xl leading-relaxed p-6 md:p-10 font-medium whitespace-pre-wrap h-full", isMobile ? "rounded-2xl" : "rounded-[2.5rem]")} />
+                    <StudioInput 
+                      isTextarea
+                      placeholder="Paste lyrics here..."
+                      value={formData.lyrics}
+                      onChange={(val: string) => handleAutoSave({ lyrics: val })}
+                      className={cn("bg-white/5 border-white/10 text-lg md:text-xl leading-relaxed p-6 md:p-10 font-medium whitespace-pre-wrap h-full", isMobile ? "rounded-2xl" : "rounded-[2.5rem]")}
+                    />
                   </div>
                 </div>
               )}
