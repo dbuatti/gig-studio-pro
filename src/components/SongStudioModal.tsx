@@ -286,7 +286,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       playerRef.current = new Tone.GrainPlayer(buffer).toDestination();
       playerRef.current.connect(analyzerRef.current!);
       playerRef.current.detune = (pitch * 100) + fineTune;
-      playerRoot: playerRef.current.playbackRate = tempo;
+      playerRef.current.playbackRate = tempo;
       playerRef.current.volume.value = volume;
       playerRef.current.grainSize = 0.18;
       playerRef.current.overlap = 0.1;
@@ -1349,7 +1349,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                 </div>
               )}
               {activeTab === 'lyrics' && (
-                <div className="space-y-6 md:space-y-10 animate-in fade-in duration-500 h-full flex flex-col flex-1">
+                <div className="space-y-6 md:space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-500 h-full flex flex-col flex-1">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
                     <div>
                       <h3 className="text-sm md:text-lg font-black uppercase tracking-[0.3em] text-pink-400">Lyrics Engine</h3>
@@ -1531,7 +1531,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              onClick={() => window.open(formData.ugRoot, '_blank')}
+                              onClick={() => window.open(formData.ugUrl || '', '_blank')}
                               className="h-10 w-10 bg-white/5 rounded-xl hover:bg-orange-600 transition-all"
                             >
                               <ExternalLink className="w-4 h-4" />
