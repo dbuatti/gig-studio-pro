@@ -25,7 +25,7 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
 
 /**
  * Synchronizes local setlist songs with the master repertoire table.
- * Uses a batch approach for performance and strict ID mapping to prevent duplicates.
+ * Optimized to use a single batch upsert for performance.
  */
 export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong | SetlistSong[]): Promise<SetlistSong[]> => {
   if (!userId) return Array.isArray(songs) ? songs : [songs];
@@ -33,80 +33,56 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
   const songsArray = Array.isArray(songs) ? songs : [songs];
   if (songsArray.length === 0) return [];
 
-  console.group(`[SYNC ENGINE] Batch Processing ${songsArray.length} items`);
+  console.log(`[SYNC ENGINE] Batch processing ${songsArray.length} items...`);
   
   try {
-    const results: SetlistSong[] = [];
+    const payloads = songsArray.map(song => ({
+      ...(song.master_id ? { id: song.master_id } : {}),
+      user_id: userId,
+      title: song.name,
+      artist: song.artist || 'Unknown Artist',
+      original_key: song.originalKey || null,
+      target_key: song.targetKey || null,
+      bpm: song.bpm || null,
+      lyrics: song.lyrics || null,
+      notes: song.notes || null,
+      pitch: song.pitch || 0,
+      ug_url: song.ugUrl || null,
+      pdf_url: song.pdfUrl || null,
+      leadsheet_url: song.leadsheetUrl || null,
+      youtube_url: song.youtubeUrl || null,
+      preview_url: song.previewUrl || null,
+      apple_music_url: song.appleMusicUrl || null,
+      is_metadata_confirmed: song.isMetadataConfirmed || false,
+      is_key_confirmed: song.isKeyConfirmed || false,
+      duration_seconds: Math.round(song.duration_seconds || 0),
+      genre: song.genre || (song.user_tags?.[0]) || null,
+      user_tags: song.user_tags || [],
+      resources: song.resources || [],
+      readiness_score: calculateReadiness(song),
+      is_active: true,
+      updated_at: new Date().toISOString()
+    }));
 
-    for (const song of songsArray) {
-      console.log(`[SYNC: ${song.name}] Processing. Current Master ID: ${song.master_id || 'NEW'}`);
-      
-      let targetId = song.master_id;
+    // Perform batch upsert
+    const { data, error } = await supabase
+      .from('repertoire')
+      .upsert(payloads, { onConflict: 'id' })
+      .select('id, title, artist');
 
-      // Fallback: If no master_id, check if this specific title/artist already exists to avoid re-insertion
-      if (!targetId || targetId.length < 10) {
-        console.log(`[SYNC: ${song.name}] Missing ID. Checking DB for title/artist match...`);
-        const { data: existing } = await supabase
-          .from('repertoire')
-          .select('id')
-          .eq('user_id', userId)
-          .eq('title', song.name)
-          .eq('artist', song.artist || 'Unknown Artist')
-          .maybeSingle();
-        
-        if (existing) {
-          console.log(`[SYNC: ${song.name}] Matched existing row: ${existing.id}`);
-          targetId = existing.id;
-        }
-      }
+    if (error) throw error;
 
-      const payload = {
-        ...(targetId ? { id: targetId } : {}),
-        user_id: userId,
-        title: song.name,
-        artist: song.artist || 'Unknown Artist',
-        original_key: song.originalKey || null,
-        target_key: song.targetKey || null,
-        bpm: song.bpm || null,
-        lyrics: song.lyrics || null,
-        notes: song.notes || null,
-        pitch: song.pitch || 0,
-        ug_url: song.ugUrl || null,
-        pdf_url: song.pdfUrl || null,
-        leadsheet_url: song.leadsheetUrl || null,
-        youtube_url: song.youtubeUrl || null,
-        preview_url: song.previewUrl || null,
-        apple_music_url: song.appleMusicUrl || null,
-        is_metadata_confirmed: song.isMetadataConfirmed || false,
-        is_key_confirmed: song.isKeyConfirmed || false,
-        duration_seconds: Math.round(song.duration_seconds || 0),
-        genre: song.genre || (song.user_tags?.[0]) || null,
-        user_tags: song.user_tags || [],
-        resources: song.resources || [],
-        readiness_score: calculateReadiness(song),
-        is_active: true,
-        updated_at: new Date().toISOString()
-      };
+    // Map the returned IDs back to the local songs
+    return songsArray.map(song => {
+      const dbMatch = data.find(d => 
+        (song.master_id && d.id === song.master_id) || 
+        (d.title === song.name && d.artist === (song.artist || 'Unknown Artist'))
+      );
+      return dbMatch ? { ...song, master_id: dbMatch.id } : song;
+    });
 
-      const { data, error } = await supabase
-        .from('repertoire')
-        .upsert(payload, { onConflict: 'id' })
-        .select('id')
-        .single();
-
-      if (error) {
-        console.error(`[SYNC: ${song.name}] DB ERROR:`, error);
-        results.push(song);
-      } else {
-        results.push({ ...song, master_id: data.id });
-      }
-    }
-
-    console.groupEnd();
-    return results;
   } catch (err) {
-    console.error("[SYNC ENGINE] FATAL EXCEPTION:", err);
-    console.groupEnd();
+    console.error("[SYNC ENGINE] Batch sync failed:", err);
     return songsArray;
   }
 };
