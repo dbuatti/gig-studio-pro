@@ -482,7 +482,10 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       const bucket = 'public_assets';
       const { error } = await supabase.storage
         .from(bucket)
-        .upload(fileName, file);
+        .upload(fileName, file, {
+          contentType: file.type,
+          upsert: true
+        });
       if (error) throw error;
       const { data: { publicUrl } } = supabase.storage
         .from(bucket)
@@ -500,7 +503,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         showSuccess("Stage Chart Linked");
       }
     } catch (err: any) {
-      showError(err.message || "Upload failed");
+      console.error("Upload Error:", err);
+      showError(`Upload failed: ${err.message || "Unknown Error"}. Ensure the 'public_assets' bucket exists.`);
     } finally {
       setIsUploading(false);
     }
