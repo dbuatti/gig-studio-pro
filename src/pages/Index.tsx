@@ -41,6 +41,10 @@ const Index = () => {
   const [syncQueue, setSyncQueue] = useState<string[]>([]);
   const [isProcessingQueue, setIsProcessingQueue] = useState(false);
 
+  // Mutex to prevent parallel saves from corrupting state
+  const isSyncingRef = useRef(false);
+  const savePendingRef = useRef<{ listId: string; songs: SetlistSong[]; updates: any } | null>(null);
+
   const transposerRef = useRef<AudioTransposerRef>(null);
 
   const currentList = setlists.find(l => l.id === currentListId);
@@ -135,7 +139,7 @@ const Index = () => {
         previewUrl: d.preview_url,
         youtubeUrl: d.youtube_url,
         appleMusicUrl: d.apple_music_url,
-        pdf_url: d.pdf_url,
+        pdfUrl: d.pdf_url,
         isMetadataConfirmed: d.is_metadata_confirmed,
         isKeyConfirmed: d.is_key_confirmed,
         duration_seconds: d.duration_seconds,
@@ -188,16 +192,24 @@ const Index = () => {
 
   const saveList = async (listId: string, updatedSongs: SetlistSong[], updates: Partial<any> = {}) => {
     if (!user) return;
+
+    // If already syncing, queue this update for after the current one finishes
+    if (isSyncingRef.current) {
+      savePendingRef.current = { listId, songs: updatedSongs, updates };
+      return;
+    }
+
+    isSyncingRef.current = true;
     setIsSaving(true);
+
     try {
-      // Sync and get the songs back with their real Master IDs
+      // Sync to repertoire table and get the confirmed IDs back
       const syncedSongs = await syncToMasterRepertoire(user.id, updatedSongs);
       
-      // Critical fix: We MUST update the local 'setlists' state with 'syncedSongs' 
-      // so that every subsequent auto-save uses the real Master UUIDs.
-      setSetlists(prev => prev.map(l => l.id === listId ? { ...l, songs: syncedSongs } : l));
+      // Update local state immediately with synced version (crucial for master_id preservation)
+      setSetlists(prev => prev.map(l => l.id === listId ? { ...l, songs: syncedSongs, ...updates } : l));
 
-      // Clean sync state for JSON storage
+      // Save the confirmed setlist state to Supabase
       const cleanedSongsForJson = syncedSongs.map(({ isSyncing, ...rest }) => rest);
       
       const { error } = await supabase
@@ -211,19 +223,28 @@ const Index = () => {
       
       if (error) throw error;
       
-      // Update library reference
+      // Refresh the library reference
       fetchMasterRepertoire();
     } catch (err) {
-      console.error("Save List error:", err);
+      console.error("[Gig Studio] Save sequence failed:", err);
     } finally {
       setIsSaving(false);
+      isSyncingRef.current = false;
+      
+      // If a save request came in while we were busy, process it now
+      if (savePendingRef.current) {
+        const next = savePendingRef.current;
+        savePendingRef.current = null;
+        saveList(next.listId, next.songs, next.updates);
+      }
     }
   };
 
   const handleUpdateGoal = async (seconds: number) => {
     if (!currentListId) return;
-    setSetlists(prev => prev.map(l => l.id === currentListId ? { ...l, time_goal: seconds } : l));
-    await saveList(currentListId, songs, { time_goal: seconds });
+    const list = setlists.find(l => l.id === currentListId);
+    if (!list) return;
+    saveList(currentListId, list.songs, { time_goal: seconds });
   };
 
   const handleBatchSyncInternal = async (songsToSync: SetlistSong[]) => {
