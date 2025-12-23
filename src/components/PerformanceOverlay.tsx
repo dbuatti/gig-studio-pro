@@ -76,12 +76,14 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
   const isUserScrolling = useRef(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout>();
   const autoScrollRaf = useRef<number | null>(null);
+  
+  const touchStartX = useRef<number>(0);
 
   const currentPref = currentSong?.key_preference || globalPreference;
   const nextPref = nextSong?.key_preference || globalPreference;
   const keysToUse = currentPref === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
 
-  // Key listener for shortcuts - fixed closure by adding isStudioOpen to dependencies
+  // Key listener for shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) return;
@@ -111,6 +113,32 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose, onTogglePlayback, onPrevious, onNext, isStudioOpen]);
+
+  // Mobile Swipe Gesture logic
+  useEffect(() => {
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartX.current = e.touches[0].clientX;
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (isStudioOpen) return; // Let modal handle its own gestures if needed
+      
+      const touchEndX = e.changedTouches[0].clientX;
+      const distance = touchEndX - touchStartX.current;
+      
+      // If swipe right > 150px
+      if (distance > 150) {
+        onClose();
+      }
+    };
+
+    window.addEventListener('touchstart', handleTouchStart);
+    window.addEventListener('touchend', handleTouchEnd);
+    return () => {
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [onClose, isStudioOpen]);
 
   // Wall Clock and Set Timer logic
   useEffect(() => {

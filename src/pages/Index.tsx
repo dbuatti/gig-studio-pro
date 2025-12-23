@@ -389,8 +389,6 @@ const Index = () => {
                 <div className="flex items-center gap-3 md:gap-4 mt-1 overflow-x-auto no-scrollbar pb-1">
                   <p className="text-slate-500 text-xs font-medium whitespace-nowrap">{songs.length} Tracks</p>
                   <div className="h-1 w-1 rounded-full bg-slate-300 shrink-0" />
-                  <button onClick={() => { if (!songs.length) return; setSyncQueue(songs.filter(s => !s.isMetadataConfirmed).map(s => s.id)); showSuccess("Enriching..."); }} className="text-[10px] font-black uppercase text-indigo-600 hover:text-indigo-500 flex items-center gap-1.5 transition-colors disabled:opacity-50 whitespace-nowrap"><Sparkles className="w-3 h-3" />Enrich</button>
-                  <div className="h-1 w-1 rounded-full bg-slate-300 shrink-0" />
                   <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full"><ShieldCheck className="w-3 h-3 text-emerald-500" /><span className="text-[9px] font-black uppercase text-emerald-600 tracking-widest">Headless Sync Active</span></div>
                 </div>
               </div>

@@ -124,6 +124,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   
   const playbackStartTimeRef = useRef<number>(0);
   const playbackOffsetRef = useRef<number>(0);
+  
+  const touchStartX = useRef<number>(0);
 
   const tabOrder: StudioTab[] = isMobile 
     ? ['audio', 'config', 'details', 'charts', 'lyrics', 'visual', 'library']
@@ -143,6 +145,35 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, isMobile, tabOrder]);
+
+  // Mobile Swipe logic
+  useEffect(() => {
+    if (!isOpen || !isMobile) return;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartX.current = e.touches[0].clientX;
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      const touchEndX = e.changedTouches[0].clientX;
+      const distance = touchEndX - touchStartX.current;
+      
+      // If swipe right > 150px and not inside a textarea
+      const target = e.target as HTMLElement;
+      const isInput = target.tagName === 'TEXTAREA' || target.tagName === 'INPUT';
+      
+      if (distance > 150 && !isInput) {
+        onClose();
+      }
+    };
+
+    window.addEventListener('touchstart', handleTouchStart);
+    window.addEventListener('touchend', handleTouchEnd);
+    return () => {
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [isOpen, isMobile, onClose]);
 
   const currentKeyPreference = formData.key_preference || globalPreference;
   const keysToUse = currentKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
@@ -255,7 +286,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       playerRef.current = new Tone.GrainPlayer(buffer).toDestination();
       playerRef.current.connect(analyzerRef.current!);
       playerRef.current.detune = (pitch * 100) + fineTune;
-      playerRef.current.playbackRate = tempo;
+      playerRoot: playerRef.current.playbackRate = tempo;
       playerRef.current.volume.value = volume;
       playerRef.current.grainSize = 0.18;
       playerRef.current.overlap = 0.1;
@@ -1500,7 +1531,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              onClick={() => window.open(formData.ugUrl, '_blank')}
+                              onClick={() => window.open(formData.ugRoot, '_blank')}
                               className="h-10 w-10 bg-white/5 rounded-xl hover:bg-orange-600 transition-all"
                             >
                               <ExternalLink className="w-4 h-4" />
