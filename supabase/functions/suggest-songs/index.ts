@@ -14,6 +14,7 @@ serve(async (req) => {
   try {
     const { repertoire } = await req.json();
     
+    // Key rotation logic using globalThis for safe access
     const keys = [
       (globalThis as any).Deno.env.get('GEMINI_API_KEY'),
       (globalThis as any).Deno.env.get('GEMINI_API_KEY_2'),
@@ -21,13 +22,21 @@ serve(async (req) => {
     ].filter(Boolean);
 
     if (keys.length === 0) {
-      throw new Error("No API keys found");
+      console.error("[Suggest Engine] No API keys found in environment.");
+      return new Response(JSON.stringify({ error: "No API keys configured" }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
     const songList = repertoire.map((s: any) => `${s.name} - ${s.artist}`).join(', ');
-    const prompt = `Act as a professional music curator. Based on this repertoire: [${songList}], suggest 10 similar songs that would fit this artist's style. Return ONLY a JSON array: [{"name": "Song Title", "artist": "Artist Name", "reason": "Short reason"}]`;
+    const prompt = `Act as a professional music curator. Based on this repertoire: [${songList}], suggest 10 similar songs that would fit this artist's style. 
+    Focus on variety within the same genres.
+    Return ONLY a JSON array of objects: [{"name": "Song Title", "artist": "Artist Name", "reason": "Short reason why"}]
+    Do not include markdown formatting or any other text.`;
 
     let lastError = null;
+
     for (const apiKey of keys) {
       try {
         const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
@@ -48,12 +57,18 @@ serve(async (req) => {
           continue;
         }
 
-        if (!response.ok) throw new Error(result.error?.message || "API Error");
+        if (!response.ok) {
+          throw new Error(result.error?.message || "API Error");
+        }
 
         const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) throw new Error("Empty AI response");
+
         const jsonMatch = text.match(/\[[\s\S]*\]/);
-        
-        if (!jsonMatch) throw new Error("Invalid AI format");
+        if (!jsonMatch) {
+          console.error("[Suggest Engine] Failed to find JSON array in response:", text);
+          throw new Error("Invalid AI format");
+        }
         
         return new Response(jsonMatch[0], {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -61,12 +76,14 @@ serve(async (req) => {
 
       } catch (err) {
         lastError = err.message;
+        console.error(`[Suggest Engine] Attempt with key failed: ${err.message}`);
       }
     }
 
-    throw new Error(`All keys failed. Last: ${lastError}`);
+    throw new Error(`All keys failed. Last error: ${lastError}`);
 
   } catch (error) {
+    console.error("[Suggest Engine] Global Failure:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
