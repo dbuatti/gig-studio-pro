@@ -1117,10 +1117,73 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
               {activeTab === 'details' && (
                 <div className="space-y-6 md:space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-500">
                   <div className={cn("grid gap-6 md:gap-10", isMobile ? "grid-cols-1" : "grid-cols-2")}>
-                    <StudioInput label="Performance Title" value={formData.name} onChange={(val: string) => handleAutoSave({ name: val })} className="bg-white/5 border-white/10 text-xl md:text-2xl font-black h-12 md:h-16 rounded-xl md:rounded-2xl" />
-                    <StudioInput label="Primary Artist" value={formData.artist} onChange={(val: string) => handleAutoSave({ artist: val })} className="bg-white/5 border-white/10 text-xl md:text-2xl font-black h-12 md:h-16 rounded-xl md:rounded-2xl" />
+                    <StudioInput 
+                      label="Performance Title"
+                      value={formData.name}
+                      onChange={(val: string) => handleAutoSave({ name: val })}
+                      className="bg-white/5 border-white/10 text-xl md:text-2xl font-black h-12 md:h-16 rounded-xl md:rounded-2xl"
+                    />
+                    <StudioInput 
+                      label="Primary Artist"
+                      value={formData.artist}
+                      onChange={(val: string) => handleAutoSave({ artist: val })}
+                      className="bg-white/5 border-white/10 text-xl md:text-2xl font-black h-12 md:h-16 rounded-xl md:rounded-2xl"
+                    />
                   </div>
-                  <StudioInput label="Rehearsal & Dynamics Notes" isTextarea value={formData.notes} onChange={(val: string) => handleAutoSave({ notes: val })} placeholder="Cues, transitions, dynamics..." className={cn("bg-white/5 border-white/10 text-base md:text-lg leading-relaxed p-6 md:p-8 whitespace-pre-wrap", isMobile ? "min-h-[200px] rounded-2xl" : "min-h-[350px] rounded-[2rem]")} />
+                  <div className={cn("grid gap-6 md:gap-10", isMobile ? "grid-cols-1" : "grid-cols-2")}>
+                    <div className="space-y-4">
+                      <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Sheet Music Link</Label>
+                      <div className="flex gap-2 md:gap-3">
+                        <StudioInput 
+                          value={formData.pdfUrl}
+                          onChange={(val: string) => handleAutoSave({ pdfUrl: val })}
+                          placeholder="Paste sheet music URL..."
+                          className="bg-white/5 border-white/10 font-bold h-10 md:h-12 rounded-xl w-full"
+                        />
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-10 md:h-12 border-white/10 text-slate-400 hover:bg-white/10 px-4 rounded-xl font-bold text-[10px] uppercase gap-2 shrink-0 min-w-[120px]"
+                          onClick={() => {
+                            const query = encodeURIComponent(`${formData.artist} ${formData.name} sheet music pdf`);
+                            window.open(`https://www.google.com/search?q=${query}`, '_blank');
+                          }}
+                        >
+                          <Search className="w-3.5 h-3.5" /> Find
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Ultimate Guitar Link</Label>
+                      <div className="flex gap-2 md:gap-3">
+                        <StudioInput 
+                          value={formData.ugUrl}
+                          onChange={(val: string) => handleAutoSave({ ugUrl: val })}
+                          placeholder="Paste URL..."
+                          className="bg-white/5 border-white/10 font-bold text-orange-400 h-10 md:h-12 rounded-xl w-full"
+                        />
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-10 md:h-12 border-white/10 text-orange-400 hover:bg-orange-600/10 px-4 rounded-xl font-bold text-[10px] uppercase gap-2 shrink-0 min-w-[120px]"
+                          onClick={() => {
+                            const query = encodeURIComponent(`${formData.artist} ${formData.name} chords`);
+                            window.open(`https://www.ultimate-guitar.com/search.php?search_type=title&value=${query}`, '_blank');
+                          }}
+                        >
+                          <Search className="w-3.5 h-3.5" /> Find
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                  <StudioInput 
+                    label="Rehearsal & Dynamics Notes"
+                    isTextarea
+                    value={formData.notes}
+                    onChange={(val: string) => handleAutoSave({ notes: val })}
+                    placeholder="Cues, transitions, dynamics..."
+                    className={cn("bg-white/5 border-white/10 text-base md:text-lg leading-relaxed p-6 md:p-8 whitespace-pre-wrap", isMobile ? "min-h-[200px] rounded-2xl" : "min-h-[350px] rounded-[2rem]")}
+                  />
                 </div>
               )}
               {activeTab === 'charts' && (
