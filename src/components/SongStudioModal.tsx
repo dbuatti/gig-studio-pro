@@ -214,7 +214,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       }
       if (playerRef.current) playerRef.current.dispose();
       playerRef.current = new Tone.GrainPlayer(buffer).toDestination();
-      playerRef.current.connect(analyzerRef.current);
+      playerRef.current.connect(analyzerRef.current!);
       playerRef.current.detune = (pitch * 100) + fineTune;
       playerRef.current.playbackRate = tempo;
       playerRef.current.volume.value = volume;
@@ -1321,6 +1321,13 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       <h3 className="text-sm md:text-lg font-black uppercase tracking-[0.3em] text-indigo-400">Reference Media</h3>
                       <p className="text-xs md:text-sm text-slate-500 mt-1">YouTube performance video or audio master link.</p>
                     </div>
+                    <Button
+                      variant="outline"
+                      onClick={handleYoutubeSearch}
+                      className="bg-red-600/10 border-red-600/20 text-red-600 hover:bg-red-600 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 gap-2 px-4 md:px-6 rounded-xl"
+                    >
+                      <Youtube className="w-3.5 h-3.5" /> Discovery
+                    </Button>
                   </div>
                   <div className="flex gap-4">
                      <Input
@@ -1329,6 +1336,13 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                        onChange={(e) => handleAutoSave({ youtubeUrl: e.target.value })}
                        className="bg-white/5 border-white/10 text-sm flex-1 h-10 md:h-12 rounded-xl"
                      />
+                     <Button
+                        variant="outline"
+                        onClick={handleYoutubeSearch}
+                        className="bg-red-600/10 border-red-600/20 text-red-600 hover:bg-red-600 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 md:h-12 gap-2 px-4 md:px-6 rounded-xl shrink-0"
+                      >
+                        <Youtube className="w-3.5 h-3.5" /> Discover
+                      </Button>
                   </div>
                   {videoId ? (
                     <div className="aspect-video w-full rounded-[2rem] md:rounded-[3rem] overflow-hidden shadow-2xl border border-white/10 bg-black">
