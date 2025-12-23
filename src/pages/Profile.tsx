@@ -10,7 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { showSuccess, showError } from '@/utils/toast';
-import { Camera, Copy, Globe, Palette, User, Loader2, ArrowLeft, RotateCcw, Sparkles, ExternalLink, RefreshCw, Library, ShieldCheck, AlertCircle, Link as LinkIcon } from 'lucide-react';
+import { Camera, Copy, Globe, Palette, User, Loader2, ArrowLeft, RotateCcw, Sparkles, ExternalLink, RefreshCw, Library, ShieldCheck, AlertCircle, Link as LinkIcon, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import PublicRepertoireView from '@/components/PublicRepertoireView';
 import { cn } from '@/lib/utils';
@@ -30,7 +30,6 @@ const Profile = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
   const [profile, setProfile] = useState<any>(null);
   const [songs, setSongs] = useState<any[]>([]);
 
@@ -98,89 +97,6 @@ const Profile = () => {
       showError("Save failed. Try again.");
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleSyncFromGigs = async () => {
-    if (!user) return;
-    setIsSyncing(true);
-    try {
-      // 1. Get all songs from all setlists
-      const { data: setlists, error: sError } = await supabase
-        .from('setlists')
-        .select('songs')
-        .eq('user_id', user.id);
-
-      if (sError) throw sError;
-
-      // 2. Get current Master Repertoire records to check for ID matches
-      const { data: currentMaster } = await supabase
-        .from('repertoire')
-        .select('id, title, artist')
-        .eq('user_id', user.id);
-
-      const allSongs = setlists.flatMap(s => (s.songs as any[]) || []);
-      if (allSongs.length === 0) {
-        showError("No songs found in your setlists to sync.");
-        return;
-      }
-
-      const calculateScore = (s: any) => {
-        let score = 0;
-        const isItunes = s.previewUrl?.includes('apple.com') || s.previewUrl?.includes('itunes-assets');
-        if (s.previewUrl && !isItunes) score += 25;
-        if (s.isKeyConfirmed) score += 25;
-        if (s.lyrics) score += 25;
-        if (s.bpm) score += 25;
-        return score;
-      };
-
-      const uniqueRepertoireMap = new Map();
-      
-      allSongs.forEach(song => {
-        const title = song.name;
-        const artist = song.artist || 'Unknown Artist';
-        const score = calculateScore(song);
-        
-        // Find existing record by Title match (to fix "Unknown Artist" records)
-        const match = currentMaster?.find(m => m.title.toLowerCase() === title.toLowerCase());
-        
-        const payload = {
-          user_id: user.id,
-          title,
-          artist,
-          original_key: song.originalKey || null,
-          bpm: song.bpm || null,
-          genre: song.genre || (song.user_tags?.[0]) || null,
-          readiness_score: score,
-          is_active: true
-        };
-
-        if (match) {
-          uniqueRepertoireMap.set(match.id, { ...payload, id: match.id });
-        } else {
-          uniqueRepertoireMap.set(`${title}-${artist}`.toLowerCase(), payload);
-        }
-      });
-
-      const finalData = Array.from(uniqueRepertoireMap.values());
-
-      const { error: uError } = await supabase
-        .from('repertoire')
-        .upsert(finalData, { 
-          onConflict: 'id', // Conflict on ID ensures we update existing records properly
-          ignoreDuplicates: false 
-        });
-
-      if (uError) throw uError;
-
-      showSuccess(`Successfully Synced ${finalData.length} unique songs!`);
-      fetchData();
-    } catch (err: any) {
-      console.error("Bulk sync error:", err);
-      showError(`Sync failed: ${err.message || 'Server Error'}`);
-    } finally {
-      setIsSyncing(false);
     }
   };
 
@@ -344,14 +260,18 @@ const Profile = () => {
             </div>
 
             <div className="space-y-4">
-              <Button 
-                onClick={handleSyncFromGigs} 
-                disabled={isSyncing}
-                className="w-full h-14 rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] gap-3 shadow-xl shadow-indigo-500/20"
-              >
-                {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                Sync Entire Repertoire
-              </Button>
+              <div className="p-6 bg-emerald-500/5 border border-emerald-500/20 rounded-[2rem] flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-emerald-500/10 rounded-xl">
+                    <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-tight">Sync Engine Online</p>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase mt-0.5">Automated Background Updates Active</p>
+                  </div>
+                </div>
+                <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              </div>
 
               <div className="space-y-2 px-1">
                 <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Visibility Threshold</Label>
@@ -502,7 +422,7 @@ const Profile = () => {
               </div>
               <a 
                 href={publicUrl} 
-                target="_blank" 
+                target="_child" 
                 className="h-10 w-10 bg-white/5 border border-white/10 flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all"
                 title="Open in new tab"
               >

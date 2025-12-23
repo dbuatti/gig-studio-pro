@@ -16,10 +16,11 @@ import { calculateSemitones } from '@/utils/keyUtils';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { LogOut, User as UserIcon, Loader2, Play, Music, LayoutDashboard, Search as SearchIcon, Rocket, Hash, Music2, Settings, Sparkles, RefreshCw, Library, Clock } from 'lucide-react';
+import { LogOut, User as UserIcon, Loader2, Play, Music, LayoutDashboard, Search as SearchIcon, Rocket, Hash, Music2, Settings, Sparkles, RefreshCw, Library, Clock, ShieldCheck } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { useSettings } from '@/hooks/use-settings';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { syncToMasterRepertoire } from '@/utils/repertoireSync';
 
 const Index = () => {
   const { user, signOut } = useAuth();
@@ -34,7 +35,6 @@ const Index = () => {
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [performanceState, setPerformanceState] = useState({ progress: 0, duration: 0 });
   const [isPlayerActive, setIsPlayerActive] = useState(false);
-  const [isBulkSyncing, setIsBulkSyncing] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   
   const [syncQueue, setSyncQueue] = useState<string[]>([]);
@@ -58,12 +58,10 @@ const Index = () => {
     });
   }, [setlists]);
 
-  // Global Audio Resume on first click with passive listener
   useEffect(() => {
     const handleGesture = async () => {
       if (Tone.getContext().state !== 'running') {
         await Tone.start();
-        console.log("Gig Studio: Audio Engine Resumed");
       }
       window.removeEventListener('click', handleGesture);
       window.removeEventListener('keydown', handleGesture);
@@ -109,7 +107,7 @@ const Index = () => {
       const batchSongs = songs.filter(s => batchIds.includes(s.id));
 
       if (batchSongs.length > 0) {
-        await handleBulkSync(batchSongs, true);
+        await handleBatchSyncInternal(batchSongs);
         await new Promise(resolve => setTimeout(resolve, 6000));
       }
 
@@ -156,80 +154,6 @@ const Index = () => {
     }
   };
 
-  const getReadinessScore = (song: SetlistSong) => {
-    let score = 0;
-    const isItunes = song.previewUrl?.includes('apple.com') || song.previewUrl?.includes('itunes-assets');
-    if (song.previewUrl && !isItunes) score += 25;
-    if (song.isKeyConfirmed) score += 20;
-    if (song.lyrics && song.lyrics.length > 20) score += 15;
-    if (song.pdfUrl || song.leadsheetUrl) score += 15;
-    if (song.ugUrl) score += 10;
-    if (song.bpm) score += 5;
-    if (song.notes && song.notes.length > 10) score += 5;
-    if (song.artist && song.artist !== "Unknown Artist") score += 5;
-    return score;
-  };
-
-  const handleBulkRepertoireSync = async () => {
-    if (!songs.length || !user) return;
-    setIsBulkSyncing(true);
-    try {
-      // 1. Get current Master Repertoire to find matches
-      const { data: existingMaster } = await supabase
-        .from('repertoire')
-        .select('id, title, artist')
-        .eq('user_id', user.id);
-
-      const uniqueRepertoireMap = new Map();
-      
-      songs.forEach(song => {
-        const title = song.name;
-        const artist = song.artist || 'Unknown Artist';
-        const key = `${title}`.toLowerCase(); // Match primarily on title to fix "Unknown Artist" records
-        const score = getReadinessScore(song);
-        
-        // Find if this song exists already (by title)
-        const match = existingMaster?.find(m => m.title.toLowerCase() === title.toLowerCase());
-
-        const payload = {
-          user_id: user.id,
-          title,
-          artist,
-          original_key: song.originalKey || null,
-          bpm: song.bpm || null,
-          genre: song.genre || (song.user_tags?.[0]) || null,
-          readiness_score: score,
-          is_active: true
-        };
-
-        if (match) {
-          // Update the existing record if we found a match by title
-          uniqueRepertoireMap.set(match.id, { ...payload, id: match.id });
-        } else {
-          // Insert as new
-          uniqueRepertoireMap.set(`${title}-${artist}`.toLowerCase(), payload);
-        }
-      });
-
-      const finalData = Array.from(uniqueRepertoireMap.values());
-
-      const { error } = await supabase
-        .from('repertoire')
-        .upsert(finalData, { 
-          onConflict: 'id', // Use ID as the conflict target for updates
-          ignoreDuplicates: false 
-        });
-
-      if (error) throw error;
-      showSuccess(`Master Sync Complete: ${finalData.length} records updated.`);
-    } catch (err: any) {
-      console.error("Sync Error:", err);
-      showError(`Sync failed: ${err.message || 'Server Error'}`);
-    } finally {
-      setIsBulkSyncing(false);
-    }
-  };
-
   const saveList = async (listId: string, updatedSongs: SetlistSong[], updates: Partial<any> = {}) => {
     if (!user) return;
     setIsSaving(true);
@@ -244,8 +168,13 @@ const Index = () => {
         })
         .eq('id', listId);
       if (error) throw error;
+
+      // HEADLESS SYNC: Automatically propagate the updated list to the Master Repertoire
+      if (user) {
+        syncToMasterRepertoire(user.id, updatedSongs);
+      }
     } catch (err) {
-      // Handled
+      // Silent error
     } finally {
       setIsSaving(false);
     }
@@ -255,16 +184,10 @@ const Index = () => {
     if (!currentListId) return;
     setSetlists(prev => prev.map(l => l.id === currentListId ? { ...l, time_goal: seconds } : l));
     await saveList(currentListId, songs, { time_goal: seconds });
-    showSuccess(`Gig goal updated to ${seconds / 3600} hours`);
   };
 
-  const handleBulkSync = async (songsToSync: SetlistSong[], fromQueue = false) => {
-    if (!currentListId || songsToSync.length === 0) return;
-
-    if (!fromQueue) {
-      setSyncQueue(prev => [...new Set([...prev, ...songsToSync.map(s => s.id)])]);
-      return;
-    }
+  const handleBatchSyncInternal = async (songsToSync: SetlistSong[]) => {
+    if (!currentListId || !user) return;
 
     setSetlists(prev => prev.map(l => l.id === currentListId ? {
       ...l,
@@ -588,14 +511,10 @@ const Index = () => {
                     Enrich
                   </button>
                   <div className="h-1 w-1 rounded-full bg-slate-300 shrink-0" />
-                  <button 
-                    onClick={handleBulkRepertoireSync}
-                    disabled={isBulkSyncing || !songs.length}
-                    className="text-[10px] font-black uppercase text-emerald-600 hover:text-emerald-500 flex items-center gap-1.5 transition-colors disabled:opacity-50 whitespace-nowrap"
-                  >
-                    {isBulkSyncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Library className="w-3 h-3" />}
-                    Push Master
-                  </button>
+                  <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+                    <ShieldCheck className="w-3 h-3 text-emerald-500" />
+                    <span className="text-[9px] font-black uppercase text-emerald-600 tracking-widest">Headless Sync Active</span>
+                  </div>
                 </div>
               </div>
               <ImportSetlist onImport={(newSongs) => {
