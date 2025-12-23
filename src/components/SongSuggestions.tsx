@@ -15,11 +15,14 @@ interface SongSuggestionsProps {
   onSelectSuggestion: (query: string) => void;
 }
 
+// Global session cache to persist suggestions and "first load" status across tab remounts
+let sessionSuggestionsCache: any[] | null = null;
+let sessionInitialLoadAttempted = false;
+
 const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectSuggestion }) => {
-  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [suggestions, setSuggestions] = useState<any[]>(sessionSuggestionsCache || []);
   const [isLoading, setIsLoading] = useState(false);
   const [seedSongId, setSeedSongId] = useState<string | null>(null);
-  const initialLoadAttempted = useRef(false);
 
   const seedSong = useMemo(() => 
     repertoire.find(s => s.id === seedSongId), 
@@ -46,7 +49,8 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
       });
 
       setSuggestions(filtered);
-      initialLoadAttempted.current = true;
+      sessionSuggestionsCache = filtered;
+      sessionInitialLoadAttempted = true;
     } catch (err) {
       console.error("Failed to fetch suggestions", err);
     } finally {
@@ -54,9 +58,9 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
     }
   };
 
-  // Initial load only
+  // Automated load trigger: Only executes if we have never loaded suggestions this session
   useEffect(() => {
-    if (repertoire.length > 0 && !initialLoadAttempted.current && suggestions.length === 0) {
+    if (repertoire.length > 0 && !sessionInitialLoadAttempted && suggestions.length === 0) {
       fetchSuggestions();
     }
   }, [repertoire]);
