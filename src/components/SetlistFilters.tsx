@@ -30,7 +30,7 @@ export interface FilterState {
   hasPdf: 'all' | 'yes' | 'no';
   hasUg: 'all' | 'yes' | 'no';
   isConfirmed: 'all' | 'yes' | 'no';
-  readiness: number; // 0 to 100
+  readiness: number; 
 }
 
 const DEFAULT_FILTERS: FilterState = {
@@ -153,6 +153,29 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
           </DropdownMenuContent>
         </DropdownMenu>
 
+        {/* Video Toggle */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className={cn(
+                "h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-tight gap-2 border transition-all",
+                activeFilters.hasVideo !== 'all' ? "bg-red-600 text-white shadow-lg" : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-500"
+              )}
+            >
+              <Youtube className="w-3.5 h-3.5" /> Video <ChevronDown className="w-3 h-3 opacity-50" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-slate-950 border-white/10 text-white">
+            <DropdownMenuRadioGroup value={activeFilters.hasVideo} onValueChange={(v) => onFilterChange({ ...activeFilters, hasVideo: v as any })}>
+              <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Has Video</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-10 rounded-xl text-red-400">Missing Video</DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         {/* PDF Toggle */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -233,6 +256,15 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
               onClick={() => onFilterChange({ ...activeFilters, hasAudio: 'all' })}
             >
               Audio: {activeFilters.hasAudio} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
+            </Badge>
+          )}
+          {activeFilters.hasVideo !== 'all' && (
+            <Badge 
+              variant="secondary" 
+              className="bg-red-50 text-red-600 border-red-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-red-50 hover:text-red-600 transition-all group"
+              onClick={() => onFilterChange({ ...activeFilters, hasVideo: 'all' })}
+            >
+              Video: {activeFilters.hasVideo} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
             </Badge>
           )}
           {activeFilters.hasPdf !== 'all' && (

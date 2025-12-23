@@ -37,7 +37,7 @@ interface PerformanceOverlayProps {
   analyzer: any;
 }
 
-type ViewMode = 'visualizer' | 'video' | 'pdf' | 'lyrics';
+type ViewMode = 'visualizer' | 'pdf' | 'lyrics';
 
 const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
   songs,
@@ -77,16 +77,20 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
   const nextPref = nextSong?.key_preference || globalPreference;
   const keysToUse = currentPref === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
 
-  // ESC key listener to exit performance mode
+  // Key listener for Space bar and ESC
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onClose();
       }
+      if (e.code === 'Space') {
+        e.preventDefault();
+        onTogglePlayback();
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  }, [onClose, onTogglePlayback]);
 
   // Wall Clock and Set Timer logic
   useEffect(() => {
@@ -134,8 +138,8 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
   );
   
   const hasTimestamps = lyricsSections.some(s => s.time >= 0);
-  const currentTime = (progress / 100) * duration;
-  const adjustedTime = currentTime * scrollSpeed;
+  const currentTimeValue = (progress / 100) * duration;
+  const adjustedTime = currentTimeValue * scrollSpeed;
 
   useEffect(() => {
     const container = lyricsContainerRef.current;
@@ -150,7 +154,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
       if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
       scrollTimeoutRef.current = setTimeout(() => {
         isUserScrolling.current = false;
-      }, 3000); // 3 second delay after manual interaction stops before resuming auto-scroll
+      }, 3000); 
     };
 
     container.addEventListener('wheel', handleUserInteractionStart, { passive: true });
@@ -215,17 +219,8 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
     setAutoScrollEnabled(true);
     if (currentSong?.lyrics) setViewMode('lyrics');
     else if (currentSong?.pdfUrl) setViewMode('pdf');
-    else if (currentSong?.youtubeUrl) setViewMode('video');
     else setViewMode('visualizer');
   }, [currentSong]);
-
-  const getYoutubeId = (url: string) => {
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-    const match = url.match(regExp);
-    return (match && match[2].length === 11) ? match[2] : null;
-  };
-
-  const videoId = currentSong?.youtubeUrl ? getYoutubeId(currentSong.youtubeUrl) : null;
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -270,7 +265,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
               <div className="flex items-center gap-2 md:gap-4">
                 <span className="text-lg md:text-2xl font-black uppercase tracking-tight">Active Stage</span>
                 <div className="flex gap-1">
-                  {songs.slice(0, 10).map((_, i) => (
+                  {songs.map((_, i) => (
                     <div 
                       key={i} 
                       className={cn(
@@ -311,7 +306,6 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
             {[
               { id: 'visualizer', label: 'Matrix', icon: Waves, color: 'bg-indigo-600' },
               { id: 'lyrics', label: 'Lyrics', icon: AlignLeft, color: 'bg-pink-600', disabled: !currentSong?.lyrics },
-              { id: 'video', label: 'Video', icon: Youtube, color: 'bg-red-600', disabled: !videoId },
               { id: 'pdf', label: 'Chart', icon: FileText, color: 'bg-emerald-600', disabled: !currentSong?.pdfUrl }
             ].map((mode) => (
               <Button 
@@ -412,19 +406,6 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
                     );
                   })}
                 </div>
-              </div>
-            )}
-
-            {viewMode === 'video' && videoId && (
-              <div className="h-full w-full bg-black rounded-[2rem] md:rounded-[4rem] overflow-hidden shadow-2xl border-2 md:border-4 border-white/5">
-                <iframe 
-                  width="100%" height="100%" 
-                  src={`https://www.youtube.com/embed/${videoId}?autoplay=1&mute=0&rel=0&modestbranding=1&showinfo=0`}
-                  title="Reference Video"
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
               </div>
             )}
 
@@ -577,7 +558,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
       {/* Bottom Performance Footer */}
       <div className="h-24 md:h-28 border-t border-white/10 bg-slate-900/90 backdrop-blur-2xl px-6 md:px-12 flex items-center justify-between shrink-0 relative z-50">
         <div className="hidden sm:flex items-center gap-6 md:gap-10 text-sm font-mono min-w-[280px] md:min-w-[320px]">
-          <span className="text-lg md:text-2xl font-black text-indigo-400">{formatTime(currentTime)}</span>
+          <span className="text-lg md:text-2xl font-black text-indigo-400">{formatTime(currentTimeValue)}</span>
           <div className="flex-1 w-40 md:w-64 space-y-2">
              <Progress value={progress} className="h-2 md:h-3 bg-white/5" />
              <div className="flex justify-between text-[8px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest">
