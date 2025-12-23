@@ -51,6 +51,12 @@ const Index = () => {
   const activeSongIndex = songs.findIndex(s => s.id === activeSongId);
   const activeSong = songs[activeSongIndex] || null;
 
+  // Utility to check if audio is just an iTunes sample
+  const isPlayableMaster = (song: SetlistSong) => {
+    if (!song.previewUrl) return false;
+    return !song.previewUrl.includes('apple.com') && !song.previewUrl.includes('itunes-assets');
+  };
+
   useEffect(() => {
     if (user) {
       fetchSetlists();
@@ -130,11 +136,8 @@ const Index = () => {
     try {
       let finalSongs = updatedSongs;
       
-      // Only sync specific songs with master repertoire if provided
       if (songsToSync && songsToSync.length > 0) {
         const syncedBatch = await syncToMasterRepertoire(user.id, songsToSync);
-        
-        // Merge synced songs back into the full list
         finalSongs = updatedSongs.map(s => {
           const synced = syncedBatch.find(sb => sb.id === s.id);
           return synced || s;
@@ -175,7 +178,6 @@ const Index = () => {
       const updatedSongs = list.songs.map(s => s.id === songId ? { ...s, ...updates } : s);
       const updatedSong = updatedSongs.find(s => s.id === songId);
 
-      // Determine if we should sync this specific song to master repertoire
       const masterFields = ['name', 'artist', 'previewUrl', 'youtubeUrl', 'originalKey', 'targetKey', 'pitch', 'bpm', 'lyrics', 'pdfUrl', 'ugUrl', 'isMetadataConfirmed', 'isKeyConfirmed'];
       const needsMasterSync = Object.keys(updates).some(key => masterFields.includes(key));
       
@@ -268,7 +270,7 @@ const Index = () => {
   };
 
   const handleNextSong = async () => {
-    const playable = songs.filter(s => !!s.previewUrl);
+    const playable = songs.filter(isPlayableMaster);
     const currIdx = playable.findIndex(s => s.id === activeSongId);
     if (currIdx !== -1 && currIdx < playable.length - 1) {
       handleSelectSong(playable[currIdx + 1]);
@@ -282,35 +284,28 @@ const Index = () => {
   };
 
   const handlePreviousSong = () => {
-    const playable = songs.filter(s => !!s.previewUrl);
+    const playable = songs.filter(isPlayableMaster);
     const currIdx = playable.findIndex(s => s.id === activeSongId);
     if (currIdx > 0) handleSelectSong(playable[currIdx - 1]);
   };
 
   const handleShuffle = () => {
     if (!currentListId || songs.length < 2) return;
-    
-    // We keep the active song where it is and shuffle the rest
     const shuffled = [...songs];
     const currentIndex = shuffled.findIndex(s => s.id === activeSongId);
-    
-    // Simple Fisher-Yates shuffle for everything EXCEPT the current song
     for (let i = shuffled.length - 1; i > 0; i--) {
       if (i === currentIndex) continue;
-      
       let j = Math.floor(Math.random() * (i + 1));
       while (j === currentIndex) j = Math.floor(Math.random() * (i + 1));
-      
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
-    
     saveList(currentListId, shuffled);
     showSuccess("Setlist Shuffled");
   };
 
   const startPerformance = async () => {
-    const first = songs.find(s => !!s.previewUrl);
-    if (!first) { showError("No audio tracks found."); return; }
+    const first = songs.find(isPlayableMaster);
+    if (!first) { showError("No full audio tracks found."); return; }
     setIsPerformanceMode(true);
     handleSelectSong(first);
     setTimeout(() => transposerRef.current?.togglePlayback(), 1000);
@@ -323,7 +318,6 @@ const Index = () => {
         body: { queries: batchSongs.map(s => `${s.name} by ${s.artist}`) }
       });
       if (error) throw error;
-      
       const syncedSongs: SetlistSong[] = [];
       const updatedSongs = songs.map(s => {
         const aiData = data.find((d: any) => d.name.toLowerCase() === s.name.toLowerCase());
@@ -335,7 +329,6 @@ const Index = () => {
         }
         return s;
       });
-      
       saveList(currentListId, updatedSongs, {}, syncedSongs);
     } catch (err) {}
   };
@@ -428,7 +421,7 @@ const Index = () => {
       </div>
       <PreferencesModal isOpen={isPreferencesOpen} onClose={() => setIsPreferencesOpen(false)} />
       {isPerformanceMode && (
-        <PerformanceOverlay songs={songs.filter(s => !!s.previewUrl)} currentIndex={songs.filter(s => !!s.previewUrl).findIndex(s => s.id === activeSongId)} isPlaying={isPlayerActive} progress={performanceState.progress} duration={performanceState.duration} onTogglePlayback={() => transposerRef.current?.togglePlayback()} onNext={handleNextSong} onPrevious={handlePreviousSong} onShuffle={handleShuffle} onClose={() => { setIsPerformanceMode(false); setActiveSongId(null); transposerRef.current?.stopPlayback(); }} onUpdateKey={handleUpdateKey} onUpdateSong={handleUpdateSong} analyzer={transposerRef.current?.getAnalyzer()} />
+        <PerformanceOverlay songs={songs.filter(isPlayableMaster)} currentIndex={songs.filter(isPlayableMaster).findIndex(s => s.id === activeSongId)} isPlaying={isPlayerActive} progress={performanceState.progress} duration={performanceState.duration} onTogglePlayback={() => transposerRef.current?.togglePlayback()} onNext={handleNextSong} onPrevious={handlePreviousSong} onShuffle={handleShuffle} onClose={() => { setIsPerformanceMode(false); setActiveSongId(null); transposerRef.current?.stopPlayback(); }} onUpdateKey={handleUpdateKey} onUpdateSong={handleUpdateSong} analyzer={transposerRef.current?.getAnalyzer()} />
       )}
       {!isStudioOpen && !isPerformanceMode && (<button onClick={() => setIsStudioOpen(true)} className="fixed right-0 top-1/2 -translate-y-1/2 z-[40] bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border-y border-l border-slate-300 dark:border-slate-700 rounded-l-2xl py-8 px-2 transition-all group flex items-center justify-center shadow-[-4px_0_15px_rgba(0,0,0,0.1)]" title="Open Song Studio"><Music className="w-5 h-5 text-slate-500 group-hover:text-indigo-600 transition-colors" /></button>)}
     </div>
