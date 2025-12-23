@@ -115,74 +115,69 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const currentKeyPreference = formData.key_preference || globalPreference;
   const keysToUse = currentKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
 
-  const readiness = useMemo(() => {
+  const calculateReadiness = (s: Partial<SetlistSong>) => {
     let score = 0;
-    const isItunes = formData.previewUrl?.includes('apple.com') || formData.previewUrl?.includes('itunes-assets');
+    const preview = s.previewUrl || "";
+    const isItunes = preview.includes('apple.com') || preview.includes('itunes-assets');
     
-    if (formData.previewUrl && !isItunes) score += 25; 
-    if (formData.isKeyConfirmed) score += 20; 
-    if (formData.lyrics?.length && formData.lyrics.length > 20) score += 15; 
-    if (formData.pdfUrl || formData.leadsheetUrl) score += 15; 
-    if (formData.ugUrl) score += 10; 
-    if (formData.bpm) score += 5; 
-    if (formData.notes?.length && formData.notes.length > 10) score += 5; 
-    if (formData.artist && formData.artist !== "Unknown Artist") score += 5; 
+    if (preview && !isItunes) score += 25; 
+    if (s.isKeyConfirmed) score += 20; 
+    if ((s.lyrics || "").length > 20) score += 15; 
+    if (s.pdfUrl || s.leadsheetUrl) score += 15; 
+    if (s.ugUrl) score += 10; 
+    if (s.bpm) score += 5; 
+    if ((s.notes || "").length > 10) score += 5; 
+    if (s.artist && s.artist !== "Unknown Artist") score += 5; 
     return Math.min(100, score);
-  }, [formData]);
+  };
 
+  const readiness = useMemo(() => calculateReadiness(formData), [formData]);
   const readinessColor = readiness === 100 ? 'bg-emerald-500' : readiness > 60 ? 'bg-indigo-500' : 'bg-slate-500';
-
-  const saveTimeoutRef = useRef<NodeJS.Timeout>();
 
   const syncToMasterRepertoire = useCallback(async (updates: Partial<SetlistSong>) => {
     if (!user || !song) return;
     
-    // Check if this song exists in the repertoire table
+    // Smart Lookup: Find by exact title or ID if we ever add that. 
+    // This handles the case where Artist was previously 'Unknown Artist'
     const { data: existing } = await supabase
       .from('repertoire')
-      .select('id')
+      .select('id, title, artist')
       .eq('user_id', user.id)
-      .eq('title', updates.name || song.name)
-      .eq('artist', updates.artist || song.artist || 'Unknown Artist')
+      .eq('title', updates.name || formData.name || song.name)
       .maybeSingle();
 
     if (existing) {
-      const masterUpdates: any = {};
-      if (updates.originalKey) masterUpdates.original_key = updates.originalKey;
-      if (updates.bpm) masterUpdates.bpm = updates.bpm;
-      if (updates.genre) masterUpdates.genre = updates.genre;
+      const currentFullData = { ...formData, ...updates };
+      const masterUpdates: any = {
+        title: currentFullData.name || existing.title,
+        artist: currentFullData.artist || existing.artist,
+        original_key: currentFullData.originalKey,
+        bpm: currentFullData.bpm,
+        genre: currentFullData.genre || (currentFullData.user_tags?.[0]),
+        readiness_score: calculateReadiness(currentFullData),
+        updated_at: new Date().toISOString()
+      };
       
-      // Always recalculate readiness score for master
-      let score = 0;
-      const finalName = updates.name || song.name;
-      const finalArtist = updates.artist || song.artist;
-      const finalPreview = updates.previewUrl || song.previewUrl;
-      const isItunes = finalPreview?.includes('apple.com') || finalPreview?.includes('itunes-assets');
-      
-      if (finalPreview && !isItunes) score += 25;
-      if (updates.isKeyConfirmed ?? song.isKeyConfirmed) score += 20;
-      if ((updates.lyrics || song.lyrics || "").length > 20) score += 15;
-      if (updates.pdfUrl || song.pdfUrl) score += 15;
-      if (updates.ugUrl || song.ugUrl) score += 10;
-      if (updates.bpm || song.bpm) score += 5;
-      if (finalArtist && finalArtist !== "Unknown Artist") score += 5;
-      
-      masterUpdates.readiness_score = score;
-
       await supabase.from('repertoire').update(masterUpdates).eq('id', existing.id);
     }
-  }, [user, song]);
+  }, [user, song, formData]);
 
+  const saveTimeoutRef = useRef<NodeJS.Timeout>();
   const handleAutoSave = (updates: Partial<SetlistSong>) => {
-    setFormData(prev => ({ ...prev, ...updates }));
-    
-    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    saveTimeoutRef.current = setTimeout(() => {
-      if (song) {
-        onSave(song.id, updates);
-        syncToMasterRepertoire(updates);
-      }
-    }, 800);
+    setFormData(prev => {
+      const next = { ...prev, ...updates };
+      
+      // Auto-save logic
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = setTimeout(() => {
+        if (song) {
+          onSave(song.id, updates);
+          syncToMasterRepertoire(updates);
+        }
+      }, 800);
+
+      return next;
+    });
   };
 
   const cleanupAudio = () => {
@@ -570,7 +565,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         .getPublicUrl(fileName);
       
       if (isAudio) {
-        // Force immediate update to formData before prepareAudio
         const nextData = { ...formData, previewUrl: publicUrl };
         setFormData(nextData);
         handleAutoSave({ previewUrl: publicUrl });
@@ -600,7 +594,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
 
   useEffect(() => {
     if (song && isOpen) {
-      setFormData({
+      const initialData = {
         name: song.name || "",
         artist: song.artist || "",
         bpm: song.bpm || "",
@@ -622,7 +616,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         duration_seconds: song.duration_seconds || 0,
         key_preference: song.key_preference,
         isMetadataConfirmed: song.isMetadataConfirmed
-      });
+      };
+      setFormData(initialData);
       
       checkRepertoireStatus();
       if (song.previewUrl) {
@@ -641,8 +636,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       .from('repertoire')
       .select('id')
       .eq('user_id', user.id)
-      .eq('title', song.name)
-      .eq('artist', song.artist || 'Unknown Artist')
+      .eq('title', formData.name || song.name)
       .maybeSingle();
     setIsInRepertoire(!!data);
   };
@@ -658,7 +652,9 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
           artist: formData.artist || song.artist || 'Unknown Artist',
           original_key: formData.originalKey,
           bpm: formData.bpm,
-          genre: formData.genre || (formData.user_tags?.[0])
+          genre: formData.genre || (formData.user_tags?.[0]),
+          readiness_score: readiness,
+          is_active: true
         });
       if (error) throw error;
       setIsInRepertoire(true);
@@ -1123,6 +1119,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                             if (song) {
                               onSave(song.id, { pitch: newPitch, targetKey: newTargetKey });
                               onUpdateKey(song.id, newTargetKey);
+                              syncToMasterRepertoire({ pitch: newPitch, targetKey: newTargetKey });
                             }
                           }}
                         />
@@ -1576,7 +1573,20 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              onClick={() => handleDownloadAsset(formData.pdfUrl, `${formData.name}_chart`)}
+                              onClick={async () => {
+                                if (formData.pdfUrl) {
+                                  const response = await fetch(formData.pdfUrl);
+                                  const blob = await response.blob();
+                                  const url = window.URL.createObjectURL(blob);
+                                  const link = document.createElement('a');
+                                  link.href = url;
+                                  link.download = `${formData.name}_chart.pdf`;
+                                  document.body.appendChild(link);
+                                  link.click();
+                                  document.body.removeChild(link);
+                                  window.URL.revokeObjectURL(url);
+                                }
+                              }}
                               className="h-10 w-10 bg-white/5 rounded-xl hover:bg-emerald-600 transition-all"
                             >
                               <Download className="w-4 h-4" />
