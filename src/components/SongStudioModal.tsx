@@ -806,7 +806,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
         className={cn(
-          "max-w-[95vw] w-[1400px] max-h-[95vh] p-0 overflow-hidden border-none shadow-2xl bg-slate-950 text-white md:rounded-[2rem]",
+          "max-w-[95vw] w-[1400px] max-h-[95vh] p-0 overflow-hidden border-none shadow-2xl bg-slate-950 text-white md:rounded-[2rem] z-[200]",
           isMobile ? "w-full max-w-none h-[100dvh] max-h-none rounded-none" : ""
         )}
         onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
