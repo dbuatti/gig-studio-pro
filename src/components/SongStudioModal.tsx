@@ -53,14 +53,14 @@ const StudioInput = memo(({ label, value, onChange, placeholder, className, isTe
   const Comp = isTextarea ? Textarea : Input;
 
   return (
-    <div className="space-y-4">
+    <div className={cn("space-y-4", isTextarea && "flex-1 flex flex-col h-full")}>
       {label && <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">{label}</Label>}
       <Comp
         type={type}
         placeholder={placeholder}
         value={localValue}
         onChange={(e: any) => handleChange(e.target.value)}
-        className={className}
+        className={cn(className, isTextarea && "flex-1")}
       />
     </div>
   );
@@ -959,7 +959,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                 </div>
               )}
             </div>
-            <div className={cn("flex-1 overflow-y-auto relative", isMobile ? "p-4" : "p-12")}>
+            <div className={cn("flex-1 overflow-y-auto relative flex flex-col", isMobile ? "p-4" : "p-12")}>
               {activeTab === 'config' && isMobile && (
                 <div className="space-y-6 animate-in fade-in duration-500">
                   <div className="p-6 bg-white/5 rounded-3xl border border-white/10 space-y-4">
@@ -1007,7 +1007,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                     <Button
                       variant="outline"
                       onClick={handleYoutubeSearch}
-                      className="bg-red-600/10 border-red-600/20 text-red-600 hover:bg-red-600 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 gap-2 px-4 md:px-6 rounded-xl"
+                      className="bg-red-600/10 border-red-600/20 text-red-600 hover:bg-red-600 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 gap-2 px-4 md:px-6 rounded-xl min-w-[140px]"
                     >
                       <Youtube className="w-3.5 h-3.5" /> Discovery
                     </Button>
@@ -1222,7 +1222,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          className="h-10 md:h-12 border-white/10 text-slate-400 hover:bg-white/10 px-4 rounded-xl font-bold text-[10px] uppercase gap-2 shrink-0"
+                          className="h-10 md:h-12 border-white/10 text-slate-400 hover:bg-white/10 px-4 rounded-xl font-bold text-[10px] uppercase gap-2 shrink-0 min-w-[120px]"
                           onClick={() => {
                             const query = encodeURIComponent(`${formData.artist} ${formData.name} sheet music pdf`);
                             window.open(`https://www.google.com/search?q=${query}`, '_blank');
@@ -1244,7 +1244,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          className="h-10 md:h-12 border-white/10 text-orange-400 hover:bg-orange-600/10 px-4 rounded-xl font-bold text-[10px] uppercase gap-2 shrink-0"
+                          className="h-10 md:h-12 border-white/10 text-orange-400 hover:bg-orange-600/10 px-4 rounded-xl font-bold text-[10px] uppercase gap-2 shrink-0 min-w-[120px]"
                           onClick={() => {
                             const query = encodeURIComponent(`${formData.artist} ${formData.name} chords`);
                             window.open(`https://www.ultimate-guitar.com/search.php?search_type=title&value=${query}`, '_blank');
@@ -1318,8 +1318,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                 </div>
               )}
               {activeTab === 'lyrics' && (
-                <div className="space-y-6 md:space-y-10 animate-in fade-in duration-500 h-full flex flex-col">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-6 md:space-y-10 animate-in fade-in duration-500 h-full flex flex-col flex-1">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
                     <div>
                       <h3 className="text-sm md:text-lg font-black uppercase tracking-[0.3em] text-pink-400">Lyrics Engine</h3>
                       <p className="text-xs md:text-sm text-slate-500 mt-1">Stage teleprompter source data.</p>
@@ -1328,7 +1328,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       <Button
                         variant="outline"
                         onClick={handleLyricsSearch}
-                        className="bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 gap-2 px-4 md:px-6 rounded-xl"
+                        className="bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 gap-2 px-4 md:px-6 rounded-xl min-w-[140px]"
                       >
                         <Search className="w-3.5 h-3.5" /> Find Lyrics
                       </Button>
@@ -1336,7 +1336,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                         variant="outline"
                         onClick={handleMagicFormatLyrics}
                         disabled={isFormattingLyrics || !formData.lyrics}
-                        className="bg-indigo-600/10 border-indigo-600/20 text-indigo-600 hover:bg-indigo-600 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 gap-2 px-4 md:px-6 rounded-xl"
+                        className="bg-indigo-600/10 border-indigo-600/20 text-indigo-600 hover:bg-indigo-600 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 gap-2 px-4 md:px-6 rounded-xl min-w-[140px]"
                       >
                         {isFormattingLyrics ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
                         Magic Format
@@ -1349,7 +1349,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       placeholder="Paste lyrics here..."
                       value={formData.lyrics}
                       onChange={(val: string) => handleAutoSave({ lyrics: val })}
-                      className={cn("h-full bg-white/5 border-white/10 text-lg md:text-xl leading-relaxed p-6 md:p-10 font-medium whitespace-pre-wrap", isMobile ? "min-h-[300px] rounded-2xl" : "min-h-[400px] rounded-[2.5rem]")}
+                      className={cn("bg-white/5 border-white/10 text-lg md:text-xl leading-relaxed p-6 md:p-10 font-medium whitespace-pre-wrap h-full", isMobile ? "rounded-2xl" : "rounded-[2.5rem]")}
                     />
                   </div>
                 </div>
@@ -1358,7 +1358,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                 <div className="space-y-6 md:space-y-12 animate-in fade-in duration-500">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                      <h3 className="text-sm md:text-lg font-black uppercase tracking-[0.3em] text-indigo-400">Reference Media</h3>
+                      <h3 className="text-sm md:text-lg font-black uppercase tracking-[0.2em] text-indigo-400">Reference Media</h3>
                       <p className="text-xs md:text-sm text-slate-500 mt-1">YouTube performance video or audio master link.</p>
                     </div>
                   </div>
@@ -1372,7 +1372,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                      <Button
                         variant="outline"
                         onClick={handleYoutubeSearch}
-                        className="bg-red-600/10 border-red-600/20 text-red-600 hover:bg-red-600 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 md:h-12 gap-2 px-4 md:px-6 rounded-xl shrink-0"
+                        className="bg-red-600/10 border-red-600/20 text-red-600 hover:bg-red-600 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 md:h-12 gap-2 px-4 md:px-6 rounded-xl shrink-0 min-w-[140px]"
                       >
                         <Youtube className="w-3.5 h-3.5" /> Discover
                       </Button>
