@@ -29,14 +29,16 @@ serve(async (req) => {
     }
 
     const songList = repertoire.map((s: any) => `${s.name || 'Unknown'} - ${s.artist || 'Unknown'}`).join(', ');
+    
+    // Updated prompt with explicit exclusion instruction
     const prompt = `Act as a professional music curator. Based on this repertoire: [${songList}], suggest 10 similar songs that would fit this artist's style. 
+    CRITICAL: Do NOT suggest any songs that are already in the list provided above. Suggest entirely new tracks.
     Return ONLY a JSON array of objects: [{"name": "Song Title", "artist": "Artist Name", "reason": "Short reason why"}]. No markdown.`;
 
     let lastError = null;
 
     for (const apiKey of keys) {
       try {
-        // Updated to gemini-2.5-flash-lite and stable v1
         const endpoint = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`;
         
         const response = await fetch(endpoint, {

@@ -22,11 +22,19 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
     setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('suggest-songs', {
-        body: { repertoire: repertoire.slice(0, 20) } // Send a sample to stay within token limits
+        body: { repertoire: repertoire.slice(0, 20) } 
       });
 
       if (error) throw error;
-      setSuggestions(data || []);
+      
+      // Secondary filter to remove any hallunicated duplicates that AI might have missed
+      const existingKeys = new Set(repertoire.map(s => `${s.name.toLowerCase()}-${(s.artist || "").toLowerCase()}`));
+      const filtered = (data || []).filter((s: any) => {
+        const key = `${s.name.toLowerCase()}-${s.artist.toLowerCase()}`;
+        return !existingKeys.has(key);
+      });
+
+      setSuggestions(filtered);
     } catch (err) {
       console.error("Failed to fetch suggestions", err);
     } finally {
@@ -75,32 +83,39 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Analyzing your sonic profile...</p>
             </div>
           ) : (
-            suggestions.map((song, i) => (
-              <div 
-                key={i}
-                className="group p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl hover:border-indigo-200 transition-all shadow-sm"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <h4 className="text-sm font-black uppercase tracking-tight truncate">{song.name}</h4>
-                    <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mt-0.5">{song.artist}</p>
-                    {song.reason && (
-                      <p className="text-[9px] text-slate-400 font-bold uppercase mt-2 leading-relaxed">
-                        {song.reason}
-                      </p>
-                    )}
+            suggestions.length > 0 ? (
+              suggestions.map((song, i) => (
+                <div 
+                  key={i}
+                  className="group p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl hover:border-indigo-200 transition-all shadow-sm"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <h4 className="text-sm font-black uppercase tracking-tight truncate">{song.name}</h4>
+                      <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mt-0.5">{song.artist}</p>
+                      {song.reason && (
+                        <p className="text-[9px] text-slate-400 font-bold uppercase mt-2 leading-relaxed">
+                          {song.reason}
+                        </p>
+                      )}
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => onSelectSuggestion(`${song.artist} ${song.name}`)}
+                      className="h-10 w-10 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white shrink-0"
+                    >
+                      <Search className="w-4 h-4" />
+                    </Button>
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => onSelectSuggestion(`${song.artist} ${song.name}`)}
-                    className="h-10 w-10 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white shrink-0"
-                  >
-                    <Search className="w-4 h-4" />
-                  </Button>
                 </div>
+              ))
+            ) : (
+              <div className="py-20 text-center opacity-30">
+                <Sparkles className="w-10 h-10 mb-4 mx-auto" />
+                <p className="text-[10px] font-black uppercase tracking-[0.2em]">Discovery engine complete.</p>
               </div>
-            ))
+            )
           )}
         </div>
       </ScrollArea>
