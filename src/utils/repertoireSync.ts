@@ -47,7 +47,7 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       notes: song.notes || null,
       pitch: song.pitch || 0,
       ug_url: song.ugUrl || null,
-      pdf_url: song.pdf_url || null,
+      pdf_url: song.pdfUrl || null,
       leadsheet_url: song.leadsheetUrl || null,
       youtube_url: song.youtubeUrl || null,
       preview_url: song.previewUrl || null,
