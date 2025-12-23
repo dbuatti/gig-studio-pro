@@ -19,15 +19,11 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
   // Deduplicate and filter songs
   const processedSongs = useMemo(() => {
     const q = searchTerm.toLowerCase();
-    
-    // Use a Map to keep only the 'best' version of each song title
     const uniqueMap = new Map();
     
     songs.forEach(s => {
       const title = (s.title || s.name || "").trim();
       const existing = uniqueMap.get(title);
-      
-      // If we have a duplicate, keep the one that isn't 'Unknown Artist'
       if (!existing || (existing.artist === 'Unknown Artist' && s.artist !== 'Unknown Artist')) {
         uniqueMap.set(title, s);
       }
@@ -41,11 +37,25 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
 
   const groupedSongs = useMemo(() => {
     if (sortMode === 'alphabetical') {
-      return [...processedSongs].sort((a, b) => {
+      const sorted = [...processedSongs].sort((a, b) => {
         const titleA = (a.title || a.name || "").replace(/^(the |a |an )/i, '');
         const titleB = (b.title || b.name || "").replace(/^(the |a |an )/i, '');
         return titleA.localeCompare(titleB);
       });
+
+      const alphaGroups: Record<string, any[]> = {};
+      sorted.forEach(s => {
+        const title = (s.title || s.name || "").replace(/^(the |a |an )/i, '');
+        const letter = title[0]?.toUpperCase() || '#';
+        const groupKey = /^[A-Z]/.test(letter) ? letter : '#';
+        if (!alphaGroups[groupKey]) alphaGroups[groupKey] = [];
+        alphaGroups[groupKey].push(s);
+      });
+
+      return Object.entries(alphaGroups).map(([letter, items]) => ({
+        letter,
+        songs: items
+      }));
     }
 
     const groups: Record<string, any[]> = {};
@@ -153,44 +163,30 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
               <p className="text-[10px] font-black uppercase tracking-[0.3em]">No Public Tracks Available</p>
             </div>
           ) : (
-            sortMode === 'artist' ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-16">
-                {(groupedSongs as any[]).map((group) => (
-                  <section key={group.artist} className="space-y-4">
-                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40 border-b border-white/5 pb-2" style={{ color: colors.primary }}>
-                      {group.artist}
-                    </h3>
-                    <div className="flex flex-col gap-2.5">
-                      {group.songs.map((song: any) => (
-                        <div key={song.id} className="flex items-center justify-between group py-0.5">
-                          <span className="text-[13px] font-bold tracking-tight group-hover:translate-x-1 transition-transform">{song.title || song.name}</span>
-                          {song.genre && <span className="text-[8px] font-black uppercase opacity-20 ml-4 shrink-0">{song.genre}</span>}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-16">
+              {(groupedSongs as any[]).map((group) => (
+                <section key={sortMode === 'artist' ? group.artist : group.letter} className="space-y-4">
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40 border-b border-white/5 pb-2" style={{ color: colors.primary }}>
+                    {sortMode === 'artist' ? group.artist : group.letter}
+                  </h3>
+                  <div className="flex flex-col gap-2.5">
+                    {group.songs.map((song: any) => (
+                      <div key={song.id} className="flex items-center justify-between group py-0.5">
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-[13px] font-bold tracking-tight group-hover:translate-x-1 transition-transform truncate">
+                            {song.title || song.name}
+                          </span>
+                          {sortMode === 'alphabetical' && song.artist && song.artist !== 'Unknown Artist' && (
+                            <span className="text-[8px] font-black uppercase opacity-20 tracking-widest truncate">{song.artist}</span>
+                          )}
                         </div>
-                      ))}
-                    </div>
-                  </section>
-                ))}
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-6">
-                {(groupedSongs as any[]).map((song) => {
-                  const artistName = song.artist || "";
-                  const isUnknown = !artistName || artistName.toLowerCase() === "unknown artist";
-                  
-                  return (
-                    <div key={song.id} className="flex items-center justify-between py-2 border-b border-white/5 group">
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-sm font-bold tracking-tight truncate group-hover:translate-x-1 transition-transform">{song.title || song.name}</span>
-                        {!isUnknown && (
-                          <span className="text-[9px] font-black uppercase opacity-40 tracking-widest truncate">{artistName}</span>
-                        )}
+                        {song.genre && <span className="text-[8px] font-black uppercase opacity-20 ml-4 shrink-0">{song.genre}</span>}
                       </div>
-                      {song.genre && <span className="text-[8px] font-black uppercase opacity-20 ml-4 shrink-0">{song.genre}</span>}
-                    </div>
-                  );
-                })}
-              </div>
-            )
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
           )}
         </div>
       </main>
