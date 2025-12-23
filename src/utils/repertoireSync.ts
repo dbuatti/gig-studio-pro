@@ -25,7 +25,7 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
 
 /**
  * Syncs a single song or a batch of songs to the master repertoire table.
- * Uses the ID as the primary sync target to support renames.
+ * Uses a composite key (user_id, title) for upserting to prevent duplicates.
  */
 export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong | SetlistSong[]) => {
   if (!userId) return;
@@ -35,9 +35,9 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
 
   try {
     const payloads = songsArray.map(song => ({
-      // Prioritize the permanent database ID to allow renames.
-      // If missing, database will generate a new UUID and Title constraint will prevent duplicates.
-      ...(song.master_id ? { id: song.master_id } : {}),
+      // If we have a real UUID from the DB, use it. 
+      // Otherwise, let Postgres match via the 'user_id, title' constraint.
+      ...(song.master_id && song.master_id.length > 20 ? { id: song.master_id } : {}),
       user_id: userId,
       title: song.name,
       artist: song.artist || 'Unknown Artist',
@@ -64,13 +64,12 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       updated_at: new Date().toISOString()
     }));
 
-    // CRITICAL: Use 'id' for renames. 
-    // If id is missing, Supabase creates a new row, and the unique (user_id, title) 
-    // constraint on the table ensures we don't accidentally create a title duplicate.
+    // We change the conflict target to 'user_id, title' to resolve the 409 error.
+    // This allows existing songs to be updated even if their setlist instance ID is different.
     const { error } = await supabase
       .from('repertoire')
       .upsert(payloads, { 
-        onConflict: 'id' 
+        onConflict: 'user_id,title' 
       });
 
     if (error) {
