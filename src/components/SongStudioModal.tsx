@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -249,6 +249,37 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       setIsAnalyzing(false);
     }
   };
+
+  const animateProgress = useCallback(() => {
+    if (playerRef.current && playerRef.current.state === "started") {
+      const elapsed = (Tone.now() - playbackStartTimeRef.current) * tempo;
+      const currentSeconds = playbackOffsetRef.current + elapsed;
+      
+      if (duration > 0) {
+        const newProgress = Math.min(100, (currentSeconds / duration) * 100);
+        setProgress(newProgress);
+        
+        if (currentSeconds >= duration) {
+          setIsPlaying(false);
+          setProgress(0);
+          playbackOffsetRef.current = 0;
+          return;
+        }
+      }
+      requestRef.current = requestAnimationFrame(animateProgress);
+    }
+  }, [duration, tempo]);
+
+  useEffect(() => {
+    if (isPlaying) {
+      requestRef.current = requestAnimationFrame(animateProgress);
+    } else if (requestRef.current) {
+      cancelAnimationFrame(requestRef.current);
+    }
+    return () => {
+      if (requestRef.current) cancelAnimationFrame(requestRef.current);
+    };
+  }, [isPlaying, animateProgress]);
 
   const togglePlayback = () => {
     if (!playerRef.current) return;
