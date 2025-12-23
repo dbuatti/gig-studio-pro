@@ -397,6 +397,11 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     }
   };
 
+  const handleLyricsSearch = () => {
+    const query = encodeURIComponent(`${formData.artist || ""} ${formData.name || ""} lyrics`);
+    window.open(`https://www.google.com/search?q=${query}`, '_blank');
+  };
+
   const handleUgPrint = () => {
     if (!formData.ugUrl) {
       showError("Link a tab first.");
@@ -1249,15 +1254,24 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       <h3 className="text-sm md:text-lg font-black uppercase tracking-[0.3em] text-pink-400">Lyrics Engine</h3>
                       <p className="text-xs md:text-sm text-slate-500 mt-1">Stage teleprompter source data.</p>
                     </div>
-                    <Button
-                      variant="outline"
-                      onClick={handleMagicFormatLyrics}
-                      disabled={isFormattingLyrics || !formData.lyrics}
-                      className="bg-indigo-600/10 border-indigo-600/20 text-indigo-600 hover:bg-indigo-600 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 gap-2 px-4 md:px-6 rounded-xl"
-                    >
-                      {isFormattingLyrics ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                      Magic Format
-                    </Button>
+                    <div className="flex flex-wrap gap-2 md:gap-4">
+                      <Button
+                        variant="outline"
+                        onClick={handleLyricsSearch}
+                        className="bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 gap-2 px-4 md:px-6 rounded-xl"
+                      >
+                        <Search className="w-3.5 h-3.5" /> Find Lyrics
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={handleMagicFormatLyrics}
+                        disabled={isFormattingLyrics || !formData.lyrics}
+                        className="bg-indigo-600/10 border-indigo-600/20 text-indigo-600 hover:bg-indigo-600 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 gap-2 px-4 md:px-6 rounded-xl"
+                      >
+                        {isFormattingLyrics ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                        Magic Format
+                      </Button>
+                    </div>
                   </div>
                   <div className="flex-1 min-h-0">
                     <Textarea
