@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { repertoire } = await req.json();
+    const { repertoire, seedSong } = await req.json();
     
     const keys = [
       (globalThis as any).Deno.env.get('GEMINI_API_KEY'),
@@ -24,16 +24,19 @@ serve(async (req) => {
       throw new Error("Missing API Key configuration.");
     }
 
-    if (!repertoire || !Array.isArray(repertoire) || repertoire.length === 0) {
-       return new Response(JSON.stringify([]), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
     const songList = repertoire.map((s: any) => `${s.name || 'Unknown'} - ${s.artist || 'Unknown'}`).join(', ');
     
-    // Updated prompt with explicit exclusion instruction
-    const prompt = `Act as a professional music curator. Based on this repertoire: [${songList}], suggest 10 similar songs that would fit this artist's style. 
-    CRITICAL: Do NOT suggest any songs that are already in the list provided above. Suggest entirely new tracks.
-    Return ONLY a JSON array of objects: [{"name": "Song Title", "artist": "Artist Name", "reason": "Short reason why"}]. No markdown.`;
+    let prompt = "";
+    if (seedSong) {
+      prompt = `Act as a professional music curator. Based specifically on the vibe, genre, and era of the song "${seedSong.name}" by ${seedSong.artist}, suggest 10 similar tracks.
+      EXCLUDE these songs already in the user's repertoire: [${songList}].
+      Focus on tracks that would transition well from the seed song in a live set.
+      Return ONLY a JSON array of objects: [{"name": "Song Title", "artist": "Artist Name", "reason": "Connection to ${seedSong.name}"}]. No markdown.`;
+    } else {
+      prompt = `Act as a professional music curator. Based on this repertoire: [${songList}], suggest 10 similar songs that would fit this artist's style. 
+      CRITICAL: Do NOT suggest any songs that are already in the list provided above. Suggest entirely new tracks.
+      Return ONLY a JSON array of objects: [{"name": "Song Title", "artist": "Artist Name", "reason": "Short reason why"}]. No markdown.`;
+    }
 
     let lastError = null;
 

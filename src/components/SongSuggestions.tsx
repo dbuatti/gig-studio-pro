@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { Sparkles, Loader2, Music, Search, PlusCircle } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Sparkles, Loader2, Music, Search, PlusCircle, Filter, Target, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { SetlistSong } from './SetlistManager';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from '@/lib/utils';
 
 interface SongSuggestionsProps {
   repertoire: SetlistSong[];
@@ -15,6 +17,11 @@ interface SongSuggestionsProps {
 const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectSuggestion }) => {
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [seedSongId, setSeedSongId] = useState<string | null>(null);
+
+  const seedSong = useMemo(() => 
+    repertoire.find(s => s.id === seedSongId), 
+  [seedSongId, repertoire]);
 
   const fetchSuggestions = async () => {
     if (repertoire.length === 0) return;
@@ -22,15 +29,17 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
     setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('suggest-songs', {
-        body: { repertoire: repertoire.slice(0, 20) } 
+        body: { 
+          repertoire: repertoire.slice(0, 20),
+          seedSong: seedSong ? { name: seedSong.name, artist: seedSong.artist } : null
+        } 
       });
 
       if (error) throw error;
       
-      // Secondary filter to remove any hallunicated duplicates that AI might have missed
       const existingKeys = new Set(repertoire.map(s => `${s.name.toLowerCase()}-${(s.artist || "").toLowerCase()}`));
       const filtered = (data || []).filter((s: any) => {
-        const key = `${s.name.toLowerCase()}-${s.artist.toLowerCase()}`;
+        const key = `${s.name.toLowerCase()}-${(s.artist || "").toLowerCase()}`;
         return !existingKeys.has(key);
       });
 
@@ -48,6 +57,11 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
     }
   }, [repertoire]);
 
+  // Refetch when seed song changes
+  useEffect(() => {
+    if (seedSongId) fetchSuggestions();
+  }, [seedSongId]);
+
   if (repertoire.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center opacity-40 px-6">
@@ -59,28 +73,61 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between px-1">
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-indigo-500" />
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">AI Discover Engine</span>
+      <div className="space-y-3 px-1">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-indigo-500" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">AI Discover Engine</span>
+          </div>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={fetchSuggestions} 
+            disabled={isLoading}
+            className="h-7 text-[9px] font-black uppercase hover:bg-indigo-50 text-indigo-600"
+          >
+            {isLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : "Refresh"}
+          </Button>
         </div>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={fetchSuggestions} 
-          disabled={isLoading}
-          className="h-7 text-[9px] font-black uppercase hover:bg-indigo-50 text-indigo-600"
-        >
-          {isLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : "Refresh"}
-        </Button>
+
+        <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800 space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-400 flex items-center gap-1.5">
+              <Target className="w-3 h-3" /> Search Mode
+            </Label>
+            {seedSongId && (
+              <button 
+                onClick={() => { setSeedSongId(null); fetchSuggestions(); }}
+                className="text-[8px] font-black text-indigo-500 uppercase hover:text-indigo-600"
+              >
+                Clear Seed
+              </button>
+            )}
+          </div>
+          <Select value={seedSongId || "profile"} onValueChange={(val) => setSeedSongId(val === "profile" ? null : val)}>
+            <SelectTrigger className="h-8 text-[10px] font-bold bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800">
+              <SelectValue placeholder="Suggest based on entire profile" />
+            </SelectTrigger>
+            <SelectContent className="max-h-[300px]">
+              <SelectItem value="profile" className="text-[10px] font-bold">Entire Profile Vibe</SelectItem>
+              {repertoire.map(s => (
+                <SelectItem key={s.id} value={s.id} className="text-[10px] font-medium">
+                  {s.name} - {s.artist}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      <ScrollArea className="h-[550px]">
+      <ScrollArea className="h-[500px]">
         <div className="space-y-2 pr-4">
           {isLoading ? (
             <div className="py-20 flex flex-col items-center gap-4 text-center">
               <Loader2 className="w-8 h-8 animate-spin text-indigo-500 opacity-20" />
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Analyzing your sonic profile...</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                {seedSong ? `Finding tracks like "${seedSong.name}"...` : "Analyzing your sonic profile..."}
+              </p>
             </div>
           ) : (
             suggestions.length > 0 ? (
@@ -123,4 +170,5 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
   );
 };
 
+import { Label } from './ui/label';
 export default SongSuggestions;
