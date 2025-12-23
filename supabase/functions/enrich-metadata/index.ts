@@ -7,93 +7,77 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
 
   try {
     const { queries, mode = 'metadata' } = await req.json();
-    console.log(`[AI Engine] Processing ${mode} for ${queries?.length || 0} items using Gemini 3 Flash Preview`);
     
-    // @ts-ignore: Deno global
-    const apiKey = Deno.env.get('GEMINI_API_KEY');
+    // Key rotation logic
+    const keys = [
+      (globalThis as any).Deno.env.get('GEMINI_API_KEY'),
+      (globalThis as any).Deno.env.get('GEMINI_API_KEY_2'),
+      (globalThis as any).Deno.env.get('GEMINI_API_KEY_3')
+    ].filter(Boolean);
 
-    if (!apiKey) {
-      console.error("[AI Engine] Missing GEMINI_API_KEY environment variable");
-      return new Response(JSON.stringify({ error: "AI Engine Configuration Missing: GEMINI_API_KEY not found" }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+    if (keys.length === 0) {
+      throw new Error("No Gemini API keys configured in secrets.");
     }
 
     let prompt = "";
-    
     if (mode === 'lyrics') {
-      const lyricsText = queries[0];
-      prompt = `Act as a professional stage manager. Format these lyrics with double newlines between verses and proper punctuation for stage reading. Return ONLY a JSON object: {"lyrics": "formatted_lyrics_here"}.
-      
-      Lyrics:
-      ${lyricsText}`;
+      prompt = `Act as a professional stage manager. Format these lyrics with double newlines between verses and proper punctuation for stage reading. Return ONLY a JSON object: {"lyrics": "formatted_lyrics_here"}. Lyrics: ${queries[0]}`;
     } else {
       const songsList = Array.isArray(queries) ? queries : [queries];
-      prompt = `Act as a professional music librarian. For these songs, return a JSON array of objects. 
-      Each object: {"name": "title", "artist": "primary artist", "originalKey": "standard key (C, F#m, etc)", "bpm": number, "genre": "genre", "ugUrl": "official ultimate guitar url", "isMetadataConfirmed": true}.
-      
-      Songs:
-      ${songsList.join('\n')}
-      
-      Return ONLY the JSON array.`;
+      prompt = `Act as a professional music librarian. For these songs, return a JSON array of objects. Each object: {"name": "title", "artist": "primary artist", "originalKey": "standard key (C, F#m, etc)", "bpm": number, "genre": "genre", "ugUrl": "official ultimate guitar url", "isMetadataConfirmed": true}. Songs: ${songsList.join('\n')}. Return ONLY the JSON array.`;
     }
 
-    // Using gemini-3-flash-preview on v1beta endpoint as it's currently in preview
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+    let lastError = null;
     
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }]
-      })
-    });
+    for (const apiKey of keys) {
+      try {
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }]
+          })
+        });
 
-    const result = await response.json();
-    
-    if (!response.ok) {
-      console.error("[AI Engine] External API Error:", result);
-      return new Response(JSON.stringify({ 
-        error: `AI Provider Error: ${result.error?.message || response.statusText}`,
-        details: result
-      }), {
-        status: response.status,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+        const result = await response.json();
+        
+        if (response.status === 429 || response.status >= 500) {
+          console.warn(`[AI Engine] Key failed with status ${response.status}. Trying fallback...`);
+          lastError = result.error?.message || response.statusText;
+          continue;
+        }
+
+        if (!response.ok) {
+          throw new Error(result.error?.message || "API Error");
+        }
+
+        const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+        const jsonMatch = text.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+        
+        if (!jsonMatch) throw new Error("Invalid AI format");
+        
+        return new Response(jsonMatch[0], {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+
+      } catch (err) {
+        lastError = err.message;
+        console.error(`[AI Engine] Attempt failed: ${err.message}`);
+      }
     }
 
-    const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) {
-      console.error("[AI Engine] Empty candidates in response", result);
-      throw new Error("No response generated by AI");
-    }
-
-    // Extract JSON from potential markdown wrappers
-    const jsonMatch = text.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
-    if (!jsonMatch) {
-      console.error("[AI Engine] No JSON found in text:", text);
-      throw new Error("AI response was not in the expected format");
-    }
-    
-    const output = JSON.parse(jsonMatch[0]);
-    return new Response(JSON.stringify(output), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    throw new Error(`All API keys exhausted. Last error: ${lastError}`);
 
   } catch (error) {
-    console.error("[AI Engine] Internal Handler Error:", error.message);
-    return new Response(JSON.stringify({ 
-      error: error.message,
-      stack: error.stack
-    }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
