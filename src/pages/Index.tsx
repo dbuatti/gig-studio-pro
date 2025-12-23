@@ -88,7 +88,7 @@ const Index = () => {
     };
 
     processNextBatch();
-  }, [syncQueue, isProcessingQueue, currentListId]);
+  }, [syncQueue, isProcessingQueue, currentListId, songs]);
 
   const fetchMasterRepertoire = async () => {
     if (!user) return;
@@ -184,17 +184,43 @@ const Index = () => {
     });
   };
 
-  const handleAddToSetlist = async (previewUrl: string, name: string, artist: string, youtubeUrl?: string, pitch: number = 0, ugUrl?: string) => {
+  const handleAddToSetlist = async (previewUrl: string, name: string, artist: string, youtubeUrl?: string, ugUrl?: string, appleMusicUrl?: string, genre?: string, pitch: number = 0) => {
     if (!currentListId || !user) return;
-    const existing = masterRepertoire.find(s => s.name.toLowerCase() === name.toLowerCase());
+    
+    const existing = masterRepertoire.find(s => s.name.toLowerCase() === name.toLowerCase() && s.artist?.toLowerCase() === artist.toLowerCase());
     const newSongId = Math.random().toString(36).substr(2, 9);
-    const newSong: SetlistSong = existing ? { ...existing, id: newSongId, master_id: existing.master_id, isPlayed: false, isSyncing: false } : { id: newSongId, name, artist, previewUrl, youtubeUrl, ugUrl, pitch, originalKey: "TBC", targetKey: "TBC", isPlayed: false, isSyncing: true, isMetadataConfirmed: false };
+    
+    const newSong: SetlistSong = existing 
+      ? { ...existing, id: newSongId, master_id: existing.master_id, isPlayed: false, isSyncing: false } 
+      : { 
+          id: newSongId, 
+          name, 
+          artist, 
+          previewUrl, 
+          youtubeUrl, 
+          ugUrl, 
+          appleMusicUrl,
+          genre,
+          pitch, 
+          originalKey: "TBC", 
+          targetKey: "TBC", 
+          isPlayed: false, 
+          isSyncing: true, 
+          isMetadataConfirmed: false,
+          user_tags: genre ? [genre] : []
+        };
+
     const list = setlists.find(l => l.id === currentListId);
     if (!list) return;
+
     const updatedSongs = [...list.songs, newSong];
     await saveList(currentListId, updatedSongs, {}, [newSong]);
-    if (!existing) setSyncQueue(prev => [...prev, newSongId]);
-    else showSuccess(`Added "${name}" from Library`);
+    
+    if (!existing) {
+      setSyncQueue(prev => [...prev, newSongId]);
+    } else {
+      showSuccess(`Added "${name}" from Library`);
+    }
   };
 
   const handleAddExistingSong = (song: SetlistSong) => {
@@ -282,7 +308,7 @@ const Index = () => {
         const aiData = data.find((d: any) => d.name.toLowerCase() === s.name.toLowerCase());
         if (aiData) {
           const targetKey = aiData.originalKey || s.originalKey;
-          const updated = { ...s, originalKey: aiData.originalKey, targetKey, bpm: aiData.bpm?.toString(), genre: aiData.genre, ugUrl: aiData.ugUrl, isMetadataConfirmed: true, isSyncing: false };
+          const updated = { ...s, originalKey: aiData.originalKey, targetKey, bpm: aiData.bpm?.toString(), genre: aiData.genre || s.genre, ugUrl: aiData.ugUrl || s.ugUrl, isMetadataConfirmed: true, isSyncing: false };
           syncedSongs.push(updated);
           return updated;
         }

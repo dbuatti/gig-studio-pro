@@ -31,7 +31,7 @@ export interface AudioTransposerRef {
 }
 
 interface AudioTransposerProps {
-  onAddToSetlist?: (previewUrl: string, name: string, artist: string, ytUrl?: string, pitch?: number, ugUrl?: string) => void;
+  onAddToSetlist?: (previewUrl: string, name: string, artist: string, youtubeUrl?: string, ugUrl?: string, appleMusicUrl?: string, genre?: string, pitch?: number) => void;
   onAddExistingSong?: (song: SetlistSong) => void;
   onUpdateSongKey?: (songId: string, newTargetKey: string) => void;
   onSongEnded?: () => void;
@@ -291,7 +291,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={() => onAddToSetlist(file.url || '', file.name, file.artist || "Unknown", activeYoutubeUrl, pitch, activeUgUrl)}
+              onClick={() => onAddToSetlist(file.url || '', file.name, file.artist || "Unknown", activeYoutubeUrl, activeUgUrl, undefined, undefined, pitch)}
               className="h-8 border-green-200 text-green-600 hover:bg-green-50 font-bold text-[10px] uppercase gap-2"
             >
               <PlusCircle className="w-3.5 h-3.5" /> Save to Gig
@@ -309,7 +309,9 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
           <TabsContent value="search" className="mt-0 space-y-4">
             <SongSearch 
               onSelectSong={(url, name, artist, yt) => loadFromUrl(url, name, artist, yt)} 
-              onAddToSetlist={(url, name, artist, yt, ug) => onAddToSetlist?.(url, name, artist, yt, 0, ug)}
+              onAddToSetlist={(url, name, artist, yt, ug, apple, gen) => 
+                onAddToSetlist?.(url, name, artist, yt, ug, apple, gen, 0)
+              }
               externalQuery={searchQuery}
             />
           </TabsContent>
