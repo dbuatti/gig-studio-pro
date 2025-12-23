@@ -213,7 +213,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
 
     return () => {
       container.removeEventListener('wheel', handleUserInteractionStart);
-      container.removeEventListener('touchstart', handleTouchStart);
+      container.removeEventListener('touchstart', handleUserInteractionStart);
       container.removeEventListener('touchend', handleUserInteractionEnd);
       container.removeEventListener('mousedown', handleUserInteractionStart);
       container.removeEventListener('mouseup', handleUserInteractionEnd);
