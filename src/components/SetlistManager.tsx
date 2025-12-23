@@ -6,7 +6,8 @@ import {
   ListMusic, Trash2, Play, Music, Youtube, ArrowRight, 
   CircleDashed, CheckCircle2, Volume2, ChevronUp, ChevronDown, 
   Search, LayoutList, SortAsc, SortDesc, ClipboardList, Clock, 
-  ShieldCheck, Check, MoreVertical, Settings2, FileText, Filter
+  ShieldCheck, Check, MoreVertical, Settings2, FileText, Filter,
+  Star, BrainCircuit
 } from 'lucide-react';
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, formatKey, transposeKey, calculateSemitones } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
@@ -22,8 +23,8 @@ import SetlistFilters, { FilterState } from './SetlistFilters';
 import { calculateReadiness } from '@/utils/repertoireSync';
 
 export interface SetlistSong {
-  id: string; // Unique for the setlist entry
-  master_id?: string; // The UUID from the repertoire table
+  id: string; 
+  master_id?: string; 
   name: string;
   artist?: string;
   previewUrl: string;
@@ -41,6 +42,7 @@ export interface SetlistSong {
   isSyncing?: boolean;
   isMetadataConfirmed?: boolean;
   isKeyConfirmed?: boolean;
+  comfort_level?: number;
   notes?: string;
   lyrics?: string;
   resources?: string[];
@@ -92,6 +94,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       hasPdf: 'all',
       hasUg: 'all',
       isConfirmed: 'all',
+      minComfort: 0,
       readiness: 100
     };
   });
@@ -109,20 +112,16 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   const processedSongs = useMemo(() => {
     let base = songs;
     
-    // Search Filtering
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase();
       base = base.filter(s => s.name.toLowerCase().includes(q) || s.artist?.toLowerCase().includes(q));
     }
 
-    // Asset and Completion Filtering
     base = base.filter(s => {
       const score = calculateReadiness(s);
-
-      // Completion Logic
       if (score > activeFilters.readiness) return false;
+      if ((s.comfort_level || 0) < activeFilters.minComfort) return false;
 
-      // Audio Filter Logic (iTunes is treated as 'no audio' when filtering for 'Full')
       const hasPreview = !!s.previewUrl;
       const isItunes = hasPreview && isItunesPreview(s.previewUrl);
       const hasFullAudio = hasPreview && !isItunes;
@@ -136,12 +135,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
       if (activeFilters.hasChart === 'yes' && !(s.pdfUrl || s.leadsheetUrl || s.ugUrl)) return false;
       if (activeFilters.hasChart === 'no' && (s.pdfUrl || s.leadsheetUrl || s.ugUrl)) return false;
-
-      if (activeFilters.hasPdf === 'yes' && !(s.pdfUrl || s.leadsheetUrl)) return false;
-      if (activeFilters.hasPdf === 'no' && (s.pdfUrl || s.leadsheetUrl)) return false;
-
-      if (activeFilters.hasUg === 'yes' && !s.ugUrl) return false;
-      if (activeFilters.hasUg === 'no' && s.ugUrl) return false;
 
       if (activeFilters.isConfirmed === 'yes' && !s.isKeyConfirmed) return false;
       if (activeFilters.isConfirmed === 'no' && s.isKeyConfirmed) return false;
@@ -160,12 +153,10 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
   const handleMove = (id: string, direction: 'up' | 'down') => {
     if (sortMode !== 'none' || searchTerm) return;
-
     const index = songs.findIndex(s => s.id === id);
     if (index === -1) return;
     if (direction === 'up' && index === 0) return;
     if (direction === 'down' && index === songs.length - 1) return;
-
     const newSongs = [...songs];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     [newSongs[index], newSongs[targetIndex]] = [newSongs[targetIndex], newSongs[index]];
@@ -241,7 +232,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
             const isSelected = currentSongId === song.id;
             const readinessScore = calculateReadiness(song);
             const isReady = readinessScore >= 80;
-            const hasAudio = !!song.previewUrl && !isItunesPreview(song.previewUrl);
             const currentPref = song.key_preference || globalPreference;
             const displayTargetKey = formatKey(song.targetKey || song.originalKey, currentPref);
 
@@ -273,9 +263,15 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       <h4 className={cn("text-sm font-black tracking-tight", song.isPlayed && "line-through text-slate-400")}>
                         {song.name}
                       </h4>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">
-                        {song.artist || "Unknown Artist"}
-                      </p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                          {song.artist || "Unknown Artist"}
+                        </p>
+                        <div className="flex items-center gap-1 text-indigo-500">
+                           <Star className="w-2.5 h-2.5 fill-current" />
+                           <span className="text-[10px] font-bold">{song.comfort_level || 0}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -292,12 +288,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setStudioSong(song); }}>
                           <Settings2 className="w-4 h-4 mr-2" /> Configure Studio
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'up'); }} disabled={!isReorderingEnabled || idx === 0}>
-                          <ChevronUp className="w-4 h-4 mr-2" /> Move Up
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'down'); }} disabled={!isReorderingEnabled || idx === processedSongs.length - 1}>
-                          <ChevronDown className="w-4 h-4 mr-2" /> Move Down
                         </DropdownMenuItem>
                         <DropdownMenuItem className="text-red-600" onClick={(e) => { e.stopPropagation(); onRemove(song.id); }}>
                           <Trash2 className="w-4 h-4 mr-2" /> Remove Track
@@ -318,14 +308,9 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         {displayTargetKey} {song.isKeyConfirmed && <Check className="w-2.5 h-2.5" />}
                       </div>
                     </div>
-                    <div className="flex flex-col">
-                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-0.5">Tempo</span>
-                      <span className="text-[10px] font-mono font-bold text-slate-500">{song.bpm || "--"} BPM</span>
-                    </div>
                   </div>
 
                   <div className="flex gap-2">
-                    {hasAudio && <Volume2 className="w-3.5 h-3.5 text-indigo-500" />}
                     <Button 
                       size="sm" 
                       className={cn(
@@ -350,9 +335,9 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
               <thead>
                 <tr className="bg-slate-50/50 dark:bg-slate-900/50 border-b dark:border-slate-800">
                   <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 w-16 text-center">Sts</th>
-                  <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-left">Song / Resource Matrix</th>
+                  <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-left">Song / Performance Matrix</th>
                   <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 w-24 text-center">Move</th>
-                  <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 w-48 text-center">Harmonic Map</th>
+                  <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 w-48 text-center">Harmonics</th>
                   <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 w-40 text-right pr-10">Command</th>
                 </tr>
               </thead>
@@ -413,39 +398,10 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                               {song.artist || "Unknown Artist"}
                             </span>
                             <span className="text-slate-200 dark:text-slate-800 text-[8px]">•</span>
-                            <span className="text-[9px] font-mono font-bold text-slate-400 flex items-center gap-1.5">
-                              <Clock className="w-3 h-3" /> {Math.floor((song.duration_seconds || 0) / 60)}:{(Math.floor((song.duration_seconds || 0) % 60)).toString().padStart(2, '0')}
-                            </span>
-                            <span className="text-slate-200 dark:text-slate-800 text-[8px]">•</span>
-                            <span className="text-[9px] font-mono font-bold text-slate-400">{song.bpm ? `${song.bpm} BPM` : 'TEMPO TBC'}</span>
-                          </div>
-
-                          <div className="flex items-center gap-1.5 ml-[32px] mt-1">
-                            <TooltipProvider>
-                              {RESOURCE_TYPES.map(res => {
-                                const isActive = song.resources?.includes(res.id) || 
-                                               (res.id === 'UG' && song.ugUrl) || 
-                                               (res.id === 'LYRICS' && song.lyrics) ||
-                                               (res.id === 'LEAD' && song.leadsheetUrl);
-                                if (!isActive) return null;
-                                return (
-                                  <span key={res.id} className={cn("text-[8px] font-black px-2 py-0.5 rounded-full border shadow-sm", res.color)}>
-                                    {res.id}
-                                  </span>
-                                );
-                              })}
-                              
-                              {hasAudio && (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <div className="h-5 w-5 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
-                                      <Volume2 className="w-3 h-3" />
-                                    </div>
-                                  </TooltipTrigger>
-                                  <TooltipContent className="text-[10px] font-black uppercase">Direct Audio Link Active</TooltipContent>
-                                </Tooltip>
-                              )}
-                            </TooltipProvider>
+                            <div className="flex items-center gap-1 px-1.5 py-0.5 bg-indigo-50 dark:bg-indigo-900/20 rounded-md">
+                               <BrainCircuit className="w-2.5 h-2.5 text-indigo-500" />
+                               <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">Comfort: {song.comfort_level || 0}/10</span>
+                            </div>
                           </div>
                         </div>
                       </td>

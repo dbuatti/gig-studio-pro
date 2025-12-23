@@ -4,28 +4,32 @@ import { supabase } from "@/integrations/supabase/client";
 import { SetlistSong } from "@/components/SetlistManager";
 
 /**
- * Calculates a readiness score (0-100) based on available assets and metadata.
+ * Calculates a readiness score (0-100) based on available assets and personal comfort.
+ * Comfort (1-10) now accounts for 40% of the total score.
  */
 export const calculateReadiness = (song: Partial<SetlistSong>): number => {
   let score = 0;
+  
+  // Comfort Contribution (Max 40 points: 4 per level)
+  const comfort = song.comfort_level || 0;
+  score += (comfort * 4);
+
   const preview = song.previewUrl || "";
   const isItunes = preview.includes('apple.com') || preview.includes('itunes-assets');
   
-  if (preview && !isItunes) score += 25; 
-  if (song.isKeyConfirmed) score += 20; 
-  if ((song.lyrics || "").length > 20) score += 15; 
-  if (song.pdfUrl || song.leadsheetUrl) score += 15; 
-  if (song.ugUrl) score += 10; 
+  // Asset Contributions (Max 60 points)
+  if (preview && !isItunes) score += 15; 
+  if (song.isKeyConfirmed) score += 15; 
+  if ((song.lyrics || "").length > 20) score += 10; 
+  if (song.pdfUrl || song.leadsheetUrl) score += 10; 
+  if (song.ugUrl) score += 5; 
   if (song.bpm) score += 5; 
-  if ((song.notes || "").length > 10) score += 5; 
-  if (song.artist && song.artist !== "Unknown Artist") score += 5; 
   
   return Math.min(100, score);
 };
 
 /**
  * Synchronizes local setlist songs with the master repertoire table.
- * Optimized to use a single batch upsert for performance.
  */
 export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong | SetlistSong[]): Promise<SetlistSong[]> => {
   if (!userId) return Array.isArray(songs) ? songs : [songs];
@@ -33,8 +37,6 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
   const songsArray = Array.isArray(songs) ? songs : [songs];
   if (songsArray.length === 0) return [];
 
-  console.log(`[SYNC ENGINE] Batch processing ${songsArray.length} items...`);
-  
   try {
     const payloads = songsArray.map(song => ({
       ...(song.master_id ? { id: song.master_id } : {}),
@@ -55,6 +57,7 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       apple_music_url: song.appleMusicUrl || null,
       is_metadata_confirmed: song.isMetadataConfirmed || false,
       is_key_confirmed: song.isKeyConfirmed || false,
+      comfort_level: song.comfort_level || 0,
       duration_seconds: Math.round(song.duration_seconds || 0),
       genre: song.genre || (song.user_tags?.[0]) || null,
       user_tags: song.user_tags || [],
@@ -64,7 +67,6 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       updated_at: new Date().toISOString()
     }));
 
-    // Perform batch upsert
     const { data, error } = await supabase
       .from('repertoire')
       .upsert(payloads, { onConflict: 'id' })
@@ -72,7 +74,6 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
 
     if (error) throw error;
 
-    // Map the returned IDs back to the local songs
     return songsArray.map(song => {
       const dbMatch = data.find(d => 
         (song.master_id && d.id === song.master_id) || 
