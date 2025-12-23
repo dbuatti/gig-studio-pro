@@ -19,6 +19,7 @@ import { RESOURCE_TYPES } from '@/utils/constants';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import SetlistFilters, { FilterState } from './SetlistFilters';
+import { calculateReadiness } from '@/utils/repertoireSync';
 
 export interface SetlistSong {
   id: string; // Unique for the setlist entry
@@ -89,7 +90,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       hasVideo: 'all',
       hasChart: 'all',
       isConfirmed: 'all',
-      isPlayed: 'all'
+      isPlayed: 'all',
+      readiness: 'all'
     };
   });
   const [studioSong, setStudioSong] = useState<SetlistSong | null>(null);
@@ -103,18 +105,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
   const isItunesPreview = (url: string) => url && (url.includes('apple.com') || url.includes('itunes-assets'));
 
-  const getReadinessScore = (song: SetlistSong) => {
-    let score = 0;
-    if (song.previewUrl && !isItunesPreview(song.previewUrl)) score += 5;
-    if (song.isKeyConfirmed) score += 4; 
-    if (song.isMetadataConfirmed) score += 2;
-    if (song.pdfUrl || song.leadsheetUrl) score += 3;
-    if (song.ugUrl) score += 2; 
-    if (song.lyrics) score += 2;
-    if (song.bpm) score += 1;
-    return score;
-  };
-
   const processedSongs = useMemo(() => {
     let base = songs;
     
@@ -124,8 +114,16 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       base = base.filter(s => s.name.toLowerCase().includes(q) || s.artist?.toLowerCase().includes(q));
     }
 
-    // Asset Filtering
+    // Asset and Completion Filtering
     base = base.filter(s => {
+      const score = calculateReadiness(s);
+
+      // Completion Logic
+      if (activeFilters.readiness === 'high' && score < 80) return false;
+      if (activeFilters.readiness === 'mid' && (score < 50 || score >= 80)) return false;
+      if (activeFilters.readiness === 'low' && score >= 50) return false;
+
+      // Asset Logic
       if (activeFilters.hasAudio === 'full' && (isItunesPreview(s.previewUrl) || !s.previewUrl)) return false;
       if (activeFilters.hasAudio === 'itunes' && !isItunesPreview(s.previewUrl)) return false;
       if (activeFilters.hasAudio === 'none' && s.previewUrl) return false;
@@ -145,8 +143,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     if (sortMode === 'none') return base;
     
     return [...base].sort((a, b) => {
-      const scoreA = getReadinessScore(a);
-      const scoreB = getReadinessScore(b);
+      const scoreA = calculateReadiness(a);
+      const scoreB = calculateReadiness(b);
       return sortMode === 'ready' ? scoreB - scoreA : scoreA - scoreB;
     });
   }, [songs, sortMode, searchTerm, activeFilters]);
@@ -249,8 +247,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
         <div className="space-y-3 px-1 pb-4">
           {processedSongs.map((song, idx) => {
             const isSelected = currentSongId === song.id;
-            const readinessScore = getReadinessScore(song);
-            const isReady = readinessScore >= 8;
+            const readinessScore = calculateReadiness(song);
+            const isReady = readinessScore >= 80;
             const hasAudio = !!song.previewUrl && !isItunesPreview(song.previewUrl);
             const currentPref = song.key_preference || globalPreference;
             const displayTargetKey = formatKey(song.targetKey || song.originalKey, currentPref);
@@ -265,7 +263,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                   song.isPlayed && "opacity-50 grayscale-[0.2]"
                 )}
               >
-                {/* Mobile Item Content (Same as before but filtered) */}
                 <div className="flex items-start justify-between">
                   <div className="flex gap-3">
                     <button 
@@ -371,8 +368,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
               <tbody className="divide-y divide-slate-100 dark:divide-slate-900">
                 {processedSongs.map((song, idx) => {
                   const isSelected = currentSongId === song.id;
-                  const readinessScore = getReadinessScore(song);
-                  const isReady = readinessScore >= 8;
+                  const readinessScore = calculateReadiness(song);
+                  const isReady = readinessScore >= 80;
                   const hasAudio = !!song.previewUrl && !isItunesPreview(song.previewUrl);
                   
                   const currentPref = song.key_preference || globalPreference;
