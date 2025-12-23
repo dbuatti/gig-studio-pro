@@ -16,9 +16,24 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
   const [searchTerm, setSearchTerm] = useState("");
   const [sortMode, setSortMode] = useState<'artist' | 'alphabetical'>('artist');
 
-  const filteredSongs = useMemo(() => {
+  // Deduplicate and filter songs
+  const processedSongs = useMemo(() => {
     const q = searchTerm.toLowerCase();
-    return songs.filter(s => 
+    
+    // Use a Map to keep only the 'best' version of each song title
+    const uniqueMap = new Map();
+    
+    songs.forEach(s => {
+      const title = (s.title || s.name || "").trim();
+      const existing = uniqueMap.get(title);
+      
+      // If we have a duplicate, keep the one that isn't 'Unknown Artist'
+      if (!existing || (existing.artist === 'Unknown Artist' && s.artist !== 'Unknown Artist')) {
+        uniqueMap.set(title, s);
+      }
+    });
+
+    return Array.from(uniqueMap.values()).filter(s => 
       (s.title || s.name || "").toLowerCase().includes(q) || 
       (s.artist || "").toLowerCase().includes(q)
     );
@@ -26,7 +41,7 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
 
   const groupedSongs = useMemo(() => {
     if (sortMode === 'alphabetical') {
-      return [...filteredSongs].sort((a, b) => {
+      return [...processedSongs].sort((a, b) => {
         const titleA = (a.title || a.name || "").replace(/^(the |a |an )/i, '');
         const titleB = (b.title || b.name || "").replace(/^(the |a |an )/i, '');
         return titleA.localeCompare(titleB);
@@ -34,7 +49,7 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
     }
 
     const groups: Record<string, any[]> = {};
-    filteredSongs.forEach(s => {
+    processedSongs.forEach(s => {
       const artist = s.artist || 'Unknown Artist';
       if (!groups[artist]) groups[artist] = [];
       groups[artist].push(s);
@@ -44,19 +59,15 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
       .sort(([a], [b]) => {
         const isUnknownA = a.toLowerCase() === 'unknown artist';
         const isUnknownB = b.toLowerCase() === 'unknown artist';
-        
-        // If one is unknown and the other isn't, the unknown one goes to the bottom
         if (isUnknownA && !isUnknownB) return 1;
         if (!isUnknownA && isUnknownB) return -1;
-        
-        // Otherwise, standard alphabetical sort
         return a.localeCompare(b);
       })
       .map(([artist, artistSongs]) => ({
         artist,
         songs: artistSongs.sort((a, b) => (a.title || a.name || "").localeCompare(b.title || b.name || ""))
       }));
-  }, [filteredSongs, sortMode]);
+  }, [processedSongs, sortMode]);
 
   if (!profile) return null;
 
@@ -136,7 +147,7 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
         </div>
 
         <div>
-          {songs.length === 0 ? (
+          {processedSongs.length === 0 ? (
             <div className="text-center py-20 opacity-30 border border-dashed border-white/10 rounded-[3rem]">
               <Music className="w-12 h-12 mx-auto mb-4" />
               <p className="text-[10px] font-black uppercase tracking-[0.3em]">No Public Tracks Available</p>

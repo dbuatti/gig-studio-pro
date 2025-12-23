@@ -25,7 +25,7 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
 
 /**
  * Syncs a single song or a batch of songs to the master repertoire table.
- * This happens silently in the background.
+ * Uses the (user_id, title) constraint to overwrite old metadata.
  */
 export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong | SetlistSong[]) => {
   if (!userId) return;
@@ -34,7 +34,6 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
   if (songsArray.length === 0) return;
 
   try {
-    // We map the songs to the repertoire table schema
     const payloads = songsArray.map(song => ({
       user_id: userId,
       title: song.name,
@@ -47,18 +46,15 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       updated_at: new Date().toISOString()
     }));
 
-    // Use upsert to update existing or insert new records based on title
-    // In a more complex app, we might use a dedicated 'master_id' for perfect matching
+    // This 'upsert' will now correctly update the existing row if the title matches,
+    // thanks to the unique index we just created in the database.
     const { error } = await supabase
       .from('repertoire')
       .upsert(payloads, { 
-        onConflict: 'user_id, title', // Assuming we have a unique constraint on these
-        ignoreDuplicates: false 
+        onConflict: 'user_id, title'
       });
 
     if (error) {
-      // If the unique constraint doesn't exist yet, it might fail or create duplicates
-      // but for this implementation we assume the schema supports the intent
       console.error("[Sync Engine] Background update failed:", error);
     }
   } catch (err) {
