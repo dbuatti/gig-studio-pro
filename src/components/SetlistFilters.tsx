@@ -228,7 +228,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
               className="bg-indigo-50 text-indigo-600 border-indigo-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-red-50 hover:text-red-600 transition-all group"
               onClick={() => onFilterChange({ ...activeFilters, hasAudio: 'all' })}
             >
-              Audio: {activeFilters.hasAudio} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
+              Audio: {activeFilters.hasAudio} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
             </Badge>
           )}
           {activeFilters.hasVideo !== 'all' && (
@@ -237,7 +237,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
               className="bg-red-50 text-red-600 border-red-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-red-50 hover:text-red-600 transition-all group"
               onClick={() => onFilterChange({ ...activeFilters, hasVideo: 'all' })}
             >
-              Video: {activeFilters.hasVideo} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
+              Video: {activeFilters.hasVideo} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
             </Badge>
           )}
           {activeFilters.hasChart !== 'all' && (
@@ -246,7 +246,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
               className="bg-emerald-50 text-emerald-600 border-emerald-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-red-50 hover:text-red-600 transition-all group"
               onClick={() => onFilterChange({ ...activeFilters, hasChart: 'all' })}
             >
-              Chart: {activeFilters.hasChart} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
+              Chart: {activeFilters.hasChart} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
             </Badge>
           )}
         </div>
