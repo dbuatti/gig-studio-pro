@@ -9,7 +9,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { 
   Play, Pause, SkipForward, SkipBack, X, Music, 
-  Waves, Activity, ArrowRight, 
+  Waves, Activity, ArrowRight, Shuffle,
   Settings2, Gauge, FileText, Save, Youtube,
   Monitor, AlignLeft, RotateCcw, ShieldCheck, ExternalLink,
   Clock, Timer, ChevronRight, Zap, Minus, Plus
@@ -31,6 +31,7 @@ interface PerformanceOverlayProps {
   onTogglePlayback: () => void;
   onNext: () => void;
   onPrevious: () => void;
+  onShuffle: () => void;
   onClose: () => void;
   onUpdateSong: (id: string, updates: Partial<SetlistSong>) => void;
   onUpdateKey: (id: string, targetKey: string) => void;
@@ -48,6 +49,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
   onTogglePlayback,
   onNext,
   onPrevious,
+  onShuffle,
   onClose,
   onUpdateSong,
   onUpdateKey,
@@ -441,7 +443,17 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
               <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400 flex items-center gap-2 font-mono">
                 <Gauge className="w-4 h-4" /> Live Timing Engine
               </h3>
-              <Badge className="bg-indigo-600/20 text-indigo-400 border-indigo-600/20 font-mono text-[9px]">LOCKED</Badge>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={onShuffle}
+                  className="h-7 px-3 bg-white/5 border border-white/5 hover:bg-white/10 text-indigo-400 text-[9px] font-black uppercase tracking-widest gap-2 rounded-lg"
+                >
+                  <Shuffle className="w-3 h-3" /> Shuffle Remaining
+                </Button>
+                <Badge className="bg-indigo-600/20 text-indigo-400 border-indigo-600/20 font-mono text-[9px]">LOCKED</Badge>
+              </div>
             </div>
             <Metronome initialBpm={parseInt(currentSong?.bpm || "120")} />
           </div>
