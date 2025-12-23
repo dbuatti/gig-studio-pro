@@ -26,6 +26,7 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
 /**
  * Syncs a single song or a batch of songs to the master repertoire table.
  * Uses a composite key (user_id, title) for upserting to prevent duplicates.
+ * We strip the 'id' field to avoid PKEY conflicts and let the 'onConflict' logic handle the merge.
  */
 export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong | SetlistSong[]) => {
   if (!userId) return;
@@ -35,9 +36,9 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
 
   try {
     const payloads = songsArray.map(song => ({
-      // If we have a real UUID from the DB, use it. 
-      // Otherwise, let Postgres match via the 'user_id, title' constraint.
-      ...(song.master_id && song.master_id.length > 20 ? { id: song.master_id } : {}),
+      // IMPORTANT: We omit the 'id' field entirely.
+      // This forces Postgres to use the 'onConflict' columns (user_id, title) 
+      // to identify which row to update.
       user_id: userId,
       title: song.name,
       artist: song.artist || 'Unknown Artist',
@@ -64,8 +65,6 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       updated_at: new Date().toISOString()
     }));
 
-    // We change the conflict target to 'user_id, title' to resolve the 409 error.
-    // This allows existing songs to be updated even if their setlist instance ID is different.
     const { error } = await supabase
       .from('repertoire')
       .upsert(payloads, { 
