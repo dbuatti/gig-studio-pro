@@ -41,9 +41,9 @@ const Index = () => {
   const [syncQueue, setSyncQueue] = useState<string[]>([]);
   const [isProcessingQueue, setIsProcessingQueue] = useState(false);
 
-  // Mutex to prevent parallel saves from corrupting state
+  // Synchronization Ref to prevent race conditions during high-frequency edits (renaming)
   const isSyncingRef = useRef(false);
-  const savePendingRef = useRef<{ listId: string; songs: SetlistSong[]; updates: any } | null>(null);
+  const saveQueueRef = useRef<{ listId: string; songs: SetlistSong[]; updates: any }[]>([]);
 
   const transposerRef = useRef<AudioTransposerRef>(null);
 
@@ -53,33 +53,11 @@ const Index = () => {
   const activeSong = songs[activeSongIndex] || null;
 
   useEffect(() => {
-    const handleGesture = async () => {
-      if (Tone.getContext().state !== 'running') {
-        await Tone.start();
-      }
-      window.removeEventListener('click', handleGesture);
-      window.removeEventListener('keydown', handleGesture);
-    };
-
-    window.addEventListener('click', handleGesture, { passive: true });
-    window.addEventListener('keydown', handleGesture, { passive: true });
-
-    return () => {
-      window.removeEventListener('click', handleGesture);
-      window.removeEventListener('keydown', handleGesture);
-    };
-  }, []);
-
-  useEffect(() => {
     if (user) {
       fetchSetlists();
       fetchMasterRepertoire();
     }
-    
-    const clockInterval = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-    
+    const clockInterval = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(clockInterval);
   }, [user]);
 
@@ -102,278 +80,115 @@ const Index = () => {
       setIsProcessingQueue(true);
       const batchIds = syncQueue.slice(0, 5);
       const batchSongs = songs.filter(s => batchIds.includes(s.id));
-
       if (batchSongs.length > 0) {
         await handleBatchSyncInternal(batchSongs);
-        await new Promise(resolve => setTimeout(resolve, 6000));
+        await new Promise(resolve => setTimeout(resolve, 5000));
       }
-
       setSyncQueue(prev => prev.filter(id => !batchIds.includes(id)));
       setIsProcessingQueue(false);
     };
 
     processNextBatch();
-  }, [syncQueue, isProcessingQueue, currentListId, songs]);
+  }, [syncQueue, isProcessingQueue, currentListId]);
 
   const fetchMasterRepertoire = async () => {
     if (!user) return;
     try {
-      const { data, error } = await supabase
-        .from('repertoire')
-        .select('*')
-        .eq('user_id', user.id);
-      
-      if (error) throw error;
-      
+      const { data } = await supabase.from('repertoire').select('*').eq('user_id', user.id);
       const mapped = (data || []).map(d => ({
-        id: d.id, 
-        master_id: d.id,
-        name: d.title,
-        artist: d.artist,
-        bpm: d.bpm,
-        lyrics: d.lyrics,
-        originalKey: d.original_key,
-        targetKey: d.target_key,
-        pitch: d.pitch,
-        ugUrl: d.ug_url,
-        previewUrl: d.preview_url,
-        youtubeUrl: d.youtube_url,
-        appleMusicUrl: d.apple_music_url,
-        pdfUrl: d.pdf_url,
-        isMetadataConfirmed: d.is_metadata_confirmed,
-        isKeyConfirmed: d.is_key_confirmed,
-        duration_seconds: d.duration_seconds,
-        notes: d.notes,
-        user_tags: d.user_tags || [],
-        resources: d.resources || []
+        id: d.id, master_id: d.id, name: d.title, artist: d.artist, bpm: d.bpm, lyrics: d.lyrics,
+        originalKey: d.original_key, targetKey: d.target_key, pitch: d.pitch, ugUrl: d.ug_url,
+        previewUrl: d.preview_url, youtubeUrl: d.youtube_url, appleMusicUrl: d.apple_music_url,
+        pdfUrl: d.pdf_url, isMetadataConfirmed: d.is_metadata_confirmed, isKeyConfirmed: d.is_key_confirmed,
+        duration_seconds: d.duration_seconds, notes: d.notes, user_tags: d.user_tags || [], resources: d.resources || []
       }));
-      
       setMasterRepertoire(mapped);
-    } catch (err) {
-      console.error("Master Repertoire fetch error", err);
-    }
+    } catch (err) {}
   };
 
   const fetchSetlists = async () => {
     try {
-      const { data, error } = await supabase
-        .from('setlists')
-        .select('*')
-        .order('updated_at', { ascending: false });
-
+      const { data, error } = await supabase.from('setlists').select('*').order('updated_at', { ascending: false });
       if (error) throw error;
-      
       if (data && data.length > 0) {
-        setSetlists(data.map(d => ({ 
-          id: d.id, 
-          name: d.name, 
-          songs: d.songs as SetlistSong[],
-          time_goal: d.time_goal 
-        })));
+        setSetlists(data.map(d => ({ id: d.id, name: d.name, songs: d.songs as SetlistSong[], time_goal: d.time_goal })));
         setCurrentListId(data[0].id);
-      } else {
-        const newList = { name: "My First Gig", songs: [], time_goal: 7200 };
-        const { data: created, error: createError } = await supabase
-          .from('setlists')
-          .insert([{ user_id: user?.id, ...newList }])
-          .select()
-          .single();
-        
-        if (createError) throw createError;
-        if (created) {
-          setSetlists([{ id: created.id, name: created.name, songs: created.songs as SetlistSong[], time_goal: created.time_goal }]);
-          setCurrentListId(created.id);
-        }
       }
-    } catch (err) {
-      console.error("Fetch error", err);
-    }
+    } catch (err) {}
   };
 
+  /**
+   * Main Save Logic - Implements a strict Mutex to prevent data duplication during rapid edits.
+   */
   const saveList = async (listId: string, updatedSongs: SetlistSong[], updates: Partial<any> = {}) => {
     if (!user) return;
 
     if (isSyncingRef.current) {
-      console.log("[DASHBOARD] Sync already in progress. Queueing follow-up save...");
-      savePendingRef.current = { listId, songs: updatedSongs, updates };
+      console.log("[DASHBOARD] Sync in progress. Queueing update...");
+      saveQueueRef.current = [{ listId, songs: updatedSongs, updates }];
       return;
     }
 
-    console.log(`[DASHBOARD] Initializing Save. Updated count: ${updatedSongs.length}`);
     isSyncingRef.current = true;
     setIsSaving(true);
 
     try {
+      // 1. Sync to the master repertoire table first (essential to get stable IDs)
       const syncedSongs = await syncToMasterRepertoire(user.id, updatedSongs);
       
-      console.log("[DASHBOARD] Sync Engine returned data. Updating main state.");
+      // 2. Update local state with the synced version (which now has master_ids)
       setSetlists(prev => prev.map(l => l.id === listId ? { ...l, songs: syncedSongs, ...updates } : l));
 
+      // 3. Persist the JSON blob to the setlists table
       const cleanedSongsForJson = syncedSongs.map(({ isSyncing, ...rest }) => rest);
+      await supabase.from('setlists').update({ songs: cleanedSongsForJson, updated_at: new Date().toISOString(), ...updates }).eq('id', listId);
       
-      console.log("[DASHBOARD] Persisting JSON state to setlists table...");
-      const { error } = await supabase
-        .from('setlists')
-        .update({ 
-          songs: cleanedSongsForJson, 
-          updated_at: new Date().toISOString(),
-          ...updates
-        })
-        .eq('id', listId);
-      
-      if (error) throw error;
-      
-      console.log("[DASHBOARD] Save Sequence Complete.");
       fetchMasterRepertoire();
     } catch (err) {
-      console.error("[DASHBOARD] CRITICAL SAVE ERROR:", err);
+      console.error("[Gig Studio] Critical save failure:", err);
     } finally {
       setIsSaving(false);
       isSyncingRef.current = false;
       
-      if (savePendingRef.current) {
-        console.log("[DASHBOARD] Processing queued follow-up save...");
-        const next = savePendingRef.current;
-        savePendingRef.current = null;
+      // Process next in queue if any
+      if (saveQueueRef.current.length > 0) {
+        const next = saveQueueRef.current.shift()!;
+        // Re-read current state for any missing IDs to avoid re-insertion
         saveList(next.listId, next.songs, next.updates);
       }
     }
   };
 
-  const handleUpdateGoal = async (seconds: number) => {
-    if (!currentListId) return;
-    const list = setlists.find(l => l.id === currentListId);
-    if (!list) return;
-    saveList(currentListId, list.songs, { time_goal: seconds });
-  };
-
-  const handleBatchSyncInternal = async (songsToSync: SetlistSong[]) => {
-    if (!currentListId || !user) return;
-
-    setSetlists(prev => prev.map(l => l.id === currentListId ? {
-      ...l,
-      songs: l.songs.map(s => 
-        songsToSync.find(ts => ts.id === s.id) ? { ...s, isSyncing: true } : s
-      )
-    } : l));
-
-    try {
-      const { data, error } = await supabase.functions.invoke('enrich-metadata', {
-        body: { queries: songsToSync.map(s => s.name) }
-      });
-
-      if (error) throw error;
-
-      const list = setlists.find(l => l.id === currentListId);
-      if (!list) return;
-
-      const updatedSongs = list.songs.map(s => {
-        const aiResult = Array.isArray(data) ? data.find((r: any) => 
-          r.name.toLowerCase().includes(s.name.toLowerCase()) || 
-          s.name.toLowerCase().includes(r.name.toLowerCase())
-        ) : null;
-
-        if (aiResult) {
-          return {
-            ...s,
-            name: aiResult.name || s.name,
-            artist: aiResult.artist,
-            originalKey: aiResult.originalKey,
-            targetKey: aiResult.originalKey,
-            bpm: aiResult.bpm?.toString(),
-            genre: aiResult.genre,
-            ugUrl: aiResult.ugUrl || s.ugUrl,
-            isMetadataConfirmed: true,
-            pitch: 0,
-            isSyncing: false
-          };
-        }
-        return songsToSync.find(ts => ts.id === s.id) ? { ...s, isSyncing: false } : s;
-      });
-
-      await saveList(currentListId, updatedSongs);
-    } catch (err) {
-      setSetlists(prev => prev.map(l => l.id === currentListId ? {
-        ...l,
-        songs: l.songs.map(s => 
-          songsToSync.find(ts => ts.id === s.id) ? { ...s, isSyncing: false } : s
-        )
-      } : l));
-    }
-  };
-
-  const handleSyncAll = () => {
-    if (!currentListId || songs.length === 0) return;
-    const songsToSync = songs.filter(s => !s.isMetadataConfirmed || !s.bpm || s.originalKey === 'TBC');
-    if (songsToSync.length === 0) {
-      showSuccess("All songs are already synced and confirmed.");
-      return;
-    }
-    setSyncQueue(prev => [...new Set([...prev, ...songsToSync.map(s => s.id)])]);
-    showSuccess(`Queueing ${songsToSync.length} songs for AI metadata enrichment...`);
-  };
-
   const handleUpdateSong = (songId: string, updates: Partial<SetlistSong>) => {
     if (!currentListId) return;
-    const list = setlists.find(l => l.id === currentListId);
-    if (!list) return;
-    console.log(`[DASHBOARD] handleUpdateSong called for ${songId}. Updates:`, updates);
-    const updatedSongs = list.songs.map(s => s.id === songId ? { ...s, ...updates } : s);
-    saveList(currentListId, updatedSongs);
+    setSetlists(prev => {
+      const list = prev.find(l => l.id === currentListId);
+      if (!list) return prev;
+      const updatedSongs = list.songs.map(s => s.id === songId ? { ...s, ...updates } : s);
+      saveList(currentListId, updatedSongs);
+      return prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l);
+    });
   };
 
   const handleAddToSetlist = async (previewUrl: string, name: string, artist: string, youtubeUrl?: string, pitch: number = 0, ugUrl?: string) => {
     if (!currentListId || !user) return;
-    
     const existing = masterRepertoire.find(s => s.name.toLowerCase() === name.toLowerCase());
-    
     const newSongId = Math.random().toString(36).substr(2, 9);
-    const newSong: SetlistSong = existing ? {
-      ...existing,
-      id: newSongId, 
-      master_id: existing.master_id, 
-      isPlayed: false,
-      isSyncing: false
-    } : {
-      id: newSongId,
-      name,
-      artist,
-      previewUrl,
-      youtubeUrl,
-      ugUrl,
-      pitch,
-      originalKey: "TBC",
-      targetKey: "TBC",
-      isPlayed: false,
-      isSyncing: true,
-      isMetadataConfirmed: false
-    };
-    
+    const newSong: SetlistSong = existing ? { ...existing, id: newSongId, master_id: existing.master_id, isPlayed: false, isSyncing: false } : { id: newSongId, name, artist, previewUrl, youtubeUrl, ugUrl, pitch, originalKey: "TBC", targetKey: "TBC", isPlayed: false, isSyncing: true, isMetadataConfirmed: false };
     const list = setlists.find(l => l.id === currentListId);
     if (!list) return;
     const updatedSongs = [...list.songs, newSong];
     await saveList(currentListId, updatedSongs);
-    
-    if (!existing) {
-      setSyncQueue(prev => [...prev, newSongId]);
-    } else {
-      showSuccess(`Added "${name}" from Library`);
-    }
+    if (!existing) setSyncQueue(prev => [...prev, newSongId]);
+    else showSuccess(`Added "${name}" from Library`);
   };
 
   const handleAddExistingSong = (song: SetlistSong) => {
     if (!currentListId) return;
     const newSongId = Math.random().toString(36).substr(2, 9);
-    const clonedSong: SetlistSong = {
-      ...song,
-      id: newSongId, 
-      master_id: song.master_id || song.id, 
-      isPlayed: false 
-    };
-    
     const list = setlists.find(l => l.id === currentListId);
     if (!list) return;
-    const updatedSongs = [...list.songs, clonedSong];
+    const updatedSongs = [...list.songs, { ...song, id: newSongId, master_id: song.master_id || song.id, isPlayed: false }];
     saveList(currentListId, updatedSongs);
     showSuccess(`Imported "${song.name}"`);
   };
@@ -382,7 +197,6 @@ const Index = () => {
     if (!currentListId) return;
     const list = setlists.find(l => l.id === currentListId);
     if (!list) return;
-    
     const updatedSongs = list.songs.map(s => {
       if (s.id === songId) {
         const pitch = calculateSemitones(s.originalKey || "C", targetKey);
@@ -391,7 +205,6 @@ const Index = () => {
       }
       return s;
     });
-    
     saveList(currentListId, updatedSongs);
   };
 
@@ -413,14 +226,11 @@ const Index = () => {
   };
 
   const handleNextSong = async () => {
-    if (!currentList) return;
-    const nextIndex = songs.findIndex((s, i) => i > activeSongIndex && !!s.previewUrl);
-    if (nextIndex !== -1) {
-      const song = songs[nextIndex];
-      handleSelectSong(song);
-      if (isPerformanceMode) {
-        setTimeout(() => transposerRef.current?.togglePlayback(), 1000);
-      }
+    const playable = songs.filter(s => !!s.previewUrl);
+    const currIdx = playable.findIndex(s => s.id === activeSongId);
+    if (currIdx !== -1 && currIdx < playable.length - 1) {
+      handleSelectSong(playable[currIdx + 1]);
+      if (isPerformanceMode) setTimeout(() => transposerRef.current?.togglePlayback(), 1000);
     } else {
       setIsPerformanceMode(false);
       setActiveSongId(null);
@@ -430,34 +240,17 @@ const Index = () => {
   };
 
   const handlePreviousSong = () => {
-    if (!currentList) return;
-    let prevIndex = -1;
-    for (let i = activeSongIndex - 1; i >= 0; i--) {
-      if (songs[i].previewUrl) {
-        prevIndex = i;
-        break;
-      }
-    }
-    if (prevIndex !== -1) {
-      handleSelectSong(songs[prevIndex]);
-    }
+    const playable = songs.filter(s => !!s.previewUrl);
+    const currIdx = playable.findIndex(s => s.id === activeSongId);
+    if (currIdx > 0) handleSelectSong(playable[currIdx - 1]);
   };
 
   const startPerformance = async () => {
-    const firstPlayable = songs.find(s => !!s.previewUrl);
-    if (!firstPlayable) {
-      showError("No audio tracks found.");
-      return;
-    }
+    const first = songs.find(s => !!s.previewUrl);
+    if (!first) { showError("No audio tracks found."); return; }
     setIsPerformanceMode(true);
-    handleSelectSong(firstPlayable);
+    handleSelectSong(first);
     setTimeout(() => transposerRef.current?.togglePlayback(), 1000);
-  };
-
-  const handleMainClick = (e: React.MouseEvent) => {
-    if (isStudioOpen && (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('main-inner-container'))) {
-      setIsStudioOpen(false);
-    }
   };
 
   return (
@@ -470,15 +263,13 @@ const Index = () => {
             </div>
             <span className="font-black uppercase tracking-tighter text-lg text-slate-900 dark:text-white hidden sm:block">Gig Studio <span className="text-indigo-600">Pro</span></span>
           </div>
-          <SetlistSelector 
-            setlists={setlists} 
-            currentId={currentListId || ''} 
-            onSelect={setCurrentListId}
+          <SetlistSelector setlists={setlists} currentId={currentListId || ''} onSelect={setCurrentListId}
             onCreate={async () => {
               const name = prompt("Enter Gig Name:");
-              if (!name) return;
-              const { data } = await supabase.from('setlists').insert([{ user_id: user?.id, name, songs: [], time_goal: 7200 }]).select().single();
-              if (data) fetchSetlists();
+              if (name) {
+                const { data } = await supabase.from('setlists').insert([{ user_id: user?.id, name, songs: [], time_goal: 7200 }]).select().single();
+                if (data) fetchSetlists();
+              }
             }}
             onDelete={async (id) => {
               if (confirm("Delete gig?")) {
@@ -488,205 +279,71 @@ const Index = () => {
             }}
           />
         </div>
-
         <div className="flex items-center gap-2 md:gap-6 shrink-0 ml-2">
           <div className="hidden lg:flex items-center gap-2 bg-slate-50 dark:bg-slate-800/50 px-4 py-1.5 rounded-full border border-slate-100 dark:border-white/5">
             <Clock className="w-3.5 h-3.5 text-indigo-500" />
-            <span className="text-[11px] font-black font-mono text-slate-600 dark:text-slate-300">
-              {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-            </span>
+            <span className="text-[11px] font-black font-mono text-slate-600 dark:text-slate-300">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
           </div>
-
           <div className="flex items-center gap-2 md:gap-4">
             {syncQueue.length > 0 && (
               <div className="flex items-center gap-2 px-3 py-1 bg-amber-50 border border-amber-100 rounded-full animate-pulse hidden sm:flex">
-                <Loader2 className="w-3 h-3 animate-spin text-amber-600" />
-                <span className="text-[10px] font-black text-amber-700 uppercase">AI: {syncQueue.length}</span>
+                <Loader2 className="w-3 h-3 animate-spin text-amber-600" /><span className="text-[10px] font-black text-amber-700 uppercase">AI: {syncQueue.length}</span>
               </div>
             )}
-            
-            <Button 
-              variant="default" 
-              size="sm" 
-              onClick={startPerformance} 
-              className="h-9 md:h-10 gap-2 bg-indigo-600 font-bold uppercase tracking-tight shadow-lg shadow-indigo-600/20 px-3 md:px-4"
-            >
-              <Rocket className="w-4 h-4" /> 
-              <span className="hidden md:inline">Start Show</span>
-            </Button>
-
+            <Button variant="default" size="sm" onClick={startPerformance} className="h-9 md:h-10 gap-2 bg-indigo-600 font-bold uppercase tracking-tight shadow-lg shadow-indigo-600/20 px-3 md:px-4"><Rocket className="w-4 h-4" /><span className="hidden md:inline">Start Show</span></Button>
             <div className="h-6 w-px bg-slate-200 hidden sm:block" />
-
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => setIsStudioOpen(!isStudioOpen)} 
-              className={cn("h-9 w-9 md:h-10 md:w-10 rounded-lg shrink-0", isStudioOpen && "text-indigo-600 bg-indigo-50")}
-            >
-              <SearchIcon className="w-4 h-4" />
-            </Button>
-            
-            <button 
-              onClick={() => setIsPreferencesOpen(true)}
-              className="flex items-center gap-2 px-2 md:px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-            >
-              <UserIcon className="w-3 h-3 text-slate-500" />
-              <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest hidden sm:inline">{user?.email?.split('@')[0]}</span>
-              {isSaving && <Loader2 className="w-3 h-3 animate-spin text-indigo-500 ml-1" />}
-              <Settings className="w-3 h-3 text-slate-400 ml-1" />
+            <Button variant="ghost" size="icon" onClick={() => setIsStudioOpen(!isStudioOpen)} className={cn("h-9 w-9 md:h-10 md:w-10 rounded-lg shrink-0", isStudioOpen && "text-indigo-600 bg-indigo-50")}><SearchIcon className="w-4 h-4" /></Button>
+            <button onClick={() => setIsPreferencesOpen(true)} className="flex items-center gap-2 px-2 md:px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+              <UserIcon className="w-3 h-3 text-slate-500" /><span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest hidden sm:inline">{user?.email?.split('@')[0]}</span>{isSaving && <Loader2 className="w-3 h-3 animate-spin text-indigo-500 ml-1" />}<Settings className="w-3 h-3 text-slate-400 ml-1" />
             </button>
           </div>
         </div>
       </nav>
-
       <div className="flex-1 flex overflow-hidden">
-        <main 
-          className="flex-1 overflow-y-auto p-4 md:p-8 relative scroll-smooth cursor-default"
-          onClick={handleMainClick}
-        >
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 relative scroll-smooth cursor-default" onClick={(e) => isStudioOpen && e.target === e.currentTarget && setIsStudioOpen(false)}>
           <div className="max-w-6xl mx-auto space-y-6 md:space-y-8 main-inner-container">
-            <ActiveSongBanner 
-              song={activeSong} 
-              isPlaying={isPlayerActive}
-              onTogglePlayback={() => transposerRef.current?.togglePlayback()}
-              onClear={() => {
-                setActiveSongId(null);
-                transposerRef.current?.stopPlayback();
-              }}
-            />
-            
+            <ActiveSongBanner song={activeSong} isPlaying={isPlayerActive} onTogglePlayback={() => transposerRef.current?.togglePlayback()} onClear={() => { setActiveSongId(null); transposerRef.current?.stopPlayback(); }} />
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h2 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase truncate max-w-full">{currentList?.name}</h2>
                 <div className="flex items-center gap-3 md:gap-4 mt-1 overflow-x-auto no-scrollbar pb-1">
                   <p className="text-slate-500 text-xs font-medium whitespace-nowrap">{songs.length} Tracks</p>
                   <div className="h-1 w-1 rounded-full bg-slate-300 shrink-0" />
-                  <button 
-                    onClick={handleSyncAll}
-                    disabled={syncQueue.length > 0}
-                    className="text-[10px] font-black uppercase text-indigo-600 hover:text-indigo-500 flex items-center gap-1.5 transition-colors disabled:opacity-50 whitespace-nowrap"
-                  >
-                    {syncQueue.length > 0 ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-                    Enrich
-                  </button>
+                  <button onClick={() => { if (!songs.length) return; setSyncQueue(songs.filter(s => !s.isMetadataConfirmed).map(s => s.id)); showSuccess("Enriching..."); }} className="text-[10px] font-black uppercase text-indigo-600 hover:text-indigo-500 flex items-center gap-1.5 transition-colors disabled:opacity-50 whitespace-nowrap"><Sparkles className="w-3 h-3" />Enrich</button>
                   <div className="h-1 w-1 rounded-full bg-slate-300 shrink-0" />
-                  <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
-                    <ShieldCheck className="w-3 h-3 text-emerald-500" />
-                    <span className="text-[9px] font-black uppercase text-emerald-600 tracking-widest">Headless Sync Active</span>
-                  </div>
+                  <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full"><ShieldCheck className="w-3 h-3 text-emerald-500" /><span className="text-[9px] font-black uppercase text-emerald-600 tracking-widest">Headless Sync Active</span></div>
                 </div>
               </div>
               <ImportSetlist onImport={(newSongs) => {
                 if (!currentListId) return;
-                const songsWithSyncState = newSongs.map(s => ({ ...s, isSyncing: true, isMetadataConfirmed: false }));
-                const list = setlists.find(l => l.id === currentListId);
-                if (!list) return;
-                const updated = [...list.songs, ...songsWithSyncState];
-                saveList(currentListId, updated);
-                setSyncQueue(prev => [...prev, ...songsWithSyncState.map(s => s.id)]);
+                const songsWithSync = newSongs.map(s => ({ ...s, isSyncing: true }));
+                saveList(currentListId, [...songs, ...songsWithSync]);
+                setSyncQueue(prev => [...prev, ...songsWithSync.map(s => s.id)]);
               }} />
             </div>
-
-            <SetlistStats songs={songs} goalSeconds={currentList?.time_goal} onUpdateGoal={handleUpdateGoal} />
-
-            <SetlistManager 
-              songs={songs} 
-              onRemove={(id) => {
-                const list = setlists.find(l => l.id === currentListId);
-                if (!list) return;
-                const updated = list.songs.filter(s => s.id !== id);
-                saveList(currentListId!, updated);
-              }}
-              onSelect={handleSelectSong}
-              onUpdateKey={handleUpdateKey}
-              onTogglePlayed={handleTogglePlayed}
-              onSyncProData={async (song) => {
-                setSyncQueue(prev => [...new Set([...prev, song.id])]);
-              }}
-              onLinkAudio={(name) => {
-                setIsStudioOpen(true);
-                transposerRef.current?.triggerSearch(name);
-              }}
-              onUpdateSong={handleUpdateSong}
-              onReorder={(newSongs) => {
-                if (!currentListId) return;
-                setSetlists(prev => prev.map(l => l.id === currentListId ? { ...l, songs: newSongs } : l));
-                saveList(currentListId, newSongs);
-              }}
-              currentSongId={activeSongId || undefined}
-            />
+            <SetlistStats songs={songs} goalSeconds={currentList?.time_goal} onUpdateGoal={(s) => currentListId && saveList(currentListId, songs, { time_goal: s })} />
+            <SetlistManager songs={songs} onRemove={(id) => currentListId && saveList(currentListId, songs.filter(s => s.id !== id))} onSelect={handleSelectSong} onUpdateKey={handleUpdateKey} onTogglePlayed={handleTogglePlayed} onSyncProData={async (s) => setSyncQueue(p => [...new Set([...p, s.id])])} onLinkAudio={(n) => { setIsStudioOpen(true); transposerRef.current?.triggerSearch(n); }} onUpdateSong={handleUpdateSong} onReorder={(ns) => currentListId && saveList(currentListId, ns)} currentSongId={activeSongId || undefined} />
           </div>
           <MadeWithDyad />
         </main>
-
-        <aside className={cn(
-          "w-full md:w-[450px] bg-white dark:bg-slate-900 border-l shadow-2xl transition-all duration-500 shrink-0 relative z-40",
-          isStudioOpen ? "translate-x-0" : "translate-x-full absolute right-0 top-16 bottom-0 md:top-20"
-        )}>
+        <aside className={cn("w-full md:w-[450px] bg-white dark:bg-slate-900 border-l shadow-2xl transition-all duration-500 shrink-0 relative z-40", isStudioOpen ? "translate-x-0" : "translate-x-full absolute right-0 top-16 bottom-0 md:top-20")}>
           <div className="h-full flex flex-col">
             <div className="p-4 border-b flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 shrink-0">
               <div className="flex items-center gap-3">
-                <div className="bg-indigo-600 p-2 rounded-full text-white animate-pulse">
-                  {activeSongId ? <Play className="w-4 h-4 fill-current" /> : <SearchIcon className="w-4 h-4" />}
-                </div>
-                <div>
-                  <h3 className="text-xs font-black uppercase tracking-widest text-indigo-600">{activeSongId ? "Performing" : "Studio Engine"}</h3>
-                  <p className="text-sm font-bold truncate max-w-[200px]">{activeSongId ? activeSong?.name : "Link Assets"}</p>
-                </div>
+                <div className="bg-indigo-600 p-2 rounded-full text-white animate-pulse">{activeSongId ? <Play className="w-4 h-4 fill-current" /> : <SearchIcon className="w-4 h-4" />}</div>
+                <div><h3 className="text-xs font-black uppercase tracking-widest text-indigo-600">{activeSongId ? "Performing" : "Studio Engine"}</h3><p className="text-sm font-bold truncate max-w-[200px]">{activeSongId ? activeSong?.name : "Link Assets"}</p></div>
               </div>
               <Button variant="ghost" size="sm" onClick={() => setIsStudioOpen(false)} className="text-[10px] font-bold uppercase">Hide</Button>
             </div>
-            <div className="flex-1 overflow-y-auto">
-              <AudioTransposer 
-                ref={transposerRef} 
-                onAddToSetlist={handleAddToSetlist} 
-                onAddExistingSong={handleAddExistingSong}
-                onUpdateSongKey={handleUpdateKey}
-                onSongEnded={handleNextSong}
-                onPlaybackChange={setIsPlayerActive}
-                repertoire={masterRepertoire}
-                currentSong={activeSong}
-              />
-            </div>
+            <div className="flex-1 overflow-y-auto"><AudioTransposer ref={transposerRef} onAddToSetlist={handleAddToSetlist} onAddExistingSong={handleAddExistingSong} onUpdateSongKey={handleUpdateKey} onSongEnded={handleNextSong} onPlaybackChange={setIsPlayerActive} repertoire={masterRepertoire} currentSong={activeSong} /></div>
           </div>
         </aside>
       </div>
-
-      <PreferencesModal 
-        isOpen={isPreferencesOpen} 
-        onClose={() => setIsPreferencesOpen(false)} 
-      />
-
+      <PreferencesModal isOpen={isPreferencesOpen} onClose={() => setIsPreferencesOpen(false)} />
       {isPerformanceMode && (
-        <PerformanceOverlay 
-          songs={songs.filter(s => !!s.previewUrl)}
-          currentIndex={songs.filter(s => !!s.previewUrl).findIndex(s => s.id === activeSongId)}
-          isPlaying={isPlayerActive}
-          progress={performanceState.progress}
-          duration={performanceState.duration}
-          onTogglePlayback={() => transposerRef.current?.togglePlayback()}
-          onNext={handleNextSong}
-          onPrevious={handlePreviousSong}
-          onClose={() => {
-            setIsPerformanceMode(false);
-            setActiveSongId(null);
-            transposerRef.current?.stopPlayback();
-          }}
-          onUpdateKey={handleUpdateKey}
-          onUpdateSong={handleUpdateSong}
-          analyzer={transposerRef.current?.getAnalyzer()}
-        />
+        <PerformanceOverlay songs={songs.filter(s => !!s.previewUrl)} currentIndex={songs.filter(s => !!s.previewUrl).findIndex(s => s.id === activeSongId)} isPlaying={isPlayerActive} progress={performanceState.progress} duration={performanceState.duration} onTogglePlayback={() => transposerRef.current?.togglePlayback()} onNext={handleNextSong} onPrevious={handlePreviousSong} onClose={() => { setIsPerformanceMode(false); setActiveSongId(null); transposerRef.current?.stopPlayback(); }} onUpdateKey={handleUpdateKey} onUpdateSong={handleUpdateSong} analyzer={transposerRef.current?.getAnalyzer()} />
       )}
-
-      {!isStudioOpen && !isPerformanceMode && (
-        <button 
-          onClick={() => setIsStudioOpen(true)} 
-          className="fixed right-0 top-1/2 -translate-y-1/2 z-[40] bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border-y border-l border-slate-300 dark:border-slate-700 rounded-l-2xl py-8 px-2 transition-all group flex items-center justify-center shadow-[-4px_0_15px_rgba(0,0,0,0.1)]"
-          title="Open Song Studio"
-        >
-          <Music className="w-5 h-5 text-slate-500 group-hover:text-indigo-600 transition-colors" />
-        </button>
-      )}
+      {!isStudioOpen && !isPerformanceMode && (<button onClick={() => setIsStudioOpen(true)} className="fixed right-0 top-1/2 -translate-y-1/2 z-[40] bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border-y border-l border-slate-300 dark:border-slate-700 rounded-l-2xl py-8 px-2 transition-all group flex items-center justify-center shadow-[-4px_0_15px_rgba(0,0,0,0.1)]" title="Open Song Studio"><Music className="w-5 h-5 text-slate-500 group-hover:text-indigo-600 transition-colors" /></button>)}
     </div>
   );
 };
