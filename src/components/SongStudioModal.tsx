@@ -104,7 +104,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const [isProSyncing, setIsProSyncing] = useState(false);
   const [isInRepertoire, setIsInRepertoire] = useState(false);
   
-  const [activeChartType, setActiveChartType] = useState<'pdf' | 'leadsheet' | 'web' | 'ug'>('pdf');
+  const [activeChartType, setActiveChartType] = useState<'pdf' | 'leadsheet' | 'ug'>('pdf');
 
   // Audio Engine State
   const [isPlaying, setIsPlaying] = useState(false);
@@ -598,7 +598,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     switch(activeChartType) {
       case 'pdf': return formData.pdfUrl ? `${formData.pdfUrl}#toolbar=0&navpanes=0&view=FitH` : null;
       case 'leadsheet': return formData.leadsheetUrl ? `${formData.leadsheetUrl}#toolbar=0&navpanes=0&view=FitH` : null;
-      case 'web': return formData.pdfUrl;
       case 'ug': return formData.ugUrl;
       default: return null;
     }
@@ -637,6 +636,11 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       if (song.previewUrl) {
         prepareAudio(song.previewUrl, song.pitch || 0);
       }
+      
+      // Default to first available chart
+      if (!initialData.pdfUrl && initialData.leadsheetUrl) setActiveChartType('leadsheet');
+      else if (!initialData.pdfUrl && !initialData.leadsheetUrl && initialData.ugUrl) setActiveChartType('ug');
+      else setActiveChartType('pdf');
     }
     return () => {
       cleanupAudio();
@@ -1154,6 +1158,29 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       </div>
                     </div>
                     <div className="space-y-4">
+                      <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Leadsheet Link</Label>
+                      <div className="flex gap-2 md:gap-3">
+                        <StudioInput 
+                          value={formData.leadsheetUrl}
+                          onChange={(val: string) => handleAutoSave({ leadsheetUrl: val })}
+                          placeholder="Paste URL..."
+                          className="bg-white/5 border-white/10 font-bold text-emerald-400 h-10 md:h-12 rounded-xl w-full"
+                        />
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-10 md:h-12 border-white/10 text-emerald-400 hover:bg-emerald-600/10 px-4 rounded-xl font-bold text-[10px] uppercase gap-2 shrink-0 min-w-[120px]"
+                          onClick={() => {
+                            const query = encodeURIComponent(`${formData.artist} ${formData.name} lead sheet pdf`);
+                            window.open(`https://www.google.com/search?q=${query}`, '_blank');
+                          }}
+                        >
+                          <Search className="w-3.5 h-3.5" /> Find
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
                       <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Ultimate Guitar Link</Label>
                       <div className="flex gap-2 md:gap-3">
                         <StudioInput 
@@ -1174,7 +1201,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                           <Search className="w-3.5 h-3.5" /> Find
                         </Button>
                       </div>
-                    </div>
                   </div>
                   <StudioInput 
                     label="Rehearsal & Dynamics Notes"
@@ -1188,6 +1214,43 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
               )}
               {activeTab === 'charts' && (
                 <div className="h-full flex flex-col gap-6 md:gap-8 animate-in fade-in duration-500">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                      <h3 className="text-sm md:text-lg font-black uppercase tracking-[0.3em] text-emerald-400">Chart Engine V2</h3>
+                      <p className="text-xs md:text-sm text-slate-500 mt-1">Multi-layer chart rendering engine active.</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2 md:gap-4">
+                      <div className="flex bg-white/5 border border-white/10 p-1 rounded-xl">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={!formData.pdfUrl}
+                          onClick={() => setActiveChartType('pdf')}
+                          className={cn("text-[9px] md:text-[10px] font-black uppercase tracking-widest h-8 md:h-9 px-3 md:px-4 rounded-lg transition-all", activeChartType === 'pdf' ? "bg-indigo-600 text-white shadow-lg" : "text-slate-500")}
+                        >
+                          PDF
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={!formData.leadsheetUrl}
+                          onClick={() => setActiveChartType('leadsheet')}
+                          className={cn("text-[9px] md:text-[10px] font-black uppercase tracking-widest h-8 md:h-9 px-3 md:px-4 rounded-lg transition-all", activeChartType === 'leadsheet' ? "bg-emerald-600 text-white shadow-lg" : "text-slate-500")}
+                        >
+                          Leadsheet
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={!formData.ugUrl}
+                          onClick={() => setActiveChartType('ug')}
+                          className={cn("text-[9px] md:text-[10px] font-black uppercase tracking-widest h-8 md:h-9 px-3 md:px-4 rounded-lg transition-all", activeChartType === 'ug' ? "bg-orange-600 text-white shadow-lg" : "text-slate-500")}
+                        >
+                          UG
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                   <div className={cn("flex-1 min-h-[300px] bg-white overflow-hidden shadow-2xl relative", isMobile ? "rounded-3xl" : "rounded-[3rem]")}>
                     {currentChartUrl ? (
                       isFramable(currentChartUrl) ? (
@@ -1196,13 +1259,17 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                         <div className="h-full flex flex-col items-center justify-center bg-slate-900 p-8 text-center">
                           <ShieldCheck className="w-12 h-12 text-indigo-400 mb-6" />
                           <h4 className="text-xl md:text-3xl font-black uppercase mb-4 text-white">Asset Protected</h4>
-                          <Button onClick={() => window.open(currentChartUrl, '_blank')} className="bg-indigo-600 hover:bg-indigo-700 h-12 md:h-14 px-8 md:px-10 font-black uppercase tracking-widest text-[10px] rounded-2xl gap-3">Launch Source</Button>
+                          <p className="text-slate-400 mb-8 max-w-sm mx-auto">External security prevents in-app embedding for this source.</p>
+                          <Button onClick={() => window.open(currentChartUrl, '_blank')} className="bg-indigo-600 hover:bg-indigo-700 h-12 md:h-14 px-8 md:px-10 font-black uppercase tracking-widest text-[10px] rounded-2xl gap-3">
+                            <ExternalLink className="w-4 h-4 md:w-5 md:h-5" /> Launch Source
+                          </Button>
                         </div>
                       )
                     ) : (
                       <div className="h-full flex flex-col items-center justify-center p-8 bg-slate-100 text-center">
                         <FileSearch className="w-12 h-12 md:w-16 md:h-16 text-indigo-400 mb-6" />
-                        <h4 className="text-lg md:text-2xl font-black text-slate-900 uppercase">No Active Chart</h4>
+                        <h4 className="text-lg md:text-2xl font-black text-slate-900 uppercase">No Active Chart Linked</h4>
+                        <p className="text-slate-500 mt-2">Link a PDF or UG tab in the Details tab to view it here.</p>
                       </div>
                     )}
                   </div>
