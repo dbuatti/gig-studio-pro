@@ -11,6 +11,7 @@ import { showSuccess, showError } from '@/utils/toast';
 import AudioVisualizer from './AudioVisualizer';
 import SongSearch from './SongSearch';
 import MyLibrary from './MyLibrary';
+import SongSuggestions from './SongSuggestions';
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SetlistSong } from './SetlistManager';
@@ -220,6 +221,11 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
     showSuccess("Opening iPad-ready View");
   };
 
+  const handleSelectSuggestion = (query: string) => {
+    setSearchQuery(query);
+    setActiveTab("search");
+  };
+
   useImperativeHandle(ref, () => ({
     loadFromUrl,
     setPitch: (newPitch: number) => {
@@ -294,9 +300,10 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 h-9 bg-slate-100 dark:bg-slate-800 p-1 mb-6">
-            <TabsTrigger value="search" className="text-[10px] uppercase font-bold gap-1.5"><Search className="w-3 h-3" /> iTunes Search</TabsTrigger>
-            <TabsTrigger value="repertoire" className="text-[10px] uppercase font-bold gap-1.5"><Library className="w-3 h-3" /> My Library</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 h-9 bg-slate-100 dark:bg-slate-800 p-1 mb-6">
+            <TabsTrigger value="search" className="text-[10px] uppercase font-bold gap-1.5"><Search className="w-3 h-3" /> iTunes</TabsTrigger>
+            <TabsTrigger value="suggestions" className="text-[10px] uppercase font-bold gap-1.5"><Sparkles className="w-3 h-3" /> Discover</TabsTrigger>
+            <TabsTrigger value="repertoire" className="text-[10px] uppercase font-bold gap-1.5"><Library className="w-3 h-3" /> Library</TabsTrigger>
           </TabsList>
           
           <TabsContent value="search" className="mt-0 space-y-4">
@@ -305,6 +312,10 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
               onAddToSetlist={(url, name, artist, yt, ug) => onAddToSetlist?.(url, name, artist, yt, 0, ug)}
               externalQuery={searchQuery}
             />
+          </TabsContent>
+
+          <TabsContent value="suggestions" className="mt-0 space-y-4">
+            <SongSuggestions repertoire={repertoire} onSelectSuggestion={handleSelectSuggestion} />
           </TabsContent>
 
           <TabsContent value="repertoire" className="mt-0 space-y-4">
