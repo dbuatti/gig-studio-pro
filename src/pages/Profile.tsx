@@ -105,11 +105,19 @@ const Profile = () => {
     if (!user) return;
     setIsSyncing(true);
     try {
+      // 1. Get all songs from all setlists
       const { data: setlists, error: sError } = await supabase
         .from('setlists')
-        .select('songs');
+        .select('songs')
+        .eq('user_id', user.id);
 
       if (sError) throw sError;
+
+      // 2. Get current Master Repertoire records to check for ID matches
+      const { data: currentMaster } = await supabase
+        .from('repertoire')
+        .select('id, title, artist')
+        .eq('user_id', user.id);
 
       const allSongs = setlists.flatMap(s => (s.songs as any[]) || []);
       if (allSongs.length === 0) {
@@ -132,20 +140,26 @@ const Profile = () => {
       allSongs.forEach(song => {
         const title = song.name;
         const artist = song.artist || 'Unknown Artist';
-        const key = `${title}-${artist}`.toLowerCase();
         const score = calculateScore(song);
         
-        if (!uniqueRepertoireMap.has(key) || score > uniqueRepertoireMap.get(key).readiness_score) {
-          uniqueRepertoireMap.set(key, {
-            user_id: user.id,
-            title,
-            artist,
-            original_key: song.originalKey || null,
-            bpm: song.bpm || null,
-            genre: song.genre || (song.user_tags?.[0]) || null,
-            readiness_score: score,
-            is_active: true
-          });
+        // Find existing record by Title match (to fix "Unknown Artist" records)
+        const match = currentMaster?.find(m => m.title.toLowerCase() === title.toLowerCase());
+        
+        const payload = {
+          user_id: user.id,
+          title,
+          artist,
+          original_key: song.originalKey || null,
+          bpm: song.bpm || null,
+          genre: song.genre || (song.user_tags?.[0]) || null,
+          readiness_score: score,
+          is_active: true
+        };
+
+        if (match) {
+          uniqueRepertoireMap.set(match.id, { ...payload, id: match.id });
+        } else {
+          uniqueRepertoireMap.set(`${title}-${artist}`.toLowerCase(), payload);
         }
       });
 
@@ -154,7 +168,7 @@ const Profile = () => {
       const { error: uError } = await supabase
         .from('repertoire')
         .upsert(finalData, { 
-          onConflict: 'user_id,title,artist',
+          onConflict: 'id', // Conflict on ID ensures we update existing records properly
           ignoreDuplicates: false 
         });
 

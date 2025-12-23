@@ -174,25 +174,40 @@ const Index = () => {
     if (!songs.length || !user) return;
     setIsBulkSyncing(true);
     try {
+      // 1. Get current Master Repertoire to find matches
+      const { data: existingMaster } = await supabase
+        .from('repertoire')
+        .select('id, title, artist')
+        .eq('user_id', user.id);
+
       const uniqueRepertoireMap = new Map();
       
       songs.forEach(song => {
         const title = song.name;
         const artist = song.artist || 'Unknown Artist';
-        const key = `${title}-${artist}`.toLowerCase();
+        const key = `${title}`.toLowerCase(); // Match primarily on title to fix "Unknown Artist" records
         const score = getReadinessScore(song);
         
-        if (!uniqueRepertoireMap.has(key) || score > uniqueRepertoireMap.get(key).readiness_score) {
-          uniqueRepertoireMap.set(key, {
-            user_id: user.id,
-            title,
-            artist,
-            original_key: song.originalKey || null,
-            bpm: song.bpm || null,
-            genre: song.genre || (song.user_tags?.[0]) || null,
-            readiness_score: score,
-            is_active: true
-          });
+        // Find if this song exists already (by title)
+        const match = existingMaster?.find(m => m.title.toLowerCase() === title.toLowerCase());
+
+        const payload = {
+          user_id: user.id,
+          title,
+          artist,
+          original_key: song.originalKey || null,
+          bpm: song.bpm || null,
+          genre: song.genre || (song.user_tags?.[0]) || null,
+          readiness_score: score,
+          is_active: true
+        };
+
+        if (match) {
+          // Update the existing record if we found a match by title
+          uniqueRepertoireMap.set(match.id, { ...payload, id: match.id });
+        } else {
+          // Insert as new
+          uniqueRepertoireMap.set(`${title}-${artist}`.toLowerCase(), payload);
         }
       });
 
@@ -201,12 +216,12 @@ const Index = () => {
       const { error } = await supabase
         .from('repertoire')
         .upsert(finalData, { 
-          onConflict: 'user_id,title,artist',
+          onConflict: 'id', // Use ID as the conflict target for updates
           ignoreDuplicates: false 
         });
 
       if (error) throw error;
-      showSuccess(`Sync Complete: ${finalData.length} unique songs pushed to Master.`);
+      showSuccess(`Master Sync Complete: ${finalData.length} records updated.`);
     } catch (err: any) {
       console.error("Sync Error:", err);
       showError(`Sync failed: ${err.message || 'Server Error'}`);
