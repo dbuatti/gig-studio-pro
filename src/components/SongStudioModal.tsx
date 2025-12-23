@@ -504,7 +504,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       }
     } catch (err: any) {
       console.error("Upload Error:", err);
-      showError(`Upload failed: ${err.message || "Unknown Error"}. Ensure the 'public_assets' bucket exists.`);
+      showError(`Upload failed: ${err.message || "Unknown Error"}`);
     } finally {
       setIsUploading(false);
     }
