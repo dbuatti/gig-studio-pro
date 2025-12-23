@@ -79,7 +79,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
   const nextPref = nextSong?.key_preference || globalPreference;
   const keysToUse = currentPref === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
 
-  // Key listener for Space bar and ESC
+  // Key listener for Space bar, ESC, and Arrow keys
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -89,10 +89,16 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
         e.preventDefault();
         onTogglePlayback();
       }
+      if (e.key === 'ArrowLeft') {
+        onPrevious();
+      }
+      if (e.key === 'ArrowRight') {
+        onNext();
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose, onTogglePlayback]);
+  }, [onClose, onTogglePlayback, onPrevious, onNext]);
 
   // Wall Clock and Set Timer logic
   useEffect(() => {
