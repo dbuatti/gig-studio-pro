@@ -229,8 +229,11 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
 
   const handleImportGlobal = (songData: Partial<SetlistSong>) => {
     if (onAddExistingSong) {
+      // Create a fresh song object without ANY IDs from the community database
+      // This ensures it becomes a new private copy for the user
+      const { id, master_id, ...dataToClone } = songData;
       const newSong = {
-        ...songData,
+        ...dataToClone,
         id: Math.random().toString(36).substr(2, 9),
         isPlayed: false
       } as SetlistSong;
