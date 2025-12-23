@@ -90,8 +90,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       hasVideo: 'all',
       hasChart: 'all',
       isConfirmed: 'all',
-      isPlayed: 'all',
-      readiness: 0
+      readiness: 100
     };
   });
   const [studioSong, setStudioSong] = useState<SetlistSong | null>(null);
@@ -118,8 +117,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     base = base.filter(s => {
       const score = calculateReadiness(s);
 
-      // Completion Logic (Numerical threshold)
-      if (score < activeFilters.readiness) return false;
+      // Completion Logic (Numerical threshold - now inverted to "Anything below")
+      if (score > activeFilters.readiness) return false;
 
       // Asset Logic
       if (activeFilters.hasAudio === 'full' && (isItunesPreview(s.previewUrl) || !s.previewUrl)) return false;
