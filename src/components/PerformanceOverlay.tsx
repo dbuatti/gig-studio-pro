@@ -12,11 +12,12 @@ import {
   Waves, Activity, ArrowRight, Shuffle,
   Settings2, Gauge, FileText, Save, Youtube,
   Monitor, AlignLeft, RotateCcw, ShieldCheck, ExternalLink,
-  Clock, Timer, ChevronRight, Zap, Minus, Plus
+  Clock, Timer, ChevronRight, Zap, Minus, Plus, Edit3
 } from 'lucide-react';
 import { SetlistSong } from './SetlistManager';
 import AudioVisualizer from './AudioVisualizer';
 import Metronome from './Metronome';
+import SongStudioModal from './SongStudioModal';
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, formatKey, calculateSemitones, transposeKey } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
 import { Badge } from './ui/badge';
@@ -63,6 +64,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
   const [viewMode, setViewMode] = useState<ViewMode>('visualizer');
   const [scrollSpeed, setScrollSpeed] = useState(1.0);
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
+  const [isStudioOpen, setIsStudioOpen] = useState(false);
   
   // Performance HUD State
   const [wallClock, setWallClock] = useState(new Date());
@@ -79,9 +81,12 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
   const nextPref = nextSong?.key_preference || globalPreference;
   const keysToUse = currentPref === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
 
-  // Key listener for Space bar, ESC, and Arrow keys
+  // Key listener for shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in an input/textarea
+      if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) return;
+
       if (e.key === 'Escape') {
         onClose();
       }
@@ -94,6 +99,12 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
       }
       if (e.key === 'ArrowRight') {
         onNext();
+      }
+      if (e.key.toLowerCase() === 's') {
+        setAutoScrollEnabled(prev => !prev);
+      }
+      if (e.key.toLowerCase() === 'e') {
+        setIsStudioOpen(true);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -332,6 +343,16 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
             ))}
           </div>
 
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => setIsStudioOpen(true)}
+            className="rounded-full bg-white/5 hover:bg-indigo-600 hover:text-white h-10 w-10 md:h-12 md:w-12 transition-all group"
+            title="Edit Song (E)"
+          >
+            <Edit3 className="w-5 h-5 text-slate-400 group-hover:text-white" />
+          </Button>
+
           <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full hover:bg-red-500/20 hover:text-red-400 h-10 w-10 md:h-12 md:w-12 transition-all">
             <X className="w-6 h-6 md:w-8 md:h-8" />
           </Button>
@@ -429,7 +450,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
                   <div className="h-full w-full flex flex-col items-center justify-center p-6 md:p-12 text-center bg-slate-950">
                     <ShieldCheck className="w-16 h-16 md:w-32 md:h-32 text-indigo-400 mb-6 md:mb-10" />
                     <h4 className="text-3xl md:text-5xl font-black uppercase tracking-tight mb-4 md:mb-6 text-white">Asset Protected</h4>
-                    <p className="text-slate-500 max-w-xl mb-8 md:mb-16 text-lg md:text-xl font-medium leading-relaxed">
+                    <p className="text-slate-500 max-xl mb-8 md:mb-16 text-lg md:text-xl font-medium leading-relaxed">
                       External security prevents in-app display. Use the button below to launch in a secure dedicated performance window.
                     </p>
                     <Button onClick={() => window.open(currentSong.pdfUrl, '_blank')} className="bg-indigo-600 hover:bg-indigo-700 h-16 md:h-20 px-10 md:px-16 font-black uppercase tracking-[0.2em] text-xs md:text-sm rounded-2xl md:rounded-3xl shadow-2xl shadow-indigo-600/30 gap-4 md:gap-6">
@@ -473,7 +494,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
                 <div className="flex items-center justify-between">
                   <div className="flex flex-col">
                     <span className="text-sm font-black uppercase text-white">Auto-Scroll</span>
-                    <span className="text-[10px] font-bold text-slate-500 uppercase">Track Song Progress</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">Track Song Progress (S)</span>
                   </div>
                   <Switch 
                     checked={autoScrollEnabled}
@@ -614,6 +635,14 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
           </div>
         </div>
       </div>
+
+      <SongStudioModal 
+        song={currentSong} 
+        isOpen={isStudioOpen} 
+        onClose={() => setIsStudioOpen(false)} 
+        onSave={onUpdateSong} 
+        onUpdateKey={onUpdateKey}
+      />
     </div>
   );
 };
