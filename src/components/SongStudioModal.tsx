@@ -35,7 +35,7 @@ import { RESOURCE_TYPES } from '@/utils/constants';
 import ProSyncSearch from './ProSyncSearch';
 import { useAuth } from './AuthProvider';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { syncToMasterRepertoire, calculateReadiness } from '@/utils/repertoireSync';
+import { calculateReadiness } from '@/utils/repertoireSync';
 
 interface SongStudioModalProps {
   song: SetlistSong | null;
@@ -124,15 +124,12 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     setFormData(prev => {
       const next = { ...prev, ...updates };
       
-      // Auto-save logic
+      // Auto-save logic: only report back to parent. 
+      // Parent (Index.tsx) handles the library sync once to prevent duplicates.
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
       saveTimeoutRef.current = setTimeout(() => {
         if (song) {
           onSave(song.id, updates);
-          // Smart sync to repertoire using the utility (handles title-based merging)
-          if (user) {
-            syncToMasterRepertoire(user.id, next as SetlistSong);
-          }
         }
       }, 800);
 
@@ -341,7 +338,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       }
       
       onSave(song.id, next);
-      if (user) syncToMasterRepertoire(user.id, next as SetlistSong);
       return next;
     });
   };
@@ -361,7 +357,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     }
     if (song) {
       onSave(song.id, { pitch: newPitch });
-      if (user) syncToMasterRepertoire(user.id, { ...formData, pitch: newPitch } as SetlistSong);
     }
     showSuccess(`Octave Shift Applied: ${newPitch > 0 ? '+' : ''}${newPitch} ST`);
   };
@@ -572,7 +567,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         isKeyConfirmed: song.isKeyConfirmed ?? false,
         duration_seconds: song.duration_seconds || 0,
         key_preference: song.key_preference,
-        isMetadataConfirmed: song.isMetadataConfirmed
+        isMetadataConfirmed: song.isMetadataConfirmed,
+        master_id: song.master_id
       };
       setFormData(initialData);
       
@@ -601,7 +597,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const addToPublicRepertoire = async () => {
     if (!song || !user) return;
     try {
-      await syncToMasterRepertoire(user.id, formData as SetlistSong);
+      // Use the onSave to trigger the parent sync correctly
+      onSave(song.id, { is_active: true });
       setIsInRepertoire(true);
       showSuccess("Added to Master Repertoire");
     } catch (err) {
@@ -1064,7 +1061,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                             if (song) {
                               onSave(song.id, { pitch: newPitch, targetKey: newTargetKey });
                               onUpdateKey(song.id, newTargetKey);
-                              if (user) syncToMasterRepertoire(user.id, { ...formData, pitch: newPitch, targetKey: newTargetKey } as SetlistSong);
                             }
                           }}
                         />

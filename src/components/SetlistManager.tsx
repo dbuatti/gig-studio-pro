@@ -46,6 +46,7 @@ export interface SetlistSong {
   isKeyLinked?: boolean;
   duration_seconds?: number;
   key_preference?: KeyPreference;
+  is_active?: boolean;
 }
 
 interface SetlistManagerProps {
