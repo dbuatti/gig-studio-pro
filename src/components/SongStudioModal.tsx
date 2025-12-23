@@ -104,7 +104,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const [isProSyncing, setIsProSyncing] = useState(false);
   const [isInRepertoire, setIsInRepertoire] = useState(false);
   
-  const [activeChartType, setActiveChartType] = useState<'pdf' | 'leadsheet' | 'ug'>('pdf');
+  const [activeChartType, setActiveChartType] = useState<'pdf' | 'leadsheet' | 'web' | 'ug'>('pdf');
 
   // Audio Engine State
   const [isPlaying, setIsPlaying] = useState(false);
@@ -598,6 +598,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     switch(activeChartType) {
       case 'pdf': return formData.pdfUrl ? `${formData.pdfUrl}#toolbar=0&navpanes=0&view=FitH` : null;
       case 'leadsheet': return formData.leadsheetUrl ? `${formData.leadsheetUrl}#toolbar=0&navpanes=0&view=FitH` : null;
+      case 'web': return formData.pdfUrl;
       case 'ug': return formData.ugUrl;
       default: return null;
     }
@@ -929,27 +930,14 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       <h3 className="text-sm md:text-lg font-black uppercase tracking-[0.2em] text-indigo-400">Audio Transposition Matrix</h3>
                       <p className="text-xs md:text-sm text-slate-500 mt-1 md:mt-2">Real-time pitch and time-stretching processing.</p>
                     </div>
-                    <Button
-                      variant="outline"
-                      onClick={handleYoutubeSearch}
-                      className="bg-red-600/10 border-red-600/20 text-red-600 hover:bg-red-600 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 gap-2 px-4 md:px-6 rounded-xl min-w-[140px]"
-                    >
-                      <Youtube className="w-3.5 h-3.5" /> Discovery
-                    </Button>
                   </div>
                   <div className={cn("bg-slate-900/50 border border-white/5 space-y-6 md:space-y-12", isMobile ? "p-6 rounded-3xl" : "p-12 rounded-[3rem]")}>
                     <div className={cn(isMobile ? "h-24" : "h-40")}>
                       <AudioVisualizer analyzer={analyzerRef.current} isActive={isPlaying} />
                     </div>
-                    
                     {formData.previewUrl ? (
                       <>
                         <div className="space-y-4 md:space-y-8">
-                          <div className="flex justify-between text-[10px] md:text-xs font-mono font-black text-slate-500 uppercase tracking-widest">
-                            <span className="text-indigo-400">{new Date((progress/100 * duration) * 1000).toISOString().substr(14, 5)}</span>
-                            <span className="hidden md:inline">Transport Master Clock</span>
-                            <span>{new Date(duration * 1000).toISOString().substr(14, 5)}</span>
-                          </div>
                           <Slider value={[progress]} max={100} step={0.1} onValueChange={(v) => {
                             const p = v[0];
                             setProgress(p);
@@ -966,11 +954,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                            <Button variant="ghost" size="icon" onClick={stopPlayback} className="h-12 w-12 md:h-20 md:w-20 rounded-full border border-white/5">
                              <RotateCcw className="w-5 h-5 md:w-8 md:h-8" />
                            </Button>
-                           <Button
-                             size="lg"
-                             onClick={togglePlayback}
-                             className="h-20 w-20 md:h-32 md:w-32 rounded-full bg-indigo-600 hover:bg-indigo-700 shadow-2xl"
-                           >
+                           <Button size="lg" onClick={togglePlayback} className="h-20 w-20 md:h-32 md:w-32 rounded-full bg-indigo-600 hover:bg-indigo-700 shadow-2xl">
                              {isPlaying ? <Pause className="w-8 h-8 md:w-12 md:h-12" /> : <Play className="w-8 h-8 md:w-12 md:h-12 ml-1 md:ml-2 fill-current" />}
                            </Button>
                            <div className="h-12 w-12 md:h-20 md:w-20" />
@@ -981,10 +965,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                         <div className="bg-indigo-600/10 p-6 rounded-full border border-indigo-500/20">
                            <Music className="w-8 h-8 md:w-12 md:h-12 text-indigo-400" />
                         </div>
-                        <div className="text-center space-y-2">
-                           <p className="text-base md:text-lg font-black uppercase tracking-tight">Audio Engine Offline</p>
-                           <p className="text-xs md:text-sm text-slate-500 max-w-sm px-4">Upload a master file or discover a version on YouTube to start transposing.</p>
-                        </div>
+                        <p className="text-base md:text-lg font-black uppercase tracking-tight">Audio Engine Offline</p>
                       </div>
                     )}
                   </div>
@@ -993,46 +974,18 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       <div className="space-y-4 md:space-y-6">
                         <div className="flex justify-between items-center">
                           <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Pitch Processor</Label>
-                          <div className="flex items-center gap-2 md:gap-3">
-                            <span className="text-sm md:text-lg font-mono font-black text-indigo-400">{(formData.pitch || 0) > 0 ? '+' : ''}{formData.pitch || 0} ST</span>
-                            <div className="flex bg-white/5 rounded-lg border border-white/10 p-0.5">
-                              <button onClick={() => handleOctaveShift('down')} className="h-7 px-2 text-[8px] md:text-[10px] font-black uppercase text-slate-400 border-r border-white/5">- oct</button>
-                              <button onClick={() => handleOctaveShift('up')} className="h-7 px-2 text-[8px] md:text-[10px] font-black uppercase text-slate-400">+ oct</button>
-                            </div>
-                          </div>
+                          <span className="text-sm md:text-lg font-mono font-black text-indigo-400">{(formData.pitch || 0) > 0 ? '+' : ''}{formData.pitch || 0} ST</span>
                         </div>
-                        <Slider
-                          value={[formData.pitch || 0]}
-                          min={-24}
-                          max={24}
-                          step={1}
-                          onValueChange={(v) => {
-                            const newPitch = v[0];
-                            const newTargetKey = transposeKey(formData.originalKey || "C", newPitch);
-                            setFormData(prev => ({ ...prev, pitch: newPitch, targetKey: newTargetKey }));
-                            if (playerRef.current) playerRef.current.detune = (newPitch * 100) + fineTune;
-                            if (song) {
-                              onSave(song.id, { pitch: newPitch, targetKey: newTargetKey });
-                              onUpdateKey(song.id, newTargetKey);
-                            }
-                          }}
-                        />
-                      </div>
-                      <div className="space-y-4 md:space-y-6">
-                        <div className="flex justify-between items-center">
-                          <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Fine Tune Matrix</Label>
-                          <span className="text-sm md:text-lg font-mono font-black text-slate-500">{fineTune > 0 ? '+' : ''}{fineTune} Cents</span>
-                        </div>
-                        <Slider
-                          value={[fineTune]}
-                          min={-100}
-                          max={100}
-                          step={1}
-                          onValueChange={(v) => {
-                            setFineTune(v[0]);
-                            if (playerRef.current) playerRef.current.detune = ((formData.pitch || 0) * 100) + v[0];
-                          }}
-                        />
+                        <Slider value={[formData.pitch || 0]} min={-24} max={24} step={1} onValueChange={(v) => {
+                          const newPitch = v[0];
+                          const newTargetKey = transposeKey(formData.originalKey || "C", newPitch);
+                          setFormData(prev => ({ ...prev, pitch: newPitch, targetKey: newTargetKey }));
+                          if (playerRef.current) playerRef.current.detune = (newPitch * 100) + fineTune;
+                          if (song) {
+                            onSave(song.id, { pitch: newPitch, targetKey: newTargetKey });
+                            onUpdateKey(song.id, newTargetKey);
+                          }
+                        }} />
                       </div>
                     </div>
                     <div className={cn("space-y-6 md:space-y-10 bg-white/5 border border-white/5", isMobile ? "p-6 rounded-3xl" : "p-10 rounded-[2.5rem]")}>
@@ -1041,194 +994,26 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                           <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Tempo Stretch</Label>
                           <span className="text-sm md:text-lg font-mono font-black text-indigo-400">{tempo.toFixed(2)}x</span>
                         </div>
-                        <Slider
-                          value={[tempo]}
-                          min={0.5}
-                          max={1.5}
-                          step={0.01}
-                          onValueChange={(v) => {
-                            setTempo(v[0]);
-                            if (playerRef.current) playerRef.current.playbackRate = v[0];
-                          }}
-                        />
-                      </div>
-                      <div className="space-y-4 md:space-y-6">
-                        <div className="flex justify-between items-center">
-                          <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Master Gain</Label>
-                          <span className="text-sm md:text-lg font-mono font-black text-slate-500">{Math.round((volume + 60) * 1.66)}%</span>
-                        </div>
-                        <Slider
-                          value={[volume]}
-                          min={-60}
-                          max={0}
-                          step={1}
-                          onValueChange={(v) => {
-                            setVolume(v[0]);
-                            if (playerRef.current) playerRef.current.volume.value = v[0];
-                          }}
-                        />
+                        <Slider value={[tempo]} min={0.5} max={1.5} step={0.01} onValueChange={(v) => {
+                          setTempo(v[0]);
+                          if (playerRef.current) playerRef.current.playbackRate = v[0];
+                        }} />
                       </div>
                     </div>
-                  </div>
-                  <div className={cn("bg-slate-900 border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-6", isMobile ? "p-6 rounded-3xl" : "p-8 rounded-[2.5rem]")}>
-                     <div className="flex flex-col md:flex-row md:items-center gap-6 md:gap-10">
-                        <div className="flex flex-col">
-                           <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Library BPM</span>
-                           <div className="flex items-center gap-4 mt-1">
-                             <Input
-                               value={formData.bpm || ""}
-                               onChange={(e) => handleAutoSave({ bpm: e.target.value })}
-                               className="bg-transparent border-none p-0 h-auto text-2xl md:text-3xl font-black font-mono text-indigo-400 focus-visible:ring-0 w-20"
-                             />
-                             <Button
-                               variant="ghost"
-                               size="icon"
-                               onClick={toggleMetronome}
-                               className={cn(
-                                 "h-10 w-10 rounded-xl transition-all",
-                                 isMetronomeActive ? "bg-indigo-600 text-white shadow-lg" : "bg-white/5 text-slate-400"
-                               )}
-                             >
-                               {isMetronomeActive ? <Volume2 className="w-5 h-5 animate-pulse" /> : <VolumeX className="w-5 h-5" />}
-                             </Button>
-                           </div>
-                        </div>
-                        <div className="flex flex-wrap gap-2 md:gap-4">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleDetectBPM}
-                            disabled={isAnalyzing || !formData.previewUrl}
-                            className="flex-1 md:flex-none h-10 px-4 bg-indigo-600/10 text-indigo-400 font-black uppercase tracking-widest text-[9px] gap-2 rounded-xl"
-                          >
-                            {isAnalyzing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Disc className="w-3.5 h-3.5" />}
-                            Scan BPM
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => window.open('https://www.beatsperminuteonline.com/', '_blank')}
-                            className="flex-1 md:flex-none h-10 px-4 bg-white/5 text-slate-400 font-black uppercase tracking-widest text-[9px] gap-2 rounded-xl"
-                          >
-                            <Timer className="w-3.5 h-3.5" />
-                            Tap Tool
-                          </Button>
-                        </div>
-                     </div>
                   </div>
                 </div>
               )}
               {activeTab === 'details' && (
                 <div className="space-y-6 md:space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-500">
                   <div className={cn("grid gap-6 md:gap-10", isMobile ? "grid-cols-1" : "grid-cols-2")}>
-                    <StudioInput 
-                      label="Performance Title"
-                      value={formData.name}
-                      onChange={(val: string) => handleAutoSave({ name: val })}
-                      className="bg-white/5 border-white/10 text-xl md:text-2xl font-black h-12 md:h-16 rounded-xl md:rounded-2xl"
-                    />
-                    <StudioInput 
-                      label="Primary Artist"
-                      value={formData.artist}
-                      onChange={(val: string) => handleAutoSave({ artist: val })}
-                      className="bg-white/5 border-white/10 text-xl md:text-2xl font-black h-12 md:h-16 rounded-xl md:rounded-2xl"
-                    />
+                    <StudioInput label="Performance Title" value={formData.name} onChange={(val: string) => handleAutoSave({ name: val })} className="bg-white/5 border-white/10 text-xl md:text-2xl font-black h-12 md:h-16 rounded-xl md:rounded-2xl" />
+                    <StudioInput label="Primary Artist" value={formData.artist} onChange={(val: string) => handleAutoSave({ artist: val })} className="bg-white/5 border-white/10 text-xl md:text-2xl font-black h-12 md:h-16 rounded-xl md:rounded-2xl" />
                   </div>
-                  <div className={cn("grid gap-6 md:gap-10", isMobile ? "grid-cols-1" : "grid-cols-2")}>
-                    <div className="space-y-4">
-                      <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Sheet Music Link</Label>
-                      <div className="flex gap-2 md:gap-3">
-                        <StudioInput 
-                          value={formData.pdfUrl}
-                          onChange={(val: string) => handleAutoSave({ pdfUrl: val })}
-                          placeholder="Paste sheet music URL..."
-                          className="bg-white/5 border-white/10 font-bold h-10 md:h-12 rounded-xl w-full"
-                        />
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="h-10 md:h-12 border-white/10 text-slate-400 hover:bg-white/10 px-4 rounded-xl font-bold text-[10px] uppercase gap-2 shrink-0 min-w-[120px]"
-                          onClick={() => {
-                            const query = encodeURIComponent(`${formData.artist} ${formData.name} sheet music pdf`);
-                            window.open(`https://www.google.com/search?q=${query}`, '_blank');
-                          }}
-                        >
-                          <Search className="w-3.5 h-3.5" /> Find
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="space-y-4">
-                      <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Ultimate Guitar Link</Label>
-                      <div className="flex gap-2 md:gap-3">
-                        <StudioInput 
-                          value={formData.ugUrl}
-                          onChange={(val: string) => handleAutoSave({ ugUrl: val })}
-                          placeholder="Paste URL..."
-                          className="bg-white/5 border-white/10 font-bold text-orange-400 h-10 md:h-12 rounded-xl w-full"
-                        />
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="h-10 md:h-12 border-white/10 text-orange-400 hover:bg-orange-600/10 px-4 rounded-xl font-bold text-[10px] uppercase gap-2 shrink-0 min-w-[120px]"
-                          onClick={() => {
-                            const query = encodeURIComponent(`${formData.artist} ${formData.name} chords`);
-                            window.open(`https://www.ultimate-guitar.com/search.php?search_type=title&value=${query}`, '_blank');
-                          }}
-                        >
-                          <Search className="w-3.5 h-3.5" /> Find
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                  <StudioInput 
-                    label="Rehearsal & Dynamics Notes"
-                    isTextarea
-                    value={formData.notes}
-                    onChange={(val: string) => handleAutoSave({ notes: val })}
-                    placeholder="Cues, transitions, dynamics..."
-                    className={cn("bg-white/5 border-white/10 text-base md:text-lg leading-relaxed p-6 md:p-8 whitespace-pre-wrap", isMobile ? "min-h-[200px] rounded-2xl" : "min-h-[350px] rounded-[2rem]")}
-                  />
+                  <StudioInput label="Rehearsal & Dynamics Notes" isTextarea value={formData.notes} onChange={(val: string) => handleAutoSave({ notes: val })} placeholder="Cues, transitions, dynamics..." className={cn("bg-white/5 border-white/10 text-base md:text-lg leading-relaxed p-6 md:p-8 whitespace-pre-wrap", isMobile ? "min-h-[200px] rounded-2xl" : "min-h-[350px] rounded-[2rem]")} />
                 </div>
               )}
               {activeTab === 'charts' && (
                 <div className="h-full flex flex-col gap-6 md:gap-8 animate-in fade-in duration-500">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                      <h3 className="text-sm md:text-lg font-black uppercase tracking-[0.3em] text-emerald-400">Chart Engine V2</h3>
-                      <p className="text-xs md:text-sm text-slate-500 mt-1">Multi-layer chart rendering engine active.</p>
-                    </div>
-                    <div className="flex flex-wrap gap-2 md:gap-4">
-                      <div className="flex bg-white/5 border border-white/10 p-1 rounded-xl">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={!formData.pdfUrl}
-                          onClick={() => setActiveChartType('pdf')}
-                          className={cn("text-[9px] md:text-[10px] font-black uppercase tracking-widest h-8 md:h-9 px-3 md:px-4 rounded-lg transition-all", activeChartType === 'pdf' ? "bg-indigo-600 text-white shadow-lg" : "text-slate-500")}
-                        >
-                          PDF
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={!formData.leadsheetUrl}
-                          onClick={() => setActiveChartType('leadsheet')}
-                          className={cn("text-[9px] md:text-[10px] font-black uppercase tracking-widest h-8 md:h-9 px-3 md:px-4 rounded-lg transition-all", activeChartType === 'leadsheet' ? "bg-emerald-600 text-white shadow-lg" : "text-slate-500")}
-                        >
-                          Leadsheet
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={!formData.ugUrl}
-                          onClick={() => setActiveChartType('ug')}
-                          className={cn("text-[9px] md:text-[10px] font-black uppercase tracking-widest h-8 md:h-9 px-3 md:px-4 rounded-lg transition-all", activeChartType === 'ug' ? "bg-orange-600 text-white shadow-lg" : "text-slate-500")}
-                        >
-                          UG
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
                   <div className={cn("flex-1 min-h-[300px] bg-white overflow-hidden shadow-2xl relative", isMobile ? "rounded-3xl" : "rounded-[3rem]")}>
                     {currentChartUrl ? (
                       isFramable(currentChartUrl) ? (
@@ -1237,17 +1022,13 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                         <div className="h-full flex flex-col items-center justify-center bg-slate-900 p-8 text-center">
                           <ShieldCheck className="w-12 h-12 text-indigo-400 mb-6" />
                           <h4 className="text-xl md:text-3xl font-black uppercase mb-4 text-white">Asset Protected</h4>
-                          <p className="text-slate-400 mb-8 max-w-sm mx-auto">External security prevents in-app embedding for this source.</p>
-                          <Button onClick={() => window.open(currentChartUrl, '_blank')} className="bg-indigo-600 hover:bg-indigo-700 h-12 md:h-14 px-8 md:px-10 font-black uppercase tracking-widest text-[10px] rounded-2xl gap-3">
-                            <ExternalLink className="w-4 h-4 md:w-5 md:h-5" /> Launch Source
-                          </Button>
+                          <Button onClick={() => window.open(currentChartUrl, '_blank')} className="bg-indigo-600 hover:bg-indigo-700 h-12 md:h-14 px-8 md:px-10 font-black uppercase tracking-widest text-[10px] rounded-2xl gap-3">Launch Source</Button>
                         </div>
                       )
                     ) : (
                       <div className="h-full flex flex-col items-center justify-center p-8 bg-slate-100 text-center">
                         <FileSearch className="w-12 h-12 md:w-16 md:h-16 text-indigo-400 mb-6" />
-                        <h4 className="text-lg md:text-2xl font-black text-slate-900 uppercase">No Active Chart Linked</h4>
-                        <p className="text-slate-500 mt-2">Link a PDF or UG tab in the Details tab to view it here.</p>
+                        <h4 className="text-lg md:text-2xl font-black text-slate-900 uppercase">No Active Chart</h4>
                       </div>
                     )}
                   </div>
@@ -1255,39 +1036,51 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
               )}
               {activeTab === 'lyrics' && (
                 <div className="space-y-6 md:space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-500 h-full flex flex-col flex-1">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
-                    <div>
-                      <h3 className="text-sm md:text-lg font-black uppercase tracking-[0.3em] text-pink-400">Lyrics Engine</h3>
-                      <p className="text-xs md:text-sm text-slate-500 mt-1">Stage teleprompter source data.</p>
-                    </div>
-                    <div className="flex flex-wrap gap-2 md:gap-4">
-                      <Button
-                        variant="outline"
-                        onClick={handleLyricsSearch}
-                        className="bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 gap-2 px-4 md:px-6 rounded-xl min-w-[140px]"
-                      >
-                        <Search className="w-3.5 h-3.5" /> Find Lyrics
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={handleMagicFormatLyrics}
-                        disabled={isFormattingLyrics || !formData.lyrics}
-                        className="bg-indigo-600/10 border-indigo-600/20 text-indigo-600 hover:bg-indigo-600 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 gap-2 px-4 md:px-6 rounded-xl min-w-[140px]"
-                      >
-                        {isFormattingLyrics ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                        Magic Format
-                      </Button>
-                    </div>
-                  </div>
                   <div className="flex-1 min-h-0">
-                    <StudioInput 
-                      isTextarea
-                      placeholder="Paste lyrics here..."
-                      value={formData.lyrics}
-                      onChange={(val: string) => handleAutoSave({ lyrics: val })}
-                      className={cn("bg-white/5 border-white/10 text-lg md:text-xl leading-relaxed p-6 md:p-10 font-medium whitespace-pre-wrap h-full", isMobile ? "rounded-2xl" : "rounded-[2.5rem]")}
-                    />
+                    <StudioInput isTextarea placeholder="Paste lyrics here..." value={formData.lyrics} onChange={(val: string) => handleAutoSave({ lyrics: val })} className={cn("bg-white/5 border-white/10 text-lg md:text-xl leading-relaxed p-6 md:p-10 font-medium whitespace-pre-wrap h-full", isMobile ? "rounded-2xl" : "rounded-[2.5rem]")} />
                   </div>
+                </div>
+              )}
+              {activeTab === 'visual' && (
+                <div className="space-y-6 md:space-y-12 animate-in fade-in duration-500">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                      <h3 className="text-sm md:text-lg font-black uppercase tracking-[0.2em] text-indigo-400">Reference Media</h3>
+                      <p className="text-xs md:text-sm text-slate-500 mt-1 md:mt-2">YouTube performance video or audio master link.</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-4">
+                     <StudioInput 
+                       placeholder="YouTube URL..."
+                       value={formData.youtubeUrl}
+                       onChange={(val: string) => handleAutoSave({ youtubeUrl: val })}
+                       className="bg-white/5 border-white/10 text-sm flex-1 h-10 md:h-12 rounded-xl w-full"
+                     />
+                     <Button
+                        variant="outline"
+                        onClick={handleYoutubeSearch}
+                        className="bg-red-600/10 border-red-600/20 text-red-600 hover:bg-red-600 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 md:h-12 gap-2 px-4 md:px-6 rounded-xl shrink-0 min-w-[140px]"
+                      >
+                        <Youtube className="w-3.5 h-3.5" /> Discover
+                      </Button>
+                  </div>
+                  {videoId ? (
+                    <div className="aspect-video w-full rounded-[2rem] md:rounded-[3rem] overflow-hidden shadow-2xl border border-white/10 bg-black">
+                      <iframe
+                        width="100%" height="100%"
+                        src={`https://www.youtube.com/embed/${videoId}?autoplay=0&mute=1`}
+                        title="Reference Video"
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                      />
+                    </div>
+                  ) : (
+                    <div className={cn("flex flex-col items-center justify-center bg-white/5 border border-dashed border-white/10 space-y-6 md:space-y-8", isMobile ? "py-24 rounded-3xl" : "py-48 rounded-[4rem]")}>
+                      <Youtube className="w-12 h-12 md:w-16 md:h-16 text-slate-700" />
+                      <p className="text-sm md:text-lg font-black uppercase tracking-[0.4em] text-slate-500">Visual Engine Standby</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
