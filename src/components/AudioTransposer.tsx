@@ -11,6 +11,7 @@ import { showSuccess, showError } from '@/utils/toast';
 import AudioVisualizer from './AudioVisualizer';
 import SongSearch from './SongSearch';
 import MyLibrary from './MyLibrary';
+import GlobalLibrary from './GlobalLibrary';
 import SongSuggestions from './SongSuggestions';
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -226,6 +227,17 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
     setActiveTab("search");
   };
 
+  const handleImportGlobal = (songData: Partial<SetlistSong>) => {
+    if (onAddExistingSong) {
+      const newSong = {
+        ...songData,
+        id: Math.random().toString(36).substr(2, 9),
+        isPlayed: false
+      } as SetlistSong;
+      onAddExistingSong(newSong);
+    }
+  };
+
   useImperativeHandle(ref, () => ({
     loadFromUrl,
     setPitch: (newPitch: number) => {
@@ -300,8 +312,9 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 h-9 bg-slate-100 dark:bg-slate-800 p-1 mb-6">
+          <TabsList className="grid w-full grid-cols-4 h-9 bg-slate-100 dark:bg-slate-800 p-1 mb-6">
             <TabsTrigger value="search" className="text-[10px] uppercase font-bold gap-1.5"><Search className="w-3 h-3" /> iTunes</TabsTrigger>
+            <TabsTrigger value="community" className="text-[10px] uppercase font-bold gap-1.5"><Globe className="w-3 h-3" /> Community</TabsTrigger>
             <TabsTrigger value="suggestions" className="text-[10px] uppercase font-bold gap-1.5"><Sparkles className="w-3 h-3" /> Discover</TabsTrigger>
             <TabsTrigger value="repertoire" className="text-[10px] uppercase font-bold gap-1.5"><Library className="w-3 h-3" /> Library</TabsTrigger>
           </TabsList>
@@ -314,6 +327,10 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
               }
               externalQuery={searchQuery}
             />
+          </TabsContent>
+
+          <TabsContent value="community" className="mt-0 space-y-4">
+            <GlobalLibrary onImport={handleImportGlobal} />
           </TabsContent>
 
           <TabsContent value="suggestions" className="mt-0 space-y-4">
