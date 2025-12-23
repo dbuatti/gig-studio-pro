@@ -37,9 +37,7 @@ const Index = () => {
   const [isPlayerActive, setIsPlayerActive] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   
-  // Real Repertoire state (Source of Truth)
   const [masterRepertoire, setMasterRepertoire] = useState<SetlistSong[]>([]);
-  
   const [syncQueue, setSyncQueue] = useState<string[]>([]);
   const [isProcessingQueue, setIsProcessingQueue] = useState(false);
 
@@ -124,7 +122,7 @@ const Index = () => {
       if (error) throw error;
       
       const mapped = (data || []).map(d => ({
-        id: d.id, // This is the master UUID
+        id: d.id, 
         master_id: d.id,
         name: d.title,
         artist: d.artist,
@@ -137,7 +135,7 @@ const Index = () => {
         previewUrl: d.preview_url,
         youtubeUrl: d.youtube_url,
         appleMusicUrl: d.apple_music_url,
-        pdfUrl: d.pdf_url,
+        pdf_url: d.pdf_url,
         isMetadataConfirmed: d.is_metadata_confirmed,
         isKeyConfirmed: d.is_key_confirmed,
         duration_seconds: d.duration_seconds,
@@ -192,7 +190,15 @@ const Index = () => {
     if (!user) return;
     setIsSaving(true);
     try {
-      const cleanedSongs = updatedSongs.map(({ isSyncing, ...rest }) => rest);
+      // First, sync to repertoire and get the real Master IDs back
+      const syncedSongs = await syncToMasterRepertoire(user.id, updatedSongs);
+      
+      // Update local state with the synced songs (now containing master_ids)
+      setSetlists(prev => prev.map(l => l.id === listId ? { ...l, songs: syncedSongs } : l));
+
+      // Clean songs for setlist JSON storage
+      const cleanedSongs = syncedSongs.map(({ isSyncing, ...rest }) => rest);
+      
       const { error } = await supabase
         .from('setlists')
         .update({ 
@@ -201,14 +207,13 @@ const Index = () => {
           ...updates
         })
         .eq('id', listId);
+      
       if (error) throw error;
-
-      // Sync to Master Repertoire
-      await syncToMasterRepertoire(user.id, updatedSongs);
+      
       // Refresh the library view
       fetchMasterRepertoire();
     } catch (err) {
-      // Silent error
+      console.error("Save List error:", err);
     } finally {
       setIsSaving(false);
     }
@@ -237,37 +242,34 @@ const Index = () => {
 
       if (error) throw error;
 
-      setSetlists(prev => {
-        const list = prev.find(l => l.id === currentListId);
-        if (!list) return prev;
+      const list = setlists.find(l => l.id === currentListId);
+      if (!list) return;
 
-        const updatedSongs = list.songs.map(s => {
-          const aiResult = Array.isArray(data) ? data.find((r: any) => 
-            r.name.toLowerCase().includes(s.name.toLowerCase()) || 
-            s.name.toLowerCase().includes(r.name.toLowerCase())
-          ) : null;
+      const updatedSongs = list.songs.map(s => {
+        const aiResult = Array.isArray(data) ? data.find((r: any) => 
+          r.name.toLowerCase().includes(s.name.toLowerCase()) || 
+          s.name.toLowerCase().includes(r.name.toLowerCase())
+        ) : null;
 
-          if (aiResult) {
-            return {
-              ...s,
-              name: aiResult.name || s.name,
-              artist: aiResult.artist,
-              originalKey: aiResult.originalKey,
-              targetKey: aiResult.originalKey,
-              bpm: aiResult.bpm?.toString(),
-              genre: aiResult.genre,
-              ugUrl: aiResult.ugUrl || s.ugUrl,
-              isMetadataConfirmed: true,
-              pitch: 0,
-              isSyncing: false
-            };
-          }
-          return songsToSync.find(ts => ts.id === s.id) ? { ...s, isSyncing: false } : s;
-        });
-
-        saveList(currentListId, updatedSongs);
-        return prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l);
+        if (aiResult) {
+          return {
+            ...s,
+            name: aiResult.name || s.name,
+            artist: aiResult.artist,
+            originalKey: aiResult.originalKey,
+            targetKey: aiResult.originalKey,
+            bpm: aiResult.bpm?.toString(),
+            genre: aiResult.genre,
+            ugUrl: aiResult.ugUrl || s.ugUrl,
+            isMetadataConfirmed: true,
+            pitch: 0,
+            isSyncing: false
+          };
+        }
+        return songsToSync.find(ts => ts.id === s.id) ? { ...s, isSyncing: false } : s;
       });
+
+      await saveList(currentListId, updatedSongs);
     } catch (err) {
       setSetlists(prev => prev.map(l => l.id === currentListId ? {
         ...l,
@@ -291,26 +293,22 @@ const Index = () => {
 
   const handleUpdateSong = (songId: string, updates: Partial<SetlistSong>) => {
     if (!currentListId) return;
-    setSetlists(prev => {
-      const list = prev.find(l => l.id === currentListId);
-      if (!list) return prev;
-      const updatedSongs = list.songs.map(s => s.id === songId ? { ...s, ...updates } : s);
-      saveList(currentListId, updatedSongs);
-      return prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l);
-    });
+    const list = setlists.find(l => l.id === currentListId);
+    if (!list) return;
+    const updatedSongs = list.songs.map(s => s.id === songId ? { ...s, ...updates } : s);
+    saveList(currentListId, updatedSongs);
   };
 
   const handleAddToSetlist = async (previewUrl: string, name: string, artist: string, youtubeUrl?: string, pitch: number = 0, ugUrl?: string) => {
     if (!currentListId || !user) return;
     
-    // Check if song already exists in master repertoire
     const existing = masterRepertoire.find(s => s.name.toLowerCase() === name.toLowerCase());
     
     const newSongId = Math.random().toString(36).substr(2, 9);
     const newSong: SetlistSong = existing ? {
       ...existing,
-      id: newSongId, // Maintain unique setlist instance ID
-      master_id: existing.master_id, // Preserve master row UUID
+      id: newSongId, 
+      master_id: existing.master_id, 
       isPlayed: false,
       isSyncing: false
     } : {
@@ -328,13 +326,10 @@ const Index = () => {
       isMetadataConfirmed: false
     };
     
-    setSetlists(prev => {
-      const list = prev.find(l => l.id === currentListId);
-      if (!list) return prev;
-      const updatedSongs = [...list.songs, newSong];
-      saveList(currentListId, updatedSongs);
-      return prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l);
-    });
+    const list = setlists.find(l => l.id === currentListId);
+    if (!list) return;
+    const updatedSongs = [...list.songs, newSong];
+    await saveList(currentListId, updatedSongs);
     
     if (!existing) {
       setSyncQueue(prev => [...prev, newSongId]);
@@ -348,50 +343,41 @@ const Index = () => {
     const newSongId = Math.random().toString(36).substr(2, 9);
     const clonedSong: SetlistSong = {
       ...song,
-      id: newSongId, // Unique setlist instance ID
-      master_id: song.master_id || song.id, // Ensure master UUID is carried over
+      id: newSongId, 
+      master_id: song.master_id || song.id, 
       isPlayed: false 
     };
     
-    setSetlists(prev => {
-      const list = prev.find(l => l.id === currentListId);
-      if (!list) return prev;
-      const updatedSongs = [...list.songs, clonedSong];
-      saveList(currentListId, updatedSongs);
-      return prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l);
-    });
+    const list = setlists.find(l => l.id === currentListId);
+    if (!list) return;
+    const updatedSongs = [...list.songs, clonedSong];
+    saveList(currentListId, updatedSongs);
     showSuccess(`Imported "${song.name}"`);
   };
 
   const handleUpdateKey = (songId: string, targetKey: string) => {
     if (!currentListId) return;
-    setSetlists(prev => {
-      const list = prev.find(l => l.id === currentListId);
-      if (!list) return prev;
-      
-      const updatedSongs = list.songs.map(s => {
-        if (s.id === songId) {
-          const pitch = calculateSemitones(s.originalKey || "C", targetKey);
-          if (activeSongId === songId && transposerRef.current) transposerRef.current.setPitch(pitch);
-          return { ...s, targetKey, pitch };
-        }
-        return s;
-      });
-      
-      saveList(currentListId, updatedSongs);
-      return prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l);
+    const list = setlists.find(l => l.id === currentListId);
+    if (!list) return;
+    
+    const updatedSongs = list.songs.map(s => {
+      if (s.id === songId) {
+        const pitch = calculateSemitones(s.originalKey || "C", targetKey);
+        if (activeSongId === songId && transposerRef.current) transposerRef.current.setPitch(pitch);
+        return { ...s, targetKey, pitch };
+      }
+      return s;
     });
+    
+    saveList(currentListId, updatedSongs);
   };
 
   const handleTogglePlayed = (songId: string) => {
     if (!currentListId) return;
-    setSetlists(prev => {
-      const list = prev.find(l => l.id === currentListId);
-      if (!list) return prev;
-      const updatedSongs = list.songs.map(s => s.id === songId ? { ...s, isPlayed: !s.isPlayed } : s);
-      saveList(currentListId, updatedSongs);
-      return prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l);
-    });
+    const list = setlists.find(l => l.id === currentListId);
+    if (!list) return;
+    const updatedSongs = list.songs.map(s => s.id === songId ? { ...s, isPlayed: !s.isPlayed } : s);
+    saveList(currentListId, updatedSongs);
   };
 
   const handleSelectSong = async (song: SetlistSong) => {
@@ -415,6 +401,7 @@ const Index = () => {
     } else {
       setIsPerformanceMode(false);
       setActiveSongId(null);
+      transposerRef.current?.stopPlayback();
       showSuccess("Gig Finished!");
     }
   };
@@ -569,13 +556,10 @@ const Index = () => {
               <ImportSetlist onImport={(newSongs) => {
                 if (!currentListId) return;
                 const songsWithSyncState = newSongs.map(s => ({ ...s, isSyncing: true, isMetadataConfirmed: false }));
-                setSetlists(prev => {
-                  const list = prev.find(l => l.id === currentListId);
-                  if (!list) return prev;
-                  const updated = [...list.songs, ...songsWithSyncState];
-                  saveList(currentListId, updated);
-                  return prev.map(l => l.id === currentListId ? { ...l, songs: updated } : l);
-                });
+                const list = setlists.find(l => l.id === currentListId);
+                if (!list) return;
+                const updated = [...list.songs, ...songsWithSyncState];
+                saveList(currentListId, updated);
                 setSyncQueue(prev => [...prev, ...songsWithSyncState.map(s => s.id)]);
               }} />
             </div>
@@ -585,13 +569,10 @@ const Index = () => {
             <SetlistManager 
               songs={songs} 
               onRemove={(id) => {
-                setSetlists(prev => {
-                  const list = prev.find(l => l.id === currentListId);
-                  if (!list) return prev;
-                  const updated = list.songs.filter(s => s.id !== id);
-                  saveList(currentListId!, updated);
-                  return prev.map(l => l.id === currentListId ? { ...l, songs: updated } : l);
-                });
+                const list = setlists.find(l => l.id === currentListId);
+                if (!list) return;
+                const updated = list.songs.filter(s => s.id !== id);
+                saveList(currentListId!, updated);
               }}
               onSelect={handleSelectSong}
               onUpdateKey={handleUpdateKey}

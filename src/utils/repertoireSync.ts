@@ -24,21 +24,18 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
 };
 
 /**
- * Syncs a single song or a batch of songs to the master repertoire table.
- * Uses a composite key (user_id, title) for upserting to prevent duplicates.
- * We strip the 'id' field to avoid PKEY conflicts and let the 'onConflict' logic handle the merge.
+ * Syncs songs to the master repertoire table and returns the updated songs with their DB IDs.
  */
-export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong | SetlistSong[]) => {
-  if (!userId) return;
+export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong | SetlistSong[]): Promise<SetlistSong[]> => {
+  if (!userId) return Array.isArray(songs) ? songs : [songs];
   
   const songsArray = Array.isArray(songs) ? songs : [songs];
-  if (songsArray.length === 0) return;
+  if (songsArray.length === 0) return [];
 
   try {
     const payloads = songsArray.map(song => ({
-      // IMPORTANT: We omit the 'id' field entirely.
-      // This forces Postgres to use the 'onConflict' columns (user_id, title) 
-      // to identify which row to update.
+      // Use master_id as the primary key if it exists, otherwise omit it so the DB can match on title
+      ...(song.master_id ? { id: song.master_id } : {}),
       user_id: userId,
       title: song.name,
       artist: song.artist || 'Unknown Artist',
@@ -65,16 +62,29 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       updated_at: new Date().toISOString()
     }));
 
-    const { error } = await supabase
+    // We upsert and request the inserted/updated rows back to get their real IDs
+    const { data, error } = await supabase
       .from('repertoire')
       .upsert(payloads, { 
         onConflict: 'user_id,title' 
-      });
+      })
+      .select();
 
     if (error) {
       console.error("[Sync Engine] Identity sync failed:", error);
+      return songsArray;
     }
+
+    // Map the database results back to the setlist song format
+    return songsArray.map(song => {
+      const match = data?.find(d => d.title === song.name);
+      if (match) {
+        return { ...song, master_id: match.id };
+      }
+      return song;
+    });
   } catch (err) {
     console.error("[Sync Engine] Critical failure:", err);
+    return songsArray;
   }
 };
