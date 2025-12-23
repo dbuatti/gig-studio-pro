@@ -26,6 +26,7 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
 /**
  * Syncs a single song or a batch of songs to the master repertoire table.
  * Uses the (user_id, title) constraint to overwrite old metadata.
+ * Prioritizes actual artist names over 'Unknown Artist'.
  */
 export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong | SetlistSong[]) => {
   if (!userId) return;
@@ -37,6 +38,8 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
     const payloads = songsArray.map(song => ({
       user_id: userId,
       title: song.name,
+      // If the artist is 'Unknown Artist' or empty, we keep it, but the database upsert 
+      // will allow us to overwrite this later when a real name is provided.
       artist: song.artist || 'Unknown Artist',
       original_key: song.originalKey || null,
       bpm: song.bpm || null,
@@ -46,8 +49,8 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       updated_at: new Date().toISOString()
     }));
 
-    // This 'upsert' will now correctly update the existing row if the title matches,
-    // thanks to the unique index we just created in the database.
+    // The unique constraint (user_id, title) ensures that we update the existing row
+    // if a song with the same title already exists for this user.
     const { error } = await supabase
       .from('repertoire')
       .upsert(payloads, { 

@@ -35,6 +35,7 @@ import { RESOURCE_TYPES } from '@/utils/constants';
 import ProSyncSearch from './ProSyncSearch';
 import { useAuth } from './AuthProvider';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { syncToMasterRepertoire, calculateReadiness } from '@/utils/repertoireSync';
 
 interface SongStudioModalProps {
   song: SetlistSong | null;
@@ -115,52 +116,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const currentKeyPreference = formData.key_preference || globalPreference;
   const keysToUse = currentKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
 
-  const calculateReadiness = (s: Partial<SetlistSong>) => {
-    let score = 0;
-    const preview = s.previewUrl || "";
-    const isItunes = preview.includes('apple.com') || preview.includes('itunes-assets');
-    
-    if (preview && !isItunes) score += 25; 
-    if (s.isKeyConfirmed) score += 20; 
-    if ((s.lyrics || "").length > 20) score += 15; 
-    if (s.pdfUrl || s.leadsheetUrl) score += 15; 
-    if (s.ugUrl) score += 10; 
-    if (s.bpm) score += 5; 
-    if ((s.notes || "").length > 10) score += 5; 
-    if (s.artist && s.artist !== "Unknown Artist") score += 5; 
-    return Math.min(100, score);
-  };
-
   const readiness = useMemo(() => calculateReadiness(formData), [formData]);
   const readinessColor = readiness === 100 ? 'bg-emerald-500' : readiness > 60 ? 'bg-indigo-500' : 'bg-slate-500';
-
-  const syncToMasterRepertoire = useCallback(async (updates: Partial<SetlistSong>) => {
-    if (!user || !song) return;
-    
-    // Smart Lookup: Find by exact title or ID if we ever add that. 
-    // This handles the case where Artist was previously 'Unknown Artist'
-    const { data: existing } = await supabase
-      .from('repertoire')
-      .select('id, title, artist')
-      .eq('user_id', user.id)
-      .eq('title', updates.name || formData.name || song.name)
-      .maybeSingle();
-
-    if (existing) {
-      const currentFullData = { ...formData, ...updates };
-      const masterUpdates: any = {
-        title: currentFullData.name || existing.title,
-        artist: currentFullData.artist || existing.artist,
-        original_key: currentFullData.originalKey,
-        bpm: currentFullData.bpm,
-        genre: currentFullData.genre || (currentFullData.user_tags?.[0]),
-        readiness_score: calculateReadiness(currentFullData),
-        updated_at: new Date().toISOString()
-      };
-      
-      await supabase.from('repertoire').update(masterUpdates).eq('id', existing.id);
-    }
-  }, [user, song, formData]);
 
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
   const handleAutoSave = (updates: Partial<SetlistSong>) => {
@@ -172,7 +129,10 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       saveTimeoutRef.current = setTimeout(() => {
         if (song) {
           onSave(song.id, updates);
-          syncToMasterRepertoire(updates);
+          // Smart sync to repertoire using the utility (handles title-based merging)
+          if (user) {
+            syncToMasterRepertoire(user.id, next as SetlistSong);
+          }
         }
       }, 800);
 
@@ -235,6 +195,21 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     }
   };
 
+  const handleDetectBPM = async () => {
+    if (!currentBufferRef.current) return;
+    setIsAnalyzing(true);
+    try {
+      const bpm = await analyze(currentBufferRef.current);
+      const roundedBpm = Math.round(bpm);
+      handleAutoSave({ bpm: roundedBpm.toString() });
+      showSuccess(`BPM Detected: ${roundedBpm}`);
+    } catch (err) {
+      showError("BPM detection failed.");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   const prepareAudio = async (url: string, pitch: number) => {
     if (!url) return;
     try {
@@ -267,24 +242,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     } catch (err) {
       console.error("Audio Load Error:", err);
       showError("Could not link audio engine.");
-    }
-  };
-
-  const handleDetectBPM = async () => {
-    if (!currentBufferRef.current) {
-      showError("Link an audio track first.");
-      return;
-    }
-    setIsAnalyzing(true);
-    try {
-      const bpm = await analyze(currentBufferRef.current);
-      const roundedBpm = Math.round(bpm);
-      handleAutoSave({ bpm: roundedBpm.toString() });
-      showSuccess(`Detected Tempo: ${roundedBpm} BPM`);
-    } catch (err) {
-      showError("Could not determine tempo.");
-    } finally {
-      setIsAnalyzing(false);
     }
   };
 
@@ -384,7 +341,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       }
       
       onSave(song.id, next);
-      syncToMasterRepertoire(next);
+      if (user) syncToMasterRepertoire(user.id, next as SetlistSong);
       return next;
     });
   };
@@ -404,7 +361,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     }
     if (song) {
       onSave(song.id, { pitch: newPitch });
-      syncToMasterRepertoire({ pitch: newPitch });
+      if (user) syncToMasterRepertoire(user.id, { ...formData, pitch: newPitch } as SetlistSong);
     }
     showSuccess(`Octave Shift Applied: ${newPitch > 0 ? '+' : ''}${newPitch} ST`);
   };
@@ -644,19 +601,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const addToPublicRepertoire = async () => {
     if (!song || !user) return;
     try {
-      const { error } = await supabase
-        .from('repertoire')
-        .insert({
-          user_id: user.id,
-          title: formData.name || song.name,
-          artist: formData.artist || song.artist || 'Unknown Artist',
-          original_key: formData.originalKey,
-          bpm: formData.bpm,
-          genre: formData.genre || (formData.user_tags?.[0]),
-          readiness_score: readiness,
-          is_active: true
-        });
-      if (error) throw error;
+      await syncToMasterRepertoire(user.id, formData as SetlistSong);
       setIsInRepertoire(true);
       showSuccess("Added to Master Repertoire");
     } catch (err) {
@@ -1119,7 +1064,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                             if (song) {
                               onSave(song.id, { pitch: newPitch, targetKey: newTargetKey });
                               onUpdateKey(song.id, newTargetKey);
-                              syncToMasterRepertoire({ pitch: newPitch, targetKey: newTargetKey });
+                              if (user) syncToMasterRepertoire(user.id, { ...formData, pitch: newPitch, targetKey: newTargetKey } as SetlistSong);
                             }
                           }}
                         />
