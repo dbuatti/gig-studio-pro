@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { 
   Filter, Music, Youtube, FileText, CheckCircle2, 
   X, Star, Save, Trash2, Headphones, Sparkles, Hash,
-  CircleDashed, ChevronDown, ListFilter
+  CircleDashed, ChevronDown, ListFilter, Music2, 
+  VideoOff, FileX2, VolumeX
 } from 'lucide-react';
 import { 
   DropdownMenu, 
@@ -17,7 +18,6 @@ import {
   DropdownMenuLabel
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { SetlistSong } from './SetlistManager';
 
 export interface FilterState {
   hasAudio: 'all' | 'full' | 'itunes' | 'none';
@@ -73,14 +73,14 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
 
   const isDefault = JSON.stringify(activeFilters) === JSON.stringify(DEFAULT_FILTERS);
 
-  const FilterButton = ({ label, active, onClick, icon: Icon }: any) => (
+  const FilterButton = ({ label, active, onClick, icon: Icon, colorClass = "text-indigo-600" }: any) => (
     <Button 
       variant="ghost" 
       size="sm" 
       onClick={onClick}
       className={cn(
         "h-8 px-3 rounded-xl text-[10px] font-black uppercase tracking-tight gap-2 transition-all border border-transparent",
-        active ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20" : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-500 hover:text-indigo-600"
+        active ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20" : cn("bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-500 hover:bg-slate-100", `hover:${colorClass}`)
       )}
     >
       <Icon className="w-3 h-3" /> {label}
@@ -134,9 +134,16 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
             onClick={() => onFilterChange({ ...activeFilters, hasAudio: activeFilters.hasAudio === 'itunes' ? 'all' : 'itunes' })}
             icon={Music}
           />
+          <FilterButton 
+            label="No Audio" 
+            active={activeFilters.hasAudio === 'none'} 
+            onClick={() => onFilterChange({ ...activeFilters, hasAudio: activeFilters.hasAudio === 'none' ? 'all' : 'none' })}
+            icon={VolumeX}
+            colorClass="text-red-500"
+          />
         </div>
 
-        {/* Assets Filter */}
+        {/* Video Filter */}
         <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl">
           <FilterButton 
             label="With Video" 
@@ -145,20 +152,28 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
             icon={Youtube}
           />
           <FilterButton 
+            label="No Video" 
+            active={activeFilters.hasVideo === 'no'} 
+            onClick={() => onFilterChange({ ...activeFilters, hasVideo: activeFilters.hasVideo === 'no' ? 'all' : 'no' })}
+            icon={VideoOff}
+            colorClass="text-red-500"
+          />
+        </div>
+
+        {/* Assets Filter */}
+        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl">
+          <FilterButton 
             label="With Chart" 
             active={activeFilters.hasChart === 'yes'} 
             onClick={() => onFilterChange({ ...activeFilters, hasChart: activeFilters.hasChart === 'yes' ? 'all' : 'yes' })}
             icon={FileText}
           />
-        </div>
-
-        {/* Confirmation Filter */}
-        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl">
           <FilterButton 
-            label="Key Confirmed" 
-            active={activeFilters.isConfirmed === 'yes'} 
-            onClick={() => onFilterChange({ ...activeFilters, isConfirmed: activeFilters.isConfirmed === 'yes' ? 'all' : 'yes' })}
-            icon={Hash}
+            label="No Chart" 
+            active={activeFilters.hasChart === 'no'} 
+            onClick={() => onFilterChange({ ...activeFilters, hasChart: activeFilters.hasChart === 'no' ? 'all' : 'no' })}
+            icon={FileX2}
+            colorClass="text-red-500"
           />
         </div>
 
@@ -169,7 +184,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
             onClick={() => onFilterChange(DEFAULT_FILTERS)}
             className="h-8 px-3 rounded-xl text-[9px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 gap-2"
           >
-            <X className="w-3 h-3" /> Clear Filters
+            <X className="w-3 h-3" /> Clear All
           </Button>
         )}
       </div>
@@ -181,23 +196,39 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
             <ListFilter className="w-3 h-3" /> Active Criteria:
           </span>
           {activeFilters.hasAudio !== 'all' && (
-            <Badge variant="secondary" className="bg-indigo-50 text-indigo-600 border-indigo-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg">
-              Audio: {activeFilters.hasAudio}
+            <Badge 
+              variant="secondary" 
+              className="bg-indigo-50 text-indigo-600 border-indigo-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all group"
+              onClick={() => onFilterChange({ ...activeFilters, hasAudio: 'all' })}
+            >
+              Audio: {activeFilters.hasAudio} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
             </Badge>
           )}
           {activeFilters.hasVideo !== 'all' && (
-            <Badge variant="secondary" className="bg-red-50 text-red-600 border-red-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg">
-              Video: {activeFilters.hasVideo}
+            <Badge 
+              variant="secondary" 
+              className="bg-red-50 text-red-600 border-red-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-red-100 transition-all group"
+              onClick={() => onFilterChange({ ...activeFilters, hasVideo: 'all' })}
+            >
+              Video: {activeFilters.hasVideo} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
             </Badge>
           )}
           {activeFilters.hasChart !== 'all' && (
-            <Badge variant="secondary" className="bg-emerald-50 text-emerald-600 border-emerald-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg">
-              Chart: {activeFilters.hasChart}
+            <Badge 
+              variant="secondary" 
+              className="bg-emerald-50 text-emerald-600 border-emerald-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all group"
+              onClick={() => onFilterChange({ ...activeFilters, hasChart: 'all' })}
+            >
+              Chart: {activeFilters.hasChart} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
             </Badge>
           )}
           {activeFilters.isConfirmed !== 'all' && (
-            <Badge variant="secondary" className="bg-amber-50 text-amber-600 border-amber-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg">
-              Key Verified
+            <Badge 
+              variant="secondary" 
+              className="bg-amber-50 text-amber-600 border-amber-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all group"
+              onClick={() => onFilterChange({ ...activeFilters, isConfirmed: 'all' })}
+            >
+              Key Verified <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
             </Badge>
           )}
         </div>
