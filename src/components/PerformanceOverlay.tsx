@@ -88,7 +88,11 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
       if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) return;
 
       if (e.key === 'Escape') {
-        onClose();
+        // If the studio modal is open, let its internal logic handle the Escape key.
+        // We only call onClose() if the modal is closed.
+        if (!isStudioOpen) {
+          onClose();
+        }
       }
       if (e.code === 'Space') {
         e.preventDefault();
@@ -109,7 +113,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose, onTogglePlayback, onPrevious, onNext]);
+  }, [onClose, onTogglePlayback, onPrevious, onNext, isStudioOpen]);
 
   // Wall Clock and Set Timer logic
   useEffect(() => {
@@ -450,7 +454,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
                   <div className="h-full w-full flex flex-col items-center justify-center p-6 md:p-12 text-center bg-slate-950">
                     <ShieldCheck className="w-16 h-16 md:w-32 md:h-32 text-indigo-400 mb-6 md:mb-10" />
                     <h4 className="text-3xl md:text-5xl font-black uppercase tracking-tight mb-4 md:mb-6 text-white">Asset Protected</h4>
-                    <p className="text-slate-500 max-xl mb-8 md:mb-16 text-lg md:text-xl font-medium leading-relaxed">
+                    <p className="text-slate-500 max-w-xl mb-8 md:mb-16 text-lg md:text-xl font-medium leading-relaxed">
                       External security prevents in-app display. Use the button below to launch in a secure dedicated performance window.
                     </p>
                     <Button onClick={() => window.open(currentSong.pdfUrl, '_blank')} className="bg-indigo-600 hover:bg-indigo-700 h-16 md:h-20 px-10 md:px-16 font-black uppercase tracking-[0.2em] text-xs md:text-sm rounded-2xl md:rounded-3xl shadow-2xl shadow-indigo-600/30 gap-4 md:gap-6">
