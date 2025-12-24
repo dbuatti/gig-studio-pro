@@ -354,7 +354,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
 
     const cleanedUrl = cleanYoutubeUrl(targetUrl);
     // --- START MANUAL CHANGE ---
-    const API_BASE = "YOUR_NEW_NODEJS_BACKEND_URL"; // <--- UPDATE THIS LINE
+    const API_BASE = "https://yt-rip-inza.onrender.com"; // <--- UPDATE THIS LINE
     // --- END MANUAL CHANGE ---
 
     setIsSyncingAudio(true);
