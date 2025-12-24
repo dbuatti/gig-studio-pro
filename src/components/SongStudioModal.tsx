@@ -353,7 +353,9 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     }
 
     const cleanedUrl = cleanYoutubeUrl(targetUrl);
-    const apiBase = "https://yt-audio-api-docker.onrender.com";
+    // --- START MANUAL CHANGE ---
+    const API_BASE = "YOUR_NEW_NODEJS_BACKEND_URL"; // <--- UPDATE THIS LINE
+    // --- END MANUAL CHANGE ---
 
     setIsSyncingAudio(true);
     setSyncStatus("Initializing Engine...");
@@ -362,7 +364,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     try {
       setSyncStatus("Waking up extraction engine...");
       // Add a small delay for Render cold-starts
-      const tokenUrl = `${apiBase}/?url=${encodeURIComponent(cleanedUrl)}`;
+      const tokenUrl = `${API_BASE}/api/download?url=${encodeURIComponent(cleanedUrl)}`; // Updated endpoint
       
       const tokenRes = await fetch(tokenUrl, {
         headers: { 'Accept': 'application/json' }
@@ -383,11 +385,10 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         throw new Error(specificError);
       }
       
-      const { token } = await tokenRes.json();
+      const { token, downloadUrl: backendDownloadUrl } = await tokenRes.json(); // Get downloadUrl from backend
       setSyncStatus("Extracting Audio Stream...");
 
-      const downloadUrl = `${apiBase}/download?token=${token}`;
-      const downloadRes = await fetch(downloadUrl);
+      const downloadRes = await fetch(`${API_BASE}${backendDownloadUrl}`); // Use backend's downloadUrl
       
       if (!downloadRes.ok) throw new Error("Audio extraction failed at source.");
       const blob = await downloadRes.blob();
@@ -446,7 +447,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const removeTag = (tag: string) => {
     if (!song) return;
     const updated = (formData.user_tags || []).filter(t => t !== tag);
-    handleAutoSave({ user_tags: updated });
+    handleAutoSave({ resources: updated });
   };
 
   const toggleResource = (id: string) => {
@@ -1050,13 +1051,11 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                 title="PDF Preview"
               />
             ) : (
-              <div className="flex-1 flex flex-col items-center justify-center bg-slate-900 rounded-2xl border border-white/5 p-6 text-center">
+              <div className="h-full flex flex-col items-center justify-center bg-slate-900 rounded-2xl border border-white/5 p-6 text-center">
                 <ShieldCheck className="w-12 h-12 text-indigo-400 mb-6" />
                 <h4 className="text-xl md:text-2xl font-black uppercase mb-4 text-white">Source Shield Active</h4>
                 <p className="text-slate-500 mb-8 max-w-sm font-medium">Provider blocks in-app previews. Use the dedicated performance window.</p>
-                <Button onClick={() => window.open(previewPdfUrl, '_blank')} className="bg-indigo-600 hover:bg-indigo-700 h-12 px-8 font-black uppercase tracking-widest text-xs rounded-xl shadow-lg shadow-indigo-600/20 gap-3">
-                  <ExternalLink className="w-4 h-4" /> Open Official Source
-                </Button>
+                <Button onClick={() => window.open(previewPdfUrl, '_blank')} className="bg-indigo-600 hover:bg-indigo-700 h-16 px-10 rounded-2xl gap-3"><ExternalLink className="w-5 h-5" /> Launch Official Source</Button>
               </div>
             )}
           </div>
