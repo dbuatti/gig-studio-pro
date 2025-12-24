@@ -137,9 +137,9 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) return;
 
       if ((e.metaKey || e.ctrlKey) && !isNaN(Number(e.key))) {
+        e.preventDefault();
         const index = Number(e.key) - 1;
         if (index >= 0 && index < tabOrder.length) {
-          e.preventDefault();
           setActiveTab(tabOrder[index]);
         }
       }
@@ -327,7 +327,12 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       const tokenUrl = `${apiBase}/?url=${encodeURIComponent(cleanedUrl)}`;
       const tokenRes = await fetch(tokenUrl);
       
-      if (!tokenRes.ok) throw new Error("Could not initialize extraction engine.");
+      if (!tokenRes.ok) {
+        if (tokenRes.status === 500) {
+          throw new Error("System cookies expired. Please use the Admin Panel to refresh YouTube cookies.");
+        }
+        throw new Error("Could not initialize extraction engine.");
+      }
       const { token } = await tokenRes.json();
 
       // Step 2: Extract audio blob from microservice directly
@@ -361,7 +366,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       
     } catch (err: any) {
       console.error("YT Sync Error:", err);
-      showError("Connection blocked or engine idle. Try again in 20s.");
+      showError(err.message || "Connection blocked or engine idle. Try again in 20s.");
     } finally {
       setIsSyncingAudio(false);
     }
@@ -1353,7 +1358,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
               )}
               {activeTab === 'charts' && (
                 <div className="h-full flex flex-col gap-6 md:gap-8 animate-in fade-in duration-500">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
                     <div>
                       <h3 className="text-sm md:text-lg font-black uppercase tracking-[0.3em] text-emerald-400">Chart Engine V2</h3>
                       <p className="text-xs md:text-sm text-slate-500 mt-1">Multi-layer chart rendering engine active.</p>
