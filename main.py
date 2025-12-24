@@ -40,6 +40,23 @@ def cleanup_expired_files():
 
 threading.Thread(target=cleanup_expired_files, daemon=True).start()
 
+# --- YT-DLP PROGRESS HOOK ---
+def progress_hook(d, token):
+    if token not in active_tokens:
+        print(f"[{token}] Progress hook called for expired/missing token.", flush=True)
+        return
+
+    if d['status'] == 'downloading':
+        percentage = d.get('downloaded_bytes', 0) / d.get('total_bytes', 1) * 100
+        active_tokens[token]["progress_percentage"] = round(percentage)
+        print(f"[{token}] Downloading: {active_tokens[token]['progress_percentage']}%", flush=True)
+    elif d['status'] == 'finished':
+        active_tokens[token]["progress_percentage"] = 100
+        print(f"[{token}] Download finished.", flush=True)
+    elif d['status'] == 'error':
+        active_tokens[token]["progress_percentage"] = -1 # Indicate error
+        print(f"[{token}] Download error.", flush=True)
+
 # --- CORE DOWNLOAD LOGIC ---
 def run_yt_dlp(video_url, token):
     print(f"[{token}] Starting yt-dlp for URL: {video_url}", flush=True) # Added log
@@ -67,7 +84,8 @@ def run_yt_dlp(video_url, token):
             'User-Agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Mobile Safari/537.36',
             'Accept-Language': 'en-GB,en;q=0.9',
             'Referer': 'https://m.youtube.com/'
-        }
+        },
+        'progress_hooks': [lambda d: progress_hook(d, token)] # Added progress hook
     }
 
     if REPO_COOKIES_PATH.exists():
@@ -107,7 +125,8 @@ def start_request():
         "file": None,
         "status": "processing",
         "expiry": time.time() + TOKEN_EXPIRY,
-        "error_msg": None
+        "error_msg": None,
+        "progress_percentage": 0 # Initialize progress
     }
     print(f"[{job_token}] New request received. Status: processing", flush=True) # Added log
 
@@ -124,8 +143,8 @@ def check_or_download():
         return jsonify(error="Invalid Token"), 404
     
     if data["status"] == "processing":
-        print(f"[{token}] Download status: processing (202)", flush=True) # Added log
-        return jsonify(status="processing"), 202
+        print(f"[{token}] Download status: processing (202), Progress: {data['progress_percentage']}%", flush=True) # Added log
+        return jsonify(status="processing", progress_percentage=data["progress_percentage"]), 202
     
     if data["status"] == "error":
         print(f"[{token}] Download status: error (500). Details: {data['error_msg']}", flush=True) # Added log

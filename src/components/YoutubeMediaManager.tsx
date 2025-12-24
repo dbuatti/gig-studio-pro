@@ -13,6 +13,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { SetlistSong } from './SetlistManager';
+import { CustomProgress } from '@/components/CustomProgress'; // Import CustomProgress component
 
 interface YoutubeMediaManagerProps {
   song: SetlistSong | null;
@@ -35,6 +36,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
   const [ytResults, setYtResults] = useState<any[]>([]);
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadStatus, setDownloadStatus] = useState<'idle' | 'processing' | 'downloading' | 'error' | 'success'>('idle');
+  const [downloadProgress, setDownloadProgress] = useState(0); // New state for progress
 
   const currentVideoId = useMemo(() => {
     if (!formData.youtubeUrl) return null;
@@ -185,6 +187,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
 
     setDownloadStatus('processing');
     setIsDownloading(true);
+    setDownloadProgress(0); // Reset progress
 
     try {
       const API_BASE_URL = "https://yt-audio-api-1-wedr.onrender.com";
@@ -197,7 +200,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
       const { token } = await tokenResponse.json();
 
       let attempts = 0;
-      const MAX_POLLING_ATTEMPTS = 10; // Max retries for polling
+      const MAX_POLLING_ATTEMPTS = 30; // Increased max retries
       const POLLING_INTERVAL_MS = 5000; // 5 seconds
 
       let fileResponse;
@@ -208,20 +211,21 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
         await new Promise(resolve => setTimeout(resolve, POLLING_INTERVAL_MS)); // Wait before polling
 
         fileResponse = await fetch(`${API_BASE_URL}/download?token=${token}`);
+        const responseData = await fileResponse.json().catch(() => ({})); // Try to parse JSON even on error
 
         if (fileResponse.status === 200) {
           downloadReady = true;
           setDownloadStatus('downloading');
           break;
         } else if (fileResponse.status === 202) {
-          showSuccess(`Audio is still processing. Attempt ${attempts}/${MAX_POLLING_ATTEMPTS}.`);
+          setDownloadProgress(responseData.progress_percentage || 0); // Update progress
+          showSuccess(`Audio is still processing. Attempt ${attempts}/${MAX_POLLING_ATTEMPTS}. Progress: ${responseData.progress_percentage || 0}%`);
           // Continue polling
         } else if (fileResponse.status === 500) {
-          const errorData = await fileResponse.json();
-          if (errorData.error === "YouTube Block") {
+          if (responseData.error === "YouTube Block") {
             throw new Error("YouTube blocked the download. Try again later or use manual fallback.");
           }
-          throw new Error(errorData.error || "Download failed with server error.");
+          throw new Error(responseData.error || "Download failed with server error.");
         } else {
           throw new Error(`Download failed with status: ${fileResponse.status} ${fileResponse.statusText}`);
         }
@@ -232,7 +236,12 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
       }
 
       // If we reach here, the file is ready (status 200)
-      const blob = await fileResponse.blob();
+      // Re-fetch as a blob since the previous fetch might have consumed the body as JSON
+      const finalFileResponse = await fetch(`${API_BASE_URL}/download?token=${token}`);
+      if (!finalFileResponse.ok) {
+        throw new Error(`Failed to fetch final audio file: ${finalFileResponse.statusText}`);
+      }
+      const blob = await finalFileResponse.blob();
       const blobUrl = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = blobUrl;
@@ -243,11 +252,13 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
       window.URL.revokeObjectURL(blobUrl);
       showSuccess("Audio downloaded successfully!");
       setDownloadStatus('success');
+      setDownloadProgress(100);
 
     } catch (err: any) {
       console.error(err);
       showError(`Download failed: ${err.message}. The Render API might be down or blocked.`);
       setDownloadStatus('error');
+      setDownloadProgress(0);
     } finally {
       setIsDownloading(false);
     }
@@ -279,10 +290,18 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
             className="bg-indigo-600 hover:bg-indigo-700 h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3"
           >
             {(isSearchingYoutube || isDownloading) ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-4 h-4" />} 
-            {downloadStatus === 'processing' ? 'PROCESSING...' : 'DOWNLOAD'}
+            {downloadStatus === 'processing' ? `PROCESSING... ${downloadProgress}%` : 'DOWNLOAD'}
           </Button>
         </div>
       </div>
+      {isDownloading && downloadStatus === 'processing' && (
+        <div className="space-y-2 animate-in fade-in duration-300">
+          <CustomProgress value={downloadProgress} className="h-2 bg-white/10" indicatorClassName="bg-indigo-500" />
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 text-center">
+            Audio conversion in progress... {downloadProgress}%
+          </p>
+        </div>
+      )}
       {ytResults.length > 0 && (
         <YoutubeResultsShelf
           results={ytResults}
