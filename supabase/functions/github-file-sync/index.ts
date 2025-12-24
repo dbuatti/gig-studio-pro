@@ -1,25 +1,15 @@
 // @ts-ignore: Deno runtime import
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
+// @ts-ignore: Deno runtime import
+import { encode as encodeBase64 } from "https://deno.land/std@0.160.0/encoding/base64.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-/**
- * Encodes a string to Base64 using TextEncoder for standard Deno/Web support.
- */
-function encodeBase64(str: string): string {
-  const bytes = new TextEncoder().encode(str);
-  let binary = "";
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
-}
-
 serve(async (req) => {
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
@@ -31,9 +21,9 @@ serve(async (req) => {
     const GITHUB_PAT = Deno.env.get('GITHUB_PAT');
 
     if (!GITHUB_PAT) {
-      console.error("[SYNC ERROR] GITHUB_PAT is not set in Supabase Secrets.");
+      console.error("[SYNC ERROR] GITHUB_PAT secret is missing in Supabase.");
       return new Response(JSON.stringify({ 
-        error: "GITHUB_PAT missing in project secrets. Please add it to your Supabase vault." 
+        error: "Missing GITHUB_PAT. Please add your GitHub Personal Access Token to the Supabase Edge Function secrets." 
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -42,12 +32,12 @@ serve(async (req) => {
 
     const apiUrl = `https://api.github.com/repos/${repo}/contents/${path}`;
     
-    // 1. Fetch current file to get the SHA
+    // 1. Fetch current file to get the SHA (required for updating existing files)
     const getRes = await fetch(apiUrl, {
       headers: {
         'Authorization': `Bearer ${GITHUB_PAT}`,
         'Accept': 'application/vnd.github.v3+json',
-        'User-Agent': 'Supabase-Edge-Function'
+        'User-Agent': 'GigStudio-Sync-Engine'
       }
     });
 
@@ -57,22 +47,23 @@ serve(async (req) => {
       sha = fileData.sha;
     } else if (getRes.status !== 404) {
       const errText = await getRes.text();
-      console.error(`[SYNC ERROR] GitHub GET failed (${getRes.status}): ${errText}`);
-      throw new Error(`GitHub access failed. Check if the repository and token are valid.`);
+      throw new Error(`GitHub connectivity failed (${getRes.status}): ${errText}`);
     }
 
-    // 2. Push the update
+    // 2. Prepare the payload with Base64 content
+    // We use the standard Deno utility for reliable binary-safe encoding
     const encodedContent = encodeBase64(content);
+    
     const putRes = await fetch(apiUrl, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${GITHUB_PAT}`,
         'Accept': 'application/vnd.github.v3+json',
         'Content-Type': 'application/json',
-        'User-Agent': 'Supabase-Edge-Function'
+        'User-Agent': 'GigStudio-Sync-Engine'
       },
       body: JSON.stringify({
-        message: message || 'Update from Gig Studio',
+        message: message || 'Update via Gig Studio Dashboard',
         content: encodedContent,
         sha: sha || undefined
       })
@@ -81,20 +72,24 @@ serve(async (req) => {
     const result = await putRes.json();
     
     if (!putRes.ok) {
-      console.error(`[SYNC ERROR] GitHub PUT failed (${putRes.status}):`, result);
-      throw new Error(result.message || "GitHub write operation failed.");
+      console.error(`[SYNC ERROR] GitHub Write Failed (${putRes.status}):`, result);
+      throw new Error(result.message || "The GitHub write operation was rejected by the API.");
     }
 
     return new Response(JSON.stringify({ 
       success: true, 
       commit: result.commit.sha 
     }), {
+      status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
   } catch (error) {
-    console.error(`[CRITICAL FAILURE]: ${error.message}`);
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error(`[RUNTIME ERROR]: ${error.message}`);
+    return new Response(JSON.stringify({ 
+      error: error.message,
+      details: "Check function logs for full trace."
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
