@@ -545,52 +545,71 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     if (!searchTerm.trim()) return;
 
     setIsSearchingYoutube(true);
+    setYtResults([]);
     
+    // Resilient Discovery Matrix: Multiple proxies and instances
+    const proxies = [
+      "https://corsproxy.io/?",
+      "https://api.allorigins.win/get?url="
+    ];
+
     const instances = [
+      'https://invidious.namazso.eu',
+      'https://invidious.snopyta.org',
       'https://iv.ggtyler.dev',
-      'https://yewtu.be',
-      'https://invidious.flokinet.to'
+      'https://inv.vern.cc'
     ];
 
     let success = false;
     
-    for (const instance of instances) {
+    for (const proxy of proxies) {
       if (success) break;
-      try {
-        const targetUrl = `${instance}/api/v1/search?q=${encodeURIComponent(searchTerm)}&type=video`;
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-        
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000);
+      for (const instance of instances) {
+        if (success) break;
+        try {
+          const queryParams = `q=${encodeURIComponent(searchTerm)}&type=video`;
+          const targetUrl = `${instance}/api/v1/search?${queryParams}`;
+          
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 3500);
 
-        const response = await fetch(proxyUrl, { signal: controller.signal });
-        clearTimeout(timeoutId);
+          // Construct proxy URL - handling AllOrigins specific response wrap
+          const fullUrl = proxy.includes('allorigins') ? `${proxy}${encodeURIComponent(targetUrl)}` : `${proxy}${targetUrl}`;
+          
+          const response = await fetch(fullUrl, { signal: controller.signal });
+          clearTimeout(timeoutId);
 
-        if (!response.ok) continue;
-        
-        const rawData = await response.json();
-        const data = typeof rawData.contents === 'string' ? JSON.parse(rawData.contents) : rawData.contents;
-        
-        if (data && Array.isArray(data) && data.length > 0) {
-          setYtResults(data.slice(0, 10));
-          // Auto-select first result if current URL is empty
-          if (!formData.youtubeUrl) {
-            handleSelectYoutubeVideo(`https://www.youtube.com/watch?v=${data[0].videoId}`);
-            showSuccess(`Auto-Linked: ${data[0].title}`);
+          if (!response.ok) continue;
+          
+          const rawData = await response.json();
+          // Unwrap AllOrigins if needed
+          const data = rawData.contents ? JSON.parse(rawData.contents) : rawData;
+          
+          if (data && Array.isArray(data) && data.length > 0) {
+            const sanitizedResults = data.slice(0, 10);
+            setYtResults(sanitizedResults);
+            
+            // Auto-link priority result if visual engine is currently standby
+            if (!formData.youtubeUrl) {
+              handleSelectYoutubeVideo(`https://www.youtube.com/watch?v=${sanitizedResults[0].videoId}`);
+              showSuccess(`Auto-Loaded: ${sanitizedResults[0].title}`);
+            }
+            success = true;
           }
-          success = true;
+        } catch (err) {
+          console.warn(`Discovery attempt via ${instance} failed...`);
         }
-      } catch (err) {
-        console.warn(`Discovery attempt on ${instance} failed...`);
       }
     }
 
-    if (!success) showError("Discovery engine timed out.");
+    if (!success) showError("Discovery matrix unstable. Use manual link.");
     setIsSearchingYoutube(false);
   };
 
   const handleYoutubeSearch = () => {
-    const query = `${formData.artist} ${formData.name} official music video`;
+    const artist = (formData.artist || "").replace(/&/g, 'and'); // Clean for proxy
+    const name = (formData.name || "").replace(/&/g, 'and');
+    const query = `${artist} ${name} official music video`;
     performYoutubeDiscovery(query);
   };
 
