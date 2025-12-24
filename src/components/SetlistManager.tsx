@@ -59,6 +59,9 @@ export interface SetlistSong {
   duration_seconds?: number;
   key_preference?: KeyPreference;
   is_active?: boolean;
+  fineTune?: number; // Added for fine-tuning pitch
+  tempo?: number; // Added for tempo stretching
+  volume?: number; // Added for master gain control
 }
 
 interface SetlistManagerProps {
