@@ -50,14 +50,29 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        // Log detailed error to console
+        console.error("Invoke Error Details:", error);
+        
+        // Try to parse the error message if it's from our custom response
+        let displayError = "System sync failed.";
+        try {
+          const body = await error.context?.json();
+          if (body?.error) displayError = body.error;
+        } catch {
+          displayError = error.message || "Connection refused";
+        }
+        
+        showError(displayError);
+        return;
+      }
       
       showSuccess("GitHub Sync Complete: cookies.txt updated!");
       setCookieText("");
       onClose();
     } catch (err: any) {
-      console.error("Sync Error:", err);
-      showError(`Sync Failed: ${err.message || "Connection refused"}`);
+      console.error("Catch Sync Error:", err);
+      showError(`Sync Failed: ${err.message || "Unknown communication error"}`);
     } finally {
       setIsRefreshing(false);
     }

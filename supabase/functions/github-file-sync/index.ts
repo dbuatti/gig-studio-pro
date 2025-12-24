@@ -14,11 +14,20 @@ serve(async (req) => {
   try {
     const { path, content, repo, message } = await req.json();
     
-    const GITHUB_PAT = (globalThis as any).Deno.env.get('GITHUB_PAT');
+    // @ts-ignore: Deno access
+    const GITHUB_PAT = Deno.env.get('GITHUB_PAT');
 
     if (!GITHUB_PAT) {
-      throw new Error("GitHub PAT not configured in Supabase Secrets.");
+      console.error("[SYNC] GITHUB_PAT is not defined in environment variables");
+      return new Response(JSON.stringify({ 
+        error: "GITHUB_PAT missing in Supabase Secrets. Please add it to your project settings." 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
+
+    console.log(`[SYNC] Attempting to sync ${path} to ${repo}`);
 
     // 1. Get current file SHA to perform a clean update
     const getUrl = `https://api.github.com/repos/${repo}/contents/${path}`;
@@ -33,6 +42,12 @@ serve(async (req) => {
     if (getRes.status === 200) {
       const fileData = await getRes.json();
       sha = fileData.sha;
+      console.log(`[SYNC] Found existing file, SHA: ${sha}`);
+    } else if (getRes.status !== 404) {
+      const errData = await getRes.json();
+      throw new Error(`GitHub GET Error (${getRes.status}): ${errData.message}`);
+    } else {
+      console.log(`[SYNC] File not found (404), creating new file.`);
     }
 
     // 2. Perform the update
@@ -53,14 +68,16 @@ serve(async (req) => {
     const result = await putRes.json();
     
     if (!putRes.ok) {
-      throw new Error(result.message || "GitHub API Error");
+      throw new Error(`GitHub PUT Error (${putRes.status}): ${result.message}`);
     }
 
+    console.log(`[SYNC] Success! Commit: ${result.commit.sha}`);
     return new Response(JSON.stringify({ success: true, commit: result.commit.sha }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
   } catch (error) {
+    console.error(`[SYNC] Catch-all Error: ${error.message}`);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
