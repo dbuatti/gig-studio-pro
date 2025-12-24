@@ -412,7 +412,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
               </div>
               <Button 
                 className="w-full bg-red-600 hover:bg-red-700 font-black uppercase tracking-widest text-xs h-12 rounded-xl gap-2"
-                onClick={() => window.open(`https://yt-audio-api-1-wedr.onrender.com/?url=${encodeURIComponent(targetVideoUrl || '')}`, '_blank')}
+                onClick={() => window.open(`https://yt-audio-api-1-wedr.onrender.com/?url=${encodeURIComponent(formData.youtubeUrl || '')}`, '_blank')}
               >
                 <ExternalLink className="w-4 h-4" /> Open Render API
               </Button>
