@@ -199,8 +199,10 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
   };
 
   // UPDATED: Logic to download audio via Client-Side Proxy with polling and Supabase upload
-  const handleDownloadViaProxy = async () => {
-    if (!formData.youtubeUrl) {
+  const handleDownloadViaProxy = async (videoUrlToDownload?: string) => {
+    const targetVideoUrl = videoUrlToDownload || formData.youtubeUrl;
+
+    if (!targetVideoUrl) {
       showError("Please link a YouTube URL first.");
       console.warn("[YoutubeMediaManager] Download aborted: No YouTube URL linked.");
       return;
@@ -214,7 +216,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
     setDownloadStatus('processing');
     setIsDownloading(true);
     setDownloadProgress(0); // Reset progress
-    console.log("[YoutubeMediaManager] Initiating audio download via Render API proxy for URL:", formData.youtubeUrl);
+    console.log("[YoutubeMediaManager] Initiating audio download via Render API proxy for URL:", targetVideoUrl);
 
     try {
       const API_BASE_URL = "https://yt-audio-api-1-wedr.onrender.com";
@@ -224,7 +226,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
 
       // Initial request to get a token
       console.log("[YoutubeMediaManager] Requesting download token from Render API...");
-      const tokenResponse = await fetch(`${API_BASE_URL}/?url=${encodeURIComponent(formData.youtubeUrl)}`);
+      const tokenResponse = await fetch(`${API_BASE_URL}/?url=${encodeURIComponent(targetVideoUrl)}`);
       if (!tokenResponse.ok) {
         const errorText = await tokenResponse.text();
         throw new Error(`Failed to get download token from Render API: ${tokenResponse.status} - ${errorText}`);
@@ -341,7 +343,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
             {isSearchingYoutube ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-4 h-4" />} SEARCH
           </Button>
           <Button
-            onClick={handleDownloadViaProxy}
+            onClick={() => handleDownloadViaProxy()} // Call with no argument to use formData.youtubeUrl
             disabled={isSearchingYoutube || isDownloading || !formData.youtubeUrl}
             className="bg-indigo-600 hover:bg-indigo-700 h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3"
           >
@@ -363,7 +365,10 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
           results={ytResults}
           currentVideoId={currentVideoId}
           onSelect={handleSelectYoutubeVideo}
+          onDownloadAudio={handleDownloadViaProxy} // Pass the download handler
           isLoading={isSearchingYoutube}
+          isDownloading={isDownloading} // Pass download state
+          downloadStatus={downloadStatus} // Pass download status
         />
       )}
 
@@ -407,7 +412,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
               </div>
               <Button 
                 className="w-full bg-red-600 hover:bg-red-700 font-black uppercase tracking-widest text-xs h-12 rounded-xl gap-2"
-                onClick={() => window.open(`https://yt-audio-api-1-wedr.onrender.com/?url=${encodeURIComponent(formData.youtubeUrl || '')}`, '_blank')}
+                onClick={() => window.open(`https://yt-audio-api-1-wedr.onrender.com/?url=${encodeURIComponent(targetVideoUrl || '')}`, '_blank')}
               >
                 <ExternalLink className="w-4 h-4" /> Open Render API
               </Button>

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { User, Globe, Check, Clock, Zap, Loader2 } from 'lucide-react';
+import { User, Globe, Check, Clock, Zap, Loader2, Download } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { Button } from '@/components/ui/button';
 
@@ -10,18 +10,20 @@ interface YoutubeResultsShelfProps {
   results: any[];
   currentVideoId: string | null;
   onSelect: (videoUrl: string) => void;
-  // onSyncAndExtract: (videoUrl: string) => void; // Removed
+  onDownloadAudio: (videoUrl: string) => void; // New prop for downloading audio
   isLoading: boolean;
-  // isExtracting?: boolean; // Removed
+  isDownloading: boolean; // New prop for download state
+  downloadStatus: 'idle' | 'processing' | 'downloading' | 'error' | 'success'; // New prop for download status
 }
 
 const YoutubeResultsShelf: React.FC<YoutubeResultsShelfProps> = ({ 
   results, 
   currentVideoId, 
   onSelect, 
-  // onSyncAndExtract, // Removed
+  onDownloadAudio, // Destructure new prop
   isLoading,
-  // isExtracting // Removed
+  isDownloading, // Destructure new prop
+  downloadStatus // Destructure new prop
 }) => {
   if (isLoading) {
     return (
@@ -46,6 +48,9 @@ const YoutubeResultsShelf: React.FC<YoutubeResultsShelfProps> = ({
         <div className="flex gap-4 pb-4">
           {results.map((video) => {
             const isSelected = currentVideoId === video.videoId;
+            const videoUrl = `https://www.youtube.com/watch?v=${video.videoId}`;
+            const isDownloadDisabled = isDownloading && (downloadStatus === 'processing' || downloadStatus === 'downloading');
+
             return (
               <div
                 key={video.videoId}
@@ -61,13 +66,22 @@ const YoutubeResultsShelf: React.FC<YoutubeResultsShelfProps> = ({
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                   />
                   
-                  {/* Hover Overlay Automation - Removed Sync & Extract button */}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-4">
+                  {/* Hover Overlay with two square buttons */}
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 p-4">
                      <Button 
-                       onClick={() => onSelect(`https://www.youtube.com/watch?v=${video.videoId}`)}
-                       className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-[9px] h-10 px-4 rounded-xl shadow-2xl gap-2 active:scale-95 transition-transform"
+                       onClick={() => onSelect(videoUrl)}
+                       className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[9px] h-10 w-10 rounded-xl shadow-2xl p-0 flex items-center justify-center active:scale-95 transition-transform"
+                       title="Select Video"
                      >
-                       <Check className="w-3 h-3" /> Select Video
+                       <Check className="w-4 h-4" />
+                     </Button>
+                     <Button 
+                       onClick={() => onDownloadAudio(videoUrl)}
+                       disabled={isDownloadDisabled}
+                       className="bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-[9px] h-10 w-10 rounded-xl shadow-2xl p-0 flex items-center justify-center active:scale-95 transition-transform"
+                       title="Download Audio"
+                     >
+                       {isDownloadDisabled ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                      </Button>
                   </div>
 
@@ -83,7 +97,7 @@ const YoutubeResultsShelf: React.FC<YoutubeResultsShelfProps> = ({
                 </div>
                 
                 <button
-                  onClick={() => onSelect(`https://www.youtube.com/watch?v=${video.videoId}`)}
+                  onClick={() => onSelect(videoUrl)}
                   className="p-3 space-y-1.5 text-left"
                 >
                   <h4 className="font-bold text-[10px] leading-tight line-clamp-1 uppercase tracking-tight group-hover:text-indigo-400 transition-colors">
