@@ -48,7 +48,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   const SUPABASE_PROJECT_ID = "rqesjpnhrjdjnrzdhzgw";
   const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxZXNqcG5ocmpkam5yemRoemd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIwMzgwNzgsImV4cCI6MjA3NzYxNDA3OH0.NqFKBFI-l96hWOGNc8QxuQdaGKVmvzw6LDGO_MsIoQc";
 
-  const automationCommand = `yt-dlp --cookies-from-browser chrome --cookies cookies.txt --skip-download "https://www.youtube.com/watch?v=dQw4w9WgXcQ" && curl -X POST https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/github-file-sync -H "Content-Type: application/json" -H "Authorization: Bearer ${ANON_KEY}" -d "{\\"path\\": \\"cookies.txt\\", \\"repo\\": \\"dbuatti/yt-audio-api\\", \\"content\\": \\"$(cat cookies.txt)\\", \\"message\\": \\"CLI Automated Sync\\"}" && rm cookies.txt`;
+  // Robust command using python to escape JSON properly
+  const automationCommand = `yt-dlp --cookies-from-browser chrome --cookies cookies.txt --skip-download "https://www.youtube.com/watch?v=dQw4w9WgXcQ" && python3 -c "import json; print(json.dumps({'path': 'cookies.txt', 'repo': 'dbuatti/yt-audio-api', 'content': open('cookies.txt').read(), 'message': 'CLI Automated Sync'}))" > payload.json && curl -X POST https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/github-file-sync -H "Content-Type: application/json" -H "Authorization: Bearer ${ANON_KEY}" -d @payload.json && rm cookies.txt payload.json`;
 
   useEffect(() => {
     const saved = localStorage.getItem('gig_admin_last_sync');
@@ -118,7 +119,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] bg-slate-950 border-white/10 text-white rounded-[2rem] p-0 overflow-hidden shadow-2xl flex flex-col">
-        {/* Header */}
         <div className="bg-red-600 p-6 md:p-8 flex items-center justify-between shrink-0 relative">
           <div className="flex items-center gap-4">
             <div className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-md">
@@ -135,11 +135,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
           </Button>
         </div>
 
-        {/* Content */}
         <div className="flex-1 overflow-hidden flex flex-col">
           <ScrollArea className="flex-1">
             <div className="p-6 md:p-8 space-y-6 md:space-y-8">
-              {/* CLI Automation Section */}
               <div className="bg-indigo-600/10 border border-indigo-600/20 rounded-[2rem] p-6 md:p-8 space-y-6">
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3 md:gap-4">
@@ -156,8 +154,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
 
                 <div className="space-y-4">
                   <p className="text-xs md:text-sm text-slate-400 leading-relaxed">
-                    Run this command in your local terminal to automatically extract cookies from your browser and sync them to the backend engine. 
-                    <span className="text-indigo-400 font-bold ml-1">Requires yt-dlp and curl.</span>
+                    This command safely packages your browser cookies into a JSON file and syncs them to the backend.
+                    <span className="text-indigo-400 font-bold ml-1">Requires yt-dlp.</span>
                   </p>
                   
                   <div className="relative group">
@@ -177,9 +175,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                   <div className="flex items-start gap-3 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
                     <AlertCircle className="w-4 h-4 md:w-5 md:h-5 text-amber-500 shrink-0 mt-0.5" />
                     <div className="space-y-1">
-                      <p className="text-[10px] md:text-xs font-black uppercase text-amber-500">Troubleshooting (Mac Users)</p>
+                      <p className="text-[10px] md:text-xs font-black uppercase text-amber-500">Decryption Failed? (Mac Fix)</p>
                       <p className="text-[10px] md:text-[11px] text-slate-400 leading-relaxed">
-                        If decryption fails, <strong>Quit Chrome completely</strong> before running. If it still fails, replace <code className="text-indigo-400">chrome</code> with <code className="text-indigo-400">safari</code>.
+                        1. <strong>Quit Chrome completely</strong> before running the command. <br />
+                        2. If it still fails, try replacing <code className="text-indigo-400">chrome</code> with <code className="text-indigo-400">safari</code> in the command.<br />
+                        3. Ensure you have <strong>logged into YouTube</strong> in the browser you select.
                       </p>
                     </div>
                   </div>
@@ -241,7 +241,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
           </ScrollArea>
         </div>
 
-        {/* Footer */}
         <div className="p-6 md:p-8 bg-slate-900 border-t border-white/5 shrink-0 flex gap-4">
           <Button onClick={onClose} className="w-full bg-white/5 hover:bg-white/10 text-white font-black uppercase tracking-widest text-[10px] h-12 rounded-xl border border-white/10">Close System Core</Button>
         </div>
