@@ -1,6 +1,21 @@
-flask
-flask-cors
-yt-dlp
-requests
-supabase
-gunicorn
+# requirements.txt
+# Dependencies for the YouTube Audio Converter API
+# Curated by Alperen Sümeroğlu for clean and efficient deployment
+
+click==7.1.2
+Flask==1.1.2
+itsdangerous==1.1.0
+Jinja2==2.11.3
+MarkupSafe==1.1.1
+Werkzeug==1.0.1
+yt-dlp>=2024.1.1
+
+# Added for Supabase integration
+supabase==2.27.0
+
+# Added for running the server on Render
+gunicorn==20.1.0
+
+# Added for CORS and HTTP requests
+flask-cors==3.0.10
+requests==2.25.1
