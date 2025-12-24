@@ -34,7 +34,7 @@ import { Slider } from '@/components/ui/slider';
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
 import { RESOURCE_TYPES } from '@/utils/constants';
 import ProSyncSearch from './ProSyncSearch';
-import YoutubeResultsShelf from '@/components/Youtube/YoutubeResultsShelf';
+import YoutubeResultsShelf from './YoutubeResultsShelf';
 import { useAuth } from './AuthProvider';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { calculateReadiness } from '@/utils/repertoireSync';
@@ -354,7 +354,7 @@ const handleSyncYoutubeAudio = async (videoUrl?: string) => {
 
     const cleanedUrl = cleanYoutubeUrl(targetUrl);
     // Updated to your new Node.js endpoint
-    const API_BASE = "https://yt-audio-api-docker.onrender.com"; 
+    const API_BASE = "https://yt-rip-inza.onrender.com"; 
 
     setIsSyncingAudio(true);
     setSyncStatus("Waking up extraction engine...");
@@ -379,37 +379,67 @@ const handleSyncYoutubeAudio = async (videoUrl?: string) => {
         throw new Error("Engine failed to generate a valid stream.");
       }
 
-      setSyncStatus("Streaming audio data...");
-      
-      // Step 2: Fetch the actual file bytes from the generated URL
-      // We use the directUrl if available, otherwise the proxied downloadUrl
-      const audioSourceUrl = data.directUrl || `${API_BASE}${data.downloadUrl}`;
+      setSyncStatus("Streaming audio data...");const handleSyncYoutubeAudio = async (videoUrl?: string) => {
+    const targetUrl = videoUrl || formData.youtubeUrl;
+    if (!targetUrl || !user || !song) {
+      showError("Paste a YouTube URL first.");
+      return;
+    }
+
+    const cleanedUrl = cleanYoutubeUrl(targetUrl);
+    const API_BASE = "https://yt-rip-inza.onrender.com"; 
+
+    setIsSyncingAudio(true);
+    setSyncStatus("Waking up extraction engine...");
+    setEngineError(null);
+    
+    try {
+      // 1. Tell the Node engine to convert the video
+      const response = await fetch(`${API_BASE}/api/download`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: cleanedUrl, format: 'mp3' })
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || "Extraction server error");
+      }
+
+      const data = await response.json();
+      if (!data.success) throw new Error(data.error || "Engine failed.");
+
+      // 2. FETCH THE ACTUAL AUDIO BYTES (The Middle Step)
+      // We use the proxied stream to bypass browser security
+      setSyncStatus("Capturing audio stream...");
+      const audioSourceUrl = `${API_BASE}${data.downloadUrl}`;
       const downloadRes = await fetch(audioSourceUrl);
+      if (!downloadRes.ok) throw new Error("Could not capture audio stream.");
       
-      if (!downloadRes.ok) throw new Error("Could not reach audio stream.");
       const blob = await downloadRes.blob();
 
-      setSyncStatus("Syncing to Cloud Vault...");
+      // 3. SYNC TO SUPABASE STORAGE
+      setSyncStatus("Finalizing cloud sync...");
       const fileName = `${user.id}/${song.id}/extracted-${Date.now()}.mp3`;
-      
       const { error: uploadError } = await supabase.storage
         .from('public_assets')
         .upload(fileName, blob, { contentType: 'audio/mpeg', upsert: true });
 
       if (uploadError) throw uploadError;
 
+      // 4. UPDATE LOCAL STATE
       const { data: { publicUrl } } = supabase.storage
         .from('public_assets')
         .getPublicUrl(fileName);
 
       handleAutoSave({ previewUrl: publicUrl, youtubeUrl: cleanedUrl });
       await loadFromUrl(publicUrl, formData.pitch || 0);
-      showSuccess("YT-Master Audio Linked");
+      showSuccess("YT-Master Audio Linked & Synced");
       
     } catch (err: any) {
       console.error("YT Sync Error:", err);
       setEngineError(err.message);
-      showError(err.message || "Extraction failed.");
+      showError(err.message || "Connection refused.");
     } finally {
       setIsSyncingAudio(false);
       setSyncStatus("");
