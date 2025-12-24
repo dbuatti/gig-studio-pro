@@ -314,20 +314,19 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     }
 
     const apiBase = "https://yt-audio-api-docker.onrender.com"; 
-    const proxyBase = "https://corsproxy.io/?";
 
     setIsSyncingAudio(true);
     try {
-      // Step 1: Initialize extraction and get token (via Proxy to fix CORS)
+      // Step 1: Initialize extraction and get token directly
       const tokenUrl = `${apiBase}/?url=${encodeURIComponent(formData.youtubeUrl)}`;
-      const tokenRes = await fetch(`${proxyBase}${encodeURIComponent(tokenUrl)}`);
+      const tokenRes = await fetch(tokenUrl);
       
       if (!tokenRes.ok) throw new Error("Could not initialize extraction engine.");
       const { token } = await tokenRes.json();
 
-      // Step 2: Extract audio blob from microservice (via Proxy)
+      // Step 2: Extract audio blob from microservice directly
       const downloadUrl = `${apiBase}/download?token=${token}`;
-      const downloadRes = await fetch(`${proxyBase}${encodeURIComponent(downloadUrl)}`);
+      const downloadRes = await fetch(downloadUrl);
       
       if (!downloadRes.ok) throw new Error("Audio extraction failed.");
       const blob = await downloadRes.blob();
