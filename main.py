@@ -11,19 +11,21 @@ from datetime import datetime, timedelta
 from supabase import create_client, Client
 
 app = Flask(__name__)
+# Enable CORS for all routes and methods
 CORS(app, resources={r"/*": {"origins": "*"}})
 
 # --- Configuration ---
-ABS_DOWNLOADS_PATH = Path(os.environ.get('DOWNLOADS_PATH', '/app/downloads'))
+# Use /tmp/ for storage as it is guaranteed writable on Render/Docker
+ABS_DOWNLOADS_PATH = Path('/tmp/downloads')
 ABS_DOWNLOADS_PATH.mkdir(parents=True, exist_ok=True)
-COOKIES_PATH = '/app/cookies.txt'
+COOKIES_PATH = '/tmp/cookies.txt'
 TOKEN_LENGTH = 32
 
 token_store = {}
 last_sync_time = None
 
-# Fix for "trailing slash" warning in logs
-SUPABASE_URL = os.environ.get('SUPABASE_URL')
+# Supabase Setup with Trailing Slash Fix
+SUPABASE_URL = os.environ.get('SUPABASE_URL', '')
 if SUPABASE_URL and not SUPABASE_URL.endswith('/'):
     SUPABASE_URL += '/'
 
@@ -32,7 +34,10 @@ COOKIES_BUCKET = 'cookies'
 
 supabase: Client = None
 if SUPABASE_URL and SUPABASE_SERVICE_KEY:
-    supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+    try:
+        supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+    except Exception as e:
+        print(f"❌ Supabase Init Error: {e}")
 
 # --- Utility Functions ---
 
@@ -40,13 +45,15 @@ def fetch_cookies():
     """Syncs cookies from Supabase to local container."""
     global last_sync_time
     if not supabase: 
-        print("❌ Supabase client not initialized")
+        print("❌ Sync Aborted: Supabase client not initialized")
         return False
     try:
-        print(f"🔄 Fetching cookies from bucket: {COOKIES_BUCKET}")
+        print(f"🔄 Syncing cookies from bucket: {COOKIES_BUCKET}")
+        # Explicitly try to download the file
         data = supabase.storage.from_(COOKIES_BUCKET).download('cookies.txt')
-        if not data: 
-            print("⚠️ File 'cookies.txt' not found in vault.")
+        
+        if not data:
+            print("⚠️ Vault Error: 'cookies.txt' returned no data")
             return False
             
         with open(COOKIES_PATH, 'wb') as f:
@@ -71,9 +78,11 @@ def background_worker():
                     for k in keys_to_del: del token_store[k]
         except: pass
         
+        # Hourly auto-refresh
         fetch_cookies()
         time.sleep(3600)
 
+# Start background worker
 threading.Thread(target=background_worker, daemon=True).start()
 
 # --- Routes ---
@@ -84,6 +93,7 @@ def handle_audio_request():
     if not video_url:
         return jsonify(error="Missing URL"), 400
 
+    # Safety check: if file doesn't exist, try one last fetch before failing
     if not os.path.exists(COOKIES_PATH) or os.path.getsize(COOKIES_PATH) < 10:
         fetch_cookies()
 
@@ -153,11 +163,13 @@ def health():
         timestamp=datetime.now().isoformat()
     )
 
+# Force GET/POST compatibility for the sync route
 @app.route("/refresh-cookies", methods=["POST", "GET"])
 def manual_refresh():
     success = fetch_cookies()
     return jsonify(success=success, time=last_sync_time)
 
 if __name__ == "__main__":
+    # Initial startup sync
     fetch_cookies()
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
