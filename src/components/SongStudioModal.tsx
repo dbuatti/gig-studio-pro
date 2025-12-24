@@ -579,17 +579,15 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     setIsSearchingYoutube(true);
     setYtResults([]);
 
+    // Strategy 1: Google YouTube API (Premium/Official Duration Data)
     if (ytApiKey) {
       try {
-        // Step 1: Search for videos
         const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(searchTerm)}&type=video&maxResults=10&key=${ytApiKey}`;
         const searchResponse = await fetch(searchUrl);
         const searchData = await searchResponse.json();
 
         if (searchData.items && searchData.items.length > 0) {
           const videoIds = searchData.items.map((item: any) => item.id.videoId).join(',');
-          
-          // Step 2: Fetch contentDetails for durations
           const detailsUrl = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,snippet,statistics&id=${videoIds}&key=${ytApiKey}`;
           const detailsResponse = await fetch(detailsUrl);
           const detailsData = await detailsResponse.json();
@@ -610,17 +608,55 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
             return;
           }
         }
-        throw new Error(searchData.error?.message || "No matches found");
-      } catch (e: any) {
-        showError(`Discovery Error: ${e.message}`);
+      } catch (e) {
+        console.error("YouTube API failed, trying fallback...", e);
       }
-    } else {
-      // Logic for when API key is missing - fallback to Invidious if possible
-      showError("Set YouTube API Key in Preferences for official master discovery.");
-      window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(searchTerm)}`, '_blank');
     }
-    
-    setIsSearchingYoutube(false);
+
+    // Strategy 2: Proxy Fallback (Public Search Engine)
+    try {
+      const proxies = ["https://api.allorigins.win/get?url=", "https://corsproxy.io/?"];
+      const instances = ['https://iv.ggtyler.dev', 'https://yewtu.be', 'https://invidious.flokinet.to'];
+      
+      let success = false;
+      for (const proxy of proxies) {
+        if (success) break;
+        for (const instance of instances) {
+          if (success) break;
+          try {
+            const target = encodeURIComponent(`${instance}/api/v1/search?q=${encodeURIComponent(searchTerm)}`);
+            const res = await fetch(`${proxy}${target}`);
+            if (!res.ok) continue;
+            
+            const raw = await res.json();
+            const data = typeof raw.contents === 'string' ? JSON.parse(raw.contents) : raw;
+            const videos = data?.filter?.((i: any) => i.type === "video").slice(0, 10);
+            
+            if (videos && videos.length > 0) {
+              setYtResults(videos.map((v: any) => ({
+                videoId: v.videoId,
+                title: v.title,
+                author: v.author,
+                videoThumbnails: v.videoThumbnails,
+                duration: v.durationSeconds ? `${Math.floor(v.durationSeconds/60)}:${(v.durationSeconds%60).toString().padStart(2, '0')}` : '0:00',
+                viewCountText: v.viewCountText
+              })));
+              success = true;
+            }
+          } catch (err) {}
+        }
+      }
+      
+      if (!success) {
+        showError("Search engines congested. Try setting a YouTube API Key in Preferences.");
+      } else {
+        showSuccess("Discovery complete via public nodes.");
+      }
+    } catch (err) {
+      showError("Global search engine offline.");
+    } finally {
+      setIsSearchingYoutube(false);
+    }
   };
 
   const handleYoutubeSearch = () => {
