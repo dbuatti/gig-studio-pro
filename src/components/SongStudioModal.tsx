@@ -34,6 +34,7 @@ import { Slider } from '@/components/ui/slider';
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
 import { RESOURCE_TYPES } from '@/utils/constants';
 import ProSyncSearch from './ProSyncSearch';
+import YoutubeSearchModal from './YoutubeSearchModal';
 import { useAuth } from './AuthProvider';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { calculateReadiness } from '@/utils/repertoireSync';
@@ -112,6 +113,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const [isFormattingLyrics, setIsFormattingLyrics] = useState(false);
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [isProSyncSearchOpen, setIsProSyncSearchOpen] = useState(false);
+  const [isYoutubeDiscoveryOpen, setIsYoutubeDiscoveryOpen] = useState(false);
   const [isProSyncing, setIsProSyncing] = useState(false);
   const [isInRepertoire, setIsInRepertoire] = useState(false);
   
@@ -536,8 +538,13 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   };
 
   const handleYoutubeSearch = () => {
-    const query = encodeURIComponent(`${formData.artist || ""} ${formData.name || ""} studio version audio`);
-    window.open(`https://www.youtube.com/results?search_query=${query}`, '_blank');
+    setIsYoutubeDiscoveryOpen(true);
+  };
+
+  const handleSelectYoutubeVideo = (url: string) => {
+    handleAutoSave({ youtubeUrl: url });
+    setIsYoutubeDiscoveryOpen(false);
+    showSuccess("YouTube Master Linked");
   };
 
   const handleDownloadAsset = async (url: string | undefined, filename: string) => {
@@ -947,7 +954,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       <Button 
                         onClick={() => {
                           setEngineError(null);
-                          // This helps the user navigate to admin panel
                           showError("Admin Panel required to fix backend versioning.");
                         }} 
                         className="bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest text-[10px] h-11 rounded-xl gap-2"
@@ -1524,7 +1530,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                           onClick={handleYoutubeSearch}
                           className="bg-red-950/30 border-red-900/50 text-red-500 hover:bg-red-900 hover:text-white font-black uppercase tracking-widest text-[10px] h-14 px-8 rounded-xl gap-3 transition-all active:scale-95"
                         >
-                          <Play className="w-4 h-4" /> DISCOVERY
+                          <Search className="w-4 h-4" /> DISCOVERY
                         </Button>
                      </div>
                   </div>
@@ -1541,7 +1547,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                           allowFullScreen
                           className="w-full h-full"
                         />
-                        {/* Title Overlay */}
                         <div className="absolute top-0 left-0 right-0 p-8 bg-gradient-to-b from-black/80 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500">
                            <div className="flex items-center gap-4">
                               <div className="bg-red-600 p-2 rounded-lg">
@@ -1562,7 +1567,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                         </div>
                         <div className="space-y-2 relative z-10">
                           <p className="text-lg md:text-2xl font-black uppercase tracking-[0.4em] text-slate-700">Visual Engine Standby</p>
-                          <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-500 opacity-60">Paste a link above to initiate the renderer</p>
+                          <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-500 opacity-60">Paste a link above or use Discovery to initiate the renderer</p>
                         </div>
                       </div>
                     )}
@@ -1570,7 +1575,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                 </div>
               )}
               {activeTab === 'library' && (
-                <div className="space-y-8 md:space-y-12 animate-in fade-in duration-500">
+                <div className="space-y-8 md:space-y-12 animate-in fade-in duration-500 h-full flex flex-col">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                       <h3 className="text-xl md:text-2xl font-black uppercase tracking-[0.2em] text-white">RESOURCE MATRIX</h3>
@@ -1748,6 +1753,13 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         onClose={() => setIsProSyncSearchOpen(false)} 
         onSelect={handleSelectProSync} 
         initialQuery={`${formData.artist} ${formData.name}`} 
+      />
+
+      <YoutubeSearchModal
+        isOpen={isYoutubeDiscoveryOpen}
+        onClose={() => setIsYoutubeDiscoveryOpen(false)}
+        onSelect={handleSelectYoutubeVideo}
+        initialQuery={`${formData.artist} ${formData.name}`}
       />
     </Dialog>
   );
