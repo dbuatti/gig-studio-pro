@@ -5,27 +5,44 @@ import { SetlistSong } from "@/components/SetlistManager";
 
 /**
  * Calculates a readiness score (0-100) based on available assets and metadata.
+ * Updated logic for 100% readiness:
+ * - Must be Confirmed for Set
+ * - Must have Master Audio (not iTunes)
+ * - Must have at least one Reading Source (PDF, Lead, or Pro Chords)
+ * - Key must be Confirmed
  */
 export const calculateReadiness = (song: Partial<SetlistSong>): number => {
   let score = 0;
+  
+  // 1. Audio Quality (Max 30)
   const preview = song.previewUrl || "";
   const isItunes = preview.includes('apple.com') || preview.includes('itunes-assets');
-  
-  if (preview && !isItunes) score += 25; 
+  if (preview && !isItunes) score += 30; 
+  else if (preview && isItunes) score += 10;
+
+  // 2. Harmonic Data (Max 25)
   if (song.isKeyConfirmed) score += 20; 
-  if ((song.lyrics || "").length > 20) score += 15; 
-  if (song.pdfUrl || song.leadsheetUrl) score += 15; 
-  if (song.ugUrl) score += 10; 
-  if (song.bpm) score += 5; 
-  if ((song.notes || "").length > 10) score += 5; 
-  if (song.artist && song.artist !== "Unknown Artist") score += 5; 
+  if (song.bpm) score += 5;
+
+  // 3. Performance Assets (Max 25) - Any one high quality source gives bulk
+  const hasProChords = (song.chord_content || "").length > 50;
+  const hasPdf = !!(song.pdfUrl || song.leadsheetUrl);
+  const hasLyrics = (song.lyrics || "").length > 20;
   
+  if (hasPdf || hasProChords) score += 20;
+  else if (hasLyrics) score += 10;
+  
+  if (song.ugUrl) score += 5; // Bonus for backup link
+
+  // 4. Verification & Metadata (Max 20)
+  if (song.isMetadataConfirmed) score += 10;
+  if (song.is_confirmed_for_set) score += 10;
+
   return Math.min(100, score);
 };
 
 /**
  * Synchronizes local setlist songs with the master repertoire table.
- * Optimized to use a single batch upsert for performance.
  */
 export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong | SetlistSong[]): Promise<SetlistSong[]> => {
   if (!userId) return Array.isArray(songs) ? songs : [songs];
@@ -33,7 +50,7 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
   const songsArray = Array.isArray(songs) ? songs : [songs];
   if (songsArray.length === 0) return [];
 
-  console.log(`[SYNC ENGINE] Batch processing ${songsArray.length} items...`);
+  console.log(`[SYNC ENGINE] Processing ${songsArray.length} items...`);
   
   try {
     const payloads = songsArray.map(song => ({
@@ -59,12 +76,13 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       genre: song.genre || (song.user_tags?.[0]) || null,
       user_tags: song.user_tags || [],
       resources: song.resources || [],
+      chord_content: song.chord_content || null,
+      preferred_view: song.preferred_view || 'visualizer',
       readiness_score: calculateReadiness(song),
       is_active: true,
       updated_at: new Date().toISOString()
     }));
 
-    // Perform batch upsert
     const { data, error } = await supabase
       .from('repertoire')
       .upsert(payloads, { onConflict: 'id' })
@@ -72,7 +90,6 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
 
     if (error) throw error;
 
-    // Map the returned IDs back to the local songs
     return songsArray.map(song => {
       const dbMatch = data.find(d => 
         (song.master_id && d.id === song.master_id) || 

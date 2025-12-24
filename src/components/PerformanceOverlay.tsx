@@ -24,6 +24,7 @@ import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, formatKey, calculateSemitones, transpose
 import { cn } from "@/lib/utils";
 import { Badge } from './ui/badge';
 import { useSettings } from '@/hooks/use-settings';
+import { transposeTextContent } from '@/utils/chordUtils';
 
 interface PerformanceOverlayProps {
   songs: SetlistSong[];
@@ -49,14 +50,10 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
   const nextSong = songs[currentIndex + 1];
   const [localNotes, setLocalNotes] = useState(currentSong?.notes || "");
   const [viewMode, setViewMode] = useState<string>(currentSong?.preferred_view || 'visualizer');
-  const [scrollSpeed, setScrollSpeed] = useState(1.0);
-  const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
   const [isStudioOpen, setIsStudioOpen] = useState(false);
-  const [isShortcutLegendOpen, setIsShortcutLegendOpen] = useState(false);
   const [wallClock, setWallClock] = useState(new Date());
   const [setStartTime] = useState(new Date());
   const [elapsedSetTime, setElapsedSetTime] = useState("00:00:00");
-  const lyricsContainerRef = useRef<HTMLDivElement>(null);
   const swipeStartX = useRef<number>(0);
 
   useEffect(() => {
@@ -66,7 +63,6 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
       if (e.code === 'Space') { e.preventDefault(); onTogglePlayback(); }
       if (e.key === 'ArrowLeft') onPrevious();
       if (e.key === 'ArrowRight') onNext();
-      if (e.key.toLowerCase() === 's') setAutoScrollEnabled(p => !p);
       if (e.key.toLowerCase() === 'e') setIsStudioOpen(true);
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -87,6 +83,11 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
     setLocalNotes(currentSong?.notes || "");
     setViewMode(currentSong?.preferred_view || 'visualizer');
   }, [currentSong]);
+
+  const transposedChords = useMemo(() => {
+    if (!currentSong?.chord_content) return "";
+    return transposeTextContent(currentSong.chord_content, currentSong.pitch || 0);
+  }, [currentSong?.chord_content, currentSong?.pitch]);
 
   const handleTouchStart = (e: React.TouchEvent) => { swipeStartX.current = e.touches[0].clientX; };
   const handleTouchEnd = (e: React.TouchEvent) => {
@@ -142,7 +143,11 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
           <div className="flex-1 overflow-hidden px-8 relative z-10">
             {viewMode === 'visualizer' && <div className="h-full flex flex-col items-center justify-center"><div className="w-full max-w-5xl p-12 bg-white/5 rounded-[3rem] border border-white/5 shadow-2xl backdrop-blur-sm"><AudioVisualizer analyzer={analyzer} isActive={isPlaying} /></div></div>}
             {viewMode === 'lyrics' && <div className="h-full overflow-y-auto px-32 custom-scrollbar text-center py-24 whitespace-pre-wrap text-5xl md:text-7xl font-black uppercase tracking-tighter">{currentSong?.lyrics}</div>}
-            {viewMode === 'chords' && <div className="h-full overflow-y-auto px-16 custom-scrollbar text-left py-12 bg-slate-900/50 rounded-3xl border border-white/5 font-mono text-2xl md:text-4xl whitespace-pre-wrap text-orange-400 leading-relaxed">{currentSong?.chord_content}</div>}
+            {viewMode === 'chords' && (
+              <div className="h-full overflow-y-auto px-16 custom-scrollbar text-left py-12 bg-slate-900/50 rounded-3xl border border-white/5 font-mono text-2xl md:text-4xl whitespace-pre-wrap text-orange-400 leading-relaxed">
+                {transposedChords}
+              </div>
+            )}
             {viewMode === 'pdf' && currentSong?.pdfUrl && <div className="h-full w-full bg-slate-900 rounded-[4rem] overflow-hidden border-4 border-white/5"><iframe src={`${currentSong.pdfUrl}#toolbar=0`} className="w-full h-full bg-white" title="Chart" /></div>}
           </div>
         </div>
