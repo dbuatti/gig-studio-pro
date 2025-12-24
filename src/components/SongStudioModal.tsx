@@ -313,10 +313,16 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       return;
     }
 
+    // IMPORTANT: Replace this placeholder with your actual deployed Flask API URL
+    const apiBase = "https://your-actual-api-domain.com"; 
+
+    if (apiBase.includes("your-actual-api-domain")) {
+      showError("Configuration Error: Update apiBase in SongStudioModal.tsx with your deployed URL.");
+      return;
+    }
+
     setIsSyncingAudio(true);
     try {
-      const apiBase = "https://yt-audio-api.fly.dev"; // Placeholder: update to your actual API domain
-      
       // Step 1: Initialize extraction and get token
       const tokenRes = await fetch(`${apiBase}/?url=${encodeURIComponent(formData.youtubeUrl)}`);
       if (!tokenRes.ok) throw new Error("Could not initialize extraction engine.");
@@ -351,7 +357,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       
     } catch (err: any) {
       console.error("YT Sync Error:", err);
-      showError(err.message || "Extraction engine offline.");
+      showError(err.name === 'TypeError' ? "Extraction API unreachable. Check apiBase configuration." : (err.message || "Extraction engine error."));
     } finally {
       setIsSyncingAudio(false);
     }
