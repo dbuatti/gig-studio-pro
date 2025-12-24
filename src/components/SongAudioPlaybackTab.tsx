@@ -10,10 +10,10 @@ import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 import { showError, showSuccess } from '@/utils/toast';
 
-import AudioVisualizer from '../AudioVisualizer';
+import AudioVisualizer from './AudioVisualizer';
 import SongAnalysisTools from './SongAnalysisTools';
 import SongAudioControls from './SongAudioControls';
-import { SetlistSong } from '../SetlistManager';
+import { SetlistSong } from './SetlistManager';
 import { AudioEngineControls } from '@/hooks/use-tone-audio';
 
 interface SongAudioPlaybackTabProps {

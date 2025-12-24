@@ -8,11 +8,11 @@ import {
   Youtube, Search, Loader2, X, Download, ExternalLink
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
-import YoutubeResultsShelf from '../YoutubeResultsShelf';
+import YoutubeResultsShelf from './YoutubeResultsShelf';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
-import { SetlistSong } from '../SetlistManager';
+import { SetlistSong } from './SetlistManager';
 
 interface YoutubeMediaManagerProps {
   song: SetlistSong | null;

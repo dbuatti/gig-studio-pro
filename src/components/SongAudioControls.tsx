@@ -3,7 +3,7 @@
 import React from 'react';
 import { Label } from "@/components/ui/label";
 import { Slider } from '@/components/ui/slider';
-import { SetlistSong } from '../SetlistManager';
+import { SetlistSong } from './SetlistManager';
 import { cn } from "@/lib/utils";
 import { Volume2 } from 'lucide-react';
 import { transposeKey } from '@/utils/keyUtils';
@@ -18,7 +18,6 @@ interface SongAudioControlsProps {
   setVolume: (volume: number) => void;
   setFineTune: (fineTune: number) => void;
   isMobile: boolean;
-  transposeKey: (key: string, semitones: number) => string;
 }
 
 const SongAudioControls: React.FC<SongAudioControlsProps> = ({
@@ -31,7 +30,6 @@ const SongAudioControls: React.FC<SongAudioControlsProps> = ({
   setVolume,
   setFineTune,
   isMobile,
-  transposeKey
 }) => {
   return (
     <div className={cn("grid gap-6 md:gap-10", isMobile ? "grid-cols-1" : "grid-cols-2")}>

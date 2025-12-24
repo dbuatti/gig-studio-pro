@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { showSuccess } from '@/utils/toast';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
-import SongStudioModal from '@/components/song-studio/SongStudioModal';
+import SongStudioModal from './SongStudioModal';
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
 import { RESOURCE_TYPES } from '@/utils/constants';
 import { useIsMobile } from '@/hooks/use-mobile';

@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Plus, Tag, X } from 'lucide-react';
-import { SetlistSong } from '../SetlistManager';
+import { SetlistSong } from './SetlistManager';
 
 interface SongTagManagerProps {
   formData: Partial<SetlistSong>;
