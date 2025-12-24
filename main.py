@@ -39,10 +39,8 @@ def fetch_cookies():
     """Syncs cookies from Supabase to local container."""
     if not supabase: return False
     try:
-        # Check if bucket exists first to avoid crash
         buckets = supabase.storage.list_buckets()
         if not any(b.name == COOKIES_BUCKET for b in buckets):
-            print(f"❌ Bucket '{COOKIES_BUCKET}' not found.")
             return False
             
         data = supabase.storage.from_(COOKIES_BUCKET).download('cookies.txt')
@@ -58,20 +56,17 @@ def background_worker():
     """Handles hourly cookie refresh and cleans up old mp3 files."""
     while True:
         fetch_cookies()
-        # Cleanup: Delete files older than 30 minutes
         now = time.time()
         try:
             for f in ABS_DOWNLOADS_PATH.glob("*.mp3"):
                 if f.stat().st_mtime < now - 1800:
                     f.unlink()
-                    # Clean up token store as well
                     keys_to_del = [k for k, v in token_store.items() if v == f.name]
                     for k in keys_to_del: del token_store[k]
         except Exception as e:
             print(f"❌ Cleanup Error: {e}")
         time.sleep(3600)
 
-# Start background services
 threading.Thread(target=background_worker, daemon=True).start()
 
 # --- Routes ---
@@ -79,10 +74,13 @@ threading.Thread(target=background_worker, daemon=True).start()
 @app.route("/", methods=["GET"])
 def handle_audio_request():
     video_url = request.args.get("url")
+    # Optional parameters for enhanced resilience
+    po_token = request.args.get("po_token")
+    visitor_data = request.args.get("visitor_data")
+
     if not video_url:
         return jsonify(error="Missing URL"), 400
 
-    # Ensure we have cookies before trying
     if not os.path.exists(COOKIES_PATH) or os.path.getsize(COOKIES_PATH) < 100:
         fetch_cookies()
 
@@ -90,7 +88,7 @@ def handle_audio_request():
     output_filename = f"{unique_id}.mp3"
     output_template = str(ABS_DOWNLOADS_PATH / unique_id)
 
-    # Optimized options for Render/Docker environment
+    # Standard options with fallback format logic
     ydl_opts = {
         'format': 'bestaudio/best',
         'outtmpl': f"{output_template}.%(ext)s",
@@ -105,18 +103,22 @@ def handle_audio_request():
         'nocheckcertificate': True,
         'extractor_args': {
             'youtube': {
-                'player_client': ['ios', 'android', 'mweb'],
+                'player_client': ['mweb', 'ios', 'android'], # Prioritize mobile
                 'player_skip': ['configs', 'webpage'],
                 'skip': ['dash', 'hls']
             }
         }
     }
 
+    # Apply Proof of Origin tokens if provided
+    if po_token and visitor_data:
+        ydl_opts['extractor_args']['youtube']['po_token'] = [f"web+{po_token}"]
+        ydl_opts['extractor_args']['youtube']['visitor_data'] = [visitor_data]
+
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([video_url])
         
-        # Verify file exists
         actual_file = ABS_DOWNLOADS_PATH / output_filename
         if not actual_file.exists():
             return jsonify(error="Processing Error", detail="Audio conversion failed to produce output"), 500
@@ -124,7 +126,6 @@ def handle_audio_request():
         token = secrets.token_urlsafe(TOKEN_LENGTH)
         token_store[token] = output_filename
         
-        # Return the token and the direct download link
         download_link = f"{request.host_url}download?token={token}"
         return jsonify(token=token, download_url=download_link)
 
@@ -137,10 +138,8 @@ def handle_audio_request():
 def download_file():
     token = request.args.get("token")
     filename = token_store.get(token)
-    
     if not filename:
         return jsonify(error="Unauthorized", detail="Invalid or expired token"), 401
-    
     return send_from_directory(str(ABS_DOWNLOADS_PATH), filename, as_attachment=True)
 
 @app.route("/health")
@@ -148,8 +147,7 @@ def health():
     return jsonify(
         status="online", 
         supabase=(supabase is not None),
-        cookies_loaded=os.path.exists(COOKIES_PATH),
-        downloads_dir=str(ABS_DOWNLOADS_PATH)
+        cookies_loaded=os.path.exists(COOKIES_PATH)
     )
 
 @app.route("/refresh-cookies", methods=["POST"])
@@ -158,6 +156,5 @@ def manual_refresh():
     return jsonify(success=success)
 
 if __name__ == "__main__":
-    # Initial handshake
     fetch_cookies()
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
