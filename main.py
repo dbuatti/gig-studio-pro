@@ -1,6 +1,5 @@
-from flask import Flask, request, send_file, jsonify
+from flask import Flask, request, send_file, jsonify, make_response
 from flask_cors import CORS
-import yt_dlp
 import os
 import uuid
 import threading
@@ -9,7 +8,7 @@ import shutil
 import subprocess
 import requests
 
-app = Flask(__app__)
+app = Flask(__name__)
 CORS(app)
 
 DOWNLOAD_DIR = "downloads"
@@ -19,6 +18,15 @@ active_tokens = {} # Stores {"file": path, "expiry": timestamp, "error": message
 # Configuration for cookies
 COOKIES_FILE = "cookies.txt"
 COOKIES_URL = os.environ.get("COOKIES_URL") # Optional: URL to fetch cookies from
+
+def add_cors_headers(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    return response
+
+# Apply CORS headers to all responses
+app.after_request(add_cors_headers)
 
 def download_cookies():
     """Download cookies.txt if a URL is provided in environment variables."""
