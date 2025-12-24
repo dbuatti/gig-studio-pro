@@ -44,13 +44,16 @@ def fetch_cookies():
     global last_sync_time
     if not supabase: return False
     try:
+        # Check if bucket exists/accessible
         data = supabase.storage.from_(COOKIES_BUCKET).download('cookies.txt')
         if not data: return False
         with open(COOKIES_PATH, 'wb') as f:
             f.write(data)
         last_sync_time = datetime.now().isoformat()
+        print(f"✅ Cookies synced: {len(data)} bytes")
         return True
     except Exception as e:
+        print(f"❌ Cookie Sync Error: {e}")
         return False
 
 def background_worker():
@@ -80,11 +83,14 @@ def handle_audio_request():
     if not os.path.exists(COOKIES_PATH) or os.path.getsize(COOKIES_PATH) < 10:
         fetch_cookies()
 
+    print(f"🚀 Processing: {video_url}")
+
     unique_id = str(uuid4())
     output_filename = f"{unique_id}.mp3"
     output_template = str(ABS_DOWNLOADS_PATH / unique_id)
 
-    # REFINED Strategy for restricted VEVO/Major Label tracks
+    # REFINED Strategy for restricted VEVO tracks
+    # We skip 'web' entirely as it requires po_tokens for music videos now
     ydl_opts = {
         'format': 'bestaudio/best',
         'outtmpl': f"{output_template}.%(ext)s",
@@ -94,22 +100,19 @@ def handle_audio_request():
             'preferredquality': '192',
         }],
         'cookiefile': COOKIES_PATH if (os.path.exists(COOKIES_PATH) and os.path.getsize(COOKIES_PATH) > 10) else None,
-        # Forcing IPv4 to bypass cloud-IP range blocks
-        'source_address': '0.0.0.0', 
-        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
+        'user_agent': 'Mozilla/5.0 (Android 14; Mobile; rv:121.0) Gecko/121.0 Firefox/121.0',
         'referer': 'https://www.youtube.com/',
         'nocheckcertificate': True,
         'ignoreerrors': False,
         'noplaylist': True,
         'extract_flat': False,
         'allow_unplayable_formats': True,
-        'youtube_include_dash_manifest': True,
-        'youtube_include_hls_manifest': True,
+        'cachedir': False,
         'extractor_args': {
             'youtube': {
-                # Focusing on web-based clients that respect the cookies uploaded
-                'player_client': ['web', 'mweb'],
-                'player_skip': ['configs', 'web_extract_initial_data']
+                # Prioritizing Android and Mobile Web which are less prone to the "Web PO Token" block
+                'player_client': ['android', 'mweb'],
+                'player_skip': ['web', 'tv']
             }
         }
     }
@@ -122,7 +125,7 @@ def handle_audio_request():
         if not actual_file.exists():
             potential_files = list(ABS_DOWNLOADS_PATH.glob(f"{unique_id}.*"))
             if not potential_files:
-                return jsonify(error="Extraction Blocked", detail="YouTube is currently hiding audio streams for this track. Your cookies may be invalid."), 500
+                return jsonify(error="Extraction Failed", detail="YouTube is currently hiding audio streams for this track."), 500
             actual_file = potential_files[0]
 
         token = secrets.token_urlsafe(TOKEN_LENGTH)
@@ -133,11 +136,12 @@ def handle_audio_request():
         error_msg = str(e)
         user_error = "Engine Error"
         
-        if "format is not available" in error_msg.lower():
-            user_error = "Format Request Denied. YouTube has restricted this specific track from server-side access."
-        elif "Sign in to confirm" in error_msg or "403" in error_msg:
+        if "Sign in to confirm" in error_msg or "403" in error_msg:
             user_error = "Bot detection triggered. Fresh cookies are required via Incognito Protocol."
+        elif "format is not available" in error_msg.lower():
+            user_error = "YouTube restricted this specific track's format from server access."
             
+        print(f"❌ Extraction Failed: {error_msg}")
         return jsonify(error=user_error, detail=error_msg), 500
 
 @app.route("/download", methods=["GET"])
