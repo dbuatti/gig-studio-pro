@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
-  Youtube, Search, Loader2
+  Youtube, Search, Loader2, X
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import YoutubeResultsShelf from './YoutubeResultsShelf';
@@ -170,6 +170,23 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
     handleAutoSave({ youtubeUrl: url });
   };
 
+  const handleClearYoutubeSelection = () => {
+    handleAutoSave({ youtubeUrl: "" });
+    setYtResults([]); // Clear results when selection is cleared
+  };
+
+  // Effect to initialize iframe-resizer
+  useEffect(() => {
+    if (currentVideoId && (window as any).iFrameResize) {
+      // Delay to ensure iframes are fully rendered
+      const timer = setTimeout(() => {
+        (window as any).iFrameResize({ log: false, minHeight: 360 }, '#mp3-widget-iframe');
+        (window as any).iFrameResize({ log: false, minHeight: 360 }, '#mp4-widget-iframe');
+      }, 100); // Small delay
+      return () => clearTimeout(timer);
+    }
+  }, [currentVideoId, ytResults]); // Re-run when video changes or results update
+
   return (
     <div className="space-y-10">
       <h3 className="text-xl font-black uppercase tracking-tight text-indigo-400 shrink-0">REFERENCE MEDIA</h3>
@@ -199,6 +216,58 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
           onSelect={handleSelectYoutubeVideo}
           isLoading={isSearchingYoutube}
         />
+      )}
+
+      {/* New section for selected video and download widgets */}
+      {formData.youtubeUrl && currentVideoId && (
+        <div className="bg-slate-900 border border-white/10 rounded-[2.5rem] p-8 space-y-8 animate-in fade-in duration-500">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Youtube className="w-6 h-6 text-red-500" />
+              <div>
+                <h3 className="text-xl font-black uppercase tracking-tight">Linked YouTube Media</h3>
+                <p className="text-sm text-slate-400">Download or convert this video.</p>
+              </div>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={handleClearYoutubeSelection}
+              className="h-10 w-10 rounded-full hover:bg-white/10 text-slate-400"
+            >
+              <X className="w-5 h-5" />
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white/5 rounded-2xl p-6 space-y-4 border border-white/5">
+              <h4 className="text-sm font-black uppercase tracking-tight text-white">MP3 Audio Widget</h4>
+              <iframe 
+                id="mp3-widget-iframe"
+                src={`https://api.vevioz.com/api/widget/mp3/${currentVideoId}`} 
+                width="100%" 
+                height="360px" // Set a default height, iframe-resizer will adjust
+                allowTransparency={true} 
+                scrolling="no" 
+                style={{ border: 'none' }}
+                title="YouTube to MP3 Converter"
+              ></iframe>
+            </div>
+            <div className="bg-white/5 rounded-2xl p-6 space-y-4 border border-white/5">
+              <h4 className="text-sm font-black uppercase tracking-tight text-white">MP4 Video Widget</h4>
+              <iframe 
+                id="mp4-widget-iframe"
+                src={`https://api.vevioz.com/api/widget/videos/${currentVideoId}`} 
+                width="100%" 
+                height="360px" // Set a default height, iframe-resizer will adjust
+                allowTransparency={true} 
+                scrolling="no" 
+                style={{ border: 'none' }}
+                title="YouTube to MP4 Converter"
+              ></iframe>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
