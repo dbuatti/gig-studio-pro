@@ -38,6 +38,11 @@ serve(async (req) => {
     try {
       console.log(`[extract-youtube-audio] Getting info for video: ${videoUrl}`);
       info = await ytdl.getInfo(videoUrl);
+      // Defensive check for info and videoDetails
+      if (!info || !info.videoDetails) {
+        console.error(`[extract-youtube-audio] Video info or videoDetails is undefined for ${videoUrl}`);
+        throw new Error("Failed to retrieve complete video details.");
+      }
       console.log("[extract-youtube-audio] Successfully got video info.");
       console.log("[extract-youtube-audio] Video info details:", JSON.stringify(info.videoDetails, null, 2)); // Added for debugging
     } catch (e) {
