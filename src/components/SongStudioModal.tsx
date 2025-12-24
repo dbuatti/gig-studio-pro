@@ -327,7 +327,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       // Small intentional delay to avoid immediate race conditions if server is cycling
       await new Promise(r => setTimeout(r, 2000));
       
-      setSyncStatus("Waking up Render Service...");
+      setSyncStatus("Handshaking with Render...");
       const tokenUrl = `${apiBase}/?url=${encodeURIComponent(cleanedUrl)}`;
       
       let tokenRes;
@@ -339,7 +339,10 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       
       if (!tokenRes.ok) {
         if (tokenRes.status === 500) {
-          throw new Error("System cookies expired. Please use the Admin Panel to refresh YouTube cookies.");
+          // Check if it's a cookie issue vs something else
+          const errData = await tokenRes.json().catch(() => ({}));
+          const msg = errData?.error || "System cookies expired. Use Admin Panel to refresh cookies and wait 5 mins.";
+          throw new Error(msg);
         }
         throw new Error("Engine initialization failed. The service might be starting up.");
       }
