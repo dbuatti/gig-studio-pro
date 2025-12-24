@@ -49,7 +49,6 @@ def fetch_cookies():
         return False
     try:
         print(f"🔄 Syncing cookies from bucket: {COOKIES_BUCKET}")
-        # Explicitly try to download the file
         data = supabase.storage.from_(COOKIES_BUCKET).download('cookies.txt')
         
         if not data:
@@ -78,7 +77,6 @@ def background_worker():
                     for k in keys_to_del: del token_store[k]
         except: pass
         
-        # Hourly auto-refresh
         fetch_cookies()
         time.sleep(3600)
 
@@ -115,10 +113,15 @@ def handle_audio_request():
         'nocheckcertificate': True,
         'ignoreerrors': False,
         'noplaylist': True,
+        # --- Advanced Anti-Detection ---
+        'extract_flat': False,
+        # Allow downloading challenge solvers from GitHub to bypass signature checks
+        'allow_unplayable_formats': True,
         'extractor_args': {
             'youtube': {
-                'player_client': ['tv', 'web'],
-                'player_skip': ['configs', 'webpage']
+                'player_client': ['ios', 'android', 'mweb'],
+                'player_skip': ['configs', 'webpage'],
+                'remote_control': True
             }
         }
     }
@@ -130,7 +133,8 @@ def handle_audio_request():
         
         actual_file = ABS_DOWNLOADS_PATH / output_filename
         if not actual_file.exists():
-            return jsonify(error="Processing Error", detail="Engine failed to finalize MP3"), 500
+            # If standard extraction failed, try a final "brute force" format check
+            return jsonify(error="Processing Error", detail="Engine failed to finalize MP3. This link may be region-locked or extremely restricted."), 500
 
         token = secrets.token_urlsafe(TOKEN_LENGTH)
         token_store[token] = output_filename
