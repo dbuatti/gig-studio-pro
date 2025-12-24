@@ -324,8 +324,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     setSyncStatus("Initializing Engine...");
     
     try {
-      // Small intentional delay to avoid immediate race conditions if server is cycling
-      await new Promise(r => setTimeout(r, 2000));
+      await new Promise(r => setTimeout(r, 1000));
       
       setSyncStatus("Handshaking with Render...");
       const tokenUrl = `${apiBase}/?url=${encodeURIComponent(cleanedUrl)}`;
@@ -334,17 +333,13 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       try {
         tokenRes = await fetch(tokenUrl);
       } catch (e) {
-        throw new Error("Render service is currently deploying or unreachable. Try again in 60s.");
+        throw new Error("Render service is currently deploying or unreachable.");
       }
       
       if (!tokenRes.ok) {
-        if (tokenRes.status === 500) {
-          // Check if it's a cookie issue vs something else
-          const errData = await tokenRes.json().catch(() => ({}));
-          const msg = errData?.error || "System cookies expired. Use Admin Panel to refresh cookies and wait 5 mins.";
-          throw new Error(msg);
-        }
-        throw new Error("Engine initialization failed. The service might be starting up.");
+        const errData = await tokenRes.json().catch(() => ({}));
+        const msg = errData?.error || "Render error: " + tokenRes.statusText;
+        throw new Error(msg);
       }
       
       const { token } = await tokenRes.json();
@@ -901,7 +896,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
           <div className="absolute inset-0 z-[100] bg-black/90 backdrop-blur-xl animate-in fade-in zoom-in duration-300 flex flex-col p-6 md:p-12">
             <div className="flex items-center justify-between mb-8">
               <h3 className="text-xl md:text-2xl font-black uppercase tracking-tight">Stage Chart Preview</h3>
-              <Button variant="ghost" size="icon" onClick={() => setPreviewPdfUrl(null)} className="h-10 w-10 md:h-12 md:w-12 rounded-full hover:bg-white/10">
+              <Button variant="ghost" size="icon" onClick={() => setPreviewPdfUrl(null)} className="h-10 w-10 bg-white/5 rounded-full hover:bg-white/10">
                 <X className="w-6 h-6 md:w-8 md:h-8" />
               </Button>
             </div>
@@ -934,14 +929,14 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         {(isUploading || isProSyncing || isCloudSyncing || isSyncingAudio) && (
           <div className="absolute inset-0 z-[60] bg-black/60 backdrop-blur-md flex flex-col items-center justify-center gap-4">
              <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" />
-             <div className="text-center space-y-2">
+             <div className="text-center space-y-2 max-w-sm px-6">
                <p className="text-sm font-black uppercase tracking-[0.2em] text-white">
                  {isUploading ? 'Syncing Master Asset...' : 
                   isSyncingAudio ? (syncStatus || 'Extracting High-Fidelity Audio...') :
                   isCloudSyncing ? 'Accessing Cloud Knowledge Base...' : 
                   'Analyzing Global Library Data...'}
                </p>
-               {isSyncingAudio && <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400 animate-pulse">Stay in this window</p>}
+               {isSyncingAudio && <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400 animate-pulse">This can take up to 45 seconds for long tracks.</p>}
              </div>
           </div>
         )}
