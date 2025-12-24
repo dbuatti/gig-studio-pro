@@ -150,8 +150,6 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
           handleAutoSave={handleAutoSave}
           currentBuffer={currentBuffer}
           isMobile={isMobile}
-          handleDetectBPM={handleDetectBPM}
-          isAnalyzing={isAnalyzing}
         />
 
         <SongAudioControls
@@ -164,7 +162,6 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
           setVolume={setVolume}
           setFineTune={setFineTune}
           isMobile={isMobile}
-          transposeKey={transposeKey}
         />
       </div>
     </div>
