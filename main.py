@@ -32,22 +32,25 @@ supabase: Client = None
 if SUPABASE_URL and SUPABASE_SERVICE_KEY:
     supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 else:
-    print("⚠️ Supabase credentials missing. Cookies must be provided manually.")
+    print("⚠️ Supabase credentials missing. Extraction may be limited.")
 
 # --- Utility Functions ---
 
 def fetch_cookies():
     """Syncs cookies from Supabase to local container."""
-    if not supabase: return False
+    if not supabase: 
+        print("❌ Supabase client not initialized")
+        return False
     try:
-        # We don't list buckets first, just try to download
+        print(f"🔄 Syncing cookies from bucket: {COOKIES_BUCKET}")
         data = supabase.storage.from_(COOKIES_BUCKET).download('cookies.txt')
         if not data:
+            print("⚠️ No data returned for cookies.txt")
             return False
             
         with open(COOKIES_PATH, 'wb') as f:
             f.write(data)
-        print(f"✅ Cookies refreshed: {len(data)} bytes")
+        print(f"✅ Cookies refreshed successfully: {len(data)} bytes")
         return True
     except Exception as e:
         print(f"❌ Cookie Sync Failed: {e}")
@@ -86,12 +89,14 @@ def handle_audio_request():
 
     # Ensure cookies exist before attempt
     if not os.path.exists(COOKIES_PATH) or os.path.getsize(COOKIES_PATH) < 10:
+        print("🔍 Cookies missing from local disk. Attempting fetch...")
         fetch_cookies()
 
     unique_id = str(uuid4())
     output_filename = f"{unique_id}.mp3"
     output_template = str(ABS_DOWNLOADS_PATH / unique_id)
 
+    # yt-dlp Options
     ydl_opts = {
         'format': 'bestaudio/best',
         'outtmpl': f"{output_template}.%(ext)s",
@@ -100,8 +105,8 @@ def handle_audio_request():
             'preferredcodec': 'mp3',
             'preferredquality': '192',
         }],
-        'cookiefile': COOKIES_PATH if os.path.exists(COOKIES_PATH) else None,
-        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36',
+        'cookiefile': COOKIES_PATH if (os.path.exists(COOKIES_PATH) and os.path.getsize(COOKIES_PATH) > 10) else None,
+        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/121.0.0.0 Safari/537.36',
         'quiet': False,
         'nocheckcertificate': True,
         'extractor_args': {
@@ -119,11 +124,12 @@ def handle_audio_request():
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            print(f"🚀 Starting extraction for: {video_url}")
             ydl.download([video_url])
         
         actual_file = ABS_DOWNLOADS_PATH / output_filename
         if not actual_file.exists():
-            return jsonify(error="Processing Error", detail="Extraction failed"), 500
+            return jsonify(error="Processing Error", detail="Extraction failed to create file"), 500
 
         token = secrets.token_urlsafe(TOKEN_LENGTH)
         token_store[token] = output_filename
@@ -132,7 +138,14 @@ def handle_audio_request():
 
     except Exception as e:
         error_msg = str(e)
-        return jsonify(error="Engine Error", detail=error_msg), 500
+        print(f"❌ Extraction Failed: {error_msg}")
+        
+        # Friendly mapping for common errors
+        user_error = "Engine Error"
+        if "Sign in to confirm" in error_msg or "confirm you're not a bot" in error_msg:
+            user_error = "Bot detection triggered. Refresh cookies."
+        
+        return jsonify(error=user_error, detail=error_msg), 500
 
 @app.route("/download", methods=["GET"])
 def download_file():
@@ -147,7 +160,8 @@ def health():
     return jsonify(
         status="online", 
         supabase=(supabase is not None),
-        cookies_loaded=os.path.exists(COOKIES_PATH) and os.path.getsize(COOKIES_PATH) > 10
+        cookies_loaded=os.path.exists(COOKIES_PATH) and os.path.getsize(COOKIES_PATH) > 10,
+        vault_path=COOKIES_PATH
     )
 
 @app.route("/refresh-cookies", methods=["POST", "GET"])
