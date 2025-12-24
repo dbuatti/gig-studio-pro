@@ -78,25 +78,28 @@ def handle_audio_request():
     output_filename = f"{unique_id}.mp3"
     output_template = str(ABS_DOWNLOADS_PATH / unique_id)
 
-    # Permissive yt-dlp Options
+    # Ultra-resilient yt-dlp Options
     ydl_opts = {
-        'format': 'bestaudio/best', # Fallback handled by yt-dlp internal logic
+        # 'ba/b' tells it to get Best Audio, or if that fails, get Best (video+audio) 
+        # and we let the postprocessor handle the audio extraction.
+        'format': 'ba/b', 
         'outtmpl': f"{output_template}.%(ext)s",
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
             'preferredquality': '192',
         }],
-        # Only use cookiefile if it actually exists
         'cookiefile': COOKIES_PATH if (os.path.exists(COOKIES_PATH) and os.path.getsize(COOKIES_PATH) > 10) else None,
-        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/121.0.0.0 Safari/537.36',
+        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
         'quiet': False,
         'no_warnings': False,
         'nocheckcertificate': True,
         'ignoreerrors': False,
+        'noplaylist': True,
         'extractor_args': {
             'youtube': {
-                'player_client': ['android', 'ios', 'mweb'],
+                # We specifically use 'web' here because your cookies were exported from a browser.
+                'player_client': ['web'],
                 'player_skip': ['configs', 'webpage']
             }
         }
@@ -104,11 +107,12 @@ def handle_audio_request():
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            print(f"🚀 Attempting extraction: {video_url}")
             ydl.download([video_url])
         
         actual_file = ABS_DOWNLOADS_PATH / output_filename
         if not actual_file.exists():
-            return jsonify(error="Processing Error", detail="Stream conversion failed"), 500
+            return jsonify(error="Processing Error", detail="Engine failed to find final converted file"), 500
 
         token = secrets.token_urlsafe(TOKEN_LENGTH)
         token_store[token] = output_filename
