@@ -44,7 +44,6 @@ def fetch_cookies():
     global last_sync_time
     if not supabase: return False
     try:
-        # Check if bucket exists/accessible
         data = supabase.storage.from_(COOKIES_BUCKET).download('cookies.txt')
         if not data: return False
         with open(COOKIES_PATH, 'wb') as f:
@@ -89,8 +88,8 @@ def handle_audio_request():
     output_filename = f"{unique_id}.mp3"
     output_template = str(ABS_DOWNLOADS_PATH / unique_id)
 
-    # REFINED Strategy for restricted VEVO tracks
-    # We skip 'web' entirely as it requires po_tokens for music videos now
+    # THE NUCLEAR OPTION: TV Client Strategy
+    # The TV and IOS clients are currently the least likely to require PO-Tokens
     ydl_opts = {
         'format': 'bestaudio/best',
         'outtmpl': f"{output_template}.%(ext)s",
@@ -100,7 +99,7 @@ def handle_audio_request():
             'preferredquality': '192',
         }],
         'cookiefile': COOKIES_PATH if (os.path.exists(COOKIES_PATH) and os.path.getsize(COOKIES_PATH) > 10) else None,
-        'user_agent': 'Mozilla/5.0 (Android 14; Mobile; rv:121.0) Gecko/121.0 Firefox/121.0',
+        'user_agent': 'com.google.ios.youtube/19.12.3 (iPhone16,2; U; CPU iOS 17_4_1 like Mac OS X; US; en_US)',
         'referer': 'https://www.youtube.com/',
         'nocheckcertificate': True,
         'ignoreerrors': False,
@@ -110,9 +109,9 @@ def handle_audio_request():
         'cachedir': False,
         'extractor_args': {
             'youtube': {
-                # Prioritizing Android and Mobile Web which are less prone to the "Web PO Token" block
-                'player_client': ['android', 'mweb'],
-                'player_skip': ['web', 'tv']
+                # Prioritizing clients that do not use the standard "Web" signature mechanism
+                'player_client': ['tv', 'ios', 'android'],
+                'player_skip': ['web', 'mweb']
             }
         }
     }
@@ -137,9 +136,9 @@ def handle_audio_request():
         user_error = "Engine Error"
         
         if "Sign in to confirm" in error_msg or "403" in error_msg:
-            user_error = "Bot detection triggered. Fresh cookies are required via Incognito Protocol."
+            user_error = "Bot detection triggered. Try a different YouTube link for this song (non-VEVO)."
         elif "format is not available" in error_msg.lower():
-            user_error = "YouTube restricted this specific track's format from server access."
+            user_error = "Format restricted. Try a different YouTube link for this song (non-VEVO)."
             
         print(f"❌ Extraction Failed: {error_msg}")
         return jsonify(error=user_error, detail=error_msg), 500
