@@ -109,7 +109,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         addLog(`Engine Online. Cookies ${data.cookies_loaded ? 'Loaded' : 'Missing'}`, data.cookies_loaded ? 'success' : 'error');
       } else {
         setHealthStatus('offline');
-        addLog("Engine unreachable.", 'error');
+        addLog("Engine unreachable (Likely Rebuilding).", 'error');
       }
     } catch (e) {
       setHealthStatus('error');
@@ -127,11 +127,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         mode: 'cors'
       });
       
-      if (!refreshRes.ok) throw new Error('Signal failed');
+      if (!refreshRes.ok) {
+        if (refreshRes.status === 502 || refreshRes.status === 503) {
+           throw new Error('Engine is currently restarting. Wait 30s.');
+        }
+        throw new Error(`Signal failed (${refreshRes.status})`);
+      }
       
-      showSuccess("Backend Sync Initialized");
-      addLog("Sync Signal Accepted.", 'success');
-      setTimeout(checkHealth, 3000);
+      const data = await refreshRes.json();
+      if (data.success) {
+        showSuccess("Backend Sync Initialized");
+        addLog("Sync Signal Accepted.", 'success');
+        setTimeout(checkHealth, 3000);
+      } else {
+        addLog("Sync failed: Supabase Vault empty or unreachable.", 'error');
+      }
     } catch (err: any) {
       addLog(`Sync Warning: ${err.message}`, 'error');
     }
