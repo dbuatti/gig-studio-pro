@@ -48,6 +48,7 @@ import LyricsEngine from './LyricsEngine';
 import LibraryEngine from './LibraryEngine';
 import SongConfigTab from './SongConfigTab'; 
 import SongAudioPlaybackTab from './SongAudioPlaybackTab';
+import StudioTabContent from './StudioTabContent'; // New import
 
 // Helper to parse ISO 8601 duration (e.g., PT4M13S -> 4:13)
 const parseISO8601Duration = (duration: string): string => {
@@ -559,6 +560,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                   </Button>
                 </div>
               </div>
+              {/* Render SongConfigTab directly here for desktop layout */}
               <SongConfigTab
                 song={song}
                 formData={formData}
@@ -599,93 +601,24 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
               )}
             </div>
             <div className={cn("flex-1 overflow-y-auto relative flex flex-col", isMobile ? "p-4" : "p-12")}>
-              {activeTab === 'config' && isMobile && (
-                <div className="space-y-6 animate-in fade-in duration-500">
-                  <div className="p-6 bg-white/5 rounded-3xl border border-white/10 space-y-4">
-                    <h2 className="text-2xl font-black uppercase tracking-tight">{formData.name}</h2>
-                    <p className="text-xs font-black text-indigo-400 uppercase tracking-widest">{formData.artist}</p>
-                    <div className="flex flex-col gap-2 mt-4">
-                      <Button onClick={handleProSync} className={cn("w-full font-black uppercase text-[10px] h-11 rounded-xl gap-2", formData.isMetadataConfirmed ? "bg-emerald-600" : "bg-indigo-600")}>
-                        {formData.isMetadataConfirmed ? <Check className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
-                        {formData.isMetadataConfirmed ? "SYNCED" : "PRO SYNC"}
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="bg-slate-900/50 rounded-3xl border border-white/5 p-2">
-                    <SongConfigTab
-                      song={song}
-                      formData={formData}
-                      handleAutoSave={handleAutoSave}
-                      onUpdateKey={onUpdateKey}
-                      setPitch={setPitch}
-                      setTempo={setTempo}
-                      setVolume={setVolume}
-                      setFineTune={setFineTune}
-                      currentBuffer={currentBuffer}
-                      isMobile={isMobile}
-                    />
-                  </div>
-                </div>
-              )}
-              {activeTab === 'audio' && (
-                <SongAudioPlaybackTab
-                  song={song}
-                  formData={formData}
-                  audioEngine={audio}
-                  isMobile={isMobile}
-                  onLoadAudioFromUrl={loadFromUrl}
-                  onSave={onSave}
-                  onUpdateKey={onUpdateKey}
-                  transposeKey={transposeKey}
-                />
-              )}
-              {activeTab === 'details' && (
-                <SongDetailsTab formData={formData} handleAutoSave={handleAutoSave} isMobile={isMobile} />
-              )}
-              {activeTab === 'charts' && (
-                <SongChartsTab
-                  formData={formData}
-                  handleAutoSave={handleAutoSave}
-                  isMobile={isMobile}
-                  setPreviewPdfUrl={setPreviewPdfUrl}
-                  isFramable={isFramable}
-                  activeChartType={activeChartType}
-                  setActiveChartType={setActiveChartType}
-                  handleUgPrint={handleUgPrint}
-                />
-              )}
-              {activeTab === 'lyrics' && (
-                <LyricsEngine
-                  lyrics={formData.lyrics || ""}
-                  onUpdate={(newLyrics) => handleAutoSave({ lyrics: newLyrics })}
-                  artist={formData.artist}
-                  title={formData.name}
-                  isMobile={isMobile}
-                />
-              )}
-              {activeTab === 'visual' && (
-                <div className="space-y-10 animate-in fade-in duration-500 h-full flex flex-col">
-                  <YoutubeMediaManager
-                    song={song}
-                    formData={formData}
-                    handleAutoSave={handleAutoSave}
-                    onOpenAdmin={onOpenAdmin}
-                    onLoadAudioFromUrl={loadFromUrl}
-                  />
-                  <div className={cn("flex-1 bg-slate-900 rounded-[2.5rem] border-4 border-white/5 shadow-2xl overflow-hidden relative min-h-[300px]", !currentVideoId && "flex flex-col items-center justify-center")}>
-                    {currentVideoId ? <iframe width="100%" height="100%" src={`https://www.youtube.com/embed/${currentVideoId}?autoplay=0&mute=1&modestbranding=1&rel=0`} title="Reference" frameBorder="0" allowFullScreen className="w-full h-full" /> : <Youtube className="w-32 h-32 text-slate-800" />}
-                  </div>
-                </div>
-              )}
-              {activeTab === 'library' && (
-                <LibraryEngine
-                  formData={formData}
-                  handleDownloadAll={handleDownloadAll}
-                  isMobile={isMobile}
-                  setPreviewPdfUrl={setPreviewPdfUrl}
-                  handleUgPrint={handleUgPrint}
-                />
-              )}
+              {/* Use the new StudioTabContent component here */}
+              <StudioTabContent
+                activeTab={activeTab}
+                song={song}
+                formData={formData}
+                handleAutoSave={handleAutoSave}
+                onUpdateKey={onUpdateKey}
+                audioEngine={audio}
+                isMobile={isMobile}
+                onLoadAudioFromUrl={loadFromUrl}
+                onOpenAdmin={onOpenAdmin}
+                setPreviewPdfUrl={setPreviewPdfUrl}
+                isFramable={isFramable}
+                activeChartType={activeChartType}
+                setActiveChartType={setActiveChartType}
+                handleUgPrint={handleUgPrint}
+                handleDownloadAll={handleDownloadAll}
+              />
             </div>
           </div>
         </div>
