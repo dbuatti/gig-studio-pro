@@ -163,3 +163,63 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
 };
 
 export default SongAudioPlaybackTab;
+
+{/* BPM & METRONOME CONSOLE */}
+<div className={cn(
+  "bg-slate-900 border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-6", 
+  isMobile ? "p-6 rounded-3xl" : "p-8 rounded-[2.5rem]"
+)}>
+  <div className="flex flex-col md:flex-row md:items-center gap-6 md:gap-10">
+    <div className="flex flex-col">
+      <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Library BPM</span>
+      <div className="flex items-center gap-4 mt-1">
+        <input
+          type="text"
+          value={formData.bpm || ""}
+          onChange={(e) => onSave(song?.id || '', { bpm: e.target.value })}
+          className="bg-transparent border-none p-0 h-auto text-2xl md:text-3xl font-black font-mono text-indigo-400 focus:outline-none w-20"
+        />
+        {/* Metronome Toggle */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => {
+            // This would call your toggleMetronome function from the parent
+            // or a local implementation using Tone.Transport
+          }}
+          className={cn(
+            "h-10 w-10 rounded-xl transition-all",
+            /* isMetronomeActive ? "bg-indigo-600 text-white shadow-lg" : "bg-white/5 text-slate-400" */
+            "bg-white/5 text-slate-400"
+          )}
+        >
+          <Volume2 className="w-5 h-5" />
+        </Button>
+      </div>
+    </div>
+
+    <div className="flex flex-wrap gap-2 md:gap-4">
+      {/* Scan BPM Tool */}
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => {
+            // handleDetectBPM(currentBuffer)
+        }}
+        disabled={!formData.previewUrl}
+        className="flex-1 md:flex-none h-10 px-4 bg-indigo-600/10 text-indigo-400 font-black uppercase tracking-widest text-[9px] gap-2 rounded-xl border border-indigo-600/20"
+      >
+        <Music className="w-3.5 h-3.5" />
+        Scan BPM
+      </Button>
+
+      {/* Manual Tap Tool Link */}
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => window.open('https://www.beatsperminuteonline.com/', '_blank')}
+        className="flex-1 md:flex-none h-10 px-4 bg-white/5 text-slate-400 font-black uppercase tracking-widest text-[9px] gap-2 rounded-xl"
+      >
+        <RotateCcw className="w-3.5 h-3.5" />
+        Tap Tool
+      </
