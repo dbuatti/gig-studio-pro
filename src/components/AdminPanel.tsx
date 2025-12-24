@@ -28,7 +28,9 @@ import {
   Bug,
   Loader2,
   Wrench,
-  Filter
+  Filter,
+  Trash2,
+  FileWarning
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
@@ -44,6 +46,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   const [cookieText, setCookieText] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isRepairing, setIsRepairing] = useState(false);
+  const [isWiping, setIsWiping] = useState(false);
   const [isCheckingHealth, setIsCheckingHealth] = useState(false);
   const [healthStatus, setHealthStatus] = useState<'online' | 'offline' | 'error' | null>(null);
   const [lastSync, setLastSync] = useState<string | null>(null);
@@ -90,19 +93,50 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     }
   };
 
+  const handleWipeCredentials = async () => {
+    if (!confirm("Are you sure? This will delete cookies.txt and may trigger bot-detection blocks.")) return;
+    
+    setIsWiping(true);
+    try {
+      const { error } = await supabase.functions.invoke('github-file-sync', {
+        body: { 
+          path: 'cookies.txt',
+          content: "# Netscape HTTP Cookie File\n# File Wiped via Admin\n",
+          repo: 'dbuatti/yt-audio-api',
+          message: 'Security: Wiping engine credentials'
+        }
+      });
+      if (error) throw error;
+      showSuccess("Credentials wiped. Rebuilding clean container...");
+    } catch (err: any) {
+      showError("Wipe failed.");
+    } finally {
+      setIsWiping(false);
+    }
+  };
+
   const formatAndFilterCookies = (raw: string) => {
     const lines = raw.split('\n');
     const header = "# Netscape HTTP Cookie File";
     
-    // 1. Extract only relevant domains to prevent 'js_runtimes' crash
-    const filteredLines = lines.filter(line => {
+    const filteredLines = lines.map(line => {
       const l = line.trim();
-      if (!l || l.startsWith('#')) return false;
-      return l.includes('youtube.com') || l.includes('google.com');
-    });
+      if (!l || l.startsWith('#')) return null;
+      if (!l.includes('youtube.com') && !l.includes('google.com')) return null;
 
-    // 2. Reconstruct file with mandatory header
-    return `${header}\n# Optimized by Gig Studio Admin\n\n${filteredLines.join('\n')}\n`;
+      // CRITICAL FIX: yt-dlp 500s if columns are space-separated.
+      // Most browsers/textareas convert tabs to spaces. We must restore tabs.
+      // A valid Netscape cookie line has 7 columns.
+      let processed = l;
+      if (!processed.includes('\t')) {
+        // Replace sequences of 2 or more spaces with a tab
+        processed = processed.replace(/\s{2,}/g, '\t');
+      }
+      
+      return processed;
+    }).filter(Boolean);
+
+    return `${header}\n# Optimized & Tab-Restored by Gig Studio Admin\n\n${filteredLines.join('\n')}\n`;
   };
 
   const handleRefreshCookies = async () => {
@@ -114,7 +148,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     setIsRefreshing(true);
     setLastError(null);
     
-    // Sanitize and Filter
     const formattedContent = formatAndFilterCookies(cookieText);
 
     try {
@@ -123,7 +156,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
           path: 'cookies.txt',
           content: formattedContent,
           repo: 'dbuatti/yt-audio-api',
-          message: 'Filtered Cookie Sync via Admin Panel'
+          message: 'Filtered & Tab-Restored Cookie Sync'
         }
       });
 
@@ -136,7 +169,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
       const timestamp = new Date().toLocaleString();
       setLastSync(timestamp);
       localStorage.setItem('gig_admin_last_sync', timestamp);
-      showSuccess("Cleaned cookies synced! Rebuilding...");
+      showSuccess("Tab-restored cookies synced! Rebuilding...");
       setCookieText("");
     } catch (err: any) {
       setLastError(err);
@@ -189,17 +222,45 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                </div>
             </div>
 
-            <div className="bg-emerald-600/10 border border-emerald-600/20 rounded-2xl p-6 flex items-center justify-between">
-               <div className="flex items-center gap-4">
-                  <div className="p-3 bg-emerald-600 rounded-xl text-white">
-                    <Filter className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-black uppercase tracking-tight">Active Domain Filtering</p>
-                    <p className="text-[10px] text-emerald-300 font-medium uppercase mt-0.5">Stripping non-YouTube headers automatically</p>
-                  </div>
-               </div>
-               <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-indigo-600/10 border border-indigo-600/20 rounded-2xl p-6 flex flex-col gap-4">
+                <div className="flex items-center gap-4">
+                    <div className="p-3 bg-indigo-600 rounded-xl text-white">
+                      <Wrench className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-black uppercase tracking-tight text-white">Repair Engine</p>
+                      <p className="text-[9px] text-indigo-300 font-medium uppercase mt-0.5">Force dependencies update</p>
+                    </div>
+                </div>
+                <Button 
+                  onClick={handleRepairBackend} 
+                  disabled={isRepairing}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 h-10 px-6 font-black uppercase tracking-widest text-[9px] rounded-xl"
+                >
+                  {isRepairing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Run Build Repair"}
+                </Button>
+              </div>
+
+              <div className="bg-red-600/10 border border-red-600/20 rounded-2xl p-6 flex flex-col gap-4">
+                <div className="flex items-center gap-4">
+                    <div className="p-3 bg-red-600 rounded-xl text-white">
+                      <Trash2 className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-black uppercase tracking-tight text-white">Wipe Credentials</p>
+                      <p className="text-[9px] text-red-300 font-medium uppercase mt-0.5">Delete malformed cookies</p>
+                    </div>
+                </div>
+                <Button 
+                  variant="ghost"
+                  onClick={handleWipeCredentials} 
+                  disabled={isWiping}
+                  className="w-full bg-red-600/10 hover:bg-red-600 text-red-400 hover:text-white h-10 px-6 font-black uppercase tracking-widest text-[9px] rounded-xl border border-red-600/20"
+                >
+                  {isWiping ? <Loader2 className="w-4 h-4 animate-spin" /> : "Wipe cookies.txt"}
+                </Button>
+              </div>
             </div>
 
             {lastError && (
@@ -237,10 +298,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
             </div>
 
             <div className="flex items-center gap-4 p-5 bg-indigo-500/10 rounded-2xl border border-indigo-500/20">
-               <Wrench className="w-6 h-6 text-indigo-400 shrink-0" />
+               <FileWarning className="w-6 h-6 text-indigo-400 shrink-0 mt-0.5" />
                <div className="space-y-1">
-                 <p className="text-xs font-black uppercase text-indigo-300">Self-Correction Mode Active</p>
-                 <p className="text-[10px] text-indigo-400/80 leading-relaxed">The admin engine will automatically strip incompatible cookies and force Unix line-endings to prevent 'js_runtimes' crashes.</p>
+                 <p className="text-xs font-black uppercase text-indigo-300">Tab-Separation Auto-Enforcement</p>
+                 <p className="text-[10px] text-indigo-400/80 leading-relaxed">The engine will automatically restore tab characters stripped by browser copy/paste actions. This prevents the 'js_runtimes' backend crash.</p>
                </div>
             </div>
           </div>
@@ -254,7 +315,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
             className="flex-[2] bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-[0.2em] text-[10px] h-12 rounded-xl shadow-xl shadow-indigo-600/20 gap-3"
           >
             {isRefreshing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-            Filter & Force Sync
+            Restore Tabs & Sync
           </Button>
         </div>
       </DialogContent>
