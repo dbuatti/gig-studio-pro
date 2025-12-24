@@ -14,13 +14,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { SetlistSong } from './SetlistManager';
 import { CustomProgress } from '@/components/CustomProgress'; // Import CustomProgress component
+import * as Tone from 'tone'; // Import Tone.js
 
 interface YoutubeMediaManagerProps {
   song: SetlistSong | null;
   formData: Partial<SetlistSong>;
   handleAutoSave: (updates: Partial<SetlistSong>) => void;
   onOpenAdmin?: () => void;
-  onLoadAudioFromUrl: (url: string, initialPitch: number) => Promise<void>;
+  onLoadAudioBuffer: (buffer: AudioBuffer, initialPitch?: number) => void; // Changed prop name and type
 }
 
 const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
@@ -28,7 +29,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
   formData,
   handleAutoSave,
   onOpenAdmin,
-  onLoadAudioFromUrl,
+  onLoadAudioBuffer, // Changed prop name
 }) => {
   const { user } = useAuth();
   const [ytApiKey, setYtApiKey] = useState("");
@@ -236,21 +237,12 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
       }
 
       // If we reach here, the file is ready (status 200)
-      // Re-fetch as a blob since the previous fetch might have consumed the body as JSON
-      const finalFileResponse = await fetch(`${API_BASE_URL}/download?token=${token}`);
-      if (!finalFileResponse.ok) {
-        throw new Error(`Failed to fetch final audio file: ${finalFileResponse.statusText}`);
-      }
-      const blob = await finalFileResponse.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = blobUrl;
-      a.download = `${formData.name || 'audio'}.mp3`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(blobUrl);
-      showSuccess("Audio downloaded successfully!");
+      const audioArrayBuffer = await fileResponse.arrayBuffer();
+      const audioBuffer = await Tone.getContext().decodeAudioData(audioArrayBuffer);
+      
+      onLoadAudioBuffer(audioBuffer, formData.pitch || 0); // Load into Tone.js
+      handleAutoSave({ duration_seconds: audioBuffer.duration }); // Save duration
+      showSuccess("Audio loaded into playback engine!");
       setDownloadStatus('success');
       setDownloadProgress(100);
 

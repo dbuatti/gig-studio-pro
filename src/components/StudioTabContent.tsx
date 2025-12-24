@@ -113,7 +113,7 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
             formData={formData}
             handleAutoSave={handleAutoSave}
             onOpenAdmin={onOpenAdmin}
-            onLoadAudioFromUrl={onLoadAudioFromUrl}
+            onLoadAudioBuffer={audioEngine.loadAudioBuffer} // Changed prop name and passed audioEngine.loadAudioBuffer
           />
           <div className={cn("flex-1 bg-slate-900 rounded-[2.5rem] border-4 border-white/5 shadow-2xl overflow-hidden relative min-h-[300px]", !formData.youtubeUrl && "flex flex-col items-center justify-center")}>
             {formData.youtubeUrl ? <iframe width="100%" height="100%" src={`https://www.youtube.com/embed/${formData.youtubeUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)?.[1] || ''}?autoplay=0&mute=1&modestbranding=1&rel=0`} title="Reference" frameBorder="0" allowFullScreen className="w-full h-full" /> : <Youtube className="w-32 h-32 text-slate-800" />}
