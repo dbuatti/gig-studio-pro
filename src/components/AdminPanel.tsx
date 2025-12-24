@@ -75,6 +75,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   const handleRepairBackend = async () => {
     setIsRepairing(true);
     try {
+      // Force an update to yt-dlp on the backend
       const requirements = `flask\nflask-cors\nyt-dlp>=2025.01.15\ngunicorn\n`;
       const { error } = await supabase.functions.invoke('github-file-sync', {
         body: { 
@@ -85,16 +86,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         }
       });
       if (error) throw error;
-      showSuccess("Repair initiated. Build starting...");
+      showSuccess("Repair initiated. Backend is rebuilding with latest security patches.");
     } catch (err: any) {
-      showError("Repair failed.");
+      showError("Repair failed to reach GitHub.");
     } finally {
       setIsRepairing(false);
     }
   };
 
   const handleWipeCredentials = async () => {
-    if (!confirm("Delete cookies.txt? This may trigger bot-detection blocks.")) return;
+    if (!confirm("Wipe credentials? The engine will fail until new cookies are synced.")) return;
     
     setIsWiping(true);
     try {
@@ -107,7 +108,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         }
       });
       if (error) throw error;
-      showSuccess("Credentials wiped. Rebuilding...");
+      showSuccess("Credentials wiped.");
     } catch (err: any) {
       showError("Wipe failed.");
     } finally {
@@ -119,33 +120,32 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     const lines = raw.split('\n');
     const header = "# Netscape HTTP Cookie File";
     
+    // Strict reconstruction of the 7 Netscape columns
     const filteredLines = lines.map(line => {
       const l = line.trim();
       if (!l || l.startsWith('#')) return null;
       
-      // Split by any whitespace but reconstruct strictly with tabs
+      // Some exporters use spaces instead of tabs, which breaks yt-dlp
       const parts = l.split(/\s+/);
       if (parts.length < 7) return null;
 
-      // Extract parts and ensure 7-column format
       const domain = parts[0];
       const flag = parts[1];
       const path = parts[2];
       const secure = parts[3];
       const expiration = parts[4];
       const name = parts[5];
-      const value = parts.slice(6).join(' '); // Re-join value if it contained spaces
+      const value = parts.slice(6).join(' ');
 
-      // Return tab-separated row
       return [domain, flag, path, secure, expiration, name, value].join('\t');
     }).filter(Boolean);
 
-    return `${header}\n# Strictly Reconstructed for 2025 Security Bypassing\n\n${filteredLines.join('\n')}\n`;
+    return `${header}\n# Reconstructed for 2025 Security Bypassing\n\n${filteredLines.join('\n')}\n`;
   };
 
   const handleRefreshCookies = async () => {
     if (!cookieText.trim()) {
-      showError("Please paste the cookie buffer.");
+      showError("Paste your Netscape cookies buffer first.");
       return;
     }
 
@@ -166,14 +166,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
 
       if (error) {
         setLastError(error);
-        showError("GitHub Sync Blocked");
+        showError("Sync Blocked: Check GitHub Token permissions.");
         return;
       }
       
       const timestamp = new Date().toLocaleString();
       setLastSync(timestamp);
       localStorage.setItem('gig_admin_last_sync', timestamp);
-      showSuccess("Strict cookies synced! Rebuilding...");
+      showSuccess("Strict cookies synced! Render build triggered.");
       setCookieText("");
     } catch (err: any) {
       setLastError(err);
