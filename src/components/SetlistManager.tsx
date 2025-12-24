@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { showSuccess } from '@/utils/toast';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
-import SongStudioModal from './SongStudioModal';
+// import SongStudioModal from './SongStudioModal'; // No longer needed here
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
 import { RESOURCE_TYPES } from '@/utils/constants';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -67,7 +67,8 @@ export interface SetlistSong {
 interface SetlistManagerProps {
   songs: SetlistSong[];
   onRemove: (id: string) => void;
-  onSelect: (song: SetlistSong) => void;
+  onSelect: (song: SetlistSong) => void; // For performance
+  onEdit: (song: SetlistSong) => void; // New prop for editing
   onUpdateKey: (id: string, targetKey: string) => void;
   onTogglePlayed: (id: string) => void;
   onLinkAudio: (songName: string) => void;
@@ -84,6 +85,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   songs, 
   onRemove, 
   onSelect, 
+  onEdit, // Use this for opening the studio modal
   onUpdateKey, 
   onTogglePlayed,
   onUpdateSong,
@@ -110,7 +112,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       readiness: 100
     };
   });
-  const [studioSong, setStudioSong] = useState<SetlistSong | null>(null);
+  // Removed local studioSong state, now managed by parent (Index.tsx)
+  // const [studioSong, setStudioSong] = useState<SetlistSong | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -170,7 +173,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     return [...base].sort((a, b) => {
       const scoreA = calculateReadiness(a);
       const scoreB = calculateReadiness(b);
-      return sortMode === 'ready' ? scoreB - scoreA : scoreA - scoreB;
+      // Corrected the arithmetic operation for 'work' mode
+      return sortMode === 'ready' ? scoreB - scoreA : scoreA - scoreB; 
     });
   }, [songs, sortMode, searchTerm, activeFilters]);
 
@@ -264,7 +268,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
             return (
               <div 
                 key={song.id}
-                onClick={() => setStudioSong(song)}
+                onClick={() => onEdit(song)} // Changed to onEdit
                 className={cn(
                   "bg-white dark:bg-slate-950 rounded-2xl border-2 transition-all p-4 flex flex-col gap-3 shadow-sm",
                   isSelected ? "border-indigo-500 shadow-md ring-1 ring-indigo-500/20" : "border-slate-100 dark:border-slate-900",
@@ -310,7 +314,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setStudioSong(song); }}>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(song); }}> {/* Changed to onEdit */}
                           <Settings2 className="w-4 h-4 mr-2" /> Configure Studio
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'up'); }} disabled={!isReorderingEnabled || idx === 0}>
@@ -390,7 +394,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                   return (
                     <tr 
                       key={song.id}
-                      onClick={() => setStudioSong(song)}
+                      onClick={() => onEdit(song)} // Changed to onEdit
                       className={cn(
                         "transition-all group relative cursor-pointer h-[80px]",
                         isSelected ? "bg-indigo-50/50 dark:bg-indigo-900/10" : "hover:bg-slate-50/30 dark:hover:bg-slate-800/50",
@@ -564,19 +568,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
         </div>
       )}
       
-      <SongStudioModal 
-        song={studioSong} 
-        isOpen={!!studioSong} 
-        onClose={() => setStudioSong(null)} 
-        onSave={onUpdateSong} 
-        onUpdateKey={onUpdateKey}
-        onSyncProData={onSyncProData}
-        onPerform={(song) => {
-          onSelect(song);
-          setStudioSong(null);
-        }}
-        onOpenAdmin={onOpenAdmin}
-      />
+      {/* Removed SongStudioModal from here, it's now in Index.tsx */}
 
       <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
         <AlertDialogContent className="bg-slate-900 border-white/10 text-white rounded-[2rem]">

@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 import { useSettings } from '@/hooks/use-settings';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { syncToMasterRepertoire } from '@/utils/repertoireSync';
-import SongStudioModal from '@/components/SongStudioModal';
+import SongStudioModal from '@/components/SongStudioModal'; // Keep this import
 
 const Index = () => {
   const { user } = useAuth();
@@ -31,7 +31,10 @@ const Index = () => {
   const [currentListId, setCurrentListId] = useState<string | null>(null);
   const [activeSongId, setActiveSongId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [isStudioOpen, setIsStudioOpen] = useState(false);
+  // Renamed isStudioOpen to isSearchPanelOpen
+  const [isSearchPanelOpen, setIsSearchPanelOpen] = useState(false); 
+  // New state for SongStudioModal
+  const [selectedSongForStudio, setSelectedSongForStudio] = useState<SetlistSong | null>(null);
   const [isPerformanceMode, setIsPerformanceMode] = useState(false);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false); 
@@ -153,6 +156,7 @@ const Index = () => {
     if (!list) return;
     const updatedSongs = [...list.songs, newSong];
     await saveList(currentListId, updatedSongs, {}, [newSong]);
+    setIsSearchPanelOpen(false); // Close search panel after adding
   };
 
   const handleAddExistingSong = (song: SetlistSong) => {
@@ -164,6 +168,7 @@ const Index = () => {
     const updatedSongs = [...list.songs, newEntry];
     saveList(currentListId, updatedSongs, {}, [newEntry]);
     showSuccess(`Imported "${song.name}"`);
+    setIsSearchPanelOpen(false); // Close search panel after adding
   };
 
   const handleUpdateKey = (songId: string, targetKey: string) => {
@@ -192,7 +197,7 @@ const Index = () => {
 
   const handleSelectSong = async (song: SetlistSong) => {
     setActiveSongId(song.id);
-    setIsStudioOpen(true);
+    // When a song is selected for performance, the AudioTransposer should load it
     if (song.previewUrl && transposerRef.current) {
       await transposerRef.current.loadFromUrl(song.previewUrl, song.name, song.artist || "Unknown", song.youtubeUrl, song.originalKey, song.ugUrl);
       transposerRef.current.setPitch(song.pitch);
@@ -283,7 +288,8 @@ const Index = () => {
           <div className="flex items-center gap-2 md:gap-4">
             <Button variant="default" size="sm" onClick={startPerformance} className="h-9 md:h-10 gap-2 bg-indigo-600 font-bold uppercase tracking-tight shadow-lg shadow-indigo-600/20 px-3 md:px-4"><Rocket className="w-4 h-4" /><span className="hidden md:inline">Start Show</span></Button>
             <div className="h-6 w-px bg-slate-200 hidden sm:block" />
-            <Button variant="ghost" size="icon" onClick={() => setIsStudioOpen(!isStudioOpen)} className={cn("h-9 w-9 md:h-10 md:w-10 rounded-lg shrink-0", isStudioOpen && "text-indigo-600 bg-indigo-50")}><SearchIcon className="w-4 h-4" /></Button>
+            {/* This button now toggles the search panel */}
+            <Button variant="ghost" size="icon" onClick={() => setIsSearchPanelOpen(!isSearchPanelOpen)} className={cn("h-9 w-9 md:h-10 md:w-10 rounded-lg shrink-0", isSearchPanelOpen && "text-indigo-600 bg-indigo-50")}><SearchIcon className="w-4 h-4" /></Button>
             <button onClick={() => setIsPreferencesOpen(true)} className="flex items-center gap-2 px-2 md:px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
               <UserIcon className="w-3 h-3 text-slate-500" /><span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest hidden sm:inline">{user?.email?.split('@')[0]}</span>{isSaving && <Loader2 className="w-3 h-3 animate-spin text-indigo-500 ml-1" />}<Settings className="w-3 h-3 text-slate-400 ml-1" />
             </button>
@@ -309,20 +315,46 @@ const Index = () => {
               }} />
             </div>
             <SetlistStats songs={songs} goalSeconds={currentList?.time_goal} onUpdateGoal={(s) => currentListId && saveList(currentListId, songs, { time_goal: s }, undefined)} />
-            <SetlistManager songs={songs} onRemove={(id) => currentListId && saveList(currentListId, songs.filter(s => s.id !== id), {}, undefined)} onSelect={handleSelectSong} onUpdateKey={handleUpdateKey} onTogglePlayed={handleTogglePlayed} onSyncProData={async (s) => {}} onLinkAudio={(n) => { setIsStudioOpen(true); transposerRef.current?.triggerSearch(n); }} onUpdateSong={handleUpdateSong} onReorder={(ns) => currentListId && saveList(currentListId, ns, {}, undefined)} currentSongId={activeSongId || undefined} onOpenAdmin={() => setIsAdminOpen(true)} />
+            <SetlistManager 
+              songs={songs} 
+              onRemove={(id) => currentListId && saveList(currentListId, songs.filter(s => s.id !== id), {}, undefined)} 
+              onSelect={handleSelectSong} 
+              onUpdateKey={handleUpdateKey} 
+              onTogglePlayed={handleTogglePlayed} 
+              onSyncProData={async (s) => {}} 
+              onLinkAudio={(n) => { setIsSearchPanelOpen(true); transposerRef.current?.triggerSearch(n); }} // Open search panel
+              onUpdateSong={handleUpdateSong} 
+              onReorder={(ns) => currentListId && saveList(currentListId, ns, {}, undefined)} 
+              currentSongId={activeSongId || undefined} 
+              onOpenAdmin={() => setIsAdminOpen(true)} 
+              onEdit={(songToEdit) => setSelectedSongForStudio(songToEdit)} // New prop
+            />
           </div>
           <MadeWithDyad />
         </main>
-        <aside className={cn("w-full md:w-[450px] bg-white dark:bg-slate-900 border-l shadow-2xl transition-all duration-500 shrink-0 relative z-40", isStudioOpen ? "translate-x-0" : "translate-x-full absolute right-0 top-16 bottom-0 md:top-20")}>
+        {/* This aside now exclusively contains the AudioTransposer for searching/adding songs */}
+        <aside className={cn("w-full md:w-[450px] bg-white dark:bg-slate-900 border-l shadow-2xl transition-all duration-500 shrink-0 relative z-40", isSearchPanelOpen ? "translate-x-0" : "translate-x-full absolute right-0 top-16 bottom-0 md:top-20")}>
           <div className="h-full flex flex-col">
             <div className="p-4 border-b flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 shrink-0">
               <div className="flex items-center gap-3">
-                <div className="bg-indigo-600 p-2 rounded-full text-white animate-pulse">{activeSongId ? <Play className="w-4 h-4 fill-current" /> : <SearchIcon className="w-4 h-4" />}</div>
-                <div><h3 className="text-xs font-black uppercase tracking-widest text-indigo-600">{activeSongId ? "Performing" : "Studio Engine"}</h3><p className="text-sm font-bold truncate max-w-[200px]">{activeSongId ? activeSong?.name : "Link Assets"}</p></div>
+                <div className="bg-indigo-600 p-2 rounded-full text-white animate-pulse"><SearchIcon className="w-4 h-4" /></div>
+                <div><h3 className="text-xs font-black uppercase tracking-widest text-indigo-600">Discovery Engine</h3><p className="text-sm font-bold truncate max-w-[200px]">Find & Add New Tracks</p></div>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => setIsStudioOpen(false)} className="text-[10px] font-bold uppercase">Hide</Button>
+              <Button variant="ghost" size="sm" onClick={() => setIsSearchPanelOpen(false)} className="text-[10px] font-bold uppercase">Hide</Button>
             </div>
-            <div className="flex-1 overflow-y-auto"><AudioTransposer ref={transposerRef} onAddToSetlist={handleAddToSetlist} onAddExistingSong={handleAddExistingSong} onUpdateSongKey={handleUpdateKey} onSongEnded={handleNextSong} onPlaybackChange={setIsPlayerActive} repertoire={masterRepertoire} currentSong={activeSong} onOpenAdmin={() => setIsAdminOpen(true)} /></div>
+            <div className="flex-1 overflow-y-auto">
+              <AudioTransposer 
+                ref={transposerRef} 
+                onAddToSetlist={handleAddToSetlist} 
+                onAddExistingSong={handleAddExistingSong} 
+                onUpdateSongKey={handleUpdateKey} 
+                onSongEnded={handleNextSong} 
+                onPlaybackChange={setIsPlayerActive} 
+                repertoire={masterRepertoire} 
+                currentSong={activeSong} 
+                onOpenAdmin={() => setIsAdminOpen(true)} 
+              />
+            </div>
           </div>
         </aside>
       </div>
@@ -332,13 +364,21 @@ const Index = () => {
         <PerformanceOverlay songs={songs.filter(isPlayableMaster)} currentIndex={songs.filter(isPlayableMaster).findIndex(s => s.id === activeSongId)} isPlaying={isPlayerActive} progress={performanceState.progress} duration={performanceState.duration} onTogglePlayback={() => transposerRef.current?.togglePlayback()} onNext={handleNextSong} onPrevious={handlePreviousSong} onShuffle={handleShuffle} onClose={() => { setIsPerformanceMode(false); setActiveSongId(null); transposerRef.current?.stopPlayback(); }} onUpdateKey={handleUpdateKey} onUpdateSong={handleUpdateSong} analyzer={transposerRef.current?.getAnalyzer()} onOpenAdmin={() => setIsAdminOpen(true)} />
       )}
       
+      {/* This SongStudioModal is now controlled by selectedSongForStudio */}
       <SongStudioModal 
-        song={activeSong} 
-        isOpen={isStudioOpen && !!activeSongId} 
-        onClose={() => setIsStudioOpen(false)} 
+        song={selectedSongForStudio} 
+        isOpen={!!selectedSongForStudio} // Open only if a song is selected for editing
+        onClose={() => setSelectedSongForStudio(null)} // Close by clearing selected song
         onSave={handleUpdateSong} 
         onUpdateKey={handleUpdateKey}
         onOpenAdmin={() => setIsAdminOpen(true)}
+        onPerform={(songToPerform) => { // Add onPerform handler to close modal and start performance
+          setSelectedSongForStudio(null);
+          handleSelectSong(songToPerform);
+          // Optionally start performance mode if desired
+          // setIsPerformanceMode(true);
+          // setTimeout(() => transposerRef.current?.togglePlayback(), 1000);
+        }}
       />
     </div>
   );
