@@ -18,7 +18,6 @@ import {
   AlertTriangle,
   Lock,
   ExternalLink,
-  Code,
   Clock,
   History,
   Activity
@@ -65,10 +64,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
 
       if (error) {
         let displayError = error.message || "System sync failed.";
-        try {
-          const body = await error.context.json();
-          if (body?.error) displayError = body.error;
-        } catch (e) {}
+        
+        // Detailed error parsing for Supabase Edge Functions
+        if (error.context) {
+          try {
+            const body = await error.context.json();
+            if (body?.error) displayError = body.error;
+          } catch (e) {
+            // If body isn't JSON, try text
+            try {
+              const text = await error.context.text();
+              if (text) displayError = text;
+            } catch (e2) {}
+          }
+        }
+        
         showError(displayError);
         return;
       }
