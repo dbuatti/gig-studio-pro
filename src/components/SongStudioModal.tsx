@@ -1056,8 +1056,11 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       activeTab === tab ? "text-indigo-400 border-indigo-500" : "text-slate-500 border-transparent hover:text-white"
                     )}
                   >
-                    <span>{tab === 'config' ? 'CONFIG' : `${tab.toUpperCase()} ENGINE`}</span>
-                    {!isMobile && <span className="text-[8px] font-mono opacity-40 font-bold tracking-normal">⌘{idx + 1}</span>}
+                    <span className="flex items-center gap-1.5">
+                      {tab === 'config' ? 'CONFIG' : tab.toUpperCase()}
+                      {!isMobile && <span className="opacity-40">#{idx + 1}</span>}
+                    </span>
+                    {!isMobile && <span className="text-[8px] font-mono opacity-40 font-bold tracking-normal uppercase">Engine Feed</span>}
                   </button>
                 ))}
               </div>
@@ -1490,56 +1493,80 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                 </div>
               )}
               {activeTab === 'visual' && (
-                <div className="space-y-6 md:space-y-12 animate-in fade-in duration-500">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-6 md:space-y-10 animate-in fade-in duration-500 h-full flex flex-col">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
                     <div>
-                      <h3 className="text-sm md:text-lg font-black uppercase tracking-[0.2em] text-indigo-400">Reference Media</h3>
-                      <p className="text-xs md:text-sm text-slate-500 mt-1">YouTube performance video or audio master link.</p>
+                      <h3 className="text-xl md:text-2xl font-black uppercase tracking-tight text-indigo-400">REFERENCE MEDIA</h3>
+                      <p className="text-xs md:text-sm text-slate-500 mt-1 font-medium italic">YouTube performance video or audio master link.</p>
                     </div>
                   </div>
-                  <div className="flex gap-4">
-                     <StudioInput 
-                       placeholder="YouTube URL..."
-                       value={formData.youtubeUrl}
-                       onChange={(val: string) => handleAutoSave({ youtubeUrl: val })}
-                       className="bg-white/5 border-white/10 text-sm flex-1 h-10 md:h-12 rounded-xl w-full"
-                     />
-                     <div className="flex gap-2 shrink-0">
+                  
+                  <div className="flex flex-col md:flex-row gap-4 shrink-0">
+                     <div className="flex-1 group">
+                       <Input 
+                         placeholder="https://www.youtube.com/watch?v=..."
+                         value={formData.youtubeUrl}
+                         onChange={(e) => handleAutoSave({ youtubeUrl: e.target.value })}
+                         className="bg-slate-900 border-white/10 text-white placeholder:text-slate-600 h-14 px-6 rounded-xl focus-visible:ring-indigo-500/50 focus-visible:ring-offset-0 focus-visible:ring-2 shadow-inner transition-all"
+                       />
+                     </div>
+                     <div className="flex gap-3 shrink-0">
                         <Button
-                          variant="outline"
                           onClick={handleSyncYoutubeAudio}
                           disabled={isSyncingAudio || !formData.youtubeUrl}
-                          className="bg-indigo-600/10 border-indigo-600/20 text-indigo-600 hover:bg-indigo-600 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 md:h-12 gap-2 px-4 md:px-6 rounded-xl min-w-[140px]"
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-[10px] h-14 px-8 rounded-xl shadow-lg shadow-indigo-600/20 gap-3 transition-all active:scale-95"
                         >
-                          {isSyncingAudio ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
-                          Extract Audio
+                          {isSyncingAudio ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                          EXTRACT AUDIO
                         </Button>
                         <Button
-                            variant="outline"
-                            onClick={handleYoutubeSearch}
-                            className="bg-red-600/10 border-red-600/20 text-red-600 hover:bg-red-600 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 md:h-12 gap-2 px-4 md:px-6 rounded-xl min-w-[120px]"
-                          >
-                            <Youtube className="w-3.5 h-3.5" /> Discovery
-                          </Button>
+                          variant="outline"
+                          onClick={handleYoutubeSearch}
+                          className="bg-red-950/30 border-red-900/50 text-red-500 hover:bg-red-900 hover:text-white font-black uppercase tracking-widest text-[10px] h-14 px-8 rounded-xl gap-3 transition-all active:scale-95"
+                        >
+                          <Play className="w-4 h-4" /> DISCOVERY
+                        </Button>
                      </div>
                   </div>
-                  {videoId ? (
-                    <div className="aspect-video w-full rounded-[2rem] md:rounded-[3rem] overflow-hidden shadow-2xl border border-white/10 bg-black">
-                      <iframe
-                        width="100%" height="100%"
-                        src={`https://www.youtube.com/embed/${videoId}?autoplay=0&mute=1`}
-                        title="Reference Video"
-                        frameBorder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        allowFullScreen
-                      />
-                    </div>
-                  ) : (
-                    <div className={cn("flex flex-col items-center justify-center bg-white/5 border border-dashed border-white/10 space-y-6 md:space-y-8", isMobile ? "py-24 rounded-3xl" : "py-48 rounded-[4rem]")}>
-                      <Youtube className="w-12 h-12 md:w-16 md:h-16 text-slate-700" />
-                      <p className="text-sm md:text-lg font-black uppercase tracking-[0.4em] text-slate-500">Visual Engine Standby</p>
-                    </div>
-                  )}
+
+                  <div className={cn("flex-1 bg-slate-900 rounded-[2.5rem] border-4 border-white/5 shadow-2xl overflow-hidden relative group min-h-[300px]", !videoId && "flex flex-col items-center justify-center")}>
+                    {videoId ? (
+                      <>
+                        <iframe
+                          width="100%" height="100%"
+                          src={`https://www.youtube.com/embed/${videoId}?autoplay=0&mute=1&modestbranding=1&rel=0`}
+                          title="Reference Video"
+                          frameBorder="0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          allowFullScreen
+                          className="w-full h-full"
+                        />
+                        {/* Title Overlay */}
+                        <div className="absolute top-0 left-0 right-0 p-8 bg-gradient-to-b from-black/80 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                           <div className="flex items-center gap-4">
+                              <div className="bg-red-600 p-2 rounded-lg">
+                                 <Youtube className="w-5 h-5 text-white" />
+                              </div>
+                              <div>
+                                 <p className="text-[10px] font-black uppercase tracking-widest text-red-400">Master Record Linked</p>
+                                 <h4 className="text-lg font-black uppercase tracking-tight text-white mt-0.5">{formData.name}</h4>
+                              </div>
+                           </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-center space-y-8 animate-in fade-in duration-1000">
+                        <div className="relative">
+                           <div className="absolute inset-0 bg-indigo-500/20 blur-3xl rounded-full scale-150 animate-pulse" />
+                           <Youtube className="w-20 h-20 md:w-32 md:h-32 text-slate-800 relative z-10" />
+                        </div>
+                        <div className="space-y-2 relative z-10">
+                          <p className="text-lg md:text-2xl font-black uppercase tracking-[0.4em] text-slate-700">Visual Engine Standby</p>
+                          <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-500 opacity-60">Paste a link above to initiate the renderer</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
               {activeTab === 'library' && (
