@@ -100,8 +100,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     try {
       const res = await fetch(`${API_BASE}/health`, { 
         mode: 'cors',
-        headers: { 'Cache-Control': 'no-cache' }
+        headers: { 'Cache-Control': 'no-cache', 'Accept': 'application/json' }
       });
+      
       if (res.ok) {
         const data = await res.json();
         setHealthData(data);
@@ -110,15 +111,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         if (data.cookies_loaded) {
           addLog(`Engine Online: ${Math.round(data.bytes / 1024)} KB session cached.`, 'success');
         } else {
-          addLog(`Engine Online, but Cache is EMPTY. Last Error: ${data.last_error || 'None'}`, 'error');
+          addLog(`Engine Online, but Cache is EMPTY.`, 'error');
         }
       } else {
         setHealthStatus('offline');
-        addLog("Engine unreachable (Likely Rebuilding or Sleeping).", 'error');
+        addLog(`Engine returned ${res.status}. Service may be restarting.`, 'error');
       }
     } catch (e) {
       setHealthStatus('error');
-      addLog("Connection refused. Engine may be spinning down.", 'error');
+      addLog("Engine unreachable. Check Render service status.", 'error');
     } finally {
       setIsCheckingHealth(false);
     }
@@ -129,14 +130,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     try {
       const refreshRes = await fetch(`${API_BASE}/refresh-cookies`, {
         method: 'POST',
-        mode: 'cors'
+        mode: 'cors',
+        headers: { 'Accept': 'application/json' }
       });
+      
+      if (!refreshRes.ok) {
+        const text = await refreshRes.text();
+        const isHtml = text.trim().startsWith('<!doctype') || text.trim().startsWith('<html');
+        throw new Error(isHtml ? `Engine returned an error page (HTML). Status: ${refreshRes.status}` : text);
+      }
       
       const data = await refreshRes.json();
       if (data.success) {
         showSuccess(`Sync Complete: ${Math.round(data.bytes / 1024)} KB transferred.`);
         addLog(`Signal Accepted. Engine received ${data.bytes} bytes.`, 'success');
-        setTimeout(checkHealth, 2000);
+        setTimeout(checkHealth, 1500);
       } else {
         addLog(`Sync Signal Failed: ${data.error || "Supabase Vault empty"}`, 'error');
         showError("Backend Sync Failed");
@@ -252,13 +260,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                     </div>
                   </div>
                   <Button onClick={triggerRenderRefresh} className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] h-11 px-8 rounded-xl gap-3 shadow-lg shadow-indigo-600/20">
-                    <RefreshCw className="w-4 h-4" /> Force Force Sync
+                    <RefreshCw className="w-4 h-4" /> Force Sync
                   </Button>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   <div 
-
                     className={cn(
                       "bg-black/20 border-2 border-dashed rounded-3xl p-12 flex flex-col items-center justify-center text-center transition-all min-h-[300px] relative cursor-pointer",
                       isUploading ? "opacity-50" : "hover:border-indigo-500 hover:bg-indigo-600/5"
@@ -358,7 +365,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                        <p className={cn(
                          "text-[10px] font-medium leading-tight",
                          log.type === 'error' ? "text-red-400" : log.type === 'success' ? "text-emerald-400" : "text-slate-400"
-
                        )}>
                          {log.msg}
                        </p>
@@ -371,7 +377,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         </div>
 
         <div className="p-8 border-t border-white/5 bg-slate-900 flex items-center justify-between shrink-0">
-           <p className="text-[10px] font-black uppercase tracking-widest text-slate-600 font-mono">Control Unit v2.9.0 // Enhanced Debugging Enabled</p>
+           <p className="text-[10px] font-black uppercase tracking-widest text-slate-600 font-mono">Control Unit v2.9.1 // Enhanced Error Resilience</p>
            <Button onClick={onClose} variant="ghost" className="text-slate-400 hover:text-white font-black uppercase tracking-widest text-[10px]">Close Admin</Button>
         </div>
       </DialogContent>
