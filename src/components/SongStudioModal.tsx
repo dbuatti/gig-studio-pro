@@ -345,7 +345,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     }
   };
 
-const handleSyncYoutubeAudio = async (videoUrl?: string) => {
+  const handleSyncYoutubeAudio = async (videoUrl?: string) => {
     const targetUrl = videoUrl || formData.youtubeUrl;
     if (!targetUrl || !user || !song) {
       showError("Paste a YouTube URL first.");
@@ -353,93 +353,70 @@ const handleSyncYoutubeAudio = async (videoUrl?: string) => {
     }
 
     const cleanedUrl = cleanYoutubeUrl(targetUrl);
-    // Updated to your new Node.js endpoint
-    const API_BASE = "https://yt-rip-inza.onrender.com"; 
+    const apiBase = "https://yt-audio-api-docker.onrender.com";
 
     setIsSyncingAudio(true);
-    setSyncStatus("Waking up extraction engine...");
+    setSyncStatus("Initializing Engine...");
     setEngineError(null);
     
     try {
-      // Step 1: Request the conversion
-      const response = await fetch(`${API_BASE}/api/download`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: cleanedUrl, format: 'mp3' })
-      });
-
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || "Extraction server error");
-      }
-
-      const data = await response.json();
-      // yt-rip returns success: true and a directUrl
-      if (!data.success || (!data.directUrl && !data.downloadUrl)) {
-        throw new Error("Engine failed to generate a valid stream.");
-      }
-
-      setSyncStatus("Streaming audio data...");const handleSyncYoutubeAudio = async (videoUrl?: string) => {
-    const targetUrl = videoUrl || formData.youtubeUrl;
-    if (!targetUrl || !user || !song) {
-      showError("Paste a YouTube URL first.");
-      return;
-    }
-
-    const cleanedUrl = cleanYoutubeUrl(targetUrl);
-    const API_BASE = "https://yt-rip-inza.onrender.com"; 
-
-    setIsSyncingAudio(true);
-    setSyncStatus("Waking up extraction engine...");
-    setEngineError(null);
-    
-    try {
-      // 1. Tell the Node engine to convert the video
-      const response = await fetch(`${API_BASE}/api/download`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: cleanedUrl, format: 'mp3' })
-      });
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || "Extraction server error");
-      }
-
-      const data = await response.json();
-      if (!data.success) throw new Error(data.error || "Engine failed.");
-
-      // 2. FETCH THE ACTUAL AUDIO BYTES (The Middle Step)
-      // We use the proxied stream to bypass browser security
-      setSyncStatus("Capturing audio stream...");
-      const audioSourceUrl = `${API_BASE}${data.downloadUrl}`;
-      const downloadRes = await fetch(audioSourceUrl);
-      if (!downloadRes.ok) throw new Error("Could not capture audio stream.");
+      setSyncStatus("Waking up extraction engine...");
+      // Add a small delay for Render cold-starts
+      const tokenUrl = `${apiBase}/?url=${encodeURIComponent(cleanedUrl)}`;
       
+      const tokenRes = await fetch(tokenUrl, {
+        headers: { 'Accept': 'application/json' }
+      }).catch(() => {
+        throw new Error("Engine unreachable. The Render server might be rebuilding or sleeping.");
+      });
+
+      if (!tokenRes.ok) {
+        const errBody = await tokenRes.json().catch(() => ({}));
+        const specificError = errBody.detail || errBody.error || tokenRes.statusText;
+        if (specificError.includes("format is not available") || 
+            specificError.includes("Signature solving failed") || 
+            specificError.includes("Sign in to confirm")) {
+          setEngineError(`YouTube Protection Triggered: ${specificError}. Upload fresh cookies in Admin.`);
+        } else {
+          setEngineError(`Engine Error: ${specificError}`);
+        }
+        throw new Error(specificError);
+      }
+      
+      const { token } = await tokenRes.json();
+      setSyncStatus("Extracting Audio Stream...");
+
+      const downloadUrl = `${apiBase}/download?token=${token}`;
+      const downloadRes = await fetch(downloadUrl);
+      
+      if (!downloadRes.ok) throw new Error("Audio extraction failed at source.");
       const blob = await downloadRes.blob();
 
-      // 3. SYNC TO SUPABASE STORAGE
-      setSyncStatus("Finalizing cloud sync...");
+      setSyncStatus("Syncing to Cloud Vault...");
       const fileName = `${user.id}/${song.id}/extracted-${Date.now()}.mp3`;
+      const bucket = 'public_assets';
+      
       const { error: uploadError } = await supabase.storage
-        .from('public_assets')
-        .upload(fileName, blob, { contentType: 'audio/mpeg', upsert: true });
+        .from(bucket)
+        .upload(fileName, blob, {
+          contentType: 'audio/mpeg',
+          upsert: true
+        });
 
       if (uploadError) throw uploadError;
 
-      // 4. UPDATE LOCAL STATE
       const { data: { publicUrl } } = supabase.storage
-        .from('public_assets')
+        .from(bucket)
         .getPublicUrl(fileName);
 
-      handleAutoSave({ previewUrl: publicUrl, youtubeUrl: cleanedUrl });
+      const updates = { previewUrl: publicUrl, youtubeUrl: cleanedUrl };
+      handleAutoSave(updates);
       await loadFromUrl(publicUrl, formData.pitch || 0);
-      showSuccess("YT-Master Audio Linked & Synced");
+      showSuccess("YT-Master Audio Linked");
       
     } catch (err: any) {
       console.error("YT Sync Error:", err);
-      setEngineError(err.message);
-      showError(err.message || "Connection refused.");
+      showError(err.message || "Connection refused by extraction engine.");
     } finally {
       setIsSyncingAudio(false);
       setSyncStatus("");
@@ -469,7 +446,7 @@ const handleSyncYoutubeAudio = async (videoUrl?: string) => {
   const removeTag = (tag: string) => {
     if (!song) return;
     const updated = (formData.user_tags || []).filter(t => t !== tag);
-    handleAutoSave({ resources: updated });
+    handleAutoSave({ user_tags: updated });
   };
 
   const toggleResource = (id: string) => {
@@ -1073,11 +1050,13 @@ const handleSyncYoutubeAudio = async (videoUrl?: string) => {
                 title="PDF Preview"
               />
             ) : (
-              <div className="h-full flex flex-col items-center justify-center bg-slate-900 rounded-2xl border border-white/5 p-6 text-center">
+              <div className="flex-1 flex flex-col items-center justify-center bg-slate-900 rounded-2xl border border-white/5 p-6 text-center">
                 <ShieldCheck className="w-12 h-12 text-indigo-400 mb-6" />
                 <h4 className="text-xl md:text-2xl font-black uppercase mb-4 text-white">Source Shield Active</h4>
                 <p className="text-slate-500 mb-8 max-w-sm font-medium">Provider blocks in-app previews. Use the dedicated performance window.</p>
-                <Button onClick={() => window.open(previewPdfUrl, '_blank')} className="bg-indigo-600 hover:bg-indigo-700 h-16 px-10 rounded-2xl gap-3"><ExternalLink className="w-5 h-5" /> Launch Official Source</Button>
+                <Button onClick={() => window.open(previewPdfUrl, '_blank')} className="bg-indigo-600 hover:bg-indigo-700 h-12 px-8 font-black uppercase tracking-widest text-xs rounded-xl shadow-lg shadow-indigo-600/20 gap-3">
+                  <ExternalLink className="w-4 h-4" /> Open Official Source
+                </Button>
               </div>
             )}
           </div>
