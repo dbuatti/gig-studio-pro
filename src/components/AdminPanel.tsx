@@ -73,7 +73,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     try {
       const { data: files, error } = await supabase.storage
         .from('cookies')
-        .list('', { limit: 1 });
+        .list('', { limit: 5 });
       
       if (error) throw error;
 
@@ -84,10 +84,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
           lastUpdated: cookieFile.updated_at || cookieFile.created_at,
           name: cookieFile.name
         });
-        addLog(`Vault Match: cookies.txt (${Math.round(cookieFile.metadata?.size / 1024)} KB)`, 'success');
+        addLog(`Vault Match Found: cookies.txt (${Math.round(cookieFile.metadata?.size / 1024)} KB)`, 'success');
       } else {
         setCookieMetadata(null);
-        addLog("Vault empty.", 'info');
+        addLog("Vault check complete: No cookies.txt file detected.", 'info');
       }
     } catch (e: any) {
       addLog(`Vault Access Error: ${e.message}`, 'error');
@@ -106,14 +106,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         const data = await res.json();
         setHealthData(data);
         setHealthStatus('online');
-        addLog(`Engine Online. Cookies ${data.cookies_loaded ? 'Loaded' : 'Missing'}`, data.cookies_loaded ? 'success' : 'error');
+        
+        if (data.cookies_loaded) {
+          addLog(`Engine Online: ${Math.round(data.bytes / 1024)} KB session cached.`, 'success');
+        } else {
+          addLog(`Engine Online, but Cache is EMPTY. Last Error: ${data.last_error || 'None'}`, 'error');
+        }
       } else {
         setHealthStatus('offline');
-        addLog("Engine unreachable (Likely Rebuilding).", 'error');
+        addLog("Engine unreachable (Likely Rebuilding or Sleeping).", 'error');
       }
     } catch (e) {
       setHealthStatus('error');
-      addLog("Connection refused.", 'error');
+      addLog("Connection refused. Engine may be spinning down.", 'error');
     } finally {
       setIsCheckingHealth(false);
     }
@@ -127,30 +132,24 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         mode: 'cors'
       });
       
-      if (!refreshRes.ok) {
-        if (refreshRes.status === 502 || refreshRes.status === 503) {
-           throw new Error('Engine is currently restarting. Wait 30s.');
-        }
-        throw new Error(`Signal failed (${refreshRes.status})`);
-      }
-      
       const data = await refreshRes.json();
       if (data.success) {
-        showSuccess("Backend Sync Initialized");
-        addLog("Sync Signal Accepted.", 'success');
-        setTimeout(checkHealth, 3000);
+        showSuccess(`Sync Complete: ${Math.round(data.bytes / 1024)} KB transferred.`);
+        addLog(`Signal Accepted. Engine received ${data.bytes} bytes.`, 'success');
+        setTimeout(checkHealth, 2000);
       } else {
-        addLog("Sync failed: Supabase Vault empty or unreachable.", 'error');
+        addLog(`Sync Signal Failed: ${data.error || "Supabase Vault empty"}`, 'error');
+        showError("Backend Sync Failed");
       }
     } catch (err: any) {
-      addLog(`Sync Warning: ${err.message}`, 'error');
+      addLog(`Sync Signal Warning: ${err.message}`, 'error');
     }
   };
 
   const handleUpload = async (file: File) => {
     if (!user) return;
     setIsUploading(true);
-    addLog(`Uploading session data...`, 'info');
+    addLog(`Uploading session data to vault...`, 'info');
     
     try {
       const { error: uploadError } = await supabase.storage
@@ -162,14 +161,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
 
       if (uploadError) throw uploadError;
 
-      showSuccess("Vault Updated Successfully");
+      showSuccess("Cloud Vault Updated");
       addLog("Upload Successful.", 'success');
       
       await checkVaultStatus();
       await triggerRenderRefresh();
       
     } catch (err: any) {
-      addLog(`Failure: ${err.message}`, 'error');
+      addLog(`Upload Failure: ${err.message}`, 'error');
       showError(`Upload Error: ${err.message}`);
     } finally {
       setIsUploading(false);
@@ -201,7 +200,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                 <div>
                    <h4 className="text-sm font-black uppercase text-amber-500 tracking-tight mb-1">Critical Session Protocol</h4>
                    <p className="text-xs text-amber-200/80 leading-relaxed font-medium">
-                     To prevent immediate cookie invalidation: <strong>(1)</strong> Open YouTube in a private/incognito window, <strong>(2)</strong> Log in and export cookies, <strong>(3)</strong> <u>Close the browser window immediately</u> before uploading. If you continue browsing, YouTube rotates the keys and the file you just exported becomes dead on arrival.
+                     If cookies appear missing after upload: <strong>(1)</strong> Ensure your file is named exactly <code>cookies.txt</code>. <strong>(2)</strong> Ensure the bucket <code>cookies</code> exists in Supabase. <strong>(3)</strong> Ensure <code>SUPABASE_URL</code> and <code>SUPABASE_SERVICE_ROLE_KEY</code> are correctly set in your Render environment variables.
                    </p>
                 </div>
               </div>
@@ -226,7 +225,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                       <span className="text-[10px] font-black uppercase tracking-widest">Engine Cache</span>
                     </div>
                     <span className={cn("text-lg font-black uppercase", healthData?.cookies_loaded ? "text-emerald-500" : "text-red-500")}>
-                      {healthData?.cookies_loaded ? "Cookies Loaded" : "Missing Data"}
+                      {healthData?.cookies_loaded ? "Loaded" : "Missing"}
                     </span>
                  </div>
 
@@ -236,7 +235,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                       <span className="text-[10px] font-black uppercase tracking-widest">Vault State</span>
                     </div>
                     <span className="text-lg font-black uppercase text-indigo-400">
-                      {cookieMetadata ? `${(cookieMetadata.size / 1024).toFixed(1)} KB` : "Vault Empty"}
+                      {cookieMetadata ? `${(cookieMetadata.size / 1024).toFixed(1)} KB` : "Empty"}
                     </span>
                  </div>
               </div>
@@ -249,16 +248,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                     </div>
                     <div>
                       <h4 className="text-xl font-black uppercase tracking-tight">Session Synchronizer</h4>
-                      <p className="text-[10px] text-indigo-400 font-black uppercase tracking-widest">Update Session Keys to bypass YouTube Bots</p>
+                      <p className="text-[10px] text-indigo-400 font-black uppercase tracking-widest">Manually trigger the engine to fetch from Supabase</p>
                     </div>
                   </div>
                   <Button onClick={triggerRenderRefresh} className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] h-11 px-8 rounded-xl gap-3 shadow-lg shadow-indigo-600/20">
-                    <Activity className="w-4 h-4" /> Trigger Sync Signal
+                    <RefreshCw className="w-4 h-4" /> Force Force Sync
                   </Button>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   <div 
+
                     className={cn(
                       "bg-black/20 border-2 border-dashed rounded-3xl p-12 flex flex-col items-center justify-center text-center transition-all min-h-[300px] relative cursor-pointer",
                       isUploading ? "opacity-50" : "hover:border-indigo-500 hover:bg-indigo-600/5"
@@ -270,18 +270,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                     {isUploading ? (
                       <div className="flex flex-col items-center gap-6">
                         <Loader2 className="w-16 h-16 text-indigo-500 animate-spin" />
-                        <p className="text-sm font-black uppercase tracking-[0.3em] animate-pulse">Syncing Cryptographic Data...</p>
+                        <p className="text-sm font-black uppercase tracking-[0.3em] animate-pulse">Pushing to Vault...</p>
                       </div>
                     ) : (
                       <>
                         <FileText className="w-16 h-16 text-indigo-400 mb-6" />
                         <h5 className="text-xl font-black uppercase tracking-tight mb-2">Drop cookies.txt here</h5>
                         <p className="text-xs text-slate-500 font-medium max-w-sm mb-10 leading-relaxed">
-                          The system will automatically rename your file to 'cookies.txt' and push it to the production engine.
+                          Once uploaded, the engine will automatically attempt a sync from your Supabase storage.
                         </p>
                         <input type="file" accept=".txt" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f); }} className="hidden" id="cookie-upload-main" />
                         <Button className="bg-indigo-600 hover:bg-indigo-700 h-14 px-12 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-2xl">
-                          Select from Disk
+                          Select File
                         </Button>
                       </>
                     )}
@@ -291,26 +291,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                      <div className="space-y-6">
                         <div className="flex items-center gap-3">
                            <Terminal className="w-5 h-5 text-indigo-400" />
-                           <span className="text-sm font-black uppercase text-white">Diagnostic Check: Format</span>
+                           <span className="text-sm font-black uppercase text-white">Engine Diagnostics</span>
                         </div>
                         <div className="bg-black/40 rounded-xl p-4 font-mono text-[10px] text-slate-500 leading-relaxed border border-white/5">
-                           <p className="text-emerald-400"># Netscape HTTP Cookie File</p>
-                           <p># http://curl.haxx.se/rfc/cookie_spec.html</p>
-                           <p># This is a generated file! Do not edit.</p>
-                           <p className="mt-2 text-indigo-400">.youtube.com TRUE / FALSE 1768... LOGIN_INFO ...</p>
-                        </div>
-                        <div className="flex items-start gap-3 bg-white/5 p-4 rounded-xl">
-                           <Info className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
-                           <p className="text-[10px] text-slate-400 font-medium leading-relaxed">
-                             Modern YouTube bot detection is highly sensitive to IP location mismatches. Using an incognito window helps isolate the session.
-                           </p>
+                           <p className="text-emerald-400"># Last Engine Message:</p>
+                           <p className="text-indigo-300 mt-1 whitespace-pre-wrap">{healthData?.last_error || "No errors reported. System stable."}</p>
+                           <p className="mt-4 text-slate-500">Supabase Connection: {healthData?.supabase_initialized ? "ONLINE" : "OFFLINE"}</p>
                         </div>
                      </div>
-                     <a href="https://chrome.google.com/webstore/detail/get-cookiestxt-locally/ccmclokmbiocgnoebmjjhkmoonlaoced" target="_blank" rel="noopener noreferrer">
-                        <Button variant="ghost" className="w-full mt-6 h-12 bg-white/5 border border-white/10 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-white/10 gap-2">
-                          Download Extension <ExternalLink className="w-3.5 h-3.5" />
-                        </Button>
-                     </a>
+                     <Button 
+                       variant="ghost" 
+                       onClick={checkHealth}
+                       className="w-full mt-6 h-12 bg-white/5 border border-white/10 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-white/10 gap-2"
+                     >
+                       Refresh Health Status <Activity className="w-3.5 h-3.5" />
+                     </Button>
                   </div>
                 </div>
               </div>
@@ -363,6 +358,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                        <p className={cn(
                          "text-[10px] font-medium leading-tight",
                          log.type === 'error' ? "text-red-400" : log.type === 'success' ? "text-emerald-400" : "text-slate-400"
+
                        )}>
                          {log.msg}
                        </p>
@@ -375,7 +371,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         </div>
 
         <div className="p-8 border-t border-white/5 bg-slate-900 flex items-center justify-between shrink-0">
-           <p className="text-[10px] font-black uppercase tracking-widest text-slate-600 font-mono">Control Unit v2.8.5 // Final Engine Alignment</p>
+           <p className="text-[10px] font-black uppercase tracking-widest text-slate-600 font-mono">Control Unit v2.9.0 // Enhanced Debugging Enabled</p>
            <Button onClick={onClose} variant="ghost" className="text-slate-400 hover:text-white font-black uppercase tracking-widest text-[10px]">Close Admin</Button>
         </div>
       </DialogContent>
