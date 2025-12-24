@@ -21,61 +21,83 @@ serve(async (req) => {
       });
     }
 
-    // 1. Get Token from Render API
-    const renderUrl = "https://yt-audio-api-1-wedr.onrender.com"; // Updated URL
-    const tokenResponse = await fetch(`${renderUrl}/?url=${encodeURIComponent(videoUrl)}`);
-    
-    if (!tokenResponse.ok) {
-      throw new Error(`Render API token request failed: ${tokenResponse.statusText}`);
-    }
-    
-    const { token } = await tokenResponse.json();
+    const renderUrl = "https://yt-audio-api-1-wedr.onrender.com";
 
-    // 2. Poll for the file to be ready
-    const downloadUrl = `${renderUrl}/download?token=${token}`;
-    
-    // Wait a moment for processing (Render usually takes a few seconds)
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    let token = null;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 3; // Max retries for getting a token/download
 
-    const fileResponse = await fetch(downloadUrl);
-    
-    if (fileResponse.status === 202) {
-      // Still processing, return the token so the client can poll or open the link
-      return new Response(JSON.stringify({ 
-        status: 'processing', 
-        message: 'Audio is being converted. Please try again in a few seconds.',
-        token: token,
-        downloadUrl: downloadUrl
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
+    while (attempts < MAX_ATTEMPTS) {
+      attempts++;
+      
+      // 1. Get Token from Render API
+      const tokenResponse = await fetch(`${renderUrl}/?url=${encodeURIComponent(videoUrl)}`);
+      if (!tokenResponse.ok) {
+        throw new Error(`Render API token request failed: ${tokenResponse.statusText}`);
+      }
+      const tokenData = await tokenResponse.json();
+      token = tokenData.token;
 
-    if (fileResponse.status === 500) {
-      const errorData = await fileResponse.json();
-      if (errorData.error === "YouTube Blocked this request") {
+      // 2. Poll for the file to be ready
+      const downloadUrl = `${renderUrl}/download?token=${token}`;
+      
+      // Wait a moment for processing (Render usually takes a few seconds)
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      const fileResponse = await fetch(downloadUrl);
+      
+      if (fileResponse.status === 202) {
+        // Still processing, return the token so the client can poll or open the link
         return new Response(JSON.stringify({ 
-          error: "YouTube blocked the download. Try again later or use manual fallback.", 
-          details: errorData.detail 
+          status: 'processing', 
+          message: 'Audio is being converted. Please try again in a few seconds.',
+          token: token,
+          downloadUrl: downloadUrl
         }), {
-          status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
-      throw new Error(errorData.error || `Download failed with status 500: ${fileResponse.statusText}`);
+
+      if (fileResponse.status === 404 && attempts < MAX_ATTEMPTS) {
+        // Token not found on Render, likely due to server restart. Retry.
+        console.warn(`[download-audio] Render API returned 404 for token ${token}. Retrying... (Attempt ${attempts})`);
+        await new Promise(resolve => setTimeout(resolve, 2000 * attempts)); // Exponential backoff
+        continue; // Go to next attempt
+      }
+
+      if (fileResponse.status === 500) {
+        const errorData = await fileResponse.json();
+        if (errorData.error === "YouTube Block") {
+          return new Response(JSON.stringify({ 
+            error: "YouTube blocked the download. Try again later or use manual fallback.", 
+            details: errorData.detail 
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+        throw new Error(errorData.error || `Download failed with status 500: ${fileResponse.statusText}`);
+      }
+
+      if (!fileResponse.ok) {
+        throw new Error(`Download failed: ${fileResponse.statusText}`);
+      }
+
+      // If we reached here, fileResponse.ok is true, so we have the file.
+      // 3. Return the audio file directly
+      const audioBuffer = await fileResponse.arrayBuffer();
+      const headers = new Headers(corsHeaders);
+      headers.set('Content-Type', 'audio/mpeg');
+      headers.set('Content-Disposition', `attachment; filename="audio.mp3"`);
+
+      return new Response(audioBuffer, { headers });
     }
 
-    if (!fileResponse.ok) {
-      throw new Error(`Download failed: ${fileResponse.statusText}`);
-    }
-
-    // 3. Return the audio file directly
-    const audioBuffer = await fileResponse.arrayBuffer();
-    const headers = new Headers(corsHeaders);
-    headers.set('Content-Type', 'audio/mpeg');
-    headers.set('Content-Disposition', `attachment; filename="audio.mp3"`);
-
-    return new Response(audioBuffer, { headers });
+    // If all attempts fail
+    return new Response(JSON.stringify({ error: "Failed to download audio after multiple attempts. Render API might be unstable or blocked." }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
 
   } catch (error) {
     return new Response(JSON.stringify({ error: error.message }), {

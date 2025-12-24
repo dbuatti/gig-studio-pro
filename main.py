@@ -35,12 +35,14 @@ def cleanup_expired_files():
             data = active_tokens.pop(t, None)
             if data and data["file"] and (DOWNLOAD_DIR / data["file"]).exists():
                 (DOWNLOAD_DIR / data["file"]).unlink()
+                print(f"[Cleanup] Removed expired file: {data['file']}", flush=True) # Added log
         time.sleep(60)
 
 threading.Thread(target=cleanup_expired_files, daemon=True).start()
 
 # --- CORE DOWNLOAD LOGIC ---
 def run_yt_dlp(video_url, token):
+    print(f"[{token}] Starting yt-dlp for URL: {video_url}", flush=True) # Added log
     po_token = os.getenv("YOUTUBE_PO_TOKEN")
     visitor_data = os.getenv("YOUTUBE_VISITOR_DATA")
     proxy_url = os.getenv("PROXY_URL") 
@@ -70,16 +72,29 @@ def run_yt_dlp(video_url, token):
 
     if REPO_COOKIES_PATH.exists():
         ydl_opts['cookiefile'] = str(REPO_COOKIES_PATH)
+        print(f"[{token}] Using cookie file: {REPO_COOKIES_PATH}", flush=True) # Added log
+    else:
+        print(f"[{token}] Cookie file not found at: {REPO_COOKIES_PATH}", flush=True) # Added log
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([video_url])
-        if token in active_tokens:
-            active_tokens[token].update({"status": "ready", "file": filename})
+        
+        if output_path.exists(): # Check if file was actually created
+            if token in active_tokens:
+                active_tokens[token].update({"status": "ready", "file": filename})
+                print(f"[{token}] Download successful. File: {filename}", flush=True) # Added log
+            else:
+                print(f"[{token}] Token disappeared from active_tokens after successful download.", flush=True) # Added log
+        else:
+            print(f"[{token}] yt-dlp finished, but file {output_path} does not exist.", flush=True) # Added log
+
     except Exception as e:
-        print(f"yt-dlp Error: {e}", flush=True)
+        print(f"[{token}] yt-dlp Error: {e}", flush=True)
         if token in active_tokens:
             active_tokens[token].update({"status": "error", "error_msg": str(e)})
+        else:
+            print(f"[{token}] Token disappeared from active_tokens during error handling.", flush=True) # Added log
 
 # --- ROUTES ---
 @app.route("/", methods=["GET"])
@@ -94,6 +109,7 @@ def start_request():
         "expiry": time.time() + TOKEN_EXPIRY,
         "error_msg": None
     }
+    print(f"[{job_token}] New request received. Status: processing", flush=True) # Added log
 
     threading.Thread(target=run_yt_dlp, args=(url, job_token), daemon=True).start()
     return jsonify({"token": job_token})
@@ -103,14 +119,19 @@ def check_or_download():
     token = request.args.get("token")
     data = active_tokens.get(token)
 
-    if not data: return jsonify(error="Invalid Token"), 404
+    if not data: 
+        print(f"[{token}] Download request for invalid/missing token. Active tokens: {list(active_tokens.keys())}", flush=True) # Added log
+        return jsonify(error="Invalid Token"), 404
     
     if data["status"] == "processing":
+        print(f"[{token}] Download status: processing (202)", flush=True) # Added log
         return jsonify(status="processing"), 202
     
     if data["status"] == "error":
+        print(f"[{token}] Download status: error (500). Details: {data['error_msg']}", flush=True) # Added log
         return jsonify(error="YouTube Block", detail=data["error_msg"]), 500
 
+    print(f"[{token}] Download status: ready (200). Serving file: {data['file']}", flush=True) # Added log
     return send_from_directory(DOWNLOAD_DIR, path=data["file"], as_attachment=True)
 
 if __name__ == "__main__":
