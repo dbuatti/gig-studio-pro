@@ -8,9 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { showSuccess, showError } from '@/utils/toast';
-import { Camera, Copy, Globe, Palette, User, Loader2, ArrowLeft, RotateCcw, Sparkles, ExternalLink, RefreshCw, Library, ShieldCheck, AlertCircle, Link as LinkIcon, Check } from 'lucide-react';
+import { Globe, User, Loader2, ArrowLeft, RotateCcw, Sparkles, ExternalLink, Link as LinkIcon, Check, Copy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import PublicRepertoireView from '@/components/PublicRepertoireView';
 import { cn } from '@/lib/utils';
@@ -100,45 +99,6 @@ const Profile = () => {
     }
   };
 
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-
-    if (file.size > 5 * 1024 * 1024) {
-      showError("Photo must be less than 5MB");
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-      const bucketName = 'public_assets';
-
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from(bucketName)
-        .upload(fileName, file, {
-          contentType: file.type,
-          upsert: true
-        });
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from(bucketName)
-        .getPublicUrl(fileName);
-
-      handleUpdateLocal({ avatar_url: publicUrl });
-      await saveToDatabase({ avatar_url: publicUrl });
-      showSuccess("Photo Updated");
-    } catch (err: any) {
-      console.error("Upload process failed:", err);
-      showError(`Upload failed: ${err.message || "Network Timeout"}`);
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const publicUrl = `${window.location.origin}/repertoire/${profile?.repertoire_slug || 'your-link'}`;
 
   const copyLink = () => {
@@ -178,37 +138,11 @@ const Profile = () => {
             </div>
             
             <div className="flex flex-col items-center gap-6 p-6 bg-white/5 rounded-[2rem] border border-white/5">
-              <div className="relative group cursor-pointer" onClick={() => document.getElementById('photo-upload')?.click()}>
-                <div 
-                  className="w-28 h-28 rounded-full border-4 flex items-center justify-center overflow-hidden bg-slate-800 shadow-2xl transition-transform hover:scale-105"
-                  style={{ borderColor: profile?.custom_colors?.primary || DEFAULT_COLORS.primary }}
-                >
-                  {profile?.avatar_url ? (
-                    <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
-                  ) : (
-                    <User className="w-12 h-12 text-slate-700" />
-                  )}
-                </div>
-                <div className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
-                  <Camera className="w-6 h-6 text-white" />
-                </div>
-                <input id="photo-upload" type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
+              <div className="w-28 h-28 rounded-full border-4 flex items-center justify-center overflow-hidden bg-slate-800 shadow-2xl" style={{ borderColor: profile?.custom_colors?.primary || DEFAULT_COLORS.primary }}>
+                <User className="w-12 h-12 text-slate-700" />
               </div>
 
               <div className="w-full space-y-4">
-                <div className="space-y-1.5">
-                  <Label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-2">
-                    <LinkIcon className="w-3 h-3" /> Image URL Fallback
-                  </Label>
-                  <Input 
-                    placeholder="https://example.com/photo.jpg"
-                    defaultValue={profile?.avatar_url}
-                    onBlur={(e) => saveToDatabase({ avatar_url: e.target.value })}
-                    onChange={(e) => handleUpdateLocal({ avatar_url: e.target.value })}
-                    className="h-9 text-xs bg-black/20 border-white/10"
-                  />
-                </div>
-
                 <div className="grid grid-cols-2 gap-4 w-full">
                   <div className="space-y-1.5">
                     <Label className="text-[9px] font-bold text-slate-500 uppercase">First Name</Label>
@@ -263,7 +197,7 @@ const Profile = () => {
               <div className="p-6 bg-emerald-500/5 border border-emerald-500/20 rounded-[2rem] flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-emerald-500/10 rounded-xl">
-                    <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                    <Check className="w-4 h-4 text-emerald-500" />
                   </div>
                   <div>
                     <p className="text-xs font-black uppercase tracking-tight">Sync Engine Online</p>
