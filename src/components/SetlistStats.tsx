@@ -6,6 +6,7 @@ import { Clock, Music, CheckCircle2, BarChart3, PieChart, Tag, Target, ChevronRi
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { Input } from './ui/input';
+import SetlistExporter from './SetlistExporter';
 
 interface SetlistStatsProps {
   songs: SetlistSong[];
@@ -124,15 +125,7 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({ songs, goalSeconds = 7200, 
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border shadow-sm flex items-center gap-5 transition-transform hover:scale-[1.02]">
-          <div className="h-12 w-12 bg-amber-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-amber-500/20">
-            <CheckCircle2 className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Gig Progress</p>
-            <p className="text-2xl font-black">{playedSongs} / {totalSongs}</p>
-          </div>
-        </div>
+        <SetlistExporter songs={songs} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
