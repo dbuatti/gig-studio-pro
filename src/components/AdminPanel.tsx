@@ -60,10 +60,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     try {
       const { data, error } = await supabase.storage
         .from('cookies')
-        .list('cookies.txt');
+        .list('', { search: 'cookies.txt' });
       
       if (!error && data && data.length > 0) {
-        setCookieSize(data[0].size);
+        // Fix 1: Access size via metadata
+        setCookieSize(data[0].metadata?.size || null);
       }
     } catch (e) {
       // Bucket might not exist yet
@@ -103,20 +104,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
 
     setIsUploading(true);
     try {
-      // Ensure bucket exists
       const { data: buckets } = await supabase.storage.listBuckets();
       const cookiesBucket = buckets?.find(b => b.name === 'cookies');
       
       if (!cookiesBucket) {
+        // Fix 2: Use camelCase properties for createBucket
         const { error: createError } = await supabase.storage.createBucket('cookies', {
           public: false,
-          allowed_mime_types: ['text/plain'],
-          file_size_limit: 1024 * 1024 // 1MB
+          allowedMimeTypes: ['text/plain'],
+          fileSizeLimit: 1024 * 1024 // 1MB
         });
         if (createError) throw createError;
       }
 
-      // Upload file
       const { error } = await supabase.storage
         .from('cookies')
         .upload('cookies.txt', file, {
@@ -126,7 +126,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
 
       if (error) throw error;
 
-      // Trigger refresh on the API
       const refreshRes = await fetch(`${API_BASE}/refresh-cookies`, {
         method: 'POST'
       });
@@ -273,7 +272,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                   <div className="space-y-4">
                     <div className="bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col gap-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-west">Storage Status</span>
+                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Storage Status</span>
                         {cookieSize !== null ? (
                           <Badge className="bg-emerald-600 text-white font-mono text-[9px]">ACTIVE</Badge>
                         ) : (
