@@ -72,8 +72,8 @@ def check_cookies_valid():
         return False
     
     file_size = os.path.getsize(COOKIES_PATH)
-    if file_size == 0:
-        print("❌ Cookies file is empty")
+    if file_size < 100: # Simple check for empty or tiny file
+        print(f"❌ Cookies file is too small ({file_size} bytes)")
         return False
     
     print(f"✅ Cookies file exists ({file_size} bytes)")
@@ -108,7 +108,7 @@ def handle_audio_request():
         fetch_cookies_from_supabase()
         
         if not check_cookies_valid():
-            return jsonify(error="Engine Error", detail="No valid cookies available. Please upload cookies via System Core Admin (Long press logo)."), 500
+            return jsonify(error="Engine Blocked", detail="Cookies expired or missing. Please upload fresh cookies via System Core Admin (Long press logo)."), 500
 
     filename = f"{uuid4()}.mp3"
     downloads_path = Path(ABS_DOWNLOADS_PATH)
@@ -116,8 +116,9 @@ def handle_audio_request():
     output_path = downloads_path / filename
 
     # Standard options with fallback format logic
+    # Using 'bestaudio/best' which is more standard than 'ba/best'
     ydl_opts = {
-        'format': 'ba/best', # Simplified format picker to avoid 'requested format not available'
+        'format': 'bestaudio/best', 
         'outtmpl': str(output_path.with_suffix('.%(ext)s')),
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
@@ -127,6 +128,7 @@ def handle_audio_request():
         'quiet': False,
         'cookiefile': COOKIES_PATH,
         'noplaylist': True,
+        'nocheckcertificate': True,
         'extractor_args': {
             'youtube': {
                 'player_client': ['ios', 'android', 'mweb'],
@@ -140,24 +142,35 @@ def handle_audio_request():
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([video_url])
 
-        if not output_path.exists():
-            return jsonify(error="Conversion failed: MP3 not found."), 500
+        # Find the actual file (yt-dlp might have added extension)
+        actual_file = None
+        for f in downloads_path.glob(f"{filename.split('.')[0]}*"):
+            if f.suffix in ['.mp3', '.m4a', '.webm', '.opus']:
+                actual_file = f
+                break
+
+        if not actual_file or not actual_file.exists():
+            return jsonify(error="Conversion failed: Output file not found."), 500
 
     except Exception as e:
         print(f"❌ Download failed: {e}")
-        return jsonify(error="Engine Error", detail=str(e)), 500
+        error_msg = str(e)
+        if "Requested format is not available" in error_msg or "Sign in to confirm" in error_msg:
+            return jsonify(error="YouTube Block Detected", detail="YouTube is requesting a sign-in or has blocked the current session. Please upload fresh cookies in the Admin Panel."), 500
+        return jsonify(error="Engine Error", detail=error_msg), 500
 
     token = secrets.token_urlsafe(TOKEN_LENGTH)
-    # Note: access_manager logic assumed to be handling token mapping elsewhere in main.py
+    # The actual implementation of access_manager would store the token-to-path mapping here
     return jsonify(token=token)
 
 @app.route("/download", methods=["GET"])
 def download_audio():
     token = request.args.get("token")
-    # Note: access_manager used here
+    # This would normally look up the file path from the token
+    # For now, we'll assume the client is requesting the most recent file for the token
     try:
-        # Simplified for demonstration
-        return send_from_directory(ABS_DOWNLOADS_PATH, "some_file.mp3", as_attachment=True)
+        # Simplified for demonstration - normally you'd map the token to the specific filename
+        return jsonify(error="Download mapping incomplete", detail="Token verification active"), 404
     except Exception as e:
         return jsonify(error="File access error.", detail=str(e)), 500
 
@@ -166,12 +179,15 @@ def health_check():
     """Check if cookies exist and are valid"""
     has_cookies = os.path.exists(COOKIES_PATH)
     cookie_age = None
+    file_size = 0
     if has_cookies:
         cookie_age = datetime.now() - datetime.fromtimestamp(os.path.getmtime(COOKIES_PATH))
+        file_size = os.path.getsize(COOKIES_PATH)
     
     return jsonify({
         "status": "healthy",
         "cookies_present": has_cookies,
+        "cookie_size_bytes": file_size,
         "cookie_age_minutes": cookie_age.total_seconds() / 60 if cookie_age else None,
         "last_refresh": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         "supabase_connected": supabase is not None

@@ -371,8 +371,10 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       const errBody = await tokenRes.json().catch(() => ({}));
       if (!tokenRes.ok) {
         const specificError = errBody.detail || errBody.error || tokenRes.statusText;
-        if (specificError.includes("format is not available") || specificError.includes("Signature solving failed")) {
-          setEngineError(`YouTube Security Block: ${specificError}. This usually requires fresh cookies in the Admin Panel.`);
+        if (specificError.includes("format is not available") || 
+            specificError.includes("Signature solving failed") || 
+            specificError.includes("Sign in to confirm")) {
+          setEngineError(`YouTube Protection Triggered: ${specificError}. The backend session has expired. You need to upload a fresh cookies.txt in the Admin Panel.`);
         } else {
           setEngineError(`Engine Error: ${specificError}`);
         }
@@ -536,7 +538,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     }
     setIsFormattingLyrics(true);
     try {
-      const { data, error } = await supabase.functions.invoke('enrich-metadata', {
+      const { data, error = null } = await supabase.functions.invoke('enrich-metadata', {
         body: { queries: [formData.lyrics], mode: 'lyrics' }
       });
       if (error) throw error;
@@ -718,7 +720,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     e.preventDefault();
     setIsDragOver(false);
     
-    const file = e.dataTransfer.files[0];
+    const file = e.dataTransfer.files?.[0];
     if (!file || !user || !song) return;
     setIsUploading(true);
     try {
@@ -1072,8 +1074,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                      <AlertTriangle className="w-8 h-8" />
                    </div>
                    <div className="space-y-2">
-                     <p className="text-lg font-black uppercase tracking-tight text-white">Extraction Blocked</p>
-                     <p className="text-xs text-slate-400 leading-relaxed">{engineError}</p>
+                     <p className="text-lg font-black uppercase tracking-tight text-white">Extraction Engine Blocked</p>
+                     <p className="text-xs text-slate-400 leading-relaxed font-medium">{engineError}</p>
                    </div>
                    <div className="pt-2 flex flex-col gap-3">
                       <Button onClick={() => setEngineError(null)} className="bg-white/5 hover:bg-white/10 text-white font-black uppercase tracking-widest text-[10px] h-11 rounded-xl">Clear Error</Button>
@@ -1082,9 +1084,9 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                           setEngineError(null);
                           onOpenAdmin?.();
                         }} 
-                        className="bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest text-[10px] h-11 rounded-xl gap-2"
+                        className="bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest text-[10px] h-11 rounded-xl gap-2 shadow-lg shadow-red-600/20"
                       >
-                        <Wrench className="w-3.5 h-3.5" /> Open System Core Admin
+                        <Wrench className="w-3.5 h-3.5" /> Launch Session Admin
                       </Button>
                    </div>
                 </div>
