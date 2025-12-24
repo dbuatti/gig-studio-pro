@@ -30,7 +30,10 @@ import {
   Wrench,
   Filter,
   Trash2,
-  FileWarning
+  FileWarning,
+  Upload,
+  FileText,
+  Download
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
@@ -48,6 +51,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   const [isRepairing, setIsRepairing] = useState(false);
   const [isWiping, setIsWiping] = useState(false);
   const [isCheckingHealth, setIsCheckingHealth] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
   const [healthStatus, setHealthStatus] = useState<'online' | 'offline' | 'error' | null>(null);
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [lastError, setLastError] = useState<any>(null);
@@ -75,7 +79,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   const handleRepairBackend = async () => {
     setIsRepairing(true);
     try {
-      // Force an update to yt-dlp on the backend
       const requirements = `flask\nflask-cors\nyt-dlp>=2025.01.15\ngunicorn\n`;
       const { error } = await supabase.functions.invoke('github-file-sync', {
         body: { 
@@ -86,7 +89,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         }
       });
       if (error) throw error;
-      showSuccess("Repair initiated. Backend is rebuilding with latest security patches.");
+      showSuccess("Repair initiated. Backend is rebuilding.");
     } catch (err: any) {
       showError("Repair failed to reach GitHub.");
     } finally {
@@ -120,12 +123,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     const lines = raw.split('\n');
     const header = "# Netscape HTTP Cookie File";
     
-    // Strict reconstruction of the 7 Netscape columns
     const filteredLines = lines.map(line => {
       const l = line.trim();
       if (!l || l.startsWith('#')) return null;
       
-      // Some exporters use spaces instead of tabs, which breaks yt-dlp
       const parts = l.split(/\s+/);
       if (parts.length < 7) return null;
 
@@ -143,16 +144,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     return `${header}\n# Reconstructed for 2025 Security Bypassing\n\n${filteredLines.join('\n')}\n`;
   };
 
-  const handleRefreshCookies = async () => {
-    if (!cookieText.trim()) {
-      showError("Paste your Netscape cookies buffer first.");
+  const handleRefreshCookies = async (customText?: string) => {
+    const textToSync = customText || cookieText;
+    if (!textToSync.trim()) {
+      showError("No cookie data provided.");
       return;
     }
 
     setIsRefreshing(true);
     setLastError(null);
     
-    const formattedContent = formatAndFilterCookies(cookieText);
+    const formattedContent = formatAndFilterCookies(textToSync);
 
     try {
       const { error } = await supabase.functions.invoke('github-file-sync', {
@@ -160,7 +162,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
           path: 'cookies.txt',
           content: formattedContent,
           repo: 'dbuatti/yt-audio-api',
-          message: 'Strict Reconstructed Cookie Sync'
+          message: 'Fast Sync: Netscape Reconstruction'
         }
       });
 
@@ -173,13 +175,30 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
       const timestamp = new Date().toLocaleString();
       setLastSync(timestamp);
       localStorage.setItem('gig_admin_last_sync', timestamp);
-      showSuccess("Strict cookies synced! Render build triggered.");
+      showSuccess("Engine re-authorized! Build triggered.");
       setCookieText("");
     } catch (err: any) {
       setLastError(err);
       showError(`Sync Failed: ${err.message}`);
     } finally {
       setIsRefreshing(false);
+    }
+  };
+
+  const handleFileDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    
+    const file = e.dataTransfer.files[0];
+    if (file && file.name.endsWith('.txt')) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const content = event.target?.result as string;
+        handleRefreshCookies(content);
+      };
+      reader.readAsText(file);
+    } else {
+      showError("Invalid file. Drop a .txt cookie file.");
     }
   };
 
@@ -215,15 +234,64 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                       <Activity className="w-4 h-4" />
                       <span className="text-[10px] font-black uppercase tracking-widest">Engine Status</span>
                     </div>
-                    {isCheckingHealth ? <Loader2 className="w-3 h-3 animate-spin text-indigo-500" /> : <button onClick={checkHealth} className="text-[9px] font-black text-indigo-400 hover:text-white uppercase">Refresh</button>}
+                    <button onClick={checkHealth} className="text-[9px] font-black text-indigo-400 hover:text-white uppercase">Refresh</button>
                   </div>
                   <div className="flex items-center gap-2">
                     {healthStatus === 'online' ? <Wifi className="w-4 h-4 text-emerald-500" /> : <WifiOff className="w-4 h-4 text-red-500" />}
                     <span className={cn("text-xs font-black uppercase", healthStatus === 'online' ? "text-emerald-500" : "text-red-500")}>
-                      {healthStatus === 'online' ? "Live & Ready" : healthStatus === 'offline' ? "Engine Error (500)" : healthStatus === 'error' ? "Unreachable" : "Standby"}
+                      {healthStatus === 'online' ? "Live & Ready" : "System Blocked"}
                     </span>
                   </div>
                </div>
+            </div>
+
+            <div 
+              onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+              onDragLeave={() => setIsDragOver(false)}
+              onDrop={handleFileDrop}
+              className={cn(
+                "relative group border-2 border-dashed rounded-[2rem] p-10 flex flex-col items-center justify-center text-center transition-all duration-500",
+                isDragOver ? "bg-indigo-600/20 border-indigo-500 scale-[0.98]" : "bg-white/5 border-white/10 hover:border-white/20"
+              )}
+            >
+              <div className={cn(
+                "w-20 h-20 rounded-3xl flex items-center justify-center mb-6 transition-transform duration-500",
+                isDragOver ? "bg-indigo-600 text-white scale-110" : "bg-slate-900 text-slate-500 group-hover:scale-105"
+              )}>
+                {isRefreshing ? <Loader2 className="w-10 h-10 animate-spin" /> : isDragOver ? <Download className="w-10 h-10" /> : <Upload className="w-10 h-10" />}
+              </div>
+              <h4 className="text-xl font-black uppercase tracking-tight mb-2">Drop Cookie File</h4>
+              <p className="text-slate-500 text-xs font-medium max-w-xs leading-relaxed">
+                Export <code className="bg-white/5 px-1.5 py-0.5 rounded text-indigo-400">cookies.txt</code> from YouTube and drop it here to re-authorize the engine instantly.
+              </p>
+              {isRefreshing && (
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-[2rem] flex flex-col items-center justify-center gap-4 animate-in fade-in">
+                  <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" />
+                  <p className="text-xs font-black uppercase tracking-widest text-white">Syncing to Cloud Engine...</p>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-indigo-400" />
+                  <span className="text-xs font-black uppercase tracking-widest">Manual Buffer Sync</span>
+                </div>
+              </div>
+              <Textarea 
+                placeholder="# Netscape HTTP Cookie File..." 
+                className="min-h-[150px] font-mono text-[10px] bg-black/40 border-white/5 focus-visible:ring-indigo-500 rounded-xl p-4 shadow-inner resize-none"
+                value={cookieText}
+                onChange={(e) => setCookieText(e.target.value)}
+              />
+              <Button 
+                onClick={() => handleRefreshCookies()} 
+                disabled={isRefreshing || !cookieText.trim()}
+                className="w-full bg-white/5 hover:bg-white/10 text-white font-black uppercase tracking-widest text-[10px] h-10 rounded-xl border border-white/10"
+              >
+                Sync Manual Buffer
+              </Button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -253,7 +321,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                     </div>
                     <div>
                       <p className="text-sm font-black uppercase tracking-tight text-white">Wipe Credentials</p>
-                      <p className="text-[9px] text-red-300 font-medium uppercase mt-0.5">Delete malformed cookies</p>
+                      <p className="text-[9px] text-red-300 font-medium uppercase mt-0.5">Clear local session</p>
                     </div>
                 </div>
                 <Button 
@@ -262,65 +330,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                   disabled={isWiping}
                   className="w-full bg-red-600/10 hover:bg-red-600 text-red-400 hover:text-white h-10 px-6 font-black uppercase tracking-widest text-[9px] rounded-xl border border-red-600/20"
                 >
-                  {isWiping ? <Loader2 className="w-4 h-4 animate-spin" /> : "Wipe cookies.txt"}
+                  {isWiping ? <Loader2 className="w-4 h-4 animate-spin" /> : "Wipe Configuration"}
                 </Button>
               </div>
-            </div>
-
-            {lastError && (
-              <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-6 space-y-3">
-                <div className="flex items-center gap-2 text-red-400">
-                  <AlertTriangle className="w-4 h-4" />
-                  <span className="text-xs font-black uppercase tracking-widest">Critical Trace</span>
-                </div>
-                <pre className="text-[9px] font-mono bg-black/40 p-4 rounded-xl overflow-x-auto text-red-200/70 border border-red-500/10">
-                  {JSON.stringify(lastError, null, 2)}
-                </pre>
-              </div>
-            )}
-
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Github className="w-5 h-5 text-indigo-400" />
-                  <span className="text-xs font-black uppercase tracking-widest">Cookie Matrix</span>
-                </div>
-                <Button variant="ghost" size="sm" onClick={() => window.open(API_BASE, '_blank')} className="h-8 px-3 text-[9px] font-black uppercase text-indigo-400 hover:bg-white/5">
-                   Verify Node <ExternalLink className="w-3 h-3 ml-2" />
-                </Button>
-              </div>
-              
-              <div className="space-y-3">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Netscape Stream (Paste Full Buffer)</label>
-                <Textarea 
-                  placeholder="# Netscape HTTP Cookie File..." 
-                  className="min-h-[200px] font-mono text-[10px] bg-black/40 border-white/5 focus-visible:ring-indigo-500 rounded-xl p-4 shadow-inner resize-none"
-                  value={cookieText}
-                  onChange={(e) => setCookieText(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4 p-5 bg-indigo-500/10 rounded-2xl border border-indigo-500/20">
-               <FileWarning className="w-6 h-6 text-indigo-400 shrink-0 mt-0.5" />
-               <div className="space-y-1">
-                 <p className="text-xs font-black uppercase text-indigo-300">Structural Column Recovery</p>
-                 <p className="text-[10px] text-indigo-400/80 leading-relaxed">The engine will now strictly reconstruct the 7 required Netscape columns and force tab-separation. This fixes the 'js_runtimes' crash caused by spaces in the source buffer.</p>
-               </div>
             </div>
           </div>
         </ScrollArea>
 
         <div className="p-8 bg-slate-900 border-t border-white/5 flex gap-4">
-          <Button variant="ghost" onClick={onClose} className="flex-1 font-black uppercase tracking-widest text-[10px] h-12 rounded-xl">Discard</Button>
-          <Button 
-            onClick={handleRefreshCookies} 
-            disabled={isRefreshing || !cookieText.trim()}
-            className="flex-[2] bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-[0.2em] text-[10px] h-12 rounded-xl shadow-xl shadow-indigo-600/20 gap-3"
-          >
-            {isRefreshing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-            Reconstruct & Sync
-          </Button>
+          <Button variant="ghost" onClick={onClose} className="w-full font-black uppercase tracking-widest text-[10px] h-12 rounded-xl">Close System Core</Button>
         </div>
       </DialogContent>
     </Dialog>
