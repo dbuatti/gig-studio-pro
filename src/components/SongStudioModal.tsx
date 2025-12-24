@@ -547,69 +547,70 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     setIsSearchingYoutube(true);
     setYtResults([]);
     
-    // Resilient Discovery Matrix: Multiple proxies and instances
+    // Discovery Logic 2.0: Resilient Proxy Matrix
     const proxies = [
-      "https://corsproxy.io/?",
-      "https://api.allorigins.win/get?url="
+      "https://api.allorigins.win/get?url=",
+      "https://api.codetabs.com/v1/proxy?quest="
     ];
 
     const instances = [
-      'https://invidious.namazso.eu',
-      'https://invidious.snopyta.org',
-      'https://iv.ggtyler.dev',
-      'https://inv.vern.cc'
+      'https://invidious.projectsegfau.lt',
+      'https://invidious.privacydev.net',
+      'https://invidious.perennialte.ch',
+      'https://iv.ggtyler.dev'
     ];
 
     let success = false;
-    
+    const artistClean = (formData.artist || "").replace(/[&]/g, 'and');
+    const nameClean = (formData.name || "").replace(/[&]/g, 'and');
+    const finalSearchTerm = `${artistClean} ${nameClean} official music video`.replace(/\s+/g, '%20');
+
     for (const proxy of proxies) {
       if (success) break;
       for (const instance of instances) {
         if (success) break;
         try {
-          const queryParams = `q=${encodeURIComponent(searchTerm)}&type=video`;
-          const targetUrl = `${instance}/api/v1/search?${queryParams}`;
+          const targetUrl = `${instance}/api/v1/search?q=${finalSearchTerm}&type=video`;
+          const fetchUrl = `${proxy}${encodeURIComponent(targetUrl)}`;
           
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 3500);
+          const timeoutId = setTimeout(() => controller.abort(), 4500);
 
-          // Construct proxy URL - handling AllOrigins specific response wrap
-          const fullUrl = proxy.includes('allorigins') ? `${proxy}${encodeURIComponent(targetUrl)}` : `${proxy}${targetUrl}`;
-          
-          const response = await fetch(fullUrl, { signal: controller.signal });
+          const response = await fetch(fetchUrl, { signal: controller.signal });
           clearTimeout(timeoutId);
 
           if (!response.ok) continue;
           
           const rawData = await response.json();
-          // Unwrap AllOrigins if needed
-          const data = rawData.contents ? JSON.parse(rawData.contents) : rawData;
+          // Unwrap AllOrigins wrap if detected
+          const data = typeof rawData.contents === 'string' ? JSON.parse(rawData.contents) : (rawData.contents || rawData);
           
           if (data && Array.isArray(data) && data.length > 0) {
             const sanitizedResults = data.slice(0, 10);
             setYtResults(sanitizedResults);
             
-            // Auto-link priority result if visual engine is currently standby
             if (!formData.youtubeUrl) {
               handleSelectYoutubeVideo(`https://www.youtube.com/watch?v=${sanitizedResults[0].videoId}`);
-              showSuccess(`Auto-Loaded: ${sanitizedResults[0].title}`);
             }
             success = true;
           }
         } catch (err) {
-          console.warn(`Discovery attempt via ${instance} failed...`);
+          console.warn(`[Discovery Matrix] Instance ${instance} failed...`);
         }
       }
     }
 
-    if (!success) showError("Discovery matrix unstable. Use manual link.");
+    if (!success) {
+      showError("Auto-Discovery offline. Initiating Manual Search...");
+      window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(`${formData.artist} ${formData.name} official video`)}`, '_blank');
+    } else {
+      showSuccess("Engine Linked to Global Index");
+    }
     setIsSearchingYoutube(false);
   };
 
   const handleYoutubeSearch = () => {
-    const artist = (formData.artist || "").replace(/&/g, 'and'); // Clean for proxy
-    const name = (formData.name || "").replace(/&/g, 'and');
-    const query = `${artist} ${name} official music video`;
+    const query = `${formData.artist} ${formData.name} official music video`;
     performYoutubeDiscovery(query);
   };
 
