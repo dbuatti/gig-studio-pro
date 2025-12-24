@@ -84,10 +84,9 @@ def handle_audio_request():
     output_filename = f"{unique_id}.mp3"
     output_template = str(ABS_DOWNLOADS_PATH / unique_id)
 
-    # HARDENED Engine strategy for bypassing "Format Not Available" masks
+    # REFINED Strategy for restricted VEVO/Major Label tracks
     ydl_opts = {
-        # 'bestaudio/best' is more inclusive than 'ba/b' when dealing with restricted streams
-        'format': 'bestaudio/best', 
+        'format': 'bestaudio/best',
         'outtmpl': f"{output_template}.%(ext)s",
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
@@ -95,9 +94,10 @@ def handle_audio_request():
             'preferredquality': '192',
         }],
         'cookiefile': COOKIES_PATH if (os.path.exists(COOKIES_PATH) and os.path.getsize(COOKIES_PATH) > 10) else None,
-        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+        # Forcing IPv4 to bypass cloud-IP range blocks
+        'source_address': '0.0.0.0', 
+        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
         'referer': 'https://www.youtube.com/',
-        'quiet': False,
         'nocheckcertificate': True,
         'ignoreerrors': False,
         'noplaylist': True,
@@ -107,8 +107,8 @@ def handle_audio_request():
         'youtube_include_hls_manifest': True,
         'extractor_args': {
             'youtube': {
-                # Priortizing 'mweb' which is currently more stable for audio-only extraction
-                'player_client': ['mweb', 'ios', 'web', 'android'],
+                # Focusing on web-based clients that respect the cookies uploaded
+                'player_client': ['web', 'mweb'],
                 'player_skip': ['configs', 'web_extract_initial_data']
             }
         }
@@ -122,7 +122,7 @@ def handle_audio_request():
         if not actual_file.exists():
             potential_files = list(ABS_DOWNLOADS_PATH.glob(f"{unique_id}.*"))
             if not potential_files:
-                return jsonify(error="Extraction Failed", detail="The stream format was restricted or rejected by the source."), 500
+                return jsonify(error="Extraction Blocked", detail="YouTube is currently hiding audio streams for this track. Your cookies may be invalid."), 500
             actual_file = potential_files[0]
 
         token = secrets.token_urlsafe(TOKEN_LENGTH)
@@ -134,9 +134,9 @@ def handle_audio_request():
         user_error = "Engine Error"
         
         if "format is not available" in error_msg.lower():
-            user_error = "Format Negotiation Failed. Your cookie session may be partially restricted or mismatched with the server IP."
+            user_error = "Format Request Denied. YouTube has restricted this specific track from server-side access."
         elif "Sign in to confirm" in error_msg or "403" in error_msg:
-            user_error = "Bot detection triggered. Fresh cookies are required."
+            user_error = "Bot detection triggered. Fresh cookies are required via Incognito Protocol."
             
         return jsonify(error=user_error, detail=error_msg), 500
 
