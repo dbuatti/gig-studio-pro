@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import * as Tone from 'tone';
+import React, { useState, useEffect, useRef } from 'react';
 import AudioTransposer, { AudioTransposerRef } from "@/components/AudioTransposer";
 import SetlistManager, { SetlistSong } from "@/components/SetlistManager";
 import SetlistSelector from "@/components/SetlistSelector";
@@ -16,7 +15,7 @@ import { calculateSemitones } from '@/utils/keyUtils';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { User as UserIcon, Loader2, Play, LayoutDashboard, Search as SearchIcon, Rocket, Settings, Sparkles, Clock, ShieldCheck, Music } from 'lucide-react';
+import { User as UserIcon, Loader2, Play, LayoutDashboard, Search as SearchIcon, Rocket, Settings, Clock, ShieldCheck, Music } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { useSettings } from '@/hooks/use-settings';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -323,7 +322,7 @@ const Index = () => {
         const aiData = data.find((d: any) => d.name.toLowerCase() === s.name.toLowerCase());
         if (aiData) {
           const targetKey = aiData.originalKey || s.originalKey;
-          const updated = { ...s, originalKey: aiData.originalKey, targetKey, bpm: aiData.bpm?.toString(), genre: aiData.genre || s.genre, ugUrl: aiData.ugUrl || s.ugUrl, isMetadataConfirmed: true, isSyncing: false };
+          const updated = { ...s, originalKey: aiData.originalKey, targetKey, bpm: aiData.bpm?.toString(), genre: aiData.genre || s.genre, youtubeUrl: aiData.youtubeUrl || s.youtubeUrl, isMetadataConfirmed: true, isSyncing: false };
           syncedSongs.push(updated);
           return updated;
         }
@@ -331,6 +330,24 @@ const Index = () => {
       });
       saveList(currentListId, updatedSongs, {}, syncedSongs);
     } catch (err) {}
+  };
+
+  const handleAutoLinkMissingMedia = async () => {
+    const missingMedia = songs.filter(s => !s.youtubeUrl);
+    if (missingMedia.length === 0) {
+      showSuccess("All tracks have linked media");
+      return;
+    }
+
+    showSuccess(`AI Engine: Analyzing ${missingMedia.length} tracks...`);
+    
+    // Process in batches of 5 to avoid timeouts
+    for (let i = 0; i < missingMedia.length; i += 5) {
+      const batch = missingMedia.slice(i, i + 5);
+      await handleBatchSyncInternal(batch);
+    }
+    
+    showSuccess("Auto-link process complete");
   };
 
   return (
@@ -399,7 +416,12 @@ const Index = () => {
                 setSyncQueue(prev => [...prev, ...songsWithSync.map(s => s.id)]);
               }} />
             </div>
-            <SetlistStats songs={songs} goalSeconds={currentList?.time_goal} onUpdateGoal={(s) => currentListId && saveList(currentListId, songs, { time_goal: s }, undefined)} />
+            <SetlistStats 
+              songs={songs} 
+              goalSeconds={currentList?.time_goal} 
+              onUpdateGoal={(s) => currentListId && saveList(currentListId, songs, { time_goal: s }, undefined)} 
+              onAutoLink={handleAutoLinkMissingMedia}
+            />
             <SetlistManager songs={songs} onRemove={(id) => currentListId && saveList(currentListId, songs.filter(s => s.id !== id), {}, undefined)} onSelect={handleSelectSong} onUpdateKey={handleUpdateKey} onTogglePlayed={handleTogglePlayed} onSyncProData={async (s) => setSyncQueue(p => [...new Set([...p, s.id])])} onLinkAudio={(n) => { setIsStudioOpen(true); transposerRef.current?.triggerSearch(n); }} onUpdateSong={handleUpdateSong} onReorder={(ns) => currentListId && saveList(currentListId, ns, {}, undefined)} currentSongId={activeSongId || undefined} />
           </div>
           <MadeWithDyad />

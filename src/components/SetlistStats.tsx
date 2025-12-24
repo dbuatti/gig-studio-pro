@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { SetlistSong } from './SetlistManager';
-import { Clock, Music, CheckCircle2, BarChart3, PieChart, Tag, Target, ChevronRight } from 'lucide-react';
+import { Clock, Music, Target, PieChart, BarChart3 } from 'lucide-react';
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { Input } from './ui/input';
@@ -12,12 +12,12 @@ interface SetlistStatsProps {
   songs: SetlistSong[];
   goalSeconds?: number;
   onUpdateGoal?: (seconds: number) => void;
+  onAutoLink?: () => Promise<void>;
 }
 
-const SetlistStats: React.FC<SetlistStatsProps> = ({ songs, goalSeconds = 7200, onUpdateGoal }) => {
+const SetlistStats: React.FC<SetlistStatsProps> = ({ songs, goalSeconds = 7200, onUpdateGoal, onAutoLink }) => {
   const [isEditingGoal, setIsEditingGoal] = useState(false);
   const totalSongs = songs.length;
-  const playedSongs = songs.filter(s => s.isPlayed).length;
   
   // Only count songs that have "Ready" audio (not an iTunes sample)
   const totalSeconds = songs.reduce((acc, song) => {
@@ -125,7 +125,7 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({ songs, goalSeconds = 7200, 
           </div>
         </div>
 
-        <SetlistExporter songs={songs} />
+        <SetlistExporter songs={songs} onAutoLink={onAutoLink} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

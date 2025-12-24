@@ -29,7 +29,9 @@ serve(async (req) => {
       prompt = `Act as a professional stage manager. Format these lyrics with double newlines between verses and proper punctuation for stage reading. Return ONLY a JSON object: {"lyrics": "formatted_lyrics_here"}. Lyrics: ${queries[0]}`;
     } else {
       const songsList = Array.isArray(queries) ? queries : [queries];
-      prompt = `Act as a professional music librarian. For these songs, return a JSON array of objects. Each object: {"name": "title", "artist": "primary artist", "originalKey": "standard key (C, F#m, etc)", "bpm": number, "genre": "genre", "isMetadataConfirmed": true}. CRITICAL: Do NOT return any URLs or links. Songs: ${songsList.join('\n')}. Return ONLY the JSON array. No markdown.`;
+      prompt = `Act as a professional music librarian. For these songs, return a JSON array of objects. Each object MUST include: {"name": "title", "artist": "primary artist", "originalKey": "standard key (C, F#m, etc)", "bpm": number, "genre": "genre", "youtubeUrl": "direct link to official music video or high quality audio on youtube", "isMetadataConfirmed": true}. 
+      Songs: ${songsList.join('\n')}. 
+      Return ONLY the JSON array. No markdown.`;
     }
 
     let lastError = null;

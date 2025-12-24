@@ -1,29 +1,30 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { SetlistSong } from './SetlistManager';
-import { ClipboardCopy, Youtube, ListMusic, Check } from 'lucide-react';
+import { ClipboardCopy, Youtube, ListMusic, Sparkles, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { showSuccess, showError } from '@/utils/toast';
 
 interface SetlistExporterProps {
   songs: SetlistSong[];
+  onAutoLink?: () => Promise<void>;
 }
 
-const SetlistExporter: React.FC<SetlistExporterProps> = ({ songs }) => {
-  const copyMissingMediaList = () => {
-    const missing = songs
-      .filter(s => !s.youtubeUrl)
-      .map(s => `${s.name} - ${s.artist || "Unknown"}`)
-      .join(", ");
+const SetlistExporter: React.FC<SetlistExporterProps> = ({ songs, onAutoLink }) => {
+  const [isLinking, setIsLinking] = useState(false);
 
-    if (!missing) {
-      showSuccess("All songs have media links!");
-      return;
+  const handleAutoLink = async () => {
+    if (!onAutoLink) return;
+    
+    setIsLinking(true);
+    try {
+      await onAutoLink();
+    } catch (err) {
+      showError("Auto-link engine failed");
+    } finally {
+      setIsLinking(false);
     }
-
-    navigator.clipboard.writeText(missing);
-    showSuccess("Copied missing media list to clipboard");
   };
 
   const copyAllYoutubeLinks = () => {
@@ -41,6 +42,8 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({ songs }) => {
     showSuccess("Copied all YouTube links to clipboard");
   };
 
+  const missingCount = songs.filter(s => !s.youtubeUrl).length;
+
   return (
     <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border shadow-sm flex flex-col justify-center gap-4 transition-transform hover:scale-[1.02]">
       <div className="flex items-center gap-3 mb-1">
@@ -54,10 +57,17 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({ songs }) => {
         <Button 
           variant="ghost" 
           size="sm" 
-          onClick={copyMissingMediaList}
-          className="h-9 justify-start text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl gap-3"
+          onClick={handleAutoLink}
+          disabled={isLinking || missingCount === 0}
+          className="h-9 justify-start text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:bg-indigo-50 rounded-xl gap-3 relative overflow-hidden"
         >
-          <ListMusic className="w-4 h-4" /> Sync Buffer (Missing YT)
+          {isLinking ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Sparkles className="w-4 h-4" />
+          )}
+          AI Auto-Link ({missingCount} Missing)
+          {isLinking && <div className="absolute inset-0 bg-indigo-500/10 animate-pulse" />}
         </Button>
         <Button 
           variant="ghost" 
