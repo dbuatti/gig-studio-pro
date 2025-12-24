@@ -33,6 +33,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
   const [ytApiKey, setYtApiKey] = useState("");
   const [isSearchingYoutube, setIsSearchingYoutube] = useState(false);
   const [ytResults, setYtResults] = useState<any[]>([]);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const currentVideoId = useMemo(() => {
     if (!formData.youtubeUrl) return null;
@@ -171,66 +172,57 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
 
   const handleClearYoutubeSelection = () => {
     handleAutoSave({ youtubeUrl: "" });
-    setYtResults([]); // Clear results when selection is cleared
+    setYtResults([]);
   };
 
-  // NEW: Logic to download audio from the Render API
-  const handleDownloadFromRender = async () => {
+  // UPDATED: Logic to download audio via Supabase Edge Function
+  const handleDownloadViaSupabase = async () => {
     if (!formData.youtubeUrl) {
       showError("Please link a YouTube URL first.");
       return;
     }
 
-    // Show loading state in the UI (you might want to add a specific state for this)
-    setIsSearchingYoutube(true); 
-    
-    const renderUrl = "https://yt-audio-api-2fxp.onrender.com";
-    const fullUrl = `${renderUrl}/?url=${encodeURIComponent(formData.youtubeUrl)}`;
+    setIsDownloading(true);
 
     try {
-      // Step 1: Get Token
-      const tokenResponse = await fetch(fullUrl);
-      if (!tokenResponse.ok) throw new Error("Failed to get token");
-      
-      const { token } = await tokenResponse.json();
-      showSuccess("Token received. Downloading...");
-      
-      // Step 2: Poll for download
-      const downloadUrl = `${renderUrl}/download?token=${token}`;
-      
-      // We can't fetch the binary file directly into the browser state easily without a download prompt.
-      // So we will open the download URL in a new tab, which triggers the browser download.
-      // However, the API returns JSON if processing, so we need to handle that.
-      
-      const checkDownload = async () => {
-        const res = await fetch(downloadUrl);
-        if (res.status === 202) {
-          // Still processing, wait and try again
-          setTimeout(checkDownload, 2000);
-        } else if (res.ok) {
-          // Success - create a link to trigger download
-          const blob = await res.blob();
-          const blobUrl = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = blobUrl;
-          a.download = `${formData.name || 'audio'}.mp3`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          window.URL.revokeObjectURL(blobUrl);
-          showSuccess("Audio downloaded successfully!");
-          setIsSearchingYoutube(false);
+      // Call the Edge Function
+      const { data, error } = await supabase.functions.invoke('download-audio', {
+        body: { videoUrl: formData.youtubeUrl }
+      });
+
+      if (error) throw error;
+
+      // Case 1: The function returned the audio file directly (Buffer)
+      if (data instanceof ArrayBuffer) {
+        const blob = new Blob([data], { type: 'audio/mpeg' });
+        const blobUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = `${formData.name || 'audio'}.mp3`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(blobUrl);
+        showSuccess("Audio downloaded successfully!");
+      } 
+      // Case 2: The function returned a status (processing) or a direct download URL
+      else if (data) {
+        if (data.downloadUrl) {
+          // If the function found the file ready, it returns the direct URL.
+          // We can now fetch it directly or open it.
+          // However, since the Edge Function might have returned the URL because it couldn't proxy the file (size/timeout),
+          // let's try to open it in a new tab to trigger the browser download.
+          window.open(data.downloadUrl, '_blank');
+          showSuccess("Opening download link...");
         } else {
-          throw new Error("Download failed");
+          showSuccess("Request sent. If the file isn't ready immediately, please try again in a few seconds.");
         }
-      };
-
-      // Start polling
-      checkDownload();
-
-    } catch (err) {
-      showError("Render API connection failed. Ensure the service is running.");
-      setIsSearchingYoutube(false);
+      }
+    } catch (err: any) {
+      console.error(err);
+      showError("Download failed. Ensure your Edge Function is deployed and the Render API is active.");
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -249,17 +241,17 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
           <Button
             variant="outline"
             onClick={handleYoutubeSearch}
-            disabled={isSearchingYoutube}
+            disabled={isSearchingYoutube || isDownloading}
             className="bg-red-950/30 border-red-900/50 text-red-500 h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3"
           >
             {isSearchingYoutube ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-4 h-4" />} SEARCH
           </Button>
           <Button
-            onClick={handleDownloadFromRender}
-            disabled={isSearchingYoutube}
+            onClick={handleDownloadViaSupabase}
+            disabled={isSearchingYoutube || isDownloading}
             className="bg-indigo-600 hover:bg-indigo-700 h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3"
           >
-            {isSearchingYoutube ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-4 h-4" />} DOWNLOAD
+            {(isSearchingYoutube || isDownloading) ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-4 h-4" />} DOWNLOAD
           </Button>
         </div>
       </div>
@@ -272,7 +264,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
         />
       )}
 
-      {/* New section for selected video and download links */}
+      {/* Selected Video & Status Section */}
       {formData.youtubeUrl && currentVideoId && (
         <div className="bg-slate-900 border border-white/10 rounded-[2.5rem] p-8 space-y-8 animate-in fade-in duration-500">
           <div className="flex items-center justify-between">
@@ -280,7 +272,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
               <Youtube className="w-6 h-6 text-red-500" />
               <div>
                 <h3 className="text-xl font-black uppercase tracking-tight">Linked YouTube Media</h3>
-                <p className="text-sm text-slate-400">Use the "Download" button above to fetch audio from Render.</p>
+                <p className="text-sm text-slate-400">Use the "Download" button to fetch audio via Supabase Edge Function.</p>
               </div>
             </div>
             <Button 
@@ -296,25 +288,25 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-white/5 rounded-2xl p-6 space-y-4 border border-white/5 flex flex-col justify-between">
               <div>
-                <h4 className="text-sm font-black uppercase tracking-tight text-white mb-2">Render API Status</h4>
-                <p className="text-xs text-slate-400">Ensure your Render service is active and updated with CORS enabled.</p>
+                <h4 className="text-sm font-black uppercase tracking-tight text-white mb-2">Edge Function Status</h4>
+                <p className="text-xs text-slate-400">Ensure you have deployed the `download-audio` function in your Supabase project.</p>
               </div>
               <div className="flex gap-2">
-                 <a href="https://yt-audio-api-2fxp.onrender.com" target="_blank" className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
-                   Check API <ExternalLink className="w-3 h-3" />
+                 <a href="https://supabase.com/dashboard/project/rqesjpnhrjdjnrzdhzgw/functions" target="_blank" className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
+                   Check Functions <ExternalLink className="w-3 h-3" />
                  </a>
               </div>
             </div>
             <div className="bg-white/5 rounded-2xl p-6 space-y-4 border border-white/5 flex flex-col justify-between">
               <div>
-                <h4 className="text-sm font-black uppercase tracking-tight text-white mb-2">Manual Download</h4>
-                <p className="text-xs text-slate-400">If the automated download fails, use the link below.</p>
+                <h4 className="text-sm font-black uppercase tracking-tight text-white mb-2">Manual Fallback</h4>
+                <p className="text-xs text-slate-400">If automated download fails, use the direct Render API link.</p>
               </div>
               <Button 
                 className="w-full bg-red-600 hover:bg-red-700 font-black uppercase tracking-widest text-xs h-12 rounded-xl gap-2"
                 onClick={() => window.open(`https://yt-audio-api-2fxp.onrender.com/?url=${encodeURIComponent(formData.youtubeUrl || '')}`, '_blank')}
               >
-                <ExternalLink className="w-4 h-4" /> Open API Link
+                <ExternalLink className="w-4 h-4" /> Open Render API
               </Button>
             </div>
           </div>
