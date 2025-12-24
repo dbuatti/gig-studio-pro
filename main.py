@@ -9,6 +9,7 @@ import requests
 import threading
 import time
 from datetime import datetime
+from supabase import create_client, Client
 
 app = Flask(__name__)
 CORS(app)
@@ -17,48 +18,51 @@ ABS_DOWNLOADS_PATH = os.environ.get('DOWNLOADS_PATH', '/app/downloads')
 TOKEN_LENGTH = 32
 COOKIES_PATH = '/app/cookies.txt'
 
-# GitHub Configuration
-GITHUB_REPO = "dbuatti/yt-audio-api"
-GITHUB_FILE_PATH = "cookies.txt"
-GITHUB_PAT = os.environ.get('GITHUB_PAT', '')
+# Supabase Configuration
+SUPABASE_URL = os.environ.get('SUPABASE_URL')
+SUPABASE_SERVICE_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+COOKIES_BUCKET = 'cookies'
 
-# Cookie refresh interval (1 hour = 3600 seconds)
-COOKIE_REFRESH_INTERVAL = 3600
+# Initialize Supabase client
+supabase: Client = None
+if SUPABASE_URL and SUPABASE_SERVICE_KEY:
+    supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+    print(f"✅ Supabase client initialized for {SUPABASE_URL}")
+else:
+    print("⚠️  Supabase credentials not found. Cookie fetching disabled.")
 
-def fetch_cookies_from_github():
-    """Fetch cookies.txt from GitHub"""
-    if not GITHUB_PAT:
-        print("⚠️  GITHUB_PAT not set. Skipping cookie fetch.")
+def fetch_cookies_from_supabase():
+    """Fetch cookies.txt from Supabase Storage"""
+    if not supabase:
+        print("❌ Supabase client not initialized")
         return False
     
     try:
-        url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_FILE_PATH}"
-        headers = {
-            'Authorization': f'Bearer {GITHUB_PAT}',
-            'Accept': 'application/vnd.github.v3+json'
-        }
+        # Check if bucket exists
+        buckets = supabase.storage.list_buckets()
+        bucket_exists = any(b.name == COOKIES_BUCKET for b in buckets)
         
-        response = requests.get(url, headers=headers)
-        
-        if response.status_code == 200:
-            data = response.json()
-            content = requests.get(data['download_url']).text
-            
-            with open(COOKIES_PATH, 'w') as f:
-                f.write(content)
-            
-            print(f"✅ Cookies fetched successfully at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-            print(f"   File size: {len(content)} bytes")
-            return True
-        elif response.status_code == 404:
-            print("⚠️  cookies.txt not found in GitHub repo.")
+        if not bucket_exists:
+            print(f"❌ Bucket '{COOKIES_BUCKET}' not found")
             return False
+        
+        # Download cookies.txt
+        cookies_data = supabase.storage.from_(COOKIES_BUCKET).download('cookies.txt')
+        
+        if cookies_data:
+            with open(COOKIES_PATH, 'wb') as f:
+                f.write(cookies_data)
+            
+            file_size = len(cookies_data)
+            print(f"✅ Cookies fetched from Supabase at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"   File size: {file_size} bytes")
+            return True
         else:
-            print(f"❌ GitHub API Error: {response.status_code} - {response.text}")
+            print("❌ No cookies data received from Supabase")
             return False
             
     except Exception as e:
-        print(f"❌ Failed to fetch cookies: {e}")
+        print(f"❌ Failed to fetch cookies from Supabase: {e}")
         return False
 
 def check_cookies_valid():
@@ -79,16 +83,16 @@ def cookie_refresh_worker():
     """Background thread that refreshes cookies every hour"""
     while True:
         print("🔄 Starting scheduled cookie refresh...")
-        fetch_cookies_from_github()
-        time.sleep(COOKIE_REFRESH_INTERVAL)
+        fetch_cookies_from_supabase()
+        time.sleep(3600)  # 1 hour
 
 # Start background thread when app launches
-if GITHUB_PAT:
+if supabase:
     print("🚀 Starting automatic cookie refresh service...")
     refresh_thread = threading.Thread(target=cookie_refresh_worker, daemon=True)
     refresh_thread.start()
 else:
-    print("⚠️  No GITHUB_PAT configured. Automatic refresh disabled.")
+    print("⚠️  Supabase not configured. Automatic refresh disabled.")
 
 @app.route("/", methods=["GET"])
 def handle_audio_request():
@@ -101,10 +105,10 @@ def handle_audio_request():
     # Check cookies before attempting download
     if not check_cookies_valid():
         print("⚠️  Cookies invalid, attempting to fetch...")
-        fetch_cookies_from_github()
+        fetch_cookies_from_supabase()
         
         if not check_cookies_valid():
-            return jsonify(error="Engine Error", detail="No valid cookies available. Please check GitHub configuration."), 500
+            return jsonify(error="Engine Error", detail="No valid cookies available. Please upload cookies via Admin Panel."), 500
 
     filename = f"{uuid4()}.mp3"
     downloads_path = Path(ABS_DOWNLOADS_PATH)
@@ -121,8 +125,6 @@ def handle_audio_request():
         }],
         'quiet': False,
         'cookiefile': COOKIES_PATH,
-        'js_runtimes': {'deno': {'allow_untrusted': True}}, 
-        'remote_components': ['ejs:github'], 
         'noplaylist': True,
         'extractor_args': {
             'youtube': {
@@ -171,13 +173,14 @@ def health_check():
         "status": "healthy",
         "cookies_present": has_cookies,
         "cookie_age_minutes": cookie_age.total_seconds() / 60 if cookie_age else None,
-        "last_refresh": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        "last_refresh": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        "supabase_connected": supabase is not None
     })
 
 @app.route("/refresh-cookies", methods=["POST"])
 def manual_refresh():
     """Manual endpoint to force cookie refresh"""
-    result = fetch_cookies_from_github()
+    result = fetch_cookies_from_supabase()
     if result:
         return jsonify(success=True, message="Cookies refreshed successfully")
     else:
@@ -188,6 +191,6 @@ if __name__ == "__main__":
     
     # Initial fetch on startup
     print("📥 Performing initial cookie fetch...")
-    fetch_cookies_from_github()
+    fetch_cookies_from_supabase()
     
     app.run(host="0.0.0.0", port=port)
