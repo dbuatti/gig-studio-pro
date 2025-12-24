@@ -38,6 +38,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { calculateReadiness } from '@/utils/repertoireSync';
 import { useToneAudio } from '@/hooks/use-tone-audio';
 import { detectKeyFromBuffer, KeyCandidate } from '@/utils/keyDetector';
+import { cleanYoutubeUrl } from '@/utils/youtubeUtils';
 
 // Sub-component for inputs to prevent modal-wide re-renders
 const StudioInput = memo(({ label, value, onChange, placeholder, className, isTextarea = false, type = "text" }: any) => {
@@ -133,6 +134,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) return;
+
       if ((e.metaKey || e.ctrlKey) && !isNaN(Number(e.key))) {
         const index = Number(e.key) - 1;
         if (index >= 0 && index < tabOrder.length) {
@@ -313,12 +316,15 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       return;
     }
 
+    const cleanedUrl = cleanYoutubeUrl(formData.youtubeUrl);
+    console.log(`[ENGINE] Using cleaned YouTube URL: ${cleanedUrl}`);
+
     const apiBase = "https://yt-audio-api-docker.onrender.com"; 
 
     setIsSyncingAudio(true);
     try {
       // Step 1: Initialize extraction and get token directly
-      const tokenUrl = `${apiBase}/?url=${encodeURIComponent(formData.youtubeUrl)}`;
+      const tokenUrl = `${apiBase}/?url=${encodeURIComponent(cleanedUrl)}`;
       const tokenRes = await fetch(tokenUrl);
       
       if (!tokenRes.ok) throw new Error("Could not initialize extraction engine.");
