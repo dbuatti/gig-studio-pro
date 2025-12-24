@@ -175,8 +175,8 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
     setYtResults([]);
   };
 
-  // UPDATED: Logic to download audio via Supabase Edge Function
-  const handleDownloadViaSupabase = async () => {
+  // UPDATED: Logic to download audio via Client-Side Proxy
+  const handleDownloadViaProxy = async () => {
     if (!formData.youtubeUrl) {
       showError("Please link a YouTube URL first.");
       return;
@@ -185,42 +185,49 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
     setIsDownloading(true);
 
     try {
-      // Call the Edge Function
-      const { data, error } = await supabase.functions.invoke('download-audio', {
-        body: { videoUrl: formData.youtubeUrl }
-      });
+      // 1. Get the video ID
+      const videoId = currentVideoId;
+      if (!videoId) throw new Error("Invalid YouTube URL");
 
-      if (error) throw error;
+      // 2. Use a public proxy to fetch the audio
+      // Note: This is a public API and may have rate limits. It's a fallback.
+      const proxyUrl = `https://yt-audio-api-2fxp.onrender.com/?url=${encodeURIComponent(formData.youtubeUrl)}`;
+      
+      // First, get the token
+      const tokenResponse = await fetch(proxyUrl);
+      if (!tokenResponse.ok) throw new Error("Failed to get download token");
+      const { token } = await tokenResponse.json();
 
-      // Case 1: The function returned the audio file directly (Buffer)
-      if (data instanceof ArrayBuffer) {
-        const blob = new Blob([data], { type: 'audio/mpeg' });
-        const blobUrl = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = `${formData.name || 'audio'}.mp3`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(blobUrl);
-        showSuccess("Audio downloaded successfully!");
-      } 
-      // Case 2: The function returned a status (processing) or a direct download URL
-      else if (data) {
-        if (data.downloadUrl) {
-          // If the function found the file ready, it returns the direct URL.
-          // We can now fetch it directly or open it.
-          // However, since the Edge Function might have returned the URL because it couldn't proxy the file (size/timeout),
-          // let's try to open it in a new tab to trigger the browser download.
-          window.open(data.downloadUrl, '_blank');
-          showSuccess("Opening download link...");
-        } else {
-          showSuccess("Request sent. If the file isn't ready immediately, please try again in a few seconds.");
-        }
+      // Wait a moment for processing
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      // Try to download
+      const downloadUrl = `https://yt-audio-api-2fxp.onrender.com/download?token=${token}`;
+      const fileResponse = await fetch(downloadUrl);
+
+      if (fileResponse.status === 202) {
+        // Still processing
+        showError("Audio is still processing. Please try again in a few seconds.");
+        return;
       }
+
+      if (!fileResponse.ok) throw new Error("Download failed");
+
+      // Create a download link
+      const blob = await fileResponse.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = `${formData.name || 'audio'}.mp3`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(blobUrl);
+      showSuccess("Audio downloaded successfully!");
+
     } catch (err: any) {
       console.error(err);
-      showError("Download failed. Ensure your Edge Function is deployed and the Render API is active.");
+      showError(`Download failed: ${err.message}. The Render API might be down or blocked.`);
     } finally {
       setIsDownloading(false);
     }
@@ -247,7 +254,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
             {isSearchingYoutube ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-4 h-4" />} SEARCH
           </Button>
           <Button
-            onClick={handleDownloadViaSupabase}
+            onClick={handleDownloadViaProxy}
             disabled={isSearchingYoutube || isDownloading}
             className="bg-indigo-600 hover:bg-indigo-700 h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3"
           >
@@ -272,7 +279,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
               <Youtube className="w-6 h-6 text-red-500" />
               <div>
                 <h3 className="text-xl font-black uppercase tracking-tight">Linked YouTube Media</h3>
-                <p className="text-sm text-slate-400">Use the "Download" button to fetch audio via Supabase Edge Function.</p>
+                <p className="text-sm text-slate-400">Use the "Download" button to fetch audio via Client Proxy.</p>
               </div>
             </div>
             <Button 
@@ -288,12 +295,12 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-white/5 rounded-2xl p-6 space-y-4 border border-white/5 flex flex-col justify-between">
               <div>
-                <h4 className="text-sm font-black uppercase tracking-tight text-white mb-2">Edge Function Status</h4>
-                <p className="text-xs text-slate-400">Ensure you have deployed the `download-audio` function in your Supabase project.</p>
+                <h4 className="text-sm font-black uppercase tracking-tight text-white mb-2">Client Proxy Status</h4>
+                <p className="text-xs text-slate-400">Using public Render API proxy. Rate limits may apply.</p>
               </div>
               <div className="flex gap-2">
-                 <a href="https://supabase.com/dashboard/project/rqesjpnhrjdjnrzdhzgw/functions" target="_blank" className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
-                   Check Functions <ExternalLink className="w-3 h-3" />
+                 <a href="https://yt-audio-api-2fxp.onrender.com/" target="_blank" className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
+                   Check API Status <ExternalLink className="w-3 h-3" />
                  </a>
               </div>
             </div>
