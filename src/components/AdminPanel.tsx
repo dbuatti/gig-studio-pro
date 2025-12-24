@@ -10,34 +10,30 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { 
   ShieldAlert, 
-  Github, 
   RefreshCw, 
-  CheckCircle2, 
-  AlertTriangle,
-  Lock,
-  ExternalLink,
-  Clock,
-  History,
   Activity,
   Code2,
   Zap,
   Wifi,
   WifiOff,
-  Bug,
   Loader2,
   Wrench,
-  Filter,
   Trash2,
-  FileWarning,
   Upload,
   FileText,
-  Download
+  Download,
+  Terminal,
+  Copy,
+  Check,
+  Lock,
+  History
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
-import { ScrollArea } from './ui/scroll-area';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from "@/lib/utils";
 
 interface AdminPanelProps {
@@ -54,9 +50,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [healthStatus, setHealthStatus] = useState<'online' | 'offline' | 'error' | null>(null);
   const [lastSync, setLastSync] = useState<string | null>(null);
-  const [lastError, setLastError] = useState<any>(null);
+  const [hasCopiedCommand, setHasCopiedCommand] = useState(false);
 
   const API_BASE = "https://yt-audio-api-docker.onrender.com";
+  const SUPABASE_PROJECT_ID = "rqesjpnhrjdjnrzdhzgw";
+  const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxZXNqcG5ocmpkam5yemRoemd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIwMzgwNzgsImV4cCI6MjA3NzYxNDA3OH0.NqFKBFI-l96hWOGNc8QxuQdaGKVmvzw6LDGO_MsIoQc";
+
+  // The automation command
+  const automationCommand = `yt-dlp --cookies-from-browser chrome --cookies cookies.txt && curl -X POST https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/github-file-sync -H "Content-Type: application/json" -H "Authorization: Bearer ${ANON_KEY}" -d "{\\"path\\": \\"cookies.txt\\", \\"repo\\": \\"dbuatti/yt-audio-api\\", \\"content\\": \\"$(cat cookies.txt)\\", \\"message\\": \\"CLI Automated Sync\\"}" && rm cookies.txt`;
 
   useEffect(() => {
     const saved = localStorage.getItem('gig_admin_last_sync');
@@ -76,72 +77,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     }
   };
 
-  const handleRepairBackend = async () => {
-    setIsRepairing(true);
-    try {
-      const requirements = `flask\nflask-cors\nyt-dlp>=2025.01.15\ngunicorn\n`;
-      const { error } = await supabase.functions.invoke('github-file-sync', {
-        body: { 
-          path: 'requirements.txt',
-          content: requirements,
-          repo: 'dbuatti/yt-audio-api',
-          message: 'System Self-Repair: Critical update to yt-dlp 2025'
-        }
-      });
-      if (error) throw error;
-      showSuccess("Repair initiated. Backend is rebuilding.");
-    } catch (err: any) {
-      showError("Repair failed to reach GitHub.");
-    } finally {
-      setIsRepairing(false);
-    }
-  };
-
-  const handleWipeCredentials = async () => {
-    if (!confirm("Wipe credentials? The engine will fail until new cookies are synced.")) return;
-    
-    setIsWiping(true);
-    try {
-      const { error } = await supabase.functions.invoke('github-file-sync', {
-        body: { 
-          path: 'cookies.txt',
-          content: "# Netscape HTTP Cookie File\n# File Wiped via Admin\n",
-          repo: 'dbuatti/yt-audio-api',
-          message: 'Security: Wiping engine credentials'
-        }
-      });
-      if (error) throw error;
-      showSuccess("Credentials wiped.");
-    } catch (err: any) {
-      showError("Wipe failed.");
-    } finally {
-      setIsWiping(false);
-    }
-  };
-
-  const formatAndFilterCookies = (raw: string) => {
-    const lines = raw.split('\n');
-    const header = "# Netscape HTTP Cookie File";
-    
-    const filteredLines = lines.map(line => {
-      const l = line.trim();
-      if (!l || l.startsWith('#')) return null;
-      
-      const parts = l.split(/\s+/);
-      if (parts.length < 7) return null;
-
-      const domain = parts[0];
-      const flag = parts[1];
-      const path = parts[2];
-      const secure = parts[3];
-      const expiration = parts[4];
-      const name = parts[5];
-      const value = parts.slice(6).join(' ');
-
-      return [domain, flag, path, secure, expiration, name, value].join('\t');
-    }).filter(Boolean);
-
-    return `${header}\n# Reconstructed for 2025 Security Bypassing\n\n${filteredLines.join('\n')}\n`;
+  const copyCommand = () => {
+    navigator.clipboard.writeText(automationCommand);
+    setHasCopiedCommand(true);
+    showSuccess("Automation command copied to clipboard");
+    setTimeout(() => setHasCopiedCommand(false), 3000);
   };
 
   const handleRefreshCookies = async (customText?: string) => {
@@ -152,33 +92,24 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     }
 
     setIsRefreshing(true);
-    setLastError(null);
-    
-    const formattedContent = formatAndFilterCookies(textToSync);
-
     try {
       const { error } = await supabase.functions.invoke('github-file-sync', {
         body: { 
           path: 'cookies.txt',
-          content: formattedContent,
+          content: textToSync,
           repo: 'dbuatti/yt-audio-api',
-          message: 'Fast Sync: Netscape Reconstruction'
+          message: 'Admin Panel Sync'
         }
       });
 
-      if (error) {
-        setLastError(error);
-        showError("Sync Blocked: Check GitHub Token permissions.");
-        return;
-      }
+      if (error) throw error;
       
       const timestamp = new Date().toLocaleString();
       setLastSync(timestamp);
       localStorage.setItem('gig_admin_last_sync', timestamp);
-      showSuccess("Engine re-authorized! Build triggered.");
+      showSuccess("Engine re-authorized!");
       setCookieText("");
     } catch (err: any) {
-      setLastError(err);
       showError(`Sync Failed: ${err.message}`);
     } finally {
       setIsRefreshing(false);
@@ -188,23 +119,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   const handleFileDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
-    
     const file = e.dataTransfer.files[0];
     if (file && file.name.endsWith('.txt')) {
       const reader = new FileReader();
-      reader.onload = (event) => {
-        const content = event.target?.result as string;
-        handleRefreshCookies(content);
-      };
+      reader.onload = (event) => handleRefreshCookies(event.target?.result as string);
       reader.readAsText(file);
-    } else {
-      showError("Invalid file. Drop a .txt cookie file.");
     }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-3xl bg-slate-950 border-white/10 text-white rounded-[2rem] p-0 overflow-hidden shadow-2xl">
+      <DialogContent className="max-w-4xl bg-slate-950 border-white/10 text-white rounded-[2rem] p-0 overflow-hidden shadow-2xl">
         <div className="bg-red-600 p-8 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-4">
             <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-md">
@@ -218,8 +143,45 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
           <Lock className="w-8 h-8 opacity-20" />
         </div>
 
-        <ScrollArea className="max-h-[70vh]">
+        <ScrollArea className="max-h-[75vh]">
           <div className="p-8 space-y-8">
+            {/* CLI Automation Section */}
+            <div className="bg-indigo-600/10 border border-indigo-600/20 rounded-[2rem] p-8 space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="bg-indigo-600 p-3 rounded-2xl text-white">
+                    <Terminal className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-black uppercase tracking-tight">CLI Automation</h4>
+                    <p className="text-[10px] text-indigo-400 font-black uppercase tracking-widest mt-0.5">Automated Browser Bridge</p>
+                  </div>
+                </div>
+                <Badge className="bg-indigo-600 text-white font-mono text-[10px]">v2.1 STABLE</Badge>
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-sm text-slate-400 leading-relaxed">
+                  Run this command in your local terminal to automatically extract cookies from your browser and sync them to the backend engine. 
+                  <span className="text-indigo-400 font-bold ml-1">Requires yt-dlp and curl.</span>
+                </p>
+                
+                <div className="relative group">
+                  <div className="absolute -inset-1 bg-indigo-500/20 blur opacity-0 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
+                  <div className="relative bg-black rounded-2xl p-6 font-mono text-xs text-indigo-300 border border-white/5 overflow-x-auto whitespace-pre">
+                    {automationCommand}
+                  </div>
+                  <Button 
+                    onClick={copyCommand}
+                    className="absolute top-4 right-4 bg-indigo-600 hover:bg-indigo-700 text-white h-10 px-4 rounded-xl shadow-xl gap-2 font-black uppercase text-[10px] tracking-widest"
+                  >
+                    {hasCopiedCommand ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    {hasCopiedCommand ? "Copied" : "Copy Command"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
                <div className="bg-white/5 border border-white/10 rounded-2xl p-5 flex flex-col justify-between">
                   <div className="flex items-center gap-2 text-slate-500 mb-4">
@@ -260,79 +222,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
               )}>
                 {isRefreshing ? <Loader2 className="w-10 h-10 animate-spin" /> : isDragOver ? <Download className="w-10 h-10" /> : <Upload className="w-10 h-10" />}
               </div>
-              <h4 className="text-xl font-black uppercase tracking-tight mb-2">Drop Cookie File</h4>
+              <h4 className="text-xl font-black uppercase tracking-tight mb-2">Manual Cookie Upload</h4>
               <p className="text-slate-500 text-xs font-medium max-w-xs leading-relaxed">
-                Export <code className="bg-white/5 px-1.5 py-0.5 rounded text-indigo-400">cookies.txt</code> from YouTube and drop it here to re-authorize the engine instantly.
+                Export <code className="bg-white/5 px-1.5 py-0.5 rounded text-indigo-400">cookies.txt</code> from YouTube and drop it here to re-authorize the engine manually.
               </p>
-              {isRefreshing && (
-                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-[2rem] flex flex-col items-center justify-center gap-4 animate-in fade-in">
-                  <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" />
-                  <p className="text-xs font-black uppercase tracking-widest text-white">Syncing to Cloud Engine...</p>
-                </div>
-              )}
-            </div>
-
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-indigo-400" />
-                  <span className="text-xs font-black uppercase tracking-widest">Manual Buffer Sync</span>
-                </div>
-              </div>
-              <Textarea 
-                placeholder="# Netscape HTTP Cookie File..." 
-                className="min-h-[150px] font-mono text-[10px] bg-black/40 border-white/5 focus-visible:ring-indigo-500 rounded-xl p-4 shadow-inner resize-none"
-                value={cookieText}
-                onChange={(e) => setCookieText(e.target.value)}
-              />
-              <Button 
-                onClick={() => handleRefreshCookies()} 
-                disabled={isRefreshing || !cookieText.trim()}
-                className="w-full bg-white/5 hover:bg-white/10 text-white font-black uppercase tracking-widest text-[10px] h-10 rounded-xl border border-white/10"
-              >
-                Sync Manual Buffer
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-indigo-600/10 border border-indigo-600/20 rounded-2xl p-6 flex flex-col gap-4">
-                <div className="flex items-center gap-4">
-                    <div className="p-3 bg-indigo-600 rounded-xl text-white">
-                      <Wrench className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-black uppercase tracking-tight text-white">Repair Engine</p>
-                      <p className="text-[9px] text-indigo-300 font-medium uppercase mt-0.5">Force dependencies update</p>
-                    </div>
-                </div>
-                <Button 
-                  onClick={handleRepairBackend} 
-                  disabled={isRepairing}
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 h-10 px-6 font-black uppercase tracking-widest text-[9px] rounded-xl"
-                >
-                  {isRepairing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Run Build Repair"}
-                </Button>
-              </div>
-
-              <div className="bg-red-600/10 border border-red-600/20 rounded-2xl p-6 flex flex-col gap-4">
-                <div className="flex items-center gap-4">
-                    <div className="p-3 bg-red-600 rounded-xl text-white">
-                      <Trash2 className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-black uppercase tracking-tight text-white">Wipe Credentials</p>
-                      <p className="text-[9px] text-red-300 font-medium uppercase mt-0.5">Clear local session</p>
-                    </div>
-                </div>
-                <Button 
-                  variant="ghost"
-                  onClick={handleWipeCredentials} 
-                  disabled={isWiping}
-                  className="w-full bg-red-600/10 hover:bg-red-600 text-red-400 hover:text-white h-10 px-6 font-black uppercase tracking-widest text-[9px] rounded-xl border border-red-600/20"
-                >
-                  {isWiping ? <Loader2 className="w-4 h-4 animate-spin" /> : "Wipe Configuration"}
-                </Button>
-              </div>
             </div>
           </div>
         </ScrollArea>
