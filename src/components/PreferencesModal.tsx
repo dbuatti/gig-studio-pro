@@ -1,15 +1,18 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
 import { useSettings } from '@/hooks/use-settings';
-import { Settings2, Hash, Music2, LogOut, ShieldCheck, Zap, Coffee, Heart, Globe, User } from 'lucide-react';
+import { Settings2, Hash, Music2, LogOut, ShieldCheck, Zap, Coffee, Heart, Globe, User, Youtube, Key } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { cn } from "@/lib/utils";
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { showSuccess, showError } from '@/utils/toast';
 
 interface PreferencesModalProps {
   isOpen: boolean;
@@ -20,6 +23,33 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
   const { keyPreference, setKeyPreference } = useSettings();
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [ytKey, setYtKey] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && user) {
+      fetchProfile();
+    }
+  }, [isOpen, user]);
+
+  const fetchProfile = async () => {
+    const { data } = await supabase.from('profiles').select('youtube_api_key').eq('id', user?.id).single();
+    if (data?.youtube_api_key) setYtKey(data.youtube_api_key);
+  };
+
+  const handleSaveYtKey = async () => {
+    if (!user) return;
+    setIsSaving(true);
+    try {
+      const { error } = await supabase.from('profiles').update({ youtube_api_key: ytKey }).eq('id', user.id);
+      if (error) throw error;
+      showSuccess("YouTube Integration Updated");
+    } catch (err) {
+      showError("Failed to save API key");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -37,6 +67,41 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
         </DialogHeader>
 
         <div className="py-6 space-y-6">
+          <div className="space-y-4">
+            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Integrations</h4>
+            <div className="p-4 bg-white/5 rounded-2xl border border-white/5 space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-red-600/10 rounded-lg">
+                  <Youtube className="w-4 h-4 text-red-500" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold">YouTube Data API</p>
+                  <p className="text-[9px] text-slate-500 uppercase font-black">Enable Master Record Discovery</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500" />
+                  <Input 
+                    type="password"
+                    placeholder="AIza..."
+                    value={ytKey}
+                    onChange={(e) => setYtKey(e.target.value)}
+                    className="h-10 pl-9 bg-black/20 border-white/5 text-xs font-mono"
+                  />
+                </div>
+                <Button 
+                  size="sm" 
+                  onClick={handleSaveYtKey}
+                  disabled={isSaving}
+                  className="bg-indigo-600 hover:bg-indigo-700 h-10 px-4 font-black uppercase text-[9px] rounded-xl"
+                >
+                  {isSaving ? "..." : "Save"}
+                </Button>
+              </div>
+            </div>
+          </div>
+
           <div className="space-y-4">
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Public Presence</h4>
             <Button 

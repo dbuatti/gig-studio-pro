@@ -42,6 +42,20 @@ import { useToneAudio } from '@/hooks/use-tone-audio';
 import { detectKeyFromBuffer, KeyCandidate } from '@/utils/keyDetector';
 import { cleanYoutubeUrl } from '@/utils/youtubeUtils';
 
+// Helper to parse ISO 8601 duration (e.g., PT4M13S -> 4:13)
+const parseISO8601Duration = (duration: string): string => {
+  const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!match) return "0:00";
+  const hours = parseInt(match[1]) || 0;
+  const minutes = parseInt(match[2]) || 0;
+  const seconds = parseInt(match[3]) || 0;
+  
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+};
+
 const StudioInput = memo(({ label, value, onChange, placeholder, className, isTextarea = false, type = "text" }: any) => {
   const [localValue, setLocalValue] = useState(value || "");
 
@@ -114,8 +128,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [isProSyncSearchOpen, setIsProSyncSearchOpen] = useState(false);
   
-  // YouTube API Key State
-  const [ytApiKey, setYtApiKey] = useState(() => localStorage.getItem('gig_yt_api_key') || "");
+  // Refined YouTube Search Logic
+  const [ytApiKey, setYtApiKey] = useState("");
   const [isSearchingYoutube, setIsSearchingYoutube] = useState(false);
   const [ytResults, setYtResults] = useState<any[]>([]);
   
@@ -137,6 +151,17 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const tabOrder: StudioTab[] = isMobile 
     ? ['audio', 'config', 'details', 'charts', 'lyrics', 'visual', 'library']
     : ['audio', 'details', 'charts', 'lyrics', 'visual', 'library'];
+
+  useEffect(() => {
+    if (isOpen && user) {
+      fetchYtKey();
+    }
+  }, [isOpen, user]);
+
+  const fetchYtKey = async () => {
+    const { data } = await supabase.from('profiles').select('youtube_api_key').eq('id', user?.id).single();
+    if (data?.youtube_api_key) setYtApiKey(data.youtube_api_key);
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -316,13 +341,14 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     }
   };
 
-  const handleSyncYoutubeAudio = async () => {
-    if (!formData.youtubeUrl || !user || !song) {
+  const handleSyncYoutubeAudio = async (videoUrl?: string) => {
+    const targetUrl = videoUrl || formData.youtubeUrl;
+    if (!targetUrl || !user || !song) {
       showError("Paste a YouTube URL first.");
       return;
     }
 
-    const cleanedUrl = cleanYoutubeUrl(formData.youtubeUrl);
+    const cleanedUrl = cleanYoutubeUrl(targetUrl);
     const apiBase = "https://yt-audio-api-docker.onrender.com"; 
 
     setIsSyncingAudio(true);
@@ -343,14 +369,11 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       const errBody = await tokenRes.json().catch(() => ({}));
       if (!tokenRes.ok) {
         const specificError = errBody.detail || errBody.error || tokenRes.statusText;
-        console.error("[Render API Failure]:", errBody);
-        
         if (specificError.includes("format is not available") || specificError.includes("Signature solving failed")) {
           setEngineError(`YouTube Security Block: ${specificError}. This usually requires fresh cookies in the Admin Panel.`);
         } else {
           setEngineError(`Engine Error: ${specificError}`);
         }
-        
         throw new Error(`Engine Error: ${specificError}`);
       }
       
@@ -380,7 +403,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         .from(bucket)
         .getPublicUrl(fileName);
 
-      handleAutoSave({ previewUrl: publicUrl });
+      const updates = { previewUrl: publicUrl, youtubeUrl: cleanedUrl };
+      handleAutoSave(updates);
       await loadFromUrl(publicUrl, formData.pitch || 0);
       showSuccess("YT-Master Audio Linked to Engine");
       
@@ -544,74 +568,56 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
 
   const performYoutubeDiscovery = async (searchTerm: string) => {
     if (!searchTerm.trim()) return;
+    
+    // Check if it's a URL first
+    if (searchTerm.startsWith('http')) {
+      handleAutoSave({ youtubeUrl: searchTerm });
+      showSuccess("YouTube URL Linked");
+      return;
+    }
+
     setIsSearchingYoutube(true);
     setYtResults([]);
 
-    // Official Stage: Using YouTube Data API v3 if key exists
     if (ytApiKey) {
       try {
-        const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(searchTerm)}&type=video&maxResults=10&key=${ytApiKey}`;
-        const response = await fetch(url);
-        const data = await response.json();
+        // Step 1: Search for videos
+        const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(searchTerm)}&type=video&maxResults=10&key=${ytApiKey}`;
+        const searchResponse = await fetch(searchUrl);
+        const searchData = await searchResponse.json();
 
-        if (data.items) {
-          const sanitized = data.items.map((item: any) => ({
-            videoId: item.id.videoId,
-            title: item.snippet.title,
-            author: item.snippet.channelTitle,
-            videoThumbnails: [{ url: item.snippet.thumbnails.medium.url }],
-            lengthSeconds: 0,
-            viewCountText: "Global Official"
-          }));
+        if (searchData.items && searchData.items.length > 0) {
+          const videoIds = searchData.items.map((item: any) => item.id.videoId).join(',');
+          
+          // Step 2: Fetch contentDetails for durations
+          const detailsUrl = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,snippet,statistics&id=${videoIds}&key=${ytApiKey}`;
+          const detailsResponse = await fetch(detailsUrl);
+          const detailsData = await detailsResponse.json();
 
-          setYtResults(sanitized);
-          if (!formData.youtubeUrl) {
-            handleSelectYoutubeVideo(`https://www.youtube.com/watch?v=${sanitized[0].videoId}`);
+          if (detailsData.items) {
+            const resultsWithDurations = detailsData.items.map((item: any) => ({
+              videoId: item.id,
+              title: item.snippet.title,
+              author: item.snippet.channelTitle,
+              videoThumbnails: [{ url: item.snippet.thumbnails.medium.url }],
+              duration: parseISO8601Duration(item.contentDetails.duration),
+              viewCountText: `${parseInt(item.statistics.viewCount).toLocaleString()} views`
+            }));
+
+            setYtResults(resultsWithDurations);
+            setIsSearchingYoutube(false);
+            showSuccess(`Engine Synced: Found ${resultsWithDurations.length} master records`);
+            return;
           }
-          setIsSearchingYoutube(false);
-          showSuccess("Official Engine Sync Complete");
-          return;
-        } else if (data.error) {
-          throw new Error(data.error.message || "API Error");
         }
+        throw new Error(searchData.error?.message || "No matches found");
       } catch (e: any) {
-        console.error("Official YouTube API failed:", e.message);
-        showError(`API Engine Failure: ${e.message}`);
+        showError(`Discovery Error: ${e.message}`);
       }
-    }
-
-    // Fallback Logic (Only if API Key is empty)
-    if (!ytApiKey) {
-      const proxies = ["https://api.allorigins.win/get?url=", "https://api.codetabs.com/v1/proxy?quest="];
-      const instances = ['https://invidious.projectsegfau.lt', 'https://invidious.privacydev.net', 'https://iv.ggtyler.dev'];
-
-      let success = false;
-      const cleanTerm = searchTerm.replace(/[&]/g, 'and');
-
-      for (const proxy of proxies) {
-        if (success) break;
-        for (const instance of instances) {
-          if (success) break;
-          try {
-            const targetUrl = `${instance}/api/v1/search?q=${encodeURIComponent(cleanTerm)}&type=video`;
-            const fetchUrl = `${proxy}${encodeURIComponent(targetUrl)}`;
-            const res = await fetch(fetchUrl);
-            if (!res.ok) continue;
-            const raw = await res.json();
-            const data = raw.contents ? JSON.parse(raw.contents) : raw;
-            if (data?.length > 0) {
-              setYtResults(data.slice(0, 10));
-              if (!formData.youtubeUrl) handleSelectYoutubeVideo(`https://www.youtube.com/watch?v=${data[0].videoId}`);
-              success = true;
-            }
-          } catch (err) {}
-        }
-      }
-
-      if (!success) {
-        showError("Discovery matrix unstable. Paste API key in 'Library' for master access.");
-        window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(searchTerm)}`, '_blank');
-      }
+    } else {
+      // Logic for when API key is missing - fallback to Invidious if possible
+      showError("Set YouTube API Key in Preferences for official master discovery.");
+      window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(searchTerm)}`, '_blank');
     }
     
     setIsSearchingYoutube(false);
@@ -1587,14 +1593,14 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
                     <div>
                       <h3 className="text-xl md:text-2xl font-black uppercase tracking-tight text-indigo-400">REFERENCE MEDIA</h3>
-                      <p className="text-xs md:text-sm text-slate-500 mt-1 font-medium italic">YouTube performance video or audio master link.</p>
+                      <p className="text-xs md:text-sm text-slate-500 mt-1 font-medium italic">YouTube performance video or audio master search.</p>
                     </div>
                   </div>
                   
                   <div className="flex flex-col md:flex-row gap-4 shrink-0">
                      <div className="flex-1 group">
                        <Input 
-                         placeholder="https://www.youtube.com/watch?v=..."
+                         placeholder="Search song, artist, album or paste URL..."
                          value={formData.youtubeUrl}
                          onChange={(e) => handleAutoSave({ youtubeUrl: e.target.value })}
                          onKeyDown={(e) => e.key === 'Enter' && performYoutubeDiscovery(formData.youtubeUrl || '')}
@@ -1603,7 +1609,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                      </div>
                      <div className="flex gap-3 shrink-0">
                         <Button
-                          onClick={handleSyncYoutubeAudio}
+                          onClick={() => handleSyncYoutubeAudio()}
                           disabled={isSyncingAudio || !formData.youtubeUrl}
                           className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-[10px] h-14 px-8 rounded-xl shadow-lg shadow-indigo-600/20 gap-3 transition-all active:scale-95"
                         >
@@ -1612,12 +1618,12 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                         </Button>
                         <Button
                           variant="outline"
-                          onClick={handleYoutubeSearch}
+                          onClick={() => performYoutubeDiscovery(formData.youtubeUrl || `${formData.artist} ${formData.name} official video`)}
                           disabled={isSearchingYoutube}
                           className="bg-red-950/30 border-red-900/50 text-red-500 hover:bg-red-900 hover:text-white font-black uppercase tracking-widest text-[10px] h-14 px-8 rounded-xl gap-3 transition-all active:scale-95"
                         >
                           {isSearchingYoutube ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-4 h-4" />} 
-                          DISCOVERY
+                          GLOBAL SEARCH
                         </Button>
                      </div>
                   </div>
@@ -1627,7 +1633,9 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       results={ytResults}
                       currentVideoId={currentVideoId}
                       onSelect={handleSelectYoutubeVideo}
+                      onSyncAndExtract={(url) => handleSyncYoutubeAudio(url)}
                       isLoading={isSearchingYoutube}
+                      isExtracting={isSyncingAudio}
                     />
                   )}
 
@@ -1677,29 +1685,13 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       <h3 className="text-xl md:text-2xl font-black uppercase tracking-[0.2em] text-white">RESOURCE MATRIX</h3>
                       <p className="text-xs md:text-sm text-slate-500 mt-1 font-medium">Centralized management for all song assets and links.</p>
                     </div>
-                    <div className="flex gap-4">
-                       <div className="space-y-1.5 w-64">
-                         <Label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Official Discovery Key</Label>
-                         <Input 
-                           type="password"
-                           placeholder="Paste AIza... key here"
-                           className="h-10 bg-white/5 border-white/10 text-xs font-mono"
-                           value={ytApiKey}
-                           onChange={(e) => {
-                             const key = e.target.value;
-                             setYtApiKey(key);
-                             localStorage.setItem('gig_yt_api_key', key);
-                           }}
-                         />
-                       </div>
-                       <div className="flex items-end">
-                         <Button 
-                          onClick={handleDownloadAll} 
-                          className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] md:text-xs h-10 gap-2 px-8 rounded-xl shadow-xl shadow-indigo-600/20"
-                         >
-                          <Download className="w-4 h-4" /> DOWNLOAD ALL
-                         </Button>
-                       </div>
+                    <div className="flex items-end">
+                       <Button 
+                        onClick={handleDownloadAll} 
+                        className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] md:text-xs h-10 gap-2 px-8 rounded-xl shadow-xl shadow-indigo-600/20"
+                       >
+                        <Download className="w-4 h-4" /> DOWNLOAD ALL
+                       </Button>
                     </div>
                   </div>
                   <div className={cn("grid gap-4 md:gap-8", isMobile ? "grid-cols-1" : "grid-cols-2")}>
