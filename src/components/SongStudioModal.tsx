@@ -114,7 +114,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [isProSyncSearchOpen, setIsProSyncSearchOpen] = useState(false);
   
-  // YouTube API Key State (Will persist in localStorage for now)
+  // YouTube API Key State
   const [ytApiKey, setYtApiKey] = useState(() => localStorage.getItem('gig_yt_api_key') || "");
   const [isSearchingYoutube, setIsSearchingYoutube] = useState(false);
   const [ytResults, setYtResults] = useState<any[]>([]);
@@ -547,7 +547,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     setIsSearchingYoutube(true);
     setYtResults([]);
 
-    // Official YouTube Data API v3 implementation
+    // Official Stage: Using YouTube Data API v3 if key exists
     if (ytApiKey) {
       try {
         const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(searchTerm)}&type=video&maxResults=10&key=${ytApiKey}`;
@@ -560,8 +560,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
             title: item.snippet.title,
             author: item.snippet.channelTitle,
             videoThumbnails: [{ url: item.snippet.thumbnails.medium.url }],
-            lengthSeconds: 0, // Snippet search doesn't return duration
-            viewCountText: "Official API"
+            lengthSeconds: 0,
+            viewCountText: "Global Official"
           }));
 
           setYtResults(sanitized);
@@ -569,50 +569,51 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
             handleSelectYoutubeVideo(`https://www.youtube.com/watch?v=${sanitized[0].videoId}`);
           }
           setIsSearchingYoutube(false);
+          showSuccess("Official Engine Sync Complete");
           return;
+        } else if (data.error) {
+          throw new Error(data.error.message || "API Error");
         }
-      } catch (e) {
-        console.error("Official YouTube API failed, falling back...");
+      } catch (e: any) {
+        console.error("Official YouTube API failed:", e.message);
+        showError(`API Engine Failure: ${e.message}`);
       }
     }
 
-    // Fallback Matrix (Invidious)
-    const proxies = ["https://api.allorigins.win/get?url=", "https://api.codetabs.com/v1/proxy?quest="];
-    const instances = ['https://invidious.projectsegfau.lt', 'https://invidious.privacydev.net', 'https://iv.ggtyler.dev'];
+    // Fallback Logic (Only if API Key is empty)
+    if (!ytApiKey) {
+      const proxies = ["https://api.allorigins.win/get?url=", "https://api.codetabs.com/v1/proxy?quest="];
+      const instances = ['https://invidious.projectsegfau.lt', 'https://invidious.privacydev.net', 'https://iv.ggtyler.dev'];
 
-    let success = false;
-    for (const proxy of proxies) {
-      if (success) break;
-      for (const instance of instances) {
+      let success = false;
+      const cleanTerm = searchTerm.replace(/[&]/g, 'and');
+
+      for (const proxy of proxies) {
         if (success) break;
-        try {
-          const targetUrl = `${instance}/api/v1/search?q=${encodeURIComponent(searchTerm)}&type=video`;
-          const fetchUrl = `${proxy}${encodeURIComponent(targetUrl)}`;
-          const res = await fetch(fetchUrl);
-          if (!res.ok) continue;
-          const raw = await res.json();
-          const data = typeof raw.contents === 'string' ? JSON.parse(raw.contents) : (raw.contents || raw);
-          if (data?.length > 0) {
-            setYtResults(data.slice(0, 10));
-            if (!formData.youtubeUrl) handleSelectYoutubeVideo(`https://www.youtube.com/watch?v=${data[0].videoId}`);
-            success = true;
-          }
-        } catch (err) {}
-      }
-    }
-
-    if (!success) {
-      if (!ytApiKey) {
-        const key = prompt("Discovery requires a YouTube API Key for Simon & Garfunkel results. Paste your Google API Key here:");
-        if (key) {
-          setYtApiKey(key);
-          localStorage.setItem('gig_yt_api_key', key);
-          performYoutubeDiscovery(searchTerm);
+        for (const instance of instances) {
+          if (success) break;
+          try {
+            const targetUrl = `${instance}/api/v1/search?q=${encodeURIComponent(cleanTerm)}&type=video`;
+            const fetchUrl = `${proxy}${encodeURIComponent(targetUrl)}`;
+            const res = await fetch(fetchUrl);
+            if (!res.ok) continue;
+            const raw = await res.json();
+            const data = raw.contents ? JSON.parse(raw.contents) : raw;
+            if (data?.length > 0) {
+              setYtResults(data.slice(0, 10));
+              if (!formData.youtubeUrl) handleSelectYoutubeVideo(`https://www.youtube.com/watch?v=${data[0].videoId}`);
+              success = true;
+            }
+          } catch (err) {}
         }
-      } else {
-        showError("Discovery matrix unstable. Use manual link.");
+      }
+
+      if (!success) {
+        showError("Discovery matrix unstable. Paste API key in 'Library' for master access.");
+        window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(searchTerm)}`, '_blank');
       }
     }
+    
     setIsSearchingYoutube(false);
   };
 
@@ -1615,7 +1616,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                           disabled={isSearchingYoutube}
                           className="bg-red-950/30 border-red-900/50 text-red-500 hover:bg-red-900 hover:text-white font-black uppercase tracking-widest text-[10px] h-14 px-8 rounded-xl gap-3 transition-all active:scale-95"
                         >
-                          {isSearchingYoutube ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} 
+                          {isSearchingYoutube ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-4 h-4" />} 
                           DISCOVERY
                         </Button>
                      </div>
@@ -1677,22 +1678,28 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       <p className="text-xs md:text-sm text-slate-500 mt-1 font-medium">Centralized management for all song assets and links.</p>
                     </div>
                     <div className="flex gap-4">
-                       <Input 
-                         type="password"
-                         placeholder="YouTube API Key..."
-                         className="h-12 w-64 bg-white/5 border-white/10 text-xs font-mono"
-                         value={ytApiKey}
-                         onChange={(e) => {
-                           setYtApiKey(e.target.value);
-                           localStorage.setItem('gig_yt_api_key', e.target.value);
-                         }}
-                       />
-                       <Button 
-                        onClick={handleDownloadAll} 
-                        className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] md:text-xs h-12 md:h-14 gap-2 px-8 md:px-10 rounded-xl md:rounded-2xl shadow-xl shadow-indigo-600/20"
-                       >
-                        <Download className="w-4 h-4" /> DOWNLOAD ALL ASSETS
-                       </Button>
+                       <div className="space-y-1.5 w-64">
+                         <Label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Official Discovery Key</Label>
+                         <Input 
+                           type="password"
+                           placeholder="Paste AIza... key here"
+                           className="h-10 bg-white/5 border-white/10 text-xs font-mono"
+                           value={ytApiKey}
+                           onChange={(e) => {
+                             const key = e.target.value;
+                             setYtApiKey(key);
+                             localStorage.setItem('gig_yt_api_key', key);
+                           }}
+                         />
+                       </div>
+                       <div className="flex items-end">
+                         <Button 
+                          onClick={handleDownloadAll} 
+                          className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] md:text-xs h-10 gap-2 px-8 rounded-xl shadow-xl shadow-indigo-600/20"
+                         >
+                          <Download className="w-4 h-4" /> DOWNLOAD ALL
+                         </Button>
+                       </div>
                     </div>
                   </div>
                   <div className={cn("grid gap-4 md:gap-8", isMobile ? "grid-cols-1" : "grid-cols-2")}>
