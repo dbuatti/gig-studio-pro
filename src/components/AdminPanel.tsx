@@ -26,7 +26,8 @@ import {
   History,
   CheckCircle2,
   Database,
-  Terminal
+  Terminal,
+  Info
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
@@ -183,6 +184,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
           <ScrollArea className="flex-1 border-r border-white/5">
             <div className="p-8 space-y-8">
+              <div className="bg-amber-500/10 border border-amber-500/30 p-6 rounded-2xl flex items-start gap-4">
+                <div className="bg-amber-500 p-2 rounded-xl text-black shrink-0">
+                  <AlertCircle className="w-6 h-6" />
+                </div>
+                <div>
+                   <h4 className="text-sm font-black uppercase text-amber-500 tracking-tight mb-1">Critical Session Protocol</h4>
+                   <p className="text-xs text-amber-200/80 leading-relaxed font-medium">
+                     To prevent immediate cookie invalidation: <strong>(1)</strong> Open YouTube in a private/incognito window, <strong>(2)</strong> Log in and export cookies, <strong>(3)</strong> <u>Close the browser window immediately</u> before uploading. If you continue browsing, YouTube rotates the keys and the file you just exported becomes dead on arrival.
+                   </p>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                  <div className="bg-white/5 border border-white/10 rounded-2xl p-6 min-h-[140px] flex flex-col justify-between">
                     <div className="flex items-center gap-2 text-slate-500 mb-4">
@@ -276,13 +289,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                            <p># This is a generated file! Do not edit.</p>
                            <p className="mt-2 text-indigo-400">.youtube.com TRUE / FALSE 1768... LOGIN_INFO ...</p>
                         </div>
-                        <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4">
-                           <div className="flex items-center gap-2 text-amber-500 mb-2">
-                             <AlertCircle className="w-4 h-4" />
-                             <span className="text-[10px] font-black uppercase">Crucial Session Logic</span>
-                           </div>
+                        <div className="flex items-start gap-3 bg-white/5 p-4 rounded-xl">
+                           <Info className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
                            <p className="text-[10px] text-slate-400 font-medium leading-relaxed">
-                             Once you export your cookies, <strong>close the incognito window immediately</strong>. Browsing further rotations the session keys and invalidates the file you just exported.
+                             Modern YouTube bot detection is highly sensitive to IP location mismatches. Using an incognito window helps isolate the session.
                            </p>
                         </div>
                      </div>

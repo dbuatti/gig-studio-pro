@@ -84,7 +84,7 @@ def handle_audio_request():
     output_filename = f"{unique_id}.mp3"
     output_template = str(ABS_DOWNLOADS_PATH / unique_id)
 
-    # Browser-Native extraction strategy
+    # Hybrid extraction strategy for 2024/2025 stability
     ydl_opts = {
         'format': 'ba/b', 
         'outtmpl': f"{output_template}.%(ext)s",
@@ -94,8 +94,8 @@ def handle_audio_request():
             'preferredquality': '192',
         }],
         'cookiefile': COOKIES_PATH if (os.path.exists(COOKIES_PATH) and os.path.getsize(COOKIES_PATH) > 10) else None,
-        # Exact match for standard Chrome on Windows (highest success rate)
-        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        # Updated UA to match modern browsers
+        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
         'referer': 'https://www.youtube.com/',
         'quiet': False,
         'nocheckcertificate': True,
@@ -103,11 +103,13 @@ def handle_audio_request():
         'noplaylist': True,
         'extract_flat': False,
         'allow_unplayable_formats': True,
+        'youtube_include_dash_manifest': False,
+        'youtube_include_hls_manifest': False,
         'extractor_args': {
             'youtube': {
-                # Force 'web' to match the exported browser cookies
-                'player_client': ['web'],
-                'player_skip': ['configs', 'webpage']
+                # Multi-client fallback strategy
+                'player_client': ['ios', 'web', 'mweb'],
+                'player_skip': ['configs']
             }
         }
     }
@@ -118,17 +120,21 @@ def handle_audio_request():
         
         actual_file = ABS_DOWNLOADS_PATH / output_filename
         if not actual_file.exists():
-            return jsonify(error="Extraction Failed", detail="Engine failed to finalize audio stream."), 500
+            # Try to find if it was saved with a different extension before post-processing
+            potential_files = list(ABS_DOWNLOADS_PATH.glob(f"{unique_id}.*"))
+            if not potential_files:
+                return jsonify(error="Extraction Failed", detail="Engine failed to initialize audio stream."), 500
+            actual_file = potential_files[0]
 
         token = secrets.token_urlsafe(TOKEN_LENGTH)
-        token_store[token] = output_filename
+        token_store[token] = actual_file.name
         return jsonify(token=token, download_url=f"{request.host_url}download?token={token}")
 
     except Exception as e:
         error_msg = str(e)
         user_error = "Engine Error"
         if "Sign in to confirm" in error_msg or "403" in error_msg:
-            user_error = "Bot detection triggered. Your cookies have expired."
+            user_error = "Bot detection triggered. Your cookies have likely expired or been rotated."
         return jsonify(error=user_error, detail=error_msg), 500
 
 @app.route("/download", methods=["GET"])
