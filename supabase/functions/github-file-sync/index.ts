@@ -6,6 +6,16 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+/**
+ * Robustly encodes a string to base64 for GitHub's API.
+ * Handles UTF-8 characters safely.
+ */
+function b64EncodeUnicode(str: string) {
+  return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function(match, p1) {
+    return String.fromCharCode(parseInt(p1, 16));
+  }));
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -18,9 +28,8 @@ serve(async (req) => {
     const GITHUB_PAT = Deno.env.get('GITHUB_PAT');
 
     if (!GITHUB_PAT) {
-      console.error("[SYNC] GITHUB_PAT is not defined in project secrets.");
       return new Response(JSON.stringify({ 
-        error: "GITHUB_PAT missing in project secrets. Please add it to your Supabase project settings." 
+        error: "GITHUB_PAT missing in project secrets." 
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -41,13 +50,9 @@ serve(async (req) => {
     if (getRes.status === 200) {
       const fileData = await getRes.json();
       sha = fileData.sha;
-    } else if (getRes.status !== 404) {
-      const errData = await getRes.json();
-      throw new Error(`GitHub GET Error: ${errData.message}`);
     }
 
-    // Use TextEncoder to handle potential UTF-8 characters in the cookie file correctly
-    const encodedContent = btoa(new TextEncoder().encode(content).reduce((data, byte) => data + String.fromCharCode(byte), ''));
+    const encodedContent = b64EncodeUnicode(content);
 
     const putRes = await fetch(getUrl, {
       method: 'PUT',
