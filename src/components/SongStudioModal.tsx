@@ -688,144 +688,85 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
 
 
 
-  const handleSyncYoutubeAudio = async (videoUrl?: string) => {
-
+const handleSyncYoutubeAudio = async (videoUrl?: string) => {
     const targetUrl = videoUrl || formData.youtubeUrl;
-
     if (!targetUrl || !user || !song) {
-
       showError("Paste a YouTube URL first.");
-
       return;
-
     }
 
-
+    // 1. YOUR EXTRACTED TOKEN
+    const PO_TOKEN = "MlOlJlvLa_FSHqUaxD-0Ire5U3D6imQycOxu7mX6MSjKzYm7Ik9RJl9Tdp7oKgaNbwXlp0ePbT07u0taw07-P4CK9n0IF2LEVfem5zaJQBsXRwW2ig==";
 
     const cleanedUrl = cleanYoutubeUrl(targetUrl);
-
     const apiBase = "https://yt-audio-api-docker.onrender.com"; 
 
-
-
     setIsSyncingAudio(true);
-
     setSyncStatus("Initializing Engine...");
-
     setEngineError(null);
-
     
-
     try {
-
       setSyncStatus("Handshaking with Render...");
-
-const tokenUrl = `${apiBase}/?url=${encodeURIComponent(cleanedUrl)}`;
-
       
-
+      // 2. CONSTRUCT URL WITH TOKEN
+      const tokenUrl = `${apiBase}/?url=${encodeURIComponent(cleanedUrl)}&po_token=${encodeURIComponent(PO_TOKEN)}`;
+      
+      // 3. EXECUTE FETCH (This creates the 'tokenRes' name)
+      const tokenRes = await fetch(tokenUrl);
+      
+      // 4. READ RESPONSE BODY
       const errBody = await tokenRes.json().catch(() => ({}));
 
       if (!tokenRes.ok) {
-
         const specificError = errBody.detail || errBody.error || tokenRes.statusText;
-
         if (specificError.includes("format is not available") || 
-
             specificError.includes("Signature solving failed") || 
-
             specificError.includes("Sign in to confirm")) {
-
           setEngineError(`YouTube Protection Triggered: ${specificError}. The backend session has expired. You need to upload a fresh cookies.txt in the Admin Panel.`);
-
         } else {
-
           setEngineError(`Engine Error: ${specificError}`);
-
         }
-
         throw new Error(`Engine Error: ${specificError}`);
-
       }
-
       
-
       const { token } = errBody;
-
       setSyncStatus("Extracting Audio Stream...");
 
-
-
       const downloadUrl = `${apiBase}/download?token=${token}`;
-
       const downloadRes = await fetch(downloadUrl);
-
       
-
       if (!downloadRes.ok) throw new Error("Audio extraction failed at the source.");
-
       const blob = await downloadRes.blob();
 
-
-
       setSyncStatus("Syncing to Cloud Vault...");
-
       const fileName = `${user.id}/${song.id}/extracted-${Date.now()}.mp3`;
-
       const bucket = 'public_assets';
-
       
-
       const { error: uploadError } = await supabase.storage
-
         .from(bucket)
-
         .upload(fileName, blob, {
-
           contentType: 'audio/mpeg',
-
           upsert: true
-
         });
-
-
 
       if (uploadError) throw uploadError;
 
-
-
       const { data: { publicUrl } } = supabase.storage
-
         .from(bucket)
-
         .getPublicUrl(fileName);
 
-
-
       const updates = { previewUrl: publicUrl, youtubeUrl: cleanedUrl };
-
       handleAutoSave(updates);
-
       await loadFromUrl(publicUrl, formData.pitch || 0);
-
       showSuccess("YT-Master Audio Linked to Engine");
-
       
-
     } catch (err: any) {
-
       console.error("YT Sync Error:", err);
-
       showError(err.message || "Extraction engine unreachable.");
-
     } finally {
-
       setIsSyncingAudio(false);
-
       setSyncStatus("");
-
     }
-
   };
 
 
