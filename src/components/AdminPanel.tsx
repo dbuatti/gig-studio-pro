@@ -118,7 +118,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] bg-slate-950 border-white/10 text-white rounded-[2rem] p-0 overflow-hidden shadow-2xl flex flex-col">
+      <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] bg-slate-950 border-white/10 text-white rounded-[2rem] p-0 overflow-hidden shadow-2xl flex flex-col">
         <div className="bg-red-600 p-6 md:p-8 flex items-center justify-between shrink-0 relative">
           <div className="flex items-center gap-4">
             <div className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-md">
@@ -159,9 +159,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                   </p>
                   
                   <div className="relative group">
-                    <div className="absolute -inset-1 bg-indigo-500/20 blur opacity-0 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
-                    <div className="relative bg-black rounded-2xl p-4 md:p-6 font-mono text-[10px] md:text-xs text-indigo-300 border border-white/5 overflow-x-auto whitespace-pre custom-scrollbar">
-                      {automationCommand}
+                    <div className="absolute -inset-1 bg-indigo-500/20 blur opacity-0 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 rounded-2xl" />
+                    <div className="relative bg-black rounded-2xl p-4 md:p-6 border border-white/5 overflow-hidden">
+                      <ScrollArea className="h-32 md:h-40 w-full">
+                        <div className="font-mono text-[10px] md:text-xs text-indigo-300 whitespace-pre-wrap pr-4">
+                          {automationCommand}
+                        </div>
+                      </ScrollArea>
                     </div>
                     <Button 
                       onClick={copyCommand}
