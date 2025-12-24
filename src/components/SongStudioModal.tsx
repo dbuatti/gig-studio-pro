@@ -333,13 +333,13 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       try {
         tokenRes = await fetch(tokenUrl);
       } catch (e) {
-        throw new Error("Render service is currently deploying or unreachable.");
+        throw new Error("Render service is unreachable. Please check engine health in Admin.");
       }
       
       if (!tokenRes.ok) {
-        const errData = await tokenRes.json().catch(() => ({}));
-        const msg = errData?.error || "Render error: " + tokenRes.statusText;
-        throw new Error(msg);
+        const errText = await tokenRes.text().catch(() => "Unknown Server Error");
+        console.error("[Render 500 Debug]:", errText);
+        throw new Error(`Server Rejected Request (500). Please check cookies in Admin.`);
       }
       
       const { token } = await tokenRes.json();
