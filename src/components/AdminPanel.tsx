@@ -121,22 +121,34 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     
     const filteredLines = lines.map(line => {
       const l = line.trim();
+      // Skip comments and empty lines
       if (!l || l.startsWith('#')) return null;
+      
+      // Filter for relevant domains only
       if (!l.includes('youtube.com') && !l.includes('google.com')) return null;
 
-      // CRITICAL FIX: yt-dlp 500s if columns are space-separated.
-      // Most browsers/textareas convert tabs to spaces. We must restore tabs.
-      // A valid Netscape cookie line has 7 columns.
-      let processed = l;
-      if (!processed.includes('\t')) {
-        // Replace sequences of 2 or more spaces with a tab
-        processed = processed.replace(/\s{2,}/g, '\t');
-      }
+      // Netscape format expects exactly 7 columns:
+      // domain, flag, path, secure, expiration, name, value
+      // We split by any whitespace and then manually reconstruct with tabs
+      const parts = l.split(/\s+/);
       
-      return processed;
+      // If the line doesn't have at least 7 columns, it's invalid
+      if (parts.length < 7) return null;
+
+      // Reconstruct the line strictly tab-separated
+      // Columns 0-5 are standard, Column 6 (value) might contain spaces in some cases
+      const domain = parts[0];
+      const flag = parts[1];
+      const path = parts[2];
+      const secure = parts[3];
+      const expiration = parts[4];
+      const name = parts[5];
+      const value = parts.slice(6).join(' '); // Re-join any accidental splits in the value column
+
+      return [domain, flag, path, secure, expiration, name, value].join('\t');
     }).filter(Boolean);
 
-    return `${header}\n# Optimized & Tab-Restored by Gig Studio Admin\n\n${filteredLines.join('\n')}\n`;
+    return `${header}\n# Strictly Reconstructed by Gig Studio Admin\n\n${filteredLines.join('\n')}\n`;
   };
 
   const handleRefreshCookies = async () => {
@@ -156,7 +168,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
           path: 'cookies.txt',
           content: formattedContent,
           repo: 'dbuatti/yt-audio-api',
-          message: 'Filtered & Tab-Restored Cookie Sync'
+          message: 'Strict Reconstructed Cookie Sync'
         }
       });
 
@@ -169,7 +181,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
       const timestamp = new Date().toLocaleString();
       setLastSync(timestamp);
       localStorage.setItem('gig_admin_last_sync', timestamp);
-      showSuccess("Tab-restored cookies synced! Rebuilding...");
+      showSuccess("Strict cookies synced! Rebuilding...");
       setCookieText("");
     } catch (err: any) {
       setLastError(err);
@@ -300,8 +312,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
             <div className="flex items-center gap-4 p-5 bg-indigo-500/10 rounded-2xl border border-indigo-500/20">
                <FileWarning className="w-6 h-6 text-indigo-400 shrink-0 mt-0.5" />
                <div className="space-y-1">
-                 <p className="text-xs font-black uppercase text-indigo-300">Tab-Separation Auto-Enforcement</p>
-                 <p className="text-[10px] text-indigo-400/80 leading-relaxed">The engine will automatically restore tab characters stripped by browser copy/paste actions. This prevents the 'js_runtimes' backend crash.</p>
+                 <p className="text-xs font-black uppercase text-indigo-300">Structural Column Recovery</p>
+                 <p className="text-[10px] text-indigo-400/80 leading-relaxed">The engine will now strictly reconstruct the 7 required Netscape columns and force tab-separation. This fixes the 'js_runtimes' crash caused by spaces.</p>
                </div>
             </div>
           </div>
@@ -315,7 +327,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
             className="flex-[2] bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-[0.2em] text-[10px] h-12 rounded-xl shadow-xl shadow-indigo-600/20 gap-3"
           >
             {isRefreshing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-            Restore Tabs & Sync
+            Reconstruct & Sync
           </Button>
         </div>
       </DialogContent>
