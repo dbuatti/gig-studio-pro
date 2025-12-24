@@ -173,6 +173,34 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     });
   }, [song, onSave]);
 
+  const handleProSync = () => {
+    setIsProSyncSearchOpen(true);
+  };
+
+  const handleSelectProSync = async (proSong: any) => {
+    setIsProSyncSearchOpen(false);
+    setIsProSyncing(true);
+    try {
+      const updates = {
+        name: proSong.trackName,
+        artist: proSong.artistName,
+        previewUrl: proSong.previewUrl,
+        appleMusicUrl: proSong.trackViewUrl,
+        duration_seconds: Math.round(proSong.trackTimeMillis / 1000),
+        isMetadataConfirmed: true
+      };
+      handleAutoSave(updates);
+      if (updates.previewUrl) {
+        await loadFromUrl(updates.previewUrl, formData.pitch || 0);
+      }
+      showSuccess("Master Data Synced");
+    } catch (err) {
+      showError("Sync failed");
+    } finally {
+      setIsProSyncing(false);
+    }
+  };
+
   const handleSyncYoutubeAudio = async (videoUrl?: string) => {
     const targetUrl = videoUrl || formData.youtubeUrl;
     if (!targetUrl || !user || !song) {
@@ -284,9 +312,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     }
   };
 
-  // Rest of component logic ... (omitted for brevity but kept functional)
-  // [KEEP EXISTING STATE/EFFECTS FOR HARMONICS, TABS, ETC]
-
   useEffect(() => {
     if (song && isOpen) {
       setFormData({
@@ -317,6 +342,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     return () => { resetEngine(); };
   }, [song?.id, isOpen]);
 
+  const readiness = calculateReadiness(formData);
   const currentKeyPreference = formData.key_preference || globalPreference;
   const keysToUse = currentKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
 
