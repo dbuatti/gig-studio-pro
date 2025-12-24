@@ -21,7 +21,7 @@ interface YoutubeMediaManagerProps {
   formData: Partial<SetlistSong>;
   handleAutoSave: (updates: Partial<SetlistSong>) => void;
   onOpenAdmin?: () => void;
-  onLoadAudioBuffer: (buffer: AudioBuffer, initialPitch?: number) => void; // Changed prop name and type
+  onLoadAudioFromUrl: (url: string, initialPitch?: number) => Promise<void>; // Changed prop name and type
 }
 
 const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
@@ -29,7 +29,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
   formData,
   handleAutoSave,
   onOpenAdmin,
-  onLoadAudioBuffer, // Changed prop name
+  onLoadAudioFromUrl, // Changed prop name
 }) => {
   const { user } = useAuth();
   const [ytApiKey, setYtApiKey] = useState("");
@@ -198,11 +198,16 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
     setYtResults([]);
   };
 
-  // UPDATED: Logic to download audio via Client-Side Proxy with polling
+  // UPDATED: Logic to download audio via Client-Side Proxy with polling and Supabase upload
   const handleDownloadViaProxy = async () => {
     if (!formData.youtubeUrl) {
       showError("Please link a YouTube URL first.");
       console.warn("[YoutubeMediaManager] Download aborted: No YouTube URL linked.");
+      return;
+    }
+    if (!user?.id || !song?.id) {
+      showError("User or song ID missing. Cannot upload to Supabase.");
+      console.error("[YoutubeMediaManager] User or song ID missing for Supabase upload.");
       return;
     }
 
@@ -274,15 +279,35 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
       // If we reach here, the file is ready (status 200)
       console.log("[YoutubeMediaManager] Fetching final audio file as ArrayBuffer...");
       const audioArrayBuffer = await fileResponse.arrayBuffer(); // Now this should work
-      console.log("[YoutubeMediaManager] Decoding audio data into AudioBuffer...");
-      const audioBuffer = await Tone.getContext().decodeAudioData(audioArrayBuffer);
+      console.log("[YoutubeMediaManager] Decoding audio data into AudioBuffer to get duration...");
+      const audioBuffer = await Tone.getContext().decodeAudioData(audioArrayBuffer.slice(0)); // Decode a copy to get duration without consuming original
+
+      // --- Upload to Supabase Storage ---
+      console.log("[YoutubeMediaManager] Uploading audio to Supabase Storage...");
+      const fileExt = 'mp3'; // Assuming mp3 from yt-dlp
+      const fileName = `${user.id}/${song.id}/${Date.now()}.${fileExt}`;
+      const bucket = 'public_audio'; 
       
-      onLoadAudioBuffer(audioBuffer, formData.pitch || 0); // Load into Tone.js
-      handleAutoSave({ duration_seconds: audioBuffer.duration }); // Save duration
-      showSuccess("Audio loaded into playback engine!");
+      const { error: uploadError } = await supabase.storage
+        .from(bucket)
+        .upload(fileName, audioArrayBuffer, {
+          contentType: 'audio/mpeg', 
+          upsert: true
+        });
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(fileName);
+      console.log("[YoutubeMediaManager] Audio uploaded to Supabase. Public URL:", publicUrl);
+
+      // Load into Tone.js from Supabase URL
+      await onLoadAudioFromUrl(publicUrl, formData.pitch || 0);
+      handleAutoSave({ previewUrl: publicUrl, duration_seconds: audioBuffer.duration }); // Save duration and new URL
+      showSuccess("Audio loaded into playback engine from Supabase!");
       setDownloadStatus('success');
       setDownloadProgress(100);
-      console.log("[YoutubeMediaManager] Audio successfully loaded into playback engine. Duration:", audioBuffer.duration);
+      console.log("[YoutubeMediaManager] Audio successfully loaded into playback engine from Supabase. Duration:", audioBuffer.duration);
 
     } catch (err: any) {
       console.error("[YoutubeMediaManager] Critical download error:", err);
