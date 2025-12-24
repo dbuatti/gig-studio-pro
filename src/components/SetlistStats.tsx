@@ -17,10 +17,13 @@ interface SetlistStatsProps {
 
 const SetlistStats: React.FC<SetlistStatsProps> = ({ songs, goalSeconds = 7200, onUpdateGoal, onAutoLink }) => {
   const [isEditingGoal, setIsEditingGoal] = useState(false);
-  const totalSongs = songs.length;
   
-  // Only count songs that have "Ready" audio (not an iTunes sample)
-  const totalSeconds = songs.reduce((acc, song) => {
+  // Filter for approved songs
+  const approvedSongs = songs.filter(song => song.isApproved);
+  const totalApprovedSongs = approvedSongs.length;
+
+  // Only count approved songs that have "Ready" audio (not an iTunes sample)
+  const totalSeconds = approvedSongs.reduce((acc, song) => {
     const isItunes = song.previewUrl?.includes('apple.com') || song.previewUrl?.includes('itunes-assets');
     const hasFullAudio = !!song.previewUrl && !isItunes;
     
@@ -37,14 +40,14 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({ songs, goalSeconds = 7200, 
     return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
   };
 
-  const readinessPercent = totalSongs > 0 ? (songs.filter(s => s.previewUrl && !s.previewUrl.includes('apple.com')).length / totalSongs) * 100 : 0;
+  const readinessPercent = totalApprovedSongs > 0 ? (approvedSongs.filter(s => s.previewUrl && !s.previewUrl.includes('apple.com')).length / totalApprovedSongs) * 100 : 0;
   
   const goalProgress = goalSeconds > 0 ? (totalSeconds / goalSeconds) * 100 : 0;
   const remainingSeconds = Math.max(0, goalSeconds - totalSeconds);
   const isGoalMet = remainingSeconds <= 0;
 
-  // Genre distribution
-  const genres = songs.reduce((acc, song) => {
+  // Genre distribution for approved songs
+  const genres = approvedSongs.reduce((acc, song) => {
     const g = song.genre || "Standard";
     acc[g] = (acc[g] || 0) + 1;
     return acc;
@@ -102,16 +105,26 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({ songs, goalSeconds = 7200, 
           </div>
 
           <div className="space-y-3 relative z-10">
-            <div className="flex justify-between items-end">
-              <span className={cn(
-                "text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded",
-                isGoalMet ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"
-              )}>
-                {isGoalMet ? "Goal Achieved" : `${formatDuration(remainingSeconds)} Remaining`}
-              </span>
-              <span className="text-xs font-mono font-bold">{Math.min(100, Math.round(goalProgress))}%</span>
-            </div>
-            <Progress value={Math.min(100, goalProgress)} className="h-3 bg-white/5" />
+            {totalApprovedSongs === 0 ? (
+              <div className="text-center py-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  Approve songs to track your set goal!
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="flex justify-between items-end">
+                  <span className={cn(
+                    "text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded",
+                    isGoalMet ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"
+                  )}>
+                    {isGoalMet ? "Goal Achieved" : `${formatDuration(remainingSeconds)} Remaining`}
+                  </span>
+                  <span className="text-xs font-mono font-bold">{Math.min(100, Math.round(goalProgress))}%</span>
+                </div>
+                <Progress value={Math.min(100, goalProgress)} className="h-3 bg-white/5" />
+              </>
+            )}
           </div>
         </div>
 
@@ -121,7 +134,7 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({ songs, goalSeconds = 7200, 
           </div>
           <div>
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Repertoire</p>
-            <p className="text-2xl font-black">{totalSongs} <span className="text-[10px] font-bold text-slate-400">TRACKS</span></p>
+            <p className="text-2xl font-black">{totalApprovedSongs} <span className="text-[10px] font-bold text-slate-400">APPROVED TRACKS</span></p>
           </div>
         </div>
 
@@ -140,10 +153,10 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({ songs, goalSeconds = 7200, 
                 {topGenres.map(([genre, count]) => (
                   <div key={genre} className="flex items-baseline gap-1.5">
                     <span className="text-xs font-black uppercase tracking-tight">{genre}</span>
-                    <span className="text-[10px] font-mono font-bold text-indigo-600">{Math.round((count/Math.max(1, totalSongs))*100)}%</span>
+                    <span className="text-[10px] font-mono font-bold text-indigo-600">{Math.round((count/Math.max(1, totalApprovedSongs))*100)}%</span>
                   </div>
                 ))}
-                {totalSongs === 0 && <span className="text-[9px] text-slate-400 font-bold uppercase">Ready for Analysis</span>}
+                {totalApprovedSongs === 0 && <span className="text-[9px] text-slate-400 font-bold uppercase">Approve songs for analysis</span>}
               </div>
             </div>
           </div>

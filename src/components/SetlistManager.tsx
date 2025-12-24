@@ -62,6 +62,7 @@ export interface SetlistSong {
   fineTune?: number; // Added for fine-tuning pitch
   tempo?: number; // Added for tempo stretching
   volume?: number; // Added for master gain control
+  isApproved?: boolean; // NEW: Song approval tick
 }
 
 interface SetlistManagerProps {

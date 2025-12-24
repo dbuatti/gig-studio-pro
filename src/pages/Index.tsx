@@ -73,7 +73,8 @@ const Index = () => {
         originalKey: d.original_key, targetKey: d.target_key, pitch: d.pitch, ugUrl: d.ug_url,
         previewUrl: d.preview_url, youtubeUrl: d.youtube_url, appleMusicUrl: d.apple_music_url,
         pdfUrl: d.pdf_url, isMetadataConfirmed: d.is_metadata_confirmed, isKeyConfirmed: d.is_key_confirmed,
-        duration_seconds: d.duration_seconds, notes: d.notes, user_tags: d.user_tags || [], resources: d.resources || []
+        duration_seconds: d.duration_seconds, notes: d.notes, user_tags: d.user_tags || [], resources: d.resources || [],
+        isApproved: false // Default for master repertoire when fetching
       }));
       setMasterRepertoire(mapped);
     } catch (err) {}
@@ -134,7 +135,7 @@ const Index = () => {
       if (!list) return prev;
       const updatedSongs = list.songs.map(s => s.id === songId ? { ...s, ...updates } : s);
       const updatedSong = updatedSongs.find(s => s.id === songId);
-      const masterFields = ['name', 'artist', 'previewUrl', 'youtubeUrl', 'originalKey', 'targetKey', 'pitch', 'bpm', 'lyrics', 'pdfUrl', 'ugUrl', 'isMetadataConfirmed', 'isKeyConfirmed'];
+      const masterFields = ['name', 'artist', 'previewUrl', 'youtubeUrl', 'originalKey', 'targetKey', 'pitch', 'bpm', 'lyrics', 'pdfUrl', 'ugUrl', 'isMetadataConfirmed', 'isKeyConfirmed', 'isApproved']; // Added isApproved
       const needsMasterSync = Object.keys(updates).some(key => masterFields.includes(key));
       saveList(currentListId, updatedSongs, {}, needsMasterSync && updatedSong ? [updatedSong] : undefined);
       return prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l);
@@ -146,11 +147,12 @@ const Index = () => {
     const existing = masterRepertoire.find(s => s.name.toLowerCase() === name.toLowerCase() && s.artist?.toLowerCase() === artist.toLowerCase());
     const newSongId = Math.random().toString(36).substr(2, 9);
     const newSong: SetlistSong = existing 
-      ? { ...existing, id: newSongId, master_id: existing.master_id, isPlayed: false, isSyncing: false } 
+      ? { ...existing, id: newSongId, master_id: existing.master_id, isPlayed: false, isSyncing: false, isApproved: false } // Default isApproved to false
       : { 
           id: newSongId, name, artist, previewUrl, youtubeUrl, ugUrl, appleMusicUrl, genre, pitch, 
           originalKey: "TBC", targetKey: "TBC", isPlayed: false, isSyncing: true, isMetadataConfirmed: false,
-          user_tags: genre ? [genre] : []
+          user_tags: genre ? [genre] : [],
+          isApproved: false // Default isApproved to false
         };
     const list = setlists.find(l => l.id === currentListId);
     if (!list) return;
@@ -164,7 +166,7 @@ const Index = () => {
     const newSongId = Math.random().toString(36).substr(2, 9);
     const list = setlists.find(l => l.id === currentListId);
     if (!list) return;
-    const newEntry = { ...song, id: newSongId, master_id: song.master_id || song.id, isPlayed: false };
+    const newEntry = { ...song, id: newSongId, master_id: song.master_id || song.id, isPlayed: false, isApproved: false }; // Default isApproved to false
     const updatedSongs = [...list.songs, newEntry];
     saveList(currentListId, updatedSongs, {}, [newEntry]);
     showSuccess(`Imported "${song.name}"`);
@@ -239,8 +241,8 @@ const Index = () => {
   };
 
   const startPerformance = async () => {
-    const first = songs.find(isPlayableMaster);
-    if (!first) { showError("No full audio tracks found."); return; }
+    const first = songs.filter(song => song.isApproved).find(isPlayableMaster); // Only approved songs
+    if (!first) { showError("No approved full audio tracks found."); return; }
     setIsPerformanceMode(true);
     handleSelectSong(first);
     setTimeout(() => transposerRef.current?.togglePlayback(), 1000);
@@ -311,7 +313,7 @@ const Index = () => {
               </div>
               <ImportSetlist onImport={(newSongs) => {
                 if (!currentListId) return;
-                saveList(currentListId, [...songs, ...newSongs.map(s => ({ ...s, isSyncing: true }))], {}, newSongs);
+                saveList(currentListId, [...songs, ...newSongs.map(s => ({ ...s, isSyncing: true, isApproved: false }))], {}, newSongs); // Default isApproved to false
               }} />
             </div>
             <SetlistStats songs={songs} goalSeconds={currentList?.time_goal} onUpdateGoal={(s) => currentListId && saveList(currentListId, songs, { time_goal: s }, undefined)} />
