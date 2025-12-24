@@ -1,7 +1,5 @@
 // @ts-ignore: Deno runtime import
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
-// @ts-ignore: Deno runtime import
-import { encode as encodeBase64 } from "https://deno.land/std@0.160.0/encoding/base64.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,9 +19,8 @@ serve(async (req) => {
     const GITHUB_PAT = Deno.env.get('GITHUB_PAT');
 
     if (!GITHUB_PAT) {
-      console.error("[SYNC ERROR] GITHUB_PAT secret is missing in Supabase.");
       return new Response(JSON.stringify({ 
-        error: "Missing GITHUB_PAT. Please add your GitHub Personal Access Token to the Supabase Edge Function secrets." 
+        error: "Missing GITHUB_PAT. Please ensure the GitHub Personal Access Token is set in Supabase secrets." 
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -32,7 +29,7 @@ serve(async (req) => {
 
     const apiUrl = `https://api.github.com/repos/${repo}/contents/${path}`;
     
-    // 1. Fetch current file to get the SHA (required for updating existing files)
+    // 1. Fetch current file to get the SHA
     const getRes = await fetch(apiUrl, {
       headers: {
         'Authorization': `Bearer ${GITHUB_PAT}`,
@@ -50,9 +47,15 @@ serve(async (req) => {
       throw new Error(`GitHub connectivity failed (${getRes.status}): ${errText}`);
     }
 
-    // 2. Prepare the payload with Base64 content
-    // We use the standard Deno utility for reliable binary-safe encoding
-    const encodedContent = encodeBase64(content);
+    // 2. Encode content to Base64 correctly
+    // We convert the string to a Uint8Array first to ensure proper encoding
+    const uint8 = new TextEncoder().encode(content);
+    let binary = "";
+    const len = uint8.byteLength;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(uint8[i]);
+    }
+    const encodedContent = btoa(binary);
     
     const putRes = await fetch(apiUrl, {
       method: 'PUT',
@@ -72,8 +75,7 @@ serve(async (req) => {
     const result = await putRes.json();
     
     if (!putRes.ok) {
-      console.error(`[SYNC ERROR] GitHub Write Failed (${putRes.status}):`, result);
-      throw new Error(result.message || "The GitHub write operation was rejected by the API.");
+      throw new Error(result.message || "The GitHub write operation was rejected.");
     }
 
     return new Response(JSON.stringify({ 
@@ -85,7 +87,6 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error(`[RUNTIME ERROR]: ${error.message}`);
     return new Response(JSON.stringify({ 
       error: error.message,
       details: "Check function logs for full trace."
