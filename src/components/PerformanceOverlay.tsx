@@ -12,12 +12,13 @@ import {
   Waves, Activity, ArrowRight, Shuffle,
   Settings2, Gauge, FileText, Save, Youtube,
   Monitor, AlignLeft, RotateCcw, ShieldCheck, ExternalLink,
-  Clock, Timer, ChevronRight, Zap, Minus, Plus, Edit3, Check
+  Clock, Timer, ChevronRight, Zap, Minus, Plus, Edit3, Check, Keyboard
 } from 'lucide-react';
 import { SetlistSong } from './SetlistManager';
 import AudioVisualizer from './AudioVisualizer';
 import Metronome from './Metronome';
 import SongStudioModal from './SongStudioModal';
+import ShortcutLegend from './ShortcutLegend';
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, formatKey, calculateSemitones, transposeKey } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
 import { Badge } from './ui/badge';
@@ -65,6 +66,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
   const [scrollSpeed, setScrollSpeed] = useState(1.0);
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
   const [isStudioOpen, setIsStudioOpen] = useState(false);
+  const [isShortcutLegendOpen, setIsShortcutLegendOpen] = useState(false);
   
   // Performance HUD State
   const [wallClock, setWallClock] = useState(new Date());
@@ -89,8 +91,11 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
       if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) return;
 
       if (e.key === 'Escape') {
-        if (!isStudioOpen) {
+        if (!isStudioOpen && !isShortcutLegendOpen) {
           onClose();
+        } else {
+          setIsStudioOpen(false);
+          setIsShortcutLegendOpen(false);
         }
       }
       if (e.code === 'Space') {
@@ -109,10 +114,13 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
       if (e.key.toLowerCase() === 'e') {
         setIsStudioOpen(true);
       }
+      if (e.key.toLowerCase() === 'k') {
+        setIsShortcutLegendOpen(prev => !prev);
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose, onTogglePlayback, onPrevious, onNext, isStudioOpen]);
+  }, [onClose, onTogglePlayback, onPrevious, onNext, isStudioOpen, isShortcutLegendOpen]);
 
   // Mobile Swipe Gesture logic
   useEffect(() => {
@@ -121,12 +129,11 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
-      if (isStudioOpen) return; // Let modal handle its own gestures if needed
+      if (isStudioOpen || isShortcutLegendOpen) return;
       
       const touchEndX = e.changedTouches[0].clientX;
       const distance = touchEndX - touchStartX.current;
       
-      // If swipe right > 150px
       if (distance > 150) {
         onClose();
       }
@@ -138,7 +145,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
       window.removeEventListener('touchstart', handleTouchStart);
       window.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [onClose, isStudioOpen]);
+  }, [onClose, isStudioOpen, isShortcutLegendOpen]);
 
   // Wall Clock and Set Timer logic
   useEffect(() => {
@@ -372,19 +379,31 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
             ))}
           </div>
 
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => setIsStudioOpen(true)}
-            className="rounded-full bg-white/5 hover:bg-indigo-600 hover:text-white h-10 w-10 md:h-12 md:w-12 transition-all group"
-            title="Edit Song (E)"
-          >
-            <Edit3 className="w-5 h-5 text-slate-400 group-hover:text-white" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => setIsShortcutLegendOpen(true)}
+              className="rounded-full bg-white/5 hover:bg-white/10 h-10 w-10 md:h-12 md:w-12 transition-all"
+              title="Shortcuts (K)"
+            >
+              <Keyboard className="w-5 h-5 text-slate-400" />
+            </Button>
 
-          <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full hover:bg-red-500/20 hover:text-red-400 h-10 w-10 md:h-12 md:w-12 transition-all">
-            <X className="w-6 h-6 md:w-8 md:h-8" />
-          </Button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => setIsStudioOpen(true)}
+              className="rounded-full bg-white/5 hover:bg-indigo-600 hover:text-white h-10 w-10 md:h-12 md:w-12 transition-all group"
+              title="Edit Song (E)"
+            >
+              <Edit3 className="w-5 h-5 text-slate-400 group-hover:text-white" />
+            </Button>
+
+            <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full hover:bg-red-500/20 hover:text-red-400 h-10 w-10 md:h-12 md:w-12 transition-all">
+              <X className="w-6 h-6 md:w-8 md:h-8" />
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -681,6 +700,10 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
         onSave={onUpdateSong} 
         onUpdateKey={onUpdateKey}
       />
+
+      {isShortcutLegendOpen && (
+        <ShortcutLegend onClose={() => setIsShortcutLegendOpen(false)} />
+      )}
     </div>
   );
 };

@@ -6,7 +6,7 @@ import {
   ListMusic, Trash2, Play, Music, Youtube, ArrowRight, 
   CircleDashed, CheckCircle2, Volume2, ChevronUp, ChevronDown, 
   Search, LayoutList, SortAsc, SortDesc, ClipboardList, Clock, 
-  ShieldCheck, Check, MoreVertical, Settings2, FileText, Filter
+  ShieldCheck, Check, MoreVertical, Settings2, FileText, Filter, AlertTriangle, Loader2
 } from 'lucide-react';
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, formatKey, transposeKey, calculateSemitones } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
@@ -20,6 +20,16 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import SetlistFilters, { FilterState } from './SetlistFilters';
 import { calculateReadiness } from '@/utils/repertoireSync';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export interface SetlistSong {
   id: string; // Unique for the setlist entry
@@ -98,6 +108,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   const [studioSong, setStudioSong] = useState<SetlistSong | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   useEffect(() => {
     localStorage.setItem('gig_sort_mode', sortMode);
@@ -279,10 +290,14 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className={cn(
-                      "h-2 w-2 rounded-full",
-                      isReady ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]"
-                    )} />
+                    {song.isSyncing ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-500" />
+                    ) : (
+                      <div className={cn(
+                        "h-2 w-2 rounded-full",
+                        isReady ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]"
+                      )} />
+                    )}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400">
@@ -299,7 +314,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'down'); }} disabled={!isReorderingEnabled || idx === processedSongs.length - 1}>
                           <ChevronDown className="w-4 h-4 mr-2" /> Move Down
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600" onClick={(e) => { e.stopPropagation(); onRemove(song.id); }}>
+                        <DropdownMenuItem className="text-red-600" onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(song.id); }}>
                           <Trash2 className="w-4 h-4 mr-2" /> Remove Track
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -402,10 +417,14 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                               {song.name}
                             </h4>
                             {song.isMetadataConfirmed && <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />}
-                            <div className={cn(
-                              "h-1.5 w-1.5 rounded-full",
-                              isReady ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]"
-                            )} />
+                            {song.isSyncing ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-500 ml-1" />
+                            ) : (
+                              <div className={cn(
+                                "h-1.5 w-1.5 rounded-full",
+                                isReady ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]"
+                              )} />
+                            )}
                           </div>
                           
                           <div className="flex items-center gap-2 ml-[32px]">
@@ -525,7 +544,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                             variant="ghost" 
                             size="icon" 
                             className="h-9 w-9 rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors inline-flex items-center justify-center" 
-                            onClick={(e) => { e.stopPropagation(); onRemove(song.id); }}
+                            onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(song.id); }}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -552,6 +571,35 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
           setStudioSong(null);
         }}
       />
+
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <AlertDialogContent className="bg-slate-900 border-white/10 text-white rounded-[2rem]">
+          <AlertDialogHeader>
+            <div className="bg-red-500/10 w-12 h-12 rounded-2xl flex items-center justify-center text-red-500 mb-4">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <AlertDialogTitle className="text-xl font-black uppercase tracking-tight">Remove Track?</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-400">
+              This will remove the song from your active setlist. The master record will remain in your library.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-6">
+            <AlertDialogCancel className="rounded-xl border-white/10 bg-white/5 hover:bg-white/10 hover:text-white font-bold uppercase text-[10px] tracking-widest">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => {
+                if (deleteConfirmId) {
+                  onRemove(deleteConfirmId);
+                  setDeleteConfirmId(null);
+                  showSuccess("Track Removed");
+                }
+              }}
+              className="rounded-xl bg-red-600 hover:bg-red-700 text-white font-black uppercase text-[10px] tracking-widest"
+            >
+              Confirm Removal
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -8,6 +8,7 @@ import { SetlistSong } from './SetlistManager';
 import { cn } from "@/lib/utils";
 import { formatKey } from '@/utils/keyUtils';
 import { useSettings } from '@/hooks/use-settings';
+import SearchHighlight from './SearchHighlight';
 
 interface MyLibraryProps {
   repertoire: SetlistSong[];
@@ -64,11 +65,17 @@ const MyLibrary: React.FC<MyLibraryProps> = ({ repertoire, onAddSong }) => {
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     <Music className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-500 shrink-0" />
                     <div className="flex items-center gap-2 min-w-0 overflow-hidden">
-                      <span className="text-[11px] font-black uppercase tracking-tight truncate">{song.name}</span>
+                      <SearchHighlight 
+                        text={song.name} 
+                        query={query} 
+                        className="text-[11px] font-black uppercase tracking-tight truncate" 
+                      />
                       <span className="text-slate-300 dark:text-slate-700 text-[10px]">|</span>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">
-                        {song.artist || "Unknown Artist"}
-                      </span>
+                      <SearchHighlight 
+                        text={song.artist || "Unknown Artist"} 
+                        query={query} 
+                        className="text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate" 
+                      />
                     </div>
                   </div>
                   
