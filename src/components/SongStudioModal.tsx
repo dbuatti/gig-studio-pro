@@ -359,14 +359,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     
     try {
       setSyncStatus("Handshaking with Render...");
-      const tokenUrl = `${apiBase}/?url=${encodeURIComponent(cleanedUrl)}`;
-      
-      let tokenRes;
-      try {
-        tokenRes = await fetch(tokenUrl);
-      } catch (e) {
-        throw new Error("Render service is currently deploying or unreachable.");
-      }
+const tokenUrl = `${apiBase}/?url=${encodeURIComponent(cleanedUrl)}`;
       
       const errBody = await tokenRes.json().catch(() => ({}));
       if (!tokenRes.ok) {
