@@ -85,7 +85,8 @@ def run_yt_dlp(video_url, token):
             'Accept-Language': 'en-GB,en;q=0.9',
             'Referer': 'https://m.youtube.com/'
         },
-        'progress_hooks': [lambda d: progress_hook(d, token)] # Added progress hook
+        'progress_hooks': [lambda d: progress_hook(d, token)], # Added progress hook
+        'noplaylist': True # CRITICAL: Prevents downloading entire playlists
     }
 
     if REPO_COOKIES_PATH.exists():

@@ -15,6 +15,7 @@ import { showSuccess, showError } from '@/utils/toast';
 import { SetlistSong } from './SetlistManager';
 import { CustomProgress } from '@/components/CustomProgress'; // Import CustomProgress component
 import * as Tone from 'tone'; // Import Tone.js
+import { cleanYoutubeUrl } from '@/utils/youtubeUtils'; // Import the utility function
 
 interface YoutubeMediaManagerProps {
   song: SetlistSong | null;
@@ -76,7 +77,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
     // Check if it's a URL first
     if (searchTerm.startsWith('http')) {
       console.log("[YoutubeMediaManager] Direct URL provided, linking:", searchTerm);
-      handleAutoSave({ youtubeUrl: searchTerm });
+      handleAutoSave({ youtubeUrl: cleanYoutubeUrl(searchTerm) }); // Apply sanitization here
       showSuccess("YouTube URL Linked");
       return;
     }
@@ -189,7 +190,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
 
   const handleSelectYoutubeVideo = (url: string) => {
     console.log("[YoutubeMediaManager] Selected YouTube video URL:", url);
-    handleAutoSave({ youtubeUrl: url });
+    handleAutoSave({ youtubeUrl: cleanYoutubeUrl(url) }); // Apply sanitization here
   };
 
   const handleClearYoutubeSelection = () => {
@@ -200,7 +201,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
 
   // UPDATED: Logic to download audio via Client-Side Proxy with polling and Supabase upload
   const handleDownloadViaProxy = async (videoUrlToDownload?: string) => {
-    const targetVideoUrl = videoUrlToDownload || formData.youtubeUrl;
+    const targetVideoUrl = cleanYoutubeUrl(videoUrlToDownload || formData.youtubeUrl || ''); // Apply sanitization here
 
     if (!targetVideoUrl) {
       showError("Please link a YouTube URL first.");
