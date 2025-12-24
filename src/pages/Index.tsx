@@ -349,6 +349,16 @@ const Index = () => {
       {isPerformanceMode && (
         <PerformanceOverlay songs={songs.filter(isPlayableMaster)} currentIndex={songs.filter(isPlayableMaster).findIndex(s => s.id === activeSongId)} isPlaying={isPlayerActive} progress={performanceState.progress} duration={performanceState.duration} onTogglePlayback={() => transposerRef.current?.togglePlayback()} onNext={handleNextSong} onPrevious={handlePreviousSong} onShuffle={handleShuffle} onClose={() => { setIsPerformanceMode(false); setActiveSongId(null); transposerRef.current?.stopPlayback(); }} onUpdateKey={handleUpdateKey} onUpdateSong={handleUpdateSong} analyzer={transposerRef.current?.getAnalyzer()} onOpenAdmin={() => setIsAdminOpen(true)} />
       )}
+      
+      {/* Ensure SongStudioModal in Aside also has onOpenAdmin connected */}
+      <SongStudioModal 
+        song={activeSong} 
+        isOpen={isStudioOpen && !!activeSongId} 
+        onClose={() => setIsStudioOpen(false)} 
+        onSave={handleUpdateSong} 
+        onUpdateKey={handleUpdateKey}
+        onOpenAdmin={() => setIsAdminOpen(true)}
+      />
     </div>
   );
 };
