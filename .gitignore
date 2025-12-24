@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# Secrets and Session Data
+cookies.txt
+.env
+.env.local
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
