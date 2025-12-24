@@ -39,6 +39,7 @@ serve(async (req) => {
       console.log(`[extract-youtube-audio] Getting info for video: ${videoUrl}`);
       info = await ytdl.getInfo(videoUrl);
       console.log("[extract-youtube-audio] Successfully got video info.");
+      console.log("[extract-youtube-audio] Video info details:", JSON.stringify(info.videoDetails, null, 2)); // Added for debugging
     } catch (e) {
       console.error(`[extract-youtube-audio] Error getting video info for ${videoUrl}: ${e.message}`);
       throw new Error(`Failed to get video info: ${e.message}`);
@@ -60,6 +61,7 @@ serve(async (req) => {
     let audioStream;
     try {
       console.log("[extract-youtube-audio] Downloading audio stream.");
+      // ytdl.downloadFromInfo returns a ReadableStream in Node.js, assuming Deno compatibility
       audioStream = ytdl.downloadFromInfo(info, { format: audioFormat });
       console.log("[extract-youtube-audio] Audio stream initiated.");
     } catch (e) {
@@ -90,9 +92,12 @@ serve(async (req) => {
 
     console.log(`[extract-youtube-audio] Public URL generated: ${publicUrl}`);
 
+    // Add a check for info.videoDetails before accessing lengthSeconds
+    const durationSeconds = info.videoDetails?.lengthSeconds ? parseInt(info.videoDetails.lengthSeconds) : 0;
+
     return new Response(JSON.stringify({ 
       publicUrl, 
-      duration_seconds: parseInt(info.videoDetails.lengthSeconds) 
+      duration_seconds: durationSeconds
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200
