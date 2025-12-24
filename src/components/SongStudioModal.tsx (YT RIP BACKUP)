@@ -34,7 +34,7 @@ import { Slider } from '@/components/ui/slider';
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
 import { RESOURCE_TYPES } from '@/utils/constants';
 import ProSyncSearch from './ProSyncSearch';
-import YoutubeResultsShelf from '@/components/Youtube/YoutubeResultsShelf';
+import YoutubeResultsShelf from './YoutubeResultsShelf';
 import { useAuth } from './AuthProvider';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { calculateReadiness } from '@/utils/repertoireSync';
@@ -345,7 +345,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     }
   };
 
-const handleSyncYoutubeAudio = async (videoUrl?: string) => {
+  const handleSyncYoutubeAudio = async (videoUrl?: string) => {
     const targetUrl = videoUrl || formData.youtubeUrl;
     if (!targetUrl || !user || !song) {
       showError("Paste a YouTube URL first.");
@@ -353,63 +353,71 @@ const handleSyncYoutubeAudio = async (videoUrl?: string) => {
     }
 
     const cleanedUrl = cleanYoutubeUrl(targetUrl);
-    // Updated to your new Node.js endpoint
-    const API_BASE = "https://yt-audio-api-docker.onrender.com"; 
+    // --- START MANUAL CHANGE ---
+    const API_BASE = "https://yt-rip-inza.onrender.com"; // <--- UPDATE THIS LINE
+    // --- END MANUAL CHANGE ---
 
     setIsSyncingAudio(true);
-    setSyncStatus("Waking up extraction engine...");
+    setSyncStatus("Initializing Engine...");
     setEngineError(null);
     
     try {
-      // Step 1: Request the conversion
-      const response = await fetch(`${API_BASE}/api/download`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: cleanedUrl, format: 'mp3' })
+      setSyncStatus("Waking up extraction engine...");
+      // Add a small delay for Render cold-starts
+      const tokenUrl = `${API_BASE}/api/download?url=${encodeURIComponent(cleanedUrl)}`; // Updated endpoint
+      
+      const tokenRes = await fetch(tokenUrl, {
+        headers: { 'Accept': 'application/json' }
+      }).catch(() => {
+        throw new Error("Engine unreachable. The Render server might be rebuilding or sleeping.");
       });
 
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || "Extraction server error");
+      if (!tokenRes.ok) {
+        const errBody = await tokenRes.json().catch(() => ({}));
+        const specificError = errBody.detail || errBody.error || tokenRes.statusText;
+        if (specificError.includes("format is not available") || 
+            specificError.includes("Signature solving failed") || 
+            specificError.includes("Sign in to confirm")) {
+          setEngineError(`YouTube Protection Triggered: ${specificError}. Upload fresh cookies in Admin.`);
+        } else {
+          setEngineError(`Engine Error: ${specificError}`);
+        }
+        throw new Error(specificError);
       }
-
-      const data = await response.json();
-      // yt-rip returns success: true and a directUrl
-      if (!data.success || (!data.directUrl && !data.downloadUrl)) {
-        throw new Error("Engine failed to generate a valid stream.");
-      }
-
-      setSyncStatus("Streaming audio data...");
       
-      // Step 2: Fetch the actual file bytes from the generated URL
-      // We use the directUrl if available, otherwise the proxied downloadUrl
-      const audioSourceUrl = data.directUrl || `${API_BASE}${data.downloadUrl}`;
-      const downloadRes = await fetch(audioSourceUrl);
+      const { token, downloadUrl: backendDownloadUrl } = await tokenRes.json(); // Get downloadUrl from backend
+      setSyncStatus("Extracting Audio Stream...");
+
+      const downloadRes = await fetch(`${API_BASE}${backendDownloadUrl}`); // Use backend's downloadUrl
       
-      if (!downloadRes.ok) throw new Error("Could not reach audio stream.");
+      if (!downloadRes.ok) throw new Error("Audio extraction failed at source.");
       const blob = await downloadRes.blob();
 
       setSyncStatus("Syncing to Cloud Vault...");
       const fileName = `${user.id}/${song.id}/extracted-${Date.now()}.mp3`;
+      const bucket = 'public_assets';
       
       const { error: uploadError } = await supabase.storage
-        .from('public_assets')
-        .upload(fileName, blob, { contentType: 'audio/mpeg', upsert: true });
+        .from(bucket)
+        .upload(fileName, blob, {
+          contentType: 'audio/mpeg',
+          upsert: true
+        });
 
       if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage
-        .from('public_assets')
+        .from(bucket)
         .getPublicUrl(fileName);
 
-      handleAutoSave({ previewUrl: publicUrl, youtubeUrl: cleanedUrl });
+      const updates = { previewUrl: publicUrl, youtubeUrl: cleanedUrl };
+      handleAutoSave(updates);
       await loadFromUrl(publicUrl, formData.pitch || 0);
       showSuccess("YT-Master Audio Linked");
       
     } catch (err: any) {
       console.error("YT Sync Error:", err);
-      setEngineError(err.message);
-      showError(err.message || "Extraction failed.");
+      showError(err.message || "Connection refused by extraction engine.");
     } finally {
       setIsSyncingAudio(false);
       setSyncStatus("");
