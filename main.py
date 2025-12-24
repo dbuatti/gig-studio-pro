@@ -12,11 +12,13 @@ from supabase import create_client, Client
 
 app = Flask(__name__)
 
-# Explicit CORS configuration for all routes
+# --- Enhanced CORS Configuration ---
+# This ensures CORS is handled globally by the middleware
 CORS(app, resources={r"/*": {
     "origins": "*",
     "methods": ["GET", "POST", "OPTIONS"],
-    "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"]
+    "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+    "expose_headers": ["Content-Type", "Authorization"]
 }})
 
 # --- Configuration ---
@@ -43,18 +45,21 @@ if SUPABASE_URL and SUPABASE_SERVICE_KEY:
     except Exception as e:
         print(f"❌ Supabase Init Error: {e}")
         last_error = f"Client Init Error: {str(e)}"
+else:
+    last_error = "Environment variables missing: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY"
+    print(f"⚠️ {last_error}")
 
 def fetch_cookies():
     """Syncs cookies from Supabase to local container."""
     global last_sync_time, last_error
     if not supabase: 
-        last_error = "Supabase client not initialized."
+        last_error = "Supabase client not initialized. Check Render environment variables."
         return 0
     
     try:
         data = supabase.storage.from_(COOKIES_BUCKET).download('cookies.txt')
         if not data:
-            last_error = "Vault file is empty."
+            last_error = "Vault file 'cookies.txt' is empty or missing in bucket 'cookies'."
             return 0
             
         with open(COOKIES_PATH, 'wb') as f:
@@ -62,9 +67,11 @@ def fetch_cookies():
             
         last_sync_time = datetime.now().isoformat()
         last_error = None
+        print(f"✅ Cookie vault synced: {len(data)} bytes")
         return len(data)
     except Exception as e:
-        last_error = f"Sync Error: {str(e)}"
+        last_error = f"Vault Sync Error: {str(e)}"
+        print(f"❌ {last_error}")
         return 0
 
 def background_worker():
@@ -83,11 +90,25 @@ def background_worker():
 
 threading.Thread(target=background_worker, daemon=True).start()
 
+# --- Robust Routing & Error Handling ---
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Global error handler to ensure JSON + CORS headers on failure."""
+    print(f"🔥 Internal Server Error: {str(e)}")
+    response = jsonify({
+        "error": "Internal Server Error",
+        "detail": str(e),
+        "status": 500
+    })
+    response.status_code = 500
+    return response
+
 @app.after_request
 def after_request(response):
-    """Ensure CORS headers are present even on errors."""
+    """Fallback to ensure CORS headers are present on every single response."""
     response.headers.add('Access-Control-Allow-Origin', '*')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,Accept')
     response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
     return response
 
@@ -163,7 +184,7 @@ def download_file():
     if not filename: return jsonify(error="Unauthorized"), 401
     return send_from_directory(str(ABS_DOWNLOADS_PATH), filename, as_attachment=True)
 
-@app.route("/health", methods=["GET"])
+@app.route("/health", methods=["GET"], strict_slashes=False)
 def health():
     size = os.path.getsize(COOKIES_PATH) if os.path.exists(COOKIES_PATH) else 0
     return jsonify({
@@ -175,8 +196,9 @@ def health():
         "supabase_initialized": supabase is not None
     })
 
-@app.route("/refresh-cookies", methods=["POST", "GET"])
+@app.route("/refresh-cookies", methods=["POST", "GET"], strict_slashes=False)
 def manual_refresh():
+    """Triggers a manual sync from Supabase vault."""
     size = fetch_cookies()
     return jsonify({
         "success": size > 0, 
@@ -190,4 +212,6 @@ if __name__ == "__main__":
         fetch_cookies()
     except:
         pass
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
+    port = int(os.environ.get("PORT", 10000))
+    print(f"📡 System Core starting on port {port}...")
+    app.run(host="0.0.0.0", port=port)
