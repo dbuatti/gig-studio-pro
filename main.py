@@ -7,20 +7,56 @@ import threading
 import time
 import shutil
 import subprocess
+import requests
 
 app = Flask(__name__)
-# Allow CORS for all origins (specifically for your Dyad app)
 CORS(app)
 
-# Configuration
 DOWNLOAD_DIR = "downloads"
-TOKEN_EXPIRY = 300  # 5 minutes
-
-# In-memory store for tokens: {token: {"file": "path", "expiry": timestamp}}
+TOKEN_EXPIRY = 300
 active_tokens = {}
 
+# Configuration for cookies
+COOKIES_FILE = "cookies.txt"
+COOKIES_URL = os.environ.get("COOKIES_URL") # Optional: URL to fetch cookies from
+
+def download_cookies():
+    """Download cookies.txt if a URL is provided in environment variables."""
+    if COOKIES_URL:
+        try:
+            print(f"Downloading cookies from {COOKIES_URL}...")
+            response = requests.get(COOKIES_URL)
+            response.raise_for_status()
+            with open(COOKIES_FILE, "w") as f:
+                f.write(response.text)
+            print("Cookies downloaded successfully.")
+        except Exception as e:
+            print(f"Failed to download cookies: {e}")
+
+def get_ydl_opts(output_path):
+    """Returns yt-dlp options, including cookies if available."""
+    opts = {
+        'format': 'bestaudio/best',
+        'outtmpl': output_path.replace('.mp3', ''),
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '192',
+        }],
+        'quiet': True,
+        'no_warnings': True
+    }
+    
+    # Add cookies if the file exists
+    if os.path.exists(COOKIES_FILE):
+        opts['cookiefile'] = COOKIES_FILE
+        print("Using cookies file for download.")
+    else:
+        print("No cookies file found. Downloading without cookies (may fail).")
+        
+    return opts
+
 def cleanup_expired_files():
-    """Background thread to clean up expired tokens and files."""
     while True:
         current_time = time.time()
         expired_tokens = []
@@ -38,35 +74,23 @@ def cleanup_expired_files():
         for token in expired_tokens:
             del active_tokens[token]
             
-        time.sleep(60)  # Check every minute
+        time.sleep(60)
 
 def download_and_convert(url, token):
-    """Background thread to handle download and conversion."""
     try:
         filename = f"{uuid.uuid4()}.mp3"
         output_path = os.path.join(DOWNLOAD_DIR, filename)
         
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'outtmpl': output_path.replace('.mp3', ''),  # yt-dlp adds extension
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '192',
-            }],
-            'quiet': True,
-            'no_warnings': True
-        }
+        # Use the helper to get options
+        ydl_opts = get_ydl_opts(output_path)
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
 
-        # Update token with actual file path
         if token in active_tokens:
             active_tokens[token]["file"] = output_path
             print(f"Download complete: {output_path}")
         else:
-            # Token expired during download
             if os.path.exists(output_path):
                 os.remove(output_path)
                 
@@ -84,16 +108,12 @@ def get_token():
     if not video_url:
         return jsonify({"error": "Missing url parameter"}), 400
 
-    # Generate token
     token = str(uuid.uuid4())
-    
-    # Store token with expiry (file path will be added later)
     active_tokens[token] = {
-        "file": None,  # Will be updated by background thread
+        "file": None,
         "expiry": time.time() + TOKEN_EXPIRY
     }
 
-    # Start background download
     threading.Thread(target=download_and_convert, args=(video_url, token), daemon=True).start()
 
     return jsonify({"token": token})
@@ -118,7 +138,6 @@ def download_file():
     if not os.path.exists(file_path):
         return jsonify({"error": "File not found"}), 404
 
-    # Consume token (one-time download)
     del active_tokens[token]
     
     return send_file(file_path, as_attachment=True, download_name="audio.mp3")
@@ -127,11 +146,12 @@ if __name__ == '__main__':
     if not os.path.exists(DOWNLOAD_DIR):
         os.makedirs(DOWNLOAD_DIR)
     
-    # Start cleanup thread
+    # Download cookies on startup if URL is provided
+    download_cookies()
+    
     cleanup_thread = threading.Thread(target=cleanup_expired_files, daemon=True)
     cleanup_thread.start()
     
-    # Check if ffmpeg is installed
     try:
         subprocess.run(['ffmpeg', '-version'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except FileNotFoundError:
