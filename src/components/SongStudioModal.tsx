@@ -43,7 +43,8 @@ import { detectKeyFromBuffer, KeyCandidate } from '@/utils/keyDetector';
 import { cleanYoutubeUrl } from '@/utils/youtubeUtils';
 import YoutubeMediaManager from './YoutubeMediaManager';
 import SongDetailsTab from './SongDetailsTab';
-import SongChartsTab from './SongChartsTab'; // New import
+import SongChartsTab from './SongChartsTab';
+import LyricsEngine from './LyricsEngine'; // New import
 
 // Helper to parse ISO 8601 duration (e.g., PT4M13S -> 4:13)
 const parseISO8601Duration = (duration: string): string => {
@@ -417,33 +418,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     }
   };
 
-  const handleMagicFormatLyrics = async () => {
-    if (!formData.lyrics?.trim()) {
-      showError("Paste lyrics first.");
-      return;
-    }
-    setIsFormattingLyrics(true);
-    try {
-      const { data, error = null } = await supabase.functions.invoke('enrich-metadata', {
-        body: { queries: [formData.lyrics], mode: 'lyrics' }
-      });
-      if (error) throw error;
-      if (data?.lyrics) {
-        handleAutoSave({ lyrics: data.lyrics });
-        showSuccess("Lyrics Structuring Complete");
-      }
-    } catch (err) {
-      showError("Lyrics Engine Error.");
-    } finally {
-      setIsFormattingLyrics(false);
-    }
-  };
-
-  const handleLyricsSearch = () => {
-    const query = encodeURIComponent(`${formData.artist || ""} ${formData.name || ""} lyrics`);
-    window.open(`https://www.google.com/search?q=${query}`, '_blank');
-  };
-
   const handleUgPrint = () => {
     if (!formData.ugUrl) {
       showError("Link a tab first.");
@@ -660,8 +634,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                   <button
                     onClick={() => updateHarmonics({ isKeyConfirmed: !formData.isKeyConfirmed })}
                     className={cn(
-
-                      "p-1.5 rounded-lg border transition-all",
                       "p-1.5 rounded-lg border transition-all",
                       formData.isKeyConfirmed ? "bg-emerald-600 border-emerald-500 text-white shadow-lg shadow-emerald-600/20" : "bg-white/5 border-white/10 text-slate-500"
                     )}
@@ -1075,18 +1047,13 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                 />
               )}
               {activeTab === 'lyrics' && (
-                <div className="space-y-10 animate-in fade-in duration-500 h-full flex flex-col">
-                  <div className="flex justify-between items-center shrink-0">
-                    <h3 className="text-sm font-black uppercase tracking-[0.3em] text-pink-400">Lyrics Engine</h3>
-                    <div className="flex gap-4">
-                      <Button variant="outline" onClick={handleLyricsSearch} className="bg-white/5 text-slate-400 text-[9px] h-10 px-4 rounded-xl font-black uppercase"><Search className="w-3.5 h-3.5 mr-2" /> Search</Button>
-                      <Button variant="outline" onClick={handleMagicFormatLyrics} disabled={isFormattingLyrics || !formData.lyrics} className="bg-indigo-600 text-white text-[9px] h-10 px-4 rounded-xl font-black uppercase">{isFormattingLyrics ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <Sparkles className="w-3.5 h-3.5 mr-2" />} Magic Format</Button>
-                    </div>
-                  </div>
-                  <div className="flex-1 min-h-0">
-                    <Textarea placeholder="Paste lyrics..." value={formData.lyrics} onChange={(e) => handleAutoSave({ lyrics: e.target.value })} className={cn("bg-white/5 border-white/10 text-xl leading-relaxed p-10 font-medium whitespace-pre-wrap h-full", isMobile ? "rounded-2xl" : "rounded-[2.5rem]")} />
-                  </div>
-                </div>
+                <LyricsEngine
+                  lyrics={formData.lyrics || ""}
+                  onUpdate={(newLyrics) => handleAutoSave({ lyrics: newLyrics })}
+                  artist={formData.artist}
+                  title={formData.name}
+                  isMobile={isMobile}
+                />
               )}
               {activeTab === 'visual' && (
                 <div className="space-y-10 animate-in fade-in duration-500 h-full flex flex-col">
