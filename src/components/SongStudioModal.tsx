@@ -21,7 +21,8 @@ import {
   Zap, Disc, VolumeX, Smartphone, Printer, Search,
   ClipboardPaste, AlignLeft, Apple, Hash, Music2,
   FileSearch, ChevronRight, Layers, LayoutGrid, ListPlus,
-  Globe2, ShieldCheck, Timer, FileMusic, Copy, SearchCode, Cloud
+  Globe2, ShieldCheck, Timer, FileMusic, Copy, SearchCode, Cloud,
+  AlertTriangle, Wrench
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import AudioVisualizer from './AudioVisualizer';
@@ -106,6 +107,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const [isCloudSyncing, setIsCloudSyncing] = useState(false);
   const [isSyncingAudio, setIsSyncingAudio] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string>("");
+  const [engineError, setEngineError] = useState<string | null>(null);
   const [keyCandidates, setKeyCandidates] = useState<KeyCandidate[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isFormattingLyrics, setIsFormattingLyrics] = useState(false);
@@ -322,6 +324,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
 
     setIsSyncingAudio(true);
     setSyncStatus("Initializing Engine...");
+    setEngineError(null);
     
     try {
       await new Promise(r => setTimeout(r, 1000));
@@ -337,10 +340,14 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       }
       
       if (!tokenRes.ok) {
-        // Try to capture specifically the yt-dlp error detail
         const errBody = await tokenRes.json().catch(() => ({}));
         const specificError = errBody.detail || errBody.error || tokenRes.statusText;
         console.error("[Render API Failure]:", errBody);
+        
+        if (specificError.includes("format is not available")) {
+          setEngineError("Format Mismatch: The extraction engine needs a dependency update to fetch this specific stream.");
+        }
+        
         throw new Error(`Engine Error: ${specificError}`);
       }
       
@@ -930,16 +937,43 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         )}
         {(isUploading || isProSyncing || isCloudSyncing || isSyncingAudio) && (
           <div className="absolute inset-0 z-[60] bg-black/60 backdrop-blur-md flex flex-col items-center justify-center gap-4">
-             <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" />
-             <div className="text-center space-y-2 max-w-sm px-6">
-               <p className="text-sm font-black uppercase tracking-[0.2em] text-white">
-                 {isUploading ? 'Syncing Master Asset...' : 
-                  isSyncingAudio ? (syncStatus || 'Extracting High-Fidelity Audio...') :
-                  isCloudSyncing ? 'Accessing Cloud Knowledge Base...' : 
-                  'Analyzing Global Library Data...'}
-               </p>
-               {isSyncingAudio && <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400 animate-pulse">This can take up to 45 seconds for long tracks.</p>}
-             </div>
+             {engineError ? (
+                <div className="max-w-md bg-slate-900 border border-red-500/30 p-8 rounded-[2rem] shadow-2xl text-center space-y-6 animate-in zoom-in-95">
+                   <div className="bg-red-500/10 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto text-red-500">
+                     <AlertTriangle className="w-8 h-8" />
+                   </div>
+                   <div className="space-y-2">
+                     <p className="text-lg font-black uppercase tracking-tight text-white">Extraction Blocked</p>
+                     <p className="text-xs text-slate-400 leading-relaxed">{engineError}</p>
+                   </div>
+                   <div className="pt-2 flex flex-col gap-3">
+                      <Button onClick={() => setEngineError(null)} className="bg-white/5 hover:bg-white/10 text-white font-black uppercase tracking-widest text-[10px] h-11 rounded-xl">Clear Error</Button>
+                      <Button 
+                        onClick={() => {
+                          setEngineError(null);
+                          // Trigger admin panel or just tell them to use the logo shortcut
+                          showError("Admin Panel required to fix backend versioning.");
+                        }} 
+                        className="bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest text-[10px] h-11 rounded-xl gap-2"
+                      >
+                        <Wrench className="w-3.5 h-3.5" /> Force Build Repair
+                      </Button>
+                   </div>
+                </div>
+             ) : (
+               <>
+                 <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" />
+                 <div className="text-center space-y-2 max-w-sm px-6">
+                   <p className="text-sm font-black uppercase tracking-[0.2em] text-white">
+                     {isUploading ? 'Syncing Master Asset...' : 
+                      isSyncingAudio ? (syncStatus || 'Extracting High-Fidelity Audio...') :
+                      isCloudSyncing ? 'Accessing Cloud Knowledge Base...' : 
+                      'Analyzing Global Library Data...'}
+                   </p>
+                   {isSyncingAudio && <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400 animate-pulse">This can take up to 45 seconds for long tracks.</p>}
+                 </div>
+               </>
+             )}
           </div>
         )}
         <div className={cn("flex overflow-hidden", isMobile ? "flex-col h-[100dvh]" : "h-[90vh] min-h-[800px]")}>

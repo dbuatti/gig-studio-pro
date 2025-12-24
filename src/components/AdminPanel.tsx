@@ -75,13 +75,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   const handleRepairBackend = async () => {
     setIsRepairing(true);
     try {
-      const requirements = `flask\nflask-cors\nyt-dlp>=2024.12.06\ngunicorn\n`;
+      // Pinning to latest known stable for 2025 compatibility
+      const requirements = `flask\nflask-cors\nyt-dlp>=2025.01.15\ngunicorn\n`;
       const { data, error } = await supabase.functions.invoke('github-file-sync', {
         body: { 
           path: 'requirements.txt',
           content: requirements,
           repo: 'dbuatti/yt-audio-api',
-          message: 'System Self-Repair: Updating dependencies'
+          message: 'System Self-Repair: Critical update to yt-dlp 2025'
         }
       });
       if (error) throw error;
@@ -121,29 +122,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     
     const filteredLines = lines.map(line => {
       const l = line.trim();
-      // Skip comments and empty lines
       if (!l || l.startsWith('#')) return null;
-      
-      // Filter for relevant domains only
       if (!l.includes('youtube.com') && !l.includes('google.com')) return null;
 
-      // Netscape format expects exactly 7 columns:
-      // domain, flag, path, secure, expiration, name, value
-      // We split by any whitespace and then manually reconstruct with tabs
       const parts = l.split(/\s+/);
-      
-      // If the line doesn't have at least 7 columns, it's invalid
       if (parts.length < 7) return null;
 
-      // Reconstruct the line strictly tab-separated
-      // Columns 0-5 are standard, Column 6 (value) might contain spaces in some cases
       const domain = parts[0];
       const flag = parts[1];
       const path = parts[2];
       const secure = parts[3];
       const expiration = parts[4];
       const name = parts[5];
-      const value = parts.slice(6).join(' '); // Re-join any accidental splits in the value column
+      const value = parts.slice(6).join(' ');
 
       return [domain, flag, path, secure, expiration, name, value].join('\t');
     }).filter(Boolean);
