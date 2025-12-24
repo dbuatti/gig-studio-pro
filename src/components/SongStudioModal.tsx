@@ -517,7 +517,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         <div className={cn("flex overflow-hidden", isMobile ? "flex-col h-[100dvh]" : "h-[90vh] min-h-[800px]")}>
           {!isMobile && (
             <div className="w-96 bg-slate-900/50 border-r border-white/5 flex flex-col shrink-0 overflow-y-auto custom-scrollbar">
-              <div className="p-8 border-b border-white/5 bg-black/20 shrink-0 relative"> {/* Added relative here */}
+              <div className="p-8 border-b border-white/5 bg-black/20 shrink-0 relative">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <div className="bg-indigo-600 p-1.5 rounded-lg">
@@ -525,9 +525,43 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                     </div>
                     <span className="font-black uppercase tracking-tighter text-xs">Studio Configuration</span>
                   </div>
-                  <div className="flex items-center gap-2 px-2.5 py-1 bg-white/5 rounded-full border border-white/10">
-                     <div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", readinessColor)} />
-                     <span className="text-[9px] font-black font-mono text-slate-400">{readiness}% READY</span>
+                  {/* Right side: Badges container */}
+                  <div className={cn("flex items-center", isMobile ? "gap-2" : "gap-3")}>
+                    {/* Existing Readiness Badge */}
+                    <div className="flex items-center gap-2 px-2.5 py-1 bg-white/5 rounded-full border border-white/10">
+                      <div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", readinessColor)} />
+                      <span className="text-[9px] font-black font-mono text-slate-400">{readiness}% READY</span>
+                    </div>
+
+                    {/* New Approval Tick Badge */}
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() => {
+                              const newApprovedStatus = !formData.isApproved;
+                              handleAutoSave({ isApproved: newApprovedStatus });
+                              showSuccess(newApprovedStatus ? "Song approved for performance set!" : "Song removed from active performance count.");
+                            }}
+                            className={cn(
+                              "rounded-full flex items-center justify-center transition-all",
+                              isMobile ? "w-10 h-10" : "w-9 h-9", // Responsive size
+                              "border backdrop-blur-sm",
+                              formData.isApproved
+                                ? "bg-emerald-600 border-emerald-500 text-white shadow-lg shadow-emerald-600/30"
+                                : "bg-white/5 border-slate-600 text-slate-500 hover:bg-white/10 hover:border-slate-500",
+                              "hover:scale-110 active:scale-95"
+                            )}
+                            aria-label={formData.isApproved ? "Approved for performance" : "Mark as performance-ready"}
+                          >
+                            <Check className={cn(isMobile ? "w-6 h-6" : "w-5 h-5")} /> {/* Responsive icon size */}
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="text-[10px] font-black uppercase">
+                          {formData.isApproved ? "Approved for Performance Set" : "Mark as Performance-Ready"}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                 </div>
                 <h2 className="text-3xl font-black uppercase tracking-tight leading-none mb-1 truncate">{formData.name || ""}</h2>
@@ -560,31 +594,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                     {isInRepertoire ? "IN REPERTOIRE" : "ADD TO REPERTOIRE"}
                   </Button>
                 </div>
-                {/* NEW: Approval Tick Button */}
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          handleAutoSave({ isApproved: !formData.isApproved });
-                          showSuccess(formData.isApproved ? "Removed from active set" : "Song approved for setlist!");
-                        }}
-                        className={cn(
-                          "absolute right-4 top-4 rounded-full h-8 w-8 transition-all",
-                          formData.isApproved ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/20" : "bg-slate-800 text-slate-400 hover:bg-slate-700"
-                        )}
-                        aria-label={formData.isApproved ? "Unapprove song for setlist" : "Approve song for setlist"}
-                      >
-                        <Check className="w-4 h-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent className="text-[10px] font-black uppercase">
-                      {formData.isApproved ? "Approved for Setlist" : "Not Approved for Setlist"}
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
               </div>
               {/* Render SongConfigTab directly here for desktop layout */}
               <SongConfigTab
