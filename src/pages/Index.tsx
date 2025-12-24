@@ -9,6 +9,7 @@ import PerformanceOverlay from "@/components/PerformanceOverlay";
 import ActiveSongBanner from "@/components/ActiveSongBanner";
 import SetlistStats from "@/components/SetlistStats";
 import PreferencesModal from "@/components/PreferencesModal";
+import AdminPanel from "@/components/AdminPanel"; // New Import
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { showSuccess, showError } from '@/utils/toast';
 import { calculateSemitones } from '@/utils/keyUtils';
@@ -32,6 +33,7 @@ const Index = () => {
   const [isStudioOpen, setIsStudioOpen] = useState(false);
   const [isPerformanceMode, setIsPerformanceMode] = useState(false);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
+  const [isAdminOpen, setIsAdminOpen] = useState(false); // New State
   const [performanceState, setPerformanceState] = useState({ progress: 0, duration: 0 });
   const [isPlayerActive, setIsPlayerActive] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -42,6 +44,7 @@ const Index = () => {
 
   const isSyncingRef = useRef(false);
   const saveQueueRef = useRef<{ listId: string; songs: SetlistSong[]; updates: any; songsToSync?: SetlistSong[] }[]>([]);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null); // New Ref for long press
 
   const transposerRef = useRef<AudioTransposerRef>(null);
 
@@ -50,11 +53,7 @@ const Index = () => {
   const activeSongIndex = songs.findIndex(s => s.id === activeSongId);
   const activeSong = songs[activeSongIndex] || null;
 
-  // Utility to check if audio is just an iTunes sample
-  const isPlayableMaster = (song: SetlistSong) => {
-    if (!song.previewUrl) return false;
-    return !song.previewUrl.includes('apple.com') && !song.previewUrl.includes('itunes-assets');
-  };
+  // ... (keep existing helper functions)
 
   useEffect(() => {
     if (user) {
@@ -65,35 +64,22 @@ const Index = () => {
     return () => clearInterval(clockInterval);
   }, [user]);
 
-  useEffect(() => {
-    let interval: number;
-    if (isPerformanceMode) {
-      interval = window.setInterval(() => {
-        if (transposerRef.current) {
-          setPerformanceState(transposerRef.current.getProgress());
-        }
-      }, 100);
+  // ... (keep other existing useEffects)
+
+  const handleLogoMouseDown = () => {
+    longPressTimerRef.current = setTimeout(() => {
+      setIsAdminOpen(true);
+      showSuccess("Admin Privileges Granted");
+    }, 3000); // 3 seconds long press
+  };
+
+  const handleLogoMouseUp = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
     }
-    return () => clearInterval(interval);
-  }, [isPerformanceMode]);
+  };
 
-  useEffect(() => {
-    if (syncQueue.length === 0 || isProcessingQueue || !currentListId) return;
-
-    const processNextBatch = async () => {
-      setIsProcessingQueue(true);
-      const batchIds = syncQueue.slice(0, 5);
-      const batchSongs = songs.filter(s => batchIds.includes(s.id));
-      if (batchSongs.length > 0) {
-        await handleBatchSyncInternal(batchSongs);
-        await new Promise(resolve => setTimeout(resolve, 5000));
-      }
-      setSyncQueue(prev => prev.filter(id => !batchIds.includes(id)));
-      setIsProcessingQueue(false);
-    };
-
-    processNextBatch();
-  }, [syncQueue, isProcessingQueue, currentListId, songs]);
+  // ... (keep all existing functions: fetchMasterRepertoire, fetchSetlists, saveList, handleUpdateSong, etc.)
 
   const fetchMasterRepertoire = async () => {
     if (!user) return;
@@ -360,11 +346,23 @@ const Index = () => {
     showSuccess("Auto-link process complete");
   };
 
+  const isPlayableMaster = (song: SetlistSong) => {
+    if (!song.previewUrl) return false;
+    return !song.previewUrl.includes('apple.com') && !song.previewUrl.includes('itunes-assets');
+  };
+
   return (
     <div className="h-screen bg-slate-50 dark:bg-slate-950 flex flex-col overflow-hidden relative">
       <nav className="h-16 md:h-20 bg-white dark:bg-slate-900 border-b px-4 md:px-6 flex items-center justify-between z-30 shadow-sm shrink-0">
         <div className="flex items-center gap-3 md:gap-6 flex-1 min-w-0">
-          <div className="flex items-center gap-2 shrink-0">
+          <div 
+            className="flex items-center gap-2 shrink-0 cursor-default select-none"
+            onMouseDown={handleLogoMouseDown}
+            onMouseUp={handleLogoMouseUp}
+            onMouseLeave={handleLogoMouseUp}
+            onTouchStart={handleLogoMouseDown}
+            onTouchEnd={handleLogoMouseUp}
+          >
             <div className="bg-indigo-600 p-1.5 rounded-lg text-white">
               <LayoutDashboard className="w-5 h-5" />
             </div>
@@ -386,6 +384,7 @@ const Index = () => {
             }}
           />
         </div>
+        {/* ... (rest of nav) */}
         <div className="flex items-center gap-2 md:gap-6 shrink-0 ml-2">
           <div className="hidden lg:flex items-center gap-2 bg-slate-50 dark:bg-slate-800/50 px-4 py-1.5 rounded-full border border-slate-100 dark:border-white/5">
             <Clock className="w-3.5 h-3.5 text-indigo-500" />
@@ -406,6 +405,7 @@ const Index = () => {
           </div>
         </div>
       </nav>
+      {/* ... (rest of component) */}
       <div className="flex-1 flex overflow-hidden">
         <main className="flex-1 overflow-y-auto p-4 md:p-8 relative scroll-smooth cursor-default" onClick={(e) => isStudioOpen && e.target === e.currentTarget && setIsStudioOpen(false)}>
           <div className="max-w-6xl mx-auto space-y-6 md:space-y-8 main-inner-container">
@@ -450,6 +450,7 @@ const Index = () => {
         </aside>
       </div>
       <PreferencesModal isOpen={isPreferencesOpen} onClose={() => setIsPreferencesOpen(false)} />
+      <AdminPanel isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} />
       {isPerformanceMode && (
         <PerformanceOverlay songs={songs.filter(isPlayableMaster)} currentIndex={songs.filter(isPlayableMaster).findIndex(s => s.id === activeSongId)} isPlaying={isPlayerActive} progress={performanceState.progress} duration={performanceState.duration} onTogglePlayback={() => transposerRef.current?.togglePlayback()} onNext={handleNextSong} onPrevious={handlePreviousSong} onShuffle={handleShuffle} onClose={() => { setIsPerformanceMode(false); setActiveSongId(null); transposerRef.current?.stopPlayback(); }} onUpdateKey={handleUpdateKey} onUpdateSong={handleUpdateSong} analyzer={transposerRef.current?.getAnalyzer()} />
       )}
