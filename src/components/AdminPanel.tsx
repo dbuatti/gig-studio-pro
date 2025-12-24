@@ -26,7 +26,8 @@ import {
   Wifi,
   WifiOff,
   Bug,
-  Loader2
+  Loader2,
+  Wrench
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
@@ -41,6 +42,7 @@ interface AdminPanelProps {
 const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   const [cookieText, setCookieText] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isRepairing, setIsRepairing] = useState(false);
   const [isCheckingHealth, setIsCheckingHealth] = useState(false);
   const [healthStatus, setHealthStatus] = useState<'online' | 'offline' | 'error' | null>(null);
   const [lastSync, setLastSync] = useState<string | null>(null);
@@ -63,6 +65,30 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
       setHealthStatus('error');
     } finally {
       setIsCheckingHealth(false);
+    }
+  };
+
+  const handleRepairBackend = async () => {
+    setIsRepairing(true);
+    try {
+      // Pushing a fresh requirements.txt to force an update of yt-dlp
+      const requirements = `flask\nflask-cors\nyt-dlp>=2024.12.06\ngunicorn\n`;
+      
+      const { data, error } = await supabase.functions.invoke('github-file-sync', {
+        body: { 
+          path: 'requirements.txt',
+          content: requirements,
+          repo: 'dbuatti/yt-audio-api',
+          message: 'System Self-Repair: Updating yt-dlp dependencies'
+        }
+      });
+
+      if (error) throw error;
+      showSuccess("Repair authorized. Dependencies updating...");
+    } catch (err: any) {
+      showError("Repair failed. Check GITHUB_PAT.");
+    } finally {
+      setIsRepairing(false);
     }
   };
 
@@ -157,6 +183,25 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                </div>
             </div>
 
+            <div className="bg-indigo-600/10 border border-indigo-600/20 rounded-2xl p-6 flex items-center justify-between">
+               <div className="flex items-center gap-4">
+                  <div className="p-3 bg-indigo-600 rounded-xl text-white">
+                    <Wrench className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-black uppercase tracking-tight">System Self-Repair</p>
+                    <p className="text-[10px] text-indigo-300 font-medium uppercase mt-0.5">Force update backend dependencies</p>
+                  </div>
+               </div>
+               <Button 
+                onClick={handleRepairBackend} 
+                disabled={isRepairing}
+                className="bg-indigo-600 hover:bg-indigo-700 h-10 px-6 font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg shadow-indigo-600/20"
+               >
+                 {isRepairing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Run Repair"}
+               </Button>
+            </div>
+
             {lastError && (
               <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-6 space-y-3">
                 <div className="flex items-center gap-2 text-red-400">
@@ -188,16 +233,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                   value={cookieText}
                   onChange={(e) => setCookieText(e.target.value)}
                 />
-              </div>
-            </div>
-
-            <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-2xl p-5 flex items-start gap-4">
-              <Bug className="w-6 h-6 text-indigo-400 shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <p className="text-xs font-black uppercase tracking-tight text-indigo-300">Debugging No-Log 500s</p>
-                <p className="text-[10px] text-indigo-400/70 font-medium leading-relaxed">
-                  If the engine is 500ing with no logs, the session cookie file is likely malformed. Ensure you copy the RAW content from the 'Get cookies.txt' tool without editing individual lines.
-                </p>
               </div>
             </div>
           </div>

@@ -333,13 +333,15 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       try {
         tokenRes = await fetch(tokenUrl);
       } catch (e) {
-        throw new Error("Render service is unreachable. Please check engine health in Admin.");
+        throw new Error("Render service is currently deploying or unreachable.");
       }
       
       if (!tokenRes.ok) {
-        const errText = await tokenRes.text().catch(() => "Unknown Server Error");
-        console.error("[Render 500 Debug]:", errText);
-        throw new Error(`Server Rejected Request (500). Please check cookies in Admin.`);
+        // Try to capture specifically the yt-dlp error detail
+        const errBody = await tokenRes.json().catch(() => ({}));
+        const specificError = errBody.detail || errBody.error || tokenRes.statusText;
+        console.error("[Render API Failure]:", errBody);
+        throw new Error(`Engine Error: ${specificError}`);
       }
       
       const { token } = await tokenRes.json();
