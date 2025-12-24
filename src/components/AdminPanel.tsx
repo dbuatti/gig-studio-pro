@@ -9,24 +9,15 @@ import {
   DialogDescription 
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { 
   ShieldAlert, 
   Activity,
   Wifi,
   WifiOff,
   Loader2,
-  Upload,
-  Download,
-  Terminal,
-  Copy,
-  Check,
   Lock,
-  History,
   AlertCircle,
-  X,
   Cloud,
-  Trash2,
   FileText,
   RefreshCw,
   ExternalLink,
@@ -52,15 +43,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [healthStatus, setHealthStatus] = useState<'online' | 'offline' | 'error' | null>(null);
   const [healthData, setHealthData] = useState<any>(null);
-  const [lastSync, setLastSync] = useState<string | null>(null);
   const [cookieSize, setCookieSize] = useState<number | null>(null);
   const [bucketExists, setBucketExists] = useState<boolean>(false);
 
   const API_BASE = "https://yt-audio-api-docker.onrender.com";
 
   useEffect(() => {
-    const saved = localStorage.getItem('gig_admin_last_sync');
-    if (saved) setLastSync(saved);
     if (isOpen) {
       checkBucketStatus();
       checkHealth();
@@ -69,29 +57,31 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
 
   const checkBucketStatus = async () => {
     try {
-      const { data, error } = await supabase.storage.listBuckets();
-      if (error) throw error;
+      // 1. Check if bucket exists
+      const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
+      if (bucketError) throw bucketError;
       
-      const foundBucket = data?.find(b => b.name === 'cookies');
+      const foundBucket = buckets?.find(b => b.name === 'cookies');
       setBucketExists(!!foundBucket);
 
       if (foundBucket) {
+        // 2. Check for the file. Note: search can be unreliable, so we list everything in root
         const { data: files, error: fileError } = await supabase.storage
           .from('cookies')
-          .list('', { search: 'cookies.txt' });
+          .list('', { limit: 100 });
         
-        if (!fileError && files && files.length > 0) {
-          setCookieSize(files[0].metadata?.size || null);
-        } else {
-          setCookieSize(null);
+        if (!fileError && files) {
+          const cookieFile = files.find(f => f.name === 'cookies.txt');
+          if (cookieFile) {
+            setCookieSize(cookieFile.metadata?.size || cookieFile.id ? 1024 : null); // Fallback size
+          } else {
+            setCookieSize(null);
+          }
         }
-      } else {
-        setCookieSize(null);
       }
     } catch (e) {
-      console.error("Error checking bucket status:", e);
+      console.error("Storage check failed:", e);
       setBucketExists(false);
-      setCookieSize(null);
     }
   };
 
@@ -108,14 +98,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
       });
 
       if (error) throw error;
-      
-      if (data?.success) {
-        showSuccess("Bucket 'cookies' verified/created.");
-        setBucketExists(true);
-        checkBucketStatus();
-      }
+      setBucketExists(true);
+      return true;
     } catch (err: any) {
-      showError(`Bucket error: ${err.message}`);
+      showError(`Bucket init failed: ${err.message}`);
+      return false;
     } finally {
       setIsCreatingBucket(false);
     }
@@ -124,7 +111,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   const checkHealth = async () => {
     setIsCheckingHealth(true);
     try {
-      const res = await fetch(`${API_BASE}/health`, { mode: 'cors' });
+      const res = await fetch(`${API_BASE}/health`, { 
+        mode: 'cors',
+        headers: { 'Cache-Control': 'no-cache' }
+      });
       if (res.ok) {
         const data = await res.json();
         setHealthData(data);
@@ -140,49 +130,69 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   };
 
   const triggerRenderRefresh = async () => {
-    setIsCheckingHealth(true);
     try {
+      // We try a POST, but if it 404s, we let the user know the backend might be updating
       const refreshRes = await fetch(`${API_BASE}/refresh-cookies`, {
-        method: 'POST'
+        method: 'POST',
+        mode: 'cors'
       });
-      if (!refreshRes.ok) throw new Error('API refresh failed');
-      showSuccess("Backend successfully pulled fresh cookies from Supabase");
-      setLastSync(new Date().toLocaleString());
-      localStorage.setItem('gig_admin_last_sync', new Date().toLocaleString());
-      checkHealth();
+      
+      if (refreshRes.status === 404) {
+        showError("Backend update endpoint not found. Please ensure your Render service is deployed with the latest code.");
+        return;
+      }
+
+      if (!refreshRes.ok) throw new Error('API refresh signal failed');
+      
+      showSuccess("Backend notified. Syncing cookies from Supabase...");
+      // Re-check health after a short delay
+      setTimeout(checkHealth, 2000);
     } catch (err: any) {
-      showError(`Backend Sync Failed: ${err.message}`);
-    } finally {
-      setIsCheckingHealth(false);
+      console.error("Refresh trigger failed:", err);
     }
   };
 
   const handleUpload = async (file: File) => {
     if (!user) {
-      showError("Auth required.");
+      showError("Please sign in to manage system core.");
+      return;
+    }
+
+    if (file.name !== 'cookies.txt' && !confirm(`Your file is named "${file.name}". The system expects "cookies.txt". Upload anyway?`)) {
       return;
     }
 
     setIsUploading(true);
     try {
-      if (!bucketExists) await createBucket();
+      // Ensure bucket exists
+      if (!bucketExists) {
+        const success = await createBucket();
+        if (!success) return;
+      }
 
-      const { error } = await supabase.storage
+      // Upload file
+      const { error: uploadError } = await supabase.storage
         .from('cookies')
         .upload('cookies.txt', file, {
           upsert: true,
           contentType: 'text/plain'
         });
 
-      if (error) throw error;
+      if (uploadError) throw uploadError;
 
-      await triggerRenderRefresh();
+      // Update local state immediately
       setCookieSize(file.size);
-      showSuccess("New cookies live in production");
+      showSuccess("Vault Updated Successfully");
+
+      // Trigger the backend to pull the new file
+      await triggerRenderRefresh();
+      
     } catch (err: any) {
-      showError(`Upload failed: ${err.message}`);
+      console.error("Upload process failed:", err);
+      showError(`Critical Upload Error: ${err.message}`);
     } finally {
       setIsUploading(false);
+      setIsDragOver(false);
     }
   };
 
@@ -217,7 +227,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         <div className="flex-1 overflow-hidden">
           <ScrollArea className="h-full">
             <div className="p-8 space-y-8">
-              {/* Status HUD */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                  <div className="bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col justify-between min-h-[120px]">
                     <div className="flex items-center justify-between mb-4">
@@ -225,12 +234,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                         <Server className="w-4 h-4" />
                         <span className="text-[10px] font-black uppercase tracking-widest">API Engine</span>
                       </div>
-                      <button onClick={checkHealth} className="text-[9px] font-black text-indigo-400 uppercase">Refresh</button>
+                      <button onClick={checkHealth} className="text-[9px] font-black text-indigo-400 uppercase hover:text-indigo-300">
+                        {isCheckingHealth ? "..." : "Refresh"}
+                      </button>
                     </div>
                     <div className="flex items-center gap-3">
                       {healthStatus === 'online' ? <Wifi className="w-5 h-5 text-emerald-500" /> : <WifiOff className="w-5 h-5 text-red-500" />}
                       <span className={cn("text-lg font-black uppercase", healthStatus === 'online' ? "text-emerald-500" : "text-red-500")}>
-                        {healthStatus === 'online' ? "Online" : "Offline"}
+                        {healthStatus === 'online' ? "Online" : healthStatus === 'error' ? "Error" : "Offline"}
                       </span>
                     </div>
                  </div>
@@ -241,12 +252,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                       <span className="text-[10px] font-black uppercase tracking-widest">Backend Cookie State</span>
                     </div>
                     <div className="flex items-baseline gap-2">
-                      <span className={cn("text-lg font-black uppercase", healthData?.cookies_present ? "text-emerald-500" : "text-red-500")}>
-                        {healthData?.cookies_present ? "Loaded" : "Missing"}
+                      <span className={cn("text-lg font-black uppercase", healthData?.cookies_loaded ? "text-emerald-500" : "text-red-500")}>
+                        {healthData?.cookies_loaded ? "Loaded" : "Missing"}
                       </span>
-                      {healthData?.cookie_age_minutes && (
-                        <span className="text-[10px] font-mono text-slate-500">({Math.round(healthData.cookie_age_minutes)}m old)</span>
-                      )}
                     </div>
                  </div>
 
@@ -261,7 +269,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                  </div>
               </div>
 
-              {/* Upload Matrix */}
               <div className="bg-indigo-600/10 border border-indigo-600/20 rounded-[2.5rem] p-8 space-y-8">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
@@ -273,15 +280,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                       <p className="text-[10px] text-indigo-400 font-black uppercase tracking-widest">Update cookies.txt to bypass YouTube Bot Detection</p>
                     </div>
                   </div>
-                  <Button variant="outline" onClick={triggerRenderRefresh} className="bg-white/5 border-white/10 text-white font-black uppercase text-[10px] h-10 px-6 rounded-xl gap-2">
-                    <Activity className="w-4 h-4" /> Force Sync Backend
+                  <Button 
+                    variant="outline" 
+                    onClick={triggerRenderRefresh} 
+                    className="bg-white/5 border-white/10 text-white font-black uppercase text-[10px] h-10 px-6 rounded-xl gap-2 hover:bg-white/10"
+                  >
+                    <Activity className="w-4 h-4" /> Sync Backend Now
                   </Button>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   <div 
                     className={cn(
-                      "bg-white/5 border-2 border-dashed rounded-3xl p-10 flex flex-col items-center justify-center text-center min-h-[250px] transition-all",
+                      "bg-white/5 border-2 border-dashed rounded-3xl p-10 flex flex-col items-center justify-center text-center min-h-[250px] transition-all relative overflow-hidden",
                       isDragOver ? "border-indigo-500 bg-indigo-600/20 scale-[0.98]" : "border-white/10 hover:border-white/20"
                     )}
                     onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
@@ -289,7 +300,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                     onDrop={handleFileDrop}
                   >
                     {isUploading ? (
-                      <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" />
+                      <div className="flex flex-col items-center gap-4">
+                        <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" />
+                        <p className="text-[10px] font-black uppercase tracking-widest animate-pulse">Writing to Vault...</p>
+                      </div>
                     ) : (
                       <>
                         <FileText className="w-12 h-12 text-indigo-400 mb-6" />
@@ -310,16 +324,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                        <ul className="space-y-3 text-[11px] text-slate-400 font-medium leading-relaxed">
                          <li className="flex gap-2"><div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1 shrink-0" /> Use the "Get cookies.txt LOCALLY" extension.</li>
                          <li className="flex gap-2"><div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1 shrink-0" /> <strong>Crucial:</strong> Log out and log back into YouTube in an <strong>Incognito</strong> window before exporting.</li>
-                         <li className="flex gap-2"><div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1 shrink-0" /> Do not close the YouTube tab while exporting.</li>
                          <li className="flex gap-2"><div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1 shrink-0" /> Export in Netscape format (standard for this extension).</li>
                        </ul>
                     </div>
                     
                     <div className="flex gap-4">
                        <Button variant="ghost" onClick={checkBucketStatus} className="flex-1 h-12 bg-white/5 border border-white/10 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-white/10">
-                         Verify Storage
+                         Verify Vault
                        </Button>
-                       <a href="https://chrome.google.com/webstore/detail/get-cookiestxt-locally/ccmclokmbiocgnoebmjjhkmoonlaoced" target="_blank" className="flex-1">
+                       <a href="https://chrome.google.com/webstore/detail/get-cookiestxt-locally/ccmclokmbiocgnoebmjjhkmoonlaoced" target="_blank" rel="noopener noreferrer" className="flex-1">
                          <Button variant="ghost" className="w-full h-12 bg-indigo-600/10 border border-indigo-600/20 rounded-xl font-black uppercase text-[10px] tracking-widest text-indigo-400 hover:bg-indigo-600/20 gap-2">
                            Get Extension <ExternalLink className="w-3.5 h-3.5" />
                          </Button>
@@ -333,7 +346,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         </div>
 
         <div className="p-8 border-t border-white/5 bg-slate-900 flex items-center justify-between">
-           <p className="text-[10px] font-black uppercase tracking-widest text-slate-600 font-mono">Control Unit v2.5.4 // Production Stack</p>
+           <p className="text-[10px] font-black uppercase tracking-widest text-slate-600 font-mono">Control Unit v2.6.0 // Global Sync Stack</p>
            <Button onClick={onClose} variant="ghost" className="text-slate-400 hover:text-white font-black uppercase tracking-widest text-[10px]">Close Admin</Button>
         </div>
       </DialogContent>

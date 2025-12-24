@@ -11,7 +11,8 @@ from datetime import datetime, timedelta
 from supabase import create_client, Client
 
 app = Flask(__name__)
-CORS(app)
+# Enable CORS for all routes and methods
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 # --- Configuration ---
 ABS_DOWNLOADS_PATH = Path(os.environ.get('DOWNLOADS_PATH', '/app/downloads'))
@@ -39,11 +40,11 @@ def fetch_cookies():
     """Syncs cookies from Supabase to local container."""
     if not supabase: return False
     try:
-        buckets = supabase.storage.list_buckets()
-        if not any(b.name == COOKIES_BUCKET for b in buckets):
+        # We don't list buckets first, just try to download
+        data = supabase.storage.from_(COOKIES_BUCKET).download('cookies.txt')
+        if not data:
             return False
             
-        data = supabase.storage.from_(COOKIES_BUCKET).download('cookies.txt')
         with open(COOKIES_PATH, 'wb') as f:
             f.write(data)
         print(f"✅ Cookies refreshed: {len(data)} bytes")
@@ -55,7 +56,7 @@ def fetch_cookies():
 def background_worker():
     """Handles hourly cookie refresh and cleans up old mp3 files."""
     while True:
-        fetch_cookies()
+        # Run cleanup every iteration
         now = time.time()
         try:
             for f in ABS_DOWNLOADS_PATH.glob("*.mp3"):
@@ -65,6 +66,9 @@ def background_worker():
                     for k in keys_to_del: del token_store[k]
         except Exception as e:
             print(f"❌ Cleanup Error: {e}")
+        
+        # Periodic refresh
+        fetch_cookies()
         time.sleep(3600)
 
 threading.Thread(target=background_worker, daemon=True).start()
@@ -74,21 +78,20 @@ threading.Thread(target=background_worker, daemon=True).start()
 @app.route("/", methods=["GET"])
 def handle_audio_request():
     video_url = request.args.get("url")
-    # Optional parameters for enhanced resilience
     po_token = request.args.get("po_token")
     visitor_data = request.args.get("visitor_data")
 
     if not video_url:
         return jsonify(error="Missing URL"), 400
 
-    if not os.path.exists(COOKIES_PATH) or os.path.getsize(COOKIES_PATH) < 100:
+    # Ensure cookies exist before attempt
+    if not os.path.exists(COOKIES_PATH) or os.path.getsize(COOKIES_PATH) < 10:
         fetch_cookies()
 
     unique_id = str(uuid4())
     output_filename = f"{unique_id}.mp3"
     output_template = str(ABS_DOWNLOADS_PATH / unique_id)
 
-    # Standard options with fallback format logic
     ydl_opts = {
         'format': 'bestaudio/best',
         'outtmpl': f"{output_template}.%(ext)s",
@@ -103,14 +106,13 @@ def handle_audio_request():
         'nocheckcertificate': True,
         'extractor_args': {
             'youtube': {
-                'player_client': ['mweb', 'ios', 'android'], # Prioritize mobile
+                'player_client': ['mweb', 'ios', 'android'],
                 'player_skip': ['configs', 'webpage'],
                 'skip': ['dash', 'hls']
             }
         }
     }
 
-    # Apply Proof of Origin tokens if provided
     if po_token and visitor_data:
         ydl_opts['extractor_args']['youtube']['po_token'] = [f"web+{po_token}"]
         ydl_opts['extractor_args']['youtube']['visitor_data'] = [visitor_data]
@@ -121,17 +123,15 @@ def handle_audio_request():
         
         actual_file = ABS_DOWNLOADS_PATH / output_filename
         if not actual_file.exists():
-            return jsonify(error="Processing Error", detail="Audio conversion failed to produce output"), 500
+            return jsonify(error="Processing Error", detail="Extraction failed"), 500
 
         token = secrets.token_urlsafe(TOKEN_LENGTH)
         token_store[token] = output_filename
         
-        download_link = f"{request.host_url}download?token={token}"
-        return jsonify(token=token, download_url=download_link)
+        return jsonify(token=token, download_url=f"{request.host_url}download?token={token}")
 
     except Exception as e:
         error_msg = str(e)
-        print(f"❌ Engine Error: {error_msg}")
         return jsonify(error="Engine Error", detail=error_msg), 500
 
 @app.route("/download", methods=["GET"])
@@ -139,19 +139,20 @@ def download_file():
     token = request.args.get("token")
     filename = token_store.get(token)
     if not filename:
-        return jsonify(error="Unauthorized", detail="Invalid or expired token"), 401
+        return jsonify(error="Unauthorized"), 401
     return send_from_directory(str(ABS_DOWNLOADS_PATH), filename, as_attachment=True)
 
-@app.route("/health")
+@app.route("/health", methods=["GET"])
 def health():
     return jsonify(
         status="online", 
         supabase=(supabase is not None),
-        cookies_loaded=os.path.exists(COOKIES_PATH)
+        cookies_loaded=os.path.exists(COOKIES_PATH) and os.path.getsize(COOKIES_PATH) > 10
     )
 
-@app.route("/refresh-cookies", methods=["POST"])
+@app.route("/refresh-cookies", methods=["POST", "GET"])
 def manual_refresh():
+    """Force a cookie pull from Supabase."""
     success = fetch_cookies()
     return jsonify(success=success)
 
