@@ -26,7 +26,8 @@ import {
   AlertCircle,
   X,
   Cloud,
-  Trash2
+  Trash2,
+  FileText
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
@@ -63,7 +64,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         .list('', { search: 'cookies.txt' });
       
       if (!error && data && data.length > 0) {
-        // Fix 1: Access size via metadata
         setCookieSize(data[0].metadata?.size || null);
       }
     } catch (e) {
@@ -97,8 +97,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
       return;
     }
 
-    if (file.name !== 'cookies.txt') {
-      showError("Please upload a file named 'cookies.txt'");
+    // Accept any .txt file, we will force rename it in storage
+    const isTxt = file.name.toLowerCase().endsWith('.txt') || file.type === 'text/plain';
+    if (!isTxt) {
+      showError("Please upload a valid .txt file.");
       return;
     }
 
@@ -108,7 +110,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
       const cookiesBucket = buckets?.find(b => b.name === 'cookies');
       
       if (!cookiesBucket) {
-        // Fix 2: Use camelCase properties for createBucket
         const { error: createError } = await supabase.storage.createBucket('cookies', {
           public: false,
           allowedMimeTypes: ['text/plain'],
@@ -117,6 +118,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         if (createError) throw createError;
       }
 
+      // We always upload as 'cookies.txt' regardless of source filename
       const { error } = await supabase.storage
         .from('cookies')
         .upload('cookies.txt', file, {
@@ -126,6 +128,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
 
       if (error) throw error;
 
+      // Notify Render backend to refresh its local copy
       const refreshRes = await fetch(`${API_BASE}/refresh-cookies`, {
         method: 'POST'
       });
@@ -139,7 +142,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
       localStorage.setItem('gig_admin_last_sync', timestamp);
       setCookieSize(file.size);
       
-      showSuccess("Cookies uploaded and engine refreshed!");
+      showSuccess(`"${file.name}" processed and synced as cookies.txt`);
     } catch (err: any) {
       showError(`Upload failed: ${err.message}`);
     } finally {
@@ -230,7 +233,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                       <p className="text-[10px] text-indigo-400 font-black uppercase tracking-widest mt-0.5">Instant Cookie Updates</p>
                     </div>
                   </div>
-                  <Badge className="bg-indigo-600 text-white font-mono text-[10px] shrink-0">v2.0 FAST</Badge>
+                  <Badge className="bg-indigo-600 text-white font-mono text-[10px] shrink-0">v2.1 AUTO-RENAME</Badge>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -248,10 +251,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                         "w-16 h-16 rounded-3xl flex items-center justify-center mb-4 transition-all",
                         isDragOver ? "bg-indigo-600 scale-110" : "bg-slate-900"
                       )}>
-                        {isUploading ? <Loader2 className="w-8 h-8 animate-spin" /> : isDragOver ? <Download className="w-8 h-8" /> : <Upload className="w-8 h-8" />}
+                        {isUploading ? <Loader2 className="w-8 h-8 animate-spin" /> : isDragOver ? <Download className="w-8 h-8" /> : <FileText className="w-8 h-8 text-indigo-400" />}
                       </div>
-                      <h5 className="text-sm font-black uppercase tracking-tight mb-2">Drag & Drop Upload</h5>
-                      <p className="text-[10px] text-slate-500 font-bold uppercase mb-4">Drop cookies.txt here</p>
+                      <h5 className="text-sm font-black uppercase tracking-tight mb-2">Smart Cookie Ingest</h5>
+                      <p className="text-[10px] text-slate-500 font-bold uppercase mb-4">Drop any .txt file here</p>
                       <input 
                         type="file" 
                         accept=".txt" 
@@ -280,11 +283,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                         )}
                       </div>
                       <div className="flex items-center justify-between p-3 bg-slate-900 rounded-xl">
-                        <span className="text-xs font-bold text-slate-400">File Size</span>
-                        <span className="text-sm font-mono font-black text-indigo-400">{cookieSize ? `${(cookieSize/1024).toFixed(1)} KB` : '0 KB'}</span>
+                        <span className="text-xs font-bold text-slate-400">Target File</span>
+                        <span className="text-sm font-mono font-black text-indigo-400">cookies.txt</span>
                       </div>
                       <div className="flex items-center justify-between p-3 bg-slate-900 rounded-xl">
-                        <span className="text-xs font-bold text-slate-400">Last Update</span>
+                        <span className="text-xs font-bold text-slate-400">Last Sync</span>
                         <span className="text-[10px] font-mono font-black text-indigo-400">{lastSync || 'Never'}</span>
                       </div>
                       <div className="flex gap-2 mt-2">
@@ -316,8 +319,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                     <p className="text-[10px] md:text-[11px] text-slate-400 leading-relaxed">
                       1. Install a browser extension like "Get cookies.txt LOCALLY"<br />
                       2. Log into YouTube in your browser<br />
-                      3. Export cookies as <code className="text-indigo-400">cookies.txt</code><br />
-                      4. Upload the file here (instant update, no redeploy)
+                      3. Export cookies as a text file (engine will auto-rename to cookies.txt)<br />
+                      4. Upload the file here for instant system-wide application.
                     </p>
                   </div>
                 </div>
@@ -327,7 +330,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                  <div className="bg-white/5 border border-white/10 rounded-2xl p-5 flex flex-col justify-between min-h-[100px]">
                     <div className="flex items-center gap-2 text-slate-500 mb-4">
                       <History className="w-4 h-4" />
-                      <span className="text-[10px] font-black uppercase tracking-widest">Last Sync</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest">Last Update</span>
                     </div>
                     <span className="text-xs font-mono text-indigo-400 font-bold">{lastSync || "NEVER"}</span>
                  </div>
