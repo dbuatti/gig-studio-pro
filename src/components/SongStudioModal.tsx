@@ -42,7 +42,8 @@ import { useToneAudio } from '@/hooks/use-tone-audio';
 import { detectKeyFromBuffer, KeyCandidate } from '@/utils/keyDetector';
 import { cleanYoutubeUrl } from '@/utils/youtubeUtils';
 import YoutubeMediaManager from './YoutubeMediaManager';
-import SongDetailsTab from './SongDetailsTab'; // New import
+import SongDetailsTab from './SongDetailsTab';
+import SongChartsTab from './SongChartsTab'; // New import
 
 // Helper to parse ISO 8601 duration (e.g., PT4M13S -> 4:13)
 const parseISO8601Duration = (duration: string): string => {
@@ -543,16 +544,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       setIsUploading(false);
     }
   };
-
-  const currentChartUrl = useMemo(() => {
-    switch(activeChartType) {
-      case 'pdf': return formData.pdfUrl ? `${formData.pdfUrl}#toolbar=0&navpanes=0&view=FitH` : null;
-      case 'leadsheet': return formData.leadsheetUrl ? `${formData.leadsheetUrl}#toolbar=0&navpanes=0&view=FitH` : null;
-      case 'web': return formData.pdfUrl;
-      case 'ug': return formData.ugUrl;
-      default: return null;
-    }
-  }, [activeChartType, formData.pdfUrl, formData.leadsheetUrl, formData.ugUrl]);
 
   useEffect(() => {
     if (song && isOpen) {
@@ -1072,29 +1063,16 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                 <SongDetailsTab formData={formData} handleAutoSave={handleAutoSave} isMobile={isMobile} />
               )}
               {activeTab === 'charts' && (
-                <div className="h-full flex flex-col gap-8 animate-in fade-in duration-500">
-                  <div className="flex justify-between items-center shrink-0">
-                    <h3 className="text-sm font-black uppercase tracking-[0.3em] text-emerald-400">Chart Engine</h3>
-                    <div className="flex bg-white/5 p-1 rounded-xl">
-                      <Button variant="ghost" size="sm" disabled={!formData.pdfUrl} onClick={() => setActiveChartType('pdf')} className={cn("text-[9px] font-black uppercase h-8 px-4 rounded-lg", activeChartType === 'pdf' ? "bg-indigo-600 text-white" : "text-slate-500")}>PDF</Button>
-                      <Button variant="ghost" size="sm" disabled={!formData.ugUrl} onClick={() => setActiveChartType('ug')} className={cn("text-[9px] font-black uppercase h-8 px-4 rounded-lg", activeChartType === 'ug' ? "bg-indigo-600 text-white" : "text-slate-500")}>UG</Button>
-                    </div>
-                  </div>
-                  <div className={cn("flex-1 bg-white overflow-hidden shadow-2xl relative", isMobile ? "rounded-3xl" : "rounded-[3rem]")}>
-                    {currentChartUrl ? (
-                      isFramable(currentChartUrl) ? (
-                        <iframe src={currentChartUrl} className="w-full h-full" title="Chart Viewer" />
-                      ) : (
-                        <div className="h-full flex flex-col items-center justify-center bg-slate-900 p-8 text-center">
-                          <ShieldCheck className="w-12 h-12 text-indigo-400 mb-6" />
-                          <Button onClick={() => window.open(currentChartUrl, '_blank')} className="bg-indigo-600 hover:bg-indigo-700 h-14 px-10 rounded-2xl gap-3"><ExternalLink className="w-5 h-5" /> Launch Source</Button>
-                        </div>
-                      )
-                    ) : (
-                      <div className="h-full flex flex-col items-center justify-center p-8 bg-slate-100 text-center"><h4 className="text-lg font-black text-slate-900 uppercase">No Active Chart</h4></div>
-                    )}
-                  </div>
-                </div>
+                <SongChartsTab
+                  formData={formData}
+                  handleAutoSave={handleAutoSave}
+                  isMobile={isMobile}
+                  setPreviewPdfUrl={setPreviewPdfUrl}
+                  isFramable={isFramable}
+                  activeChartType={activeChartType}
+                  setActiveChartType={setActiveChartType}
+                  handleUgPrint={handleUgPrint}
+                />
               )}
               {activeTab === 'lyrics' && (
                 <div className="space-y-10 animate-in fade-in duration-500 h-full flex flex-col">
