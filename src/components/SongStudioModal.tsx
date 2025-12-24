@@ -114,7 +114,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [isProSyncSearchOpen, setIsProSyncSearchOpen] = useState(false);
   
-  // Inline Discovery States
+  // YouTube API Key State (Will persist in localStorage for now)
+  const [ytApiKey, setYtApiKey] = useState(() => localStorage.getItem('gig_yt_api_key') || "");
   const [isSearchingYoutube, setIsSearchingYoutube] = useState(false);
   const [ytResults, setYtResults] = useState<any[]>([]);
   
@@ -543,74 +544,82 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
 
   const performYoutubeDiscovery = async (searchTerm: string) => {
     if (!searchTerm.trim()) return;
-
     setIsSearchingYoutube(true);
     setYtResults([]);
-    
-    // Discovery Logic 2.0: Resilient Proxy Matrix
-    const proxies = [
-      "https://api.allorigins.win/get?url=",
-      "https://api.codetabs.com/v1/proxy?quest="
-    ];
 
-    const instances = [
-      'https://invidious.projectsegfau.lt',
-      'https://invidious.privacydev.net',
-      'https://invidious.perennialte.ch',
-      'https://iv.ggtyler.dev'
-    ];
+    // Official YouTube Data API v3 implementation
+    if (ytApiKey) {
+      try {
+        const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(searchTerm)}&type=video&maxResults=10&key=${ytApiKey}`;
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.items) {
+          const sanitized = data.items.map((item: any) => ({
+            videoId: item.id.videoId,
+            title: item.snippet.title,
+            author: item.snippet.channelTitle,
+            videoThumbnails: [{ url: item.snippet.thumbnails.medium.url }],
+            lengthSeconds: 0, // Snippet search doesn't return duration
+            viewCountText: "Official API"
+          }));
+
+          setYtResults(sanitized);
+          if (!formData.youtubeUrl) {
+            handleSelectYoutubeVideo(`https://www.youtube.com/watch?v=${sanitized[0].videoId}`);
+          }
+          setIsSearchingYoutube(false);
+          return;
+        }
+      } catch (e) {
+        console.error("Official YouTube API failed, falling back...");
+      }
+    }
+
+    // Fallback Matrix (Invidious)
+    const proxies = ["https://api.allorigins.win/get?url=", "https://api.codetabs.com/v1/proxy?quest="];
+    const instances = ['https://invidious.projectsegfau.lt', 'https://invidious.privacydev.net', 'https://iv.ggtyler.dev'];
 
     let success = false;
-    const artistClean = (formData.artist || "").replace(/[&]/g, 'and');
-    const nameClean = (formData.name || "").replace(/[&]/g, 'and');
-    const finalSearchTerm = `${artistClean} ${nameClean} official music video`.replace(/\s+/g, '%20');
-
     for (const proxy of proxies) {
       if (success) break;
       for (const instance of instances) {
         if (success) break;
         try {
-          const targetUrl = `${instance}/api/v1/search?q=${finalSearchTerm}&type=video`;
+          const targetUrl = `${instance}/api/v1/search?q=${encodeURIComponent(searchTerm)}&type=video`;
           const fetchUrl = `${proxy}${encodeURIComponent(targetUrl)}`;
-          
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 4500);
-
-          const response = await fetch(fetchUrl, { signal: controller.signal });
-          clearTimeout(timeoutId);
-
-          if (!response.ok) continue;
-          
-          const rawData = await response.json();
-          // Unwrap AllOrigins wrap if detected
-          const data = typeof rawData.contents === 'string' ? JSON.parse(rawData.contents) : (rawData.contents || rawData);
-          
-          if (data && Array.isArray(data) && data.length > 0) {
-            const sanitizedResults = data.slice(0, 10);
-            setYtResults(sanitizedResults);
-            
-            if (!formData.youtubeUrl) {
-              handleSelectYoutubeVideo(`https://www.youtube.com/watch?v=${sanitizedResults[0].videoId}`);
-            }
+          const res = await fetch(fetchUrl);
+          if (!res.ok) continue;
+          const raw = await res.json();
+          const data = typeof raw.contents === 'string' ? JSON.parse(raw.contents) : (raw.contents || raw);
+          if (data?.length > 0) {
+            setYtResults(data.slice(0, 10));
+            if (!formData.youtubeUrl) handleSelectYoutubeVideo(`https://www.youtube.com/watch?v=${data[0].videoId}`);
             success = true;
           }
-        } catch (err) {
-          console.warn(`[Discovery Matrix] Instance ${instance} failed...`);
-        }
+        } catch (err) {}
       }
     }
 
     if (!success) {
-      showError("Auto-Discovery offline. Initiating Manual Search...");
-      window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(`${formData.artist} ${formData.name} official video`)}`, '_blank');
-    } else {
-      showSuccess("Engine Linked to Global Index");
+      if (!ytApiKey) {
+        const key = prompt("Discovery requires a YouTube API Key for Simon & Garfunkel results. Paste your Google API Key here:");
+        if (key) {
+          setYtApiKey(key);
+          localStorage.setItem('gig_yt_api_key', key);
+          performYoutubeDiscovery(searchTerm);
+        }
+      } else {
+        showError("Discovery matrix unstable. Use manual link.");
+      }
     }
     setIsSearchingYoutube(false);
   };
 
   const handleYoutubeSearch = () => {
-    const query = `${formData.artist} ${formData.name} official music video`;
+    const artist = (formData.artist || "").replace(/&/g, 'and'); 
+    const name = (formData.name || "").replace(/&/g, 'and');
+    const query = `${artist} ${name} official music video`;
     performYoutubeDiscovery(query);
   };
 
@@ -1667,12 +1676,24 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       <h3 className="text-xl md:text-2xl font-black uppercase tracking-[0.2em] text-white">RESOURCE MATRIX</h3>
                       <p className="text-xs md:text-sm text-slate-500 mt-1 font-medium">Centralized management for all song assets and links.</p>
                     </div>
-                    <Button 
-                      onClick={handleDownloadAll} 
-                      className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] md:text-xs h-12 md:h-14 gap-2 px-8 md:px-10 rounded-xl md:rounded-2xl shadow-xl shadow-indigo-600/20"
-                    >
-                      <Download className="w-4 h-4" /> DOWNLOAD ALL ASSETS
-                    </Button>
+                    <div className="flex gap-4">
+                       <Input 
+                         type="password"
+                         placeholder="YouTube API Key..."
+                         className="h-12 w-64 bg-white/5 border-white/10 text-xs font-mono"
+                         value={ytApiKey}
+                         onChange={(e) => {
+                           setYtApiKey(e.target.value);
+                           localStorage.setItem('gig_yt_api_key', e.target.value);
+                         }}
+                       />
+                       <Button 
+                        onClick={handleDownloadAll} 
+                        className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] md:text-xs h-12 md:h-14 gap-2 px-8 md:px-10 rounded-xl md:rounded-2xl shadow-xl shadow-indigo-600/20"
+                       >
+                        <Download className="w-4 h-4" /> DOWNLOAD ALL ASSETS
+                       </Button>
+                    </div>
                   </div>
                   <div className={cn("grid gap-4 md:gap-8", isMobile ? "grid-cols-1" : "grid-cols-2")}>
                     <div className={cn(
