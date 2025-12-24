@@ -18,18 +18,17 @@ serve(async (req) => {
     const GITHUB_PAT = Deno.env.get('GITHUB_PAT');
 
     if (!GITHUB_PAT) {
-      console.error("[SYNC] GITHUB_PAT is not defined in environment variables");
+      console.error("[SYNC] GITHUB_PAT is not defined in project secrets.");
       return new Response(JSON.stringify({ 
-        error: "GITHUB_PAT missing in Supabase Secrets. Please add it to your project settings." 
+        error: "GITHUB_PAT missing in project secrets. Please add it to your Supabase project settings." 
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    console.log(`[SYNC] Attempting to sync ${path} to ${repo}`);
+    console.log(`[SYNC] Syncing ${path} to ${repo}...`);
 
-    // 1. Get current file SHA to perform a clean update
     const getUrl = `https://api.github.com/repos/${repo}/contents/${path}`;
     const getRes = await fetch(getUrl, {
       headers: {
@@ -42,15 +41,14 @@ serve(async (req) => {
     if (getRes.status === 200) {
       const fileData = await getRes.json();
       sha = fileData.sha;
-      console.log(`[SYNC] Found existing file, SHA: ${sha}`);
     } else if (getRes.status !== 404) {
       const errData = await getRes.json();
-      throw new Error(`GitHub GET Error (${getRes.status}): ${errData.message}`);
-    } else {
-      console.log(`[SYNC] File not found (404), creating new file.`);
+      throw new Error(`GitHub GET Error: ${errData.message}`);
     }
 
-    // 2. Perform the update
+    // Use TextEncoder to handle potential UTF-8 characters in the cookie file correctly
+    const encodedContent = btoa(new TextEncoder().encode(content).reduce((data, byte) => data + String.fromCharCode(byte), ''));
+
     const putRes = await fetch(getUrl, {
       method: 'PUT',
       headers: {
@@ -60,7 +58,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         message,
-        content: btoa(content), // Base64 encode content
+        content: encodedContent,
         sha: sha || undefined
       })
     });
@@ -68,16 +66,15 @@ serve(async (req) => {
     const result = await putRes.json();
     
     if (!putRes.ok) {
-      throw new Error(`GitHub PUT Error (${putRes.status}): ${result.message}`);
+      throw new Error(`GitHub PUT Error: ${result.message}`);
     }
 
-    console.log(`[SYNC] Success! Commit: ${result.commit.sha}`);
     return new Response(JSON.stringify({ success: true, commit: result.commit.sha }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
   } catch (error) {
-    console.error(`[SYNC] Catch-all Error: ${error.message}`);
+    console.error(`[SYNC] Failure: ${error.message}`);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

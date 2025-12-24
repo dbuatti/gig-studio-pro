@@ -40,7 +40,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
 
     setIsRefreshing(true);
     try {
-      // We invoke an edge function to keep the GitHub PAT secure on the server side
       const { data, error } = await supabase.functions.invoke('github-file-sync', {
         body: { 
           path: 'cookies.txt',
@@ -51,16 +50,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
       });
 
       if (error) {
-        // Log detailed error to console
-        console.error("Invoke Error Details:", error);
+        console.error("Sync Error:", error);
+        let displayError = error.message || "System sync failed.";
         
-        // Try to parse the error message if it's from our custom response
-        let displayError = "System sync failed.";
-        try {
-          const body = await error.context?.json();
-          if (body?.error) displayError = body.error;
-        } catch {
-          displayError = error.message || "Connection refused";
+        // Attempt to extract the specific error message from the edge function response
+        if (error.context instanceof Response) {
+          try {
+            const body = await error.context.json();
+            if (body?.error) displayError = body.error;
+          } catch (e) {
+            // Body was not JSON or already consumed
+          }
         }
         
         showError(displayError);
