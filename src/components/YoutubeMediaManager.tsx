@@ -34,6 +34,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
   const [isSearchingYoutube, setIsSearchingYoutube] = useState(false);
   const [ytResults, setYtResults] = useState<any[]>([]);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadStatus, setDownloadStatus] = useState<'idle' | 'processing' | 'downloading' | 'error' | 'success'>('idle');
 
   const currentVideoId = useMemo(() => {
     if (!formData.youtubeUrl) return null;
@@ -175,56 +176,62 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
     setYtResults([]);
   };
 
-  // UPDATED: Logic to download audio via Client-Side Proxy
+  // UPDATED: Logic to download audio via Client-Side Proxy with polling
   const handleDownloadViaProxy = async () => {
     if (!formData.youtubeUrl) {
       showError("Please link a YouTube URL first.");
       return;
     }
 
+    setDownloadStatus('processing');
     setIsDownloading(true);
 
     try {
-      // 1. Get the video ID
+      const API_BASE_URL = "https://yt-audio-api-1-wedr.onrender.com";
       const videoId = currentVideoId;
       if (!videoId) throw new Error("Invalid YouTube URL");
 
-      // 2. Use a public proxy to fetch the audio
-      const API_BASE_URL = "https://yt-audio-api-1-wedr.onrender.com";
-      const params = new URLSearchParams();
-      params.append('url', formData.youtubeUrl);
-      const proxyUrl = `${API_BASE_URL}/?${params.toString()}`;
-      
-      // First, get the token
-      const tokenResponse = await fetch(proxyUrl);
-      if (!tokenResponse.ok) throw new Error("Failed to get download token");
+      // Initial request to get a token
+      const tokenResponse = await fetch(`${API_BASE_URL}/?url=${encodeURIComponent(formData.youtubeUrl)}`);
+      if (!tokenResponse.ok) throw new Error("Failed to get download token from Render API.");
       const { token } = await tokenResponse.json();
 
-      // Wait a moment for processing
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      let attempts = 0;
+      const MAX_POLLING_ATTEMPTS = 10; // Max retries for polling
+      const POLLING_INTERVAL_MS = 5000; // 5 seconds
 
-      // Try to download
-      const downloadUrl = `${API_BASE_URL}/download?token=${token}`;
-      const fileResponse = await fetch(downloadUrl);
+      let fileResponse;
+      let downloadReady = false;
 
-      if (fileResponse.status === 202) {
-        // Still processing
-        showError("Audio is still processing. Please try again in a few seconds.");
-        return;
-      }
+      while (attempts < MAX_POLLING_ATTEMPTS && !downloadReady) {
+        attempts++;
+        await new Promise(resolve => setTimeout(resolve, POLLING_INTERVAL_MS)); // Wait before polling
 
-      if (fileResponse.status === 500) {
-        const errorData = await fileResponse.json();
-        if (errorData.error === "YouTube Blocked this request") {
-          showError("YouTube blocked the download. Try again later or use manual fallback.");
-          return;
+        fileResponse = await fetch(`${API_BASE_URL}/download?token=${token}`);
+
+        if (fileResponse.status === 200) {
+          downloadReady = true;
+          setDownloadStatus('downloading');
+          break;
+        } else if (fileResponse.status === 202) {
+          showSuccess(`Audio is still processing. Attempt ${attempts}/${MAX_POLLING_ATTEMPTS}.`);
+          // Continue polling
+        } else if (fileResponse.status === 500) {
+          const errorData = await fileResponse.json();
+          if (errorData.error === "YouTube Block") {
+            throw new Error("YouTube blocked the download. Try again later or use manual fallback.");
+          }
+          throw new Error(errorData.error || "Download failed with server error.");
+        } else {
+          throw new Error(`Download failed with status: ${fileResponse.status} ${fileResponse.statusText}`);
         }
-        throw new Error(errorData.error || "Download failed with server error.");
       }
 
-      if (!fileResponse.ok) throw new Error("Download failed");
+      if (!downloadReady || !fileResponse) {
+        throw new Error("Audio processing timed out or failed after multiple attempts.");
+      }
 
-      // Create a download link
+      // If we reach here, the file is ready (status 200)
       const blob = await fileResponse.blob();
       const blobUrl = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -235,10 +242,12 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
       document.body.removeChild(a);
       window.URL.revokeObjectURL(blobUrl);
       showSuccess("Audio downloaded successfully!");
+      setDownloadStatus('success');
 
     } catch (err: any) {
       console.error(err);
       showError(`Download failed: ${err.message}. The Render API might be down or blocked.`);
+      setDownloadStatus('error');
     } finally {
       setIsDownloading(false);
     }
@@ -266,10 +275,11 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
           </Button>
           <Button
             onClick={handleDownloadViaProxy}
-            disabled={isSearchingYoutube || isDownloading}
+            disabled={isSearchingYoutube || isDownloading || !formData.youtubeUrl}
             className="bg-indigo-600 hover:bg-indigo-700 h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3"
           >
-            {(isSearchingYoutube || isDownloading) ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-4 h-4" />} DOWNLOAD
+            {(isSearchingYoutube || isDownloading) ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-4 h-4" />} 
+            {downloadStatus === 'processing' ? 'PROCESSING...' : 'DOWNLOAD'}
           </Button>
         </div>
       </div>
