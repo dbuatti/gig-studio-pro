@@ -101,7 +101,7 @@ def run_yt_dlp(video_url, token):
         
         if output_path.exists(): # Check if file was actually created
             if token in active_tokens:
-                active_tokens[token].update({"status": "ready", "file": filename})
+                active_tokens[token].update({"status": "ready", "file": filename, "progress_percentage": 100}) # Set progress to 100%
                 print(f"[{token}] Download successful. File: {filename}", flush=True) # Added log
             else:
                 print(f"[{token}] Token disappeared from active_tokens after successful download.", flush=True) # Added log
