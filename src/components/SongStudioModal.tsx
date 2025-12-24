@@ -21,7 +21,7 @@ import {
   Zap, Disc, VolumeX, Smartphone, Printer, Search,
   ClipboardPaste, AlignLeft, Apple, Hash, Music2,
   FileSearch, ChevronRight, Layers, LayoutGrid, ListPlus,
-  Globe2, ShieldCheck, Timer, FileMusic, Copy, SearchCode
+  Globe2, ShieldCheck, Timer, FileMusic, Copy, SearchCode, Cloud
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import AudioVisualizer from './AudioVisualizer';
@@ -102,6 +102,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isDetectingKey, setIsDetectingKey] = useState(false);
+  const [isCloudSyncing, setIsCloudSyncing] = useState(false);
   const [keyCandidates, setKeyCandidates] = useState<KeyCandidate[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isFormattingLyrics, setIsFormattingLyrics] = useState(false);
@@ -270,6 +271,38 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       showError("Key detection failed.");
     } finally {
       setIsDetectingKey(false);
+    }
+  };
+
+  const handleCloudKeySync = async () => {
+    if (!formData.name || !formData.artist) {
+      showError("Song Title and Artist required for Cloud Sync.");
+      return;
+    }
+    setIsCloudSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('enrich-metadata', {
+        body: { queries: [`${formData.name} by ${formData.artist}`] }
+      });
+      if (error) throw error;
+      
+      const result = Array.isArray(data) ? data[0] : data;
+      if (result?.originalKey) {
+        const normalized = formatKey(result.originalKey, currentKeyPreference);
+        updateHarmonics({ 
+          originalKey: normalized, 
+          isKeyConfirmed: true,
+          bpm: result.bpm?.toString() || formData.bpm,
+          genre: result.genre || formData.genre
+        });
+        showSuccess(`Cloud AI Verified: Song is in ${normalized}`);
+      } else {
+        showError("Cloud AI could not find definitive metadata for this track.");
+      }
+    } catch (err) {
+      showError("Cloud Sync Error.");
+    } finally {
+      setIsCloudSyncing(false);
     }
   };
 
@@ -818,10 +851,12 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
             </div>
           </div>
         )}
-        {(isUploading || isProSyncing) && (
+        {(isUploading || isProSyncing || isCloudSyncing) && (
           <div className="absolute inset-0 z-[60] bg-black/60 backdrop-blur-md flex flex-col items-center justify-center gap-4">
              <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" />
-             <p className="text-sm font-black uppercase tracking-[0.2em] text-white">{isUploading ? 'Syncing Master Asset...' : 'Analyzing Global Library Data...'}</p>
+             <p className="text-sm font-black uppercase tracking-[0.2em] text-white">
+               {isUploading ? 'Syncing Master Asset...' : isCloudSyncing ? 'Accessing Cloud Knowledge Base...' : 'Analyzing Global Library Data...'}
+             </p>
           </div>
         )}
         <div className={cn("flex overflow-hidden", isMobile ? "flex-col h-[100dvh]" : "h-[90vh] min-h-[800px]")}>
@@ -1088,6 +1123,16 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                           >
                             {isDetectingKey ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <SearchCode className="w-3.5 h-3.5" />}
                             Analyse Key
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleCloudKeySync}
+                            disabled={isCloudSyncing}
+                            className="flex-1 md:flex-none h-10 px-4 bg-white/5 text-white font-black uppercase tracking-widest text-[9px] gap-2 rounded-xl border border-white/10 hover:bg-white/10"
+                          >
+                            {isCloudSyncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Cloud className="w-3.5 h-3.5 text-indigo-400" />}
+                            Cloud Sync
                           </Button>
                         </div>
                      </div>
