@@ -131,6 +131,13 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
     }
   };
 
+  // Wrapped handleAutoSave for child components
+  const wrappedHandleAutoSave = (updates: Partial<SetlistSong>) => {
+    if (song) {
+      onSave(song.id, updates);
+    }
+  };
+
   return (
     <div className={cn("space-y-6 md:space-y-12 animate-in fade-in duration-500")}>
       {/* 1. HEADER SECTION */}
@@ -238,7 +245,7 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
       <SongAnalysisTools 
         song={song}
         formData={formData}
-        handleAutoSave={onSave} // Pass onSave directly
+        handleAutoSave={wrappedHandleAutoSave} // Pass wrapped function
         currentBuffer={currentBuffer}
         isMobile={isMobile}
       />
@@ -247,7 +254,7 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
       <SongAudioControls
         song={song}
         formData={formData}
-        handleAutoSave={onSave} // Pass onSave directly
+        handleAutoSave={wrappedHandleAutoSave} // Pass wrapped function
         onUpdateKey={onUpdateKey}
         setPitch={setPitch}
         setTempo={setTempo}
