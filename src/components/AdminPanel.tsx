@@ -50,54 +50,66 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   const [healthStatus, setHealthStatus] = useState<'online' | 'offline' | 'error' | null>(null);
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [cookieSize, setCookieSize] = useState<number | null>(null);
+  const [bucketExists, setBucketExists] = useState<boolean>(false);
 
   const API_BASE = "https://yt-audio-api-docker.onrender.com";
+  const SUPABASE_PROJECT_ID = "rqesjpnhrjdjnrzdhzgw"; // Your Supabase Project ID
 
   useEffect(() => {
     const saved = localStorage.getItem('gig_admin_last_sync');
     if (saved) setLastSync(saved);
-    // Don't auto-check size on mount to avoid 400 errors if bucket doesn't exist
+    if (isOpen) {
+      checkBucketStatus(); // Check bucket status when panel opens
+    }
   }, [isOpen]);
 
-  // Manual check function
   const checkBucketStatus = async () => {
     try {
-      const { data, error } = await supabase.storage
-        .from('cookies')
-        .list('', { search: 'cookies.txt' });
+      const { data, error } = await supabase.storage.listBuckets();
+      if (error) throw error;
       
-      if (!error && data && data.length > 0) {
-        setCookieSize(data[0].metadata?.size || null);
-        showSuccess("Bucket found and cookies exist.");
-      } else if (error && error.message.includes("not found")) {
-        setCookieSize(null);
-        showError("Bucket 'cookies' does not exist yet.");
+      const foundBucket = data?.find(b => b.name === 'cookies');
+      setBucketExists(!!foundBucket);
+
+      if (foundBucket) {
+        const { data: files, error: fileError } = await supabase.storage
+          .from('cookies')
+          .list('', { search: 'cookies.txt' });
+        
+        if (!fileError && files && files.length > 0) {
+          setCookieSize(files[0].metadata?.size || null);
+        } else {
+          setCookieSize(null);
+        }
       } else {
         setCookieSize(null);
       }
     } catch (e) {
-      console.error(e);
+      console.error("Error checking bucket status:", e);
+      setBucketExists(false);
+      setCookieSize(null);
     }
   };
 
   const createBucket = async () => {
     setIsCreatingBucket(true);
     try {
-      const { error } = await supabase.storage.createBucket('cookies', {
-        public: false,
-        allowedMimeTypes: ['text/plain'],
-        fileSizeLimit: 1024 * 1024 // 1MB
-      });
-      
-      if (error) {
-        // If it already exists, that's fine
-        if (error.message.includes("already exists")) {
-          showSuccess("Bucket already exists.");
-        } else {
-          throw error;
+      const { data, error } = await supabase.functions.invoke('create-storage-bucket', {
+        body: {
+          bucketName: 'cookies',
+          isPublic: false,
+          allowedMimeTypes: ['text/plain'],
+          fileSizeLimit: 1024 * 1024 // 1MB
         }
+      });
+
+      if (error) throw error;
+      
+      if (data?.success) {
+        showSuccess(data.message || "Bucket 'cookies' created successfully.");
+        setBucketExists(true);
       } else {
-        showSuccess("Bucket 'cookies' created successfully.");
+        showError(data?.error || "Failed to create bucket.");
       }
     } catch (err: any) {
       showError(`Failed to create bucket: ${err.message}`);
@@ -157,15 +169,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
 
     setIsUploading(true);
     try {
-      // Ensure bucket exists first
-      const { error: createError } = await supabase.storage.createBucket('cookies', {
-        public: false,
-        allowedMimeTypes: ['text/plain'],
-        fileSizeLimit: 1024 * 1024
-      });
-
-      if (createError && !createError.message.includes("already exists")) {
-        throw createError;
+      // Ensure bucket exists before uploading
+      if (!bucketExists) {
+        await createBucket(); // Attempt to create if not exists
+        if (!bucketExists) { // Re-check after attempt
+          throw new Error("Supabase 'cookies' bucket not found or could not be created.");
+        }
       }
 
       // Upload as cookies.txt
@@ -316,10 +325,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                     <div className="bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col gap-3">
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Storage Status</span>
-                        {cookieSize !== null ? (
-                          <Badge className="bg-emerald-600 text-white font-mono text-[9px]">ACTIVE</Badge>
+                        {bucketExists ? (
+                          cookieSize !== null ? (
+                            <Badge className="bg-emerald-600 text-white font-mono text-[9px]">ACTIVE</Badge>
+                          ) : (
+                            <Badge className="bg-amber-500 text-white font-mono text-[9px]">EMPTY</Badge>
+                          )
                         ) : (
-                          <Badge className="bg-slate-700 text-slate-400 font-mono text-[9px]">CHECK</Badge>
+                          <Badge className="bg-slate-700 text-slate-400 font-mono text-[9px]">MISSING</Badge>
                         )}
                       </div>
                       <div className="flex items-center justify-between p-3 bg-slate-900 rounded-xl">
@@ -334,18 +347,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                         <Button 
                           variant="outline" 
                           className="flex-1 bg-white/5 border-white/10 hover:bg-white/10 text-white font-black uppercase text-[9px] h-10 rounded-xl"
-                          onClick={checkBucketStatus}
+                          onClick={downloadCookies}
+                          disabled={cookieSize === null}
                         >
-                          <RefreshCw className="w-3.5 h-3.5 mr-2" /> Check
+                          <Download className="w-3.5 h-3.5 mr-2" /> Download
                         </Button>
                         <Button 
                           variant="outline" 
-                          className="flex-1 bg-indigo-600/10 border-indigo-600/20 hover:bg-indigo-600/20 text-indigo-400 font-black uppercase text-[9px] h-10 rounded-xl"
-                          onClick={createBucket}
-                          disabled={isCreatingBucket}
+                          className="flex-1 bg-red-600/10 border-red-600/20 hover:bg-red-600/20 text-red-400 font-black uppercase text-[9px] h-10 rounded-xl"
+                          onClick={deleteCookies}
+                          disabled={cookieSize === null}
                         >
-                          {isCreatingBucket ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Cloud className="w-3.5 h-3.5 mr-2" />} 
-                          Init Bucket
+                          <Trash2 className="w-3.5 h-3.5 mr-2" /> Delete
                         </Button>
                       </div>
                     </div>
