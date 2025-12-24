@@ -314,16 +314,21 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     }
 
     const apiBase = "https://yt-audio-api-docker.onrender.com"; 
+    const proxyBase = "https://corsproxy.io/?";
 
     setIsSyncingAudio(true);
     try {
-      // Step 1: Initialize extraction and get token
-      const tokenRes = await fetch(`${apiBase}/?url=${encodeURIComponent(formData.youtubeUrl)}`);
+      // Step 1: Initialize extraction and get token (via Proxy to fix CORS)
+      const tokenUrl = `${apiBase}/?url=${encodeURIComponent(formData.youtubeUrl)}`;
+      const tokenRes = await fetch(`${proxyBase}${encodeURIComponent(tokenUrl)}`);
+      
       if (!tokenRes.ok) throw new Error("Could not initialize extraction engine.");
       const { token } = await tokenRes.json();
 
-      // Step 2: Extract audio blob from microservice
-      const downloadRes = await fetch(`${apiBase}/download?token=${token}`);
+      // Step 2: Extract audio blob from microservice (via Proxy)
+      const downloadUrl = `${apiBase}/download?token=${token}`;
+      const downloadRes = await fetch(`${proxyBase}${encodeURIComponent(downloadUrl)}`);
+      
       if (!downloadRes.ok) throw new Error("Audio extraction failed.");
       const blob = await downloadRes.blob();
 
@@ -351,7 +356,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       
     } catch (err: any) {
       console.error("YT Sync Error:", err);
-      showError(err.name === 'TypeError' ? "Extraction API unreachable. Cold start might be taking too long." : (err.message || "Extraction engine error."));
+      showError("Connection blocked or engine idle. Try again in 20s.");
     } finally {
       setIsSyncingAudio(false);
     }
@@ -1460,7 +1465,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                             onClick={handleYoutubeSearch}
                             className="bg-red-600/10 border-red-600/20 text-red-600 hover:bg-red-600 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 md:h-12 gap-2 px-4 md:px-6 rounded-xl min-w-[120px]"
                           >
-                            <Youtube className="w-3.5 h-3.5" /> Discover
+                            <Youtube className="w-3.5 h-3.5" /> Discovery
                           </Button>
                      </div>
                   </div>
