@@ -57,7 +57,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
 
   const checkBucketStatus = async () => {
     try {
-      // 1. Check if bucket exists
       const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
       if (bucketError) throw bucketError;
       
@@ -65,7 +64,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
       setBucketExists(!!foundBucket);
 
       if (foundBucket) {
-        // 2. Check for the file. Note: search can be unreliable, so we list everything in root
         const { data: files, error: fileError } = await supabase.storage
           .from('cookies')
           .list('', { limit: 100 });
@@ -73,7 +71,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         if (!fileError && files) {
           const cookieFile = files.find(f => f.name === 'cookies.txt');
           if (cookieFile) {
-            setCookieSize(cookieFile.metadata?.size || cookieFile.id ? 1024 : null); // Fallback size
+            setCookieSize(cookieFile.metadata?.size || 1024); 
           } else {
             setCookieSize(null);
           }
@@ -88,7 +86,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   const createBucket = async () => {
     setIsCreatingBucket(true);
     try {
-      const { data, error } = await supabase.functions.invoke('create-storage-bucket', {
+      await supabase.functions.invoke('create-storage-bucket', {
         body: {
           bucketName: 'cookies',
           isPublic: false,
@@ -96,8 +94,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
           fileSizeLimit: 1024 * 1024
         }
       });
-
-      if (error) throw error;
       setBucketExists(true);
       return true;
     } catch (err: any) {
@@ -131,21 +127,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
 
   const triggerRenderRefresh = async () => {
     try {
-      // We try a POST, but if it 404s, we let the user know the backend might be updating
       const refreshRes = await fetch(`${API_BASE}/refresh-cookies`, {
         method: 'POST',
         mode: 'cors'
       });
       
       if (refreshRes.status === 404) {
-        showError("Backend update endpoint not found. Please ensure your Render service is deployed with the latest code.");
+        showError("Backend update endpoint not found. Deployment may be in progress.");
         return;
       }
 
       if (!refreshRes.ok) throw new Error('API refresh signal failed');
       
       showSuccess("Backend notified. Syncing cookies from Supabase...");
-      // Re-check health after a short delay
       setTimeout(checkHealth, 2000);
     } catch (err: any) {
       console.error("Refresh trigger failed:", err);
@@ -158,19 +152,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
       return;
     }
 
-    if (file.name !== 'cookies.txt' && !confirm(`Your file is named "${file.name}". The system expects "cookies.txt". Upload anyway?`)) {
-      return;
+    // Explicit confirmation that renaming will occur
+    if (file.name !== 'cookies.txt') {
+      const confirmRename = confirm(`The system will automatically rename "${file.name}" to "cookies.txt" for the extraction engine. Proceed?`);
+      if (!confirmRename) return;
     }
 
     setIsUploading(true);
     try {
-      // Ensure bucket exists
       if (!bucketExists) {
         const success = await createBucket();
         if (!success) return;
       }
 
-      // Upload file
       const { error: uploadError } = await supabase.storage
         .from('cookies')
         .upload('cookies.txt', file, {
@@ -180,11 +174,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
 
       if (uploadError) throw uploadError;
 
-      // Update local state immediately
       setCookieSize(file.size);
       showSuccess("Vault Updated Successfully");
-
-      // Trigger the backend to pull the new file
       await triggerRenderRefresh();
       
     } catch (err: any) {
@@ -308,7 +299,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                       <>
                         <FileText className="w-12 h-12 text-indigo-400 mb-6" />
                         <h5 className="text-lg font-black uppercase tracking-tight mb-2">Drop cookies.txt here</h5>
-                        <p className="text-xs text-slate-500 font-medium mb-8">The engine will instantly propagate this to the production API.</p>
+                        <p className="text-xs text-slate-500 font-medium mb-8">The engine will automatically rename your file and sync it to the production API.</p>
                         <input type="file" accept=".txt" onChange={handleFileSelect} className="hidden" id="cookie-upload" />
                         <Button onClick={() => document.getElementById('cookie-upload')?.click()} className="bg-indigo-600 hover:bg-indigo-700 h-12 px-8 rounded-xl font-black uppercase tracking-widest text-[10px]">Select File</Button>
                       </>
