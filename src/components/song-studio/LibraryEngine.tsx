@@ -1,5 +1,86 @@
 "use client";
 
+import React from 'react';
+import { Button } from "@/components/ui/button";
+import { 
+  Music, 
+  FileText, 
+  Download, 
+  Apple, 
+  Link2, 
+  ExternalLink, 
+  Printer, 
+  ClipboardPaste, 
+  Eye 
+} from 'lucide-react';
+import { cn } from "@/lib/utils";
+import { SetlistSong } from '../SetlistManager';
+import { showSuccess } from '@/utils/toast';
+
+interface LibraryEngineProps {
+  formData: Partial<SetlistSong>;
+  handleDownloadAll: () => Promise<void>;
+  isMobile: boolean;
+  // Added these to support the missing preview/utility functions
+  setPreviewPdfUrl?: (url: string | null) => void;
+  handleUgPrint?: () => void;
+}
+
+const LibraryEngine: React.FC<LibraryEngineProps> = ({ 
+  formData, 
+  handleDownloadAll, 
+  isMobile,
+  setPreviewPdfUrl,
+  handleUgPrint 
+}) => {
+  return (
+    <div className="space-y-8 md:space-y-12 animate-in fade-in duration-500 h-full flex flex-col">
+      {/* HEADER SECTION */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h3 className="text-xl md:text-2xl font-black uppercase tracking-[0.2em] text-white">RESOURCE MATRIX</h3>
+          <p className="text-xs md:text-sm text-slate-500 mt-1 font-medium">Centralized management for all song assets and links.</p>
+        </div>
+        <Button 
+          onClick={handleDownloadAll} 
+          className="w-full md:w-auto bg-indigo-600<dyad-problem-report summary="15 problems">
+<problem file="src/components/SetlistManager.tsx" line="16" column="29" code="2307">Cannot find module '@/components/song-studio/SongStudioModal' or its corresponding type declarations.</problem>
+<problem file="src/components/PerformanceOverlay.tsx" line="20" column="29" code="2307">Cannot find module './song-studio/SongStudioModal' or its corresponding type declarations.</problem>
+<problem file="src/pages/Index.tsx" line="24" column="29" code="2307">Cannot find module '@/components/song-studio/SongStudioModal' or its corresponding type declarations.</problem>
+<problem file="src/App.tsx" line="13" column="29" code="2307">Cannot find module '@/components/song-studio/SongStudioModal' or its corresponding type declarations.</problem>
+<problem file="src/components/song-studio/SongStudioModal.tsx" line="44" column="33" code="2307">Cannot find module './YoutubeMediaManager' or its corresponding type declarations.</problem>
+<problem file="src/components/song-studio/SongStudioModal.tsx" line="45" column="28" code="2307">Cannot find module './SongDetailsTab' or its corresponding type declarations.</problem>
+<problem file="src/components/song-studio/SongStudioModal.tsx" line="46" column="27" code="2307">Cannot find module './SongChartsTab' or its corresponding type declarations.</problem>
+<problem file="src/components/song-studio/SongStudioModal.tsx" line="47" column="26" code="2307">Cannot find module './LyricsEngine' or its corresponding type declarations.</problem>
+<problem file="src/components/song-studio/SongStudioModal.tsx" line="48" column="27" code="2307">Cannot find module './LibraryEngine' or its corresponding type declarations.</problem>
+<problem file="src/components/song-studio/SongStudioModal.tsx" line="49" column="27" code="2307">Cannot find module './SongConfigTab' or its corresponding type declarations.</problem>
+<problem file="src/components/song-studio/SongStudioModal.tsx" line="50" column="34" code="2307">Cannot find module './SongAudioPlaybackTab' or its corresponding type declarations.</problem>
+<problem file="src/components/song-studio/SongConfigTab.tsx" line="18" column="29" code="2307">Cannot find module './SongAssetMatrix' or its corresponding type declarations.</problem>
+<problem file="src/components/song-studio/SongConfigTab.tsx" line="19" column="28" code="2307">Cannot find module './SongTagManager' or its corresponding type declarations.</problem>
+<problem file="src/components/song-studio/SongAudioPlaybackTab.tsx" line="14" column="31" code="2307">Cannot find module './SongAnalysisTools' or its corresponding type declarations.</problem>
+<problem file="src/components/song-studio/SongAudioPlaybackTab.tsx" line="15" column="31" code="2307">Cannot find module './SongAudioControls' or its corresponding type declarations.</problem>
+</dyad-problem-report><think>**Analyzing Import Paths**
+
+I'm currently wading through a swamp of TypeScript errors. It seems my recent restructuring of components into `src/components/song-studio` has left a trail of broken import paths in its wake.  The compiler is screaming about missing modules, a clear indicator that I need to meticulously update every affected import statement to reflect the new file locations.
+
+
+**Tackling Broken Imports**
+
+Okay, I've identified 15 TypeScript errors stemming from the component restructuring. It's clear that the module not found errors are all due to outdated or incorrect import paths. My plan now is to meticulously update these import statements. Specifically, I'll update references to `SongStudioModal` in `SetlistManager.tsx`, `PerformanceOverlay.tsx`, `Index.tsx`, and `App.tsx`. Next, I'll fix internal imports within `SongStudioModal.tsx`, using relative paths. After that, I'll move on to fixing the file mentioned in the final error.
+
+
+**Updating Import Paths**
+
+I've got a concrete plan in place to fix those pesky import errors. I'll meticulously update the import statements in `SetlistManager.tsx`, `PerformanceOverlay.tsx`, `Index.tsx`, and `App.tsx` to reflect the new component structure. Then, I'll switch my focus to relative paths inside the `song-studio` directory itself, fixing imports within `SongStudioModal.tsx`, `SongConfigTab.tsx`, and `SongAudioPlaybackTab.tsx` to ensure everything is linked up correctly. This should clear the way for a smooth compile.
+
+
+</think>You're right! My apologies. When I moved the files, I missed updating some of the import paths within the components themselves and in the files that import them. I'll correct these 15 TypeScript errors by adjusting the import statements to reflect the new `src/components/song-studio` directory structure.
+
+Here are the corrected files:
+
+<dyad-write path="src/components/SetlistManager.tsx" description="Updating import path for SongStudioModal.">
+"use client";
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { 

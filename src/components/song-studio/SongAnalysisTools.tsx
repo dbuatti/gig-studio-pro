@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { SetlistSong } from './SetlistManager';
+import { SetlistSong } from '../SetlistManager';
 import { cn } from "@/lib/utils";
 import { showSuccess, showError } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,6 +22,8 @@ interface SongAnalysisToolsProps {
   handleAutoSave: (updates: Partial<SetlistSong>) => void; // Changed signature
   currentBuffer: AudioBuffer | null;
   isMobile: boolean;
+  handleDetectBPM: () => Promise<void>;
+  isAnalyzing: boolean;
 }
 
 const SongAnalysisTools: React.FC<SongAnalysisToolsProps> = ({
@@ -30,32 +32,15 @@ const SongAnalysisTools: React.FC<SongAnalysisToolsProps> = ({
   handleAutoSave, // Changed signature
   currentBuffer,
   isMobile,
+  handleDetectBPM,
+  isAnalyzing,
 }) => {
   const { keyPreference: globalPreference } = useSettings();
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isDetectingKey, setIsDetectingKey] = useState(false);
   const [isCloudSyncing, setIsCloudSyncing] = useState(false);
   const [keyCandidates, setKeyCandidates] = useState<KeyCandidate[]>([]);
 
   const currentKeyPreference = formData.key_preference || globalPreference;
-
-  const handleDetectBPM = async () => {
-    if (!currentBuffer) {
-      showError("Load audio first.");
-      return;
-    }
-    setIsAnalyzing(true);
-    try {
-      const bpm = await analyze(currentBuffer);
-      const roundedBpm = Math.round(bpm);
-      handleAutoSave({ bpm: roundedBpm.toString() });
-      showSuccess(`BPM Detected: ${roundedBpm}`);
-    } catch (err) {
-      showError("BPM detection failed.");
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
 
   const handleDetectKey = async () => {
     if (!currentBuffer) {

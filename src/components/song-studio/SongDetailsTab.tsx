@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Search } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { SetlistSong } from './SetlistManager';
+import { SetlistSong } from '../SetlistManager';
 
 // Memoized input component for better performance
 const StudioInput = React.memo(({ label, value, onChange, placeholder, className, isTextarea = false, type = "text" }: {

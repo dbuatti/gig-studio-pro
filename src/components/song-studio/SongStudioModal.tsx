@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import { SetlistSong } from './SetlistManager';
+import { SetlistSong } from '../SetlistManager';
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, calculateSemitones, formatKey, transposeKey } from '@/utils/keyUtils';
 import { 
   Music, FileText, Youtube, Settings2, 
@@ -25,7 +25,7 @@ import {
   AlertTriangle, Wrench
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
-import AudioVisualizer from './AudioVisualizer';
+import AudioVisualizer from '../AudioVisualizer';
 import * as Tone from 'tone';
 import { analyze } from 'web-audio-beat-detector';
 import { supabase } from '@/integrations/supabase/client';
@@ -33,8 +33,8 @@ import { showSuccess, showError } from '@/utils/toast';
 import { Slider } from '@/components/ui/slider';
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
 import { RESOURCE_TYPES } from '@/utils/constants';
-import ProSyncSearch from './ProSyncSearch';
-import YoutubeResultsShelf from './YoutubeResultsShelf';
+import ProSyncSearch from '../ProSyncSearch';
+import YoutubeResultsShelf from '../YoutubeResultsShelf';
 import { useAuth } from '@/components/AuthProvider';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { calculateReadiness } from '@/utils/repertoireSync';

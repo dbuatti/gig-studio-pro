@@ -10,6 +10,7 @@ import Landing from "./pages/Landing";
 import NotFound from "./pages/NotFound";
 import Profile from "./pages/Profile";
 import PublicRepertoire from "./pages/PublicRepertoire";
+import SongStudioModal from "@/components/song-studio/SongStudioModal";
 
 const queryClient = new QueryClient();
 

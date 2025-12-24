@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 import { useSettings } from '@/hooks/use-settings';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { syncToMasterRepertoire } from '@/utils/repertoireSync';
-import SongStudioModal from '@/components/SongStudioModal';
+import SongStudioModal from '@/components/song-studio/SongStudioModal';
 
 const Index = () => {
   const { user } = useAuth();

@@ -17,7 +17,7 @@ import {
 import { SetlistSong } from './SetlistManager';
 import AudioVisualizer from './AudioVisualizer';
 import Metronome from './Metronome';
-import SongStudioModal from './SongStudioModal';
+import SongStudioModal from './song-studio/SongStudioModal';
 import ShortcutLegend from './ShortcutLegend';
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, formatKey, calculateSemitones, transposeKey } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
@@ -575,7 +575,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
 
           <div className="space-y-4">
             <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400 flex items-center gap-2 font-mono">
-              <Settings2 className="w-4 h-4" /> Harmonic Override
+                <Settings2 className="w-4 h-4" /> Harmonic Override
             </h3>
             <div className="bg-white/5 rounded-[2rem] p-6 xl:p-8 border border-white/10 space-y-6">
               <div className="grid grid-cols-2 gap-6 relative">
