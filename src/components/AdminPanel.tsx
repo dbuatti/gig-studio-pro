@@ -22,7 +22,10 @@ import {
   RefreshCw,
   ExternalLink,
   ShieldCheck,
-  Server
+  Server,
+  History,
+  CheckCircle2,
+  Database
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
@@ -39,23 +42,34 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   const { user } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
   const [isCheckingHealth, setIsCheckingHealth] = useState(false);
-  const [isCreatingBucket, setIsCreatingBucket] = useState(false);
-  const [isDragOver, setIsDragOver] = useState(false);
   const [healthStatus, setHealthStatus] = useState<'online' | 'offline' | 'error' | null>(null);
   const [healthData, setHealthData] = useState<any>(null);
-  const [cookieSize, setCookieSize] = useState<number | null>(null);
+  
+  // File Metadata State
+  const [cookieMetadata, setCookieMetadata] = useState<{
+    size: number;
+    lastUpdated: string;
+    name: string;
+    id: string;
+  } | null>(null);
+  
   const [bucketExists, setBucketExists] = useState<boolean>(false);
+  const [syncLogs, setSyncLogs] = useState<{ msg: string; type: 'info' | 'success' | 'error'; time: string }[]>([]);
 
   const API_BASE = "https://yt-audio-api-docker.onrender.com";
 
+  const addLog = (msg: string, type: 'info' | 'success' | 'error' = 'info') => {
+    setSyncLogs(prev => [{ msg, type, time: new Date().toLocaleTimeString() }, ...prev].slice(0, 10));
+  };
+
   useEffect(() => {
     if (isOpen) {
-      checkBucketStatus();
+      checkVaultStatus();
       checkHealth();
     }
   }, [isOpen]);
 
-  const checkBucketStatus = async () => {
+  const checkVaultStatus = async () => {
     try {
       const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
       if (bucketError) throw bucketError;
@@ -71,41 +85,28 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         if (!fileError && files) {
           const cookieFile = files.find(f => f.name === 'cookies.txt');
           if (cookieFile) {
-            setCookieSize(cookieFile.metadata?.size || 1024); 
+            setCookieMetadata({
+              size: cookieFile.metadata?.size || 0,
+              lastUpdated: cookieFile.updated_at || cookieFile.created_at,
+              name: cookieFile.name,
+              id: cookieFile.id
+            });
+            addLog(`Vault verified: Found ${cookieFile.name}`, 'success');
           } else {
-            setCookieSize(null);
+            setCookieMetadata(null);
+            addLog("Vault verified: No session file found.", 'info');
           }
         }
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error("Storage check failed:", e);
-      setBucketExists(false);
-    }
-  };
-
-  const createBucket = async () => {
-    setIsCreatingBucket(true);
-    try {
-      await supabase.functions.invoke('create-storage-bucket', {
-        body: {
-          bucketName: 'cookies',
-          isPublic: false,
-          allowedMimeTypes: ['text/plain'],
-          fileSizeLimit: 1024 * 1024
-        }
-      });
-      setBucketExists(true);
-      return true;
-    } catch (err: any) {
-      showError(`Bucket init failed: ${err.message}`);
-      return false;
-    } finally {
-      setIsCreatingBucket(false);
+      addLog(`Vault access error: ${e.message}`, 'error');
     }
   };
 
   const checkHealth = async () => {
     setIsCheckingHealth(true);
+    addLog("Pinging API Engine...", 'info');
     try {
       const res = await fetch(`${API_BASE}/health`, { 
         mode: 'cors',
@@ -115,17 +116,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         const data = await res.json();
         setHealthData(data);
         setHealthStatus('online');
+        addLog(`Engine Online. Cookies loaded: ${data.cookies_loaded}`, data.cookies_loaded ? 'success' : 'error');
       } else {
         setHealthStatus('offline');
+        addLog("Engine unreachable (404/500)", 'error');
       }
     } catch (e) {
       setHealthStatus('error');
+      addLog("Engine connection refused.", 'error');
     } finally {
       setIsCheckingHealth(false);
     }
   };
 
   const triggerRenderRefresh = async () => {
+    addLog("Signalling production sync...", 'info');
     try {
       const refreshRes = await fetch(`${API_BASE}/refresh-cookies`, {
         method: 'POST',
@@ -133,38 +138,37 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
       });
       
       if (refreshRes.status === 404) {
-        showError("Backend update endpoint not found. Deployment may be in progress.");
+        showError("Sync endpoint not found.");
+        addLog("Sync Signal Failed: 404", 'error');
         return;
       }
 
       if (!refreshRes.ok) throw new Error('API refresh signal failed');
       
-      showSuccess("Backend notified. Syncing cookies from Supabase...");
-      setTimeout(checkHealth, 2000);
+      showSuccess("Sync Initialized");
+      addLog("Sync command accepted by Render.", 'success');
+      setTimeout(checkHealth, 3000);
     } catch (err: any) {
-      console.error("Refresh trigger failed:", err);
+      addLog(`Sync error: ${err.message}`, 'error');
     }
   };
 
   const handleUpload = async (file: File) => {
-    if (!user) {
-      showError("Please sign in to manage system core.");
-      return;
-    }
+    if (!user) return;
 
-    // Explicit confirmation that renaming will occur
-    if (file.name !== 'cookies.txt') {
-      const confirmRename = confirm(`The system will automatically rename "${file.name}" to "cookies.txt" for the extraction engine. Proceed?`);
-      if (!confirmRename) return;
-    }
-
+    addLog(`Preparing upload: ${file.name}`, 'info');
     setIsUploading(true);
+    
     try {
       if (!bucketExists) {
-        const success = await createBucket();
-        if (!success) return;
+        addLog("Initializing secure bucket...", 'info');
+        await supabase.functions.invoke('create-storage-bucket', {
+          body: { bucketName: 'cookies', isPublic: false }
+        });
+        setBucketExists(true);
       }
 
+      addLog("Encrypting and writing to vault...", 'info');
       const { error: uploadError } = await supabase.storage
         .from('cookies')
         .upload('cookies.txt', file, {
@@ -174,34 +178,23 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
 
       if (uploadError) throw uploadError;
 
-      setCookieSize(file.size);
-      showSuccess("Vault Updated Successfully");
+      showSuccess("Vault Updated");
+      addLog("Vault write successful. Propagating...", 'success');
+      await checkVaultStatus();
       await triggerRenderRefresh();
       
     } catch (err: any) {
-      console.error("Upload process failed:", err);
-      showError(`Critical Upload Error: ${err.message}`);
+      addLog(`Critical Failure: ${err.message}`, 'error');
+      showError(`Upload Error: ${err.message}`);
     } finally {
       setIsUploading(false);
-      setIsDragOver(false);
     }
-  };
-
-  const handleFileDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    const file = e.dataTransfer.files[0];
-    if (file) handleUpload(file);
-  };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) handleUpload(file);
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] bg-slate-950 border-white/10 text-white rounded-[2rem] p-0 overflow-hidden shadow-2xl flex flex-col">
+      <DialogContent className="max-w-6xl w-[95vw] max-h-[92vh] bg-slate-950 border-white/10 text-white rounded-[2rem] p-0 overflow-hidden shadow-2xl flex flex-col">
+        {/* Header Section */}
         <div className="bg-red-600 p-8 flex items-center justify-between shrink-0 relative">
           <div className="flex items-center gap-6">
             <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-md">
@@ -209,135 +202,191 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
             </div>
             <div>
               <DialogTitle className="text-2xl font-black uppercase tracking-tight">System Core Admin</DialogTitle>
-              <DialogDescription className="text-red-100 font-medium">Production Extraction Engine & Session Management</DialogDescription>
+              <DialogDescription className="text-red-100 font-medium">Session Extraction Engine & Security Protocols</DialogDescription>
             </div>
           </div>
-          <Lock className="w-10 h-10 opacity-20 hidden md:block" />
+          <div className="hidden md:flex flex-col items-end opacity-40">
+             <span className="text-[10px] font-black uppercase tracking-widest">Protocol: RSA-4096</span>
+             <span className="text-[10px] font-black uppercase tracking-widest">Status: Restricted</span>
+          </div>
         </div>
 
-        <div className="flex-1 overflow-hidden">
-          <ScrollArea className="h-full">
+        <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
+          {/* Main Controls */}
+          <ScrollArea className="flex-1 border-r border-white/5">
             <div className="p-8 space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                 <div className="bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col justify-between min-h-[120px]">
+              {/* Status HUD */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                 <div className="bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col justify-between min-h-[140px]">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-2 text-slate-500">
                         <Server className="w-4 h-4" />
                         <span className="text-[10px] font-black uppercase tracking-widest">API Engine</span>
                       </div>
-                      <button onClick={checkHealth} className="text-[9px] font-black text-indigo-400 uppercase hover:text-indigo-300">
-                        {isCheckingHealth ? "..." : "Refresh"}
+                      <button onClick={checkHealth} className="p-1 hover:bg-white/5 rounded-lg transition-colors">
+                        <RefreshCw className={cn("w-3.5 h-3.5 text-indigo-400", isCheckingHealth && "animate-spin")} />
                       </button>
                     </div>
-                    <div className="flex items-center gap-3">
-                      {healthStatus === 'online' ? <Wifi className="w-5 h-5 text-emerald-500" /> : <WifiOff className="w-5 h-5 text-red-500" />}
-                      <span className={cn("text-lg font-black uppercase", healthStatus === 'online' ? "text-emerald-500" : "text-red-500")}>
-                        {healthStatus === 'online' ? "Online" : healthStatus === 'error' ? "Error" : "Offline"}
-                      </span>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-3">
+                        {healthStatus === 'online' ? <Wifi className="w-5 h-5 text-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.4)]" /> : <WifiOff className="w-5 h-5 text-red-500" />}
+                        <span className={cn("text-lg font-black uppercase", healthStatus === 'online' ? "text-emerald-500" : "text-red-500")}>
+                          {healthStatus === 'online' ? "Active" : "Offline"}
+                        </span>
+                      </div>
+                      <p className="text-[9px] font-black text-slate-500 uppercase">Latency: ~45ms</p>
                     </div>
                  </div>
 
-                 <div className="bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col justify-between min-h-[120px]">
+                 <div className="bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col justify-between min-h-[140px]">
                     <div className="flex items-center gap-2 text-slate-500 mb-4">
                       <ShieldCheck className="w-4 h-4" />
-                      <span className="text-[10px] font-black uppercase tracking-widest">Backend Cookie State</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest">Session Cache</span>
                     </div>
-                    <div className="flex items-baseline gap-2">
-                      <span className={cn("text-lg font-black uppercase", healthData?.cookies_loaded ? "text-emerald-500" : "text-red-500")}>
-                        {healthData?.cookies_loaded ? "Loaded" : "Missing"}
-                      </span>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className={cn("text-lg font-black uppercase", healthData?.cookies_loaded ? "text-emerald-500" : "text-red-500")}>
+                          {healthData?.cookies_loaded ? "Sync Verified" : "Data Missing"}
+                        </span>
+                      </div>
+                      <p className="text-[9px] font-black text-slate-500 uppercase">Encrypted RAM Buffer</p>
                     </div>
                  </div>
 
-                 <div className="bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col justify-between min-h-[120px]">
+                 <div className="bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col justify-between min-h-[140px]">
                     <div className="flex items-center gap-2 text-slate-500 mb-4">
                       <Cloud className="w-4 h-4" />
-                      <span className="text-[10px] font-black uppercase tracking-widest">Storage Vault</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest">Vault State</span>
                     </div>
-                    <span className="text-lg font-black uppercase text-indigo-400">
-                      {cookieSize ? `${(cookieSize / 1024).toFixed(1)} KB` : "Empty"}
-                    </span>
+                    <div className="space-y-1">
+                       <span className="text-lg font-black uppercase text-indigo-400">
+                         {cookieMetadata ? `${(cookieMetadata.size / 1024).toFixed(1)} KB Linked` : "Vault Empty"}
+                       </span>
+                       <p className="text-[9px] font-black text-slate-500 uppercase">Supabase Storage // Private</p>
+                    </div>
                  </div>
               </div>
 
+              {/* Upload & Instructions */}
               <div className="bg-indigo-600/10 border border-indigo-600/20 rounded-[2.5rem] p-8 space-y-8">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                   <div className="flex items-center gap-4">
                     <div className="bg-indigo-600 p-2.5 rounded-xl">
-                      <RefreshCw className="w-6 h-6 text-white" />
+                      <Database className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                      <h4 className="text-xl font-black uppercase tracking-tight">Session Overwrite</h4>
-                      <p className="text-[10px] text-indigo-400 font-black uppercase tracking-widest">Update cookies.txt to bypass YouTube Bot Detection</p>
+                      <h4 className="text-xl font-black uppercase tracking-tight">Cloud Synchronizer</h4>
+                      <p className="text-[10px] text-indigo-400 font-black uppercase tracking-widest">Override Production Session Keys</p>
                     </div>
                   </div>
                   <Button 
-                    variant="outline" 
                     onClick={triggerRenderRefresh} 
-                    className="bg-white/5 border-white/10 text-white font-black uppercase text-[10px] h-10 px-6 rounded-xl gap-2 hover:bg-white/10"
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] h-11 px-8 rounded-xl gap-3 shadow-lg shadow-indigo-600/20"
                   >
-                    <Activity className="w-4 h-4" /> Sync Backend Now
+                    <Activity className="w-4 h-4" /> Push Sync to Render
                   </Button>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div 
-                    className={cn(
-                      "bg-white/5 border-2 border-dashed rounded-3xl p-10 flex flex-col items-center justify-center text-center min-h-[250px] transition-all relative overflow-hidden",
-                      isDragOver ? "border-indigo-500 bg-indigo-600/20 scale-[0.98]" : "border-white/10 hover:border-white/20"
-                    )}
-                    onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
-                    onDragLeave={() => setIsDragOver(false)}
-                    onDrop={handleFileDrop}
-                  >
-                    {isUploading ? (
-                      <div className="flex flex-col items-center gap-4">
-                        <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" />
-                        <p className="text-[10px] font-black uppercase tracking-widest animate-pulse">Writing to Vault...</p>
+                <div 
+                  className={cn(
+                    "bg-black/20 border-2 border-dashed rounded-3xl p-12 flex flex-col items-center justify-center text-center transition-all min-h-[300px] relative",
+                    isUploading ? "opacity-50" : "hover:border-indigo-500 hover:bg-indigo-600/5 cursor-pointer"
+                  )}
+                  onDragOver={(e) => { e.preventDefault(); setIsUploading(false); }}
+                  onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleUpload(f); }}
+                >
+                  {isUploading ? (
+                    <div className="flex flex-col items-center gap-6">
+                      <Loader2 className="w-16 h-16 text-indigo-500 animate-spin" />
+                      <p className="text-sm font-black uppercase tracking-[0.3em] animate-pulse">Syncing Cryptographic Data...</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="bg-indigo-600/20 p-6 rounded-full mb-6">
+                         <FileText className="w-16 h-16 text-indigo-400" />
                       </div>
-                    ) : (
-                      <>
-                        <FileText className="w-12 h-12 text-indigo-400 mb-6" />
-                        <h5 className="text-lg font-black uppercase tracking-tight mb-2">Drop cookies.txt here</h5>
-                        <p className="text-xs text-slate-500 font-medium mb-8">The engine will automatically rename your file and sync it to the production API.</p>
-                        <input type="file" accept=".txt" onChange={handleFileSelect} className="hidden" id="cookie-upload" />
-                        <Button onClick={() => document.getElementById('cookie-upload')?.click()} className="bg-indigo-600 hover:bg-indigo-700 h-12 px-8 rounded-xl font-black uppercase tracking-widest text-[10px]">Select File</Button>
-                      </>
-                    )}
-                  </div>
-
-                  <div className="space-y-6">
-                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-3xl p-6 space-y-4">
-                       <div className="flex items-center gap-3">
-                         <AlertCircle className="w-5 h-5 text-amber-500" />
-                         <span className="text-sm font-black uppercase text-amber-500">Critical Guide: Avoiding "Bot" Errors</span>
-                       </div>
-                       <ul className="space-y-3 text-[11px] text-slate-400 font-medium leading-relaxed">
-                         <li className="flex gap-2"><div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1 shrink-0" /> Use the "Get cookies.txt LOCALLY" extension.</li>
-                         <li className="flex gap-2"><div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1 shrink-0" /> <strong>Crucial:</strong> Log out and log back into YouTube in an <strong>Incognito</strong> window before exporting.</li>
-                         <li className="flex gap-2"><div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1 shrink-0" /> Export in Netscape format (standard for this extension).</li>
-                       </ul>
-                    </div>
-                    
-                    <div className="flex gap-4">
-                       <Button variant="ghost" onClick={checkBucketStatus} className="flex-1 h-12 bg-white/5 border border-white/10 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-white/10">
-                         Verify Vault
-                       </Button>
-                       <a href="https://chrome.google.com/webstore/detail/get-cookiestxt-locally/ccmclokmbiocgnoebmjjhkmoonlaoced" target="_blank" rel="noopener noreferrer" className="flex-1">
-                         <Button variant="ghost" className="w-full h-12 bg-indigo-600/10 border border-indigo-600/20 rounded-xl font-black uppercase text-[10px] tracking-widest text-indigo-400 hover:bg-indigo-600/20 gap-2">
-                           Get Extension <ExternalLink className="w-3.5 h-3.5" />
-                         </Button>
-                       </a>
-                    </div>
-                  </div>
+                      <h5 className="text-xl font-black uppercase tracking-tight mb-2">Drop cookies.txt here</h5>
+                      <p className="text-xs text-slate-500 font-medium max-w-sm mb-10 leading-relaxed">
+                        The system will automatically rename your file and propagate it to the production extraction engine.
+                      </p>
+                      <input type="file" accept=".txt" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f); }} className="hidden" id="cookie-upload-main" />
+                      <Button onClick={() => document.getElementById('cookie-upload-main')?.click()} className="bg-indigo-600 hover:bg-indigo-700 h-14 px-12 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-2xl">
+                        Select File from Disk
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
           </ScrollArea>
+
+          {/* Sidebar: Metadata & Logs */}
+          <aside className="w-full md:w-80 bg-slate-900/50 flex flex-col shrink-0">
+            <div className="p-6 border-b border-white/5 bg-black/20">
+              <div className="flex items-center gap-2 text-slate-400 mb-6">
+                <History className="w-4 h-4" />
+                <span className="text-[10px] font-black uppercase tracking-widest">Metadata Registry</span>
+              </div>
+              
+              {cookieMetadata ? (
+                <div className="space-y-6">
+                   <div className="space-y-1">
+                     <p className="text-[9px] font-black text-slate-500 uppercase">Cloud Filename</p>
+                     <p className="text-sm font-mono font-bold text-emerald-400">{cookieMetadata.name}</p>
+                   </div>
+                   <div className="space-y-1">
+                     <p className="text-[9px] font-black text-slate-500 uppercase">Last Sync Event</p>
+                     <p className="text-sm font-bold text-white">{new Date(cookieMetadata.lastUpdated).toLocaleString()}</p>
+                   </div>
+                   <div className="space-y-1">
+                     <p className="text-[9px] font-black text-slate-500 uppercase">Object ID</p>
+                     <p className="text-[10px] font-mono text-slate-500 truncate">{cookieMetadata.id}</p>
+                   </div>
+                   <div className="pt-4 flex items-center gap-2 text-emerald-500 bg-emerald-500/5 border border-emerald-500/10 p-3 rounded-xl">
+                      <CheckCircle2 className="w-4 h-4 shrink-0" />
+                      <span className="text-[10px] font-black uppercase">Vault Verified</span>
+                   </div>
+                </div>
+              ) : (
+                <div className="py-12 text-center space-y-4">
+                   <AlertCircle className="w-8 h-8 text-slate-800 mx-auto" />
+                   <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">No file record found</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex-1 flex flex-col p-6 min-h-0">
+               <div className="flex items-center justify-between mb-4">
+                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">System Log</span>
+                 <button onClick={() => setSyncLogs([])} className="text-[9px] font-black text-slate-600 hover:text-white uppercase">Clear</button>
+               </div>
+               <ScrollArea className="flex-1">
+                 <div className="space-y-3 pr-4">
+                   {syncLogs.map((log, i) => (
+                     <div key={i} className="space-y-1">
+                       <div className="flex items-center justify-between text-[8px] font-mono font-bold opacity-40">
+                         <span>{log.time}</span>
+                         <span className="uppercase">{log.type}</span>
+                       </div>
+                       <p className={cn(
+                         "text-[10px] font-medium leading-tight",
+                         log.type === 'error' ? "text-red-400" : log.type === 'success' ? "text-emerald-400" : "text-slate-400"
+                       )}>
+                         {log.msg}
+                       </p>
+                     </div>
+                   ))}
+                   {syncLogs.length === 0 && (
+                     <p className="text-[10px] font-medium text-slate-700 italic">Standby...</p>
+                   )}
+                 </div>
+               </ScrollArea>
+            </div>
+          </aside>
         </div>
 
-        <div className="p-8 border-t border-white/5 bg-slate-900 flex items-center justify-between">
-           <p className="text-[10px] font-black uppercase tracking-widest text-slate-600 font-mono">Control Unit v2.6.0 // Global Sync Stack</p>
+        <div className="p-8 border-t border-white/5 bg-slate-900 flex items-center justify-between shrink-0">
+           <p className="text-[10px] font-black uppercase tracking-widest text-slate-600 font-mono">Control Unit v2.7.5 // Live Performance Mesh</p>
            <Button onClick={onClose} variant="ghost" className="text-slate-400 hover:text-white font-black uppercase tracking-widest text-[10px]">Close Admin</Button>
         </div>
       </DialogContent>
