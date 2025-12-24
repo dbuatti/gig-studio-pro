@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,7 +57,7 @@ const parseISO8601Duration = (duration: string): string => {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
-const StudioInput = memo(({ label, value, onChange, placeholder, className, isTextarea = false, type = "text" }: any) => {
+const StudioInput = React.memo(({ label, value, onChange, placeholder, className, isTextarea = false, type = "text" }: any) => {
   const [localValue, setLocalValue] = useState(value || "");
 
   useEffect(() => {
@@ -711,6 +711,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                     className={cn(
 
                       "p-1.5 rounded-lg border transition-all",
+                      "p-1.5 rounded-lg border transition-all",
                       formData.isKeyConfirmed ? "bg-emerald-600 border-emerald-500 text-white shadow-lg shadow-emerald-600/20" : "bg-white/5 border-white/10 text-slate-500"
                     )}
                   >
@@ -1131,7 +1132,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       </div>
                     </div>
                   </div>
-                  <StudioInput label="Stage Notes" isTextarea value={formData.notes} onChange={(val: string) => handleAutoSave({ notes: val })} placeholder="Cues..." className={cn("bg-white/5 border-white/10 text-lg leading-relaxed p-8", isMobile ? "min-h-[200px] rounded-2xl" : "min-h-[350px] rounded-[2rem]")} />
+                  <StudioInput label="Stage Notes" isTextarea value={formData.notes} onChange={(val: string) => handleAutoSave({ notes: val })} placeholder="Cues..." className={cn("bg-white/5 border-white/10 text-lg leading-relaxed p-8", isMobile ? "min-h-[200px] rounded-2xl" : "min-h-[350px] rounded-[2.5rem]")} />
                 </div>
               )}
               {activeTab === 'charts' && (

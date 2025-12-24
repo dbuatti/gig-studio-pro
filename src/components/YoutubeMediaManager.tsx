@@ -174,6 +174,66 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
     setYtResults([]); // Clear results when selection is cleared
   };
 
+  // NEW: Logic to download audio from the Render API
+  const handleDownloadFromRender = async () => {
+    if (!formData.youtubeUrl) {
+      showError("Please link a YouTube URL first.");
+      return;
+    }
+
+    // Show loading state in the UI (you might want to add a specific state for this)
+    setIsSearchingYoutube(true); 
+    
+    const renderUrl = "https://yt-audio-api-2fxp.onrender.com";
+    const fullUrl = `${renderUrl}/?url=${encodeURIComponent(formData.youtubeUrl)}`;
+
+    try {
+      // Step 1: Get Token
+      const tokenResponse = await fetch(fullUrl);
+      if (!tokenResponse.ok) throw new Error("Failed to get token");
+      
+      const { token } = await tokenResponse.json();
+      showSuccess("Token received. Downloading...");
+      
+      // Step 2: Poll for download
+      const downloadUrl = `${renderUrl}/download?token=${token}`;
+      
+      // We can't fetch the binary file directly into the browser state easily without a download prompt.
+      // So we will open the download URL in a new tab, which triggers the browser download.
+      // However, the API returns JSON if processing, so we need to handle that.
+      
+      const checkDownload = async () => {
+        const res = await fetch(downloadUrl);
+        if (res.status === 202) {
+          // Still processing, wait and try again
+          setTimeout(checkDownload, 2000);
+        } else if (res.ok) {
+          // Success - create a link to trigger download
+          const blob = await res.blob();
+          const blobUrl = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = blobUrl;
+          a.download = `${formData.name || 'audio'}.mp3`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(blobUrl);
+          showSuccess("Audio downloaded successfully!");
+          setIsSearchingYoutube(false);
+        } else {
+          throw new Error("Download failed");
+        }
+      };
+
+      // Start polling
+      checkDownload();
+
+    } catch (err) {
+      showError("Render API connection failed. Ensure the service is running.");
+      setIsSearchingYoutube(false);
+    }
+  };
+
   return (
     <div className="space-y-10">
       <h3 className="text-xl font-black uppercase tracking-tight text-indigo-400 shrink-0">REFERENCE MEDIA</h3>
@@ -194,6 +254,13 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
           >
             {isSearchingYoutube ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-4 h-4" />} SEARCH
           </Button>
+          <Button
+            onClick={handleDownloadFromRender}
+            disabled={isSearchingYoutube}
+            className="bg-indigo-600 hover:bg-indigo-700 h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3"
+          >
+            {isSearchingYoutube ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-4 h-4" />} DOWNLOAD
+          </Button>
         </div>
       </div>
       {ytResults.length > 0 && (
@@ -213,7 +280,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
               <Youtube className="w-6 h-6 text-red-500" />
               <div>
                 <h3 className="text-xl font-black uppercase tracking-tight">Linked YouTube Media</h3>
-                <p className="text-sm text-slate-400">Use these services to download audio/video.</p>
+                <p className="text-sm text-slate-400">Use the "Download" button above to fetch audio from Render.</p>
               </div>
             </div>
             <Button 
@@ -229,26 +296,25 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-white/5 rounded-2xl p-6 space-y-4 border border-white/5 flex flex-col justify-between">
               <div>
-                <h4 className="text-sm font-black uppercase tracking-tight text-white mb-2">Audio Download</h4>
-                <p className="text-xs text-slate-400">Convert to MP3 using a reliable web service.</p>
+                <h4 className="text-sm font-black uppercase tracking-tight text-white mb-2">Render API Status</h4>
+                <p className="text-xs text-slate-400">Ensure your Render service is active and updated with CORS enabled.</p>
               </div>
-              <Button 
-                className="w-full bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-xs h-12 rounded-xl gap-2"
-                onClick={() => window.open(`https://www.y2mate.com/youtube/${currentVideoId}`, '_blank')}
-              >
-                <Download className="w-4 h-4" /> Download MP3
-              </Button>
+              <div className="flex gap-2">
+                 <a href="https://yt-audio-api-2fxp.onrender.com" target="_blank" className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
+                   Check API <ExternalLink className="w-3 h-3" />
+                 </a>
+              </div>
             </div>
             <div className="bg-white/5 rounded-2xl p-6 space-y-4 border border-white/5 flex flex-col justify-between">
               <div>
-                <h4 className="text-sm font-black uppercase tracking-tight text-white mb-2">Video Download</h4>
-                <p className="text-xs text-slate-400">Download MP4 video file.</p>
+                <h4 className="text-sm font-black uppercase tracking-tight text-white mb-2">Manual Download</h4>
+                <p className="text-xs text-slate-400">If the automated download fails, use the link below.</p>
               </div>
               <Button 
                 className="w-full bg-red-600 hover:bg-red-700 font-black uppercase tracking-widest text-xs h-12 rounded-xl gap-2"
-                onClick={() => window.open(`https://www.y2mate.com/youtube/${currentVideoId}`, '_blank')}
+                onClick={() => window.open(`https://yt-audio-api-2fxp.onrender.com/?url=${encodeURIComponent(formData.youtubeUrl || '')}`, '_blank')}
               >
-                <ExternalLink className="w-4 h-4" /> Open Converter
+                <ExternalLink className="w-4 h-4" /> Open API Link
               </Button>
             </div>
           </div>
