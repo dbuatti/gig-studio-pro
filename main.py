@@ -9,12 +9,12 @@ import shutil
 import subprocess
 import requests
 
-app = Flask(__name__)
+app = Flask(__app__)
 CORS(app)
 
 DOWNLOAD_DIR = "downloads"
 TOKEN_EXPIRY = 300
-active_tokens = {}
+active_tokens = {} # Stores {"file": path, "expiry": timestamp, "error": message}
 
 # Configuration for cookies
 COOKIES_FILE = "cookies.txt"
@@ -65,7 +65,7 @@ def cleanup_expired_files():
             if current_time > data["expiry"]:
                 expired_tokens.append(token)
                 try:
-                    if os.path.exists(data["file"]):
+                    if data["file"] and os.path.exists(data["file"]):
                         os.remove(data["file"])
                         print(f"Deleted expired file: {data['file']}")
                 except Exception as e:
@@ -89,16 +89,18 @@ def download_and_convert(url, token):
 
         if token in active_tokens:
             active_tokens[token]["file"] = output_path
+            active_tokens[token]["error"] = None # Clear any previous error if successful
             print(f"Download complete: {output_path}")
         else:
+            # Token might have expired or been deleted while downloading
             if os.path.exists(output_path):
                 os.remove(output_path)
                 
     except Exception as e:
         print(f"Download failed: {e}")
         if token in active_tokens:
-            del active_tokens[token]
-
+            active_tokens[token]["error"] = str(e) # Store the error message
+            
 @app.route('/', methods=['GET', 'OPTIONS'])
 def get_token():
     if request.method == 'OPTIONS':
@@ -111,7 +113,8 @@ def get_token():
     token = str(uuid.uuid4())
     active_tokens[token] = {
         "file": None,
-        "expiry": time.time() + TOKEN_EXPIRY
+        "expiry": time.time() + TOKEN_EXPIRY,
+        "error": None # Initialize error state
     }
 
     threading.Thread(target=download_and_convert, args=(video_url, token), daemon=True).start()
@@ -132,15 +135,24 @@ def download_file():
         return jsonify({"error": "Invalid or expired token"}), 404
 
     file_path = token_data["file"]
-    if not file_path:
+    error_message = token_data["error"] # Retrieve error message
+
+    if file_path:
+        # File is ready, serve it
+        # Ensure the file exists before sending
+        if not os.path.exists(file_path):
+            del active_tokens[token]
+            return jsonify({"error": "File not found on server after processing"}), 404
+        
+        del active_tokens[token] # Clean up after serving
+        return send_file(file_path, as_attachment=True, download_name="audio.mp3")
+    elif error_message:
+        # An error occurred during download/conversion
+        del active_tokens[token] # Clean up
+        return jsonify({"error": f"Audio processing failed: {error_message}"}), 500
+    else:
+        # Still processing
         return jsonify({"status": "processing", "message": "File is being prepared. Please try again in a few seconds."}), 202
-
-    if not os.path.exists(file_path):
-        return jsonify({"error": "File not found"}), 404
-
-    del active_tokens[token]
-    
-    return send_file(file_path, as_attachment=True, download_name="audio.mp3")
 
 if __name__ == '__main__':
     if not os.path.exists(DOWNLOAD_DIR):

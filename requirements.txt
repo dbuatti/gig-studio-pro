@@ -1,6 +1,1 @@
-flask
-flask-cors
-yt-dlp
-supabase
-gunicorn
-requests
+yt-dlp==2024.07.25
