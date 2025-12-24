@@ -22,7 +22,7 @@ interface SongAudioPlaybackTabProps {
   audioEngine: AudioEngineControls;
   isMobile: boolean;
   onLoadAudioFromUrl: (url: string, initialPitch: number) => Promise<void>;
-  onSave: (id: string, updates: Partial<SetlistSong>) => void;
+  onSave: (updates: Partial<SetlistSong>) => void; // Changed from (id: string, updates: Partial<SetlistSong>)
   onUpdateKey: (id: string, targetKey: string) => void;
   transposeKey: (key: string, semitones: number) => string;
 }
@@ -33,7 +33,7 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
   audioEngine,
   isMobile,
   onLoadAudioFromUrl,
-  onSave,
+  onSave, // Now expects (updates: Partial<SetlistSong>)
   onUpdateKey,
   transposeKey
 }) => {
@@ -58,7 +58,9 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
   );
 
   const handleAutoSave = (updates: Partial<SetlistSong>) => {
-    if (song?.id) onSave(song.id, updates);
+    // This component's handleAutoSave should call the onSave prop
+    // The parent (StudioTabContent/SongStudioModal) will handle the song.id
+    onSave(updates); 
   };
 
   // --- Handlers ---

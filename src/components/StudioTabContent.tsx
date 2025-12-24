@@ -11,6 +11,8 @@ import SongConfigTab from './SongConfigTab';
 import SongAudioPlaybackTab from './SongAudioPlaybackTab';
 import YoutubeMediaManager from './YoutubeMediaManager';
 import { transposeKey } from '@/utils/keyUtils';
+import { cn } from '@/lib/utils'; // Import cn utility
+import { Youtube } from 'lucide-react'; // Import Youtube icon
 
 interface StudioTabContentProps {
   activeTab: 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library';
@@ -71,7 +73,7 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
           audioEngine={audioEngine}
           isMobile={isMobile}
           onLoadAudioFromUrl={onLoadAudioFromUrl}
-          onSave={handleAutoSave}
+          onSave={handleAutoSave} // Now correctly matches the updated prop type in SongAudioPlaybackTab
           onUpdateKey={onUpdateKey}
           transposeKey={transposeKey}
         />
