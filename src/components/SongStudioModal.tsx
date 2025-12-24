@@ -41,7 +41,8 @@ import { calculateReadiness } from '@/utils/repertoireSync';
 import { useToneAudio } from '@/hooks/use-tone-audio';
 import { detectKeyFromBuffer, KeyCandidate } from '@/utils/keyDetector';
 import { cleanYoutubeUrl } from '@/utils/youtubeUtils';
-import YoutubeMediaManager from './YoutubeMediaManager'; // New import
+import YoutubeMediaManager from './YoutubeMediaManager';
+import SongDetailsTab from './SongDetailsTab'; // New import
 
 // Helper to parse ISO 8601 duration (e.g., PT4M13S -> 4:13)
 const parseISO8601Duration = (duration: string): string => {
@@ -56,36 +57,6 @@ const parseISO8601Duration = (duration: string): string => {
   }
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
-
-const StudioInput = React.memo(({ label, value, onChange, placeholder, className, isTextarea = false, type = "text" }: any) => {
-  const [localValue, setLocalValue] = useState(value || "");
-
-  useEffect(() => {
-    setLocalValue(value || "");
-  }, [value]);
-
-  const handleChange = (val: string) => {
-    setLocalValue(val);
-    onChange(val);
-  };
-
-  const Comp = isTextarea ? Textarea : Input;
-
-  return (
-    <div className={cn("space-y-4", isTextarea && "flex-1 flex flex-col h-full")}>
-      {label && <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">{label}</Label>}
-      <Comp
-        type={type}
-        placeholder={placeholder}
-        value={localValue}
-        onChange={(e: any) => handleChange(e.target.value)}
-        className={cn(className, isTextarea && "flex-1")}
-      />
-    </div>
-  );
-});
-
-StudioInput.displayName = 'StudioInput';
 
 interface SongStudioModalProps {
   song: SetlistSong | null;
@@ -104,7 +75,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   song, 
   isOpen, 
   onClose, 
-
   onSave, 
   onUpdateKey,
   onSyncProData,
@@ -128,11 +98,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [isProSyncSearchOpen, setIsProSyncSearchOpen] = useState(false);
   
-  // Refined YouTube Search Logic
-  // const [ytApiKey, setYtApiKey] = useState(""); // This state is now managed in YoutubeMediaManager
-  // const [isSearchingYoutube, setIsSearchingYoutube] = useState(false); // This state is now managed in YoutubeMediaManager
-  // const [ytResults, setYtResults] = useState<any[]>([]); // This state is now managed in YoutubeMediaManager
-  const [keyCandidates, setKeyCandidates] = useState<KeyCandidate[]>([]); // Added this line
+  const [keyCandidates, setKeyCandidates] = useState<KeyCandidate[]>([]);
   
   const [isProSyncing, setIsProSyncing] = useState(false);
   const [isInRepertoire, setIsInRepertoire] = useState(false);
@@ -159,10 +125,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     }
   }, [isOpen, user]);
 
-  // const fetchYtKey = async () => { // No longer needed here, moved to YoutubeMediaManager
-  //   const { data } = await supabase.from('profiles').select('youtube_api_key').eq('id', user?.id).single();
-  //   if (data?.youtube_api_key) setYtApiKey(data.youtube_api_key);
-  // };
+  const currentVideoId = formData.youtubeUrl ? formData.youtubeUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)?.[1] || null : null;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -620,7 +583,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       setFormData(initialData);
       
       setKeyCandidates([]);
-      // setYtResults([]); // No longer needed here, moved to YoutubeMediaManager
       checkRepertoireStatus();
       resetEngine();
       if (song.previewUrl) {
@@ -654,8 +616,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       showError("Failed to add to repertoire");
     }
   };
-
-  const currentVideoId = formData.youtubeUrl ? formData.youtubeUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)?.[1] || null : null;
 
   const isFramable = (url: string | null) => {
     if (!url) return true;
@@ -869,9 +829,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
             ) : (
               <div className="h-full flex flex-col items-center justify-center bg-slate-900 rounded-2xl border border-white/5 p-6 text-center">
                 <ShieldCheck className="w-12 h-12 text-indigo-400 mb-6" />
-                <Button onClick={() => window.open(previewPdfUrl, '_blank')} className="bg-indigo-600 hover:bg-indigo-700 h-12 px-8 font-black uppercase tracking-widest text-xs rounded-xl shadow-lg shadow-indigo-600/20 gap-3">
-                  <ExternalLink className="w-4 h-4" /> Open Official Source
-                </Button>
+                <Button onClick={() => window.open(previewPdfUrl, '_blank')} className="bg-indigo-600 hover:bg-indigo-700 h-14 px-10 rounded-2xl gap-3"><ExternalLink className="w-5 h-5" /> Launch Source</Button>
               </div>
             )}
           </div>
@@ -1111,29 +1069,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                 </div>
               )}
               {activeTab === 'details' && (
-                <div className="space-y-10 animate-in fade-in duration-500">
-                  <div className={cn("grid gap-10", isMobile ? "grid-cols-1" : "grid-cols-2")}>
-                    <StudioInput label="Title" value={formData.name} onChange={(val: string) => handleAutoSave({ name: val })} className="bg-white/5 border-white/10 text-xl font-black h-16 rounded-2xl" />
-                    <StudioInput label="Artist" value={formData.artist} onChange={(val: string) => handleAutoSave({ artist: val })} className="bg-white/5 border-white/10 text-xl font-black h-16 rounded-2xl" />
-                  </div>
-                  <div className={cn("grid gap-10", isMobile ? "grid-cols-1" : "grid-cols-2")}>
-                    <div className="space-y-4">
-                      <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Chart Link</Label>
-                      <div className="flex gap-3">
-                        <StudioInput value={formData.pdfUrl} onChange={(val: string) => handleAutoSave({ pdfUrl: val })} placeholder="Paste URL..." className="bg-white/5 border-white/10 font-bold h-12 rounded-xl w-full" />
-                        <Button variant="outline" className="h-12 border-white/10 text-slate-400 px-4 rounded-xl font-bold text-[10px] uppercase gap-2 shrink-0 min-w-[120px]" onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent(formData.artist + ' ' + formData.name + ' sheet music pdf')}`, '_blank')}><Search className="w-3.5 h-3.5" /> Find</Button>
-                      </div>
-                    </div>
-                    <div className="space-y-4">
-                      <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Ultimate Guitar</Label>
-                      <div className="flex gap-3">
-                        <StudioInput value={formData.ugUrl} onChange={(val: string) => handleAutoSave({ ugUrl: val })} placeholder="Paste URL..." className="bg-white/5 border-white/10 font-bold text-orange-400 h-12 rounded-xl w-full" />
-                        <Button variant="outline" className="h-12 border-white/10 text-orange-400 px-4 rounded-xl font-bold text-[10px] uppercase gap-2 shrink-0 min-w-[120px]" onClick={() => window.open(`https://www.ultimate-guitar.com/search.php?search_type=title&value=${encodeURIComponent(formData.artist + ' ' + formData.name + ' chords')}`, '_blank')}><Search className="w-3.5 h-3.5" /> Find</Button>
-                      </div>
-                    </div>
-                  </div>
-                  <StudioInput label="Stage Notes" isTextarea value={formData.notes} onChange={(val: string) => handleAutoSave({ notes: val })} placeholder="Cues..." className={cn("bg-white/5 border-white/10 text-lg leading-relaxed p-8", isMobile ? "min-h-[200px] rounded-2xl" : "min-h-[350px] rounded-[2.5rem]")} />
-                </div>
+                <SongDetailsTab formData={formData} handleAutoSave={handleAutoSave} isMobile={isMobile} />
               )}
               {activeTab === 'charts' && (
                 <div className="h-full flex flex-col gap-8 animate-in fade-in duration-500">
@@ -1170,7 +1106,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                     </div>
                   </div>
                   <div className="flex-1 min-h-0">
-                    <StudioInput isTextarea placeholder="Paste lyrics..." value={formData.lyrics} onChange={(val: string) => handleAutoSave({ lyrics: val })} className={cn("bg-white/5 border-white/10 text-xl leading-relaxed p-10 font-medium whitespace-pre-wrap h-full", isMobile ? "rounded-2xl" : "rounded-[2.5rem]")} />
+                    <Textarea placeholder="Paste lyrics..." value={formData.lyrics} onChange={(e) => handleAutoSave({ lyrics: e.target.value })} className={cn("bg-white/5 border-white/10 text-xl leading-relaxed p-10 font-medium whitespace-pre-wrap h-full", isMobile ? "rounded-2xl" : "rounded-[2.5rem]")} />
                   </div>
                 </div>
               )}
