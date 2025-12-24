@@ -3,7 +3,7 @@ import os
 import threading
 import time
 import yt_dlp
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, make_response
 from flask_cors import CORS
 from uuid import uuid4
 from pathlib import Path
@@ -11,7 +11,13 @@ from datetime import datetime
 from supabase import create_client, Client
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
+
+# Explicit CORS configuration for all routes
+CORS(app, resources={r"/*": {
+    "origins": "*",
+    "methods": ["GET", "POST", "OPTIONS"],
+    "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"]
+}})
 
 # --- Configuration ---
 ABS_DOWNLOADS_PATH = Path('/tmp/downloads')
@@ -31,7 +37,6 @@ COOKIES_BUCKET = 'cookies'
 supabase: Client = None
 if SUPABASE_URL and SUPABASE_SERVICE_KEY:
     try:
-        # Ensure URL doesn't have double slashes if provided with trailing
         clean_url = SUPABASE_URL.rstrip('/')
         supabase = create_client(clean_url, SUPABASE_SERVICE_KEY)
         print(f"✅ Supabase Client Initialized: {clean_url}")
@@ -43,15 +48,13 @@ def fetch_cookies():
     """Syncs cookies from Supabase to local container."""
     global last_sync_time, last_error
     if not supabase: 
-        last_error = "Supabase client not initialized. Check ENV variables."
+        last_error = "Supabase client not initialized."
         return 0
     
     try:
-        print(f"🔄 Attempting to download cookies from bucket: {COOKIES_BUCKET}")
         data = supabase.storage.from_(COOKIES_BUCKET).download('cookies.txt')
-        
         if not data:
-            last_error = "Download returned empty data from Supabase."
+            last_error = "Vault file is empty."
             return 0
             
         with open(COOKIES_PATH, 'wb') as f:
@@ -59,12 +62,9 @@ def fetch_cookies():
             
         last_sync_time = datetime.now().isoformat()
         last_error = None
-        size = len(data)
-        print(f"✅ Cookies synced successfully: {size} bytes")
-        return size
+        return len(data)
     except Exception as e:
         last_error = f"Sync Error: {str(e)}"
-        print(f"❌ Cookie Sync Error: {e}")
         return 0
 
 def background_worker():
@@ -83,8 +83,19 @@ def background_worker():
 
 threading.Thread(target=background_worker, daemon=True).start()
 
-@app.route("/", methods=["GET"])
+@app.after_request
+def after_request(response):
+    """Ensure CORS headers are present even on errors."""
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
+
+@app.route("/", methods=["GET", "OPTIONS"])
 def handle_audio_request():
+    if request.method == "OPTIONS":
+        return make_response("", 204)
+
     video_url = request.args.get("url")
     if not video_url:
         return jsonify(error="Missing URL"), 400
@@ -92,7 +103,7 @@ def handle_audio_request():
     if not os.path.exists(COOKIES_PATH) or os.path.getsize(COOKIES_PATH) < 10:
         fetch_cookies()
 
-    print(f"🚀 Processing: {video_url}")
+    print(f"🚀 Processing Request: {video_url}")
     unique_id = str(uuid4())
     output_filename = f"{unique_id}.mp3"
     output_template = str(ABS_DOWNLOADS_PATH / unique_id)
@@ -130,7 +141,7 @@ def handle_audio_request():
         if not actual_file.exists():
             potential_files = list(ABS_DOWNLOADS_PATH.glob(f"{unique_id}.*"))
             if not potential_files:
-                return jsonify(error="Extraction Failed", detail="YouTube is currently hiding audio streams for this track."), 500
+                return jsonify(error="Extraction Failed", detail="Engine could not generate audio stream."), 500
             actual_file = potential_files[0]
 
         token = secrets.token_urlsafe(TOKEN_LENGTH)
@@ -141,8 +152,8 @@ def handle_audio_request():
         error_msg = str(e)
         user_error = "Engine Error"
         if "Sign in to confirm" in error_msg or "403" in error_msg:
-            user_error = "Bot detection triggered. Session cookies may be invalid."
-        print(f"❌ Extraction Failed: {error_msg}")
+            user_error = "Bot detection triggered. Sessions in cookies.txt are invalid."
+        print(f"❌ Error: {error_msg}")
         return jsonify(error=user_error, detail=error_msg), 500
 
 @app.route("/download", methods=["GET"])
@@ -175,5 +186,8 @@ def manual_refresh():
     })
 
 if __name__ == "__main__":
-    fetch_cookies()
+    try:
+        fetch_cookies()
+    except:
+        pass
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
