@@ -84,9 +84,10 @@ def handle_audio_request():
     output_filename = f"{unique_id}.mp3"
     output_template = str(ABS_DOWNLOADS_PATH / unique_id)
 
-    # Hybrid extraction strategy for 2024/2025 stability
+    # HARDENED Engine strategy for bypassing "Format Not Available" masks
     ydl_opts = {
-        'format': 'ba/b', 
+        # 'bestaudio/best' is more inclusive than 'ba/b' when dealing with restricted streams
+        'format': 'bestaudio/best', 
         'outtmpl': f"{output_template}.%(ext)s",
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
@@ -94,7 +95,6 @@ def handle_audio_request():
             'preferredquality': '192',
         }],
         'cookiefile': COOKIES_PATH if (os.path.exists(COOKIES_PATH) and os.path.getsize(COOKIES_PATH) > 10) else None,
-        # Updated UA to match modern browsers
         'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
         'referer': 'https://www.youtube.com/',
         'quiet': False,
@@ -103,13 +103,13 @@ def handle_audio_request():
         'noplaylist': True,
         'extract_flat': False,
         'allow_unplayable_formats': True,
-        'youtube_include_dash_manifest': False,
-        'youtube_include_hls_manifest': False,
+        'youtube_include_dash_manifest': True,
+        'youtube_include_hls_manifest': True,
         'extractor_args': {
             'youtube': {
-                # Multi-client fallback strategy
-                'player_client': ['ios', 'web', 'mweb'],
-                'player_skip': ['configs']
+                # Priortizing 'mweb' which is currently more stable for audio-only extraction
+                'player_client': ['mweb', 'ios', 'web', 'android'],
+                'player_skip': ['configs', 'web_extract_initial_data']
             }
         }
     }
@@ -120,10 +120,9 @@ def handle_audio_request():
         
         actual_file = ABS_DOWNLOADS_PATH / output_filename
         if not actual_file.exists():
-            # Try to find if it was saved with a different extension before post-processing
             potential_files = list(ABS_DOWNLOADS_PATH.glob(f"{unique_id}.*"))
             if not potential_files:
-                return jsonify(error="Extraction Failed", detail="Engine failed to initialize audio stream."), 500
+                return jsonify(error="Extraction Failed", detail="The stream format was restricted or rejected by the source."), 500
             actual_file = potential_files[0]
 
         token = secrets.token_urlsafe(TOKEN_LENGTH)
@@ -133,8 +132,12 @@ def handle_audio_request():
     except Exception as e:
         error_msg = str(e)
         user_error = "Engine Error"
-        if "Sign in to confirm" in error_msg or "403" in error_msg:
-            user_error = "Bot detection triggered. Your cookies have likely expired or been rotated."
+        
+        if "format is not available" in error_msg.lower():
+            user_error = "Format Negotiation Failed. Your cookie session may be partially restricted or mismatched with the server IP."
+        elif "Sign in to confirm" in error_msg or "403" in error_msg:
+            user_error = "Bot detection triggered. Fresh cookies are required."
+            
         return jsonify(error=user_error, detail=error_msg), 500
 
 @app.route("/download", methods=["GET"])
