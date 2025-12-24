@@ -1,6 +1,0 @@
-flask
-flask-cors
-yt-dlp
-supabase
-gunicorn
-requests
