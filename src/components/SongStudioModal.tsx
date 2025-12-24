@@ -352,55 +352,47 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       return;
     }
 
-    // We don't strictly need to clean the URL for the local API, 
-    // but keeping it ensures consistency.
     const cleanedUrl = cleanYoutubeUrl(targetUrl);
+    const apiBase = "https://yt-audio-api-docker.onrender.com";
 
     setIsSyncingAudio(true);
-    setSyncStatus("Connecting to Local Engine...");
+    setSyncStatus("Initializing Engine...");
     setEngineError(null);
-
+    
     try {
-      // 1. Call the LOCAL yt-rip API
-      // Note: We assume the yt-rip server is running on localhost:3000
-      // If you deploy this, you will need to change this URL to your deployed yt-rip instance.
-      const apiBase = "http://localhost:3000"; 
+      setSyncStatus("Waking up extraction engine...");
+      // Add a small delay for Render cold-starts
+      const tokenUrl = `${apiBase}/?url=${encodeURIComponent(cleanedUrl)}`;
       
-      const response = await fetch(`${apiBase}/api/download`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          url: cleanedUrl,
-          format: 'mp3'
-        })
+      const tokenRes = await fetch(tokenUrl, {
+        headers: { 'Accept': 'application/json' }
+      }).catch(() => {
+        throw new Error("Engine unreachable. The Render server might be rebuilding or sleeping.");
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `API Error: ${response.statusText}`);
+      if (!tokenRes.ok) {
+        const errBody = await tokenRes.json().catch(() => ({}));
+        const specificError = errBody.detail || errBody.error || tokenRes.statusText;
+        if (specificError.includes("format is not available") || 
+            specificError.includes("Signature solving failed") || 
+            specificError.includes("Sign in to confirm")) {
+          setEngineError(`YouTube Protection Triggered: ${specificError}. Upload fresh cookies in Admin.`);
+        } else {
+          setEngineError(`Engine Error: ${specificError}`);
+        }
+        throw new Error(specificError);
       }
+      
+      const { token } = await tokenRes.json();
+      setSyncStatus("Extracting Audio Stream...");
 
-      const data = await response.json();
+      const downloadUrl = `${apiBase}/download?token=${token}`;
+      const downloadRes = await fetch(downloadUrl);
       
-      // 2. Get the direct download URL from the response
-      // yt-rip returns { directUrl: "..." }
-      const downloadUrl = data.directUrl;
-      
-      if (!downloadUrl) {
-        throw new Error("No download URL returned from engine.");
-      }
+      if (!downloadRes.ok) throw new Error("Audio extraction failed at source.");
+      const blob = await downloadRes.blob();
 
       setSyncStatus("Syncing to Cloud Vault...");
-      
-      // 3. Fetch the audio blob from the yt-rip URL
-      const blobResponse = await fetch(downloadUrl);
-      if (!blobResponse.ok) throw new Error("Failed to fetch audio blob.");
-      const blob = await blobResponse.blob();
-
-      // 4. Upload to Supabase (Existing Logic)
       const fileName = `${user.id}/${song.id}/extracted-${Date.now()}.mp3`;
       const bucket = 'public_assets';
       
@@ -417,21 +409,178 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         .from(bucket)
         .getPublicUrl(fileName);
 
-      // 5. Update the song with the new Supabase URL
       const updates = { previewUrl: publicUrl, youtubeUrl: cleanedUrl };
       handleAutoSave(updates);
       await loadFromUrl(publicUrl, formData.pitch || 0);
-      showSuccess("YT-Master Audio Linked via Local Engine");
+      showSuccess("YT-Master Audio Linked");
       
     } catch (err: any) {
       console.error("YT Sync Error:", err);
-      setEngineError(err.message || "Connection refused by extraction engine.");
-      showError(err.message || "Sync failed.");
+      showError(err.message || "Connection refused by extraction engine.");
     } finally {
       setIsSyncingAudio(false);
       setSyncStatus("");
     }
   };
+
+  const confirmCandidateKey = (key: string) => {
+    if (!song) return;
+    updateHarmonics({ 
+      originalKey: key,
+      isKeyConfirmed: true 
+    });
+    setKeyCandidates([]);
+    showSuccess(`Original Key set to ${key}`);
+  };
+
+  const addTag = () => {
+    if (!newTag.trim() || !song) return;
+    const currentTags = formData.user_tags || [];
+    if (!currentTags.includes(newTag.trim())) {
+      const updated = [...currentTags, newTag.trim()];
+      handleAutoSave({ user_tags: updated });
+    }
+    setNewTag("");
+  };
+
+  const removeTag = (tag: string) => {
+    if (!song) return;
+    const updated = (formData.user_tags || []).filter(t => t !== tag);
+    handleAutoSave({ user_tags: updated });
+  };
+
+  const toggleResource = (id: string) => {
+    if (!song) return;
+    const current = formData.resources || [];
+    const updated = current.includes(id) ? current.filter(rid => rid !== id) : [...current, id];
+    handleAutoSave({ resources: updated });
+  };
+
+  const updateHarmonics = (updates: Partial<SetlistSong>) => {
+    if (!song) return;
+    setFormData(prev => {
+      const next = { ...prev, ...updates };
+      
+      if (updates.hasOwnProperty('isKeyLinked') || updates.hasOwnProperty('originalKey') || updates.hasOwnProperty('targetKey')) {
+        if (next.isKeyLinked) {
+          const diff = calculateSemitones(next.originalKey || "C", next.targetKey || "C");
+          next.pitch = diff;
+          setPitch(next.pitch);
+        }
+      }
+      
+      onSave(song.id, next);
+      return next;
+    });
+  };
+
+  const handleOctaveShift = (direction: 'up' | 'down') => {
+    const currentPitch = formData.pitch || 0;
+    const shift = direction === 'up' ? 12 : -12;
+    const newPitch = currentPitch + shift;
+    
+    if (newPitch > 24 || newPitch < -24) {
+      showError("Maximum transposition range reached.");
+      return;
+    }
+    setFormData(prev => ({ ...prev, pitch: newPitch }));
+    setPitch(newPitch);
+    
+    if (song) {
+      onSave(song.id, { pitch: newPitch });
+    }
+    showSuccess(`Octave Shift Applied: ${newPitch > 0 ? '+' : ''}${newPitch} ST`);
+  };
+
+  const handleProSync = async () => {
+    setIsProSyncSearchOpen(true);
+  };
+
+  const handleSelectProSync = async (itunesData: any) => {
+    setIsProSyncSearchOpen(false);
+    setIsProSyncing(true);
+    
+    try {
+      const basicUpdates: Partial<SetlistSong> = {
+        name: itunesData.trackName,
+        artist: itunesData.artistName,
+        genre: itunesData.primaryGenreName,
+        appleMusicUrl: itunesData.trackViewUrl,
+        user_tags: [...(formData.user_tags || []), itunesData.primaryGenreName, new Date(itunesData.releaseDate).getFullYear().toString()],
+        isMetadataConfirmed: true
+      };
+      
+      const { data, error } = await supabase.functions.invoke('enrich-metadata', {
+        body: { queries: [`${itunesData.trackName} by ${itunesData.artistName}`] }
+      });
+      if (error) throw error;
+      
+      const aiResult = Array.isArray(data) ? data[0] : data;
+      const finalUpdates = {
+        ...basicUpdates,
+        originalKey: aiResult?.originalKey || formData.originalKey,
+        targetKey: aiResult?.originalKey || formData.targetKey,
+        bpm: aiResult?.bpm?.toString() || formData.bpm,
+        pitch: 0 
+      };
+      handleAutoSave(finalUpdates);
+      setPitch(0);
+      showSuccess(`Successfully Synced "${itunesData.trackName}"`);
+    } catch (err) {
+      showError("Pro Sync failed to complete technical analysis.");
+    } finally {
+      setIsProSyncing(false);
+    }
+  };
+
+  const handleMagicFormatLyrics = async () => {
+    if (!formData.lyrics?.trim()) {
+      showError("Paste lyrics first.");
+      return;
+    }
+    setIsFormattingLyrics(true);
+    try {
+      const { data, error = null } = await supabase.functions.invoke('enrich-metadata', {
+        body: { queries: [formData.lyrics], mode: 'lyrics' }
+      });
+      if (error) throw error;
+      if (data?.lyrics) {
+        handleAutoSave({ lyrics: data.lyrics });
+        showSuccess("Lyrics Structuring Complete");
+      }
+    } catch (err) {
+      showError("Lyrics Engine Error.");
+    } finally {
+      setIsFormattingLyrics(false);
+    }
+  };
+
+  const handleLyricsSearch = () => {
+    const query = encodeURIComponent(`${formData.artist || ""} ${formData.name || ""} lyrics`);
+    window.open(`https://www.google.com/search?q=${query}`, '_blank');
+  };
+
+  const handleUgPrint = () => {
+    if (!formData.ugUrl) {
+      showError("Link a tab first.");
+      return;
+    }
+    const printUrl = formData.ugUrl.includes('?') 
+      ? formData.ugUrl.replace('?', '/print?') 
+      : `${formData.ugUrl}/print`;
+    window.open(printUrl, '_blank');
+    showSuccess("Opening Print Assistant.");
+  };
+
+  const performYoutubeDiscovery = async (searchTerm: string) => {
+    if (!searchTerm.trim()) return;
+    
+    // Check if it's a URL first
+    if (searchTerm.startsWith('http')) {
+      handleAutoSave({ youtubeUrl: searchTerm });
+      showSuccess("YouTube URL Linked");
+      return;
+    }
 
     setIsSearchingYoutube(true);
     setYtResults([]);
