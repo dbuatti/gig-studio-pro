@@ -21,7 +21,7 @@ import {
   Zap, Disc, VolumeX, Smartphone, Printer, Search,
   ClipboardPaste, AlignLeft, Apple, Hash, Music2,
   FileSearch, ChevronRight, Layers, LayoutGrid, ListPlus,
-  Globe2, ShieldCheck, Timer, FileMusic, Copy
+  Globe2, ShieldCheck, Timer, FileMusic, Copy, SearchCode
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import AudioVisualizer from './AudioVisualizer';
@@ -37,6 +37,7 @@ import { useAuth } from './AuthProvider';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { calculateReadiness } from '@/utils/repertoireSync';
 import { useToneAudio } from '@/hooks/use-tone-audio';
+import { detectKeyFromBuffer } from '@/utils/keyDetector';
 
 // Sub-component for inputs to prevent modal-wide re-renders
 const StudioInput = memo(({ label, value, onChange, placeholder, className, isTextarea = false, type = "text" }: any) => {
@@ -100,6 +101,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const [newTag, setNewTag] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isDetectingKey, setIsDetectingKey] = useState(false);
+  const [detectedKey, setDetectedKey] = useState<{ key: string; confidence: number } | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isFormattingLyrics, setIsFormattingLyrics] = useState(false);
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
@@ -246,6 +249,35 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const handleDetectKey = async () => {
+    if (!currentBuffer) {
+      showError("Load audio first.");
+      return;
+    }
+    setIsDetectingKey(true);
+    setDetectedKey(null);
+    try {
+      const result = await detectKeyFromBuffer(currentBuffer);
+      const normalizedKey = formatKey(result.key, currentKeyPreference);
+      setDetectedKey({ key: normalizedKey, confidence: result.confidence });
+      showSuccess(`Harmonic Analysis Complete: Detected ${normalizedKey}`);
+    } catch (err) {
+      showError("Key detection failed.");
+    } finally {
+      setIsDetectingKey(false);
+    }
+  };
+
+  const confirmDetectedKey = () => {
+    if (!detectedKey || !song) return;
+    updateHarmonics({ 
+      originalKey: detectedKey.key,
+      isKeyConfirmed: true 
+    });
+    setDetectedKey(null);
+    showSuccess(`Original Key set to ${detectedKey.key}`);
   };
 
   const addTag = () => {
@@ -519,6 +551,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       };
       setFormData(initialData);
       
+      setDetectedKey(null);
       checkRepertoireStatus();
       resetEngine();
       if (song.previewUrl) {
@@ -978,6 +1011,80 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       </div>
                     )}
                   </div>
+
+                  <div className={cn("bg-slate-900 border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-6", isMobile ? "p-6 rounded-3xl" : "p-8 rounded-[2.5rem]")}>
+                     <div className="flex flex-col md:flex-row md:items-center gap-6 md:gap-10">
+                        <div className="flex flex-col">
+                           <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Library Metadata</span>
+                           <div className="flex items-center gap-8 mt-2">
+                             <div className="flex flex-col">
+                               <span className="text-[8px] font-black text-slate-500 uppercase">Tempo</span>
+                               <div className="flex items-center gap-3">
+                                 <Input
+                                   value={formData.bpm || ""}
+                                   onChange={(e) => handleAutoSave({ bpm: e.target.value })}
+                                   className="bg-transparent border-none p-0 h-auto text-xl md:text-2xl font-black font-mono text-indigo-400 focus-visible:ring-0 w-16"
+                                 />
+                                 <Button
+                                   variant="ghost"
+                                   size="icon"
+                                   onClick={toggleMetronome}
+                                   className={cn(
+                                     "h-8 w-8 rounded-lg transition-all",
+                                     isMetronomeActive ? "bg-indigo-600 text-white shadow-lg" : "bg-white/5 text-slate-400"
+                                   )}
+                                 >
+                                   {isMetronomeActive ? <Volume2 className="w-4 h-4 animate-pulse" /> : <VolumeX className="w-4 h-4" />}
+                                 </Button>
+                               </div>
+                             </div>
+
+                             <div className="h-10 w-px bg-white/5" />
+
+                             <div className="flex flex-col">
+                               <span className="text-[8px] font-black text-slate-500 uppercase">Detection Result</span>
+                               {detectedKey ? (
+                                 <div className="flex items-center gap-3 mt-1">
+                                    <span className="text-xl md:text-2xl font-black font-mono text-emerald-400">{detectedKey.key}</span>
+                                    <Button 
+                                      onClick={confirmDetectedKey}
+                                      className="h-7 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-[8px] rounded-lg gap-2"
+                                    >
+                                      <Check className="w-3 h-3" /> SET AS ORIGINAL
+                                    </Button>
+                                 </div>
+                               ) : (
+                                 <span className="text-xl md:text-2xl font-black font-mono text-slate-700">--</span>
+                               )}
+                             </div>
+                           </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2 md:gap-3">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleDetectBPM}
+                            disabled={isAnalyzing || !formData.previewUrl}
+                            className="flex-1 md:flex-none h-10 px-4 bg-indigo-600/10 text-indigo-400 font-black uppercase tracking-widest text-[9px] gap-2 rounded-xl"
+                          >
+                            {isAnalyzing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Disc className="w-3.5 h-3.5" />}
+                            Scan BPM
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleDetectKey}
+                            disabled={isDetectingKey || !formData.previewUrl}
+                            className="flex-1 md:flex-none h-10 px-4 bg-emerald-600/10 text-emerald-400 font-black uppercase tracking-widest text-[9px] gap-2 rounded-xl"
+                          >
+                            {isDetectingKey ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <SearchCode className="w-3.5 h-3.5" />}
+                            Analyse Key
+                          </Button>
+                        </div>
+                     </div>
+                  </div>
+
                   <div className={cn("grid gap-6 md:gap-10", isMobile ? "grid-cols-1" : "grid-cols-2")}>
                     <div className={cn("space-y-6 md:space-y-10 bg-white/5 border border-white/5", isMobile ? "p-6 rounded-3xl" : "p-10 rounded-[2.5rem]")}>
                       <div className="space-y-4 md:space-y-6">
@@ -1052,52 +1159,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                         />
                       </div>
                     </div>
-                  </div>
-                  <div className={cn("bg-slate-900 border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-6", isMobile ? "p-6 rounded-3xl" : "p-8 rounded-[2.5rem]")}>
-                     <div className="flex flex-col md:flex-row md:items-center gap-6 md:gap-10">
-                        <div className="flex flex-col">
-                           <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Library BPM</span>
-                           <div className="flex items-center gap-4 mt-1">
-                             <Input
-                               value={formData.bpm || ""}
-                               onChange={(e) => handleAutoSave({ bpm: e.target.value })}
-                               className="bg-transparent border-none p-0 h-auto text-2xl md:text-3xl font-black font-mono text-indigo-400 focus-visible:ring-0 w-20"
-                             />
-                             <Button
-                               variant="ghost"
-                               size="icon"
-                               onClick={toggleMetronome}
-                               className={cn(
-                                 "h-10 w-10 rounded-xl transition-all",
-                                 isMetronomeActive ? "bg-indigo-600 text-white shadow-lg" : "bg-white/5 text-slate-400"
-                               )}
-                             >
-                               {isMetronomeActive ? <Volume2 className="w-5 h-5 animate-pulse" /> : <VolumeX className="w-5 h-5" />}
-                             </Button>
-                           </div>
-                        </div>
-                        <div className="flex flex-wrap gap-2 md:gap-4">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleDetectBPM}
-                            disabled={isAnalyzing || !formData.previewUrl}
-                            className="flex-1 md:flex-none h-10 px-4 bg-indigo-600/10 text-indigo-400 font-black uppercase tracking-widest text-[9px] gap-2 rounded-xl"
-                          >
-                            {isAnalyzing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Disc className="w-3.5 h-3.5" />}
-                            Scan BPM
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => window.open('https://www.beatsperminuteonline.com/', '_blank')}
-                            className="flex-1 md:flex-none h-10 px-4 bg-white/5 text-slate-400 font-black uppercase tracking-widest text-[9px] gap-2 rounded-xl"
-                          >
-                            <Timer className="w-3.5 h-3.5" />
-                            Tap Tool
-                          </Button>
-                        </div>
-                     </div>
                   </div>
                 </div>
               )}
