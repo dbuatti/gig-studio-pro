@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
-  Youtube, Search, Loader2
+  Youtube, Search, Loader2, Cloud, Check
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import YoutubeResultsShelf from './YoutubeResultsShelf';
@@ -34,6 +34,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
   const [ytApiKey, setYtApiKey] = useState("");
   const [isSearchingYoutube, setIsSearchingYoutube] = useState(false);
   const [ytResults, setYtResults] = useState<any[]>([]);
+  const [isExtractingAudio, setIsExtractingAudio] = useState(false);
 
   const currentVideoId = useMemo(() => {
     if (!formData.youtubeUrl) return null;
@@ -71,7 +72,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
     
     // Check if it's a URL first
     if (searchTerm.startsWith('http')) {
-      handleAutoSave({ youtubeUrl: searchTerm });
+      handleAutoSave({ youtubeUrl: cleanYoutubeUrl(searchTerm) });
       showSuccess("YouTube URL Linked");
       return;
     }
@@ -167,8 +168,41 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
   };
 
   const handleSelectYoutubeVideo = (url: string) => {
-    handleAutoSave({ youtubeUrl: url });
+    handleAutoSave({ youtubeUrl: cleanYoutubeUrl(url) });
   };
+
+  const handleExtractMasterAudio = async () => {
+    if (!formData.youtubeUrl || !user?.id || !song?.id) {
+      showError("YouTube URL, user, or song ID missing.");
+      return;
+    }
+    setIsExtractingAudio(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('extract-youtube-audio', {
+        body: { videoUrl: formData.youtubeUrl, userId: user.id, songId: song.id }
+      });
+
+      if (error) throw error;
+
+      handleAutoSave({ 
+        previewUrl: data.publicUrl, 
+        duration_seconds: data.duration_seconds,
+        isMetadataConfirmed: true // Mark as confirmed since we have master audio
+      });
+      
+      // Load the new audio into the transposer
+      await onLoadAudioFromUrl(data.publicUrl, formData.pitch || 0);
+
+      showSuccess("Master Audio Extracted and Linked!");
+    } catch (err: any) {
+      console.error("Audio extraction failed:", err);
+      showError(`Audio extraction failed: ${err.message || "Unknown error"}`);
+    } finally {
+      setIsExtractingAudio(false);
+    }
+  };
+
+  const isMasterAudioLinked = formData.previewUrl && !formData.previewUrl.includes('apple.com') && !formData.previewUrl.includes('itunes-assets');
 
   return (
     <div className="space-y-10">
@@ -189,6 +223,18 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
             className="bg-red-950/30 border-red-900/50 text-red-500 h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3"
           >
             {isSearchingYoutube ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-4 h-4" />} SEARCH
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleExtractMasterAudio}
+            disabled={isExtractingAudio || !formData.youtubeUrl || isMasterAudioLinked}
+            className={cn(
+              "h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3",
+              isMasterAudioLinked ? "bg-emerald-600/10 text-emerald-400 border-emerald-600/20" : "bg-indigo-600/10 text-indigo-400 border-indigo-600/20"
+            )}
+          >
+            {isExtractingAudio ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : isMasterAudioLinked ? <Check className="w-4 h-4" /> : <Cloud className="w-4 h-4" />} 
+            {isMasterAudioLinked ? "MASTER LINKED" : "EXTRACT MASTER"}
           </Button>
         </div>
       </div>
