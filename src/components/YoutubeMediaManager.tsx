@@ -5,14 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
-  Youtube, Search, Loader2, X
+  Youtube, Search, Loader2, X, Download, ExternalLink
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import YoutubeResultsShelf from './YoutubeResultsShelf';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
-import { cleanYoutubeUrl } from '@/utils/youtubeUtils';
 import { SetlistSong } from './SetlistManager';
 
 interface YoutubeMediaManagerProps {
@@ -175,18 +174,6 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
     setYtResults([]); // Clear results when selection is cleared
   };
 
-  // Effect to initialize iframe-resizer
-  useEffect(() => {
-    if (currentVideoId && (window as any).iFrameResize) {
-      // Delay to ensure iframes are fully rendered
-      const timer = setTimeout(() => {
-        (window as any).iFrameResize({ log: false, minHeight: 360 }, '#mp3-widget-iframe');
-        (window as any).iFrameResize({ log: false, minHeight: 360 }, '#mp4-widget-iframe');
-      }, 100); // Small delay
-      return () => clearTimeout(timer);
-    }
-  }, [currentVideoId, ytResults]); // Re-run when video changes or results update
-
   return (
     <div className="space-y-10">
       <h3 className="text-xl font-black uppercase tracking-tight text-indigo-400 shrink-0">REFERENCE MEDIA</h3>
@@ -218,7 +205,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
         />
       )}
 
-      {/* New section for selected video and download widgets */}
+      {/* New section for selected video and download links */}
       {formData.youtubeUrl && currentVideoId && (
         <div className="bg-slate-900 border border-white/10 rounded-[2.5rem] p-8 space-y-8 animate-in fade-in duration-500">
           <div className="flex items-center justify-between">
@@ -226,7 +213,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
               <Youtube className="w-6 h-6 text-red-500" />
               <div>
                 <h3 className="text-xl font-black uppercase tracking-tight">Linked YouTube Media</h3>
-                <p className="text-sm text-slate-400">Download or convert this video.</p>
+                <p className="text-sm text-slate-400">Use these services to download audio/video.</p>
               </div>
             </div>
             <Button 
@@ -240,31 +227,29 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white/5 rounded-2xl p-6 space-y-4 border border-white/5">
-              <h4 className="text-sm font-black uppercase tracking-tight text-white">MP3 Audio Widget</h4>
-              <iframe 
-                id="mp3-widget-iframe"
-                src={`https://api.vevioz.com/api/widget/mp3/${currentVideoId}`} 
-                width="100%" 
-                height="360px" // Set a default height, iframe-resizer will adjust
-                allowtransparency="true" 
-                scrolling="no" 
-                style={{ border: 'none' }}
-                title="YouTube to MP3 Converter"
-              ></iframe>
+            <div className="bg-white/5 rounded-2xl p-6 space-y-4 border border-white/5 flex flex-col justify-between">
+              <div>
+                <h4 className="text-sm font-black uppercase tracking-tight text-white mb-2">Audio Download</h4>
+                <p className="text-xs text-slate-400">Convert to MP3 using a reliable web service.</p>
+              </div>
+              <Button 
+                className="w-full bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-xs h-12 rounded-xl gap-2"
+                onClick={() => window.open(`https://www.y2mate.com/youtube/${currentVideoId}`, '_blank')}
+              >
+                <Download className="w-4 h-4" /> Download MP3
+              </Button>
             </div>
-            <div className="bg-white/5 rounded-2xl p-6 space-y-4 border border-white/5">
-              <h4 className="text-sm font-black uppercase tracking-tight text-white">MP4 Video Widget</h4>
-              <iframe 
-                id="mp4-widget-iframe"
-                src={`https://api.vevioz.com/api/widget/videos/${currentVideoId}`} 
-                width="100%" 
-                height="360px" // Set a default height, iframe-resizer will adjust
-                allowtransparency="true" 
-                scrolling="no" 
-                style={{ border: 'none' }}
-                title="YouTube to MP4 Converter"
-              ></iframe>
+            <div className="bg-white/5 rounded-2xl p-6 space-y-4 border border-white/5 flex flex-col justify-between">
+              <div>
+                <h4 className="text-sm font-black uppercase tracking-tight text-white mb-2">Video Download</h4>
+                <p className="text-xs text-slate-400">Download MP4 video file.</p>
+              </div>
+              <Button 
+                className="w-full bg-red-600 hover:bg-red-700 font-black uppercase tracking-widest text-xs h-12 rounded-xl gap-2"
+                onClick={() => window.open(`https://www.y2mate.com/youtube/${currentVideoId}`, '_blank')}
+              >
+                <ExternalLink className="w-4 h-4" /> Open Converter
+              </Button>
             </div>
           </div>
         </div>
