@@ -103,6 +103,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isDetectingKey, setIsDetectingKey] = useState(false);
   const [isCloudSyncing, setIsCloudSyncing] = useState(false);
+  const [isSyncingAudio, setIsSyncingAudio] = useState(false);
   const [keyCandidates, setKeyCandidates] = useState<KeyCandidate[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isFormattingLyrics, setIsFormattingLyrics] = useState(false);
@@ -303,6 +304,56 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       showError("Cloud Sync Error.");
     } finally {
       setIsCloudSyncing(false);
+    }
+  };
+
+  const handleSyncYoutubeAudio = async () => {
+    if (!formData.youtubeUrl || !user || !song) {
+      showError("Paste a YouTube URL first.");
+      return;
+    }
+
+    setIsSyncingAudio(true);
+    try {
+      const apiBase = "https://yt-audio-api.fly.dev"; // Placeholder: update to your actual API domain
+      
+      // Step 1: Initialize extraction and get token
+      const tokenRes = await fetch(`${apiBase}/?url=${encodeURIComponent(formData.youtubeUrl)}`);
+      if (!tokenRes.ok) throw new Error("Could not initialize extraction engine.");
+      const { token } = await tokenRes.json();
+
+      // Step 2: Extract audio blob from microservice
+      const downloadRes = await fetch(`${apiBase}/download?token=${token}`);
+      if (!downloadRes.ok) throw new Error("Audio extraction failed.");
+      const blob = await downloadRes.blob();
+
+      // Step 3: Stream to Supabase Storage
+      const fileName = `${user.id}/${song.id}/extracted-${Date.now()}.mp3`;
+      const bucket = 'public_assets';
+      
+      const { error: uploadError } = await supabase.storage
+        .from(bucket)
+        .upload(fileName, blob, {
+          contentType: 'audio/mpeg',
+          upsert: true
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(fileName);
+
+      // Step 4: Link to Engine
+      handleAutoSave({ previewUrl: publicUrl });
+      await loadFromUrl(publicUrl, formData.pitch || 0);
+      showSuccess("YT-Master Audio Linked to Engine");
+      
+    } catch (err: any) {
+      console.error("YT Sync Error:", err);
+      showError(err.message || "Extraction engine offline.");
+    } finally {
+      setIsSyncingAudio(false);
     }
   };
 
@@ -851,11 +902,14 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
             </div>
           </div>
         )}
-        {(isUploading || isProSyncing || isCloudSyncing) && (
+        {(isUploading || isProSyncing || isCloudSyncing || isSyncingAudio) && (
           <div className="absolute inset-0 z-[60] bg-black/60 backdrop-blur-md flex flex-col items-center justify-center gap-4">
              <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" />
              <p className="text-sm font-black uppercase tracking-[0.2em] text-white">
-               {isUploading ? 'Syncing Master Asset...' : isCloudSyncing ? 'Accessing Cloud Knowledge Base...' : 'Analyzing Global Library Data...'}
+               {isUploading ? 'Syncing Master Asset...' : 
+                isSyncingAudio ? 'Extracting High-Fidelity Audio...' :
+                isCloudSyncing ? 'Accessing Cloud Knowledge Base...' : 
+                'Analyzing Global Library Data...'}
              </p>
           </div>
         )}
@@ -1391,13 +1445,24 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                        onChange={(val: string) => handleAutoSave({ youtubeUrl: val })}
                        className="bg-white/5 border-white/10 text-sm flex-1 h-10 md:h-12 rounded-xl w-full"
                      />
-                     <Button
-                        variant="outline"
-                        onClick={handleYoutubeSearch}
-                        className="bg-red-600/10 border-red-600/20 text-red-600 hover:bg-red-600 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 md:h-12 gap-2 px-4 md:px-6 rounded-xl shrink-0 min-w-[140px]"
-                      >
-                        <Youtube className="w-3.5 h-3.5" /> Discover
-                      </Button>
+                     <div className="flex gap-2 shrink-0">
+                        <Button
+                          variant="outline"
+                          onClick={handleSyncYoutubeAudio}
+                          disabled={isSyncingAudio || !formData.youtubeUrl}
+                          className="bg-indigo-600/10 border-indigo-600/20 text-indigo-600 hover:bg-indigo-600 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 md:h-12 gap-2 px-4 md:px-6 rounded-xl min-w-[140px]"
+                        >
+                          {isSyncingAudio ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+                          Extract Audio
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={handleYoutubeSearch}
+                            className="bg-red-600/10 border-red-600/20 text-red-600 hover:bg-red-600 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 md:h-12 gap-2 px-4 md:px-6 rounded-xl min-w-[120px]"
+                          >
+                            <Youtube className="w-3.5 h-3.5" /> Discovery
+                          </Button>
+                     </div>
                   </div>
                   {videoId ? (
                     <div className="aspect-video w-full rounded-[2rem] md:rounded-[3rem] overflow-hidden shadow-2xl border border-white/10 bg-black">
