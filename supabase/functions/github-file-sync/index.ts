@@ -61,17 +61,14 @@ serve(async (req) => {
     const result = await putRes.json();
     
     if (!putRes.ok) {
-      let finalError = result.message || "GitHub write failed.";
-      
-      // Extract specific rule violation details if they exist in the response
-      if (result.block_violations && Array.isArray(result.block_violations)) {
-        const rules = result.block_violations.map((v: any) => v.rule_name || v.message).join(', ');
-        finalError = `GITHUB BLOCK (Ruleset): ${rules}`;
-      } else if (putRes.status === 422 && finalError.includes('Repository rule violations')) {
-        finalError = "GITHUB BLOCK: Secret detected. Check both 'Push Protection' AND 'Rulesets' (Settings -> Rules -> Rulesets).";
-      }
-      
-      throw new Error(finalError);
+      // Return the full GitHub response for diagnosis
+      return new Response(JSON.stringify({ 
+        error: result.message || "GitHub write failed.",
+        details: result 
+      }), { 
+        status: putRes.status, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
     }
 
     return new Response(JSON.stringify({ success: true, commit: result.commit.sha }), {
