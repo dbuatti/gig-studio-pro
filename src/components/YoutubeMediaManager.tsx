@@ -190,8 +190,10 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
       if (!videoId) throw new Error("Invalid YouTube URL");
 
       // 2. Use a public proxy to fetch the audio
-      // Note: This is a public API and may have rate limits. It's a fallback.
-      const proxyUrl = `https://yt-audio-api-2fxp.onrender.com/?url=${encodeURIComponent(formData.youtubeUrl)}`;
+      const API_BASE_URL = "https://yt-audio-api-1-wedr.onrender.com";
+      const params = new URLSearchParams();
+      params.append('url', formData.youtubeUrl);
+      const proxyUrl = `${API_BASE_URL}/?${params.toString()}`;
       
       // First, get the token
       const tokenResponse = await fetch(proxyUrl);
@@ -202,7 +204,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
       await new Promise(resolve => setTimeout(resolve, 3000));
 
       // Try to download
-      const downloadUrl = `https://yt-audio-api-2fxp.onrender.com/download?token=${token}`;
+      const downloadUrl = `${API_BASE_URL}/download?token=${token}`;
       const fileResponse = await fetch(downloadUrl);
 
       if (fileResponse.status === 202) {
@@ -299,7 +301,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
                 <p className="text-xs text-slate-400">Using public Render API proxy. Rate limits may apply.</p>
               </div>
               <div className="flex gap-2">
-                 <a href="https://yt-audio-api-2fxp.onrender.com/" target="_blank" className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
+                 <a href="https://yt-audio-api-1-wedr.onrender.com/" target="_blank" className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
                    Check API Status <ExternalLink className="w-3 h-3" />
                  </a>
               </div>
@@ -311,7 +313,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
               </div>
               <Button 
                 className="w-full bg-red-600 hover:bg-red-700 font-black uppercase tracking-widest text-xs h-12 rounded-xl gap-2"
-                onClick={() => window.open(`https://yt-audio-api-2fxp.onrender.com/?url=${encodeURIComponent(formData.youtubeUrl || '')}`, '_blank')}
+                onClick={() => window.open(`https://yt-audio-api-1-wedr.onrender.com/?url=${encodeURIComponent(formData.youtubeUrl || '')}`, '_blank')}
               >
                 <ExternalLink className="w-4 h-4" /> Open Render API
               </Button>

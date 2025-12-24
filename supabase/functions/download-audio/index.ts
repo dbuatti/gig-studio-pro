@@ -22,7 +22,7 @@ serve(async (req) => {
     }
 
     // 1. Get Token from Render API
-    const renderUrl = "https://yt-audio-api-2fxp.onrender.com";
+    const renderUrl = "https://yt-audio-api-1-wedr.onrender.com"; // Updated URL
     const tokenResponse = await fetch(`${renderUrl}/?url=${encodeURIComponent(videoUrl)}`);
     
     if (!tokenResponse.ok) {
