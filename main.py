@@ -22,7 +22,11 @@ TOKEN_LENGTH = 32
 token_store = {}
 last_sync_time = None
 
+# Fix for "trailing slash" warning in logs
 SUPABASE_URL = os.environ.get('SUPABASE_URL')
+if SUPABASE_URL and not SUPABASE_URL.endswith('/'):
+    SUPABASE_URL += '/'
+
 SUPABASE_SERVICE_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
 COOKIES_BUCKET = 'cookies'
 
@@ -35,10 +39,15 @@ if SUPABASE_URL and SUPABASE_SERVICE_KEY:
 def fetch_cookies():
     """Syncs cookies from Supabase to local container."""
     global last_sync_time
-    if not supabase: return False
+    if not supabase: 
+        print("❌ Supabase client not initialized")
+        return False
     try:
+        print(f"🔄 Fetching cookies from bucket: {COOKIES_BUCKET}")
         data = supabase.storage.from_(COOKIES_BUCKET).download('cookies.txt')
-        if not data: return False
+        if not data: 
+            print("⚠️ File 'cookies.txt' not found in vault.")
+            return False
             
         with open(COOKIES_PATH, 'wb') as f:
             f.write(data)
@@ -82,7 +91,6 @@ def handle_audio_request():
     output_filename = f"{unique_id}.mp3"
     output_template = str(ABS_DOWNLOADS_PATH / unique_id)
 
-    # Stealth-Optimized yt-dlp Options
     ydl_opts = {
         'format': 'ba/b', 
         'outtmpl': f"{output_template}.%(ext)s",
@@ -99,7 +107,6 @@ def handle_audio_request():
         'noplaylist': True,
         'extractor_args': {
             'youtube': {
-                # 'tv' and 'web' clients combined are very resilient
                 'player_client': ['tv', 'web'],
                 'player_skip': ['configs', 'webpage']
             }
