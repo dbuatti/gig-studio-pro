@@ -38,6 +38,7 @@ interface PerformanceOverlayProps {
   onUpdateSong: (id: string, updates: Partial<SetlistSong>) => void;
   onUpdateKey: (id: string, targetKey: string) => void;
   analyzer: any;
+  onOpenAdmin?: () => void;
 }
 
 type ViewMode = 'visualizer' | 'pdf' | 'lyrics';
@@ -55,7 +56,8 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
   onClose,
   onUpdateSong,
   onUpdateKey,
-  analyzer
+  analyzer,
+  onOpenAdmin
 }) => {
   const { keyPreference: globalPreference } = useSettings();
   const currentSong = songs[currentIndex];
@@ -501,7 +503,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
                   <div className="h-full w-full flex flex-col items-center justify-center p-6 md:p-12 text-center bg-slate-950">
                     <ShieldCheck className="w-12 h-12 md:w-16 md:h-16 text-indigo-400 mb-6 md:mb-10" />
                     <h4 className="text-3xl md:text-5xl font-black uppercase tracking-tight mb-4 md:mb-6 text-white">Asset Protected</h4>
-                    <p className="text-slate-500 max-w-xl mb-8 md:mb-16 text-lg md:text-xl font-medium leading-relaxed">
+                    <p className="text-slate-500 max-xl mb-8 md:mb-16 text-lg md:text-xl font-medium leading-relaxed">
                       External security prevents in-app display. Use the button below to launch in a secure dedicated performance window.
                     </p>
                     <Button onClick={() => window.open(currentSong.pdfUrl, '_blank')} className="bg-indigo-600 hover:bg-indigo-700 h-16 md:h-20 px-10 md:px-16 font-black uppercase tracking-[0.2em] text-xs md:text-sm rounded-2xl md:rounded-3xl shadow-2xl shadow-indigo-600/30 gap-4 md:gap-6">
@@ -699,6 +701,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
         onClose={() => setIsStudioOpen(false)} 
         onSave={onUpdateSong} 
         onUpdateKey={onUpdateKey}
+        onOpenAdmin={onOpenAdmin}
       />
 
       {isShortcutLegendOpen && (

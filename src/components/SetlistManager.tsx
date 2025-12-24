@@ -72,6 +72,7 @@ interface SetlistManagerProps {
   onSyncProData: (song: SetlistSong) => Promise<void>;
   onReorder: (newSongs: SetlistSong[]) => void;
   currentSongId?: string;
+  onOpenAdmin?: () => void;
 }
 
 type SortMode = 'none' | 'ready' | 'work';
@@ -85,7 +86,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   onUpdateSong,
   onSyncProData,
   onReorder,
-  currentSongId 
+  currentSongId,
+  onOpenAdmin
 }) => {
   const isMobile = useIsMobile();
   const { keyPreference: globalPreference } = useSettings();
@@ -570,6 +572,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
           onSelect(song);
           setStudioSong(null);
         }}
+        onOpenAdmin={onOpenAdmin}
       />
 
       <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>

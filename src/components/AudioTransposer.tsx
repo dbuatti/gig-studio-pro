@@ -40,6 +40,7 @@ interface AudioTransposerProps {
   onPlaybackChange?: (isPlaying: boolean) => void;
   repertoire?: SetlistSong[];
   currentSong?: SetlistSong | null;
+  onOpenAdmin?: () => void;
 }
 
 const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
@@ -49,7 +50,8 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
   onSongEnded, 
   onPlaybackChange,
   repertoire = [],
-  currentSong
+  currentSong,
+  onOpenAdmin
 }, ref) => {
   const audio = useToneAudio();
   

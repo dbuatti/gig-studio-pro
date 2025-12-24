@@ -94,6 +94,7 @@ interface SongStudioModalProps {
   onUpdateKey: (id: string, targetKey: string) => void;
   onSyncProData?: (song: SetlistSong) => Promise<void>;
   onPerform?: (song: SetlistSong) => void;
+  onOpenAdmin?: () => void;
 }
 
 type StudioTab = 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library';
@@ -105,7 +106,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   onSave, 
   onUpdateKey,
   onSyncProData,
-  onPerform 
+  onPerform,
+  onOpenAdmin
 }) => {
   const isMobile = useIsMobile();
   const { user } = useAuth();
@@ -1078,7 +1080,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       <Button 
                         onClick={() => {
                           setEngineError(null);
-                          showError("Admin Panel required to fix backend versioning.");
+                          onOpenAdmin?.();
                         }} 
                         className="bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest text-[10px] h-11 rounded-xl gap-2"
                       >
