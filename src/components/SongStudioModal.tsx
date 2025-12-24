@@ -105,6 +105,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const [isDetectingKey, setIsDetectingKey] = useState(false);
   const [isCloudSyncing, setIsCloudSyncing] = useState(false);
   const [isSyncingAudio, setIsSyncingAudio] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<string>("");
   const [keyCandidates, setKeyCandidates] = useState<KeyCandidate[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isFormattingLyrics, setIsFormattingLyrics] = useState(false);
@@ -317,32 +318,42 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     }
 
     const cleanedUrl = cleanYoutubeUrl(formData.youtubeUrl);
-    console.log(`[ENGINE] Using cleaned YouTube URL: ${cleanedUrl}`);
-
     const apiBase = "https://yt-audio-api-docker.onrender.com"; 
 
     setIsSyncingAudio(true);
+    setSyncStatus("Initializing Engine...");
+    
     try {
-      // Step 1: Initialize extraction and get token directly
+      // Small intentional delay to avoid immediate race conditions if server is cycling
+      await new Promise(r => setTimeout(r, 2000));
+      
+      setSyncStatus("Waking up Render Service...");
       const tokenUrl = `${apiBase}/?url=${encodeURIComponent(cleanedUrl)}`;
-      const tokenRes = await fetch(tokenUrl);
+      
+      let tokenRes;
+      try {
+        tokenRes = await fetch(tokenUrl);
+      } catch (e) {
+        throw new Error("Render service is currently deploying or unreachable. Try again in 60s.");
+      }
       
       if (!tokenRes.ok) {
         if (tokenRes.status === 500) {
           throw new Error("System cookies expired. Please use the Admin Panel to refresh YouTube cookies.");
         }
-        throw new Error("Could not initialize extraction engine.");
+        throw new Error("Engine initialization failed. The service might be starting up.");
       }
+      
       const { token } = await tokenRes.json();
+      setSyncStatus("Extracting Audio Stream...");
 
-      // Step 2: Extract audio blob from microservice directly
       const downloadUrl = `${apiBase}/download?token=${token}`;
       const downloadRes = await fetch(downloadUrl);
       
-      if (!downloadRes.ok) throw new Error("Audio extraction failed.");
+      if (!downloadRes.ok) throw new Error("Audio extraction failed at the source.");
       const blob = await downloadRes.blob();
 
-      // Step 3: Stream to Supabase Storage
+      setSyncStatus("Syncing to Cloud Vault...");
       const fileName = `${user.id}/${song.id}/extracted-${Date.now()}.mp3`;
       const bucket = 'public_assets';
       
@@ -359,16 +370,16 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         .from(bucket)
         .getPublicUrl(fileName);
 
-      // Step 4: Link to Engine
       handleAutoSave({ previewUrl: publicUrl });
       await loadFromUrl(publicUrl, formData.pitch || 0);
       showSuccess("YT-Master Audio Linked to Engine");
       
     } catch (err: any) {
       console.error("YT Sync Error:", err);
-      showError(err.message || "Connection blocked or engine idle. Try again in 20s.");
+      showError(err.message || "Extraction engine unreachable.");
     } finally {
       setIsSyncingAudio(false);
+      setSyncStatus("");
     }
   };
 
@@ -920,12 +931,15 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         {(isUploading || isProSyncing || isCloudSyncing || isSyncingAudio) && (
           <div className="absolute inset-0 z-[60] bg-black/60 backdrop-blur-md flex flex-col items-center justify-center gap-4">
              <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" />
-             <p className="text-sm font-black uppercase tracking-[0.2em] text-white">
-               {isUploading ? 'Syncing Master Asset...' : 
-                isSyncingAudio ? 'Extracting High-Fidelity Audio...' :
-                isCloudSyncing ? 'Accessing Cloud Knowledge Base...' : 
-                'Analyzing Global Library Data...'}
-             </p>
+             <div className="text-center space-y-2">
+               <p className="text-sm font-black uppercase tracking-[0.2em] text-white">
+                 {isUploading ? 'Syncing Master Asset...' : 
+                  isSyncingAudio ? (syncStatus || 'Extracting High-Fidelity Audio...') :
+                  isCloudSyncing ? 'Accessing Cloud Knowledge Base...' : 
+                  'Analyzing Global Library Data...'}
+               </p>
+               {isSyncingAudio && <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400 animate-pulse">Stay in this window</p>}
+             </div>
           </div>
         )}
         <div className={cn("flex overflow-hidden", isMobile ? "flex-col h-[100dvh]" : "h-[90vh] min-h-[800px]")}>
