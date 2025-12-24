@@ -35,7 +35,7 @@ import { useSettings, KeyPreference } from '@/hooks/use-settings';
 import { RESOURCE_TYPES } from '@/utils/constants';
 import ProSyncSearch from './ProSyncSearch';
 import YoutubeResultsShelf from './YoutubeResultsShelf';
-import { useAuth } from './AuthProvider';
+import { useAuth } from '@/components/AuthProvider';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { calculateReadiness } from '@/utils/repertoireSync';
 import { useToneAudio } from '@/hooks/use-tone-audio';
@@ -129,9 +129,9 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const [isProSyncSearchOpen, setIsProSyncSearchOpen] = useState(false);
   
   // Refined YouTube Search Logic
-  const [ytApiKey, setYtApiKey] = useState(""); // This state is now managed in YoutubeMediaManager
-  const [isSearchingYoutube, setIsSearchingYoutube] = useState(false); // This state is now managed in YoutubeMediaManager
-  const [ytResults, setYtResults] = useState<any[]>([]); // This state is now managed in YoutubeMediaManager
+  // const [ytApiKey, setYtApiKey] = useState(""); // This state is now managed in YoutubeMediaManager
+  // const [isSearchingYoutube, setIsSearchingYoutube] = useState(false); // This state is now managed in YoutubeMediaManager
+  // const [ytResults, setYtResults] = useState<any[]>([]); // This state is now managed in YoutubeMediaManager
   const [keyCandidates, setKeyCandidates] = useState<KeyCandidate[]>([]); // Added this line
   
   const [isProSyncing, setIsProSyncing] = useState(false);
@@ -492,188 +492,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     showSuccess("Opening Print Assistant.");
   };
 
-  // const performYoutubeDiscovery = async (searchTerm: string) => { // Moved to YoutubeMediaManager
-  //   if (!searchTerm.trim()) return;
-    
-  //   // Check if it's a URL first
-  //   if (searchTerm.startsWith('http')) {
-  //     handleAutoSave({ youtubeUrl: searchTerm });
-  //     showSuccess("YouTube URL Linked");
-  //     return;
-  //   }
-
-  //   setIsSearchingYoutube(true);
-  //   setYtResults([]);
-
-  //   // Strategy 1: Google YouTube API (Premium/Official Duration Data)
-  //   if (ytApiKey) {
-  //     try {
-  //       const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(searchTerm)}&type=video&maxResults=10&key=${ytApiKey}`;
-  //       const searchResponse = await fetch(searchUrl);
-  //       const searchData = await searchResponse.json();
-
-  //       if (searchData.items && searchData.items.length > 0) {
-  //         const videoIds = searchData.items.map((item: any) => item.id.videoId).join(',');
-  //         const detailsUrl = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,snippet,statistics&id=${videoIds}&key=${ytApiKey}`;
-  //         const detailsResponse = await fetch(detailsUrl);
-  //         const detailsData = await detailsResponse.json();
-
-  //         if (detailsData.items) {
-  //           const resultsWithDurations = detailsData.items.map((item: any) => ({
-  //             videoId: item.id,
-  //             title: item.snippet.title,
-  //             author: item.snippet.channelTitle,
-  //             videoThumbnails: [{ url: item.snippet.thumbnails.medium.url }],
-  //             duration: parseISO8601Duration(item.contentDetails.duration),
-  //             viewCountText: `${parseInt(item.statistics.viewCount).toLocaleString()} views`
-  //           }));
-
-  //           setYtResults(resultsWithDurations);
-  //           setIsSearchingYoutube(false);
-  //           showSuccess(`Engine Synced: Found ${resultsWithDurations.length} records`);
-  //           return;
-  //         }
-  //       }
-  //     } catch (e) {
-  //       console.error("YouTube API failed, trying fallback...", e);
-  //     }
-  //   }
-
-  //   // Strategy 2: Proxy Fallback (Public Search Engine)
-  //   try {
-  //     const proxies = ["https://api.allorigins.win/get?url=", "https://corsproxy.io/?"];
-  //     const instances = ['https://iv.ggtyler.dev', 'https://yewtu.be', 'https://invidious.flokinet.to'];
-      
-  //     let success = false;
-  //     for (const proxy of proxies) {
-  //       if (success) break;
-  //       for (const instance of instances) {
-  //         if (success) break;
-  //         try {
-  //           const target = encodeURIComponent(`${instance}/api/v1/search?q=${encodeURIComponent(searchTerm)}`);
-  //           const res = await fetch(`${proxy}${target}`);
-  //           if (!res.ok) continue;
-            
-  //           const raw = await res.json();
-  //           const data = typeof raw.contents === 'string' ? JSON.parse(raw.contents) : raw;
-  //           const videos = data?.filter?.((i: any) => i.type === "video").slice(0, 10);
-            
-  //           if (videos && videos.length > 0) {
-  //             setYtResults(videos.map((v: any) => ({
-  //               videoId: v.videoId,
-  //               title: v.title,
-  //               author: v.author,
-  //               videoThumbnails: v.videoThumbnails,
-  //               duration: v.durationSeconds ? `${Math.floor(v.durationSeconds/60)}:${(v.durationSeconds%60).toString().padStart(2, '0')}` : '0:00',
-  //               viewCountText: v.viewCountText
-  //             })));
-  //             success = true;
-  //           }
-  //         } catch (err) {}
-  //       }
-  //     }
-      
-  //     if (!success) {
-  //       showError("Search engines congested. Check network connection.");
-  //     } else {
-  //       showSuccess("Discovery complete.");
-  //     }
-  //   } catch (err) {
-  //     showError("Global search engine offline.");
-  //   } finally {
-  //     setIsSearchingYoutube(false);
-  //   }
-  // };
-
-  // const handleYoutubeSearch = () => { // Moved to YoutubeMediaManager
-  //   const artist = (formData.artist || "").replace(/&/g, 'and'); 
-  //   const name = (formData.name || "").replace(/&/g, 'and');
-  //   const query = `${artist} ${name} official music video`;
-  //   performYoutubeDiscovery(query);
-  // };
-
-  // const handleSelectYoutubeVideo = (url: string) => { // Moved to YoutubeMediaManager
-  //   handleAutoSave({ youtubeUrl: url });
-  // };
-
-  // const handleSyncYoutubeAudio = async (videoUrl?: string) => { // Moved to YoutubeMediaManager
-  //   const targetUrl = videoUrl || formData.youtubeUrl;
-  //   if (!targetUrl || !user || !song) {
-  //     showError("Paste a YouTube URL first.");
-  //     return;
-  //   }
-
-  //   const cleanedUrl = cleanYoutubeUrl(targetUrl);
-  //   const apiBase = "https://yt-audio-api-docker.onrender.com";
-
-  //   setIsSyncingAudio(true);
-  //   setSyncStatus("Initializing Engine...");
-  //   setEngineError(null);
-    
-  //   try {
-  //     setSyncStatus("Waking up extraction engine...");
-  //     // Add a small delay for Render cold-starts
-  //     const tokenUrl = `${apiBase}/?url=${encodeURIComponent(cleanedUrl)}`;
-      
-  //     const tokenRes = await fetch(tokenUrl, {
-  //       headers: { 'Accept': 'application/json' }
-  //     }).catch(() => {
-  //       throw new Error("Engine unreachable. The Render server might be rebuilding or sleeping.");
-  //     });
-
-  //     if (!tokenRes.ok) {
-  //       const errBody = await tokenRes.json().catch(() => ({}));
-  //       const specificError = errBody.detail || errBody.error || tokenRes.statusText;
-  //       if (specificError.includes("format is not available") || 
-  //           specificError.includes("Signature solving failed") || 
-  //           specificError.includes("Sign in to confirm")) {
-  //         setEngineError(`YouTube Protection Triggered: ${specificError}. Upload fresh cookies in Admin.`);
-  //       } else {
-  //         setEngineError(`Engine Error: ${specificError}`);
-  //       }
-  //       throw new Error(specificError);
-  //     }
-      
-  //     const { token } = await tokenRes.json();
-  //     setSyncStatus("Extracting Audio Stream...");
-
-  //     const downloadUrl = `${apiBase}/download?token=${token}`;
-  //     const downloadRes = await fetch(downloadUrl);
-      
-  //     if (!downloadRes.ok) throw new Error("Audio extraction failed at source.");
-  //     const blob = await downloadRes.blob();
-
-  //     setSyncStatus("Syncing to Cloud Vault...");
-  //     const fileName = `${user.id}/${song.id}/extracted-${Date.now()}.mp3`;
-  //     const bucket = 'public_assets';
-      
-  //     const { error: uploadError } = await supabase.storage
-  //       .from(bucket)
-  //       .upload(fileName, blob, {
-  //         contentType: 'audio/mpeg',
-  //         upsert: true
-  //       });
-
-  //     if (uploadError) throw uploadError;
-
-  //     const { data: { publicUrl } } = supabase.storage
-  //       .from(bucket)
-  //       .getPublicUrl(fileName);
-
-  //     const updates = { previewUrl: publicUrl, youtubeUrl: cleanedUrl };
-  //     handleAutoSave(updates);
-  //     await loadFromUrl(publicUrl, formData.pitch || 0);
-  //     showSuccess("YT-Master Audio Linked");
-      
-  //   } catch (err: any) {
-  //     console.error("YT Sync Error:", err);
-  //     showError(err.message || "Connection refused by extraction engine.");
-  //   } finally {
-  //     setIsSyncingAudio(false);
-  //     setSyncStatus("");
-  //   }
-  // };
-
   const handleDownloadAsset = async (url: string | undefined, filename: string) => {
     if (!url) return;
     const isSupabaseUrl = url.includes('supabase.co/storage/v1/object/public');
@@ -802,7 +620,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       setFormData(initialData);
       
       setKeyCandidates([]);
-      setYtResults([]);
+      // setYtResults([]); // No longer needed here, moved to YoutubeMediaManager
       checkRepertoireStatus();
       resetEngine();
       if (song.previewUrl) {
@@ -1050,8 +868,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
             ) : (
               <div className="h-full flex flex-col items-center justify-center bg-slate-900 rounded-2xl border border-white/5 p-6 text-center">
                 <ShieldCheck className="w-12 h-12 text-indigo-400 mb-6" />
-                <h4 className="text-xl md:text-2xl font-black uppercase mb-4 text-white">Source Shield Active</h4>
-                <p className="text-slate-500 mb-8 max-w-sm font-medium">Provider blocks in-app previews. Use the dedicated performance window.</p>
                 <Button onClick={() => window.open(previewPdfUrl, '_blank')} className="bg-indigo-600 hover:bg-indigo-700 h-12 px-8 font-black uppercase tracking-widest text-xs rounded-xl shadow-lg shadow-indigo-600/20 gap-3">
                   <ExternalLink className="w-4 h-4" /> Open Official Source
                 </Button>
@@ -1067,9 +883,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
             </div>
           </div>
         )}
-        {(isUploading || isProSyncing || isCloudSyncing) && ( // Removed isSyncingAudio from here
+        {(isUploading || isProSyncing || isCloudSyncing) && ( 
           <div className="absolute inset-0 z-[60] bg-black/60 backdrop-blur-md flex flex-col items-center justify-center gap-4">
-             {/* Removed engineError display from here, now handled in YoutubeMediaManager */}
                <>
                  <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" />
                  <div className="text-center space-y-2 max-w-sm px-6">
@@ -1182,7 +997,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       <h3 className="text-sm md:text-lg font-black uppercase tracking-[0.2em] text-indigo-400">Audio Processing Matrix</h3>
                       <p className="text-xs md:text-sm text-slate-500 mt-1">Real-time pitch and time-stretching engine.</p>
                     </div>
-                    {/* Removed YouTube Discovery button from here, now part of YoutubeMediaManager */}
                   </div>
                   <div className={cn("bg-slate-900/50 border border-white/5 space-y-6 md:space-y-12", isMobile ? "p-6 rounded-3xl" : "p-12 rounded-[3rem]")}>
                     <div className={cn(isMobile ? "h-24" : "h-40")}>
@@ -1336,7 +1150,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       ) : (
                         <div className="h-full flex flex-col items-center justify-center bg-slate-900 p-8 text-center">
                           <ShieldCheck className="w-12 h-12 text-indigo-400 mb-6" />
-                          <Button onClick={() => window.open(currentChartUrl, '_blank')} className="bg-indigo-600 h-14 px-10 rounded-2xl gap-3"><ExternalLink className="w-5 h-5" /> Launch Source</Button>
+                          <Button onClick={() => window.open(currentChartUrl, '_blank')} className="bg-indigo-600 hover:bg-indigo-700 h-14 px-10 rounded-2xl gap-3"><ExternalLink className="w-5 h-5" /> Launch Source</Button>
                         </div>
                       )
                     ) : (

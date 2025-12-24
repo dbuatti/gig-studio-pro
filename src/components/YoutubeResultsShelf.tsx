@@ -10,18 +10,18 @@ interface YoutubeResultsShelfProps {
   results: any[];
   currentVideoId: string | null;
   onSelect: (videoUrl: string) => void;
-  onSyncAndExtract: (videoUrl: string) => void;
+  // onSyncAndExtract: (videoUrl: string) => void; // Removed
   isLoading: boolean;
-  isExtracting?: boolean;
+  // isExtracting?: boolean; // Removed
 }
 
 const YoutubeResultsShelf: React.FC<YoutubeResultsShelfProps> = ({ 
   results, 
   currentVideoId, 
   onSelect, 
-  onSyncAndExtract,
+  // onSyncAndExtract, // Removed
   isLoading,
-  isExtracting 
+  // isExtracting // Removed
 }) => {
   if (isLoading) {
     return (
@@ -61,15 +61,13 @@ const YoutubeResultsShelf: React.FC<YoutubeResultsShelfProps> = ({
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                   />
                   
-                  {/* Hover Overlay Automation */}
+                  {/* Hover Overlay Automation - Removed Sync & Extract button */}
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-4">
                      <Button 
-                       onClick={() => onSyncAndExtract(`https://www.youtube.com/watch?v=${video.videoId}`)}
-                       disabled={isExtracting}
+                       onClick={() => onSelect(`https://www.youtube.com/watch?v=${video.videoId}`)}
                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-[9px] h-10 px-4 rounded-xl shadow-2xl gap-2 active:scale-95 transition-transform"
                      >
-                       {isExtracting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
-                       Sync & Extract
+                       <Check className="w-3 h-3" /> Select Video
                      </Button>
                   </div>
 

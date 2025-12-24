@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
-  Youtube, Search, Zap, Loader2, AlertTriangle, Wrench, Check
+  Youtube, Search, Loader2
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import YoutubeResultsShelf from './YoutubeResultsShelf';
@@ -34,9 +34,6 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
   const [ytApiKey, setYtApiKey] = useState("");
   const [isSearchingYoutube, setIsSearchingYoutube] = useState(false);
   const [ytResults, setYtResults] = useState<any[]>([]);
-  const [isSyncingAudio, setIsSyncingAudio] = useState(false);
-  const [syncStatus, setSyncStatus] = useState<string>("");
-  const [engineError, setEngineError] = useState<string | null>(null);
 
   const currentVideoId = useMemo(() => {
     if (!formData.youtubeUrl) return null;
@@ -173,84 +170,6 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
     handleAutoSave({ youtubeUrl: url });
   };
 
-  const handleSyncYoutubeAudio = async (videoUrl?: string) => {
-    const targetUrl = videoUrl || formData.youtubeUrl;
-    if (!targetUrl || !user || !song) {
-      showError("Paste a YouTube URL first.");
-      return;
-    }
-
-    const cleanedUrl = cleanYoutubeUrl(targetUrl);
-    const apiBase = "https://yt-audio-api-docker.onrender.com";
-
-    setIsSyncingAudio(true);
-    setSyncStatus("Initializing Engine...");
-    setEngineError(null);
-    
-    try {
-      setSyncStatus("Waking up extraction engine...");
-      // Add a small delay for Render cold-starts
-      const tokenUrl = `${apiBase}/?url=${encodeURIComponent(cleanedUrl)}`;
-      
-      const tokenRes = await fetch(tokenUrl, {
-        headers: { 'Accept': 'application/json' }
-      }).catch(() => {
-        throw new Error("Engine unreachable. The Render server might be rebuilding or sleeping.");
-      });
-
-      if (!tokenRes.ok) {
-        const errBody = await tokenRes.json().catch(() => ({}));
-        const specificError = errBody.detail || errBody.error || tokenRes.statusText;
-        if (specificError.includes("format is not available") || 
-            specificError.includes("Signature solving failed") || 
-            specificError.includes("Sign in to confirm")) {
-          setEngineError(`YouTube Protection Triggered: ${specificError}. Upload fresh cookies in Admin.`);
-        } else {
-          setEngineError(`Engine Error: ${specificError}`);
-        }
-        throw new Error(specificError);
-      }
-      
-      const { token } = await tokenRes.json();
-      setSyncStatus("Extracting Audio Stream...");
-
-      const downloadUrl = `${apiBase}/download?token=${token}`;
-      const downloadRes = await fetch(downloadUrl);
-      
-      if (!downloadRes.ok) throw new Error("Audio extraction failed at source.");
-      const blob = await downloadRes.blob();
-
-      setSyncStatus("Syncing to Cloud Vault...");
-      const fileName = `${user.id}/${song.id}/extracted-${Date.now()}.mp3`;
-      const bucket = 'public_assets';
-      
-      const { error: uploadError } = await supabase.storage
-        .from(bucket)
-        .upload(fileName, blob, {
-          contentType: 'audio/mpeg',
-          upsert: true
-        });
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from(bucket)
-        .getPublicUrl(fileName);
-
-      const updates = { previewUrl: publicUrl, youtubeUrl: cleanedUrl };
-      handleAutoSave(updates);
-      await onLoadAudioFromUrl(publicUrl, formData.pitch || 0);
-      showSuccess("YT-Master Audio Linked");
-      
-    } catch (err: any) {
-      console.error("YT Sync Error:", err);
-      showError(err.message || "Connection refused by extraction engine.");
-    } finally {
-      setIsSyncingAudio(false);
-      setSyncStatus("");
-    }
-  };
-
   return (
     <div className="space-y-10">
       <h3 className="text-xl font-black uppercase tracking-tight text-indigo-400 shrink-0">REFERENCE MEDIA</h3>
@@ -263,13 +182,6 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
           className="flex-1 bg-slate-900 border-white/10 h-14 px-6 rounded-xl"
         />
         <div className="flex gap-3">
-          <Button
-            onClick={() => handleSyncYoutubeAudio()}
-            disabled={isSyncingAudio || !formData.youtubeUrl}
-            className="bg-indigo-600 hover:bg-indigo-700 h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3"
-          >
-            {isSyncingAudio ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />} EXTRACT
-          </Button>
           <Button
             variant="outline"
             onClick={handleYoutubeSearch}
@@ -285,46 +197,8 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
           results={ytResults}
           currentVideoId={currentVideoId}
           onSelect={handleSelectYoutubeVideo}
-          onSyncAndExtract={(url) => handleSyncYoutubeAudio(url)}
           isLoading={isSearchingYoutube}
-          isExtracting={isSyncingAudio}
         />
-      )}
-      {(isSyncingAudio || engineError) && (
-        <div className="absolute inset-0 z-[60] bg-black/60 backdrop-blur-md flex flex-col items-center justify-center gap-4">
-          {engineError ? (
-            <div className="max-w-md bg-slate-900 border border-red-500/30 p-8 rounded-[2rem] shadow-2xl text-center space-y-6 animate-in zoom-in-95">
-              <div className="bg-red-500/10 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto text-red-500">
-                <AlertTriangle className="w-8 h-8" />
-              </div>
-              <div className="space-y-2">
-                <p className="text-lg font-black uppercase tracking-tight text-white">Engine Blocked</p>
-                <p className="text-xs text-slate-400 leading-relaxed font-medium">{engineError}</p>
-              </div>
-              <div className="pt-2 flex flex-col gap-3">
-                <Button onClick={() => setEngineError(null)} className="bg-white/5 hover:bg-white/10 text-white font-black uppercase tracking-widest text-[10px] h-11 rounded-xl">Clear</Button>
-                <Button
-                  onClick={() => {
-                    setEngineError(null);
-                    onOpenAdmin?.();
-                  }}
-                  className="bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest text-[10px] h-11 rounded-xl gap-2 shadow-lg shadow-red-600/20"
-                >
-                  <Wrench className="w-3.5 h-3.5" /> Launch Session Admin
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" />
-              <div className="text-center space-y-2 max-w-sm px-6">
-                <p className="text-sm font-black uppercase tracking-[0.2em] text-white">
-                  {syncStatus || 'Extracting Audio...'}
-                </p>
-              </div>
-            </>
-          )}
-        </div>
       )}
     </div>
   );

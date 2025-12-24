@@ -56,7 +56,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   
   const [syncLogs, setSyncLogs] = useState<{ msg: string; type: 'info' | 'success' | 'error'; time: string }[]>([]);
 
-  const API_BASE = "https://yt-audio-api-docker.onrender.com";
+  // Removed API_BASE as the extraction engine is no longer managed here.
 
   const addLog = (msg: string, type: 'info' | 'success' | 'error' = 'info') => {
     setSyncLogs(prev => [{ msg, type, time: new Date().toLocaleTimeString() }, ...prev].slice(0, 15));
@@ -65,7 +65,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   useEffect(() => {
     if (isOpen) {
       checkVaultStatus();
-      checkHealth();
+      // checkHealth(); // Removed as there's no external API to check
     }
   }, [isOpen]);
 
@@ -95,67 +95,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     }
   };
 
-  const checkHealth = async () => {
-    setIsCheckingHealth(true);
-    addLog("Pinging API Engine...", 'info');
-    try {
-      const res = await fetch(`${API_BASE}/health`, { 
-        mode: 'cors',
-        headers: { 'Cache-Control': 'no-cache', 'Accept': 'application/json' }
-      });
-      
-      if (res.ok) {
-        const data = await res.json();
-        setHealthData(data);
-        setHealthStatus('online');
-        
-        if (data.cookies_loaded) {
-          addLog(`Engine Online: ${Math.round(data.bytes / 1024)} KB session cached.`, 'success');
-        } else {
-          addLog(`Engine Online, but Cache is EMPTY.`, 'error');
-        }
-      } else {
-        setHealthStatus('offline');
-        addLog(`Engine returned ${res.status}. Service may be restarting.`, 'error');
-      }
-    } catch (e) {
-      setHealthStatus('error');
-      addLog("Engine unreachable. Check Render service status.", 'error');
-    } finally {
-      setIsCheckingHealth(false);
-    }
-  };
+  // Removed checkHealth function
 
-  const triggerRenderRefresh = async () => {
-    addLog("Triggering Sync Signal...", 'info');
-    try {
-      const refreshRes = await fetch(`${API_BASE}/refresh-cookies`, {
-        method: 'POST',
-        mode: 'cors',
-        headers: { 'Accept': 'application/json' }
-      });
-      
-      if (!refreshRes.ok) {
-        const text = await refreshRes.text();
-        const isHtml = text.trim().startsWith('<!doctype') || text.trim().startsWith('<html');
-        throw new Error(isHtml ? `Engine returned an error page (HTML). Status: ${refreshRes.status}` : text);
-      }
-      
-      const data = await refreshRes.json();
-      if (data.success) {
-        const bytes = data.bytes || 0;
-        showSuccess(`Sync Complete: ${Math.round(bytes / 1024)} KB transferred.`);
-        addLog(`Signal Accepted. Engine received ${bytes} bytes.`, 'success');
-        setTimeout(checkHealth, 1500);
-      } else {
-        const errorMsg = data.error || "Vault sync failed at engine level.";
-        addLog(`Sync Signal Rejected: ${errorMsg}`, 'error');
-        showError(errorMsg);
-      }
-    } catch (err: any) {
-      addLog(`Sync Signal Warning: ${err.message}`, 'error');
-    }
-  };
+  // Removed triggerRenderRefresh function
 
   const handleUpload = async (file: File) => {
     if (!user) return;
@@ -176,7 +118,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
       addLog("Upload Successful.", 'success');
       
       await checkVaultStatus();
-      await triggerRenderRefresh();
+      // await triggerRenderRefresh(); // Removed
       
     } catch (err: any) {
       addLog(`Upload Failure: ${err.message}`, 'error');
@@ -204,31 +146,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
           <ScrollArea className="flex-1 border-r border-white/5">
             <div className="p-8 space-y-8">
-              {!healthData?.supabase_initialized && (
-                 <div className="bg-red-500/10 border border-red-500/30 p-6 rounded-2xl flex items-start gap-4 animate-in slide-in-from-top-4">
-                   <div className="bg-red-500 p-2 rounded-xl text-white shrink-0">
-                     <Lock className="w-6 h-6" />
-                   </div>
-                   <div className="space-y-3">
-                      <h4 className="text-sm font-black uppercase text-red-500 tracking-tight">Render Config Required</h4>
-                      <p className="text-xs text-red-200/80 leading-relaxed font-medium">
-                        The engine cannot talk to Supabase. Even if you added variables, you may need to click **"Manual Deploy"** in Render to refresh them.
-                      </p>
-                      <div className="bg-black/40 p-4 rounded-xl space-y-2 border border-white/5 font-mono text-[10px]">
-                         <p className="text-indigo-400">SUPABASE_URL = <span className="text-slate-400">https://rqesjpnhrjdjnrzdhzgw.supabase.co</span></p>
-                         <p className="text-indigo-400">SUPABASE_SERVICE_ROLE_KEY = <span className="text-slate-400">[Get this from Supabase Settings]</span></p>
-                      </div>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => window.open('https://dashboard.render.com', '_blank')}
-                        className="h-8 bg-white/5 hover:bg-white/10 text-white font-black uppercase tracking-widest text-[9px] gap-2 rounded-lg"
-                      >
-                        <ExternalLink className="w-3 h-3" /> Go to Render Dashboard
-                      </Button>
-                   </div>
-                 </div>
-              )}
+              {/* Removed Render Config Required block */}
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                  <div className="bg-white/5 border border-white/10 rounded-2xl p-6 min-h-[140px] flex flex-col justify-between">
@@ -237,10 +155,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                       <span className="text-[10px] font-black uppercase tracking-widest">API Engine</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      {healthStatus === 'online' ? <Wifi className="w-5 h-5 text-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.4)]" /> : <WifiOff className="w-5 h-5 text-red-500" />}
-                      <span className={cn("text-lg font-black uppercase", healthStatus === 'online' ? "text-emerald-500" : "text-red-500")}>
-                        {healthStatus === 'online' ? "Active" : "Offline"}
-                      </span>
+                      {/* Removed health status display */}
+                      <span className="text-lg font-black uppercase text-slate-500">N/A</span>
                     </div>
                  </div>
 
@@ -249,8 +165,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                       <ShieldCheck className="w-4 h-4" />
                       <span className="text-[10px] font-black uppercase tracking-widest">Engine Cache</span>
                     </div>
-                    <span className={cn("text-lg font-black uppercase", healthData?.cookies_loaded ? "text-emerald-500" : "text-red-500")}>
-                      {healthData?.cookies_loaded ? "Loaded" : "Missing"}
+                    <span className="text-lg font-black uppercase text-red-500">
+                      N/A
                     </span>
                  </div>
 
@@ -276,7 +192,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                       <p className="text-[10px] text-indigo-400 font-black uppercase tracking-widest">Manually trigger the engine to fetch from Supabase</p>
                     </div>
                   </div>
-                  <Button onClick={triggerRenderRefresh} className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] h-11 px-8 rounded-xl gap-3 shadow-lg shadow-indigo-600/20">
+                  <Button onClick={() => { /* Removed triggerRenderRefresh */ }} className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] h-11 px-8 rounded-xl gap-3 shadow-lg shadow-indigo-600/20">
                     <RefreshCw className="w-4 h-4" /> Force Sync
                   </Button>
                 </div>
@@ -325,7 +241,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                      </div>
                      <Button 
                        variant="ghost" 
-                       onClick={checkHealth}
+                       onClick={() => { /* Removed checkHealth */ }}
                        className="w-full mt-6 h-12 bg-white/5 border border-white/10 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-white/10 gap-2"
                      >
                        Refresh Health Status <Activity className="w-3.5 h-3.5" />
