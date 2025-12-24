@@ -27,7 +27,8 @@ import {
   X,
   Cloud,
   Trash2,
-  FileText
+  FileText,
+  RefreshCw
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
@@ -44,6 +45,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   const { user } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
   const [isCheckingHealth, setIsCheckingHealth] = useState(false);
+  const [isCreatingBucket, setIsCreatingBucket] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const [healthStatus, setHealthStatus] = useState<'online' | 'offline' | 'error' | null>(null);
   const [lastSync, setLastSync] = useState<string | null>(null);
@@ -54,10 +56,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   useEffect(() => {
     const saved = localStorage.getItem('gig_admin_last_sync');
     if (saved) setLastSync(saved);
-    checkCookieSize();
+    // Don't auto-check size on mount to avoid 400 errors if bucket doesn't exist
   }, [isOpen]);
 
-  const checkCookieSize = async () => {
+  // Manual check function
+  const checkBucketStatus = async () => {
     try {
       const { data, error } = await supabase.storage
         .from('cookies')
@@ -65,9 +68,41 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
       
       if (!error && data && data.length > 0) {
         setCookieSize(data[0].metadata?.size || null);
+        showSuccess("Bucket found and cookies exist.");
+      } else if (error && error.message.includes("not found")) {
+        setCookieSize(null);
+        showError("Bucket 'cookies' does not exist yet.");
+      } else {
+        setCookieSize(null);
       }
     } catch (e) {
-      // Bucket might not exist yet
+      console.error(e);
+    }
+  };
+
+  const createBucket = async () => {
+    setIsCreatingBucket(true);
+    try {
+      const { error } = await supabase.storage.createBucket('cookies', {
+        public: false,
+        allowedMimeTypes: ['text/plain'],
+        fileSizeLimit: 1024 * 1024 // 1MB
+      });
+      
+      if (error) {
+        // If it already exists, that's fine
+        if (error.message.includes("already exists")) {
+          showSuccess("Bucket already exists.");
+        } else {
+          throw error;
+        }
+      } else {
+        showSuccess("Bucket 'cookies' created successfully.");
+      }
+    } catch (err: any) {
+      showError(`Failed to create bucket: ${err.message}`);
+    } finally {
+      setIsCreatingBucket(false);
     }
   };
 
@@ -91,13 +126,29 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     }
   };
 
+  const triggerRenderRefresh = async () => {
+    setIsCheckingHealth(true);
+    try {
+      const refreshRes = await fetch(`${API_BASE}/refresh-cookies`, {
+        method: 'POST'
+      });
+      if (!refreshRes.ok) throw new Error('API refresh failed');
+      showSuccess("Render API triggered to fetch cookies from Supabase");
+      setLastSync(new Date().toLocaleString());
+      localStorage.setItem('gig_admin_last_sync', new Date().toLocaleString());
+    } catch (err: any) {
+      showError(`Failed to trigger refresh: ${err.message}`);
+    } finally {
+      setIsCheckingHealth(false);
+    }
+  };
+
   const handleUpload = async (file: File) => {
     if (!user) {
       showError("You must be logged in to upload cookies.");
       return;
     }
 
-    // Accept any .txt file, we will force rename it in storage
     const isTxt = file.name.toLowerCase().endsWith('.txt') || file.type === 'text/plain';
     if (!isTxt) {
       showError("Please upload a valid .txt file.");
@@ -106,19 +157,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
 
     setIsUploading(true);
     try {
-      const { data: buckets } = await supabase.storage.listBuckets();
-      const cookiesBucket = buckets?.find(b => b.name === 'cookies');
-      
-      if (!cookiesBucket) {
-        const { error: createError } = await supabase.storage.createBucket('cookies', {
-          public: false,
-          allowedMimeTypes: ['text/plain'],
-          fileSizeLimit: 1024 * 1024 // 1MB
-        });
-        if (createError) throw createError;
+      // Ensure bucket exists first
+      const { error: createError } = await supabase.storage.createBucket('cookies', {
+        public: false,
+        allowedMimeTypes: ['text/plain'],
+        fileSizeLimit: 1024 * 1024
+      });
+
+      if (createError && !createError.message.includes("already exists")) {
+        throw createError;
       }
 
-      // We always upload as 'cookies.txt' regardless of source filename
+      // Upload as cookies.txt
       const { error } = await supabase.storage
         .from('cookies')
         .upload('cookies.txt', file, {
@@ -128,21 +178,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
 
       if (error) throw error;
 
-      // Notify Render backend to refresh its local copy
-      const refreshRes = await fetch(`${API_BASE}/refresh-cookies`, {
-        method: 'POST'
-      });
-
-      if (!refreshRes.ok) {
-        throw new Error('API refresh failed');
-      }
-
-      const timestamp = new Date().toLocaleString();
-      setLastSync(timestamp);
-      localStorage.setItem('gig_admin_last_sync', timestamp);
-      setCookieSize(file.size);
+      // Trigger Render refresh
+      await triggerRenderRefresh();
       
-      showSuccess(`"${file.name}" processed and synced as cookies.txt`);
+      setCookieSize(file.size);
+      showSuccess(`"${file.name}" processed and synced.`);
     } catch (err: any) {
       showError(`Upload failed: ${err.message}`);
     } finally {
@@ -233,7 +273,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                       <p className="text-[10px] text-indigo-400 font-black uppercase tracking-widest mt-0.5">Instant Cookie Updates</p>
                     </div>
                   </div>
-                  <Badge className="bg-indigo-600 text-white font-mono text-[10px] shrink-0">v2.1 AUTO-RENAME</Badge>
+                  <Badge className="bg-indigo-600 text-white font-mono text-[10px] shrink-0">v2.2 STABLE</Badge>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -279,7 +319,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                         {cookieSize !== null ? (
                           <Badge className="bg-emerald-600 text-white font-mono text-[9px]">ACTIVE</Badge>
                         ) : (
-                          <Badge className="bg-slate-700 text-slate-400 font-mono text-[9px]">EMPTY</Badge>
+                          <Badge className="bg-slate-700 text-slate-400 font-mono text-[9px]">CHECK</Badge>
                         )}
                       </div>
                       <div className="flex items-center justify-between p-3 bg-slate-900 rounded-xl">
@@ -294,18 +334,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                         <Button 
                           variant="outline" 
                           className="flex-1 bg-white/5 border-white/10 hover:bg-white/10 text-white font-black uppercase text-[9px] h-10 rounded-xl"
-                          onClick={downloadCookies}
-                          disabled={cookieSize === null}
+                          onClick={checkBucketStatus}
                         >
-                          <Download className="w-3.5 h-3.5 mr-2" /> Download
+                          <RefreshCw className="w-3.5 h-3.5 mr-2" /> Check
                         </Button>
                         <Button 
                           variant="outline" 
-                          className="flex-1 bg-red-600/10 border-red-600/20 hover:bg-red-600/20 text-red-400 font-black uppercase text-[9px] h-10 rounded-xl"
-                          onClick={deleteCookies}
-                          disabled={cookieSize === null}
+                          className="flex-1 bg-indigo-600/10 border-indigo-600/20 hover:bg-indigo-600/20 text-indigo-400 font-black uppercase text-[9px] h-10 rounded-xl"
+                          onClick={createBucket}
+                          disabled={isCreatingBucket}
                         >
-                          <Trash2 className="w-3.5 h-3.5 mr-2" /> Delete
+                          {isCreatingBucket ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Cloud className="w-3.5 h-3.5 mr-2" />} 
+                          Init Bucket
                         </Button>
                       </div>
                     </div>
