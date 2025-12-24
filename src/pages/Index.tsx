@@ -320,9 +320,19 @@ const Index = () => {
       const syncedSongs: SetlistSong[] = [];
       const updatedSongs = songs.map(s => {
         const aiData = data.find((d: any) => d.name.toLowerCase() === s.name.toLowerCase());
+        // Safety: Only update if aiData exists AND priority to existing link
         if (aiData) {
           const targetKey = aiData.originalKey || s.originalKey;
-          const updated = { ...s, originalKey: aiData.originalKey, targetKey, bpm: aiData.bpm?.toString(), genre: aiData.genre || s.genre, youtubeUrl: aiData.youtubeUrl || s.youtubeUrl, isMetadataConfirmed: true, isSyncing: false };
+          const updated = { 
+            ...s, 
+            originalKey: s.originalKey === "TBC" ? aiData.originalKey : s.originalKey, 
+            targetKey: s.targetKey === "TBC" ? targetKey : s.targetKey, 
+            bpm: s.bpm || aiData.bpm?.toString(), 
+            genre: s.genre || aiData.genre, 
+            youtubeUrl: s.youtubeUrl || aiData.youtubeUrl, // Prioritize existing
+            isMetadataConfirmed: true, 
+            isSyncing: false 
+          };
           syncedSongs.push(updated);
           return updated;
         }
