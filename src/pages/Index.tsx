@@ -44,7 +44,6 @@ const Index = () => {
 
   const isSyncingRef = useRef(false);
   const saveQueueRef = useRef<{ listId: string; songs: SetlistSong[]; updates: any; songsToSync?: SetlistSong[] }[]>([]);
-  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const transposerRef = useRef<AudioTransposerRef>(null);
 
@@ -61,19 +60,6 @@ const Index = () => {
     const clockInterval = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(clockInterval);
   }, [user]);
-
-  const handleLogoMouseDown = () => {
-    longPressTimerRef.current = setTimeout(() => {
-      setIsAdminOpen(true);
-      showSuccess("Admin Privileges Granted");
-    }, 3000);
-  };
-
-  const handleLogoMouseUp = () => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-    }
-  };
 
   const fetchMasterRepertoire = async () => {
     if (!user) return;
@@ -265,12 +251,8 @@ const Index = () => {
       <nav className="h-16 md:h-20 bg-white dark:bg-slate-900 border-b px-4 md:px-6 flex items-center justify-between z-30 shadow-sm shrink-0">
         <div className="flex items-center gap-3 md:gap-6 flex-1 min-w-0">
           <div 
-            className="flex items-center gap-2 shrink-0 cursor-default select-none"
-            onMouseDown={handleLogoMouseDown}
-            onMouseUp={handleLogoMouseUp}
-            onMouseLeave={handleLogoMouseUp}
-            onTouchStart={handleLogoMouseDown}
-            onTouchEnd={handleLogoMouseUp}
+            className="flex items-center gap-2 shrink-0 cursor-pointer select-none"
+            onClick={() => setIsAdminOpen(true)}
           >
             <div className="bg-indigo-600 p-1.5 rounded-lg text-white">
               <LayoutDashboard className="w-5 h-5" />
@@ -350,7 +332,6 @@ const Index = () => {
         <PerformanceOverlay songs={songs.filter(isPlayableMaster)} currentIndex={songs.filter(isPlayableMaster).findIndex(s => s.id === activeSongId)} isPlaying={isPlayerActive} progress={performanceState.progress} duration={performanceState.duration} onTogglePlayback={() => transposerRef.current?.togglePlayback()} onNext={handleNextSong} onPrevious={handlePreviousSong} onShuffle={handleShuffle} onClose={() => { setIsPerformanceMode(false); setActiveSongId(null); transposerRef.current?.stopPlayback(); }} onUpdateKey={handleUpdateKey} onUpdateSong={handleUpdateSong} analyzer={transposerRef.current?.getAnalyzer()} onOpenAdmin={() => setIsAdminOpen(true)} />
       )}
       
-      {/* Ensure SongStudioModal in Aside also has onOpenAdmin connected */}
       <SongStudioModal 
         song={activeSong} 
         isOpen={isStudioOpen && !!activeSongId} 
