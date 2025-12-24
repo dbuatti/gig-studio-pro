@@ -38,15 +38,19 @@ serve(async (req) => {
     try {
       console.log(`[extract-youtube-audio] Getting info for video: ${videoUrl}`);
       info = await ytdl.getInfo(videoUrl);
-      // Defensive check for info and videoDetails
-      if (!info || !info.videoDetails) {
-        console.error(`[extract-youtube-audio] Video info or videoDetails is undefined for ${videoUrl}`);
-        throw new Error("Failed to retrieve complete video details.");
+      // Defensive check for info, videoDetails, and formats
+      if (!info || !info.videoDetails || !info.formats || info.formats.length === 0) {
+        console.error(`[extract-youtube-audio] Incomplete video details or no formats found for ${videoUrl}`);
+        throw new Error("Failed to retrieve complete video details or no playable formats found.");
       }
       console.log("[extract-youtube-audio] Successfully got video info.");
       console.log("[extract-youtube-audio] Video info details:", JSON.stringify(info.videoDetails, null, 2)); // Added for debugging
-    } catch (e) {
+    } catch (e: any) {
       console.error(`[extract-youtube-audio] Error getting video info for ${videoUrl}: ${e.message}`);
+      // Provide a more user-friendly error message for common ytdl failures
+      if (e.message.includes('No video formats found') || e.message.includes('Cannot read properties of undefined')) {
+        throw new Error("Failed to process YouTube video. It might be age-restricted, geo-blocked, private, or the link is invalid.");
+      }
       throw new Error(`Failed to get video info: ${e.message}`);
     }
     
@@ -58,7 +62,7 @@ serve(async (req) => {
         throw new Error("No audio-only format found for this video.");
       }
       console.log(`[extract-youtube-audio] Chosen audio format: ${audioFormat.mimeType}, quality: ${audioFormat.qualityLabel || audioFormat.audioQuality}`);
-    } catch (e) {
+    } catch (e: any) {
       console.error(`[extract-youtube-audio] Error choosing audio format: ${e.message}`);
       throw new Error(`Failed to choose audio format: ${e.message}`);
     }
@@ -69,7 +73,7 @@ serve(async (req) => {
       // ytdl.downloadFromInfo returns a ReadableStream in Node.js, assuming Deno compatibility
       audioStream = ytdl.downloadFromInfo(info, { format: audioFormat });
       console.log("[extract-youtube-audio] Audio stream initiated.");
-    } catch (e) {
+    } catch (e: any) {
       console.error(`[extract-youtube-audio] Error initiating audio download: ${e.message}`);
       throw new Error(`Failed to download audio: ${e.message}`);
     }
@@ -108,7 +112,7 @@ serve(async (req) => {
       status: 200
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("[extract-youtube-audio] Unhandled error in Edge Function:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
