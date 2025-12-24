@@ -51,6 +51,20 @@ serve(async (req) => {
       });
     }
 
+    if (fileResponse.status === 500) {
+      const errorData = await fileResponse.json();
+      if (errorData.error === "YouTube Blocked this request") {
+        return new Response(JSON.stringify({ 
+          error: "YouTube blocked the download. Try again later or use manual fallback.", 
+          details: errorData.detail 
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      throw new Error(errorData.error || `Download failed with status 500: ${fileResponse.statusText}`);
+    }
+
     if (!fileResponse.ok) {
       throw new Error(`Download failed: ${fileResponse.statusText}`);
     }

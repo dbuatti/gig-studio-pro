@@ -213,6 +213,15 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
         return;
       }
 
+      if (fileResponse.status === 500) {
+        const errorData = await fileResponse.json();
+        if (errorData.error === "YouTube Blocked this request") {
+          showError("YouTube blocked the download. Try again later or use manual fallback.");
+          return;
+        }
+        throw new Error(errorData.error || "Download failed with server error.");
+      }
+
       if (!fileResponse.ok) throw new Error("Download failed");
 
       // Create a download link
