@@ -313,13 +313,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       return;
     }
 
-    // IMPORTANT: Replace this placeholder with your actual deployed Flask API URL
-    const apiBase = "https://your-actual-api-domain.com"; 
-
-    if (apiBase.includes("your-actual-api-domain")) {
-      showError("Configuration Error: Update apiBase in SongStudioModal.tsx with your deployed URL.");
-      return;
-    }
+    const apiBase = "https://yt-audio-api-docker.onrender.com"; 
 
     setIsSyncingAudio(true);
     try {
@@ -357,7 +351,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       
     } catch (err: any) {
       console.error("YT Sync Error:", err);
-      showError(err.name === 'TypeError' ? "Extraction API unreachable. Check apiBase configuration." : (err.message || "Extraction engine error."));
+      showError(err.name === 'TypeError' ? "Extraction API unreachable. Cold start might be taking too long." : (err.message || "Extraction engine error."));
     } finally {
       setIsSyncingAudio(false);
     }
@@ -1466,7 +1460,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                             onClick={handleYoutubeSearch}
                             className="bg-red-600/10 border-red-600/20 text-red-600 hover:bg-red-600 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 md:h-12 gap-2 px-4 md:px-6 rounded-xl min-w-[120px]"
                           >
-                            <Youtube className="w-3.5 h-3.5" /> Discovery
+                            <Youtube className="w-3.5 h-3.5" /> Discover
                           </Button>
                      </div>
                   </div>
