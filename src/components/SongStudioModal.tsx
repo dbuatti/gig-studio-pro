@@ -34,7 +34,7 @@ import { Slider } from '@/components/ui/slider';
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
 import { RESOURCE_TYPES } from '@/utils/constants';
 import ProSyncSearch from './ProSyncSearch';
-import YoutubeSearchModal from './YoutubeSearchModal';
+import YoutubeResultsShelf from './YoutubeResultsShelf';
 import { useAuth } from './AuthProvider';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { calculateReadiness } from '@/utils/repertoireSync';
@@ -113,7 +113,11 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const [isFormattingLyrics, setIsFormattingLyrics] = useState(false);
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [isProSyncSearchOpen, setIsProSyncSearchOpen] = useState(false);
-  const [isYoutubeDiscoveryOpen, setIsYoutubeDiscoveryOpen] = useState(false);
+  
+  // Inline Discovery States
+  const [isSearchingYoutube, setIsSearchingYoutube] = useState(false);
+  const [ytResults, setYtResults] = useState<any[]>([]);
+  
   const [isProSyncing, setIsProSyncing] = useState(false);
   const [isInRepertoire, setIsInRepertoire] = useState(false);
   
@@ -537,14 +541,61 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     showSuccess("Opening Print Assistant.");
   };
 
+  const performYoutubeDiscovery = async (searchTerm: string) => {
+    if (!searchTerm.trim()) return;
+
+    setIsSearchingYoutube(true);
+    
+    const instances = [
+      'https://iv.ggtyler.dev',
+      'https://yewtu.be',
+      'https://invidious.flokinet.to'
+    ];
+
+    let success = false;
+    
+    for (const instance of instances) {
+      if (success) break;
+      try {
+        const targetUrl = `${instance}/api/v1/search?q=${encodeURIComponent(searchTerm)}&type=video`;
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+        const response = await fetch(proxyUrl, { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (!response.ok) continue;
+        
+        const rawData = await response.json();
+        const data = typeof rawData.contents === 'string' ? JSON.parse(rawData.contents) : rawData.contents;
+        
+        if (data && Array.isArray(data) && data.length > 0) {
+          setYtResults(data.slice(0, 10));
+          // Auto-select first result if current URL is empty
+          if (!formData.youtubeUrl) {
+            handleSelectYoutubeVideo(`https://www.youtube.com/watch?v=${data[0].videoId}`);
+            showSuccess(`Auto-Linked: ${data[0].title}`);
+          }
+          success = true;
+        }
+      } catch (err) {
+        console.warn(`Discovery attempt on ${instance} failed...`);
+      }
+    }
+
+    if (!success) showError("Discovery engine timed out.");
+    setIsSearchingYoutube(false);
+  };
+
   const handleYoutubeSearch = () => {
-    setIsYoutubeDiscoveryOpen(true);
+    const query = `${formData.artist} ${formData.name} official music video`;
+    performYoutubeDiscovery(query);
   };
 
   const handleSelectYoutubeVideo = (url: string) => {
     handleAutoSave({ youtubeUrl: url });
-    setIsYoutubeDiscoveryOpen(false);
-    showSuccess("YouTube Master Linked");
   };
 
   const handleDownloadAsset = async (url: string | undefined, filename: string) => {
@@ -675,6 +726,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       setFormData(initialData);
       
       setKeyCandidates([]);
+      setYtResults([]);
       checkRepertoireStatus();
       resetEngine();
       if (song.previewUrl) {
@@ -709,7 +761,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     }
   };
 
-  const videoId = formData.youtubeUrl ? formData.youtubeUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)?.[1] : null;
+  const currentVideoId = formData.youtubeUrl ? formData.youtubeUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)?.[1] || null : null;
 
   const isFramable = (url: string | null) => {
     if (!url) return true;
@@ -1125,9 +1177,11 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                     <Button
                       variant="outline"
                       onClick={handleYoutubeSearch}
+                      disabled={isSearchingYoutube}
                       className="bg-red-600/10 border-red-600/20 text-red-600 hover:bg-red-600 hover:text-white font-black uppercase tracking-widest text-[9px] h-10 gap-2 px-4 md:px-6 rounded-xl min-w-[140px]"
                     >
-                      <Youtube className="w-3.5 h-3.5" /> Discovery
+                      {isSearchingYoutube ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Youtube className="w-3.5 h-3.5" />} 
+                      Discovery
                     </Button>
                   </div>
                   <div className={cn("bg-slate-900/50 border border-white/5 space-y-6 md:space-y-12", isMobile ? "p-6 rounded-3xl" : "p-12 rounded-[3rem]")}>
@@ -1513,6 +1567,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                          placeholder="https://www.youtube.com/watch?v=..."
                          value={formData.youtubeUrl}
                          onChange={(e) => handleAutoSave({ youtubeUrl: e.target.value })}
+                         onKeyDown={(e) => e.key === 'Enter' && performYoutubeDiscovery(formData.youtubeUrl || '')}
                          className="bg-slate-900 border-white/10 text-white placeholder:text-slate-600 h-14 px-6 rounded-xl focus-visible:ring-indigo-500/50 focus-visible:ring-offset-0 focus-visible:ring-2 shadow-inner transition-all"
                        />
                      </div>
@@ -1528,19 +1583,30 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                         <Button
                           variant="outline"
                           onClick={handleYoutubeSearch}
+                          disabled={isSearchingYoutube}
                           className="bg-red-950/30 border-red-900/50 text-red-500 hover:bg-red-900 hover:text-white font-black uppercase tracking-widest text-[10px] h-14 px-8 rounded-xl gap-3 transition-all active:scale-95"
                         >
-                          <Search className="w-4 h-4" /> DISCOVERY
+                          {isSearchingYoutube ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} 
+                          DISCOVERY
                         </Button>
                      </div>
                   </div>
 
-                  <div className={cn("flex-1 bg-slate-900 rounded-[2.5rem] border-4 border-white/5 shadow-2xl overflow-hidden relative group min-h-[300px]", !videoId && "flex flex-col items-center justify-center")}>
-                    {videoId ? (
+                  {ytResults.length > 0 && (
+                    <YoutubeResultsShelf 
+                      results={ytResults}
+                      currentVideoId={currentVideoId}
+                      onSelect={handleSelectYoutubeVideo}
+                      isLoading={isSearchingYoutube}
+                    />
+                  )}
+
+                  <div className={cn("flex-1 bg-slate-900 rounded-[2.5rem] border-4 border-white/5 shadow-2xl overflow-hidden relative group min-h-[300px]", !currentVideoId && "flex flex-col items-center justify-center")}>
+                    {currentVideoId ? (
                       <>
                         <iframe
                           width="100%" height="100%"
-                          src={`https://www.youtube.com/embed/${videoId}?autoplay=0&mute=1&modestbranding=1&rel=0`}
+                          src={`https://www.youtube.com/embed/${currentVideoId}?autoplay=0&mute=1&modestbranding=1&rel=0`}
                           title="Reference Video"
                           frameBorder="0"
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -1753,13 +1819,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         onClose={() => setIsProSyncSearchOpen(false)} 
         onSelect={handleSelectProSync} 
         initialQuery={`${formData.artist} ${formData.name}`} 
-      />
-
-      <YoutubeSearchModal
-        isOpen={isYoutubeDiscoveryOpen}
-        onClose={() => setIsYoutubeDiscoveryOpen(false)}
-        onSelect={handleSelectYoutubeVideo}
-        initialQuery={`${formData.artist} ${formData.name}`}
       />
     </Dialog>
   );
