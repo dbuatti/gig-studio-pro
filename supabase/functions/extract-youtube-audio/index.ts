@@ -46,12 +46,12 @@ serve(async (req) => {
       console.log("[extract-youtube-audio] Successfully got video info.");
       console.log("[extract-youtube-audio] Video info details:", JSON.stringify(info.videoDetails, null, 2)); // Added for debugging
     } catch (e: any) {
-      console.error(`[extract-youtube-audio] Error getting video info for ${videoUrl}: ${e.message}`);
-      // Provide a more user-friendly error message for common ytdl failures
+      let errorMessage = `Failed to get video info: ${e.message}`;
       if (e.message.includes('No video formats found') || e.message.includes('Cannot read properties of undefined')) {
-        throw new Error("Failed to process YouTube video. It might be age-restricted, geo-blocked, private, or the link is invalid.");
+        errorMessage = "The YouTube video could not be processed. It might be age-restricted, geo-blocked, private, or the link is invalid for the audio extraction engine.";
       }
-      throw new Error(`Failed to get video info: ${e.message}`);
+      console.error(`[extract-youtube-audio] Error getting video info for ${videoUrl}: ${e.message}. User-facing message: ${errorMessage}`);
+      throw new Error(errorMessage);
     }
     
     let audioFormat;
