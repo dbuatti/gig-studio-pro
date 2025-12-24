@@ -13,7 +13,6 @@ from supabase import create_client, Client
 app = Flask(__name__)
 
 # --- Enhanced CORS Configuration ---
-# This ensures CORS is handled globally by the middleware
 CORS(app, resources={r"/*": {
     "origins": "*",
     "methods": ["GET", "POST", "OPTIONS"],
@@ -31,10 +30,14 @@ token_store = {}
 last_sync_time = None
 last_error = None
 
-# Supabase Setup
+# Supabase Setup - Explicit Logging
 SUPABASE_URL = os.environ.get('SUPABASE_URL', '')
-SUPABASE_SERVICE_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+SUPABASE_SERVICE_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
 COOKIES_BUCKET = 'cookies'
+
+print(f"--- Engine Initialization ---")
+print(f"URL Detect: {'FOUND' if SUPABASE_URL else 'MISSING'}")
+print(f"KEY Detect: {'FOUND' if SUPABASE_SERVICE_KEY else 'MISSING'}")
 
 supabase: Client = None
 if SUPABASE_URL and SUPABASE_SERVICE_KEY:
@@ -46,7 +49,7 @@ if SUPABASE_URL and SUPABASE_SERVICE_KEY:
         print(f"❌ Supabase Init Error: {e}")
         last_error = f"Client Init Error: {str(e)}"
 else:
-    last_error = "Environment variables missing: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY"
+    last_error = "Environment variables missing: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY. Update Render Dashboard."
     print(f"⚠️ {last_error}")
 
 def fetch_cookies():
@@ -54,12 +57,15 @@ def fetch_cookies():
     global last_sync_time, last_error
     if not supabase: 
         last_error = "Supabase client not initialized. Check Render environment variables."
+        print(f"❌ Sync Aborted: No Supabase Client")
         return 0
     
     try:
+        print(f"📡 Syncing from bucket '{COOKIES_BUCKET}'...")
         data = supabase.storage.from_(COOKIES_BUCKET).download('cookies.txt')
         if not data:
             last_error = "Vault file 'cookies.txt' is empty or missing in bucket 'cookies'."
+            print(f"⚠️ Vault Empty")
             return 0
             
         with open(COOKIES_PATH, 'wb') as f:
@@ -85,7 +91,8 @@ def background_worker():
                     keys_to_del = [k for k, v in token_store.items() if v == f.name]
                     for k in keys_to_del: del token_store[k]
         except: pass
-        fetch_cookies()
+        if supabase:
+            fetch_cookies()
         time.sleep(3600)
 
 threading.Thread(target=background_worker, daemon=True).start()

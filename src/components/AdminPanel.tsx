@@ -143,8 +143,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
       
       const data = await refreshRes.json();
       if (data.success) {
-        showSuccess(`Sync Complete: ${Math.round(data.bytes / 1024)} KB transferred.`);
-        addLog(`Signal Accepted. Engine received ${data.bytes} bytes.`, 'success');
+        const bytes = data.bytes || 0;
+        showSuccess(`Sync Complete: ${Math.round(bytes / 1024)} KB transferred.`);
+        addLog(`Signal Accepted. Engine received ${bytes} bytes.`, 'success');
         setTimeout(checkHealth, 1500);
       } else {
         const errorMsg = data.error || "Vault sync failed at engine level.";
@@ -211,7 +212,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                    <div className="space-y-3">
                       <h4 className="text-sm font-black uppercase text-red-500 tracking-tight">Render Config Required</h4>
                       <p className="text-xs text-red-200/80 leading-relaxed font-medium">
-                        The engine cannot talk to Supabase. You must add the following **Environment Variables** in your Render dashboard:
+                        The engine cannot talk to Supabase. Even if you added variables, you may need to click **"Manual Deploy"** in Render to refresh them.
                       </p>
                       <div className="bg-black/40 p-4 rounded-xl space-y-2 border border-white/5 font-mono text-[10px]">
                          <p className="text-indigo-400">SUPABASE_URL = <span className="text-slate-400">https://rqesjpnhrjdjnrzdhzgw.supabase.co</span></p>
