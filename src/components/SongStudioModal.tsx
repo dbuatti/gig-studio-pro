@@ -37,7 +37,7 @@ import { useAuth } from './AuthProvider';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { calculateReadiness } from '@/utils/repertoireSync';
 import { useToneAudio } from '@/hooks/use-tone-audio';
-import { detectKeyFromBuffer } from '@/utils/keyDetector';
+import { detectKeyFromBuffer, KeyCandidate } from '@/utils/keyDetector';
 
 // Sub-component for inputs to prevent modal-wide re-renders
 const StudioInput = memo(({ label, value, onChange, placeholder, className, isTextarea = false, type = "text" }: any) => {
@@ -102,7 +102,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isDetectingKey, setIsDetectingKey] = useState(false);
-  const [detectedKey, setDetectedKey] = useState<{ key: string; confidence: number } | null>(null);
+  const [keyCandidates, setKeyCandidates] = useState<KeyCandidate[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isFormattingLyrics, setIsFormattingLyrics] = useState(false);
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
@@ -257,12 +257,15 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       return;
     }
     setIsDetectingKey(true);
-    setDetectedKey(null);
+    setKeyCandidates([]);
     try {
-      const result = await detectKeyFromBuffer(currentBuffer);
-      const normalizedKey = formatKey(result.key, currentKeyPreference);
-      setDetectedKey({ key: normalizedKey, confidence: result.confidence });
-      showSuccess(`Harmonic Analysis Complete: Detected ${normalizedKey}`);
+      const candidates = await detectKeyFromBuffer(currentBuffer);
+      const normalizedCandidates = candidates.map(c => ({
+        ...c,
+        key: formatKey(c.key, currentKeyPreference)
+      }));
+      setKeyCandidates(normalizedCandidates);
+      showSuccess(`Harmonic Matrix: ${normalizedCandidates.length} potential matches found.`);
     } catch (err) {
       showError("Key detection failed.");
     } finally {
@@ -270,14 +273,14 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     }
   };
 
-  const confirmDetectedKey = () => {
-    if (!detectedKey || !song) return;
+  const confirmCandidateKey = (key: string) => {
+    if (!song) return;
     updateHarmonics({ 
-      originalKey: detectedKey.key,
+      originalKey: key,
       isKeyConfirmed: true 
     });
-    setDetectedKey(null);
-    showSuccess(`Original Key set to ${detectedKey.key}`);
+    setKeyCandidates([]);
+    showSuccess(`Original Key set to ${key}`);
   };
 
   const addTag = () => {
@@ -312,7 +315,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         if (next.isKeyLinked) {
           const diff = calculateSemitones(next.originalKey || "C", next.targetKey || "C");
           next.pitch = diff;
-          setPitch(diff);
+          setPitch(next.pitch);
         }
       }
       
@@ -551,7 +554,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       };
       setFormData(initialData);
       
-      setDetectedKey(null);
+      setKeyCandidates([]);
       checkRepertoireStatus();
       resetEngine();
       if (song.previewUrl) {
@@ -1042,16 +1045,21 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                              <div className="h-10 w-px bg-white/5" />
 
                              <div className="flex flex-col">
-                               <span className="text-[8px] font-black text-slate-500 uppercase">Detection Result</span>
-                               {detectedKey ? (
-                                 <div className="flex items-center gap-3 mt-1">
-                                    <span className="text-xl md:text-2xl font-black font-mono text-emerald-400">{detectedKey.key}</span>
-                                    <Button 
-                                      onClick={confirmDetectedKey}
-                                      className="h-7 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-[8px] rounded-lg gap-2"
-                                    >
-                                      <Check className="w-3 h-3" /> SET AS ORIGINAL
-                                    </Button>
+                               <span className="text-[8px] font-black text-slate-500 uppercase">Detection Result Choice</span>
+                               {keyCandidates.length > 0 ? (
+                                 <div className="flex flex-wrap items-center gap-2 mt-1">
+                                    {keyCandidates.map((c, i) => (
+                                      <Button 
+                                        key={i}
+                                        onClick={() => confirmCandidateKey(c.key)}
+                                        className={cn(
+                                          "h-8 px-3 text-[10px] font-black uppercase rounded-lg gap-2 transition-all",
+                                          i === 0 ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "bg-white/5 hover:bg-white/10 text-slate-400"
+                                        )}
+                                      >
+                                        {c.key} <span className="opacity-50 text-[8px] font-mono">{c.confidence}%</span>
+                                      </Button>
+                                    ))}
                                  </div>
                                ) : (
                                  <span className="text-xl md:text-2xl font-black font-mono text-slate-700">--</span>
