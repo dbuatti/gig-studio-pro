@@ -9,7 +9,7 @@ import PerformanceOverlay from "@/components/PerformanceOverlay";
 import ActiveSongBanner from "@/components/ActiveSongBanner";
 import SetlistStats from "@/components/SetlistStats";
 import PreferencesModal from "@/components/PreferencesModal";
-import AdminPanel from "@/components/AdminPanel"; // New Import
+import AdminPanel from "@/components/AdminPanel";
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { showSuccess, showError } from '@/utils/toast';
 import { calculateSemitones } from '@/utils/keyUtils';
@@ -33,18 +33,17 @@ const Index = () => {
   const [isStudioOpen, setIsStudioOpen] = useState(false);
   const [isPerformanceMode, setIsPerformanceMode] = useState(false);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
-  const [isAdminOpen, setIsAdminOpen] = useState(false); // New State
+  const [isAdminOpen, setIsAdminOpen] = useState(false); 
   const [performanceState, setPerformanceState] = useState({ progress: 0, duration: 0 });
   const [isPlayerActive, setIsPlayerActive] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   
   const [masterRepertoire, setMasterRepertoire] = useState<SetlistSong[]>([]);
   const [syncQueue, setSyncQueue] = useState<string[]>([]);
-  const [isProcessingQueue, setIsProcessingQueue] = useState(false);
 
   const isSyncingRef = useRef(false);
   const saveQueueRef = useRef<{ listId: string; songs: SetlistSong[]; updates: any; songsToSync?: SetlistSong[] }[]>([]);
-  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null); // New Ref for long press
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const transposerRef = useRef<AudioTransposerRef>(null);
 
@@ -52,8 +51,6 @@ const Index = () => {
   const songs = currentList?.songs || [];
   const activeSongIndex = songs.findIndex(s => s.id === activeSongId);
   const activeSong = songs[activeSongIndex] || null;
-
-  // ... (keep existing helper functions)
 
   useEffect(() => {
     if (user) {
@@ -64,13 +61,11 @@ const Index = () => {
     return () => clearInterval(clockInterval);
   }, [user]);
 
-  // ... (keep other existing useEffects)
-
   const handleLogoMouseDown = () => {
     longPressTimerRef.current = setTimeout(() => {
       setIsAdminOpen(true);
       showSuccess("Admin Privileges Granted");
-    }, 3000); // 3 seconds long press
+    }, 3000);
   };
 
   const handleLogoMouseUp = () => {
@@ -78,8 +73,6 @@ const Index = () => {
       clearTimeout(longPressTimerRef.current);
     }
   };
-
-  // ... (keep all existing functions: fetchMasterRepertoire, fetchSetlists, saveList, handleUpdateSong, etc.)
 
   const fetchMasterRepertoire = async () => {
     if (!user) return;
@@ -109,18 +102,14 @@ const Index = () => {
 
   const saveList = async (listId: string, updatedSongs: SetlistSong[], updates: Partial<any> = {}, songsToSync?: SetlistSong[]) => {
     if (!user) return;
-
     if (isSyncingRef.current) {
       saveQueueRef.current.push({ listId, songs: updatedSongs, updates, songsToSync });
       return;
     }
-
     isSyncingRef.current = true;
     setIsSaving(true);
-
     try {
       let finalSongs = updatedSongs;
-      
       if (songsToSync && songsToSync.length > 0) {
         const syncedBatch = await syncToMasterRepertoire(user.id, songsToSync);
         finalSongs = updatedSongs.map(s => {
@@ -128,25 +117,19 @@ const Index = () => {
           return synced || s;
         });
       }
-      
       setSetlists(prev => prev.map(l => l.id === listId ? { ...l, songs: finalSongs, ...updates } : l));
-
       const cleanedSongsForJson = finalSongs.map(({ isSyncing, ...rest }) => rest);
       await supabase.from('setlists').update({ 
         songs: cleanedSongsForJson, 
         updated_at: new Date().toISOString(), 
         ...updates 
       }).eq('id', listId);
-      
-      if (songsToSync && songsToSync.length > 0) {
-        fetchMasterRepertoire();
-      }
+      if (songsToSync && songsToSync.length > 0) fetchMasterRepertoire();
     } catch (err) {
       console.error("[Gig Studio] Save failure:", err);
     } finally {
       setIsSaving(false);
       isSyncingRef.current = false;
-      
       if (saveQueueRef.current.length > 0) {
         const next = saveQueueRef.current.shift()!;
         saveList(next.listId, next.songs, next.updates, next.songsToSync);
@@ -159,13 +142,10 @@ const Index = () => {
     setSetlists(prev => {
       const list = prev.find(l => l.id === currentListId);
       if (!list) return prev;
-      
       const updatedSongs = list.songs.map(s => s.id === songId ? { ...s, ...updates } : s);
       const updatedSong = updatedSongs.find(s => s.id === songId);
-
       const masterFields = ['name', 'artist', 'previewUrl', 'youtubeUrl', 'originalKey', 'targetKey', 'pitch', 'bpm', 'lyrics', 'pdfUrl', 'ugUrl', 'isMetadataConfirmed', 'isKeyConfirmed'];
       const needsMasterSync = Object.keys(updates).some(key => masterFields.includes(key));
-      
       saveList(currentListId, updatedSongs, {}, needsMasterSync && updatedSong ? [updatedSong] : undefined);
       return prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l);
     });
@@ -173,41 +153,19 @@ const Index = () => {
 
   const handleAddToSetlist = async (previewUrl: string, name: string, artist: string, youtubeUrl?: string, ugUrl?: string, appleMusicUrl?: string, genre?: string, pitch: number = 0) => {
     if (!currentListId || !user) return;
-    
     const existing = masterRepertoire.find(s => s.name.toLowerCase() === name.toLowerCase() && s.artist?.toLowerCase() === artist.toLowerCase());
     const newSongId = Math.random().toString(36).substr(2, 9);
-    
     const newSong: SetlistSong = existing 
       ? { ...existing, id: newSongId, master_id: existing.master_id, isPlayed: false, isSyncing: false } 
       : { 
-          id: newSongId, 
-          name, 
-          artist, 
-          previewUrl, 
-          youtubeUrl, 
-          ugUrl, 
-          appleMusicUrl,
-          genre,
-          pitch, 
-          originalKey: "TBC", 
-          targetKey: "TBC", 
-          isPlayed: false, 
-          isSyncing: true, 
-          isMetadataConfirmed: false,
+          id: newSongId, name, artist, previewUrl, youtubeUrl, ugUrl, appleMusicUrl, genre, pitch, 
+          originalKey: "TBC", targetKey: "TBC", isPlayed: false, isSyncing: true, isMetadataConfirmed: false,
           user_tags: genre ? [genre] : []
         };
-
     const list = setlists.find(l => l.id === currentListId);
     if (!list) return;
-
     const updatedSongs = [...list.songs, newSong];
     await saveList(currentListId, updatedSongs, {}, [newSong]);
-    
-    if (!existing) {
-      setSyncQueue(prev => [...prev, newSongId]);
-    } else {
-      showSuccess(`Added "${name}" from Library`);
-    }
   };
 
   const handleAddExistingSong = (song: SetlistSong) => {
@@ -296,56 +254,6 @@ const Index = () => {
     setTimeout(() => transposerRef.current?.togglePlayback(), 1000);
   };
 
-  const handleBatchSyncInternal = async (batchSongs: SetlistSong[]) => {
-    if (!user || !currentListId) return;
-    try {
-      const { data, error } = await supabase.functions.invoke('enrich-metadata', {
-        body: { queries: batchSongs.map(s => `${s.name} by ${s.artist}`) }
-      });
-      if (error) throw error;
-      const syncedSongs: SetlistSong[] = [];
-      const updatedSongs = songs.map(s => {
-        const aiData = data.find((d: any) => d.name.toLowerCase() === s.name.toLowerCase());
-        // Safety: Only update if aiData exists AND priority to existing link
-        if (aiData) {
-          const targetKey = aiData.originalKey || s.originalKey;
-          const updated = { 
-            ...s, 
-            originalKey: s.originalKey === "TBC" ? aiData.originalKey : s.originalKey, 
-            targetKey: s.targetKey === "TBC" ? targetKey : s.targetKey, 
-            bpm: s.bpm || aiData.bpm?.toString(), 
-            genre: s.genre || aiData.genre, 
-            youtubeUrl: s.youtubeUrl || aiData.youtubeUrl, // Prioritize existing
-            isMetadataConfirmed: true, 
-            isSyncing: false 
-          };
-          syncedSongs.push(updated);
-          return updated;
-        }
-        return s;
-      });
-      saveList(currentListId, updatedSongs, {}, syncedSongs);
-    } catch (err) {}
-  };
-
-  const handleAutoLinkMissingMedia = async () => {
-    const missingMedia = songs.filter(s => !s.youtubeUrl);
-    if (missingMedia.length === 0) {
-      showSuccess("All tracks have linked media");
-      return;
-    }
-
-    showSuccess(`AI Engine: Analyzing ${missingMedia.length} tracks...`);
-    
-    // Process in batches of 5 to avoid timeouts
-    for (let i = 0; i < missingMedia.length; i += 5) {
-      const batch = missingMedia.slice(i, i + 5);
-      await handleBatchSyncInternal(batch);
-    }
-    
-    showSuccess("Auto-link process complete");
-  };
-
   const isPlayableMaster = (song: SetlistSong) => {
     if (!song.previewUrl) return false;
     return !song.previewUrl.includes('apple.com') && !song.previewUrl.includes('itunes-assets');
@@ -384,18 +292,12 @@ const Index = () => {
             }}
           />
         </div>
-        {/* ... (rest of nav) */}
         <div className="flex items-center gap-2 md:gap-6 shrink-0 ml-2">
           <div className="hidden lg:flex items-center gap-2 bg-slate-50 dark:bg-slate-800/50 px-4 py-1.5 rounded-full border border-slate-100 dark:border-white/5">
             <Clock className="w-3.5 h-3.5 text-indigo-500" />
             <span className="text-[11px] font-black font-mono text-slate-600 dark:text-slate-300">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
           </div>
           <div className="flex items-center gap-2 md:gap-4">
-            {syncQueue.length > 0 && (
-              <div className="flex items-center gap-2 px-3 py-1 bg-amber-50 border border-amber-100 rounded-full animate-pulse hidden sm:flex">
-                <Loader2 className="w-3 h-3 animate-spin text-amber-600" /><span className="text-[10px] font-black text-amber-700 uppercase">AI: {syncQueue.length}</span>
-              </div>
-            )}
             <Button variant="default" size="sm" onClick={startPerformance} className="h-9 md:h-10 gap-2 bg-indigo-600 font-bold uppercase tracking-tight shadow-lg shadow-indigo-600/20 px-3 md:px-4"><Rocket className="w-4 h-4" /><span className="hidden md:inline">Start Show</span></Button>
             <div className="h-6 w-px bg-slate-200 hidden sm:block" />
             <Button variant="ghost" size="icon" onClick={() => setIsStudioOpen(!isStudioOpen)} className={cn("h-9 w-9 md:h-10 md:w-10 rounded-lg shrink-0", isStudioOpen && "text-indigo-600 bg-indigo-50")}><SearchIcon className="w-4 h-4" /></Button>
@@ -405,10 +307,9 @@ const Index = () => {
           </div>
         </div>
       </nav>
-      {/* ... (rest of component) */}
       <div className="flex-1 flex overflow-hidden">
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 relative scroll-smooth cursor-default" onClick={(e) => isStudioOpen && e.target === e.currentTarget && setIsStudioOpen(false)}>
-          <div className="max-w-6xl mx-auto space-y-6 md:space-y-8 main-inner-container">
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 relative scroll-smooth cursor-default">
+          <div className="max-w-6xl mx-auto space-y-6 md:space-y-8">
             <ActiveSongBanner song={activeSong} isPlaying={isPlayerActive} onTogglePlayback={() => transposerRef.current?.togglePlayback()} onClear={() => { setActiveSongId(null); transposerRef.current?.stopPlayback(); }} />
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
@@ -421,18 +322,11 @@ const Index = () => {
               </div>
               <ImportSetlist onImport={(newSongs) => {
                 if (!currentListId) return;
-                const songsWithSync = newSongs.map(s => ({ ...s, isSyncing: true }));
-                saveList(currentListId, [...songs, ...songsWithSync], {}, songsWithSync);
-                setSyncQueue(prev => [...prev, ...songsWithSync.map(s => s.id)]);
+                saveList(currentListId, [...songs, ...newSongs.map(s => ({ ...s, isSyncing: true }))], {}, newSongs);
               }} />
             </div>
-            <SetlistStats 
-              songs={songs} 
-              goalSeconds={currentList?.time_goal} 
-              onUpdateGoal={(s) => currentListId && saveList(currentListId, songs, { time_goal: s }, undefined)} 
-              onAutoLink={handleAutoLinkMissingMedia}
-            />
-            <SetlistManager songs={songs} onRemove={(id) => currentListId && saveList(currentListId, songs.filter(s => s.id !== id), {}, undefined)} onSelect={handleSelectSong} onUpdateKey={handleUpdateKey} onTogglePlayed={handleTogglePlayed} onSyncProData={async (s) => setSyncQueue(p => [...new Set([...p, s.id])])} onLinkAudio={(n) => { setIsStudioOpen(true); transposerRef.current?.triggerSearch(n); }} onUpdateSong={handleUpdateSong} onReorder={(ns) => currentListId && saveList(currentListId, ns, {}, undefined)} currentSongId={activeSongId || undefined} />
+            <SetlistStats songs={songs} goalSeconds={currentList?.time_goal} onUpdateGoal={(s) => currentListId && saveList(currentListId, songs, { time_goal: s }, undefined)} />
+            <SetlistManager songs={songs} onRemove={(id) => currentListId && saveList(currentListId, songs.filter(s => s.id !== id), {}, undefined)} onSelect={handleSelectSong} onUpdateKey={handleUpdateKey} onTogglePlayed={handleTogglePlayed} onSyncProData={async (s) => {}} onLinkAudio={(n) => { setIsStudioOpen(true); transposerRef.current?.triggerSearch(n); }} onUpdateSong={handleUpdateSong} onReorder={(ns) => currentListId && saveList(currentListId, ns, {}, undefined)} currentSongId={activeSongId || undefined} />
           </div>
           <MadeWithDyad />
         </main>
@@ -454,7 +348,6 @@ const Index = () => {
       {isPerformanceMode && (
         <PerformanceOverlay songs={songs.filter(isPlayableMaster)} currentIndex={songs.filter(isPlayableMaster).findIndex(s => s.id === activeSongId)} isPlaying={isPlayerActive} progress={performanceState.progress} duration={performanceState.duration} onTogglePlayback={() => transposerRef.current?.togglePlayback()} onNext={handleNextSong} onPrevious={handlePreviousSong} onShuffle={handleShuffle} onClose={() => { setIsPerformanceMode(false); setActiveSongId(null); transposerRef.current?.stopPlayback(); }} onUpdateKey={handleUpdateKey} onUpdateSong={handleUpdateSong} analyzer={transposerRef.current?.getAnalyzer()} />
       )}
-      {!isStudioOpen && !isPerformanceMode && (<button onClick={() => setIsStudioOpen(true)} className="fixed right-0 top-1/2 -translate-y-1/2 z-[40] bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border-y border-l border-slate-300 dark:border-slate-700 rounded-l-2xl py-8 px-2 transition-all group flex items-center justify-center shadow-[-4px_0_15px_rgba(0,0,0,0.1)]" title="Open Song Studio"><Music className="w-5 h-5 text-slate-500 group-hover:text-indigo-600 transition-colors" /></button>)}
     </div>
   );
 };
