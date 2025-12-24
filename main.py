@@ -95,6 +95,7 @@ def run_yt_dlp(video_url, token):
         print(f"[{token}] Cookie file not found at: {REPO_COOKIES_PATH}", flush=True) # Added log
 
     try:
+        print(f"[{token}] Executing yt-dlp download command...", flush=True)
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([video_url])
         
@@ -105,7 +106,9 @@ def run_yt_dlp(video_url, token):
             else:
                 print(f"[{token}] Token disappeared from active_tokens after successful download.", flush=True) # Added log
         else:
-            print(f"[{token}] yt-dlp finished, but file {output_path} does not exist.", flush=True) # Added log
+            print(f"[{token}] yt-dlp finished, but file {output_path} does not exist. Setting status to error.", flush=True) # Added log
+            if token in active_tokens:
+                active_tokens[token].update({"status": "error", "error_msg": f"File {filename} not created by yt-dlp."})
 
     except Exception as e:
         print(f"[{token}] yt-dlp Error: {e}", flush=True)
