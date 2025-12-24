@@ -75,9 +75,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   const handleRepairBackend = async () => {
     setIsRepairing(true);
     try {
-      // Pinning to latest known stable for 2025 compatibility
       const requirements = `flask\nflask-cors\nyt-dlp>=2025.01.15\ngunicorn\n`;
-      const { data, error } = await supabase.functions.invoke('github-file-sync', {
+      const { error } = await supabase.functions.invoke('github-file-sync', {
         body: { 
           path: 'requirements.txt',
           content: requirements,
@@ -95,7 +94,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   };
 
   const handleWipeCredentials = async () => {
-    if (!confirm("Are you sure? This will delete cookies.txt and may trigger bot-detection blocks.")) return;
+    if (!confirm("Delete cookies.txt? This may trigger bot-detection blocks.")) return;
     
     setIsWiping(true);
     try {
@@ -108,7 +107,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         }
       });
       if (error) throw error;
-      showSuccess("Credentials wiped. Rebuilding clean container...");
+      showSuccess("Credentials wiped. Rebuilding...");
     } catch (err: any) {
       showError("Wipe failed.");
     } finally {
@@ -123,23 +122,25 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     const filteredLines = lines.map(line => {
       const l = line.trim();
       if (!l || l.startsWith('#')) return null;
-      if (!l.includes('youtube.com') && !l.includes('google.com')) return null;
-
+      
+      // Split by any whitespace but reconstruct strictly with tabs
       const parts = l.split(/\s+/);
       if (parts.length < 7) return null;
 
+      // Extract parts and ensure 7-column format
       const domain = parts[0];
       const flag = parts[1];
       const path = parts[2];
       const secure = parts[3];
       const expiration = parts[4];
       const name = parts[5];
-      const value = parts.slice(6).join(' ');
+      const value = parts.slice(6).join(' '); // Re-join value if it contained spaces
 
+      // Return tab-separated row
       return [domain, flag, path, secure, expiration, name, value].join('\t');
     }).filter(Boolean);
 
-    return `${header}\n# Strictly Reconstructed by Gig Studio Admin\n\n${filteredLines.join('\n')}\n`;
+    return `${header}\n# Strictly Reconstructed for 2025 Security Bypassing\n\n${filteredLines.join('\n')}\n`;
   };
 
   const handleRefreshCookies = async () => {
@@ -154,7 +155,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     const formattedContent = formatAndFilterCookies(cookieText);
 
     try {
-      const { data, error } = await supabase.functions.invoke('github-file-sync', {
+      const { error } = await supabase.functions.invoke('github-file-sync', {
         body: { 
           path: 'cookies.txt',
           content: formattedContent,
@@ -304,7 +305,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                <FileWarning className="w-6 h-6 text-indigo-400 shrink-0 mt-0.5" />
                <div className="space-y-1">
                  <p className="text-xs font-black uppercase text-indigo-300">Structural Column Recovery</p>
-                 <p className="text-[10px] text-indigo-400/80 leading-relaxed">The engine will now strictly reconstruct the 7 required Netscape columns and force tab-separation. This fixes the 'js_runtimes' crash caused by spaces.</p>
+                 <p className="text-[10px] text-indigo-400/80 leading-relaxed">The engine will now strictly reconstruct the 7 required Netscape columns and force tab-separation. This fixes the 'js_runtimes' crash caused by spaces in the source buffer.</p>
                </div>
             </div>
           </div>

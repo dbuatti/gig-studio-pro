@@ -41,7 +41,6 @@ import { useToneAudio } from '@/hooks/use-tone-audio';
 import { detectKeyFromBuffer, KeyCandidate } from '@/utils/keyDetector';
 import { cleanYoutubeUrl } from '@/utils/youtubeUtils';
 
-// Sub-component for inputs to prevent modal-wide re-renders
 const StudioInput = memo(({ label, value, onChange, placeholder, className, isTextarea = false, type = "text" }: any) => {
   const [localValue, setLocalValue] = useState(value || "");
 
@@ -118,14 +117,12 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   
   const [activeChartType, setActiveChartType] = useState<'pdf' | 'leadsheet' | 'web' | 'ug'>('pdf');
 
-  // Audio Engine State from hook
   const { 
     isPlaying, progress, duration, pitch, tempo, volume, fineTune, analyzer, currentBuffer,
     setPitch, setTempo, setVolume, setFineTune, setProgress,
     loadFromUrl, togglePlayback, stopPlayback, resetEngine
   } = audio;
 
-  // Metronome State (separate from main audio engine)
   const [isMetronomeActive, setIsMetronomeActive] = useState(false);
   const metronomeSynthRef = useRef<Tone.MembraneSynth | null>(null);
   const metronomeLoopRef = useRef<Tone.Loop | null>(null);
@@ -151,7 +148,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, isMobile, tabOrder]);
 
-  // Mobile Swipe logic
   const touchStartX = useRef<number>(0);
   useEffect(() => {
     if (!isOpen || !isMobile) return;
@@ -327,8 +323,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     setEngineError(null);
     
     try {
-      await new Promise(r => setTimeout(r, 1000));
-      
       setSyncStatus("Handshaking with Render...");
       const tokenUrl = `${apiBase}/?url=${encodeURIComponent(cleanedUrl)}`;
       
@@ -339,19 +333,21 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         throw new Error("Render service is currently deploying or unreachable.");
       }
       
+      const errBody = await tokenRes.json().catch(() => ({}));
       if (!tokenRes.ok) {
-        const errBody = await tokenRes.json().catch(() => ({}));
         const specificError = errBody.detail || errBody.error || tokenRes.statusText;
         console.error("[Render API Failure]:", errBody);
         
-        if (specificError.includes("format is not available")) {
-          setEngineError("Format Mismatch: The extraction engine needs a dependency update to fetch this specific stream.");
+        if (specificError.includes("format is not available") || specificError.includes("Signature solving failed")) {
+          setEngineError(`YouTube Security Block: ${specificError}. This usually requires fresh cookies in the Admin Panel.`);
+        } else {
+          setEngineError(`Engine Error: ${specificError}`);
         }
         
         throw new Error(`Engine Error: ${specificError}`);
       }
       
-      const { token } = await tokenRes.json();
+      const { token } = errBody;
       setSyncStatus("Extracting Audio Stream...");
 
       const downloadUrl = `${apiBase}/download?token=${token}`;
@@ -951,12 +947,12 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       <Button 
                         onClick={() => {
                           setEngineError(null);
-                          // Trigger admin panel or just tell them to use the logo shortcut
+                          // This helps the user navigate to admin panel
                           showError("Admin Panel required to fix backend versioning.");
                         }} 
                         className="bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest text-[10px] h-11 rounded-xl gap-2"
                       >
-                        <Wrench className="w-3.5 h-3.5" /> Force Build Repair
+                        <Wrench className="w-3.5 h-3.5" /> Open System Core Admin
                       </Button>
                    </div>
                 </div>
@@ -970,7 +966,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       isCloudSyncing ? 'Accessing Cloud Knowledge Base...' : 
                       'Analyzing Global Library Data...'}
                    </p>
-                   {isSyncingAudio && <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400 animate-pulse">This can take up to 45 seconds for long tracks.</p>}
+                   {isSyncingAudio && <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400 animate-pulse">Large tracks may take up to 60 seconds.</p>}
                  </div>
                </>
              )}
@@ -1561,7 +1557,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                     </Button>
                   </div>
                   <div className={cn("grid gap-4 md:gap-8", isMobile ? "grid-cols-1" : "grid-cols-2")}>
-                    {/* Audio Module */}
                     <div className={cn(
                       "p-8 md:p-10 border transition-all flex flex-col justify-between h-[280px] md:h-[350px] relative group",
                       formData.previewUrl ? "bg-slate-900 border-white/10 shadow-2xl" : "bg-white/5 border-white/5 opacity-40 border-dashed",
@@ -1588,7 +1583,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       </div>
                     </div>
 
-                    {/* Apple Music Module */}
                     <div className={cn(
                       "p-8 md:p-10 border transition-all flex flex-col justify-between h-[280px] md:h-[350px] relative group",
                       formData.appleMusicUrl ? "bg-slate-900 border-white/10 shadow-2xl" : "bg-white/5 border-white/5 opacity-40 border-dashed",
@@ -1616,7 +1610,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       </div>
                     </div>
 
-                    {/* Ultimate Guitar Module */}
                     <div className={cn(
                       "p-8 md:p-10 border transition-all flex flex-col justify-between h-[280px] md:h-[350px] relative group",
                       formData.ugUrl ? "bg-slate-900 border-white/10 shadow-2xl" : "bg-white/5 border-white/5 opacity-40 border-dashed",
@@ -1665,7 +1658,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       </div>
                     </div>
 
-                    {/* Stage Chart Module */}
                     <div className={cn(
                       "p-8 md:p-10 border transition-all flex flex-col justify-between h-[280px] md:h-[350px] relative group",
                       formData.pdfUrl ? "bg-slate-900 border-white/10 shadow-2xl" : "bg-white/5 border-white/5 opacity-40 border-dashed",
