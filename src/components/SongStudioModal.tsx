@@ -47,7 +47,7 @@ import SongChartsTab from './SongChartsTab';
 import LyricsEngine from './LyricsEngine';
 import LibraryEngine from './LibraryEngine';
 import SongConfigTab from './SongConfigTab'; 
-import SongAudioPlaybackTab from './SongAudioPlaybackTab'; // New import
+import SongAudioPlaybackTab from './SongAudioPlaybackTab';
 
 // Helper to parse ISO 8601 duration (e.g., PT4M13S -> 4:13)
 const parseISO8601Duration = (duration: string): string => {
@@ -514,8 +514,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         )}
         <div className={cn("flex overflow-hidden", isMobile ? "flex-col h-[100dvh]" : "h-[90vh] min-h-[800px]")}>
           {!isMobile && (
-            <div className="w-96 bg-slate-900/50 border-r border-white/5 flex flex-col shrink-0">
-              <div className="p-8 border-b border-white/5 bg-black/20">
+            <div className="w-96 bg-slate-900/50 border-r border-white/5 flex flex-col shrink-0 overflow-y-auto custom-scrollbar">
+              <div className="p-8 border-b border-white/5 bg-black/20 shrink-0">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <div className="bg-indigo-600 p-1.5 rounded-lg">
@@ -634,9 +634,9 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                   audioEngine={audio}
                   isMobile={isMobile}
                   onLoadAudioFromUrl={loadFromUrl}
-                  onSave={onSave} // Pass onSave
-                  onUpdateKey={onUpdateKey} // Pass onUpdateKey
-                  transposeKey={transposeKey} // Pass transposeKey
+                  onSave={onSave}
+                  onUpdateKey={onUpdateKey}
+                  transposeKey={transposeKey}
                 />
               )}
               {activeTab === 'details' && (

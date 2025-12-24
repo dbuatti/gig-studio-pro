@@ -81,7 +81,7 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
   };
 
   return (
-    <div className={cn("flex-1 p-6 md:p-8 space-y-8 md:space-y-10", isMobile ? "overflow-y-auto" : "")}>
+    <div className={cn("flex-1 p-6 md:p-8 space-y-8 md:space-y-10")}>
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Harmonic Engine</Label>
