@@ -44,7 +44,8 @@ import { cleanYoutubeUrl } from '@/utils/youtubeUtils';
 import YoutubeMediaManager from './YoutubeMediaManager';
 import SongDetailsTab from './SongDetailsTab';
 import SongChartsTab from './SongChartsTab';
-import LyricsEngine from './LyricsEngine'; // New import
+import LyricsEngine from './LyricsEngine';
+import LibraryEngine from './LibraryEngine'; // New import
 
 // Helper to parse ISO 8601 duration (e.g., PT4M13S -> 4:13)
 const parseISO8601Duration = (duration: string): string => {
@@ -1070,22 +1071,11 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                 </div>
               )}
               {activeTab === 'library' && (
-                <div className="space-y-12 animate-in fade-in duration-500 h-full flex flex-col">
-                  <div className="flex justify-between items-center shrink-0">
-                    <h3 className="text-xl font-black uppercase tracking-[0.2em] text-white">RESOURCE MATRIX</h3>
-                    <Button onClick={handleDownloadAll} className="bg-indigo-600 font-black uppercase text-[10px] h-10 px-8 rounded-xl"><Download className="w-4 h-4 mr-2" /> DOWNLOAD ALL</Button>
-                  </div>
-                  <div className={cn("grid gap-8", isMobile ? "grid-cols-1" : "grid-cols-2")}>
-                    <div className={cn("p-10 border transition-all flex flex-col justify-between h-[350px]", formData.previewUrl ? "bg-slate-900 border-white/10 shadow-2xl" : "bg-white/5 opacity-40", isMobile ? "rounded-[2rem]" : "rounded-[2.5rem]")}>
-                      <Music className="w-8 h-8 text-indigo-600" />
-                      <p className="text-xl font-black uppercase">{formData.previewUrl ? "Master Stream Linked" : "No Audio"}</p>
-                    </div>
-                    <div className={cn("p-10 border transition-all flex flex-col justify-between h-[350px]", formData.pdfUrl ? "bg-slate-900 border-white/10 shadow-2xl" : "bg-white/5 opacity-40", isMobile ? "rounded-[2rem]" : "rounded-[2.5rem]")}>
-                      <FileText className="w-8 h-8 text-emerald-600" />
-                      <p className="text-xl font-black uppercase">{formData.pdfUrl ? "Stage Chart Active" : "No Chart"}</p>
-                    </div>
-                  </div>
-                </div>
+                <LibraryEngine
+                  formData={formData}
+                  handleDownloadAll={handleDownloadAll}
+                  isMobile={isMobile}
+                />
               )}
             </div>
           </div>
