@@ -29,7 +29,8 @@ import {
   Copy,
   Check,
   Lock,
-  History
+  History,
+  AlertCircle
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
@@ -56,8 +57,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   const SUPABASE_PROJECT_ID = "rqesjpnhrjdjnrzdhzgw";
   const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxZXNqcG5ocmpkam5yemRoemd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIwMzgwNzgsImV4cCI6MjA3NzYxNDA3OH0.NqFKBFI-l96hWOGNc8QxuQdaGKVmvzw6LDGO_MsIoQc";
 
-  // The automation command
-  const automationCommand = `yt-dlp --cookies-from-browser chrome --cookies cookies.txt && curl -X POST https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/github-file-sync -H "Content-Type: application/json" -H "Authorization: Bearer ${ANON_KEY}" -d "{\\"path\\": \\"cookies.txt\\", \\"repo\\": \\"dbuatti/yt-audio-api\\", \\"content\\": \\"$(cat cookies.txt)\\", \\"message\\": \\"CLI Automated Sync\\"}" && rm cookies.txt`;
+  // Updated command with dummy URL and skip-download
+  const automationCommand = `yt-dlp --cookies-from-browser chrome --cookies cookies.txt --skip-download "https://www.youtube.com/watch?v=dQw4w9WgXcQ" && curl -X POST https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/github-file-sync -H "Content-Type: application/json" -H "Authorization: Bearer ${ANON_KEY}" -d "{\\"path\\": \\"cookies.txt\\", \\"repo\\": \\"dbuatti/yt-audio-api\\", \\"content\\": \\"$(cat cookies.txt)\\", \\"message\\": \\"CLI Automated Sync\\"}" && rm cookies.txt`;
 
   useEffect(() => {
     const saved = localStorage.getItem('gig_admin_last_sync');
@@ -178,6 +179,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                     {hasCopiedCommand ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                     {hasCopiedCommand ? "Copied" : "Copy Command"}
                   </Button>
+                </div>
+
+                <div className="flex items-start gap-3 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                  <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="text-xs font-black uppercase text-amber-500">Troubleshooting (Mac Users)</p>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      If decryption fails, <strong>Quit Chrome completely</strong> before running the command. If it still fails, try replacing <code className="text-indigo-400">chrome</code> with <code className="text-indigo-400">safari</code> in the command above.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
