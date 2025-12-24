@@ -565,6 +565,9 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                 handleAutoSave={handleAutoSave}
                 onUpdateKey={onUpdateKey}
                 setPitch={setPitch}
+                setTempo={setTempo}
+                setVolume={setVolume}
+                setFineTune={setFineTune}
                 currentBuffer={currentBuffer}
                 isMobile={isMobile}
               />
@@ -615,6 +618,9 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                       handleAutoSave={handleAutoSave}
                       onUpdateKey={onUpdateKey}
                       setPitch={setPitch}
+                      setTempo={setTempo}
+                      setVolume={setVolume}
+                      setFineTune={setFineTune}
                       currentBuffer={currentBuffer}
                       isMobile={isMobile}
                     />
