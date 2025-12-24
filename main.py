@@ -30,9 +30,10 @@ token_store = {}
 last_sync_time = None
 last_error = None
 
-# Supabase Setup - Explicit Logging
-SUPABASE_URL = os.environ.get('SUPABASE_URL', '')
-SUPABASE_SERVICE_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
+# Supabase Setup - Explicitly checking common key names
+SUPABASE_URL = os.environ.get('SUPABASE_URL', '').strip()
+# Check both possible key names just in case
+SUPABASE_SERVICE_KEY = (os.environ.get('SUPABASE_SERVICE_ROLE_KEY') or os.environ.get('SUPABASE_SERVICE_KEY') or '').strip()
 COOKIES_BUCKET = 'cookies'
 
 print(f"--- Engine Initialization ---")
@@ -49,14 +50,18 @@ if SUPABASE_URL and SUPABASE_SERVICE_KEY:
         print(f"❌ Supabase Init Error: {e}")
         last_error = f"Client Init Error: {str(e)}"
 else:
-    last_error = "Environment variables missing: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY. Update Render Dashboard."
+    # Build a descriptive error for the UI
+    missing = []
+    if not SUPABASE_URL: missing.append("SUPABASE_URL")
+    if not SUPABASE_SERVICE_KEY: missing.append("SUPABASE_SERVICE_ROLE_KEY")
+    last_error = f"Missing Render Vars: {', '.join(missing)}. Please Clear Build Cache & Deploy in Render."
     print(f"⚠️ {last_error}")
 
 def fetch_cookies():
     """Syncs cookies from Supabase to local container."""
     global last_sync_time, last_error
     if not supabase: 
-        last_error = "Supabase client not initialized. Check Render environment variables."
+        last_error = "Supabase client not initialized. Ensure you clicked 'Clear Build Cache & Deploy' in Render."
         print(f"❌ Sync Aborted: No Supabase Client")
         return 0
     
@@ -64,7 +69,7 @@ def fetch_cookies():
         print(f"📡 Syncing from bucket '{COOKIES_BUCKET}'...")
         data = supabase.storage.from_(COOKIES_BUCKET).download('cookies.txt')
         if not data:
-            last_error = "Vault file 'cookies.txt' is empty or missing in bucket 'cookies'."
+            last_error = f"Vault file 'cookies.txt' is empty or missing in bucket '{COOKIES_BUCKET}'."
             print(f"⚠️ Vault Empty")
             return 0
             
@@ -216,7 +221,8 @@ def manual_refresh():
 
 if __name__ == "__main__":
     try:
-        fetch_cookies()
+        if supabase:
+            fetch_cookies()
     except:
         pass
     port = int(os.environ.get("PORT", 10000))
