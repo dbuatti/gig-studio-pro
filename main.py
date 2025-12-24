@@ -76,8 +76,6 @@ threading.Thread(target=background_worker, daemon=True).start()
 @app.route("/", methods=["GET"])
 def handle_audio_request():
     video_url = request.args.get("url")
-    po_token = request.args.get("po_token")
-    
     if not video_url:
         return jsonify(error="Missing URL"), 400
 
@@ -85,14 +83,13 @@ def handle_audio_request():
         fetch_cookies()
 
     print(f"🚀 Processing: {video_url}")
-    if po_token:
-        print(f"🔑 Using PO Token: {po_token[:10]}...")
 
     unique_id = str(uuid4())
     output_filename = f"{unique_id}.mp3"
     output_template = str(ABS_DOWNLOADS_PATH / unique_id)
 
-    # INTEGRITY-ENABLED Strategy
+    # THE NUCLEAR OPTION: TV Client Strategy
+    # The TV and IOS clients are currently the least likely to require PO-Tokens
     ydl_opts = {
         'format': 'bestaudio/best',
         'outtmpl': f"{output_template}.%(ext)s",
@@ -102,24 +99,22 @@ def handle_audio_request():
             'preferredquality': '192',
         }],
         'cookiefile': COOKIES_PATH if (os.path.exists(COOKIES_PATH) and os.path.getsize(COOKIES_PATH) > 10) else None,
-        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+        'user_agent': 'com.google.ios.youtube/19.12.3 (iPhone16,2; U; CPU iOS 17_4_1 like Mac OS X; US; en_US)',
         'referer': 'https://www.youtube.com/',
         'nocheckcertificate': True,
         'ignoreerrors': False,
         'noplaylist': True,
         'extract_flat': False,
         'allow_unplayable_formats': True,
+        'cachedir': False,
         'extractor_args': {
             'youtube': {
-                'player_client': ['web', 'mweb'],
-                'player_skip': ['configs', 'web_extract_initial_data']
+                # Prioritizing clients that do not use the standard "Web" signature mechanism
+                'player_client': ['tv', 'ios', 'android'],
+                'player_skip': ['web', 'mweb']
             }
         }
     }
-
-    # Apply the PO Token if provided by the frontend
-    if po_token:
-        ydl_opts['extractor_args']['youtube']['po_token'] = [f"web+{po_token}"]
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -129,7 +124,7 @@ def handle_audio_request():
         if not actual_file.exists():
             potential_files = list(ABS_DOWNLOADS_PATH.glob(f"{unique_id}.*"))
             if not potential_files:
-                return jsonify(error="Extraction Failed", detail="YouTube integrity check failed to authorize audio stream."), 500
+                return jsonify(error="Extraction Failed", detail="YouTube is currently hiding audio streams for this track."), 500
             actual_file = potential_files[0]
 
         token = secrets.token_urlsafe(TOKEN_LENGTH)
@@ -141,9 +136,9 @@ def handle_audio_request():
         user_error = "Engine Error"
         
         if "Sign in to confirm" in error_msg or "403" in error_msg:
-            user_error = "Bot detection triggered. Try refreshing your PO Token in the Studio Modal."
+            user_error = "Bot detection triggered. Try a different YouTube link for this song (non-VEVO)."
         elif "format is not available" in error_msg.lower():
-            user_error = "Format restricted. This video might require a fresh integrity token."
+            user_error = "Format restricted. Try a different YouTube link for this song (non-VEVO)."
             
         print(f"❌ Extraction Failed: {error_msg}")
         return jsonify(error=user_error, detail=error_msg), 500
