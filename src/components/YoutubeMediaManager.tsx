@@ -231,7 +231,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
       const MAX_POLLING_ATTEMPTS = 30; // Increased max retries
       const POLLING_INTERVAL_MS = 5000; // 5 seconds
 
-      let fileResponse;
+      let fileResponse: Response | undefined;
       let downloadReady = false;
 
       while (attempts < MAX_POLLING_ATTEMPTS && !downloadReady) {
@@ -240,7 +240,8 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
         await new Promise(resolve => setTimeout(resolve, POLLING_INTERVAL_MS)); // Wait before polling
 
         fileResponse = await fetch(`${API_BASE_URL}/download?token=${token}`);
-        const responseData = await fileResponse.json().catch(() => ({})); // Try to parse JSON even on error
+        const clonedResponse = fileResponse.clone(); // Clone the response before reading its body
+        const responseData = await clonedResponse.json().catch(() => ({})); // Try to parse JSON even on error
         console.log(`[YoutubeMediaManager] Polling response status: ${fileResponse.status}, progress: ${responseData.progress_percentage || 0}%`);
 
         if (fileResponse.status === 200) {
@@ -272,7 +273,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
 
       // If we reach here, the file is ready (status 200)
       console.log("[YoutubeMediaManager] Fetching final audio file as ArrayBuffer...");
-      const audioArrayBuffer = await fileResponse.arrayBuffer();
+      const audioArrayBuffer = await fileResponse.arrayBuffer(); // Now this should work
       console.log("[YoutubeMediaManager] Decoding audio data into AudioBuffer...");
       const audioBuffer = await Tone.getContext().decodeAudioData(audioArrayBuffer);
       
