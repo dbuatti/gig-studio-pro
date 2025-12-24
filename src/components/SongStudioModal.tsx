@@ -628,6 +628,9 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                   audioEngine={audio}
                   isMobile={isMobile}
                   onLoadAudioFromUrl={loadFromUrl}
+                  onSave={onSave} // Pass onSave
+                  onUpdateKey={onUpdateKey} // Pass onUpdateKey
+                  transposeKey={transposeKey} // Pass transposeKey
                 />
               )}
               {activeTab === 'details' && (
