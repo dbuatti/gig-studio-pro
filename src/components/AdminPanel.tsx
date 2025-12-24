@@ -27,7 +27,8 @@ import {
   CheckCircle2,
   Database,
   Terminal,
-  Info
+  Info,
+  Key
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
@@ -146,8 +147,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         addLog(`Signal Accepted. Engine received ${data.bytes} bytes.`, 'success');
         setTimeout(checkHealth, 1500);
       } else {
-        addLog(`Sync Signal Failed: ${data.error || "Supabase Vault empty"}`, 'error');
-        showError("Backend Sync Failed");
+        const errorMsg = data.error || "Vault sync failed at engine level.";
+        addLog(`Sync Signal Rejected: ${errorMsg}`, 'error');
+        showError(errorMsg);
       }
     } catch (err: any) {
       addLog(`Sync Signal Warning: ${err.message}`, 'error');
@@ -201,17 +203,31 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
           <ScrollArea className="flex-1 border-r border-white/5">
             <div className="p-8 space-y-8">
-              <div className="bg-amber-500/10 border border-amber-500/30 p-6 rounded-2xl flex items-start gap-4">
-                <div className="bg-amber-500 p-2 rounded-xl text-black shrink-0">
-                  <AlertCircle className="w-6 h-6" />
-                </div>
-                <div>
-                   <h4 className="text-sm font-black uppercase text-amber-500 tracking-tight mb-1">Critical Session Protocol</h4>
-                   <p className="text-xs text-amber-200/80 leading-relaxed font-medium">
-                     If cookies appear missing after upload: <strong>(1)</strong> Ensure your file is named exactly <code>cookies.txt</code>. <strong>(2)</strong> Ensure the bucket <code>cookies</code> exists in Supabase. <strong>(3)</strong> Ensure <code>SUPABASE_URL</code> and <code>SUPABASE_SERVICE_ROLE_KEY</code> are correctly set in your Render environment variables.
-                   </p>
-                </div>
-              </div>
+              {!healthData?.supabase_initialized && (
+                 <div className="bg-red-500/10 border border-red-500/30 p-6 rounded-2xl flex items-start gap-4 animate-in slide-in-from-top-4">
+                   <div className="bg-red-500 p-2 rounded-xl text-white shrink-0">
+                     <Lock className="w-6 h-6" />
+                   </div>
+                   <div className="space-y-3">
+                      <h4 className="text-sm font-black uppercase text-red-500 tracking-tight">Render Config Required</h4>
+                      <p className="text-xs text-red-200/80 leading-relaxed font-medium">
+                        The engine cannot talk to Supabase. You must add the following **Environment Variables** in your Render dashboard:
+                      </p>
+                      <div className="bg-black/40 p-4 rounded-xl space-y-2 border border-white/5 font-mono text-[10px]">
+                         <p className="text-indigo-400">SUPABASE_URL = <span className="text-slate-400">https://rqesjpnhrjdjnrzdhzgw.supabase.co</span></p>
+                         <p className="text-indigo-400">SUPABASE_SERVICE_ROLE_KEY = <span className="text-slate-400">[Get this from Supabase Settings]</span></p>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => window.open('https://dashboard.render.com', '_blank')}
+                        className="h-8 bg-white/5 hover:bg-white/10 text-white font-black uppercase tracking-widest text-[9px] gap-2 rounded-lg"
+                      >
+                        <ExternalLink className="w-3 h-3" /> Go to Render Dashboard
+                      </Button>
+                   </div>
+                 </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                  <div className="bg-white/5 border border-white/10 rounded-2xl p-6 min-h-[140px] flex flex-col justify-between">
