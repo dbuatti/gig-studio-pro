@@ -92,7 +92,7 @@ def handle_audio_request():
     output_filename = f"{unique_id}.mp3"
     output_template = str(ABS_DOWNLOADS_PATH / unique_id)
 
-    # INTEGRITY-ENABLED Strategy
+    # REFINED Strategy with PO-Token support
     ydl_opts = {
         'format': 'bestaudio/best',
         'outtmpl': f"{output_template}.%(ext)s",
@@ -103,22 +103,21 @@ def handle_audio_request():
         }],
         'cookiefile': COOKIES_PATH if (os.path.exists(COOKIES_PATH) and os.path.getsize(COOKIES_PATH) > 10) else None,
         'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-        'referer': 'https://www.youtube.com/',
         'nocheckcertificate': True,
-        'ignoreerrors': False,
-        'noplaylist': True,
-        'extract_flat': False,
-        'allow_unplayable_formats': True,
+        'quiet': False,
         'extractor_args': {
             'youtube': {
                 'player_client': ['web', 'mweb'],
-                'player_skip': ['configs', 'web_extract_initial_data']
+                # Using community scripts to help bypass blocks
+                'remote_components': ['ejs:github'],
+                'player_skip': ['configs', 'webpage']
             }
         }
     }
 
-    # Apply the PO Token if provided by the frontend
+    # Apply the PO Token as provided in the 2025 bypass instructions
     if po_token:
+        # Note: 'web+' prefix is required for the web client
         ydl_opts['extractor_args']['youtube']['po_token'] = [f"web+{po_token}"]
 
     try:
