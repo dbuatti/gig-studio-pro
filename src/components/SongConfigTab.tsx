@@ -17,8 +17,9 @@ import {
 } from 'lucide-react';
 import SongAssetMatrix from './SongAssetMatrix';
 import SongTagManager from './SongTagManager';
-import SongAnalysisTools from './SongAnalysisTools';
-import SongAudioControls from './SongAudioControls';
+// SongAnalysisTools and SongAudioControls are moved to SongAudioPlaybackTab
+// import SongAnalysisTools from './SongAnalysisTools';
+// import SongAudioControls from './SongAudioControls';
 
 interface SongConfigTabProps {
   song: SetlistSong | null;
@@ -200,24 +201,7 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
       
       <SongAssetMatrix formData={formData} handleAutoSave={handleAutoSave} />
       <SongTagManager formData={formData} handleAutoSave={handleAutoSave} />
-      <SongAnalysisTools 
-        song={song}
-        formData={formData}
-        handleAutoSave={handleAutoSave}
-        currentBuffer={currentBuffer}
-        isMobile={isMobile}
-      />
-      <SongAudioControls
-        song={song}
-        formData={formData}
-        handleAutoSave={handleAutoSave}
-        onUpdateKey={onUpdateKey}
-        setPitch={setPitch}
-        setTempo={setTempo}
-        setVolume={setVolume}
-        setFineTune={setFineTune}
-        isMobile={isMobile}
-      />
+      {/* Removed SongAnalysisTools and SongAudioControls */}
     </div>
   );
 };

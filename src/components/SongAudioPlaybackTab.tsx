@@ -15,6 +15,9 @@ import { cn } from '@/lib/utils';
 import { showError, showSuccess } from '@/utils/toast';
 import { analyze } from 'web-audio-beat-detector';
 import * as Tone from 'tone';
+import SongAnalysisTools from './SongAnalysisTools'; // New import
+import SongAudioControls from './SongAudioControls'; // New import
+import { transposeKey } from '@/utils/keyUtils'; // Ensure transposeKey is imported
 
 interface SongAudioPlaybackTabProps {
   song: SetlistSong | null;
@@ -178,57 +181,7 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
         )}
       </div>
 
-      {/* 3. PITCH & TEMPO PROCESSING GRIDS */}
-      <div className={cn("grid gap-6 md:gap-10", isMobile ? "grid-cols-1" : "grid-cols-2")}>
-        
-        {/* Left Matrix: Pitch & Fine Tune */}
-        <div className={cn("space-y-8 bg-white/5 border border-white/5", isMobile ? "p-6 rounded-3xl" : "p-10 rounded-[2.5rem]")}>
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Pitch Processor</Label>
-              <div className="flex items-center gap-3">
-                <span className="text-lg font-mono font-black text-indigo-400">{(pitch || 0) > 0 ? '+' : ''}{pitch || 0} ST</span>
-                <div className="flex bg-white/5 rounded-lg border border-white/10 p-0.5">
-                   <button onClick={() => handleOctaveShift('down')} className="h-7 px-2 text-[10px] font-black uppercase text-slate-400 border-r border-white/5">- oct</button>
-                   <button onClick={() => handleOctaveShift('up')} className="h-7 px-2 text-[10px] font-black uppercase text-slate-400">+ oct</button>
-                </div>
-              </div>
-            </div>
-            <Slider value={[pitch || 0]} min={-24} max={24} step={1} onValueChange={([v]) => updatePitch(v)} />
-          </div>
-
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Fine Tune Matrix</Label>
-              <span className="text-lg font-mono font-black text-slate-500">{fineTune > 0 ? '+' : ''}{fineTune} Cents</span>
-            </div>
-            <Slider value={[fineTune]} min={-100} max={100} step={1} onValueChange={([v]) => setFineTune(v)} />
-          </div>
-        </div>
-
-        {/* Right Matrix: Tempo & Gain */}
-        <div className={cn("space-y-8 bg-white/5 border border-white/5", isMobile ? "p-6 rounded-3xl" : "p-10 rounded-[2.5rem]")}>
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Tempo Stretch</Label>
-              <span className="text-lg font-mono font-black text-indigo-400">{tempo.toFixed(2)}x</span>
-            </div>
-            <Slider value={[tempo]} min={0.5} max={1.5} step={0.01} onValueChange={([v]) => setTempo(v)} />
-          </div>
-
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                <Volume2 className="w-3 h-3 text-indigo-500" /> Master Gain
-              </Label>
-              <span className="text-lg font-mono font-black text-slate-500">{Math.round((volume + 60) * 1.66)}%</span>
-            </div>
-            <Slider value={[volume]} min={-60} max={0} step={1} onValueChange={([v]) => setVolume(v)} />
-          </div>
-        </div>
-      </div>
-
-      {/* 4. BPM & METRONOME CONSOLE */}
+      {/* 3. BPM & METRONOME CONSOLE */}
       <div className={cn(
         "bg-slate-900 border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-6", 
         isMobile ? "p-6 rounded-3xl" : "p-8 rounded-[2.5rem]"
@@ -280,6 +233,28 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
           </div>
         </div>
       </div>
+
+      {/* New: SongAnalysisTools */}
+      <SongAnalysisTools 
+        song={song}
+        formData={formData}
+        handleAutoSave={onSave} // Pass onSave directly
+        currentBuffer={currentBuffer}
+        isMobile={isMobile}
+      />
+
+      {/* New: SongAudioControls */}
+      <SongAudioControls
+        song={song}
+        formData={formData}
+        handleAutoSave={onSave} // Pass onSave directly
+        onUpdateKey={onUpdateKey}
+        setPitch={setPitch}
+        setTempo={setTempo}
+        setVolume={setVolume}
+        setFineTune={setFineTune}
+        isMobile={isMobile}
+      />
     </div>
   );
 };
