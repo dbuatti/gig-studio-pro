@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,27 +10,23 @@ import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, calculateSemitones, formatKey, transpose
 import { cn } from "@/lib/utils";
 import { showSuccess, showError } from '@/utils/toast';
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
-import {
-  Check, Hash, Music2, Link as LinkIcon,
-  ChevronUp, ChevronDown, Sparkles,
-} from 'lucide-react';
+import { Check, Hash, Music2, Link as LinkIcon, ChevronUp, ChevronDown, Sparkles } from 'lucide-react';
 import SongAssetMatrix from './SongAssetMatrix';
 import SongTagManager from './SongTagManager';
-// SongAnalysisTools and SongAudioControls are moved to SongAudioPlaybackTab
-// import SongAnalysisTools from './SongAnalysisTools';
-// import SongAudioControls from './SongAudioControls';
+import SheetMusicRecommender from './SheetMusicRecommender';
 
 interface SongConfigTabProps {
   song: SetlistSong | null;
   formData: Partial<SetlistSong>;
   handleAutoSave: (updates: Partial<SetlistSong>) => void;
   onUpdateKey: (id: string, targetKey: string) => void;
-  setPitch: (pitch: number) => void; // From useToneAudio
-  setTempo: (tempo: number) => void; // From useToneAudio
-  setVolume: (volume: number) => void; // From useToneAudio
-  setFineTune: (fineTune: number) => void; // From useToneAudio
-  currentBuffer: AudioBuffer | null; // From useToneAudio
+  setPitch: (pitch: number) => void;
+  setTempo: (tempo: number) => void;
+  setVolume: (volume: number) => void;
+  setFineTune: (fineTune: number) => void;
+  currentBuffer: AudioBuffer | null;
   isMobile: boolean;
+  onOpenInApp?: (app: string, url?: string) => void;
 }
 
 const SongConfigTab: React.FC<SongConfigTabProps> = ({
@@ -45,17 +40,15 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
   setFineTune,
   currentBuffer,
   isMobile,
+  onOpenInApp
 }) => {
   const { keyPreference: globalPreference } = useSettings();
-
   const currentKeyPreference = formData.key_preference || globalPreference;
   const keysToUse = currentKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
 
   const updateHarmonics = useCallback((updates: Partial<SetlistSong>) => {
     if (!song) return;
-    
     const nextFormData = { ...formData, ...updates };
-
     if (nextFormData.isKeyLinked) {
       const diff = calculateSemitones(nextFormData.originalKey || "C", nextFormData.targetKey || "C");
       nextFormData.pitch = diff;
@@ -68,12 +61,10 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
     const currentPitch = formData.pitch || 0;
     const shift = direction === 'up' ? 12 : -12;
     const newPitch = currentPitch + shift;
-    
     if (newPitch > 24 || newPitch < -24) {
       showError("Maximum transposition range reached.");
       return;
     }
-    
     const newTarget = transposeKey(formData.originalKey || "C", newPitch);
     handleAutoSave({ pitch: newPitch, targetKey: newTarget });
     setPitch(newPitch);
@@ -90,15 +81,13 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
             <div className="flex gap-2">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button
+                  <button 
                     onClick={() => {
                       const nextPref = currentKeyPreference === 'sharps' ? 'flats' : 'sharps';
                       const updates: Partial<SetlistSong> = { key_preference: nextPref };
-                      
                       if (formData.originalKey) {
                         updates.originalKey = formatKey(formData.originalKey, nextPref);
                       }
-                      
                       if (formData.targetKey) {
                         const newTarget = formatKey(formData.targetKey, nextPref);
                         updates.targetKey = newTarget;
@@ -106,7 +95,6 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
                           onUpdateKey(song.id, newTarget);
                         }
                       }
-                      
                       handleAutoSave(updates);
                     }}
                     className={cn(
@@ -124,7 +112,7 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button
+                  <button 
                     onClick={() => updateHarmonics({ isKeyConfirmed: !formData.isKeyConfirmed })}
                     className={cn(
                       "p-1.5 rounded-lg border transition-all",
@@ -140,7 +128,7 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button
+                  <button 
                     onClick={() => updateHarmonics({ isKeyLinked: !formData.isKeyLinked })}
                     className={cn(
                       "p-1.5 rounded-lg border transition-all",
@@ -157,7 +145,6 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
             </div>
           </TooltipProvider>
         </div>
-        
         <div className="space-y-4">
           <div className="space-y-2">
             <Label className="text-[9px] font-bold text-slate-400 uppercase">Original Key</Label>
@@ -199,9 +186,15 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
         </div>
       </div>
       
+      <SheetMusicRecommender 
+        song={song} 
+        formData={formData} 
+        handleAutoSave={handleAutoSave}
+        onOpenInApp={onOpenInApp}
+      />
+      
       <SongAssetMatrix formData={formData} handleAutoSave={handleAutoSave} />
       <SongTagManager formData={formData} handleAutoSave={handleAutoSave} />
-      {/* Removed SongAnalysisTools and SongAudioControls */}
     </div>
   );
 };

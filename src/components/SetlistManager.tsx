@@ -1,44 +1,28 @@
 "use client";
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { 
-  ListMusic, Trash2, Play, Music, Youtube, ArrowRight, 
-  CircleDashed, CheckCircle2, Volume2, ChevronUp, ChevronDown, 
-  Search, LayoutList, SortAsc, SortDesc, ClipboardList, Clock, 
-  ShieldCheck, Check, MoreVertical, Settings2, FileText, Filter, AlertTriangle, Loader2
-} from 'lucide-react';
+import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, CircleDashed, CheckCircle2, Volume2, ChevronUp, ChevronDown, Search, LayoutList, SortAsc, SortDesc, ClipboardList, Clock, ShieldCheck, Check, MoreVertical, Settings2, FileText, Filter, AlertTriangle, Loader2 } from 'lucide-react';
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, formatKey, transposeKey, calculateSemitones } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
 import { showSuccess } from '@/utils/toast';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
-// import SongStudioModal from './SongStudioModal'; // No longer needed here
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
 import { RESOURCE_TYPES } from '@/utils/constants';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import SetlistFilters, { FilterState } from './SetlistFilters';
 import { calculateReadiness } from '@/utils/repertoireSync';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 export interface SetlistSong {
-  id: string; // Unique for the setlist entry
-  master_id?: string; // The UUID from the repertoire table
+  id: string;
+  master_id?: string;
   name: string;
   artist?: string;
   previewUrl: string;
   youtubeUrl?: string;
-  ugUrl?: string; 
+  ugUrl?: string;
   appleMusicUrl?: string;
   pdfUrl?: string;
   leadsheetUrl?: string;
@@ -59,17 +43,18 @@ export interface SetlistSong {
   duration_seconds?: number;
   key_preference?: KeyPreference;
   is_active?: boolean;
-  fineTune?: number; // Added for fine-tuning pitch
-  tempo?: number; // Added for tempo stretching
-  volume?: number; // Added for master gain control
-  isApproved?: boolean; // NEW: Song approval tick
+  fineTune?: number;
+  tempo?: number;
+  volume?: number;
+  isApproved?: boolean;
+  preferred_reader?: 'chords_ug' | 'full_forscore' | 'lead_forscore'; // New field
 }
 
 interface SetlistManagerProps {
   songs: SetlistSong[];
   onRemove: (id: string) => void;
-  onSelect: (song: SetlistSong) => void; // For performance
-  onEdit: (song: SetlistSong) => void; // New prop for editing
+  onSelect: (song: SetlistSong) => void;
+  onEdit: (song: SetlistSong) => void;
   onUpdateKey: (id: string, targetKey: string) => void;
   onTogglePlayed: (id: string) => void;
   onLinkAudio: (songName: string) => void;
@@ -82,12 +67,12 @@ interface SetlistManagerProps {
 
 type SortMode = 'none' | 'ready' | 'work';
 
-const SetlistManager: React.FC<SetlistManagerProps> = ({ 
-  songs, 
-  onRemove, 
-  onSelect, 
-  onEdit, // Use this for opening the studio modal
-  onUpdateKey, 
+const SetlistManager: React.FC<SetlistManagerProps> = ({
+  songs,
+  onRemove,
+  onSelect,
+  onEdit,
+  onUpdateKey,
   onTogglePlayed,
   onUpdateSong,
   onSyncProData,
@@ -110,12 +95,10 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       hasPdf: 'all',
       hasUg: 'all',
       isConfirmed: 'all',
-      isApproved: 'all', // NEW: Default to 'all'
+      isApproved: 'all',
       readiness: 100
     };
   });
-  // Removed local studioSong state, now managed by parent (Index.tsx)
-  // const [studioSong, setStudioSong] = useState<SetlistSong | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -129,21 +112,16 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
   const processedSongs = useMemo(() => {
     let base = songs;
-    
-    // Search Filtering
+
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase();
       base = base.filter(s => s.name.toLowerCase().includes(q) || s.artist?.toLowerCase().includes(q));
     }
 
-    // Asset and Completion Filtering
     base = base.filter(s => {
       const score = calculateReadiness(s);
-
-      // Completion Logic
       if (score > activeFilters.readiness) return false;
 
-      // Audio Filter Logic (iTunes is treated as 'no audio' when filtering for 'Full')
       const hasPreview = !!s.previewUrl;
       const isItunes = hasPreview && isItunesPreview(s.previewUrl);
       const hasFullAudio = hasPreview && !isItunes;
@@ -151,23 +129,16 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       if (activeFilters.hasAudio === 'full' && !hasFullAudio) return false;
       if (activeFilters.hasAudio === 'itunes' && !isItunes) return false;
       if (activeFilters.hasAudio === 'none' && hasFullAudio) return false;
-      
       if (activeFilters.hasVideo === 'yes' && !s.youtubeUrl) return false;
       if (activeFilters.hasVideo === 'no' && s.youtubeUrl) return false;
-
       if (activeFilters.hasChart === 'yes' && !(s.pdfUrl || s.leadsheetUrl || s.ugUrl)) return false;
       if (activeFilters.hasChart === 'no' && (s.pdfUrl || s.leadsheetUrl || s.ugUrl)) return false;
-
       if (activeFilters.hasPdf === 'yes' && !(s.pdfUrl || s.leadsheetUrl)) return false;
       if (activeFilters.hasPdf === 'no' && (s.pdfUrl || s.leadsheetUrl)) return false;
-
       if (activeFilters.hasUg === 'yes' && !s.ugUrl) return false;
       if (activeFilters.hasUg === 'no' && s.ugUrl) return false;
-
       if (activeFilters.isConfirmed === 'yes' && !s.isKeyConfirmed) return false;
       if (activeFilters.isConfirmed === 'no' && s.isKeyConfirmed) return false;
-
-      // NEW: isApproved filter logic
       if (activeFilters.isApproved === 'yes' && !s.isApproved) return false;
       if (activeFilters.isApproved === 'no' && s.isApproved) return false;
 
@@ -175,18 +146,16 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     });
 
     if (sortMode === 'none') return base;
-    
+
     return [...base].sort((a, b) => {
       const scoreA = calculateReadiness(a);
       const scoreB = calculateReadiness(b);
-      // Corrected the arithmetic operation for 'work' mode
-      return sortMode === 'ready' ? scoreB - scoreA : scoreA - scoreB; 
+      return sortMode === 'ready' ? scoreB - scoreA : scoreA - scoreB;
     });
   }, [songs, sortMode, searchTerm, activeFilters]);
 
   const handleMove = (id: string, direction: 'up' | 'down') => {
     if (sortMode !== 'none' || searchTerm) return;
-
     const index = songs.findIndex(s => s.id === id);
     if (index === -1) return;
     if (direction === 'up' && index === 0) return;
@@ -209,28 +178,39 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
               variant="ghost" 
               size="sm" 
               onClick={() => setSortMode('none')}
-              className={cn("h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg", sortMode === 'none' && "bg-white dark:bg-slate-700 shadow-sm")}
+              className={cn(
+                "h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg",
+                sortMode === 'none' && "bg-white dark:bg-slate-700 shadow-sm"
+              )}
             >
-              <LayoutList className="w-3 h-3" /> <span className="hidden sm:inline">List Order</span>
+              <LayoutList className="w-3 h-3" />
+              <span className="hidden sm:inline">List Order</span>
             </Button>
             <Button 
               variant="ghost" 
               size="sm" 
               onClick={() => setSortMode('ready')}
-              className={cn("h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg", sortMode === 'ready' && "bg-white dark:bg-slate-700 shadow-sm text-indigo-600")}
+              className={cn(
+                "h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg",
+                sortMode === 'ready' && "bg-white dark:bg-slate-700 shadow-sm text-indigo-600"
+              )}
             >
-              <SortAsc className="w-3 h-3" /> <span className="hidden sm:inline">Readiness</span>
+              <SortAsc className="w-3 h-3" />
+              <span className="hidden sm:inline">Readiness</span>
             </Button>
             <Button 
               variant="ghost" 
               size="sm" 
               onClick={() => setSortMode('work')}
-              className={cn("h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg", sortMode === 'work' && "bg-white dark:bg-slate-700 shadow-sm text-orange-600")}
+              className={cn(
+                "h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg",
+                sortMode === 'work' && "bg-white dark:bg-slate-700 shadow-sm text-orange-600"
+              )}
             >
-              <SortDesc className="w-3 h-3" /> <span className="hidden sm:inline">Work Needed</span>
+              <SortDesc className="w-3 h-3" />
+              <span className="hidden sm:inline">Work Needed</span>
             </Button>
           </div>
-          
           <Button 
             variant="ghost" 
             size="sm" 
@@ -240,16 +220,16 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
               isFilterOpen ? "bg-indigo-50 text-indigo-600" : "text-slate-500 hover:bg-slate-100"
             )}
           >
-            <Filter className="w-3.5 h-3.5" /> Filter Matrix
+            <Filter className="w-3.5 h-3.5" />
+            Filter Matrix
           </Button>
         </div>
-
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <div className="relative flex-1 sm:w-64 group">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
             <Input 
               placeholder="Search Gig Repertoire..." 
-              value={searchTerm}
+              value={searchTerm} 
               onChange={(e) => setSearchTerm(e.target.value)}
               className="h-10 sm:h-9 pl-9 text-[11px] font-bold bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-xl focus-visible:ring-indigo-500"
             />
@@ -273,8 +253,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
             return (
               <div 
-                key={song.id}
-                onClick={() => onEdit(song)} // Changed to onEdit
+                key={song.id} 
+                onClick={() => onEdit(song)}
                 className={cn(
                   "bg-white dark:bg-slate-950 rounded-2xl border-2 transition-all p-4 flex flex-col gap-3 shadow-sm",
                   isSelected ? "border-indigo-500 shadow-md ring-1 ring-indigo-500/20" : "border-slate-100 dark:border-slate-900",
@@ -284,7 +264,10 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                 <div className="flex items-start justify-between">
                   <div className="flex gap-3">
                     <button 
-                      onClick={(e) => { e.stopPropagation(); onTogglePlayed(song.id); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onTogglePlayed(song.id);
+                      }}
                       className="mt-1"
                     >
                       {song.isPlayed ? (
@@ -320,23 +303,49 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(song); }}> {/* Changed to onEdit */}
-                          <Settings2 className="w-4 h-4 mr-2" /> Configure Studio
+                        <DropdownMenuItem 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEdit(song);
+                          }}
+                        >
+                          <Settings2 className="w-4 h-4 mr-2" />
+                          Configure Studio
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'up'); }} disabled={!isReorderingEnabled || idx === 0}>
-                          <ChevronUp className="w-4 h-4 mr-2" /> Move Up
+                        <DropdownMenuItem 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMove(song.id, 'up');
+                          }}
+                          disabled={!isReorderingEnabled || idx === 0}
+                        >
+                          <ChevronUp className="w-4 h-4 mr-2" />
+                          Move Up
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'down'); }} disabled={!isReorderingEnabled || idx === processedSongs.length - 1}>
-                          <ChevronDown className="w-4 h-4 mr-2" /> Move Down
+                        <DropdownMenuItem 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMove(song.id, 'down');
+                          }}
+                          disabled={!isReorderingEnabled || idx === processedSongs.length - 1}
+                        >
+                          <ChevronDown className="w-4 h-4 mr-2" />
+                          Move Down
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600" onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(song.id); }}>
-                          <Trash2 className="w-4 h-4 mr-2" /> Remove Track
+                        <DropdownMenuItem 
+                          className="text-red-600"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteConfirmId(song.id);
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Remove Track
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
                 </div>
-
                 <div className="flex items-center justify-between border-t border-slate-50 dark:border-slate-900 pt-3">
                   <div className="flex items-center gap-4">
                     <div className="flex flex-col">
@@ -345,7 +354,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         "font-mono font-black text-[10px] px-2 py-0.5 rounded-lg text-white flex items-center gap-1",
                         song.isKeyConfirmed ? "bg-emerald-600" : "bg-indigo-600"
                       )}>
-                        {displayTargetKey} {song.isKeyConfirmed && <Check className="w-2.5 h-2.5" />}
+                        {displayTargetKey}
+                        {song.isKeyConfirmed && <Check className="w-2.5 h-2.5" />}
                       </div>
                     </div>
                     <div className="flex flex-col">
@@ -353,7 +363,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       <span className="text-[10px] font-mono font-bold text-slate-500">{song.bpm || "--"} BPM</span>
                     </div>
                   </div>
-
                   <div className="flex gap-2">
                     {hasAudio && <Volume2 className="w-3.5 h-3.5 text-indigo-500" />}
                     <Button 
@@ -363,9 +372,13 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         !song.previewUrl ? "bg-slate-100 text-slate-400" : "bg-indigo-600 text-white"
                       )}
                       disabled={!song.previewUrl}
-                      onClick={(e) => { e.stopPropagation(); onSelect(song); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelect(song);
+                      }}
                     >
-                      {isSelected ? "Active" : "Perform"} <Play className="w-3 h-3 fill-current" />
+                      {isSelected ? "Active" : "Perform"}
+                      <Play className="w-3 h-3 fill-current" />
                     </Button>
                   </div>
                 </div>
@@ -392,15 +405,14 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                   const readinessScore = calculateReadiness(song);
                   const isReady = readinessScore >= 80;
                   const hasAudio = !!song.previewUrl && !isItunesPreview(song.previewUrl);
-                  
                   const currentPref = song.key_preference || globalPreference;
                   const displayOrigKey = formatKey(song.originalKey, currentPref);
                   const displayTargetKey = formatKey(song.targetKey || song.originalKey, currentPref);
 
                   return (
                     <tr 
-                      key={song.id}
-                      onClick={() => onEdit(song)} // Changed to onEdit
+                      key={song.id} 
+                      onClick={() => onEdit(song)}
                       className={cn(
                         "transition-all group relative cursor-pointer h-[80px]",
                         isSelected ? "bg-indigo-50/50 dark:bg-indigo-900/10" : "hover:bg-slate-50/30 dark:hover:bg-slate-800/50",
@@ -409,7 +421,10 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                     >
                       <td className="px-6 text-center">
                         <button 
-                          onClick={(e) => { e.stopPropagation(); onTogglePlayed(song.id); }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onTogglePlayed(song.id);
+                          }}
                           className="transition-transform active:scale-90 inline-flex items-center justify-center"
                         >
                           {song.isPlayed ? (
@@ -423,7 +438,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                           )}
                         </button>
                       </td>
-
                       <td className="px-6 text-left">
                         <div className="flex flex-col gap-1">
                           <div className="flex items-center gap-3">
@@ -441,34 +455,35 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                               )} />
                             )}
                           </div>
-                          
                           <div className="flex items-center gap-2 ml-[32px]">
                             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">
                               {song.artist || "Unknown Artist"}
                             </span>
                             <span className="text-slate-200 dark:text-slate-800 text-[8px]">•</span>
                             <span className="text-[9px] font-mono font-bold text-slate-400 flex items-center gap-1.5">
-                              <Clock className="w-3 h-3" /> {Math.floor((song.duration_seconds || 0) / 60)}:{(Math.floor((song.duration_seconds || 0) % 60)).toString().padStart(2, '0')}
+                              <Clock className="w-3 h-3" />
+                              {Math.floor((song.duration_seconds || 0) / 60)}:{(Math.floor((song.duration_seconds || 0) % 60)).toString().padStart(2, '0')}
                             </span>
                             <span className="text-slate-200 dark:text-slate-800 text-[8px]">•</span>
                             <span className="text-[9px] font-mono font-bold text-slate-400">{song.bpm ? `${song.bpm} BPM` : 'TEMPO TBC'}</span>
                           </div>
-
                           <div className="flex items-center gap-1.5 ml-[32px] mt-1">
                             <TooltipProvider>
                               {RESOURCE_TYPES.map(res => {
                                 const isActive = song.resources?.includes(res.id) || 
-                                               (res.id === 'UG' && song.ugUrl) || 
-                                               (res.id === 'LYRICS' && song.lyrics) ||
-                                               (res.id === 'LEAD' && song.leadsheetUrl);
+                                  (res.id === 'UG' && song.ugUrl) || 
+                                  (res.id === 'LYRICS' && song.lyrics) || 
+                                  (res.id === 'LEAD' && song.leadsheetUrl);
                                 if (!isActive) return null;
                                 return (
-                                  <span key={res.id} className={cn("text-[8px] font-black px-2 py-0.5 rounded-full border shadow-sm", res.color)}>
+                                  <span 
+                                    key={res.id} 
+                                    className={cn("text-[8px] font-black px-2 py-0.5 rounded-full border shadow-sm", res.color)}
+                                  >
                                     {res.id}
                                   </span>
                                 );
                               })}
-                              
                               {hasAudio && (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
@@ -476,14 +491,15 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                                       <Volume2 className="w-3 h-3" />
                                     </div>
                                   </TooltipTrigger>
-                                  <TooltipContent className="text-[10px] font-black uppercase">Direct Audio Link Active</TooltipContent>
+                                  <TooltipContent className="text-[10px] font-black uppercase">
+                                    Direct Audio Link Active
+                                  </TooltipContent>
                                 </Tooltip>
                               )}
                             </TooltipProvider>
                           </div>
                         </div>
                       </td>
-
                       <td className="px-6 text-center">
                         <div className="flex flex-col items-center justify-center gap-0.5 h-full">
                           <Button 
@@ -492,8 +508,11 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                             className={cn(
                               "h-7 w-7 transition-all flex items-center justify-center",
                               isReorderingEnabled ? "text-slate-300 hover:text-indigo-600 hover:bg-indigo-50" : "text-slate-100 opacity-20 cursor-not-allowed"
-                            )} 
-                            onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'up'); }} 
+                            )}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMove(song.id, 'up');
+                            }}
                             disabled={!isReorderingEnabled || idx === 0}
                           >
                             <ChevronUp className="w-4 h-4" />
@@ -504,15 +523,17 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                             className={cn(
                               "h-7 w-7 transition-all flex items-center justify-center",
                               isReorderingEnabled ? "text-slate-300 hover:text-indigo-600 hover:bg-indigo-50" : "text-slate-100 opacity-20 cursor-not-allowed"
-                            )} 
-                            onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'down'); }} 
+                            )}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMove(song.id, 'down');
+                            }}
                             disabled={!isReorderingEnabled || idx === processedSongs.length - 1}
                           >
                             <ChevronDown className="w-4 h-4" />
                           </Button>
                         </div>
                       </td>
-
                       <td className="px-6 text-center">
                         <div className="flex items-center justify-center gap-4 h-full">
                           <div className="text-center min-w-[32px]">
@@ -527,9 +548,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                             <p className="text-[8px] font-black text-indigo-50 uppercase tracking-widest mb-0.5">Stage</p>
                             <div className={cn(
                               "font-mono font-black text-xs px-2.5 py-1 rounded-lg shadow-lg flex items-center justify-center gap-1.5 leading-none h-6",
-                              song.isKeyConfirmed 
-                                ? "bg-emerald-600 text-white shadow-emerald-500/20" 
-                                : "bg-indigo-600 text-white shadow-indigo-500/20"
+                              song.isKeyConfirmed ? "bg-emerald-600 text-white shadow-emerald-500/20" : "bg-indigo-600 text-white shadow-indigo-500/20"
                             )}>
                               {displayTargetKey}
                               {song.isKeyConfirmed && <Check className="w-3 h-3" />}
@@ -537,29 +556,32 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                           </div>
                         </div>
                       </td>
-
                       <td className="px-6 text-right pr-10">
                         <div className="flex items-center justify-end gap-2 h-full">
                           <Button 
                             size="sm" 
                             className={cn(
                               "h-9 px-4 text-[10px] font-black uppercase tracking-[0.1em] gap-2 rounded-xl transition-all",
-                              !song.previewUrl 
-                                ? "bg-slate-100 text-slate-400 hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-600" 
-                                : isSelected 
-                                  ? "bg-indigo-100 text-indigo-600 border border-indigo-200" 
-                                  : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-xl shadow-indigo-500/20"
-                            )} 
-                            disabled={!song.previewUrl} 
-                            onClick={(e) => { e.stopPropagation(); onSelect(song); }}
+                              !song.previewUrl ? "bg-slate-100 text-slate-400 hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-600" : 
+                              isSelected ? "bg-indigo-100 text-indigo-600 border border-indigo-200" : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-xl shadow-indigo-500/20"
+                            )}
+                            disabled={!song.previewUrl}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSelect(song);
+                            }}
                           >
-                            {isSelected ? "Active" : "Perform"} <Play className={cn("w-3 h-3 fill-current", isSelected && "fill-indigo-600")} />
+                            {isSelected ? "Active" : "Perform"}
+                            <Play className={cn("w-3 h-3 fill-current", isSelected && "fill-indigo-600")} />
                           </Button>
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            className="h-9 w-9 rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors inline-flex items-center justify-center" 
-                            onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(song.id); }}
+                            className="h-9 w-9 rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors inline-flex items-center justify-center"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteConfirmId(song.id);
+                            }}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -573,8 +595,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
           </div>
         </div>
       )}
-      
-      {/* Removed SongStudioModal from here, it's now in Index.tsx */}
 
       <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
         <AlertDialogContent className="bg-slate-900 border-white/10 text-white rounded-[2rem]">
@@ -588,7 +608,9 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-6">
-            <AlertDialogCancel className="rounded-xl border-white/10 bg-white/5 hover:bg-white/10 hover:text-white font-bold uppercase text-[10px] tracking-widest">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="rounded-xl border-white/10 bg-white/5 hover:bg-white/10 hover:text-white font-bold uppercase text-[10px] tracking-widest">
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction 
               onClick={() => {
                 if (deleteConfirmId) {
