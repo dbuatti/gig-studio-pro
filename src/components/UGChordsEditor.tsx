@@ -36,7 +36,10 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
 
   useEffect(() => {
     if (chordsText !== formData.ug_chords_text) {
-      handleAutoSave({ ug_chords_text: chordsText });
+      handleAutoSave({ 
+        ug_chords_text: chordsText,
+        is_ug_chords_present: !!(chordsText && chordsText.trim().length > 0) // NEW: Update is_ug_chords_present
+      });
     }
   }, [chordsText, formData.ug_chords_text, handleAutoSave]);
 
@@ -109,39 +112,51 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
       const htmlContent = data.contents;
       console.log("[UGChordsEditor] HTML content fetched. Attempting to parse...");
 
-      // Attempt to extract JSON data from script tag
-      const scriptMatch = htmlContent.match(/window\.UGAPP\.store\.page = (\{[\s\S]*?\});/);
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlContent, 'text/html');
       
-      if (scriptMatch && scriptMatch[1]) {
-        console.log("[UGChordsEditor] Found UGAPP.store.page JSON. Parsing...");
-        const ugData = JSON.parse(scriptMatch[1]);
-        const tabContent = ugData?.data?.tab_view?.wiki_tab?.content;
+      let extractedContent = null;
 
-        if (tabContent) {
-          setChordsText(tabContent);
-          showSuccess("Chords fetched successfully!");
-          console.log("[UGChordsEditor] Chords extracted from UGAPP.store.page JSON.");
-        } else {
-          showError("Could not find chords content in the embedded data. Try a different URL or paste manually.");
-          console.warn("[UGChordsEditor] Chords content not found in UGAPP.store.page JSON.");
+      // Strategy 1: Look for window.UGAPP.store.page JSON in script tags
+      const scriptTags = doc.querySelectorAll('script');
+      for (const script of scriptTags) {
+        if (script.textContent?.includes('window.UGAPP.store.page')) {
+          const scriptMatch = script.textContent.match(/window\.UGAPP\.store\.page = (\{[\s\S]*?\});/);
+          if (scriptMatch && scriptMatch[1]) {
+            try {
+              const ugData = JSON.parse(scriptMatch[1]);
+              extractedContent = ugData?.data?.tab_view?.wiki_tab?.content;
+              if (extractedContent) {
+                console.log("[UGChordsEditor] Chords extracted from UGAPP.store.page JSON.");
+                break;
+              }
+            } catch (jsonError) {
+              console.warn("[UGChordsEditor] Failed to parse UGAPP.store.page JSON:", jsonError);
+            }
+          }
         }
-      } else {
-        console.log("[UGChordsEditor] UGAPP.store.page JSON not found. Falling back to HTML parsing...");
-        // Fallback to old method if JSON not found (less reliable for chords)
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(htmlContent, 'text/html');
+      }
+
+      // Strategy 2: Fallback to old method if JSON not found or content empty
+      if (!extractedContent) {
+        console.log("[UGChordsEditor] UGAPP.store.page JSON not found or content empty. Falling back to HTML parsing...");
         const tabContentElement = doc.querySelector('pre.js-tab-content') || 
                                  doc.querySelector('div.js-tab-content') ||
                                  doc.querySelector('pre');
 
         if (tabContentElement && tabContentElement.textContent) {
-          setChordsText(tabContentElement.textContent);
-          showSuccess("Chords fetched successfully (from HTML fallback)!");
+          extractedContent = tabContentElement.textContent;
           console.log("[UGChordsEditor] Chords extracted from HTML fallback elements.");
         } else {
-          showError("Could not find chords content on the page. Try a different URL or paste manually.");
           console.warn("[UGChordsEditor] Chords content not found in HTML fallback elements.");
         }
+      }
+
+      if (extractedContent) {
+        setChordsText(extractedContent);
+        showSuccess("Chords fetched successfully!");
+      } else {
+        showError("Could not find chords content on the page. Try a different URL or paste manually.");
       }
 
     } catch (error: any) {

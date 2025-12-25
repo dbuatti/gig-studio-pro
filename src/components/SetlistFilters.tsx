@@ -9,7 +9,7 @@ import {
   X, Star, Save, Trash2, Headphones, Sparkles, Hash,
   CircleDashed, ChevronDown, ListFilter, Music2, 
   VideoOff, FileX2, VolumeX, BarChart3, TrendingUp, TrendingDown,
-  Target, AlertCircle, Link as LinkIcon, FileSearch, ShieldCheck, Check
+  Target, AlertCircle, Link as LinkIcon, FileSearch, ShieldCheck, Check, Guitar
 } from 'lucide-react';
 import { 
   DropdownMenu, 
@@ -31,8 +31,9 @@ export interface FilterState {
   hasPdf: 'all' | 'yes' | 'no';
   hasUg: 'all' | 'yes' | 'no';
   isConfirmed: 'all' | 'yes' | 'no';
-  isApproved: 'all' | 'yes' | 'no'; // NEW: Added isApproved filter
+  isApproved: 'all' | 'yes' | 'no';
   readiness: number; 
+  hasUgChords: 'all' | 'yes' | 'no'; // NEW: Added hasUgChords filter
 }
 
 const DEFAULT_FILTERS: FilterState = {
@@ -42,8 +43,9 @@ const DEFAULT_FILTERS: FilterState = {
   hasPdf: 'all',
   hasUg: 'all',
   isConfirmed: 'all',
-  isApproved: 'all', // NEW: Default to 'all'
-  readiness: 100 
+  isApproved: 'all',
+  readiness: 100,
+  hasUgChords: 'all' // NEW: Default to 'all'
 };
 
 interface SetlistFiltersProps {
@@ -62,7 +64,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
     const saved = localStorage.getItem('gig_filter_presets');
     return saved ? JSON.parse(saved) : [
       { id: 'broken', name: 'Needs Attention', filters: { ...DEFAULT_FILTERS, readiness: 40 } },
-      { id: 'stage-ready', name: 'Performance Ready', filters: { ...DEFAULT_FILTERS, readiness: 100, hasAudio: 'full', hasChart: 'yes', isConfirmed: 'yes', isApproved: 'yes' } } // NEW: Added isApproved to default preset
+      { id: 'stage-ready', name: 'Performance Ready', filters: { ...DEFAULT_FILTERS, readiness: 100, hasAudio: 'full', hasChart: 'yes', isConfirmed: 'yes', isApproved: 'yes', hasUgChords: 'yes' } } // NEW: Added hasUgChords to default preset
     ];
   });
 
@@ -163,7 +165,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* NEW: Approved Toggle (Icon only) */}
+          {/* Approved Toggle (Icon only) */}
           <DropdownMenu>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -304,6 +306,34 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
             </DropdownMenuContent>
           </DropdownMenu>
 
+          {/* NEW: UG Chords Toggle (Icon only) */}
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className={cn(
+                      "h-9 w-9 rounded-xl border transition-all",
+                      activeFilters.hasUgChords !== 'all' ? "bg-purple-600 text-white shadow-lg" : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-500"
+                    )}
+                  >
+                    <Guitar className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent className="text-[10px] font-black uppercase">UG Chords Text</TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-slate-950 border-white/10 text-white">
+              <DropdownMenuRadioGroup value={activeFilters.hasUgChords} onValueChange={(v) => onFilterChange({ ...activeFilters, hasUgChords: v as any })}>
+                <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Has Chords Text</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-10 rounded-xl text-red-400">Missing Chords Text</DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           {!isDefault && (
             <Button 
               variant="ghost" 
@@ -340,7 +370,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                 Key Verified: {activeFilters.isConfirmed} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
               </Badge>
             )}
-            {activeFilters.isApproved !== 'all' && ( // NEW: Badge for isApproved filter
+            {activeFilters.isApproved !== 'all' && (
               <Badge 
                 variant="secondary" 
                 className="bg-indigo-50 text-indigo-600 border-indigo-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-red-50 hover:text-red-600 transition-all group"
@@ -383,6 +413,15 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                 onClick={() => onFilterChange({ ...activeFilters, hasUg: 'all' })}
               >
                 UG: {activeFilters.hasUg} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
+              </Badge>
+            )}
+            {activeFilters.hasUgChords !== 'all' && ( // NEW: Badge for hasUgChords filter
+              <Badge 
+                variant="secondary" 
+                className="bg-purple-50 text-purple-600 border-purple-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-red-50 hover:text-red-600 transition-all group"
+                onClick={() => onFilterChange({ ...activeFilters, hasUgChords: 'all' })}
+              >
+                UG Chords: {activeFilters.hasUgChords} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
               </Badge>
             )}
           </div>

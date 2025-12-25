@@ -20,7 +20,7 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
   if ((song.notes || "").length > 10) score += 5;
   if (song.artist && song.artist !== "Unknown Artist") score += 5;
   
-  // NEW: Add 10 points if UG chords text is present
+  // Add 10 points if UG chords text is present
   if (song.ug_chords_text && song.ug_chords_text.length > 10) score += 10;
   
   return Math.min(100, score);
@@ -65,9 +65,10 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       readiness_score: calculateReadiness(song),
       is_active: true,
       updated_at: new Date().toISOString(),
-      // NEW: Include UG chords fields
+      // Include UG chords fields
       ug_chords_text: song.ug_chords_text || null,
-      ug_chords_config: song.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG
+      ug_chords_config: song.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
+      is_ug_chords_present: !!(song.ug_chords_text && song.ug_chords_text.trim().length > 0) // NEW: Set based on text presence
     }));
     
     // Perform batch upsert

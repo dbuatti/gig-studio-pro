@@ -178,6 +178,11 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const handleAutoSave = useCallback((updates: Partial<SetlistSong>) => {
     setFormData(prev => {
       const next = { ...prev, ...updates };
+      // NEW: Update is_ug_chords_present based on ug_chords_text
+      if ('ug_chords_text' in updates) {
+        next.is_ug_chords_present = !!(updates.ug_chords_text && updates.ug_chords_text.trim().length > 0);
+      }
+
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
       saveTimeoutRef.current = setTimeout(() => {
         if (song) {
@@ -427,7 +432,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         isApproved: song.isApproved ?? false,
         preferred_reader: song.preferred_reader || null,
         ug_chords_text: song.ug_chords_text || "",
-        ug_chords_config: song.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG
+        ug_chords_config: song.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
+        is_ug_chords_present: song.is_ug_chords_present ?? false // NEW: Initialize is_ug_chords_present
       };
       
       setFormData(initialData);

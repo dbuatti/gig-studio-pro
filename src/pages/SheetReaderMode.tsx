@@ -26,7 +26,7 @@ interface FilterState {
   hasAudio: boolean;
   isApproved: boolean;
   hasCharts: boolean;
-  hasUgChords: boolean;
+  hasUgChords: boolean; // NEW: Added hasUgChords filter
 }
 
 type SortOption = 'alphabetical' | 'readiness_asc' | 'readiness_desc';
@@ -44,7 +44,7 @@ const SheetReaderMode: React.FC = () => {
     hasAudio: false,
     isApproved: false,
     hasCharts: false,
-    hasUgChords: false,
+    hasUgChords: false, // NEW: Default to false
   });
   const [sortOption, setSortOption] = useState<SortOption>('alphabetical');
   const [autoAdvanceEnabled, setAutoAdvanceEnabled] = useState(false);
@@ -97,6 +97,7 @@ const SheetReaderMode: React.FC = () => {
         preferred_reader: d.preferred_reader,
         ug_chords_text: d.ug_chords_text,
         ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
+        is_ug_chords_present: d.is_ug_chords_present // NEW: Map is_ug_chords_present
       }));
       setAllSongs(mappedSongs);
     } catch (err) {
@@ -133,9 +134,9 @@ const SheetReaderMode: React.FC = () => {
     if (filters.hasCharts) {
       result = result.filter(s => s.pdfUrl || s.leadsheetUrl || s.ugUrl || s.ug_chords_text);
     }
-    // NEW: Apply hasUgChords filter
+    // Apply hasUgChords filter
     if (filters.hasUgChords) {
-      result = result.filter(s => !!s.ug_chords_text && s.ug_chords_text.trim().length > 0);
+      result = result.filter(s => s.is_ug_chords_present); // NEW: Filter by is_ug_chords_present
     }
 
     // Apply sorting
