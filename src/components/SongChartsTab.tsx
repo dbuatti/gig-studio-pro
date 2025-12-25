@@ -45,6 +45,14 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
     }
   }, [activeChartType, formData.pdfUrl, formData.leadsheetUrl, formData.ugUrl]);
 
+  const canEmbedUg = useMemo(() => {
+    if (activeChartType === 'ug' && formData.ugUrl) {
+      // Ultimate Guitar explicitly blocks embedding, so we always return false for UG
+      return false;
+    }
+    return isFramable(currentChartUrl);
+  }, [activeChartType, formData.ugUrl, currentChartUrl, isFramable]);
+
   return (
     <div className="h-full flex flex-col gap-8 animate-in fade-in duration-500">
       {/* Sub-tab switcher */}
@@ -76,59 +84,6 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
           <div className="flex justify-between items-center shrink-0">
             <h3 className="text-sm font-black uppercase tracking-[0.3em] text-emerald-400">Chart Engine</h3>
             
-            {/* Manual Sheet Music Reader Selector */}
-            <div className="flex flex-col items-center gap-4 w-full">
-              <div className="flex w-full max-w-md bg-white/5 border border-white/10 p-1.5 rounded-xl backdrop-blur-sm">
-                <button
-                  onClick={() => handleAutoSave({ 
-                    preferred_reader: formData.preferred_reader === "ug" ? null : "ug" 
-                  })}
-                  className={cn(
-                    "flex-1 flex items-center justify-center gap-2 py-4 rounded-lg transition-all font-black uppercase tracking-wider text-sm",
-                    formData.preferred_reader === "ug" 
-                      ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/30" 
-                      : "text-slate-400 hover:text-white hover:bg-white/10"
-                  )}
-                >
-                  <Guitar className="w-5 h-5" />
-                  UG
-                </button>
-                <button
-                  onClick={() => handleAutoSave({ 
-                    preferred_reader: formData.preferred_reader === "ls" ? null : "ls" 
-                  })}
-                  className={cn(
-                    "flex-1 flex items-center justify-center gap-2 py-4 rounded-lg transition-all font-black uppercase tracking-wider text-sm",
-                    formData.preferred_reader === "ls" 
-                      ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/30" 
-                      : "text-slate-400 hover:text-white hover:bg-white/10"
-                  )}
-                >
-                  <Music className="w-5 h-5" />
-                  LS
-                </button>
-                <button
-                  onClick={() => handleAutoSave({ 
-                    preferred_reader: formData.preferred_reader === "fn" ? null : "fn" 
-                  })}
-                  className={cn(
-                    "flex-1 flex items-center justify-center gap-2 py-4 rounded-lg transition-all font-black uppercase tracking-wider text-sm",
-                    formData.preferred_reader === "fn" 
-                      ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/30" 
-                      : "text-slate-400 hover:text-white hover:bg-white/10"
-                  )}
-                >
-                  <FileText className="w-5 h-5" />
-                  FN
-                </button>
-              </div>
-              {!formData.preferred_reader && (
-                <p className="text-slate-500 text-sm">
-                  Select how you'll read this chart on stage
-                </p>
-              )}
-            </div>
-            
             {/* Chart Type Selector */}
             <div className="flex bg-white/5 p-1 rounded-xl">
               <Button 
@@ -146,7 +101,7 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
               <Button 
                 variant="ghost" 
                 size="sm" 
-                disabled={!formData.ugUrl}
+                disabled={!formData.ugUrl && !formData.ug_chords_text}
                 onClick={() => setActiveChartType('ug')}
                 className={cn(
                   "text-[9px] font-black uppercase h-8 px-4 rounded-lg",
@@ -160,7 +115,7 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
           
           <div className={cn("flex-1 bg-white overflow-hidden shadow-2xl relative", isMobile ? "rounded-3xl" : "rounded-[3rem]")}>
             {currentChartUrl ? (
-              isFramable(currentChartUrl) ? (
+              canEmbedUg ? (
                 <iframe 
                   src={currentChartUrl} 
                   className="w-full h-full" 
@@ -169,12 +124,15 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
               ) : (
                 <div className="h-full flex flex-col items-center justify-center bg-slate-900 p-8 text-center">
                   <ShieldCheck className="w-12 h-12 text-indigo-400 mb-6" />
+                  <h4 className="text-3xl md:text-5xl font-black uppercase tracking-tight mb-4 md:mb-6 text-white">Asset Protected</h4>
+                  <p className="text-slate-500 max-xl mb-8 md:mb-16 text-lg md:text-xl font-medium leading-relaxed">
+                    External security prevents in-app display. Use the button below to launch in a secure dedicated performance window.
+                  </p>
                   <Button 
-                    onClick={() => window.open(currentChartUrl, '_blank')}
-                    className="bg-indigo-600 hover:bg-indigo-700 h-14 px-10 rounded-2xl gap-3"
+                    onClick={() => window.open(currentChartUrl, '_blank')} 
+                    className="bg-indigo-600 hover:bg-indigo-700 h-16 md:h-20 px-10 md:px-16 font-black uppercase tracking-[0.2em] text-xs md:text-sm rounded-2xl md:rounded-3xl shadow-2xl shadow-indigo-600/30 gap-4 md:gap-6"
                   >
-                    <ExternalLink className="w-5 h-5" />
-                    Launch Source
+                    <ExternalLink className="w-6 h-6 md:w-8 md:h-8" /> Launch Chart Window
                   </Button>
                 </div>
               )

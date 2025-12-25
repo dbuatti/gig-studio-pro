@@ -25,7 +25,6 @@ const SheetMusicRecommender: React.FC<SheetMusicRecommenderProps> = ({
 }) => {
   const [recommendedReader, setRecommendedReader] = useState<ReaderType>(null);
   const [isManualOverride, setIsManualOverride] = useState(false);
-  const [userSelection, setUserSelection] = useState<ReaderType>(null);
 
   // Determine recommendation based on song metadata
   useEffect(() => {
@@ -34,7 +33,10 @@ const SheetMusicRecommender: React.FC<SheetMusicRecommenderProps> = ({
     const determineReader = () => {
       // Check for explicit user preference
       if (formData.preferred_reader) {
+        setIsManualOverride(true);
         return formData.preferred_reader as ReaderType;
+      } else {
+        setIsManualOverride(false);
       }
 
       // Analyze song metadata
@@ -73,34 +75,14 @@ const SheetMusicRecommender: React.FC<SheetMusicRecommenderProps> = ({
       return isComplex ? 'fn' : 'ug';
     };
 
-    const recommendation = determineReader();
-    setRecommendedReader(recommendation);
-    setUserSelection(recommendation);
+    setRecommendedReader(determineReader());
   }, [formData]);
 
   const handleReaderSelect = (reader: ReaderType) => {
-    setUserSelection(reader);
-    setIsManualOverride(true);
-    // Save preference to song
-    handleAutoSave({ preferred_reader: reader });
-  };
-
-  const handleOpenInApp = () => {
-    if (!userSelection) return;
-    
-    switch (userSelection) {
-      case 'ug':
-        if (onOpenInApp) {
-          onOpenInApp('Ultimate Guitar', formData.ugUrl);
-        }
-        break;
-      case 'fn':
-      case 'ls':
-        if (onOpenInApp) {
-          onOpenInApp('ForScore', formData.pdfUrl || formData.leadsheetUrl);
-        }
-        break;
-    }
+    // Toggle logic: if already selected, deselect. Otherwise, select.
+    const newReader = formData.preferred_reader === reader ? null : reader;
+    handleAutoSave({ preferred_reader: newReader });
+    setIsManualOverride(!!newReader); // Set override if a reader is explicitly selected
   };
 
   const getReaderInfo = (reader: ReaderType) => {
@@ -109,7 +91,6 @@ const SheetMusicRecommender: React.FC<SheetMusicRecommenderProps> = ({
         return {
           name: 'Ultimate Guitar Pro',
           icon: Guitar,
-          description: 'For chord charts and tabs',
           color: 'bg-orange-500',
           badge: 'Chords/Tabs'
         };
@@ -117,7 +98,6 @@ const SheetMusicRecommender: React.FC<SheetMusicRecommenderProps> = ({
         return {
           name: 'Full Notation',
           icon: FileText,
-          description: 'Detailed scores with multiple parts',
           color: 'bg-emerald-500',
           badge: 'Full Score'
         };
@@ -125,24 +105,20 @@ const SheetMusicRecommender: React.FC<SheetMusicRecommenderProps> = ({
         return {
           name: 'Lead Sheet',
           icon: Music,
-          description: 'Melody + chords for performance',
           color: 'bg-indigo-500',
           badge: 'Lead Sheet'
         };
       default:
         return {
-          name: 'Select Reader',
+          name: 'None',
           icon: FileText,
-          description: 'Choose sheet music format',
           color: 'bg-slate-500',
           badge: 'Not Set'
         };
     }
   };
 
-  const currentReader = userSelection || recommendedReader;
-  const readerInfo = getReaderInfo(currentReader);
-  const IconComponent = readerInfo.icon;
+  const currentReader = formData.preferred_reader || recommendedReader;
 
   return (
     <div className="space-y-4">
@@ -150,92 +126,49 @@ const SheetMusicRecommender: React.FC<SheetMusicRecommenderProps> = ({
         <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
           Sheet Music Reader
         </Label>
-        <Badge 
-          variant="secondary" 
-          className={cn(
-            "text-[8px] font-black uppercase tracking-widest",
-            currentReader === 'ug' && "bg-orange-500/20 text-orange-500",
-            currentReader === 'fn' && "bg-emerald-500/20 text-emerald-500",
-            currentReader === 'ls' && "bg-indigo-500/20 text-indigo-500"
-          )}
-        >
-          {readerInfo.badge}
-        </Badge>
+        {isManualOverride ? (
+          <Badge 
+            variant="secondary" 
+            className="bg-indigo-500/20 text-indigo-500 text-[8px] font-black"
+          >
+            USER OVERRIDE
+          </Badge>
+        ) : recommendedReader && (
+          <div className="flex items-center gap-1.5">
+            <Sparkles className="w-3 h-3 text-indigo-500" />
+            <span className="text-[8px] font-black text-indigo-500 uppercase">AI RECOMMENDED</span>
+          </div>
+        )}
       </div>
       
       <div className="bg-white/5 border border-white/5 rounded-2xl p-4 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className={cn("p-2 rounded-lg", readerInfo.color)}>
-              <IconComponent className="w-4 h-4 text-white" />
-            </div>
-            <div>
-              <p className="text-sm font-bold">{readerInfo.name}</p>
-              <p className="text-[10px] text-slate-500 uppercase font-black">
-                {readerInfo.description}
-              </p>
-            </div>
-          </div>
-          
-          {isManualOverride ? (
-            <Badge 
-              variant="secondary" 
-              className="bg-indigo-500/20 text-indigo-500 text-[8px] font-black"
-            >
-              USER OVERRIDE
-            </Badge>
-          ) : recommendedReader && (
-            <div className="flex items-center gap-1.5">
-              <Sparkles className="w-3 h-3 text-indigo-500" />
-              <span className="text-[8px] font-black text-indigo-500 uppercase">AI RECOMMENDED</span>
-            </div>
-          )}
-        </div>
-        
-        <div className="flex gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+        <div className="grid grid-cols-3 gap-2">
+          {['ug', 'ls', 'fn'].map((readerKey: ReaderType) => {
+            const info = getReaderInfo(readerKey);
+            const IconComponent = info.icon;
+            const isActive = formData.preferred_reader === readerKey;
+            const isRecommended = !formData.preferred_reader && recommendedReader === readerKey;
+
+            return (
               <Button 
+                key={readerKey}
                 variant="outline" 
-                className="flex-1 h-9 text-[10px] font-black uppercase tracking-widest bg-white/5 border-white/10 hover:bg-white/10"
+                onClick={() => handleReaderSelect(readerKey)}
+                className={cn(
+                  "flex flex-col items-center justify-center h-24 rounded-xl border transition-all group",
+                  isActive 
+                    ? `${info.color}/20 border-${info.color.split('-')[1]}-500 text-white shadow-lg` 
+                    : "bg-white/5 border-white/10 text-slate-500 hover:border-white/20 hover:text-white"
+                )}
               >
-                <span>Change Reader</span>
-                <ChevronDown className="w-3 h-3 ml-2" />
+                <IconComponent className={cn("w-6 h-6 mb-2", isActive ? "text-white" : `text-${info.color.split('-')[1]}-400`)} />
+                <span className="text-[9px] font-black uppercase tracking-widest">{info.badge}</span>
+                {isRecommended && (
+                  <Sparkles className="absolute top-2 right-2 w-3 h-3 text-indigo-400" />
+                )}
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-48 bg-slate-900 border-white/10 text-white">
-              <DropdownMenuItem 
-                onClick={() => handleReaderSelect('ug')} 
-                className="flex items-center gap-2 py-2"
-              >
-                <Guitar className="w-4 h-4 text-orange-500" />
-                <span>Ultimate Guitar</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={() => handleReaderSelect('fn')} 
-                className="flex items-center gap-2 py-2"
-              >
-                <FileText className="w-4 h-4 text-emerald-500" />
-                <span>Full Notation</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={() => handleReaderSelect('ls')} 
-                className="flex items-center gap-2 py-2"
-              >
-                <Music className="w-4 h-4 text-indigo-500" />
-                <span>Lead Sheet</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          
-          <Button 
-            onClick={handleOpenInApp}
-            disabled={!currentReader}
-            className="h-9 px-3 bg-indigo-600 hover:bg-indigo-700 text-[10px] font-black uppercase tracking-widest gap-2"
-          >
-            <ExternalLink className="w-3 h-3" />
-            Open
-          </Button>
+            );
+          })}
         </div>
       </div>
       
@@ -248,7 +181,7 @@ const SheetMusicRecommender: React.FC<SheetMusicRecommenderProps> = ({
         </div>
         <p className="text-[10px] text-slate-400 font-medium leading-relaxed">
           {currentReader 
-            ? `Recommended for ${formData.name || 'this song'} based on genre (${formData.genre || 'unknown'}) and musical characteristics.`
+            ? `The engine suggests using ${getReaderInfo(currentReader).name} for ${formData.name || 'this song'} based on its genre (${formData.genre || 'unknown'}) and musical characteristics.`
             : "Select a sheet music reader based on your performance needs."
           }
         </p>
