@@ -99,18 +99,33 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
       const data = await response.json();
       const htmlContent = data.contents;
 
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(htmlContent, 'text/html');
+      // Attempt to extract JSON data from script tag
+      const scriptMatch = htmlContent.match(/window\.UGAPP\.store\.page = (\{[\s\S]*?\});/);
+      
+      if (scriptMatch && scriptMatch[1]) {
+        const ugData = JSON.parse(scriptMatch[1]);
+        const tabContent = ugData?.data?.tab_view?.wiki_tab?.content;
 
-      const tabContentElement = doc.querySelector('pre.js-tab-content') || 
-                               doc.querySelector('div.js-tab-content') ||
-                               doc.querySelector('pre');
-
-      if (tabContentElement && tabContentElement.textContent) {
-        setChordsText(tabContentElement.textContent);
-        showSuccess("Chords fetched successfully!");
+        if (tabContent) {
+          setChordsText(tabContent);
+          showSuccess("Chords fetched successfully!");
+        } else {
+          showError("Could not find chords content in the embedded data. Try a different URL or paste manually.");
+        }
       } else {
-        showError("Could not find chords content on the page. Try a different URL or paste manually.");
+        // Fallback to old method if JSON not found (less reliable for chords)
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlContent, 'text/html');
+        const tabContentElement = doc.querySelector('pre.js-tab-content') || 
+                                 doc.querySelector('div.js-tab-content') ||
+                                 doc.querySelector('pre');
+
+        if (tabContentElement && tabContentElement.textContent) {
+          setChordsText(tabContentElement.textContent);
+          showSuccess("Chords fetched successfully (from HTML fallback)!");
+        } else {
+          showError("Could not find chords content on the page. Try a different URL or paste manually.");
+        }
       }
 
     } catch (error: any) {
