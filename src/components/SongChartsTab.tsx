@@ -63,6 +63,14 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
       url = `https://www.ultimate-guitar.com/search.php?search_type=title&value=${query}`;
       showSuccess("No UG link found. Searching Ultimate Guitar...");
     } else {
+      // Check if the URL is already a print URL or a search URL
+      if (url.includes('/print') || url.includes('/search.php')) {
+        showSuccess("Opening UG Print View..."); // This message is a bit misleading for search, but it's opening the provided URL
+        window.open(url, '_blank', 'noopener,noreferrer');
+        return;
+      }
+
+      // If not a print URL, convert it
       url = url.includes('?') 
         ? url.replace('?', '/print?') 
         : `${url}/print`;
