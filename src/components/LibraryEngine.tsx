@@ -21,9 +21,8 @@ interface LibraryEngineProps {
   formData: Partial<SetlistSong>;
   handleDownloadAll: () => Promise<void>;
   isMobile: boolean;
-  // Added these to support the missing preview/utility functions
   setPreviewPdfUrl?: (url: string | null) => void;
-  handleUgPrint?: () => void;
+  handleUgPrint?: () => void; // Keep this prop for now, but its internal logic will change
 }
 
 const LibraryEngine: React.FC<LibraryEngineProps> = ({ 
@@ -109,7 +108,7 @@ const LibraryEngine: React.FC<LibraryEngineProps> = ({
             {formData.ugUrl && (
               <div className="flex gap-2">
                 <Button variant="ghost" size="icon" onClick={handleUgPrint} className="h-10 w-10 bg-white/5 rounded-xl hover:bg-orange-600 transition-all">
-                  <Printer className="w-4 h-4" />
+                  <ExternalLink className="w-4 h-4" /> {/* Changed icon to ExternalLink */}
                 </Button>
                 <Button 
                   variant="ghost" size="icon" 

@@ -2,16 +2,16 @@
 
 import React, { useState } from 'react';
 import { SetlistSong } from './SetlistManager';
-import { ClipboardCopy, Youtube, ListMusic, Sparkles, Loader2, Download } from 'lucide-react';
+import { ClipboardCopy, Youtube, ListMusic, Sparkles, Loader2, Download, ExternalLink } from 'lucide-react'; // Changed Printer to ExternalLink
 import { Button } from '@/components/ui/button';
 import { showSuccess, showError } from '@/utils/toast';
 
 interface SetlistExporterProps {
   songs: SetlistSong[];
   onAutoLink?: () => Promise<void>;
-  onDownloadAllMissingAudio?: () => Promise<void>; // New prop for bulk download
-  isBulkDownloading?: boolean; // New prop for bulk download loading state
-  missingAudioCount?: number; // New prop to show count of missing audio
+  onDownloadAllMissingAudio?: () => Promise<void>;
+  isBulkDownloading?: boolean;
+  missingAudioCount?: number;
 }
 
 const SetlistExporter: React.FC<SetlistExporterProps> = ({ songs, onAutoLink, onDownloadAllMissingAudio, isBulkDownloading, missingAudioCount = 0 }) => {

@@ -63,6 +63,11 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
           setVolume={audioEngine.setVolume}
           setFineTune={audioEngine.setFineTune}
           currentBuffer={audioEngine.currentBuffer}
+          isPlaying={audioEngine.isPlaying}
+          progress={audioEngine.progress}
+          duration={audioEngine.duration}
+          togglePlayback={audioEngine.togglePlayback}
+          stopPlayback={audioEngine.stopPlayback}
           isMobile={isMobile}
         />
       );

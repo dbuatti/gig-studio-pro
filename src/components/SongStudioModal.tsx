@@ -285,7 +285,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       // Fallback search if no UG URL is linked
       const query = encodeURIComponent(`${formData.artist || ''} ${formData.name || ''} chords`.trim());
       url = `https://www.ultimate-guitar.com/search.php?search_type=title&value=${query}`;
-      showSuccess("No UG link found. Searching Ultimate Guitar...");
+      showSuccess("Searching Ultimate Guitar...");
     } else {
       // If UG URL exists, open its print view
       const printUrl = url.includes('?') 
@@ -654,7 +654,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                 </div>
               </div>
               {/* Render SongConfigTab directly here for desktop layout */}
-              <SongConfigTab 
+              <SongConfigTab  
                 song={song}
                 formData={formData}
                 handleAutoSave={handleAutoSave}
@@ -664,6 +664,11 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                 setVolume={setVolume}
                 setFineTune={setFineTune}
                 currentBuffer={currentBuffer}
+                isPlaying={isPlaying}
+                progress={progress}
+                duration={duration}
+                togglePlayback={togglePlayback}
+                stopPlayback={stopPlayback}
                 isMobile={isMobile}
               />
             </div>

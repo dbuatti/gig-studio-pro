@@ -3,10 +3,10 @@ import React, { useMemo, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SetlistSong } from './SetlistManager';
-import { ExternalLink, ShieldCheck, Printer, FileText, Music, Guitar, Search, Maximize, Minimize } from 'lucide-react'; // Added Maximize, Minimize icons
+import { ExternalLink, ShieldCheck, Printer, FileText, Music, Guitar, Search, Maximize, Minimize } from 'lucide-react';
 import { showError, showSuccess } from '@/utils/toast';
 import UGChordsEditor from './UGChordsEditor';
-import UGChordsReader from './UGChordsReader'; // Import the new reader component
+import UGChordsReader from './UGChordsReader';
 
 interface SongChartsTabProps {
   formData: Partial<SetlistSong>;
@@ -16,10 +16,10 @@ interface SongChartsTabProps {
   isFramable: (url: string | null) => boolean;
   activeChartType: 'pdf' | 'leadsheet' | 'web' | 'ug';
   setActiveChartType: (type: 'pdf' | 'leadsheet' | 'web' | 'ug') => void;
-  handleUgPrint: () => void;
+  handleUgPrint: () => void; // Keep this prop for now, but its internal logic will change
 }
 
-const defaultUgChordsConfig = { // Define default config to avoid repetition
+const defaultUgChordsConfig = {
   fontFamily: "monospace",
   fontSize: 16,
   chordBold: true,
@@ -36,10 +36,10 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
   isFramable,
   activeChartType,
   setActiveChartType,
-  // Removed handleUgPrint from props, as it's now defined here
+  handleUgPrint, // Use the prop directly
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<"view" | "edit-ug">("view");
-  const [isReaderExpanded, setIsReaderExpanded] = useState(false); // New state for expanded view
+  const [isReaderExpanded, setIsReaderExpanded] = useState(false);
   
   const currentChartUrl = useMemo(() => {
     switch(activeChartType) {
@@ -48,9 +48,8 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
       case 'leadsheet': 
         return formData.leadsheetUrl ? `${formData.leadsheetUrl}#toolbar=0&navpanes=0&view=FitH` : null;
       case 'web': 
-        return formData.pdfUrl; // Assuming web is just a direct link to PDF for now
+        return formData.pdfUrl;
       case 'ug': 
-        // For UG, we'll render the internal reader, not an external URL iframe
         return null; 
       default: 
         return null;
@@ -59,45 +58,13 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
 
   const canEmbedUg = useMemo(() => {
     if (activeChartType === 'ug' && formData.ugUrl) {
-      // Ultimate Guitar explicitly blocks embedding, so we always return false for UG
       return false;
     }
     return isFramable(currentChartUrl);
   }, [activeChartType, formData.ugUrl, currentChartUrl, isFramable]);
 
-  // New internal handleUgPrint function
-  const handleUgPrintInternal = () => {
-    let currentUgUrl = formData.ugUrl;
-
-    if (!currentUgUrl) {
-      const query = encodeURIComponent(`${formData.artist || ''} ${formData.name || ''} chords`.trim());
-      const searchUrl = `https://www.ultimate-guitar.com/search.php?search_type=title&value=${query}`;
-      showSuccess("No UG link found. Searching Ultimate Guitar...");
-      window.open(searchUrl, '_blank', 'noopener,noreferrer');
-      return;
-    }
-
-    // If it's already a search URL, open it directly.
-    if (currentUgUrl.includes('/search.php')) {
-      showSuccess("Opening UG Search Results...");
-      window.open(currentUgUrl, '_blank', 'noopener,noreferrer');
-      return;
-    }
-
-    // For tab URLs, ensure it's a print view.
-    // First, remove any existing /print or query parameters to get the base tab URL.
-    let baseUrl = currentUgUrl.split('?')[0]; // Remove any query parameters
-    baseUrl = baseUrl.replace(/\/print$/, ''); // Remove /print if it's at the end
-
-    // Now, construct the print URL
-    const printUrl = `${baseUrl}/print`;
-    showSuccess("Opening UG Print View...");
-    window.open(printUrl, '_blank', 'noopener,noreferrer');
-  };
-
   return (
-    <div className={cn("h-full flex flex-col animate-in fade-in duration-500", isReaderExpanded ? "gap-0" : "gap-8")}> {/* Conditional gap */}
-      {/* Sub-tab switcher - Hide when expanded */}
+    <div className={cn("h-full flex flex-col animate-in fade-in duration-500", isReaderExpanded ? "gap-0" : "gap-8")}>
       {!isReaderExpanded && (
         <div className="flex bg-white/5 border border-white/10 p-1 rounded-xl">
           <Button 
@@ -125,7 +92,6 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
 
       {activeSubTab === "view" ? (
         <>
-          {/* Header and Chart Type Selector - Hide when expanded */}
           {!isReaderExpanded && (
             <div className="flex justify-between items-center shrink-0">
               <h3 className="text-sm font-black uppercase tracking-[0.3em] text-emerald-400">Chart Engine</h3>
@@ -162,7 +128,7 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
           <div className={cn(
             "flex-1 bg-white shadow-2xl relative", 
             isMobile ? "rounded-3xl" : "rounded-[3rem]",
-            activeChartType === 'ug' ? "overflow-y-auto" : "overflow-hidden" // Changed to overflow-y-auto for UG
+            activeChartType === 'ug' ? "overflow-y-auto" : "overflow-hidden"
           )}>
             {activeChartType === 'ug' && (formData.ug_chords_text || formData.ugUrl) ? (
               <UGChordsReader
@@ -201,13 +167,13 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
           </div>
           
           {activeChartType === 'ug' && (formData.ugUrl || formData.ug_chords_text) && (
-            <div className="shrink-0 flex justify-center gap-3"> {/* Added gap-3 */}
+            <div className="shrink-0 flex justify-center gap-3">
               <Button 
-                onClick={handleUgPrintInternal}
+                onClick={handleUgPrint} // Use the prop directly
                 className="bg-orange-600 hover:bg-orange-700 text-white font-black uppercase tracking-widest text-[10px] h-12 px-8 rounded-xl shadow-lg shadow-orange-600/20 gap-3"
               >
-                <Printer className="w-4 h-4" />
-                Open UG Print View
+                <ExternalLink className="w-4 h-4" /> {/* Changed icon to ExternalLink */}
+                Open in Ultimate Guitar
               </Button>
               <Button
                 onClick={() => setIsReaderExpanded(prev => !prev)}

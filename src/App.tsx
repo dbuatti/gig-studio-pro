@@ -10,6 +10,7 @@ import Landing from "./pages/Landing";
 import NotFound from "./pages/NotFound";
 import Profile from "./pages/Profile";
 import PublicRepertoire from "./pages/PublicRepertoire";
+import SheetReaderMode from "./pages/SheetReaderMode"; // Import the new component
 
 const queryClient = new QueryClient();
 
@@ -41,6 +42,11 @@ const App = () => (
             <Route path="/profile" element={
               <ProtectedRoute>
                 <Profile />
+              </ProtectedRoute>
+            } />
+            <Route path="/sheet-reader" element={
+              <ProtectedRoute>
+                <SheetReaderMode />
               </ProtectedRoute>
             } />
             <Route path="*" element={<NotFound />} />

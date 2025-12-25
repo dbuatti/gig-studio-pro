@@ -11,7 +11,7 @@ import { SetlistSong } from './SetlistManager';
 import { transposeChords } from '@/utils/chordUtils';
 import { useSettings } from '@/hooks/use-settings';
 import { cn } from "@/lib/utils";
-import { Play, RotateCcw, Download, Palette, Type, AlignCenter, AlignLeft, AlignRight, ExternalLink, Search, Check, Link as LinkIcon, Loader2 } from 'lucide-react';
+import { Play, RotateCcw, Download, Palette, Type, AlignCenter, AlignLeft, AlignRight, ExternalLink, Search, Check, Link as LinkIcon, Loader2 } from 'lucide-react'; // Changed Download to ExternalLink for the "Open in UG" button
 import { showSuccess, showError } from '@/utils/toast';
 
 interface UGChordsEditorProps {
@@ -24,32 +24,28 @@ interface UGChordsEditorProps {
 const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleAutoSave, isMobile }) => {
   const { keyPreference } = useSettings();
   const [chordsText, setChordsText] = useState(formData.ug_chords_text || "");
-  // Removed ugLink state, now using formData.ugUrl directly
   const [transposeSemitones, setTransposeSemitones] = useState(0);
   const [isFetchingUg, setIsFetchingUg] = useState(false);
   const [config, setConfig] = useState({
     fontFamily: formData.ug_chords_config?.fontFamily || "monospace",
     fontSize: formData.ug_chords_config?.fontSize || 16,
     chordBold: formData.ug_chords_config?.chordBold ?? true,
-    chordColor: formData.ug_chords_config?.chordColor || "#ffffff", // Changed default to white
+    chordColor: formData.ug_chords_config?.chordColor || "#ffffff",
     lineSpacing: formData.ug_chords_config?.lineSpacing || 1.5,
     textAlign: formData.ug_chords_config?.textAlign || "left" as "left" | "center" | "right"
   });
 
-  // Apply transposition to the chords text
   const transposedText = useMemo(() => {
     if (!chordsText || transposeSemitones === 0) return chordsText;
     return transposeChords(chordsText, transposeSemitones, keyPreference);
   }, [chordsText, transposeSemitones, keyPreference]);
 
-  // Update form data when chords text changes
   useEffect(() => {
     if (chordsText !== formData.ug_chords_text) {
       handleAutoSave({ ug_chords_text: chordsText });
     }
   }, [chordsText, formData.ug_chords_text, handleAutoSave]);
 
-  // Update form data when config changes
   useEffect(() => {
     handleAutoSave({
       ug_chords_config: {
@@ -76,15 +72,9 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
     }
   };
 
-  const handleExport = () => {
-    // In a real implementation, this would generate a PDF or other export format
-    showSuccess("Export functionality would be implemented here");
-  };
-
   const handleOpenInUG = () => {
-    let url = formData.ugUrl; // Use formData.ugUrl
+    let url = formData.ugUrl;
     if (!url) {
-      // Fallback search
       const query = encodeURIComponent(`${formData.artist || ''} ${formData.name || ''} chords`.trim());
       url = `https://www.ultimate-guitar.com/search.php?search_type=title&value=${query}`;
       showSuccess("Searching Ultimate Guitar...");
@@ -95,29 +85,26 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
   };
 
   const handleFetchUgChords = async () => {
-    if (!formData.ugUrl?.trim()) { // Use formData.ugUrl
+    if (!formData.ugUrl?.trim()) {
       showError("Please paste an Ultimate Guitar URL.");
       return;
     }
 
     setIsFetchingUg(true);
     try {
-      // Use a CORS proxy
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(formData.ugUrl)}`; // Use formData.ugUrl
+      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(formData.ugUrl)}`;
       const response = await fetch(proxyUrl);
       if (!response.ok) throw new Error("Failed to fetch content from UG.");
 
       const data = await response.json();
       const htmlContent = data.contents;
 
-      // Attempt to parse HTML and extract chords
       const parser = new DOMParser();
       const doc = parser.parseFromString(htmlContent, 'text/html');
 
-      // Common selectors for UG tab content
       const tabContentElement = doc.querySelector('pre.js-tab-content') || 
                                doc.querySelector('div.js-tab-content') ||
-                               doc.querySelector('pre'); // Fallback to any pre tag
+                               doc.querySelector('pre');
 
       if (tabContentElement && tabContentElement.textContent) {
         setChordsText(tabContentElement.textContent);
@@ -134,7 +121,6 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
     }
   };
 
-  // Ensure chords are readable on dark background if color is set to black for preview
   const readableChordColor = config.chordColor === "#000000" ? "#ffffff" : config.chordColor;
 
   return (
@@ -175,7 +161,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
                 : "bg-white/10 hover:bg-white/20 text-slate-300 border border-white/20"
             )}
           >
-            {formData.ugUrl ? <Check className="w-4 h-4" /> : <Search className="w-4 h-4" />} 
+            {formData.ugUrl ? <Check className="w-4 h-4" /> : <ExternalLink className="w-4 h-4" />} {/* Changed icon to ExternalLink */}
             OPEN IN UG
           </Button>
         </div>
@@ -199,15 +185,15 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
               <div className="relative flex-1">
                 <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <Input
-                  value={formData.ugUrl || ""} // Use formData.ugUrl
-                  onChange={(e) => handleAutoSave({ ugUrl: e.target.value })} // Update formData.ugUrl
+                  value={formData.ugUrl || ""}
+                  onChange={(e) => handleAutoSave({ ugUrl: e.target.value })}
                   placeholder="Paste Ultimate Guitar tab URL here..."
                   className="w-full bg-black/40 border border-white/20 rounded-xl p-4 pl-10 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
                 />
               </div>
               <Button
                 onClick={handleFetchUgChords}
-                disabled={isFetchingUg || !formData.ugUrl?.trim()} // Use formData.ugUrl
+                disabled={isFetchingUg || !formData.ugUrl?.trim()}
                 className="h-12 px-6 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] uppercase gap-2 rounded-xl"
               >
                 {isFetchingUg ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
@@ -463,11 +449,11 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
                 fontSize: `${config.fontSize}px`, 
                 lineHeight: config.lineSpacing,
                 textAlign: config.textAlign as any,
-                color: readableChordColor // Use the readable color for the preview
+                color: readableChordColor
               }}
             >
               {transposedText ? (
-                <pre className="whitespace-pre-wrap font-inherit"> {/* Removed text-white here */}
+                <pre className="whitespace-pre-wrap font-inherit">
                   {transposedText}
                 </pre>
               ) : (

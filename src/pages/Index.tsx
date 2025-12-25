@@ -16,19 +16,21 @@ import { calculateSemitones } from '@/utils/keyUtils';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { User as UserIcon, Loader2, Play, LayoutDashboard, Search as SearchIcon, Rocket, Settings, Clock, ShieldCheck, Music } from 'lucide-react';
+import { User as UserIcon, Loader2, Play, LayoutDashboard, Search as SearchIcon, Rocket, Settings, Clock, ShieldCheck, Music, FileText } from 'lucide-react'; // Import FileText icon
 import { cn } from "@/lib/utils";
 import { useSettings } from '@/hooks/use-settings';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { syncToMasterRepertoire } from '@/utils/repertoireSync';
-import SongStudioModal from '@/components/SongStudioModal'; // Keep this import
-import * as Tone from 'tone'; // Import Tone.js for audio context
-import { cleanYoutubeUrl } from '@/utils/youtubeUtils'; // Import the utility function
+import SongStudioModal from '@/components/SongStudioModal';
+import * as Tone from 'tone';
+import { cleanYoutubeUrl } from '@/utils/youtubeUtils';
+import { useNavigate } from 'react-router-dom'; // Import useNavigate
 
 const Index = () => {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const { keyPreference } = useSettings();
+  const navigate = useNavigate(); // Initialize useNavigate
   const [setlists, setSetlists] = useState<{ id: string; name: string; songs: SetlistSong[]; time_goal?: number }[]>([]);
   const [currentListId, setCurrentListId] = useState<string | null>(null);
   const [activeSongId, setActiveSongId] = useState<string | null>(null);
@@ -43,7 +45,7 @@ const Index = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
   
   const [masterRepertoire, setMasterRepertoire] = useState<SetlistSong[]>([]);
-  const [isBulkDownloading, setIsBulkDownloading] = useState(false); // New state for bulk download
+  const [isBulkDownloading, setIsBulkDownloading] = useState(false);
 
   const isSyncingRef = useRef(false);
   const saveQueueRef = useRef<{ listId: string; songs: SetlistSong[]; updates: any; songsToSync?: SetlistSong[] }[]>([]);
@@ -74,7 +76,10 @@ const Index = () => {
         previewUrl: d.preview_url, youtubeUrl: d.youtube_url, appleMusicUrl: d.apple_music_url,
         pdfUrl: d.pdf_url, isMetadataConfirmed: d.is_metadata_confirmed, isKeyConfirmed: d.is_key_confirmed,
         duration_seconds: d.duration_seconds, notes: d.notes, user_tags: d.user_tags || [], resources: d.resources || [],
-        isApproved: false // Default for master repertoire when fetching
+        isApproved: d.is_approved, // Ensure isApproved is mapped
+        preferred_reader: d.preferred_reader, // Ensure preferred_reader is mapped
+        ug_chords_text: d.ug_chords_text, // Ensure ug_chords_text is mapped
+        ug_chords_config: d.ug_chords_config, // Ensure ug_chords_config is mapped
       }));
       setMasterRepertoire(mapped);
     } catch (err) {}
@@ -135,7 +140,7 @@ const Index = () => {
       if (!list) return prev;
       const updatedSongs = list.songs.map(s => s.id === songId ? { ...s, ...updates } : s);
       const updatedSong = updatedSongs.find(s => s.id === songId);
-      const masterFields = ['name', 'artist', 'previewUrl', 'youtubeUrl', 'originalKey', 'targetKey', 'pitch', 'bpm', 'lyrics', 'pdfUrl', 'ugUrl', 'isMetadataConfirmed', 'isKeyConfirmed', 'isApproved', 'duration_seconds']; // Added isApproved and duration_seconds
+      const masterFields = ['name', 'artist', 'previewUrl', 'youtubeUrl', 'originalKey', 'targetKey', 'pitch', 'bpm', 'lyrics', 'pdfUrl', 'ugUrl', 'isMetadataConfirmed', 'isKeyConfirmed', 'isApproved', 'duration_seconds', 'preferred_reader', 'ug_chords_text', 'ug_chords_config']; // Added isApproved, duration_seconds, preferred_reader, ug_chords_text, ug_chords_config
       const needsMasterSync = Object.keys(updates).some(key => masterFields.includes(key));
       saveList(currentListId, updatedSongs, {}, needsMasterSync && updatedSong ? [updatedSong] : undefined);
       return prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l);
@@ -147,18 +152,18 @@ const Index = () => {
     const existing = masterRepertoire.find(s => s.name.toLowerCase() === name.toLowerCase() && s.artist?.toLowerCase() === artist.toLowerCase());
     const newSongId = Math.random().toString(36).substr(2, 9);
     const newSong: SetlistSong = existing 
-      ? { ...existing, id: newSongId, master_id: existing.master_id, isPlayed: false, isSyncing: false, isApproved: false } // Default isApproved to false
+      ? { ...existing, id: newSongId, master_id: existing.master_id, isPlayed: false, isApproved: false }
       : { 
           id: newSongId, name, artist, previewUrl, youtubeUrl, ugUrl, appleMusicUrl, genre, pitch, 
           originalKey: "TBC", targetKey: "TBC", isPlayed: false, isSyncing: true, isMetadataConfirmed: false,
           user_tags: genre ? [genre] : [],
-          isApproved: false // Default isApproved to false
+          isApproved: false 
         };
     const list = setlists.find(l => l.id === currentListId);
     if (!list) return;
     const updatedSongs = [...list.songs, newSong];
     await saveList(currentListId, updatedSongs, {}, [newSong]);
-    setIsSearchPanelOpen(false); // Close search panel after adding
+    setIsSearchPanelOpen(false);
   };
 
   const handleAddExistingSong = (song: SetlistSong) => {
@@ -166,11 +171,11 @@ const Index = () => {
     const newSongId = Math.random().toString(36).substr(2, 9);
     const list = setlists.find(l => l.id === currentListId);
     if (!list) return;
-    const newEntry = { ...song, id: newSongId, master_id: song.master_id || song.id, isPlayed: false, isApproved: false }; // Default isApproved to false
+    const newEntry = { ...song, id: newSongId, master_id: song.master_id || song.id, isPlayed: false, isApproved: false };
     const updatedSongs = [...list.songs, newEntry];
     saveList(currentListId, updatedSongs, {}, [newEntry]);
     showSuccess(`Imported "${song.name}"`);
-    setIsSearchPanelOpen(false); // Close search panel after adding
+    setIsSearchPanelOpen(false);
   };
 
   const handleUpdateKey = (songId: string, targetKey: string) => {
@@ -199,7 +204,6 @@ const Index = () => {
 
   const handleSelectSong = async (song: SetlistSong) => {
     setActiveSongId(song.id);
-    // When a song is selected for performance, the AudioTransposer should load it
     if (song.previewUrl && transposerRef.current) {
       await transposerRef.current.loadFromUrl(song.previewUrl, song.name, song.artist || "Unknown", song.youtubeUrl, song.originalKey, song.ugUrl);
       transposerRef.current.setPitch(song.pitch);
@@ -241,7 +245,7 @@ const Index = () => {
   };
 
   const startPerformance = async () => {
-    const first = songs.filter(song => song.isApproved).find(isPlayableMaster); // Only approved songs
+    const first = songs.filter(song => song.isApproved).find(isPlayableMaster);
     if (!first) { showError("No approved full audio tracks found."); return; }
     setIsPerformanceMode(true);
     handleSelectSong(first);
@@ -255,7 +259,6 @@ const Index = () => {
     return !isItunesPreview(song.previewUrl);
   };
 
-  // NEW: Function to download and upload audio for a single song
   const downloadAndUploadAudioForSong = async (songToProcess: SetlistSong) => {
     const targetVideoUrl = cleanYoutubeUrl(songToProcess.youtubeUrl || '');
 
@@ -264,13 +267,11 @@ const Index = () => {
       return { success: false, songId: songToProcess.id, error: "Missing YouTube URL, user ID, or song ID." };
     }
 
-    // Update song status to syncing
     handleUpdateSong(songToProcess.id, { isSyncing: true });
 
     try {
       const API_BASE_URL = "https://yt-audio-api-1-wedr.onrender.com";
       
-      // Initial request to get a token
       const tokenResponse = await fetch(`${API_BASE_URL}/?url=${encodeURIComponent(targetVideoUrl)}`);
       if (!tokenResponse.ok) {
         const errorText = await tokenResponse.text();
@@ -279,8 +280,8 @@ const Index = () => {
       const { token } = await tokenResponse.json();
 
       let attempts = 0;
-      const MAX_POLLING_ATTEMPTS = 30; // 30 attempts * 5 seconds = 150 seconds (2.5 minutes)
-      const POLLING_INTERVAL_MS = 5000; // 5 seconds
+      const MAX_POLLING_ATTEMPTS = 30;
+      const POLLING_INTERVAL_MS = 5000;
 
       let fileResponse: Response | undefined;
       let downloadReady = false;
@@ -297,7 +298,6 @@ const Index = () => {
           downloadReady = true;
           break;
         } else if (fileResponse.status === 202) {
-          // Still processing, continue polling
         } else if (fileResponse.status === 500) {
           if (responseData.error === "YouTube Block") {
             throw new Error("YouTube blocked the download. Try again later or use manual fallback.");
@@ -315,7 +315,6 @@ const Index = () => {
       const audioArrayBuffer = await fileResponse.arrayBuffer();
       const audioBuffer = await Tone.getContext().decodeAudioData(audioArrayBuffer.slice(0));
 
-      // Upload to Supabase Storage
       const fileExt = 'mp3';
       const fileName = `${user.id}/${songToProcess.id}/${Date.now()}.${fileExt}`;
       const bucket = 'public_audio'; 
@@ -332,11 +331,10 @@ const Index = () => {
         .from(bucket)
         .getPublicUrl(fileName);
 
-      // Update song in setlist and master repertoire
       handleUpdateSong(songToProcess.id, { 
         previewUrl: publicUrl, 
         duration_seconds: audioBuffer.duration,
-        isSyncing: false // Mark as not syncing
+        isSyncing: false
       });
       showSuccess(`Downloaded audio for "${songToProcess.name}"`);
       return { success: true, songId: songToProcess.id };
@@ -344,12 +342,11 @@ const Index = () => {
     } catch (err: any) {
       console.error(`[Bulk Download] Error downloading audio for "${songToProcess.name}":`, err);
       showError(`Failed to download audio for "${songToProcess.name}": ${err.message}`);
-      handleUpdateSong(songToProcess.id, { isSyncing: false }); // Mark as not syncing even on error
+      handleUpdateSong(songToProcess.id, { isSyncing: false });
       return { success: false, songId: songToProcess.id, error: err.message };
     }
   };
 
-  // NEW: Function to trigger download for all missing audio tracks
   const handleDownloadAllMissingAudio = async () => {
     if (!currentListId) {
       showError("No active setlist selected.");
@@ -426,8 +423,8 @@ const Index = () => {
           </div>
           <div className="flex items-center gap-2 md:gap-4">
             <Button variant="default" size="sm" onClick={startPerformance} className="h-9 md:h-10 gap-2 bg-indigo-600 font-bold uppercase tracking-tight shadow-lg shadow-indigo-600/20 px-3 md:px-4"><Rocket className="w-4 h-4" /><span className="hidden md:inline">Start Show</span></Button>
+            <Button variant="default" size="sm" onClick={() => navigate('/sheet-reader')} className="h-9 md:h-10 gap-2 bg-purple-600 font-bold uppercase tracking-tight shadow-lg shadow-purple-600/20 px-3 md:px-4"><FileText className="w-4 h-4" /><span className="hidden md:inline">Sheet Reader</span></Button> {/* NEW BUTTON */}
             <div className="h-6 w-px bg-slate-200 hidden sm:block" />
-            {/* This button now toggles the search panel */}
             <Button variant="ghost" size="icon" onClick={() => setIsSearchPanelOpen(!isSearchPanelOpen)} className={cn("h-9 w-9 md:h-10 md:w-10 rounded-lg shrink-0", isSearchPanelOpen && "text-indigo-600 bg-indigo-50")}><SearchIcon className="w-4 h-4" /></Button>
             <button onClick={() => setIsPreferencesOpen(true)} className="flex items-center gap-2 px-2 md:px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
               <UserIcon className="w-3 h-3 text-slate-500" /><span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest hidden sm:inline">{user?.email?.split('@')[0]}</span>{isSaving && <Loader2 className="w-3 h-3 animate-spin text-indigo-500 ml-1" />}<Settings className="w-3 h-3 text-slate-400 ml-1" />
@@ -450,15 +447,15 @@ const Index = () => {
               </div>
               <ImportSetlist onImport={(newSongs) => {
                 if (!currentListId) return;
-                saveList(currentListId, [...songs, ...newSongs.map(s => ({ ...s, isSyncing: true, isApproved: false }))], {}, newSongs); // Default isApproved to false
+                saveList(currentListId, [...songs, ...newSongs.map(s => ({ ...s, isSyncing: true, isApproved: false }))], {}, newSongs);
               }} />
             </div>
             <SetlistStats 
               songs={songs} 
               goalSeconds={currentList?.time_goal} 
               onUpdateGoal={(s) => currentListId && saveList(currentListId, songs, { time_goal: s }, undefined)}
-              onDownloadAllMissingAudio={handleDownloadAllMissingAudio} // Pass the new prop
-              isBulkDownloading={isBulkDownloading} // Pass the new prop
+              onDownloadAllMissingAudio={handleDownloadAllMissingAudio}
+              isBulkDownloading={isBulkDownloading}
             />
             <SetlistManager 
               songs={songs} 
@@ -467,17 +464,16 @@ const Index = () => {
               onUpdateKey={handleUpdateKey} 
               onTogglePlayed={handleTogglePlayed} 
               onSyncProData={async (s) => {}} 
-              onLinkAudio={(n) => { setIsSearchPanelOpen(true); transposerRef.current?.triggerSearch(n); }} // Open search panel
+              onLinkAudio={(n) => { setIsSearchPanelOpen(true); transposerRef.current?.triggerSearch(n); }}
               onUpdateSong={handleUpdateSong} 
               onReorder={(ns) => currentListId && saveList(currentListId, ns, {}, undefined)} 
               currentSongId={activeSongId || undefined} 
               onOpenAdmin={() => setIsAdminOpen(true)} 
-              onEdit={(songToEdit) => setSelectedSongForStudio(songToEdit)} // New prop
+              onEdit={(songToEdit) => setSelectedSongForStudio(songToEdit)}
             />
           </div>
           <MadeWithDyad />
         </main>
-        {/* This aside now exclusively contains the AudioTransposer for searching/adding songs */}
         <aside className={cn("w-full md:w-[450px] bg-white dark:bg-slate-900 border-l shadow-2xl transition-all duration-500 shrink-0 relative z-40", isSearchPanelOpen ? "translate-x-0" : "translate-x-full absolute right-0 top-16 bottom-0 md:top-20")}>
           <div className="h-full flex flex-col">
             <div className="p-4 border-b flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 shrink-0">
@@ -509,20 +505,16 @@ const Index = () => {
         <PerformanceOverlay songs={songs.filter(isPlayableMaster)} currentIndex={songs.filter(isPlayableMaster).findIndex(s => s.id === activeSongId)} isPlaying={isPlayerActive} progress={performanceState.progress} duration={performanceState.duration} onTogglePlayback={() => transposerRef.current?.togglePlayback()} onNext={handleNextSong} onPrevious={handlePreviousSong} onShuffle={handleShuffle} onClose={() => { setIsPerformanceMode(false); setActiveSongId(null); transposerRef.current?.stopPlayback(); }} onUpdateKey={handleUpdateKey} onUpdateSong={handleUpdateSong} analyzer={transposerRef.current?.getAnalyzer()} onOpenAdmin={() => setIsAdminOpen(true)} />
       )}
       
-      {/* This SongStudioModal is now controlled by selectedSongForStudio */}
       <SongStudioModal 
         song={selectedSongForStudio} 
-        isOpen={!!selectedSongForStudio} // Open only if a song is selected for editing
-        onClose={() => setSelectedSongForStudio(null)} // Close by clearing selected song
+        isOpen={!!selectedSongForStudio}
+        onClose={() => setSelectedSongForStudio(null)}
         onSave={handleUpdateSong} 
         onUpdateKey={handleUpdateKey}
         onOpenAdmin={() => setIsAdminOpen(true)}
-        onPerform={(songToPerform) => { // Add onPerform handler to close modal and start performance
+        onPerform={(songToPerform) => {
           setSelectedSongForStudio(null);
           handleSelectSong(songToPerform);
-          // Optionally start performance mode if desired
-          // setIsPerformanceMode(true);
-          // setTimeout(() => transposerRef.current?.togglePlayback(), 1000);
         }}
       />
     </div>
