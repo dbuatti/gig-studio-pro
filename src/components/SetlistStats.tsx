@@ -2,20 +2,23 @@
 
 import React, { useState } from 'react';
 import { SetlistSong } from './SetlistManager';
-import { Clock, Music, Target, PieChart, BarChart3 } from 'lucide-react';
+import { Clock, Music, Target, PieChart, BarChart3, Download, Loader2 } from 'lucide-react';
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { Input } from './ui/input';
 import SetlistExporter from './SetlistExporter';
+import { Button } from './ui/button'; // Import Button
 
 interface SetlistStatsProps {
   songs: SetlistSong[];
   goalSeconds?: number;
   onUpdateGoal?: (seconds: number) => void;
   onAutoLink?: () => Promise<void>;
+  onDownloadAllMissingAudio?: () => Promise<void>; // New prop for bulk download
+  isBulkDownloading?: boolean; // New prop for bulk download loading state
 }
 
-const SetlistStats: React.FC<SetlistStatsProps> = ({ songs, goalSeconds = 7200, onUpdateGoal, onAutoLink }) => {
+const SetlistStats: React.FC<SetlistStatsProps> = ({ songs, goalSeconds = 7200, onUpdateGoal, onAutoLink, onDownloadAllMissingAudio, isBulkDownloading }) => {
   const [isEditingGoal, setIsEditingGoal] = useState(false);
   
   // Filter for approved songs
@@ -56,6 +59,10 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({ songs, goalSeconds = 7200, 
   const topGenres = Object.entries(genres)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 3);
+
+  const missingAudioTracks = songs.filter(song => 
+    song.youtubeUrl && (!song.previewUrl || (song.previewUrl.includes('apple.com') || song.previewUrl.includes('itunes-assets')))
+  ).length;
 
   return (
     <div className="space-y-4 mb-8">
@@ -138,7 +145,13 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({ songs, goalSeconds = 7200, 
           </div>
         </div>
 
-        <SetlistExporter songs={songs} onAutoLink={onAutoLink} />
+        <SetlistExporter 
+          songs={songs} 
+          onAutoLink={onAutoLink} 
+          onDownloadAllMissingAudio={onDownloadAllMissingAudio} // Pass the new prop
+          isBulkDownloading={isBulkDownloading} // Pass the new prop
+          missingAudioCount={missingAudioTracks} // Pass the count
+        />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

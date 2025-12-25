@@ -22,6 +22,8 @@ import { useSettings } from '@/hooks/use-settings';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { syncToMasterRepertoire } from '@/utils/repertoireSync';
 import SongStudioModal from '@/components/SongStudioModal'; // Keep this import
+import * as Tone from 'tone'; // Import Tone.js for audio context
+import { cleanYoutubeUrl } from '@/utils/youtubeUtils'; // Import the utility function
 
 const Index = () => {
   const { user } = useAuth();
@@ -31,9 +33,7 @@ const Index = () => {
   const [currentListId, setCurrentListId] = useState<string | null>(null);
   const [activeSongId, setActiveSongId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  // Renamed isStudioOpen to isSearchPanelOpen
   const [isSearchPanelOpen, setIsSearchPanelOpen] = useState(false); 
-  // New state for SongStudioModal
   const [selectedSongForStudio, setSelectedSongForStudio] = useState<SetlistSong | null>(null);
   const [isPerformanceMode, setIsPerformanceMode] = useState(false);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
@@ -43,7 +43,7 @@ const Index = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
   
   const [masterRepertoire, setMasterRepertoire] = useState<SetlistSong[]>([]);
-  const [syncQueue, setSyncQueue] = useState<string[]>([]);
+  const [isBulkDownloading, setIsBulkDownloading] = useState(false); // New state for bulk download
 
   const isSyncingRef = useRef(false);
   const saveQueueRef = useRef<{ listId: string; songs: SetlistSong[]; updates: any; songsToSync?: SetlistSong[] }[]>([]);
@@ -135,7 +135,7 @@ const Index = () => {
       if (!list) return prev;
       const updatedSongs = list.songs.map(s => s.id === songId ? { ...s, ...updates } : s);
       const updatedSong = updatedSongs.find(s => s.id === songId);
-      const masterFields = ['name', 'artist', 'previewUrl', 'youtubeUrl', 'originalKey', 'targetKey', 'pitch', 'bpm', 'lyrics', 'pdfUrl', 'ugUrl', 'isMetadataConfirmed', 'isKeyConfirmed', 'isApproved']; // Added isApproved
+      const masterFields = ['name', 'artist', 'previewUrl', 'youtubeUrl', 'originalKey', 'targetKey', 'pitch', 'bpm', 'lyrics', 'pdfUrl', 'ugUrl', 'isMetadataConfirmed', 'isKeyConfirmed', 'isApproved', 'duration_seconds']; // Added isApproved and duration_seconds
       const needsMasterSync = Object.keys(updates).some(key => masterFields.includes(key));
       saveList(currentListId, updatedSongs, {}, needsMasterSync && updatedSong ? [updatedSong] : undefined);
       return prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l);
@@ -248,9 +248,146 @@ const Index = () => {
     setTimeout(() => transposerRef.current?.togglePlayback(), 1000);
   };
 
+  const isItunesPreview = (url: string) => url && (url.includes('apple.com') || url.includes('itunes-assets'));
+
   const isPlayableMaster = (song: SetlistSong) => {
     if (!song.previewUrl) return false;
-    return !song.previewUrl.includes('apple.com') && !song.previewUrl.includes('itunes-assets');
+    return !isItunesPreview(song.previewUrl);
+  };
+
+  // NEW: Function to download and upload audio for a single song
+  const downloadAndUploadAudioForSong = async (songToProcess: SetlistSong) => {
+    const targetVideoUrl = cleanYoutubeUrl(songToProcess.youtubeUrl || '');
+
+    if (!targetVideoUrl || !user?.id || !songToProcess.id) {
+      console.warn(`[Bulk Download] Skipping song ${songToProcess.name}: Missing YouTube URL, user ID, or song ID.`);
+      return { success: false, songId: songToProcess.id, error: "Missing YouTube URL, user ID, or song ID." };
+    }
+
+    // Update song status to syncing
+    handleUpdateSong(songToProcess.id, { isSyncing: true });
+
+    try {
+      const API_BASE_URL = "https://yt-audio-api-1-wedr.onrender.com";
+      
+      // Initial request to get a token
+      const tokenResponse = await fetch(`${API_BASE_URL}/?url=${encodeURIComponent(targetVideoUrl)}`);
+      if (!tokenResponse.ok) {
+        const errorText = await tokenResponse.text();
+        throw new Error(`Failed to get download token from Render API: ${tokenResponse.status} - ${errorText}`);
+      }
+      const { token } = await tokenResponse.json();
+
+      let attempts = 0;
+      const MAX_POLLING_ATTEMPTS = 30; // 30 attempts * 5 seconds = 150 seconds (2.5 minutes)
+      const POLLING_INTERVAL_MS = 5000; // 5 seconds
+
+      let fileResponse: Response | undefined;
+      let downloadReady = false;
+
+      while (attempts < MAX_POLLING_ATTEMPTS && !downloadReady) {
+        attempts++;
+        await new Promise(resolve => setTimeout(resolve, POLLING_INTERVAL_MS));
+
+        fileResponse = await fetch(`${API_BASE_URL}/download?token=${token}`);
+        const clonedResponse = fileResponse.clone();
+        const responseData = await clonedResponse.json().catch(() => ({}));
+
+        if (fileResponse.status === 200) {
+          downloadReady = true;
+          break;
+        } else if (fileResponse.status === 202) {
+          // Still processing, continue polling
+        } else if (fileResponse.status === 500) {
+          if (responseData.error === "YouTube Block") {
+            throw new Error("YouTube blocked the download. Try again later or use manual fallback.");
+          }
+          throw new Error(responseData.error || "Download failed with server error.");
+        } else {
+          throw new Error(`Download failed with unexpected status: ${fileResponse.status} ${fileResponse.statusText}`);
+        }
+      }
+
+      if (!downloadReady || !fileResponse) {
+        throw new Error("Audio processing timed out or failed after multiple attempts.");
+      }
+
+      const audioArrayBuffer = await fileResponse.arrayBuffer();
+      const audioBuffer = await Tone.getContext().decodeAudioData(audioArrayBuffer.slice(0));
+
+      // Upload to Supabase Storage
+      const fileExt = 'mp3';
+      const fileName = `${user.id}/${songToProcess.id}/${Date.now()}.${fileExt}`;
+      const bucket = 'public_audio'; 
+      
+      const { error: uploadError } = await supabase.storage
+        .from(bucket)
+        .upload(fileName, audioArrayBuffer, {
+          contentType: 'audio/mpeg', 
+          upsert: true
+        });
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(fileName);
+
+      // Update song in setlist and master repertoire
+      handleUpdateSong(songToProcess.id, { 
+        previewUrl: publicUrl, 
+        duration_seconds: audioBuffer.duration,
+        isSyncing: false // Mark as not syncing
+      });
+      showSuccess(`Downloaded audio for "${songToProcess.name}"`);
+      return { success: true, songId: songToProcess.id };
+
+    } catch (err: any) {
+      console.error(`[Bulk Download] Error downloading audio for "${songToProcess.name}":`, err);
+      showError(`Failed to download audio for "${songToProcess.name}": ${err.message}`);
+      handleUpdateSong(songToProcess.id, { isSyncing: false }); // Mark as not syncing even on error
+      return { success: false, songId: songToProcess.id, error: err.message };
+    }
+  };
+
+  // NEW: Function to trigger download for all missing audio tracks
+  const handleDownloadAllMissingAudio = async () => {
+    if (!currentListId) {
+      showError("No active setlist selected.");
+      return;
+    }
+
+    const songsToDownload = songs.filter(song => 
+      song.youtubeUrl && (!song.previewUrl || isItunesPreview(song.previewUrl))
+    );
+
+    if (songsToDownload.length === 0) {
+      showSuccess("All tracks with YouTube links already have master audio.");
+      return;
+    }
+
+    setIsBulkDownloading(true);
+    showSuccess(`Initiating download for ${songsToDownload.length} tracks...`);
+
+    let successfulDownloads = 0;
+    let failedDownloads = 0;
+
+    for (const song of songsToDownload) {
+      const result = await downloadAndUploadAudioForSong(song);
+      if (result.success) {
+        successfulDownloads++;
+      } else {
+        failedDownloads++;
+      }
+    }
+
+    setIsBulkDownloading(false);
+    if (successfulDownloads > 0 && failedDownloads === 0) {
+      showSuccess(`Successfully downloaded audio for ${successfulDownloads} tracks!`);
+    } else if (successfulDownloads > 0 && failedDownloads > 0) {
+      showError(`Downloaded ${successfulDownloads} tracks, but ${failedDownloads} failed.`);
+    } else {
+      showError("Failed to download audio for any tracks.");
+    }
   };
 
   return (
@@ -316,7 +453,13 @@ const Index = () => {
                 saveList(currentListId, [...songs, ...newSongs.map(s => ({ ...s, isSyncing: true, isApproved: false }))], {}, newSongs); // Default isApproved to false
               }} />
             </div>
-            <SetlistStats songs={songs} goalSeconds={currentList?.time_goal} onUpdateGoal={(s) => currentListId && saveList(currentListId, songs, { time_goal: s }, undefined)} />
+            <SetlistStats 
+              songs={songs} 
+              goalSeconds={currentList?.time_goal} 
+              onUpdateGoal={(s) => currentListId && saveList(currentListId, songs, { time_goal: s }, undefined)}
+              onDownloadAllMissingAudio={handleDownloadAllMissingAudio} // Pass the new prop
+              isBulkDownloading={isBulkDownloading} // Pass the new prop
+            />
             <SetlistManager 
               songs={songs} 
               onRemove={(id) => currentListId && saveList(currentListId, songs.filter(s => s.id !== id), {}, undefined)} 
