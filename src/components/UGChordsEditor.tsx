@@ -11,8 +11,8 @@ import { SetlistSong } from './SetlistManager';
 import { transposeChords } from '@/utils/chordUtils';
 import { useSettings } from '@/hooks/use-settings';
 import { cn } from "@/lib/utils";
-import { Play, RotateCcw, Download, Palette, Type, AlignCenter, AlignLeft, AlignRight, ExternalLink, Search, Check } from 'lucide-react';
-import { showSuccess } from '@/utils/toast';
+import { Play, RotateCcw, Download, Palette, Type, AlignCenter, AlignLeft, AlignRight, ExternalLink, Search, Check, Link as LinkIcon, Loader2 } from 'lucide-react';
+import { showSuccess, showError } from '@/utils/toast';
 
 interface UGChordsEditorProps {
   song: SetlistSong | null;
@@ -24,7 +24,9 @@ interface UGChordsEditorProps {
 const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleAutoSave, isMobile }) => {
   const { keyPreference } = useSettings();
   const [chordsText, setChordsText] = useState(formData.ug_chords_text || "");
+  const [ugLink, setUgLink] = useState(formData.ugUrl || "");
   const [transposeSemitones, setTransposeSemitones] = useState(0);
+  const [isFetchingUg, setIsFetchingUg] = useState(false);
   const [config, setConfig] = useState({
     fontFamily: formData.ug_chords_config?.fontFamily || "monospace",
     fontSize: formData.ug_chords_config?.fontSize || 16,
@@ -46,6 +48,13 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
       handleAutoSave({ ug_chords_text: chordsText });
     }
   }, [chordsText, formData.ug_chords_text, handleAutoSave]);
+
+  // Update form data when UG link changes
+  useEffect(() => {
+    if (ugLink !== formData.ugUrl) {
+      handleAutoSave({ ugUrl: ugLink });
+    }
+  }, [ugLink, formData.ugUrl, handleAutoSave]);
 
   // Update form data when config changes
   useEffect(() => {
@@ -89,6 +98,46 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
       showSuccess("Opening linked UG tab...");
     }
     window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleFetchUgChords = async () => {
+    if (!ugLink.trim()) {
+      showError("Please paste an Ultimate Guitar URL.");
+      return;
+    }
+
+    setIsFetchingUg(true);
+    try {
+      // Use a CORS proxy
+      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(ugLink)}`;
+      const response = await fetch(proxyUrl);
+      if (!response.ok) throw new Error("Failed to fetch content from UG.");
+
+      const data = await response.json();
+      const htmlContent = data.contents;
+
+      // Attempt to parse HTML and extract chords
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlContent, 'text/html');
+
+      // Common selectors for UG tab content
+      const tabContentElement = doc.querySelector('pre.js-tab-content') || 
+                               doc.querySelector('div.js-tab-content') ||
+                               doc.querySelector('pre'); // Fallback to any pre tag
+
+      if (tabContentElement && tabContentElement.textContent) {
+        setChordsText(tabContentElement.textContent);
+        showSuccess("Chords fetched successfully!");
+      } else {
+        showError("Could not find chords content on the page. Try a different URL or paste manually.");
+      }
+
+    } catch (error: any) {
+      console.error("Error fetching UG chords:", error);
+      showError(`Failed to fetch chords: ${error.message || "Network error"}`);
+    } finally {
+      setIsFetchingUg(false);
+    }
   };
 
   return (
@@ -144,8 +193,34 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
           "flex flex-col gap-4",
           isMobile ? "w-full" : "md:w-1/2"
         )}>
-          {/* Chords Input */}
+          {/* UG Link Input */}
           <div className="bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-3xl p-6">
+            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
+              Ultimate Guitar Link
+            </Label>
+            <div className="flex gap-3 mt-3">
+              <div className="relative flex-1">
+                <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Input
+                  value={ugLink}
+                  onChange={(e) => setUgLink(e.target.value)}
+                  placeholder="Paste Ultimate Guitar tab URL here..."
+                  className="w-full bg-black/40 border border-white/20 rounded-xl p-4 pl-10 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                />
+              </div>
+              <Button
+                onClick={handleFetchUgChords}
+                disabled={isFetchingUg || !ugLink.trim()}
+                className="h-12 px-6 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] uppercase gap-2 rounded-xl"
+              >
+                {isFetchingUg ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                Fetch Chords
+              </Button>
+            </div>
+          </div>
+
+          {/* Chords Input */}
+          <div className="bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-3xl p-6 flex-1 flex flex-col">
             <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
               Paste Chords & Lyrics
             </Label>
@@ -153,7 +228,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
               value={chordsText}
               onChange={(e) => setChordsText(e.target.value)}
               placeholder="Paste your chords and lyrics here. Example: [Verse] C G Am F When I find myself in times of trouble, Mother Mary comes to me"
-              className="w-full mt-3 bg-black/40 border border-white/20 rounded-xl p-4 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:border-transparent min-h-[300px] font-mono text-sm resize-none"
+              className="w-full mt-3 bg-black/40 border border-white/20 rounded-xl p-4 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:border-transparent min-h-[300px] font-mono text-sm resize-none flex-1"
             />
             <div className="flex justify-between items-center mt-2">
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
