@@ -9,7 +9,7 @@ interface UGChordsReaderProps {
     fontFamily: string;
     fontSize: number;
     chordBold: boolean;
-    chordColor?: string;
+    chordColor: string;
     lineSpacing: number;
     textAlign: "left" | "center" | "right";
   };
@@ -31,7 +31,7 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({ chordsText, config, isM
   return (
     <div
       className={cn(
-        "flex-1 bg-slate-950 rounded-xl p-4 overflow-auto border border-white/10 font-mono custom-scrollbar", // Removed text-white here, will set via style
+        "flex-1 bg-slate-950 rounded-xl p-4 overflow-auto border border-white/10 font-mono custom-scrollbar flex flex-col", // Added flex flex-col
         isMobile ? "text-sm" : "text-base"
       )}
       style={{
@@ -44,7 +44,7 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({ chordsText, config, isM
     >
       {chordsText ? (
         <pre 
-          className="whitespace-pre-wrap font-inherit" 
+          className="whitespace-pre-wrap font-inherit flex-1 h-full" // Added flex-1 h-full to make it scrollable
           dangerouslySetInnerHTML={{ __html: formattedHtml }} 
         />
       ) : (

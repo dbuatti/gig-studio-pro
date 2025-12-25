@@ -3,7 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SetlistSong } from './SetlistManager';
-import { ExternalLink, ShieldCheck, Printer, FileText, Music, Guitar, Search } from 'lucide-react'; // Added Search icon
+import { ExternalLink, ShieldCheck, Printer, FileText, Music, Guitar, Search, Maximize, Minimize } from 'lucide-react'; // Added Maximize, Minimize icons
 import { showError, showSuccess } from '@/utils/toast';
 import UGChordsEditor from './UGChordsEditor';
 import UGChordsReader from './UGChordsReader'; // Import the new reader component
@@ -19,6 +19,15 @@ interface SongChartsTabProps {
   handleUgPrint: () => void;
 }
 
+const defaultUgChordsConfig = { // Define default config to avoid repetition
+  fontFamily: "monospace",
+  fontSize: 16,
+  chordBold: true,
+  lineSpacing: 1.5,
+  chordColor: "#ffffff",
+  textAlign: "left" as "left" | "center" | "right"
+};
+
 const SongChartsTab: React.FC<SongChartsTabProps> = ({
   formData,
   handleAutoSave,
@@ -30,6 +39,7 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
   // Removed handleUgPrint from props, as it's now defined here
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<"view" | "edit-ug">("view");
+  const [isReaderExpanded, setIsReaderExpanded] = useState(false); // New state for expanded view
   
   const currentChartUrl = useMemo(() => {
     switch(activeChartType) {
@@ -80,77 +90,78 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
   };
 
   return (
-    <div className="h-full flex flex-col gap-8 animate-in fade-in duration-500">
-      {/* Sub-tab switcher */}
-      <div className="flex bg-white/5 border border-white/10 p-1 rounded-xl">
-        <Button 
-          variant="ghost" 
-          onClick={() => setActiveSubTab("view")}
-          className={cn(
-            "flex-1 text-[10px] font-black uppercase tracking-widest",
-            activeSubTab === "view" && "bg-indigo-600 text-white"
-          )}
-        >
-          View Charts
-        </Button>
-        <Button 
-          variant="ghost" 
-          onClick={() => setActiveSubTab("edit-ug")}
-          className={cn(
-            "flex-1 text-[10px] font-black uppercase tracking-widest",
-            activeSubTab === "edit-ug" && "bg-indigo-600 text-white"
-          )}
-        >
-          Edit UG Chords
-        </Button>
-      </div>
+    <div className={cn("h-full flex flex-col animate-in fade-in duration-500", isReaderExpanded ? "gap-0" : "gap-8")}> {/* Conditional gap */}
+      {/* Sub-tab switcher - Hide when expanded */}
+      {!isReaderExpanded && (
+        <div className="flex bg-white/5 border border-white/10 p-1 rounded-xl">
+          <Button 
+            variant="ghost" 
+            onClick={() => setActiveSubTab("view")}
+            className={cn(
+              "flex-1 text-[10px] font-black uppercase tracking-widest",
+              activeSubTab === "view" && "bg-indigo-600 text-white"
+            )}
+          >
+            View Charts
+          </Button>
+          <Button 
+            variant="ghost" 
+            onClick={() => setActiveSubTab("edit-ug")}
+            className={cn(
+              "flex-1 text-[10px] font-black uppercase tracking-widest",
+              activeSubTab === "edit-ug" && "bg-indigo-600 text-white"
+            )}
+          >
+            Edit UG Chords
+          </Button>
+        </div>
+      )}
 
       {activeSubTab === "view" ? (
         <>
-          <div className="flex justify-between items-center shrink-0">
-            <h3 className="text-sm font-black uppercase tracking-[0.3em] text-emerald-400">Chart Engine</h3>
-            
-            {/* Chart Type Selector */}
-            <div className="flex bg-white/5 p-1 rounded-xl">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                disabled={!formData.pdfUrl}
-                onClick={() => setActiveChartType('pdf')}
-                className={cn(
-                  "text-[9px] font-black uppercase h-8 px-4 rounded-lg",
-                  activeChartType === 'pdf' ? "bg-indigo-600 text-white" : "text-slate-500"
-                )}
-              >
-                PDF
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                disabled={!formData.ugUrl && !formData.ug_chords_text} // Enable if ugUrl or ug_chords_text exists
-                onClick={() => setActiveChartType('ug')}
-                className={cn(
-                  "text-[9px] font-black uppercase h-8 px-4 rounded-lg",
-                  activeChartType === 'ug' ? "bg-indigo-600 text-white" : "text-slate-500"
-                )}
-              >
-                UG
-              </Button>
+          {/* Header and Chart Type Selector - Hide when expanded */}
+          {!isReaderExpanded && (
+            <div className="flex justify-between items-center shrink-0">
+              <h3 className="text-sm font-black uppercase tracking-[0.3em] text-emerald-400">Chart Engine</h3>
+              
+              <div className="flex bg-white/5 p-1 rounded-xl">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  disabled={!formData.pdfUrl}
+                  onClick={() => setActiveChartType('pdf')}
+                  className={cn(
+                    "text-[9px] font-black uppercase h-8 px-4 rounded-lg",
+                    activeChartType === 'pdf' ? "bg-indigo-600 text-white" : "text-slate-500"
+                  )}
+                >
+                  PDF
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  disabled={!formData.ugUrl && !formData.ug_chords_text}
+                  onClick={() => setActiveChartType('ug')}
+                  className={cn(
+                    "text-[9px] font-black uppercase h-8 px-4 rounded-lg",
+                    activeChartType === 'ug' ? "bg-indigo-600 text-white" : "text-slate-500"
+                  )}
+                >
+                  UG
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
           
-          <div className={cn("flex-1 bg-white overflow-hidden shadow-2xl relative", isMobile ? "rounded-3xl" : "rounded-[3rem]")}>
+          <div className={cn(
+            "flex-1 bg-white shadow-2xl relative", 
+            isMobile ? "rounded-3xl" : "rounded-[3rem]",
+            activeChartType === 'ug' ? "overflow-y-auto" : "overflow-hidden" // Changed to overflow-y-auto for UG
+          )}>
             {activeChartType === 'ug' && (formData.ug_chords_text || formData.ugUrl) ? (
               <UGChordsReader
                 chordsText={formData.ug_chords_text || ""}
-                config={formData.ug_chords_config || {
-                  fontFamily: "monospace",
-                  fontSize: 16,
-                  chordBold: true,
-                  lineSpacing: 1.5,
-                  chordColor: "#ffffff", // Ensure default chord color is white
-                  textAlign: "left" // Ensure default text alignment
-                }}
+                config={formData.ug_chords_config || defaultUgChordsConfig}
                 isMobile={isMobile}
               />
             ) : currentChartUrl ? (
@@ -183,14 +194,21 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
             )}
           </div>
           
-          {activeChartType === 'ug' && (formData.ugUrl || formData.ug_chords_text) && ( // Show button if UG data exists
-            <div className="shrink-0 flex justify-center">
+          {activeChartType === 'ug' && (formData.ugUrl || formData.ug_chords_text) && (
+            <div className="shrink-0 flex justify-center gap-3"> {/* Added gap-3 */}
               <Button 
-                onClick={handleUgPrintInternal} // Use the new internal function
+                onClick={handleUgPrintInternal}
                 className="bg-orange-600 hover:bg-orange-700 text-white font-black uppercase tracking-widest text-[10px] h-12 px-8 rounded-xl shadow-lg shadow-orange-600/20 gap-3"
               >
                 <Printer className="w-4 h-4" />
                 Open UG Print View
+              </Button>
+              <Button
+                onClick={() => setIsReaderExpanded(prev => !prev)}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-[10px] h-12 px-8 rounded-xl shadow-lg shadow-indigo-600/20 gap-3"
+              >
+                {isReaderExpanded ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                {isReaderExpanded ? "Collapse View" : "Expand View"}
               </Button>
             </div>
           )}
