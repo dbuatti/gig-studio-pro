@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
-  Youtube, Search, Loader2, X, Download, ExternalLink
+  Youtube, Search, Loader2, X, Download, ExternalLink, PlayCircle
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import YoutubeResultsShelf from './YoutubeResultsShelf';
@@ -332,6 +332,11 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
     }
   };
 
+  const handlePreviewVideo = (videoUrl: string) => {
+    handleAutoSave({ youtubeUrl: cleanYoutubeUrl(videoUrl) });
+    showSuccess("Previewing video in Visual tab.");
+  };
+
   return (
     <div className="space-y-10">
       <h3 className="text-xl font-black uppercase tracking-tight text-indigo-400 shrink-0">REFERENCE MEDIA</h3>
@@ -375,10 +380,11 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
           results={ytResults}
           currentVideoId={currentVideoId}
           onSelect={handleSelectYoutubeVideo}
-          onDownloadAudio={handleDownloadViaProxy} // Pass the download handler
+          onDownloadAudio={handleDownloadViaProxy}
+          onPreviewVideo={handlePreviewVideo} // Pass the new handler
           isLoading={isSearchingYoutube}
-          isDownloading={isDownloading} // Pass download state
-          downloadStatus={downloadStatus} // Pass download status
+          isDownloading={isDownloading}
+          downloadStatus={downloadStatus}
         />
       )}
 

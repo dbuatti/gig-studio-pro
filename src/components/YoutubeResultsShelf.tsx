@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { User, Globe, Check, Clock, Zap, Loader2, Download } from 'lucide-react';
+import { User, Globe, Check, Clock, Zap, Loader2, Download, PlayCircle } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { Button } from '@/components/ui/button';
 
@@ -10,20 +10,22 @@ interface YoutubeResultsShelfProps {
   results: any[];
   currentVideoId: string | null;
   onSelect: (videoUrl: string) => void;
-  onDownloadAudio: (videoUrl: string) => void; // New prop for downloading audio
+  onDownloadAudio: (videoUrl: string) => void;
+  onPreviewVideo: (videoUrl: string) => void; // New prop for video preview
   isLoading: boolean;
-  isDownloading: boolean; // New prop for download state
-  downloadStatus: 'idle' | 'processing' | 'downloading' | 'error' | 'success'; // New prop for download status
+  isDownloading: boolean;
+  downloadStatus: 'idle' | 'processing' | 'downloading' | 'error' | 'success';
 }
 
 const YoutubeResultsShelf: React.FC<YoutubeResultsShelfProps> = ({ 
   results, 
   currentVideoId, 
   onSelect, 
-  onDownloadAudio, // Destructure new prop
+  onDownloadAudio, 
+  onPreviewVideo, // Destructure new prop
   isLoading,
-  isDownloading, // Destructure new prop
-  downloadStatus // Destructure new prop
+  isDownloading, 
+  downloadStatus 
 }) => {
   if (isLoading) {
     return (
@@ -66,8 +68,15 @@ const YoutubeResultsShelf: React.FC<YoutubeResultsShelfProps> = ({
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                   />
                   
-                  {/* Hover Overlay with two square buttons */}
+                  {/* Hover Overlay with three square buttons */}
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 p-4">
+                     <Button 
+                       onClick={() => onPreviewVideo(videoUrl)} // New Play button
+                       className="bg-blue-600 hover:bg-blue-700 text-white font-black uppercase text-[9px] h-10 w-10 rounded-xl shadow-2xl p-0 flex items-center justify-center active:scale-95 transition-transform"
+                       title="Preview Video"
+                     >
+                       <PlayCircle className="w-4 h-4" />
+                     </Button>
                      <Button 
                        onClick={() => onSelect(videoUrl)}
                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[9px] h-10 w-10 rounded-xl shadow-2xl p-0 flex items-center justify-center active:scale-95 transition-transform"
