@@ -25,6 +25,7 @@ interface FilterState {
   hasAudio: boolean;
   isApproved: boolean;
   hasCharts: boolean;
+  hasUgChords: boolean; // NEW: Added hasUgChords filter
 }
 
 type SortOption = 'alphabetical' | 'readiness_asc' | 'readiness_desc';
@@ -51,6 +52,7 @@ const SheetReaderMode: React.FC = () => {
     hasAudio: false,
     isApproved: false,
     hasCharts: false,
+    hasUgChords: false, // NEW: Initialize hasUgChords to false
   });
   const [sortOption, setSortOption] = useState<SortOption>('alphabetical');
   const [autoAdvanceEnabled, setAutoAdvanceEnabled] = useState(false);
@@ -138,6 +140,10 @@ const SheetReaderMode: React.FC = () => {
     }
     if (filters.hasCharts) {
       result = result.filter(s => s.pdfUrl || s.leadsheetUrl || s.ugUrl || s.ug_chords_text);
+    }
+    // NEW: Apply hasUgChords filter
+    if (filters.hasUgChords) {
+      result = result.filter(s => !!s.ug_chords_text && s.ug_chords_text.trim().length > 0);
     }
 
     // Apply sorting
@@ -399,6 +405,14 @@ const SheetReaderMode: React.FC = () => {
                 className={cn("h-9 text-[10px] font-black uppercase tracking-widest rounded-xl gap-2", filters.hasCharts ? "bg-purple-600 text-white" : "bg-white/5 border-white/10 text-slate-400")}
               >
                 <FileText className="w-3.5 h-3.5" /> Has Charts
+              </Button>
+              {/* NEW: Has Ultimate Chords Filter Button */}
+              <Button
+                variant="outline"
+                onClick={() => setFilters(prev => ({ ...prev, hasUgChords: !prev.hasUgChords }))}
+                className={cn("h-9 text-[10px] font-black uppercase tracking-widest rounded-xl gap-2", filters.hasUgChords ? "bg-orange-600 text-white" : "bg-white/5 border-white/10 text-slate-400")}
+              >
+                <Guitar className="w-3.5 h-3.5" /> UG Chords
               </Button>
             </div>
           </div>
