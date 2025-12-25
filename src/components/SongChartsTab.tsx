@@ -67,26 +67,32 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
 
   // New internal handleUgPrint function
   const handleUgPrintInternal = () => {
-    let url = formData.ugUrl;
-    if (!url) {
-      const query = encodeURIComponent(`${formData.artist || ''} ${formData.name || ''} chords`.trim());
-      url = `https://www.ultimate-guitar.com/search.php?search_type=title&value=${query}`;
-      showSuccess("No UG link found. Searching Ultimate Guitar...");
-    } else {
-      // Check if the URL is already a print URL or a search URL
-      if (url.includes('/print') || url.includes('/search.php')) {
-        showSuccess("Opening UG Print View..."); // This message is a bit misleading for search, but it's opening the provided URL
-        window.open(url, '_blank', 'noopener,noreferrer');
-        return;
-      }
+    let currentUgUrl = formData.ugUrl;
 
-      // If not a print URL, convert it
-      url = url.includes('?') 
-        ? url.replace('?', '/print?') 
-        : `${url}/print`;
-      showSuccess("Opening UG Print View...");
+    if (!currentUgUrl) {
+      const query = encodeURIComponent(`${formData.artist || ''} ${formData.name || ''} chords`.trim());
+      const searchUrl = `https://www.ultimate-guitar.com/search.php?search_type=title&value=${query}`;
+      showSuccess("No UG link found. Searching Ultimate Guitar...");
+      window.open(searchUrl, '_blank', 'noopener,noreferrer');
+      return;
     }
-    window.open(url, '_blank', 'noopener,noreferrer');
+
+    // If it's already a search URL, open it directly.
+    if (currentUgUrl.includes('/search.php')) {
+      showSuccess("Opening UG Search Results...");
+      window.open(currentUgUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    // For tab URLs, ensure it's a print view.
+    // First, remove any existing /print or query parameters to get the base tab URL.
+    let baseUrl = currentUgUrl.split('?')[0]; // Remove any query parameters
+    baseUrl = baseUrl.replace(/\/print$/, ''); // Remove /print if it's at the end
+
+    // Now, construct the print URL
+    const printUrl = `${baseUrl}/print`;
+    showSuccess("Opening UG Print View...");
+    window.open(printUrl, '_blank', 'noopener,noreferrer');
   };
 
   return (
