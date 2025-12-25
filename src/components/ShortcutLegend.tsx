@@ -11,7 +11,7 @@ interface ShortcutLegendProps {
 const SHORTCUTS = [
   { key: 'SPACE', desc: 'Play / Pause Audio' },
   { key: '←', desc: 'Previous Song' },
-  { key: '→', desc: 'Next Song' },
+  { key: '→ / L', desc: 'Next Song' }, 
   { key: 'S', desc: 'Toggle Auto-Scroll' },
   { key: 'E', desc: 'Edit Studio Settings' },
   { key: 'ESC', desc: 'Exit Performance Mode' },

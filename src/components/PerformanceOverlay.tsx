@@ -107,7 +107,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
       if (e.key === 'ArrowLeft') {
         onPrevious();
       }
-      if (e.key === 'ArrowRight') {
+      if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'l') { // Added 'L' key
         onNext();
       }
       if (e.key.toLowerCase() === 's') {
