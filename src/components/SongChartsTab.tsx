@@ -3,7 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SetlistSong } from './SetlistManager';
-import { ExternalLink, ShieldCheck, Printer, FileText, Music } from 'lucide-react';
+import { ExternalLink, ShieldCheck, Printer, FileText, Music, Guitar } from 'lucide-react';
 import { showError, showSuccess } from '@/utils/toast';
 import UGChordsEditor from './UGChordsEditor';
 
@@ -29,18 +29,18 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
   handleUgPrint,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<"view" | "edit-ug">("view");
-
+  
   const currentChartUrl = useMemo(() => {
     switch(activeChartType) {
-      case 'pdf':
+      case 'pdf': 
         return formData.pdfUrl ? `${formData.pdfUrl}#toolbar=0&navpanes=0&view=FitH` : null;
-      case 'leadsheet':
+      case 'leadsheet': 
         return formData.leadsheetUrl ? `${formData.leadsheetUrl}#toolbar=0&navpanes=0&view=FitH` : null;
-      case 'web':
+      case 'web': 
         return formData.pdfUrl; // Assuming web is just a direct link to PDF for now
-      case 'ug':
+      case 'ug': 
         return formData.ugUrl;
-      default:
+      default: 
         return null;
     }
   }, [activeChartType, formData.pdfUrl, formData.leadsheetUrl, formData.ugUrl]);
@@ -75,6 +75,61 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
         <>
           <div className="flex justify-between items-center shrink-0">
             <h3 className="text-sm font-black uppercase tracking-[0.3em] text-emerald-400">Chart Engine</h3>
+            
+            {/* Manual Sheet Music Reader Selector */}
+            <div className="flex flex-col items-center gap-4 w-full">
+              <div className="flex w-full max-w-md bg-white/5 border border-white/10 p-1.5 rounded-xl backdrop-blur-sm">
+                <button
+                  onClick={() => handleAutoSave({ 
+                    preferred_reader: formData.preferred_reader === "ug" ? null : "ug" 
+                  })}
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-2 py-4 rounded-lg transition-all font-black uppercase tracking-wider text-sm",
+                    formData.preferred_reader === "ug" 
+                      ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/30" 
+                      : "text-slate-400 hover:text-white hover:bg-white/10"
+                  )}
+                >
+                  <Guitar className="w-5 h-5" />
+                  UG
+                </button>
+                <button
+                  onClick={() => handleAutoSave({ 
+                    preferred_reader: formData.preferred_reader === "ls" ? null : "ls" 
+                  })}
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-2 py-4 rounded-lg transition-all font-black uppercase tracking-wider text-sm",
+                    formData.preferred_reader === "ls" 
+                      ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/30" 
+                      : "text-slate-400 hover:text-white hover:bg-white/10"
+                  )}
+                >
+                  <Music className="w-5 h-5" />
+                  LS
+                </button>
+                <button
+                  onClick={() => handleAutoSave({ 
+                    preferred_reader: formData.preferred_reader === "fn" ? null : "fn" 
+                  })}
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-2 py-4 rounded-lg transition-all font-black uppercase tracking-wider text-sm",
+                    formData.preferred_reader === "fn" 
+                      ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/30" 
+                      : "text-slate-400 hover:text-white hover:bg-white/10"
+                  )}
+                >
+                  <FileText className="w-5 h-5" />
+                  FN
+                </button>
+              </div>
+              {!formData.preferred_reader && (
+                <p className="text-slate-500 text-sm">
+                  Select how you'll read this chart on stage
+                </p>
+              )}
+            </div>
+            
+            {/* Chart Type Selector */}
             <div className="flex bg-white/5 p-1 rounded-xl">
               <Button 
                 variant="ghost" 
@@ -102,6 +157,7 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
               </Button>
             </div>
           </div>
+          
           <div className={cn("flex-1 bg-white overflow-hidden shadow-2xl relative", isMobile ? "rounded-3xl" : "rounded-[3rem]")}>
             {currentChartUrl ? (
               isFramable(currentChartUrl) ? (
@@ -129,6 +185,7 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
               </div>
             )}
           </div>
+          
           {activeChartType === 'ug' && formData.ugUrl && (
             <div className="shrink-0 flex justify-center">
               <Button 
@@ -145,8 +202,8 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
         <UGChordsEditor 
           song={null} 
           formData={formData} 
-          handleAutoSave={handleAutoSave}
-          isMobile={isMobile}
+          handleAutoSave={handleAutoSave} 
+          isMobile={isMobile} 
         />
       )}
     </div>

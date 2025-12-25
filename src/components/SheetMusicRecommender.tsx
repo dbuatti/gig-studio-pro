@@ -1,24 +1,10 @@
 "use client";
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { 
-  Music, 
-  FileText, 
-  Guitar, 
-  Sparkles, 
-  Check,
-  ChevronDown,
-  ExternalLink
-} from 'lucide-react';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
-} from "@/components/ui/dropdown-menu";
+import { Music, FileText, Guitar, Sparkles, Check, ChevronDown, ExternalLink } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { SetlistSong } from './SetlistManager';
 
@@ -29,13 +15,13 @@ interface SheetMusicRecommenderProps {
   onOpenInApp?: (app: string, url?: string) => void;
 }
 
-type ReaderType = 'chords_ug' | 'full_forscore' | 'lead_forscore' | null;
+type ReaderType = 'ug' | 'ls' | 'fn' | null;
 
-const SheetMusicRecommender: React.FC<SheetMusicRecommenderProps> = ({
-  song,
-  formData,
-  handleAutoSave,
-  onOpenInApp
+const SheetMusicRecommender: React.FC<SheetMusicRecommenderProps> = ({ 
+  song, 
+  formData, 
+  handleAutoSave, 
+  onOpenInApp 
 }) => {
   const [recommendedReader, setRecommendedReader] = useState<ReaderType>(null);
   const [isManualOverride, setIsManualOverride] = useState(false);
@@ -50,49 +36,43 @@ const SheetMusicRecommender: React.FC<SheetMusicRecommenderProps> = ({
       if (formData.preferred_reader) {
         return formData.preferred_reader as ReaderType;
       }
-      
+
       // Analyze song metadata
       const tags = formData.user_tags || [];
       const genre = formData.genre?.toLowerCase() || '';
-      
+
       // Ultimate Guitar Pro recommendation
       if (
-        tags.some(tag => 
-          ['chords', 'tabs', 'guitar', 'strumming'].includes(tag.toLowerCase())
-        ) ||
+        tags.some(tag => ['chords', 'tabs', 'guitar', 'strumming'].includes(tag.toLowerCase())) ||
         ['rock', 'folk', 'pop', 'country'].includes(genre)
       ) {
-        return 'chords_ug';
+        return 'ug';
       }
-      
+
       // Lead Sheet recommendation
       if (
-        tags.some(tag => 
-          ['lead sheet', 'jazz', 'standards', 'melody'].includes(tag.toLowerCase())
-        ) ||
+        tags.some(tag => ['lead sheet', 'jazz', 'standards', 'melody'].includes(tag.toLowerCase())) ||
         ['jazz', 'blues', 'swing'].includes(genre)
       ) {
-        return 'lead_forscore';
+        return 'ls';
       }
-      
+
       // Full Notation recommendation
       if (
-        tags.some(tag => 
-          ['full score', 'classical', 'orchestral', 'symphony'].includes(tag.toLowerCase())
-        ) ||
+        tags.some(tag => ['full score', 'classical', 'orchestral', 'symphony'].includes(tag.toLowerCase())) ||
         ['classical', 'orchestral', 'symphony'].includes(genre)
       ) {
-        return 'full_forscore';
+        return 'fn';
       }
-      
+
       // Default based on complexity
       const keyComplexity = formData.originalKey?.length > 2 ? 'complex' : 'simple';
       const bpm = parseInt(formData.bpm || '0');
       const isComplex = keyComplexity === 'complex' || bpm > 140;
       
-      return isComplex ? 'full_forscore' : 'chords_ug';
+      return isComplex ? 'fn' : 'ug';
     };
-    
+
     const recommendation = determineReader();
     setRecommendedReader(recommendation);
     setUserSelection(recommendation);
@@ -101,24 +81,21 @@ const SheetMusicRecommender: React.FC<SheetMusicRecommenderProps> = ({
   const handleReaderSelect = (reader: ReaderType) => {
     setUserSelection(reader);
     setIsManualOverride(true);
-    
     // Save preference to song
-    handleAutoSave({
-      preferred_reader: reader
-    });
+    handleAutoSave({ preferred_reader: reader });
   };
 
   const handleOpenInApp = () => {
     if (!userSelection) return;
     
     switch (userSelection) {
-      case 'chords_ug':
+      case 'ug':
         if (onOpenInApp) {
           onOpenInApp('Ultimate Guitar', formData.ugUrl);
         }
         break;
-      case 'full_forscore':
-      case 'lead_forscore':
+      case 'fn':
+      case 'ls':
         if (onOpenInApp) {
           onOpenInApp('ForScore', formData.pdfUrl || formData.leadsheetUrl);
         }
@@ -128,7 +105,7 @@ const SheetMusicRecommender: React.FC<SheetMusicRecommenderProps> = ({
 
   const getReaderInfo = (reader: ReaderType) => {
     switch (reader) {
-      case 'chords_ug':
+      case 'ug':
         return {
           name: 'Ultimate Guitar Pro',
           icon: Guitar,
@@ -136,7 +113,7 @@ const SheetMusicRecommender: React.FC<SheetMusicRecommenderProps> = ({
           color: 'bg-orange-500',
           badge: 'Chords/Tabs'
         };
-      case 'full_forscore':
+      case 'fn':
         return {
           name: 'Full Notation',
           icon: FileText,
@@ -144,7 +121,7 @@ const SheetMusicRecommender: React.FC<SheetMusicRecommenderProps> = ({
           color: 'bg-emerald-500',
           badge: 'Full Score'
         };
-      case 'lead_forscore':
+      case 'ls':
         return {
           name: 'Lead Sheet',
           icon: Music,
@@ -177,9 +154,9 @@ const SheetMusicRecommender: React.FC<SheetMusicRecommenderProps> = ({
           variant="secondary" 
           className={cn(
             "text-[8px] font-black uppercase tracking-widest",
-            currentReader === 'chords_ug' && "bg-orange-500/20 text-orange-500",
-            currentReader === 'full_forscore' && "bg-emerald-500/20 text-emerald-500",
-            currentReader === 'lead_forscore' && "bg-indigo-500/20 text-indigo-500"
+            currentReader === 'ug' && "bg-orange-500/20 text-orange-500",
+            currentReader === 'fn' && "bg-emerald-500/20 text-emerald-500",
+            currentReader === 'ls' && "bg-indigo-500/20 text-indigo-500"
           )}
         >
           {readerInfo.badge}
@@ -201,7 +178,10 @@ const SheetMusicRecommender: React.FC<SheetMusicRecommenderProps> = ({
           </div>
           
           {isManualOverride ? (
-            <Badge variant="secondary" className="bg-indigo-500/20 text-indigo-500 text-[8px] font-black">
+            <Badge 
+              variant="secondary" 
+              className="bg-indigo-500/20 text-indigo-500 text-[8px] font-black"
+            >
               USER OVERRIDE
             </Badge>
           ) : recommendedReader && (
@@ -225,21 +205,21 @@ const SheetMusicRecommender: React.FC<SheetMusicRecommenderProps> = ({
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-48 bg-slate-900 border-white/10 text-white">
               <DropdownMenuItem 
-                onClick={() => handleReaderSelect('chords_ug')}
+                onClick={() => handleReaderSelect('ug')} 
                 className="flex items-center gap-2 py-2"
               >
                 <Guitar className="w-4 h-4 text-orange-500" />
                 <span>Ultimate Guitar</span>
               </DropdownMenuItem>
               <DropdownMenuItem 
-                onClick={() => handleReaderSelect('full_forscore')}
+                onClick={() => handleReaderSelect('fn')} 
                 className="flex items-center gap-2 py-2"
               >
                 <FileText className="w-4 h-4 text-emerald-500" />
                 <span>Full Notation</span>
               </DropdownMenuItem>
               <DropdownMenuItem 
-                onClick={() => handleReaderSelect('lead_forscore')}
+                onClick={() => handleReaderSelect('ls')} 
                 className="flex items-center gap-2 py-2"
               >
                 <Music className="w-4 h-4 text-indigo-500" />
@@ -269,7 +249,8 @@ const SheetMusicRecommender: React.FC<SheetMusicRecommenderProps> = ({
         <p className="text-[10px] text-slate-400 font-medium leading-relaxed">
           {currentReader 
             ? `Recommended for ${formData.name || 'this song'} based on genre (${formData.genre || 'unknown'}) and musical characteristics.`
-            : "Select a sheet music reader based on your performance needs."}
+            : "Select a sheet music reader based on your performance needs."
+          }
         </p>
       </div>
     </div>
