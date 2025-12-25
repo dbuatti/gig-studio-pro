@@ -280,17 +280,21 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   };
 
   const handleUgPrint = () => {
-    if (!formData.ugUrl) {
-      showError("Link a tab first.");
-      return;
+    let url = formData.ugUrl;
+    if (!url) {
+      // Fallback search if no UG URL is linked
+      const query = encodeURIComponent(`${formData.artist || ''} ${formData.name || ''} chords`.trim());
+      url = `https://www.ultimate-guitar.com/search.php?search_type=title&value=${query}`;
+      showSuccess("No UG link found. Searching Ultimate Guitar...");
+    } else {
+      // If UG URL exists, open its print view
+      const printUrl = url.includes('?') 
+        ? url.replace('?', '/print?') 
+        : `${url}/print`;
+      url = printUrl;
+      showSuccess("Opening UG Print View...");
     }
-    
-    const printUrl = formData.ugUrl.includes('?') 
-      ? formData.ugUrl.replace('?', '/print?') 
-      : `${formData.ugUrl}/print`;
-      
-    window.open(printUrl, '_blank');
-    showSuccess("Opening Print Assistant.");
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const handleDownloadAsset = async (url: string | undefined, filename: string) => {
@@ -421,12 +425,15 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         tempo: song.tempo || 1,
         volume: song.volume || -6,
         isApproved: song.isApproved ?? false,
+        preferred_reader: song.preferred_reader || null,
         ug_chords_text: song.ug_chords_text || "",
         ug_chords_config: song.ug_chords_config || {
           fontFamily: "monospace",
           fontSize: 16,
           chordBold: true,
-          lineSpacing: 1.5
+          lineSpacing: 1.5,
+          chordColor: "#ffffff", // Ensure default chord color is white
+          textAlign: "left" // Ensure default text alignment
         }
       };
       
