@@ -3,7 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SetlistSong } from './SetlistManager';
-import { ExternalLink, ShieldCheck, Printer, FileText, Music, Guitar } from 'lucide-react';
+import { ExternalLink, ShieldCheck, Printer, FileText, Music, Guitar, Search } from 'lucide-react'; // Added Search icon
 import { showError, showSuccess } from '@/utils/toast';
 import UGChordsEditor from './UGChordsEditor';
 import UGChordsReader from './UGChordsReader'; // Import the new reader component
@@ -16,7 +16,7 @@ interface SongChartsTabProps {
   isFramable: (url: string | null) => boolean;
   activeChartType: 'pdf' | 'leadsheet' | 'web' | 'ug';
   setActiveChartType: (type: 'pdf' | 'leadsheet' | 'web' | 'ug') => void;
-  handleUgPrint: () => void;
+  handleUgPrint: () => void; // This prop is now handled internally or passed from parent
 }
 
 const SongChartsTab: React.FC<SongChartsTabProps> = ({
@@ -27,7 +27,7 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
   isFramable,
   activeChartType,
   setActiveChartType,
-  handleUgPrint,
+  // Removed handleUgPrint from props, as it's now defined here
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<"view" | "edit-ug">("view");
   
@@ -54,6 +54,22 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
     }
     return isFramable(currentChartUrl);
   }, [activeChartType, formData.ugUrl, currentChartUrl, isFramable]);
+
+  // New internal handleUgPrint function
+  const handleUgPrintInternal = () => {
+    let url = formData.ugUrl;
+    if (!url) {
+      const query = encodeURIComponent(`${formData.artist || ''} ${formData.name || ''} chords`.trim());
+      url = `https://www.ultimate-guitar.com/search.php?search_type=title&value=${query}`;
+      showSuccess("No UG link found. Searching Ultimate Guitar...");
+    } else {
+      url = url.includes('?') 
+        ? url.replace('?', '/print?') 
+        : `${url}/print`;
+      showSuccess("Opening UG Print View...");
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
 
   return (
     <div className="h-full flex flex-col gap-8 animate-in fade-in duration-500">
@@ -158,10 +174,10 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
             )}
           </div>
           
-          {activeChartType === 'ug' && formData.ugUrl && (
+          {activeChartType === 'ug' && (formData.ugUrl || formData.ug_chords_text) && ( // Show button if UG data exists
             <div className="shrink-0 flex justify-center">
               <Button 
-                onClick={handleUgPrint}
+                onClick={handleUgPrintInternal} // Use the new internal function
                 className="bg-orange-600 hover:bg-orange-700 text-white font-black uppercase tracking-widest text-[10px] h-12 px-8 rounded-xl shadow-lg shadow-orange-600/20 gap-3"
               >
                 <Printer className="w-4 h-4" />

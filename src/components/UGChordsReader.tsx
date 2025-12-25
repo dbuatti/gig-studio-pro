@@ -36,7 +36,7 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({ chordsText, config, isM
         fontSize: `${config.fontSize}px`,
         lineHeight: config.lineSpacing,
         textAlign: config.textAlign as any,
-        color: config.chordColor
+        color: config.chordColor || "#ffffff" // Ensure default to white if not set
       }}
     >
       {chordsText ? (
