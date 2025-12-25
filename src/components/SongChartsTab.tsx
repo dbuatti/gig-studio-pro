@@ -7,7 +7,6 @@ import { ExternalLink, ShieldCheck, Printer, FileText, Music, Guitar, Search, Ma
 import { showError, showSuccess } from '@/utils/toast';
 import UGChordsEditor from './UGChordsEditor';
 import UGChordsReader from './UGChordsReader'; // Import the new reader component
-import { useSettings } from '@/hooks/use-settings'; // Import useSettings
 
 interface SongChartsTabProps {
   formData: Partial<SetlistSong>;
@@ -18,9 +17,16 @@ interface SongChartsTabProps {
   activeChartType: 'pdf' | 'leadsheet' | 'web' | 'ug';
   setActiveChartType: (type: 'pdf' | 'leadsheet' | 'web' | 'ug') => void;
   handleUgPrint: () => void;
-  isChartsReaderExpanded: boolean; // New prop
-  onToggleChartsReaderExpanded: (expanded: boolean) => void; // New prop
 }
+
+const defaultUgChordsConfig = { // Define default config to avoid repetition
+  fontFamily: "monospace",
+  fontSize: 16,
+  chordBold: true,
+  lineSpacing: 1.5,
+  chordColor: "#ffffff",
+  textAlign: "left" as "left" | "center" | "right"
+};
 
 const SongChartsTab: React.FC<SongChartsTabProps> = ({
   formData,
@@ -30,24 +36,11 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
   isFramable,
   activeChartType,
   setActiveChartType,
-  handleUgPrint, // Keep this prop for now, though internal function is used
-  isChartsReaderExpanded, // Use prop instead of local state
-  onToggleChartsReaderExpanded // Use prop instead of local state
+  // Removed handleUgPrint from props, as it's now defined here
 }) => {
-  const { keyPreference: globalPreference } = useSettings(); // Get global preference
   const [activeSubTab, setActiveSubTab] = useState<"view" | "edit-ug">("view");
+  const [isReaderExpanded, setIsReaderExpanded] = useState(false); // New state for expanded view
   
-  // Define default config to avoid repetition, now using globalPreference
-  const defaultUgChordsConfig = useMemo(() => ({
-    fontFamily: "monospace",
-    fontSize: 16,
-    chordBold: true,
-    lineSpacing: 1.5,
-    chordColor: "#ffffff",
-    textAlign: "left" as "left" | "center" | "right",
-    keyPreference: globalPreference // Default to global preference
-  }), [globalPreference]);
-
   const currentChartUrl = useMemo(() => {
     switch(activeChartType) {
       case 'pdf': 
@@ -103,9 +96,9 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
   };
 
   return (
-    <div className={cn("h-full flex flex-col animate-in fade-in duration-500", isChartsReaderExpanded ? "gap-0" : "gap-8")}> {/* Conditional gap */}
+    <div className={cn("h-full flex flex-col animate-in fade-in duration-500", isReaderExpanded ? "gap-0" : "gap-8")}> {/* Conditional gap */}
       {/* Sub-tab switcher - Hide when expanded */}
-      {!isChartsReaderExpanded && (
+      {!isReaderExpanded && (
         <div className="flex bg-white/5 border border-white/10 p-1 rounded-xl">
           <Button 
             variant="ghost" 
@@ -133,7 +126,7 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
       {activeSubTab === "view" ? (
         <>
           {/* Header and Chart Type Selector - Hide when expanded */}
-          {!isChartsReaderExpanded && (
+          {!isReaderExpanded && (
             <div className="flex justify-between items-center shrink-0">
               <h3 className="text-sm font-black uppercase tracking-[0.3em] text-emerald-400">Chart Engine</h3>
               
@@ -217,11 +210,11 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
                 Open UG Print View
               </Button>
               <Button
-                onClick={() => onToggleChartsReaderExpanded(!isChartsReaderExpanded)} // Use prop
+                onClick={() => setIsReaderExpanded(prev => !prev)}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-[10px] h-12 px-8 rounded-xl shadow-lg shadow-indigo-600/20 gap-3"
               >
-                {isChartsReaderExpanded ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
-                {isChartsReaderExpanded ? "Collapse View" : "Expand View"}
+                {isReaderExpanded ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                {isReaderExpanded ? "Collapse View" : "Expand View"}
               </Button>
             </div>
           )}

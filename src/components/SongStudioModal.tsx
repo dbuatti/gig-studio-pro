@@ -86,7 +86,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const [isProSyncing, setIsProSyncing] = useState(false);
   const [isInRepertoire, setIsInRepertoire] = useState(false);
   const [activeChartType, setActiveChartType] = useState<'pdf' | 'leadsheet' | 'web' | 'ug'>('pdf');
-  const [isChartsReaderExpanded, setIsChartsReaderExpanded] = useState(false); // New state for expanded reader
   const { 
     isPlaying, 
     progress, 
@@ -428,15 +427,13 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         isApproved: song.isApproved ?? false,
         preferred_reader: song.preferred_reader || null,
         ug_chords_text: song.ug_chords_text || "",
-        ug_transpose_semitones: song.ug_transpose_semitones || 0, // Initialize transpose semitones
         ug_chords_config: song.ug_chords_config || {
           fontFamily: "monospace",
           fontSize: 16,
           chordBold: true,
           lineSpacing: 1.5,
           chordColor: "#ffffff", // Ensure default chord color is white
-          textAlign: "left", // Ensure default text alignment
-          keyPreference: globalPreference // Default to global preference
+          textAlign: "left" // Ensure default text alignment
         }
       };
       
@@ -453,7 +450,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       resetEngine();
       stopMetronome();
     };
-  }, [song?.id, isOpen, globalPreference]); // Added globalPreference to dependencies
+  }, [song?.id, isOpen]);
 
   const checkRepertoireStatus = async () => {
     if (!song || !user) return;
@@ -492,8 +489,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
       <DialogContent 
         className={cn(
           "max-w-[95vw] w-[1400px] max-h-[95vh] p-0 overflow-hidden border-none shadow-2xl bg-slate-950 text-white md:rounded-[2rem] z-[200]",
-          isMobile ? "w-full max-w-none h-[100dvh] max-h-none rounded-none" : "",
-          isChartsReaderExpanded && activeTab === 'charts' && !isMobile && "max-w-full w-full max-h-full h-full rounded-none" // Full screen for expanded reader
+          isMobile ? "w-full max-w-none h-[100dvh] max-h-none rounded-none" : ""
         )}
         onDragOver={(e) => {
           e.preventDefault();
@@ -570,12 +566,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
           </div>
         )}
         
-        <div className={cn(
-          "flex overflow-hidden", 
-          isMobile ? "flex-col h-[100dvh]" : "h-[90vh] min-h-[800px]",
-          isChartsReaderExpanded && activeTab === 'charts' && !isMobile && "h-full min-h-full" // Full height for expanded reader
-        )}>
-          {!isMobile && !(isChartsReaderExpanded && activeTab === 'charts') && ( // Hide side panel when expanded
+        <div className={cn("flex overflow-hidden", isMobile ? "flex-col h-[100dvh]" : "h-[90vh] min-h-[800px]")}>
+          {!isMobile && (
             <div className="w-96 bg-slate-900/50 border-r border-white/5 flex flex-col shrink-0 overflow-y-auto custom-scrollbar">
               <div className="p-8 border-b border-white/5 bg-black/20 shrink-0 relative">
                 <div className="flex items-center justify-between mb-4">
@@ -677,31 +669,28 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
             </div>
           )}
           
-          <div className={cn(
-            "flex-1 flex flex-col min-w-0",
-            isChartsReaderExpanded && activeTab === 'charts' && !isMobile && "p-0" // Remove padding when expanded
-          )}>
-            {!isMobile && !(isChartsReaderExpanded && activeTab === 'charts') && ( // Hide top tab bar when expanded
-              <div className="border-b border-white/5 flex items-center bg-black/20 shrink-0 h-20 px-12 justify-between">
-                <div className="flex gap-12">
-                  {tabOrder.map((tab, idx) => (
-                    <button
-                      key={tab}
-                      onClick={() => setActiveTab(tab)}
-                      className={cn(
-                        "text-[10px] font-black uppercase tracking-[0.2em] transition-all border-b-4 flex flex-col items-center justify-center gap-1",
-                        "text-xs tracking-[0.4em] h-20",
-                        activeTab === tab 
-                          ? "text-indigo-400 border-indigo-500" 
-                          : "text-slate-500 border-transparent hover:text-white"
-                      )}
-                    >
-                      <span className="flex items-center gap-1.5">
-                        {tab === 'config' ? 'CONFIG' : tab.toUpperCase()}
-                      </span>
-                    </button>
-                  ))}
-                </div>
+          <div className="flex-1 flex flex-col min-w-0">
+            <div className={cn("border-b border-white/5 flex items-center bg-black/20 shrink-0", isMobile ? "h-16 px-4 overflow-x-auto no-scrollbar" : "h-20 px-12 justify-between")}>
+              <div className={cn("flex", isMobile ? "gap-4 min-w-max" : "gap-12")}>
+                {tabOrder.map((tab, idx) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={cn(
+                      "text-[10px] font-black uppercase tracking-[0.2em] transition-all border-b-4 flex flex-col items-center justify-center gap-1",
+                      isMobile ? "h-16 px-2" : "text-xs tracking-[0.4em] h-20",
+                      activeTab === tab 
+                        ? "text-indigo-400 border-indigo-500" 
+                        : "text-slate-500 border-transparent hover:text-white"
+                    )}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      {tab === 'config' ? 'CONFIG' : tab.toUpperCase()}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              {!isMobile && (
                 <div className="flex items-center gap-6">
                   <Button 
                     variant="ghost" 
@@ -712,14 +701,10 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                     Close
                   </Button>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
             
-            <div className={cn(
-              "flex-1 overflow-y-auto relative flex flex-col", 
-              isMobile ? "p-4" : "p-12",
-              isChartsReaderExpanded && activeTab === 'charts' && !isMobile && "p-0" // Remove padding when expanded
-            )}>
+            <div className={cn("flex-1 overflow-y-auto relative flex flex-col", isMobile ? "p-4" : "p-12")}>
               {/* Use the new StudioTabContent component here */}
               <StudioTabContent 
                 activeTab={activeTab}
@@ -738,8 +723,6 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                 handleUgPrint={handleUgPrint}
                 handleDownloadAll={handleDownloadAll}
                 onSwitchTab={setActiveTab}
-                isChartsReaderExpanded={isChartsReaderExpanded} // Pass down
-                onToggleChartsReaderExpanded={setIsChartsReaderExpanded} // Pass down
               />
             </div>
           </div>

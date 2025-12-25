@@ -9,9 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SetlistSong } from './SetlistManager';
 import { transposeChords } from '@/utils/chordUtils';
-import { useSettings, KeyPreference } from '@/hooks/use-settings'; // Import KeyPreference
+import { useSettings } from '@/hooks/use-settings';
 import { cn } from "@/lib/utils";
-import { Play, RotateCcw, Download, Palette, Type, AlignCenter, AlignLeft, AlignRight, ExternalLink, Search, Check, Link as LinkIcon, Loader2, Music } from 'lucide-react'; // Added Music icon
+import { Play, RotateCcw, Download, Palette, Type, AlignCenter, AlignLeft, AlignRight, ExternalLink, Search, Check, Link as LinkIcon, Loader2 } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 
 interface UGChordsEditorProps {
@@ -22,82 +22,59 @@ interface UGChordsEditorProps {
 }
 
 const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleAutoSave, isMobile }) => {
-  const { keyPreference: globalPreference } = useSettings();
-  const [chordsText, setChordsText] = useState(formData.ug_chords_text || ""); // This will be the original, untransposed text
-  const [transposeSemitones, setTransposeSemitones] = useState(formData.ug_transpose_semitones || 0); // Total semitones from original
+  const { keyPreference } = useSettings();
+  const [chordsText, setChordsText] = useState(formData.ug_chords_text || "");
+  // Removed ugLink state, now using formData.ugUrl directly
+  const [transposeSemitones, setTransposeSemitones] = useState(0);
   const [isFetchingUg, setIsFetchingUg] = useState(false);
   const [config, setConfig] = useState({
     fontFamily: formData.ug_chords_config?.fontFamily || "monospace",
     fontSize: formData.ug_chords_config?.fontSize || 16,
     chordBold: formData.ug_chords_config?.chordBold ?? true,
-    chordColor: formData.ug_chords_config?.chordColor || "#ffffff",
+    chordColor: formData.ug_chords_config?.chordColor || "#ffffff", // Changed default to white
     lineSpacing: formData.ug_chords_config?.lineSpacing || 1.5,
-    textAlign: formData.ug_chords_config?.textAlign || "left" as "left" | "center" | "right",
-    keyPreference: formData.ug_chords_config?.keyPreference || globalPreference // Initialize key preference
+    textAlign: formData.ug_chords_config?.textAlign || "left" as "left" | "center" | "right"
   });
 
-  // Apply transposition to the chords text for preview and saving
+  // Apply transposition to the chords text
   const transposedText = useMemo(() => {
-    if (!chordsText) return "";
-    return transposeChords(chordsText, transposeSemitones, config.keyPreference || globalPreference);
-  }, [chordsText, transposeSemitones, config.keyPreference, globalPreference]);
+    if (!chordsText || transposeSemitones === 0) return chordsText;
+    return transposeChords(chordsText, transposeSemitones, keyPreference);
+  }, [chordsText, transposeSemitones, keyPreference]);
 
-  // Auto-save transposed text and transpose semitones
+  // Update form data when chords text changes
   useEffect(() => {
-    // Only save if the transposedText is different from what's currently in formData
-    // or if transposeSemitones has changed
-    if (transposedText !== formData.ug_chords_text || transposeSemitones !== formData.ug_transpose_semitones) {
-      handleAutoSave({ 
-        ug_chords_text: transposedText, 
-        ug_transpose_semitones: transposeSemitones,
-        ug_chords_config: {
-          ...formData.ug_chords_config, // Keep existing config properties
-          fontFamily: config.fontFamily,
-          fontSize: config.fontSize,
-          chordBold: config.chordBold,
-          chordColor: config.chordColor,
-          lineSpacing: config.lineSpacing,
-          textAlign: config.textAlign,
-          keyPreference: config.keyPreference // Save key preference
-        }
-      });
+    if (chordsText !== formData.ug_chords_text) {
+      handleAutoSave({ ug_chords_text: chordsText });
     }
-  }, [transposedText, transposeSemitones, config, formData.ug_chords_text, formData.ug_transpose_semitones, formData.ug_chords_config, handleAutoSave]);
+  }, [chordsText, formData.ug_chords_text, handleAutoSave]);
 
-  // Auto-save config changes (separate from text/transpose to avoid circular updates)
+  // Update form data when config changes
   useEffect(() => {
-    const currentConfig = formData.ug_chords_config;
-    const hasConfigChanged = !currentConfig || 
-      currentConfig.fontFamily !== config.fontFamily ||
-      currentConfig.fontSize !== config.fontSize ||
-      currentConfig.chordBold !== config.chordBold ||
-      currentConfig.chordColor !== config.chordColor ||
-      currentConfig.lineSpacing !== config.lineSpacing ||
-      currentConfig.textAlign !== config.textAlign ||
-      currentConfig.keyPreference !== config.keyPreference;
-
-    if (hasConfigChanged) {
-      handleAutoSave({
-        ug_chords_config: {
-          fontFamily: config.fontFamily,
-          fontSize: config.fontSize,
-          chordBold: config.chordBold,
-          chordColor: config.chordColor,
-          lineSpacing: config.lineSpacing,
-          textAlign: config.textAlign,
-          keyPreference: config.keyPreference
-        }
-      });
-    }
-  }, [config, formData.ug_chords_config, handleAutoSave]);
-
+    handleAutoSave({
+      ug_chords_config: {
+        fontFamily: config.fontFamily,
+        fontSize: config.fontSize,
+        chordBold: config.chordBold,
+        chordColor: config.chordColor,
+        lineSpacing: config.lineSpacing,
+        textAlign: config.textAlign
+      }
+    });
+  }, [config, handleAutoSave]);
 
   const handleResetTranspose = () => {
     setTransposeSemitones(0);
     showSuccess("Transpose reset");
   };
 
-  // Removed handleApplyTranspose as it's now auto-saved
+  const handleApplyTranspose = () => {
+    if (transposedText && transposedText !== chordsText) {
+      setChordsText(transposedText);
+      setTransposeSemitones(0);
+      showSuccess("Transpose applied");
+    }
+  };
 
   const handleExport = () => {
     // In a real implementation, this would generate a PDF or other export format
@@ -143,8 +120,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
                                doc.querySelector('pre'); // Fallback to any pre tag
 
       if (tabContentElement && tabContentElement.textContent) {
-        setChordsText(tabContentElement.textContent); // Update original chords text
-        setTransposeSemitones(0); // Reset transpose when new chords are fetched
+        setChordsText(tabContentElement.textContent);
         showSuccess("Chords fetched successfully!");
       } else {
         showError("Could not find chords content on the page. Try a different URL or paste manually.");
@@ -152,7 +128,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
 
     } catch (error: any) {
       console.error("Error fetching UG chords:", error);
-      showError(`Failed to fetch chords: ${error.message || "Unknown Error"}`);
+      showError(`Failed to fetch chords: ${error.message || "Network error"}`);
     } finally {
       setIsFetchingUg(false);
     }
@@ -185,7 +161,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
           </Button>
           <Button 
             size="sm" 
-            onClick={handleExport}
+            onClick={handleApplyTranspose}
             className="h-10 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] uppercase gap-2 rounded-xl"
           >
             <Download className="w-3.5 h-3.5" /> Export
@@ -241,9 +217,9 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
           </div>
 
           {/* Chords Input */}
-          <div className="bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-3xl p-6 flex-1 flex-col">
+          <div className="bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-3xl p-6 flex-1 flex flex-col">
             <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
-              Paste Chords & Lyrics (Original Key)
+              Paste Chords & Lyrics
             </Label>
             <Textarea
               value={chordsText}
@@ -277,6 +253,15 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
                 <span className="text-sm font-mono font-bold text-indigo-400">
                   {transposeSemitones > 0 ? '+' : ''}{transposeSemitones} ST
                 </span>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleApplyTranspose}
+                  disabled={transposeSemitones === 0}
+                  className="h-7 px-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase rounded-lg"
+                >
+                  Apply
+                </Button>
               </div>
             </div>
             <div className="flex items-center gap-4">
@@ -463,24 +448,6 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
                   <span className="text-xs font-mono text-white">{config.chordColor}</span>
                 </div>
               </div>
-
-              {/* Key Preference */}
-              <div className="space-y-2">
-                <Label className="text-[9px] font-bold text-slate-400 uppercase">Key Preference</Label>
-                <Select 
-                  value={config.keyPreference || globalPreference} 
-                  onValueChange={(value) => setConfig(prev => ({ ...prev, keyPreference: value as KeyPreference }))}
-                >
-                  <SelectTrigger className="h-9 text-xs bg-black/40 border border-white/20 text-white">
-                    <Music className="w-3.5 h-3.5 mr-2 text-slate-400" />
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-slate-900 border border-white/10 text-white">
-                    <SelectItem value="flats" className="text-xs">Flats (b)</SelectItem>
-                    <SelectItem value="sharps" className="text-xs">Sharps (#)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
           </div>
 
@@ -496,11 +463,11 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
                 fontSize: `${config.fontSize}px`, 
                 lineHeight: config.lineSpacing,
                 textAlign: config.textAlign as any,
-                color: readableChordColor
+                color: readableChordColor // Use the readable color for the preview
               }}
             >
               {transposedText ? (
-                <pre className="whitespace-pre-wrap font-inherit">
+                <pre className="whitespace-pre-wrap font-inherit"> {/* Removed text-white here */}
                   {transposedText}
                 </pre>
               ) : (
