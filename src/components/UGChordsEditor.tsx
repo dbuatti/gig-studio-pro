@@ -24,7 +24,7 @@ interface UGChordsEditorProps {
 const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleAutoSave, isMobile }) => {
   const { keyPreference } = useSettings();
   const [chordsText, setChordsText] = useState(formData.ug_chords_text || "");
-  const [ugLink, setUgLink] = useState(formData.ugUrl || "");
+  // Removed ugLink state, now using formData.ugUrl directly
   const [transposeSemitones, setTransposeSemitones] = useState(0);
   const [isFetchingUg, setIsFetchingUg] = useState(false);
   const [config, setConfig] = useState({
@@ -48,13 +48,6 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
       handleAutoSave({ ug_chords_text: chordsText });
     }
   }, [chordsText, formData.ug_chords_text, handleAutoSave]);
-
-  // Update form data when UG link changes
-  useEffect(() => {
-    if (ugLink !== formData.ugUrl) {
-      handleAutoSave({ ugUrl: ugLink });
-    }
-  }, [ugLink, formData.ugUrl, handleAutoSave]);
 
   // Update form data when config changes
   useEffect(() => {
@@ -88,7 +81,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
   };
 
   const handleOpenInUG = () => {
-    let url = formData.ugUrl;
+    let url = formData.ugUrl; // Use formData.ugUrl
     if (!url) {
       // Fallback search
       const query = encodeURIComponent(`${formData.artist || ''} ${formData.name || ''} chords`.trim());
@@ -101,7 +94,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
   };
 
   const handleFetchUgChords = async () => {
-    if (!ugLink.trim()) {
+    if (!formData.ugUrl?.trim()) { // Use formData.ugUrl
       showError("Please paste an Ultimate Guitar URL.");
       return;
     }
@@ -109,7 +102,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
     setIsFetchingUg(true);
     try {
       // Use a CORS proxy
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(ugLink)}`;
+      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(formData.ugUrl)}`; // Use formData.ugUrl
       const response = await fetch(proxyUrl);
       if (!response.ok) throw new Error("Failed to fetch content from UG.");
 
@@ -164,7 +157,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
           </Button>
           <Button 
             size="sm" 
-            onClick={handleExport}
+            onClick={handleApplyTranspose}
             className="h-10 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] uppercase gap-2 rounded-xl"
           >
             <Download className="w-3.5 h-3.5" /> Export
@@ -202,15 +195,15 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
               <div className="relative flex-1">
                 <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <Input
-                  value={ugLink}
-                  onChange={(e) => setUgLink(e.target.value)}
+                  value={formData.ugUrl || ""} // Use formData.ugUrl
+                  onChange={(e) => handleAutoSave({ ugUrl: e.target.value })} // Update formData.ugUrl
                   placeholder="Paste Ultimate Guitar tab URL here..."
                   className="w-full bg-black/40 border border-white/20 rounded-xl p-4 pl-10 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
                 />
               </div>
               <Button
                 onClick={handleFetchUgChords}
-                disabled={isFetchingUg || !ugLink.trim()}
+                disabled={isFetchingUg || !formData.ugUrl?.trim()} // Use formData.ugUrl
                 className="h-12 px-6 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] uppercase gap-2 rounded-xl"
               >
                 {isFetchingUg ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
