@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"; // Ensure ScrollBar is imported
 import { User, Globe, Check, Clock, Zap, Loader2, Download, PlayCircle } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { Button } from '@/components/ui/button';
@@ -121,6 +121,7 @@ const YoutubeResultsShelf: React.FC<YoutubeResultsShelfProps> = ({
             );
           })}
         </div>
+        <ScrollBar orientation="horizontal" />
       </ScrollArea>
     </div>
   );
