@@ -25,6 +25,16 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
   return Math.min(100, score);
 };
 
+// Define a default UGChordsConfig to ensure consistency
+const DEFAULT_UG_CHORDS_CONFIG = {
+  fontFamily: "monospace",
+  fontSize: 16,
+  chordBold: true,
+  lineSpacing: 1.5,
+  chordColor: "#ffffff",
+  textAlign: "left" as "left" | "center" | "right"
+};
+
 /**
  * Synchronizes local setlist songs with the master repertoire table.
  * Optimized to use a single batch upsert for performance.
@@ -66,7 +76,7 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       updated_at: new Date().toISOString(),
       // NEW: Include UG chords fields
       ug_chords_text: song.ug_chords_text || null,
-      ug_chords_config: song.ug_chords_config || null
+      ug_chords_config: song.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG // Ensure a default object is always provided
     }));
     
     // Perform batch upsert
@@ -75,7 +85,10 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       .upsert(payloads, { onConflict: 'id' })
       .select('id, title, artist');
       
-    if (error) throw error;
+    if (error) {
+      console.error("[SYNC ENGINE] Supabase upsert error details:", error); // Added detailed error log
+      throw error;
+    }
     
     // Map the returned IDs back to the local songs
     return songsArray.map(song => {
