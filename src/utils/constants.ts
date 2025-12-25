@@ -8,3 +8,12 @@ export const RESOURCE_TYPES = [
   { id: 'FS', label: 'ForScore', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-200' },
   { id: 'PDF', label: 'Stage PDF', color: 'bg-red-500/10 text-red-700 border-red-200' },
 ];
+
+export const DEFAULT_UG_CHORDS_CONFIG = {
+  fontFamily: "monospace",
+  fontSize: 16,
+  chordBold: true,
+  lineSpacing: 1.5,
+  chordColor: "#ffffff",
+  textAlign: "left" as "left" | "center" | "right"
+};

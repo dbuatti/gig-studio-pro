@@ -1,6 +1,7 @@
 "use client";
 import { supabase } from "@/integrations/supabase/client";
 import { SetlistSong } from "@/components/SetlistManager";
+import { DEFAULT_UG_CHORDS_CONFIG } from "./constants";
 
 /**
  * Calculates a readiness score (0-100) based on available assets and metadata.
@@ -23,16 +24,6 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
   if (song.ug_chords_text && song.ug_chords_text.length > 10) score += 10;
   
   return Math.min(100, score);
-};
-
-// Define a default UGChordsConfig to ensure consistency
-const DEFAULT_UG_CHORDS_CONFIG = {
-  fontFamily: "monospace",
-  fontSize: 16,
-  chordBold: true,
-  lineSpacing: 1.5,
-  chordColor: "#ffffff",
-  textAlign: "left" as "left" | "center" | "right"
 };
 
 /**
@@ -76,7 +67,7 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       updated_at: new Date().toISOString(),
       // NEW: Include UG chords fields
       ug_chords_text: song.ug_chords_text || null,
-      ug_chords_config: song.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG // Ensure a default object is always provided
+      ug_chords_config: song.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG
     }));
     
     // Perform batch upsert
@@ -86,7 +77,7 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       .select('id, title, artist');
       
     if (error) {
-      console.error("[SYNC ENGINE] Supabase upsert error details:", error); // Added detailed error log
+      console.error("[SYNC ENGINE] Supabase upsert error details:", error);
       throw error;
     }
     

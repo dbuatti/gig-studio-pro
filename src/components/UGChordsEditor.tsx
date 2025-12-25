@@ -11,8 +11,9 @@ import { SetlistSong } from './SetlistManager';
 import { transposeChords } from '@/utils/chordUtils';
 import { useSettings } from '@/hooks/use-settings';
 import { cn } from "@/lib/utils";
-import { Play, RotateCcw, Download, Palette, Type, AlignCenter, AlignLeft, AlignRight, ExternalLink, Search, Check, Link as LinkIcon, Loader2 } from 'lucide-react'; // Changed Download to ExternalLink for the "Open in UG" button
+import { Play, RotateCcw, Download, Palette, Type, AlignCenter, AlignLeft, AlignRight, ExternalLink, Search, Check, Link as LinkIcon, Loader2 } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
+import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 
 interface UGChordsEditorProps {
   song: SetlistSong | null;
@@ -26,14 +27,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
   const [chordsText, setChordsText] = useState(formData.ug_chords_text || "");
   const [transposeSemitones, setTransposeSemitones] = useState(0);
   const [isFetchingUg, setIsFetchingUg] = useState(false);
-  const [config, setConfig] = useState({
-    fontFamily: formData.ug_chords_config?.fontFamily || "monospace",
-    fontSize: formData.ug_chords_config?.fontSize || 16,
-    chordBold: formData.ug_chords_config?.chordBold ?? true,
-    chordColor: formData.ug_chords_config?.chordColor || "#ffffff",
-    lineSpacing: formData.ug_chords_config?.lineSpacing || 1.5,
-    textAlign: formData.ug_chords_config?.textAlign || "left" as "left" | "center" | "right"
-  });
+  const [config, setConfig] = useState(formData.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG);
 
   const transposedText = useMemo(() => {
     if (!chordsText || transposeSemitones === 0) return chordsText;
@@ -199,7 +193,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
                 : "bg-white/10 hover:bg-white/20 text-slate-300 border border-white/20"
             )}
           >
-            {formData.ugUrl ? <Check className="w-4 h-4" /> : <ExternalLink className="w-4 h-4" />} {/* Changed icon to ExternalLink */}
+            {formData.ugUrl ? <Check className="w-4 h-4" /> : <ExternalLink className="w-4 h-4" />}
             OPEN IN UG
           </Button>
         </div>

@@ -8,7 +8,7 @@ import { showSuccess } from '@/utils/toast';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
-import { RESOURCE_TYPES } from '@/utils/constants';
+import { RESOURCE_TYPES, DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import SetlistFilters, { FilterState } from './SetlistFilters';
@@ -19,9 +19,9 @@ export interface UGChordsConfig {
   fontFamily: string;
   fontSize: number;
   chordBold: boolean;
-  chordColor: string; // Made required
+  chordColor: string;
   lineSpacing: number;
-  textAlign: "left" | "center" | "right"; // Added textAlign
+  textAlign: "left" | "center" | "right";
 }
 
 export interface SetlistSong {

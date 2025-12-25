@@ -20,24 +20,16 @@ import { formatKey } from '@/utils/keyUtils';
 import { useSettings } from '@/hooks/use-settings';
 import { calculateReadiness } from '@/utils/repertoireSync';
 import { showSuccess, showError } from '@/utils/toast';
+import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 
 interface FilterState {
   hasAudio: boolean;
   isApproved: boolean;
   hasCharts: boolean;
-  hasUgChords: boolean; // NEW: Added hasUgChords filter
+  hasUgChords: boolean;
 }
 
 type SortOption = 'alphabetical' | 'readiness_asc' | 'readiness_desc';
-
-const defaultUgChordsConfig = {
-  fontFamily: "monospace",
-  fontSize: 16,
-  chordBold: true,
-  lineSpacing: 1.5,
-  chordColor: "#ffffff",
-  textAlign: "left" as "left" | "center" | "right"
-};
 
 const SheetReaderMode: React.FC = () => {
   const navigate = useNavigate();
@@ -52,7 +44,7 @@ const SheetReaderMode: React.FC = () => {
     hasAudio: false,
     isApproved: false,
     hasCharts: false,
-    hasUgChords: false, // NEW: Initialize hasUgChords to false
+    hasUgChords: false,
   });
   const [sortOption, setSortOption] = useState<SortOption>('alphabetical');
   const [autoAdvanceEnabled, setAutoAdvanceEnabled] = useState(false);
@@ -104,7 +96,7 @@ const SheetReaderMode: React.FC = () => {
         isApproved: d.is_approved,
         preferred_reader: d.preferred_reader,
         ug_chords_text: d.ug_chords_text,
-        ug_chords_config: d.ug_chords_config || defaultUgChordsConfig,
+        ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
       }));
       setAllSongs(mappedSongs);
     } catch (err) {
@@ -220,7 +212,7 @@ const SheetReaderMode: React.FC = () => {
     );
 
     const preferredReader = currentSong.preferred_reader;
-    const ugChordsConfig = currentSong.ug_chords_config || defaultUgChordsConfig;
+    const ugChordsConfig = currentSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG;
 
     let chartContent = null;
     let chartType = "None";

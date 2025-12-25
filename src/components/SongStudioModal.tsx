@@ -19,7 +19,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { Slider } from '@/components/ui/slider';
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
-import { RESOURCE_TYPES } from '@/utils/constants';
+import { RESOURCE_TYPES, DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import ProSyncSearch from './ProSyncSearch';
 import YoutubeResultsShelf from './YoutubeResultsShelf';
 import { useAuth } from '@/components/AuthProvider';
@@ -427,14 +427,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         isApproved: song.isApproved ?? false,
         preferred_reader: song.preferred_reader || null,
         ug_chords_text: song.ug_chords_text || "",
-        ug_chords_config: song.ug_chords_config || {
-          fontFamily: "monospace",
-          fontSize: 16,
-          chordBold: true,
-          lineSpacing: 1.5,
-          chordColor: "#ffffff", // Ensure default chord color is white
-          textAlign: "left" // Ensure default text alignment
-        }
+        ug_chords_config: song.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG
       };
       
       setFormData(initialData);
