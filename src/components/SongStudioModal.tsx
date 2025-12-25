@@ -653,6 +653,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
                 setActiveChartType={setActiveChartType}
                 handleUgPrint={handleUgPrint}
                 handleDownloadAll={handleDownloadAll}
+                onSwitchTab={setActiveTab} // Pass setActiveTab here
               />
             </div>
           </div>

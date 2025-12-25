@@ -22,7 +22,8 @@ interface YoutubeMediaManagerProps {
   formData: Partial<SetlistSong>;
   handleAutoSave: (updates: Partial<SetlistSong>) => void;
   onOpenAdmin?: () => void;
-  onLoadAudioFromUrl: (url: string, initialPitch?: number) => Promise<void>; // Changed prop name and type
+  onLoadAudioFromUrl: (url: string, initialPitch?: number) => Promise<void>;
+  onSwitchTab: (tab: 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library') => void; // New prop
 }
 
 const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
@@ -30,7 +31,8 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
   formData,
   handleAutoSave,
   onOpenAdmin,
-  onLoadAudioFromUrl, // Changed prop name
+  onLoadAudioFromUrl,
+  onSwitchTab, // Destructure new prop
 }) => {
   const { user } = useAuth();
   const [ytApiKey, setYtApiKey] = useState("");
@@ -334,6 +336,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
 
   const handlePreviewVideo = (videoUrl: string) => {
     handleAutoSave({ youtubeUrl: cleanYoutubeUrl(videoUrl) });
+    onSwitchTab('visual'); // Switch to the visual tab
     showSuccess("Previewing video in Visual tab.");
   };
 
