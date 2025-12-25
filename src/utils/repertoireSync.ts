@@ -1,5 +1,4 @@
 "use client";
-
 import { supabase } from "@/integrations/supabase/client";
 import { SetlistSong } from "@/components/SetlistManager";
 
@@ -11,14 +10,17 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
   const preview = song.previewUrl || "";
   const isItunes = preview.includes('apple.com') || preview.includes('itunes-assets');
   
-  if (preview && !isItunes) score += 25; 
-  if (song.isKeyConfirmed) score += 20; 
-  if ((song.lyrics || "").length > 20) score += 15; 
-  if (song.pdfUrl || song.leadsheetUrl) score += 15; 
-  if (song.ugUrl) score += 10; 
-  if (song.bpm) score += 5; 
-  if ((song.notes || "").length > 10) score += 5; 
-  if (song.artist && song.artist !== "Unknown Artist") score += 5; 
+  if (preview && !isItunes) score += 25;
+  if (song.isKeyConfirmed) score += 20;
+  if ((song.lyrics || "").length > 20) score += 15;
+  if (song.pdfUrl || song.leadsheetUrl) score += 15;
+  if (song.ugUrl) score += 10;
+  if (song.bpm) score += 5;
+  if ((song.notes || "").length > 10) score += 5;
+  if (song.artist && song.artist !== "Unknown Artist") score += 5;
+  
+  // NEW: Add 10 points if UG chords text is present
+  if (song.ug_chords_text && song.ug_chords_text.length > 10) score += 10;
   
   return Math.min(100, score);
 };
@@ -32,7 +34,7 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
   
   const songsArray = Array.isArray(songs) ? songs : [songs];
   if (songsArray.length === 0) return [];
-
+  
   console.log(`[SYNC ENGINE] Batch processing ${songsArray.length} items...`);
   
   try {
@@ -61,26 +63,29 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       resources: song.resources || [],
       readiness_score: calculateReadiness(song),
       is_active: true,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      // NEW: Include UG chords fields
+      ug_chords_text: song.ug_chords_text || null,
+      ug_chords_config: song.ug_chords_config || null
     }));
-
+    
     // Perform batch upsert
     const { data, error } = await supabase
       .from('repertoire')
       .upsert(payloads, { onConflict: 'id' })
       .select('id, title, artist');
-
+      
     if (error) throw error;
-
+    
     // Map the returned IDs back to the local songs
     return songsArray.map(song => {
       const dbMatch = data.find(d => 
         (song.master_id && d.id === song.master_id) || 
         (d.title === song.name && d.artist === (song.artist || 'Unknown Artist'))
       );
+      
       return dbMatch ? { ...song, master_id: dbMatch.id } : song;
     });
-
   } catch (err) {
     console.error("[SYNC ENGINE] Batch sync failed:", err);
     return songsArray;

@@ -1,5 +1,4 @@
 "use client";
-
 import React from 'react';
 import { SetlistSong } from './SetlistManager';
 import { AudioEngineControls } from '@/hooks/use-tone-audio';
@@ -11,8 +10,8 @@ import SongConfigTab from './SongConfigTab';
 import SongAudioPlaybackTab from './SongAudioPlaybackTab';
 import YoutubeMediaManager from './YoutubeMediaManager';
 import { transposeKey } from '@/utils/keyUtils';
-import { cn } from '@/lib/utils'; // Import cn utility
-import { Youtube } from 'lucide-react'; // Import Youtube icon
+import { cn } from '@/lib/utils';
+import { Youtube } from 'lucide-react';
 
 interface StudioTabContentProps {
   activeTab: 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library';
@@ -30,7 +29,7 @@ interface StudioTabContentProps {
   setActiveChartType: (type: 'pdf' | 'leadsheet' | 'web' | 'ug') => void;
   handleUgPrint: () => void;
   handleDownloadAll: () => Promise<void>;
-  onSwitchTab: (tab: 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library') => void; // New prop
+  onSwitchTab: (tab: 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library') => void;
 }
 
 const StudioTabContent: React.FC<StudioTabContentProps> = ({
@@ -49,12 +48,12 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
   setActiveChartType,
   handleUgPrint,
   handleDownloadAll,
-  onSwitchTab, // Destructure new prop
+  onSwitchTab,
 }) => {
   switch (activeTab) {
     case 'config':
       return (
-        <SongConfigTab
+        <SongConfigTab 
           song={song}
           formData={formData}
           handleAutoSave={handleAutoSave}
@@ -69,24 +68,28 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
       );
     case 'audio':
       return (
-        <SongAudioPlaybackTab
+        <SongAudioPlaybackTab 
           song={song}
           formData={formData}
           audioEngine={audioEngine}
           isMobile={isMobile}
           onLoadAudioFromUrl={onLoadAudioFromUrl}
-          onSave={handleAutoSave} // Now correctly matches the updated prop type in SongAudioPlaybackTab
+          onSave={handleAutoSave}
           onUpdateKey={onUpdateKey}
           transposeKey={transposeKey}
         />
       );
     case 'details':
       return (
-        <SongDetailsTab formData={formData} handleAutoSave={handleAutoSave} isMobile={isMobile} />
+        <SongDetailsTab 
+          formData={formData} 
+          handleAutoSave={handleAutoSave} 
+          isMobile={isMobile} 
+        />
       );
     case 'charts':
       return (
-        <SongChartsTab
+        <SongChartsTab 
           formData={formData}
           handleAutoSave={handleAutoSave}
           isMobile={isMobile}
@@ -99,35 +102,46 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
       );
     case 'lyrics':
       return (
-        <LyricsEngine
-          lyrics={formData.lyrics || ""}
-          onUpdate={(newLyrics) => handleAutoSave({ lyrics: newLyrics })}
-          artist={formData.artist}
-          title={formData.name}
-          isMobile={isMobile}
+        <LyricsEngine 
+          lyrics={formData.lyrics || ""} 
+          onUpdate={(newLyrics) => handleAutoSave({ lyrics: newLyrics })} 
+          artist={formData.artist} 
+          title={formData.name} 
+          isMobile={isMobile} 
         />
       );
     case 'visual':
       return (
         <div className="space-y-10 animate-in fade-in duration-500 h-full flex flex-col">
-          <YoutubeMediaManager
+          <YoutubeMediaManager 
             song={song}
             formData={formData}
             handleAutoSave={handleAutoSave}
             onOpenAdmin={onOpenAdmin}
             onLoadAudioFromUrl={audioEngine.loadFromUrl}
-            onSwitchTab={onSwitchTab} // Pass the new prop
+            onSwitchTab={onSwitchTab}
           />
           <div className={cn("flex-1 bg-slate-900 rounded-[2.5rem] border-4 border-white/5 shadow-2xl overflow-hidden relative min-h-[300px]", !formData.youtubeUrl && "flex flex-col items-center justify-center")}>
-            {formData.youtubeUrl ? <iframe width="100%" height="100%" src={`https://www.youtube.com/embed/${formData.youtubeUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)?.[1] || ''}?autoplay=0&modestbranding=1&rel=0`} title="Reference" frameBorder="0" allowFullScreen className="w-full h-full" /> : <Youtube className="w-32 h-32 text-slate-800" />}
+            {formData.youtubeUrl ? 
+              <iframe 
+                width="100%" 
+                height="100%" 
+                src={`https://www.youtube.com/embed/${formData.youtubeUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)?.[1] || ''}?autoplay=0&modestbranding=1&rel=0`} 
+                title="Reference" 
+                frameBorder="0" 
+                allowFullScreen 
+                className="w-full h-full"
+              /> : 
+              <Youtube className="w-32 h-32 text-slate-800" />
+            }
           </div>
         </div>
       );
     case 'library':
       return (
-        <LibraryEngine
-          formData={formData}
-          handleDownloadAll={handleDownloadAll}
+        <LibraryEngine 
+          formData={formData} 
+          handleDownloadAll={handleDownloadAll} 
           isMobile={isMobile}
           setPreviewPdfUrl={setPreviewPdfUrl}
           handleUgPrint={handleUgPrint}

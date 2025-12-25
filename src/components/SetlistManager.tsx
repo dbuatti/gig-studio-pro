@@ -47,7 +47,15 @@ export interface SetlistSong {
   tempo?: number;
   volume?: number;
   isApproved?: boolean;
-  preferred_reader?: 'chords_ug' | 'full_forscore' | 'lead_forscore'; // New field
+  preferred_reader?: 'chords_ug' | 'full_forscore' | 'lead_forscore';
+  ug_chords_text?: string;
+  ug_chords_config?: {
+    fontFamily: string;
+    fontSize: number;
+    chordBold: boolean;
+    chordColor?: string;
+    lineSpacing: number;
+  };
 }
 
 interface SetlistManagerProps {
@@ -112,41 +120,50 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
   const processedSongs = useMemo(() => {
     let base = songs;
-
+    
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase();
-      base = base.filter(s => s.name.toLowerCase().includes(q) || s.artist?.toLowerCase().includes(q));
+      base = base.filter(s => 
+        s.name.toLowerCase().includes(q) || 
+        s.artist?.toLowerCase().includes(q)
+      );
     }
-
+    
     base = base.filter(s => {
       const score = calculateReadiness(s);
       if (score > activeFilters.readiness) return false;
-
+      
       const hasPreview = !!s.previewUrl;
       const isItunes = hasPreview && isItunesPreview(s.previewUrl);
       const hasFullAudio = hasPreview && !isItunes;
-
+      
       if (activeFilters.hasAudio === 'full' && !hasFullAudio) return false;
       if (activeFilters.hasAudio === 'itunes' && !isItunes) return false;
       if (activeFilters.hasAudio === 'none' && hasFullAudio) return false;
+      
       if (activeFilters.hasVideo === 'yes' && !s.youtubeUrl) return false;
       if (activeFilters.hasVideo === 'no' && s.youtubeUrl) return false;
+      
       if (activeFilters.hasChart === 'yes' && !(s.pdfUrl || s.leadsheetUrl || s.ugUrl)) return false;
       if (activeFilters.hasChart === 'no' && (s.pdfUrl || s.leadsheetUrl || s.ugUrl)) return false;
+      
       if (activeFilters.hasPdf === 'yes' && !(s.pdfUrl || s.leadsheetUrl)) return false;
       if (activeFilters.hasPdf === 'no' && (s.pdfUrl || s.leadsheetUrl)) return false;
+      
       if (activeFilters.hasUg === 'yes' && !s.ugUrl) return false;
       if (activeFilters.hasUg === 'no' && s.ugUrl) return false;
+      
       if (activeFilters.isConfirmed === 'yes' && !s.isKeyConfirmed) return false;
       if (activeFilters.isConfirmed === 'no' && s.isKeyConfirmed) return false;
+      
       if (activeFilters.isApproved === 'yes' && !s.isApproved) return false;
       if (activeFilters.isApproved === 'no' && s.isApproved) return false;
-
+      
       return true;
     });
-
+    
     if (sortMode === 'none') return base;
-
+    
     return [...base].sort((a, b) => {
       const scoreA = calculateReadiness(a);
       const scoreB = calculateReadiness(b);
@@ -156,14 +173,17 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
   const handleMove = (id: string, direction: 'up' | 'down') => {
     if (sortMode !== 'none' || searchTerm) return;
+    
     const index = songs.findIndex(s => s.id === id);
     if (index === -1) return;
+    
     if (direction === 'up' && index === 0) return;
     if (direction === 'down' && index === songs.length - 1) return;
-
+    
     const newSongs = [...songs];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     [newSongs[index], newSongs[targetIndex]] = [newSongs[targetIndex], newSongs[index]];
+    
     onReorder(newSongs);
   };
 
@@ -229,18 +249,21 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
             <Input 
               placeholder="Search Gig Repertoire..." 
-              value={searchTerm} 
+              value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="h-10 sm:h-9 pl-9 text-[11px] font-bold bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-xl focus-visible:ring-indigo-500"
             />
           </div>
         </div>
       </div>
-
+      
       {isFilterOpen && (
-        <SetlistFilters activeFilters={activeFilters} onFilterChange={setActiveFilters} />
+        <SetlistFilters 
+          activeFilters={activeFilters} 
+          onFilterChange={setActiveFilters} 
+        />
       )}
-
+      
       {isMobile ? (
         <div className="space-y-3 px-1 pb-4">
           {processedSongs.map((song, idx) => {
@@ -250,10 +273,10 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
             const hasAudio = !!song.previewUrl && !isItunesPreview(song.previewUrl);
             const currentPref = song.key_preference || globalPreference;
             const displayTargetKey = formatKey(song.targetKey || song.originalKey, currentPref);
-
+            
             return (
               <div 
-                key={song.id} 
+                key={song.id}
                 onClick={() => onEdit(song)}
                 className={cn(
                   "bg-white dark:bg-slate-950 rounded-2xl border-2 transition-all p-4 flex flex-col gap-3 shadow-sm",
@@ -346,6 +369,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                     </DropdownMenu>
                   </div>
                 </div>
+                
                 <div className="flex items-center justify-between border-t border-slate-50 dark:border-slate-900 pt-3">
                   <div className="flex items-center gap-4">
                     <div className="flex flex-col">
@@ -366,7 +390,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                   <div className="flex gap-2">
                     {hasAudio && <Volume2 className="w-3.5 h-3.5 text-indigo-500" />}
                     <Button 
-                      size="sm" 
+                      size="sm"
                       className={cn(
                         "h-8 px-4 text-[9px] font-black uppercase tracking-widest rounded-xl gap-2",
                         !song.previewUrl ? "bg-slate-100 text-slate-400" : "bg-indigo-600 text-white"
@@ -408,10 +432,10 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                   const currentPref = song.key_preference || globalPreference;
                   const displayOrigKey = formatKey(song.originalKey, currentPref);
                   const displayTargetKey = formatKey(song.targetKey || song.originalKey, currentPref);
-
+                  
                   return (
                     <tr 
-                      key={song.id} 
+                      key={song.id}
                       onClick={() => onEdit(song)}
                       className={cn(
                         "transition-all group relative cursor-pointer h-[80px]",
@@ -474,7 +498,9 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                                   (res.id === 'UG' && song.ugUrl) || 
                                   (res.id === 'LYRICS' && song.lyrics) || 
                                   (res.id === 'LEAD' && song.leadsheetUrl);
+                                
                                 if (!isActive) return null;
+                                
                                 return (
                                   <span 
                                     key={res.id} 
@@ -547,7 +573,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                           <div className="text-center min-w-[32px] relative">
                             <p className="text-[8px] font-black text-indigo-50 uppercase tracking-widest mb-0.5">Stage</p>
                             <div className={cn(
-                              "font-mono font-black text-xs px-2.5 py-1 rounded-lg shadow-lg flex items-center justify-center gap-1.5 leading-none h-6",
+                              "font-mono font-black text-xs px-2.5 py-1 rounded-lg shadow-lg flex items-center justify-center gap-1.5 leading-none",
                               song.isKeyConfirmed ? "bg-emerald-600 text-white shadow-emerald-500/20" : "bg-indigo-600 text-white shadow-indigo-500/20"
                             )}>
                               {displayTargetKey}
@@ -559,11 +585,12 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       <td className="px-6 text-right pr-10">
                         <div className="flex items-center justify-end gap-2 h-full">
                           <Button 
-                            size="sm" 
+                            size="sm"
                             className={cn(
                               "h-9 px-4 text-[10px] font-black uppercase tracking-[0.1em] gap-2 rounded-xl transition-all",
                               !song.previewUrl ? "bg-slate-100 text-slate-400 hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-600" : 
-                              isSelected ? "bg-indigo-100 text-indigo-600 border border-indigo-200" : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-xl shadow-indigo-500/20"
+                              isSelected ? "bg-indigo-100 text-indigo-600 border border-indigo-200" : 
+                              "bg-indigo-600 text-white hover:bg-indigo-700 shadow-xl shadow-indigo-500/20"
                             )}
                             disabled={!song.previewUrl}
                             onClick={(e) => {
@@ -595,7 +622,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
           </div>
         </div>
       )}
-
+      
       <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
         <AlertDialogContent className="bg-slate-900 border-white/10 text-white rounded-[2rem]">
           <AlertDialogHeader>
