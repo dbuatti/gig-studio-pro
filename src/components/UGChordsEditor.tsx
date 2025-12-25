@@ -82,7 +82,8 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
     let url = formData.ugUrl;
     if (!url) {
       // Fallback search
-      url = `https://tabs.ultimate-guitar.com/tab/search?query=${encodeURIComponent(`${formData.name || ''} ${formData.artist || ''}`.trim())}`;
+      const query = encodeURIComponent(`${formData.artist || ''} ${formData.name || ''} chords`.trim());
+      url = `https://www.ultimate-guitar.com/search.php?search_type=title&value=${query}`;
       showSuccess("Searching Ultimate Guitar...");
     } else {
       showSuccess("Opening linked UG tab...");
