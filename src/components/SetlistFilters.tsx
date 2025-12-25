@@ -9,7 +9,7 @@ import {
   X, Star, Save, Trash2, Headphones, Sparkles, Hash,
   CircleDashed, ChevronDown, ListFilter, Music2, 
   VideoOff, FileX2, VolumeX, BarChart3, TrendingUp, TrendingDown,
-  Target, AlertCircle, Link as LinkIcon, FileSearch, ShieldCheck
+  Target, AlertCircle, Link as LinkIcon, FileSearch, ShieldCheck, Check
 } from 'lucide-react';
 import { 
   DropdownMenu, 
@@ -31,6 +31,7 @@ export interface FilterState {
   hasPdf: 'all' | 'yes' | 'no';
   hasUg: 'all' | 'yes' | 'no';
   isConfirmed: 'all' | 'yes' | 'no';
+  isApproved: 'all' | 'yes' | 'no'; // NEW: Added isApproved filter
   readiness: number; 
 }
 
@@ -41,6 +42,7 @@ const DEFAULT_FILTERS: FilterState = {
   hasPdf: 'all',
   hasUg: 'all',
   isConfirmed: 'all',
+  isApproved: 'all', // NEW: Default to 'all'
   readiness: 100 
 };
 
@@ -60,7 +62,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
     const saved = localStorage.getItem('gig_filter_presets');
     return saved ? JSON.parse(saved) : [
       { id: 'broken', name: 'Needs Attention', filters: { ...DEFAULT_FILTERS, readiness: 40 } },
-      { id: 'stage-ready', name: 'Performance Ready', filters: { ...DEFAULT_FILTERS, readiness: 100, hasAudio: 'full', hasChart: 'yes', isConfirmed: 'yes' } }
+      { id: 'stage-ready', name: 'Performance Ready', filters: { ...DEFAULT_FILTERS, readiness: 100, hasAudio: 'full', hasChart: 'yes', isConfirmed: 'yes', isApproved: 'yes' } } // NEW: Added isApproved to default preset
     ];
   });
 
@@ -157,6 +159,34 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                 <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Status</DropdownMenuRadioItem>
                 <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Verified Only</DropdownMenuRadioItem>
                 <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-10 rounded-xl text-red-400">Unverified Only</DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* NEW: Approved Toggle (Icon only) */}
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className={cn(
+                      "h-9 w-9 rounded-xl border transition-all",
+                      activeFilters.isApproved !== 'all' ? "bg-indigo-600 text-white shadow-lg" : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-500"
+                    )}
+                  >
+                    <Check className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent className="text-[10px] font-black uppercase">Performance Approved</TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-slate-950 border-white/10 text-white">
+              <DropdownMenuRadioGroup value={activeFilters.isApproved} onValueChange={(v) => onFilterChange({ ...activeFilters, isApproved: v as any })}>
+                <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Approved Only</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-10 rounded-xl text-red-400">Unapproved Only</DropdownMenuRadioItem>
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -308,6 +338,15 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                 onClick={() => onFilterChange({ ...activeFilters, isConfirmed: 'all' })}
               >
                 Key Verified: {activeFilters.isConfirmed} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
+              </Badge>
+            )}
+            {activeFilters.isApproved !== 'all' && ( // NEW: Badge for isApproved filter
+              <Badge 
+                variant="secondary" 
+                className="bg-indigo-50 text-indigo-600 border-indigo-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-red-50 hover:text-red-600 transition-all group"
+                onClick={() => onFilterChange({ ...activeFilters, isApproved: 'all' })}
+              >
+                Approved: {activeFilters.isApproved} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
               </Badge>
             )}
             {activeFilters.hasAudio !== 'all' && (

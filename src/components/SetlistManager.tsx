@@ -110,6 +110,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       hasPdf: 'all',
       hasUg: 'all',
       isConfirmed: 'all',
+      isApproved: 'all', // NEW: Default to 'all'
       readiness: 100
     };
   });
@@ -165,6 +166,10 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
       if (activeFilters.isConfirmed === 'yes' && !s.isKeyConfirmed) return false;
       if (activeFilters.isConfirmed === 'no' && s.isKeyConfirmed) return false;
+
+      // NEW: isApproved filter logic
+      if (activeFilters.isApproved === 'yes' && !s.isApproved) return false;
+      if (activeFilters.isApproved === 'no' && s.isApproved) return false;
 
       return true;
     });
