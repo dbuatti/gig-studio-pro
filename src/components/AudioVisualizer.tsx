@@ -1,75 +1,90 @@
 "use client";
-
 import React, { useRef, useEffect } from 'react';
 import * as Tone from 'tone';
+import { cn } from '@/lib/utils';
 
 interface AudioVisualizerProps {
   analyzer: Tone.Analyser | null;
-  isActive: boolean;
+  isPlaying: boolean; // Added isPlaying prop
+  isMobile: boolean;
 }
 
-const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ analyzer, isActive }) => {
+const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ analyzer, isPlaying, isMobile }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animationFrameId = useRef<number | null>(null);
 
-  useEffect(() => {
-    if (!canvasRef.current || !analyzer || !isActive) return;
+  const draw = () => {
+    if (!analyzer || !canvasRef.current) return;
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    let animationId: number;
+    const width = canvas.width;
+    const height = canvas.height;
 
-    const render = () => {
-      const values = analyzer.getValue() as Float32Array;
-      const width = canvas.width;
-      const height = canvas.height;
+    // Clear canvas
+    ctx.clearRect(0, 0, width, height);
 
-      ctx.clearRect(0, 0, width, height);
-      
-      // Create a professional gradient
-      const gradient = ctx.createLinearGradient(0, height, 0, 0);
-      gradient.addColorStop(0, '#6366f1'); // indigo-500
-      gradient.addColorStop(1, '#a5b4fc'); // indigo-300
+    // Get waveform data
+    const waveform: Float32Array = analyzer.getValue(); // Explicitly type as Float32Array
+    const bufferLength = waveform.length;
 
-      ctx.beginPath();
-      ctx.moveTo(0, height);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = isPlaying ? '#6366f1' : '#475569'; // Indigo-500 when playing, Slate-600 when paused
+    ctx.shadowBlur = isPlaying ? 10 : 0;
+    ctx.shadowColor = isPlaying ? '#6366f1' : 'transparent';
 
-      const barWidth = width / values.length;
-      for (let i = 0; i < values.length; i++) {
-        // Normalize values from dB-ish to canvas height
-        const val = (values[i] + 140) * (height / 140);
-        const x = i * barWidth;
-        const y = height - val;
-        
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
+    ctx.beginPath();
+
+    const sliceWidth = width * 1.0 / bufferLength;
+    let x = 0;
+
+    for (let i = 0; i < bufferLength; i++) {
+      const v = waveform[i] / 2 + 0.5; // Normalize to 0-1 range
+      const y = v * height;
+
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
       }
 
-      ctx.lineTo(width, height);
-      ctx.fillStyle = gradient;
-      ctx.globalAlpha = 0.6;
-      ctx.fill();
-      
-      // Add a stroke top
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = '#6366f1';
-      ctx.stroke();
+      x += sliceWidth;
+    }
 
-      animationId = requestAnimationFrame(render);
+    ctx.lineTo(width, height / 2);
+    ctx.stroke();
+
+    animationFrameId.current = requestAnimationFrame(draw);
+  };
+
+  useEffect(() => {
+    if (analyzer) {
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+      }
+      animationFrameId.current = requestAnimationFrame(draw);
+    }
+
+    return () => {
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+      }
     };
-
-    render();
-    return () => cancelAnimationFrame(animationId);
-  }, [analyzer, isActive]);
+  }, [analyzer, isPlaying]); // Re-run effect if analyzer or isPlaying changes
 
   return (
-    <canvas 
-      ref={canvasRef} 
-      width={600} 
-      height={100} 
-      className="w-full h-24 bg-slate-900/10 dark:bg-slate-900/50 rounded-lg border border-indigo-100/20"
-    />
+    <div className="h-full flex flex-col items-center justify-center bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-3xl p-6">
+      <h3 className="text-sm font-black uppercase tracking-[0.3em] text-indigo-400 mb-6">Audio Visualizer</h3>
+      <canvas
+        ref={canvasRef}
+        width={isMobile ? 300 : 600}
+        height={isMobile ? 150 : 300}
+        className="w-full max-w-full h-auto rounded-xl border border-white/10"
+      />
+      <p className="text-xs text-slate-500 mt-4">Real-time waveform visualization</p>
+    </div>
   );
 };
 

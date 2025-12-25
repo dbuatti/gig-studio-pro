@@ -19,9 +19,10 @@ export interface UGChordsConfig {
   fontFamily: string;
   fontSize: number;
   chordBold: boolean;
-  chordColor: string; // Made required
+  chordColor: string;
   lineSpacing: number;
-  textAlign: "left" | "center" | "right"; // Added textAlign
+  textAlign: "left" | "center" | "right";
+  keyPreference?: KeyPreference; // Added keyPreference
 }
 
 export interface SetlistSong {
@@ -59,6 +60,7 @@ export interface SetlistSong {
   preferred_reader?: 'ug' | 'ls' | 'fn' | null;
   ug_chords_text?: string;
   ug_chords_config?: UGChordsConfig;
+  ug_transpose_semitones?: number; // Added to persist transpose slider position
 }
 
 interface SetlistManagerProps {

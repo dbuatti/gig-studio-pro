@@ -1,27 +1,24 @@
 "use client";
 import React from 'react';
 import { SetlistSong } from './SetlistManager';
-import { AudioEngineControls } from '@/hooks/use-tone-audio';
 import SongDetailsTab from './SongDetailsTab';
 import SongChartsTab from './SongChartsTab';
 import LyricsEngine from './LyricsEngine';
 import LibraryEngine from './LibraryEngine';
 import SongConfigTab from './SongConfigTab';
 import SongAudioPlaybackTab from './SongAudioPlaybackTab';
-import YoutubeMediaManager from './YoutubeMediaManager';
-import { transposeKey } from '@/utils/keyUtils';
-import { cn } from '@/lib/utils';
-import { Youtube } from 'lucide-react';
+import AudioVisualizer from './AudioVisualizer';
+import { useToneAudio } from '@/hooks/use-tone-audio';
 
 interface StudioTabContentProps {
-  activeTab: 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library';
+  activeTab: string;
   song: SetlistSong | null;
   formData: Partial<SetlistSong>;
   handleAutoSave: (updates: Partial<SetlistSong>) => void;
   onUpdateKey: (id: string, targetKey: string) => void;
-  audioEngine: AudioEngineControls;
+  audioEngine: ReturnType<typeof useToneAudio>;
   isMobile: boolean;
-  onLoadAudioFromUrl: (url: string, initialPitch: number) => Promise<void>;
+  onLoadAudioFromUrl: (url: string, pitch: number) => Promise<void>;
   onOpenAdmin?: () => void;
   setPreviewPdfUrl: (url: string | null) => void;
   isFramable: (url: string | null) => boolean;
@@ -29,7 +26,9 @@ interface StudioTabContentProps {
   setActiveChartType: (type: 'pdf' | 'leadsheet' | 'web' | 'ug') => void;
   handleUgPrint: () => void;
   handleDownloadAll: () => Promise<void>;
-  onSwitchTab: (tab: 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library') => void;
+  onSwitchTab: (tab: 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library') => void; // Corrected type
+  isChartsReaderExpanded: boolean;
+  onToggleChartsReaderExpanded: (expanded: boolean) => void;
 }
 
 const StudioTabContent: React.FC<StudioTabContentProps> = ({
@@ -49,11 +48,13 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
   handleUgPrint,
   handleDownloadAll,
   onSwitchTab,
+  isChartsReaderExpanded,
+  onToggleChartsReaderExpanded
 }) => {
   switch (activeTab) {
     case 'config':
       return (
-        <SongConfigTab 
+        <SongConfigTab
           song={song}
           formData={formData}
           handleAutoSave={handleAutoSave}
@@ -66,30 +67,45 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
           isMobile={isMobile}
         />
       );
+    case 'details':
+      return (
+        <SongDetailsTab
+          formData={formData}
+          handleAutoSave={handleAutoSave}
+          isMobile={isMobile}
+          onOpenAdmin={onOpenAdmin}
+        />
+      );
     case 'audio':
       return (
-        <SongAudioPlaybackTab 
+        <SongAudioPlaybackTab
           song={song}
           formData={formData}
+          handleAutoSave={handleAutoSave}
           audioEngine={audioEngine}
           isMobile={isMobile}
           onLoadAudioFromUrl={onLoadAudioFromUrl}
-          onSave={handleAutoSave}
-          onUpdateKey={onUpdateKey}
-          transposeKey={transposeKey}
         />
       );
-    case 'details':
+    case 'visual':
       return (
-        <SongDetailsTab 
-          formData={formData} 
-          handleAutoSave={handleAutoSave} 
-          isMobile={isMobile} 
+        <AudioVisualizer
+          analyzer={audioEngine.analyzer}
+          isPlaying={audioEngine.isPlaying}
+          isMobile={isMobile}
+        />
+      );
+    case 'lyrics':
+      return (
+        <LyricsEngine
+          formData={formData}
+          handleAutoSave={handleAutoSave}
+          isMobile={isMobile}
         />
       );
     case 'charts':
       return (
-        <SongChartsTab 
+        <SongChartsTab
           formData={formData}
           handleAutoSave={handleAutoSave}
           isMobile={isMobile}
@@ -98,57 +114,22 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
           activeChartType={activeChartType}
           setActiveChartType={setActiveChartType}
           handleUgPrint={handleUgPrint}
+          isChartsReaderExpanded={isChartsReaderExpanded}
+          onToggleChartsReaderExpanded={onToggleChartsReaderExpanded}
         />
-      );
-    case 'lyrics':
-      return (
-        <LyricsEngine 
-          lyrics={formData.lyrics || ""} 
-          onUpdate={(newLyrics) => handleAutoSave({ lyrics: newLyrics })} 
-          artist={formData.artist} 
-          title={formData.name} 
-          isMobile={isMobile} 
-        />
-      );
-    case 'visual':
-      return (
-        <div className="space-y-10 animate-in fade-in duration-500 h-full flex flex-col">
-          <YoutubeMediaManager 
-            song={song}
-            formData={formData}
-            handleAutoSave={handleAutoSave}
-            onOpenAdmin={onOpenAdmin}
-            onLoadAudioFromUrl={audioEngine.loadFromUrl}
-            onSwitchTab={onSwitchTab}
-          />
-          <div className={cn("flex-1 bg-slate-900 rounded-[2.5rem] border-4 border-white/5 shadow-2xl overflow-hidden relative min-h-[300px]", !formData.youtubeUrl && "flex flex-col items-center justify-center")}>
-            {formData.youtubeUrl ? 
-              <iframe 
-                width="100%" 
-                height="100%" 
-                src={`https://www.youtube.com/embed/${formData.youtubeUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)?.[1] || ''}?autoplay=0&modestbranding=1&rel=0`} 
-                title="Reference" 
-                frameBorder="0" 
-                allowFullScreen 
-                className="w-full h-full"
-              /> : 
-              <Youtube className="w-32 h-32 text-slate-800" />
-            }
-          </div>
-        </div>
       );
     case 'library':
       return (
-        <LibraryEngine 
-          formData={formData} 
-          handleDownloadAll={handleDownloadAll} 
+        <LibraryEngine
+          formData={formData}
+          handleAutoSave={handleAutoSave}
           isMobile={isMobile}
-          setPreviewPdfUrl={setPreviewPdfUrl}
-          handleUgPrint={handleUgPrint}
+          handleDownloadAll={handleDownloadAll}
+          onSwitchTab={onSwitchTab}
         />
       );
     default:
-      return null;
+      return <div className="text-white">Select a tab</div>;
   }
 };
 
