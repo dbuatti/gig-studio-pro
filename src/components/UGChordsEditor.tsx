@@ -58,7 +58,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
         chordBold: config.chordBold,
         chordColor: config.chordColor,
         lineSpacing: config.lineSpacing,
-        textAlign: config.textAlign // ADDED: Include textAlign
+        textAlign: config.textAlign
       }
     });
   }, [config, handleAutoSave]);
@@ -133,6 +133,9 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
       setIsFetchingUg(false);
     }
   };
+
+  // Ensure chords are readable on dark background if color is set to black for preview
+  const readableChordColor = config.chordColor === "#000000" ? "#ffffff" : config.chordColor;
 
   return (
     <div className="flex flex-col h-full gap-6 text-white">
@@ -460,11 +463,11 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
                 fontSize: `${config.fontSize}px`, 
                 lineHeight: config.lineSpacing,
                 textAlign: config.textAlign as any,
-                color: config.chordColor
+                color: readableChordColor // Use the readable color for the preview
               }}
             >
               {transposedText ? (
-                <pre className="whitespace-pre-wrap font-inherit text-white">
+                <pre className="whitespace-pre-wrap font-inherit"> {/* Removed text-white here */}
                   {transposedText}
                 </pre>
               ) : (

@@ -17,18 +17,21 @@ interface UGChordsReaderProps {
 }
 
 const UGChordsReader: React.FC<UGChordsReaderProps> = ({ chordsText, config, isMobile }) => {
+  // Ensure chords are readable on dark background if color is set to black
+  const readableChordColor = config.chordColor === "#000000" ? "#ffffff" : config.chordColor;
+
   const formattedHtml = formatChordText(chordsText, {
     fontFamily: config.fontFamily,
     fontSize: config.fontSize,
     chordBold: config.chordBold,
-    chordColor: config.chordColor,
+    chordColor: readableChordColor, // Use the readable color for formatting
     lineSpacing: config.lineSpacing
   });
 
   return (
     <div
       className={cn(
-        "flex-1 bg-slate-950 rounded-xl p-4 overflow-auto border border-white/10 font-mono text-white custom-scrollbar",
+        "flex-1 bg-slate-950 rounded-xl p-4 overflow-auto border border-white/10 font-mono custom-scrollbar", // Removed text-white here, will set via style
         isMobile ? "text-sm" : "text-base"
       )}
       style={{
@@ -36,7 +39,7 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({ chordsText, config, isM
         fontSize: `${config.fontSize}px`,
         lineHeight: config.lineSpacing,
         textAlign: config.textAlign as any,
-        color: config.chordColor || "#ffffff" // Ensure default to white if not set
+        color: readableChordColor || "#ffffff" // Set the overall text color of the div to the readable color
       }}
     >
       {chordsText ? (
