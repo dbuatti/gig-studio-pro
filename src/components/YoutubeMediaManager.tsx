@@ -214,6 +214,15 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
       return;
     }
 
+    // NEW: Update the formData.youtubeUrl with the selected video's URL if a specific videoUrlToDownload is provided
+    if (videoUrlToDownload && targetVideoUrl !== formData.youtubeUrl) {
+      handleAutoSave({ youtubeUrl: targetVideoUrl });
+      showSuccess("YouTube URL updated and download initiated.");
+    } else if (!formData.youtubeUrl) {
+      showError("Please link a YouTube URL first.");
+      return;
+    }
+
     setDownloadStatus('processing');
     setIsDownloading(true);
     setDownloadProgress(0); // Reset progress
