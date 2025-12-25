@@ -15,6 +15,15 @@ import SetlistFilters, { FilterState } from './SetlistFilters';
 import { calculateReadiness } from '@/utils/repertoireSync';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
+export interface UGChordsConfig {
+  fontFamily: string;
+  fontSize: number;
+  chordBold: boolean;
+  chordColor: string; // Made required
+  lineSpacing: number;
+  textAlign: "left" | "center" | "right"; // Added textAlign
+}
+
 export interface SetlistSong {
   id: string;
   master_id?: string;
@@ -49,13 +58,7 @@ export interface SetlistSong {
   isApproved?: boolean;
   preferred_reader?: 'ug' | 'ls' | 'fn' | null;
   ug_chords_text?: string;
-  ug_chords_config?: {
-    fontFamily: string;
-    fontSize: number;
-    chordBold: boolean;
-    chordColor?: string;
-    lineSpacing: number;
-  };
+  ug_chords_config?: UGChordsConfig;
 }
 
 interface SetlistManagerProps {

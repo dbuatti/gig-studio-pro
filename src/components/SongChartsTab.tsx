@@ -140,7 +140,8 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
                   fontSize: 16,
                   chordBold: true,
                   lineSpacing: 1.5,
-                  textAlign: "left"
+                  chordColor: "#ffffff", // Ensure default chord color is white
+                  textAlign: "left" // Ensure default text alignment
                 }}
                 isMobile={isMobile}
               />

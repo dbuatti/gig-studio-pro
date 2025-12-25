@@ -33,7 +33,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
     chordBold: formData.ug_chords_config?.chordBold ?? true,
     chordColor: formData.ug_chords_config?.chordColor || "#ffffff", // Changed default to white
     lineSpacing: formData.ug_chords_config?.lineSpacing || 1.5,
-    textAlign: "left" as "left" | "center" | "right"
+    textAlign: formData.ug_chords_config?.textAlign || "left" as "left" | "center" | "right"
   });
 
   // Apply transposition to the chords text
@@ -57,7 +57,8 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
         fontSize: config.fontSize,
         chordBold: config.chordBold,
         chordColor: config.chordColor,
-        lineSpacing: config.lineSpacing
+        lineSpacing: config.lineSpacing,
+        textAlign: config.textAlign // ADDED: Include textAlign
       }
     });
   }, [config, handleAutoSave]);
