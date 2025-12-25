@@ -6,6 +6,7 @@ import { SetlistSong } from './SetlistManager';
 import { ExternalLink, ShieldCheck, Printer, FileText, Music, Guitar } from 'lucide-react';
 import { showError, showSuccess } from '@/utils/toast';
 import UGChordsEditor from './UGChordsEditor';
+import UGChordsReader from './UGChordsReader'; // Import the new reader component
 
 interface SongChartsTabProps {
   formData: Partial<SetlistSong>;
@@ -39,11 +40,12 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
       case 'web': 
         return formData.pdfUrl; // Assuming web is just a direct link to PDF for now
       case 'ug': 
-        return formData.ugUrl;
+        // For UG, we'll render the internal reader, not an external URL iframe
+        return null; 
       default: 
         return null;
     }
-  }, [activeChartType, formData.pdfUrl, formData.leadsheetUrl, formData.ugUrl]);
+  }, [activeChartType, formData.pdfUrl, formData.leadsheetUrl]);
 
   const canEmbedUg = useMemo(() => {
     if (activeChartType === 'ug' && formData.ugUrl) {
@@ -101,7 +103,7 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
               <Button 
                 variant="ghost" 
                 size="sm" 
-                disabled={!formData.ugUrl && !formData.ug_chords_text}
+                disabled={!formData.ugUrl && !formData.ug_chords_text} // Enable if ugUrl or ug_chords_text exists
                 onClick={() => setActiveChartType('ug')}
                 className={cn(
                   "text-[9px] font-black uppercase h-8 px-4 rounded-lg",
@@ -114,7 +116,19 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
           </div>
           
           <div className={cn("flex-1 bg-white overflow-hidden shadow-2xl relative", isMobile ? "rounded-3xl" : "rounded-[3rem]")}>
-            {currentChartUrl ? (
+            {activeChartType === 'ug' && (formData.ug_chords_text || formData.ugUrl) ? (
+              <UGChordsReader
+                chordsText={formData.ug_chords_text || ""}
+                config={formData.ug_chords_config || {
+                  fontFamily: "monospace",
+                  fontSize: 16,
+                  chordBold: true,
+                  lineSpacing: 1.5,
+                  textAlign: "left"
+                }}
+                isMobile={isMobile}
+              />
+            ) : currentChartUrl ? (
               canEmbedUg ? (
                 <iframe 
                   src={currentChartUrl} 
