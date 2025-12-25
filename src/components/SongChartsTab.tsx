@@ -16,7 +16,7 @@ interface SongChartsTabProps {
   isFramable: (url: string | null) => boolean;
   activeChartType: 'pdf' | 'leadsheet' | 'web' | 'ug';
   setActiveChartType: (type: 'pdf' | 'leadsheet' | 'web' | 'ug') => void;
-  handleUgPrint: () => void; // This prop is now handled internally or passed from parent
+  handleUgPrint: () => void;
 }
 
 const SongChartsTab: React.FC<SongChartsTabProps> = ({
