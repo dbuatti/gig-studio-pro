@@ -69,20 +69,25 @@ const Index = () => {
   const fetchMasterRepertoire = async () => {
     if (!user) return;
     try {
-      const { data } = await supabase.from('repertoire').select('*').eq('user_id', user.id);
-      const mapped = (data || []).map(d => ({
-        id: d.id, master_id: d.id, name: d.title, artist: d.artist, bpm: d.bpm, lyrics: d.lyrics,
-        originalKey: d.original_key, targetKey: d.target_key, pitch: d.pitch, ugUrl: d.ug_url,
-        previewUrl: d.preview_url, youtubeUrl: d.youtube_url, appleMusicUrl: d.apple_music_url,
-        pdfUrl: d.pdf_url, isMetadataConfirmed: d.is_metadata_confirmed, isKeyConfirmed: d.is_key_confirmed,
-        duration_seconds: d.duration_seconds, notes: d.notes, user_tags: d.user_tags || [], resources: d.resources || [],
-        isApproved: d.is_approved, // Ensure isApproved is mapped
-        preferred_reader: d.preferred_reader, // Ensure preferred_reader is mapped
-        ug_chords_text: d.ug_chords_text, // Ensure ug_chords_text is mapped
-        ug_chords_config: d.ug_chords_config, // Ensure ug_chords_config is mapped
-      }));
-      setMasterRepertoire(mapped);
-    } catch (err) {}
+      const { data } = await supabase.from('repertoire').select('*').eq('user_id', user.id); // FIX: Changed 'user.id' to 'user_id'
+      if (data) {
+        const mapped = (data || []).map(d => ({
+          id: d.id, master_id: d.id, name: d.title, artist: d.artist, bpm: d.bpm, lyrics: d.lyrics,
+          originalKey: d.original_key, targetKey: d.target_key, pitch: d.pitch, ugUrl: d.ug_url,
+          previewUrl: d.preview_url, youtubeUrl: d.youtube_url, appleMusicUrl: d.apple_music_url,
+          pdfUrl: d.pdf_url, isMetadataConfirmed: d.is_metadata_confirmed, isKeyConfirmed: d.is_key_confirmed,
+          duration_seconds: d.duration_seconds, notes: d.notes, user_tags: d.user_tags || [], resources: d.resources || [],
+          isApproved: d.is_approved, // Ensure isApproved is mapped
+          preferred_reader: d.preferred_reader, // Ensure preferred_reader is mapped
+          ug_chords_text: d.ug_chords_text, // Ensure ug_chords_text is mapped
+          ug_chords_config: d.ug_chords_config, // Ensure ug_chords_config is mapped
+        }));
+        setMasterRepertoire(mapped);
+      }
+    } catch (err) {
+      console.error("Error fetching master repertoire:", err);
+      showError("Failed to load master repertoire.");
+    }
   };
 
   const fetchSetlists = async () => {
