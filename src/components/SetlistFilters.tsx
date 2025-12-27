@@ -33,7 +33,7 @@ export interface FilterState {
   isConfirmed: 'all' | 'yes' | 'no';
   isApproved: 'all' | 'yes' | 'no';
   readiness: number; 
-  hasUgChords: 'all' | 'yes' | 'no'; // NEW: Added hasUgChords filter
+  hasUgChords: 'all' | 'yes' | 'no';
 }
 
 const DEFAULT_FILTERS: FilterState = {
@@ -45,7 +45,7 @@ const DEFAULT_FILTERS: FilterState = {
   isConfirmed: 'all',
   isApproved: 'all',
   readiness: 0, // Changed default readiness to 0
-  hasUgChords: 'all' // NEW: Default to 'all'
+  hasUgChords: 'all'
 };
 
 interface SetlistFiltersProps {
@@ -64,7 +64,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
     const saved = localStorage.getItem('gig_filter_presets');
     return saved ? JSON.parse(saved) : [
       { id: 'broken', name: 'Needs Attention', filters: { ...DEFAULT_FILTERS, readiness: 40 } },
-      { id: 'stage-ready', name: 'Performance Ready', filters: { ...DEFAULT_FILTERS, readiness: 100, hasAudio: 'full', hasChart: 'yes', isConfirmed: 'yes', isApproved: 'yes', hasUgChords: 'yes' } } // NEW: Added hasUgChords to default preset
+      { id: 'stage-ready', name: 'Performance Ready', filters: { ...DEFAULT_FILTERS, readiness: 100, hasAudio: 'full', hasChart: 'yes', isConfirmed: 'yes', isApproved: 'yes', hasUgChords: 'yes' } }
     ];
   });
 
@@ -112,320 +112,176 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                 </DropdownMenuItem>
               ))}
               <DropdownMenuSeparator className="bg-white/5" />
-              <DropdownMenuItem onClick={savePreset} className="text-indigo-400 font-black uppercase text-[9px] tracking-widest h-10 px-3 cursor-pointer hover:bg-white/10 gap-2">
-                <Save className="w-3.5 h-3.5" /> Save Current View
+              <DropdownMenuItem onClick={savePreset} className="rounded-xl h-10 px-3 cursor-pointer hover:bg-white/10">
+                <Save className="w-3.5 h-3.5 mr-2" /> <span className="text-xs font-bold uppercase">Save Current View</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onFilterChange(DEFAULT_FILTERS)} disabled={isDefault} className="rounded-xl h-10 px-3 cursor-pointer hover:bg-white/10">
+                <RotateCcw className="w-3.5 h-3.5 mr-2" /> <span className="text-xs font-bold uppercase">Reset Filters</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden md:block" />
-
-          {/* Readiness Slider - Expanded */}
-          <div className="flex items-center gap-4 bg-white dark:bg-slate-900 px-4 py-1.5 rounded-xl border border-slate-100 dark:border-slate-800 flex-1 min-w-[300px]">
-            <div className="flex items-center gap-2 shrink-0">
-               <AlertCircle className="w-3.5 h-3.5 text-orange-500" />
-               <span className="text-[10px] font-black uppercase text-slate-400 whitespace-nowrap">Readiness: <span className="text-indigo-600 font-mono">≥{activeFilters.readiness}%</span></span>
-            </div>
-            <Slider 
-              value={[activeFilters.readiness]} 
-              max={100} 
-              step={5} 
-              onValueChange={([v]) => onFilterChange({ ...activeFilters, readiness: v })}
-              className="flex-1"
-            />
-          </div>
-
-          <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden lg:block" />
-
-          {/* Confirmed Toggle (Icon only) */}
+          {/* Filter Buttons */}
           <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className={cn(
-                      "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.isConfirmed !== 'all' ? "bg-emerald-600 text-white shadow-lg" : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-500"
-                    )}
-                  >
-                    <ShieldCheck className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent className="text-[10px] font-black uppercase">Key Verified</TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-slate-950 border-white/10 text-white">
-              <DropdownMenuRadioGroup value={activeFilters.isConfirmed} onValueChange={(v) => onFilterChange({ ...activeFilters, isConfirmed: v as any })}>
-                <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Status</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Verified Only</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-10 rounded-xl text-red-400">Unverified Only</DropdownMenuRadioItem>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9 px-4 rounded-xl border-indigo-100 dark:border-slate-800 bg-white dark:bg-slate-950 text-indigo-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-sm">
+                <Headphones className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Audio</span> <ChevronDown className="w-3 h-3 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-48 p-2 rounded-2xl bg-slate-950 border-white/10 text-white">
+              <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-slate-500 px-3 py-2">Audio Source</DropdownMenuLabel>
+              <DropdownMenuSeparator className="bg-white/5" />
+              <DropdownMenuRadioGroup value={activeFilters.hasAudio} onValueChange={(value: 'all' | 'full' | 'itunes' | 'none') => onFilterChange({ ...activeFilters, hasAudio: value })}>
+                <DropdownMenuRadioItem value="all" className="rounded-xl h-10 px-3 cursor-pointer hover:bg-white/10">
+                  <ListFilter className="w-3.5 h-3.5 mr-2" /> All Audio
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="full" className="rounded-xl h-10 px-3 cursor-pointer hover:bg-white/10">
+                  <Volume2 className="w-3.5 h-3.5 mr-2" /> Full Master
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="itunes" className="rounded-xl h-10 px-3 cursor-pointer hover:bg-white/10">
+                  <Music2 className="w-3.5 h-3.5 mr-2" /> iTunes Preview
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="none" className="rounded-xl h-10 px-3 cursor-pointer hover:bg-white/10">
+                  <VolumeX className="w-3.5 h-3.5 mr-2" /> No Audio
+                </DropdownMenuRadioItem>
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Approved Toggle (Icon only) */}
           <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className={cn(
-                      "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.isApproved !== 'all' ? "bg-indigo-600 text-white shadow-lg" : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-500"
-                    )}
-                  >
-                    <Check className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent className="text-[10px] font-black uppercase">Performance Approved</TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-slate-950 border-white/10 text-white">
-              <DropdownMenuRadioGroup value={activeFilters.isApproved} onValueChange={(v) => onFilterChange({ ...activeFilters, isApproved: v as any })}>
-                <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Approved Only</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-10 rounded-xl text-red-400">Unapproved Only</DropdownMenuRadioItem>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9 px-4 rounded-xl border-indigo-100 dark:border-slate-800 bg-white dark:bg-slate-950 text-indigo-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-sm">
+                <Youtube className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Video</span> <ChevronDown className="w-3 h-3 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-48 p-2 rounded-2xl bg-slate-950 border-white/10 text-white">
+              <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-slate-500 px-3 py-2">Video Links</DropdownMenuLabel>
+              <DropdownMenuSeparator className="bg-white/5" />
+              <DropdownMenuRadioGroup value={activeFilters.hasVideo} onValueChange={(value: 'all' | 'yes' | 'no') => onFilterChange({ ...activeFilters, hasVideo: value })}>
+                <DropdownMenuRadioItem value="all" className="rounded-xl h-10 px-3 cursor-pointer hover:bg-white/10">
+                  <ListFilter className="w-3.5 h-3.5 mr-2" /> All Videos
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="yes" className="rounded-xl h-10 px-3 cursor-pointer hover:bg-white/10">
+                  <CheckCircle2 className="w-3.5 h-3.5 mr-2" /> Has Video
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="no" className="rounded-xl h-10 px-3 cursor-pointer hover:bg-white/10">
+                  <VideoOff className="w-3.5 h-3.5 mr-2" /> No Video
+                </DropdownMenuRadioItem>
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Audio Toggle (Icon only) */}
           <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className={cn(
-                      "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.hasAudio !== 'all' ? "bg-indigo-600 text-white shadow-lg" : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-500"
-                    )}
-                  >
-                    <Music className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent className="text-[10px] font-black uppercase">Audio Status</TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-slate-950 border-white/10 text-white">
-              <DropdownMenuRadioGroup value={activeFilters.hasAudio} onValueChange={(v) => onFilterChange({ ...activeFilters, hasAudio: v as any })}>
-                <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="full" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Master Audio Only</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="itunes" className="text-xs font-bold uppercase h-10 rounded-xl text-indigo-400">iTunes Previews</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="none" className="text-xs font-bold uppercase h-10 rounded-xl text-red-400">Missing Audio</DropdownMenuRadioItem>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9 px-4 rounded-xl border-indigo-100 dark:border-slate-800 bg-white dark:bg-slate-950 text-indigo-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-sm">
+                <FileText className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Charts</span> <ChevronDown className="w-3 h-3 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-48 p-2 rounded-2xl bg-slate-950 border-white/10 text-white">
+              <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-slate-500 px-3 py-2">Chart Links</DropdownMenuLabel>
+              <DropdownMenuSeparator className="bg-white/5" />
+              <DropdownMenuRadioGroup value={activeFilters.hasChart} onValueChange={(value: 'all' | 'yes' | 'no') => onFilterChange({ ...activeFilters, hasChart: value })}>
+                <DropdownMenuRadioItem value="all" className="rounded-xl h-10 px-3 cursor-pointer hover:bg-white/10">
+                  <ListFilter className="w-3.5 h-3.5 mr-2" /> All Charts
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="yes" className="rounded-xl h-10 px-3 cursor-pointer hover:bg-white/10">
+                  <FileCheck2 className="w-3.5 h-3.5 mr-2" /> Has Chart
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="no" className="rounded-xl h-10 px-3 cursor-pointer hover:bg-white/10">
+                  <FileX2 className="w-3.5 h-3.5 mr-2" /> No Chart
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+              <DropdownMenuSeparator className="bg-white/5" />
+              <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-slate-500 px-3 py-2">Specific Types</DropdownMenuLabel>
+              <DropdownMenuRadioGroup value={activeFilters.hasPdf} onValueChange={(value: 'all' | 'yes' | 'no') => onFilterChange({ ...activeFilters, hasPdf: value })}>
+                <DropdownMenuRadioItem value="all" className="rounded-xl h-10 px-3 cursor-pointer hover:bg-white/10">
+                  <ListFilter className="w-3.5 h-3.5 mr-2" /> All PDFs
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="yes" className="rounded-xl h-10 px-3 cursor-pointer hover:bg-white/10">
+                  <FileText className="w-3.5 h-3.5 mr-2" /> Has PDF
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="no" className="rounded-xl h-10 px-3 cursor-pointer hover:bg-white/10">
+                  <FileX2 className="w-3.5 h-3.5 mr-2" /> No PDF
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+              <DropdownMenuRadioGroup value={activeFilters.hasUg} onValueChange={(value: 'all' | 'yes' | 'no') => onFilterChange({ ...activeFilters, hasUg: value })}>
+                <DropdownMenuRadioItem value="all" className="rounded-xl h-10 px-3 cursor-pointer hover:bg-white/10">
+                  <ListFilter className="w-3.5 h-3.5 mr-2" /> All UG Links
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="yes" className="rounded-xl h-10 px-3 cursor-pointer hover:bg-white/10">
+                  <LinkIcon className="w-3.5 h-3.5 mr-2" /> Has UG Link
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="no" className="rounded-xl h-10 px-3 cursor-pointer hover:bg-white/10">
+                  <Link2Off className="w-3.5 h-3.5 mr-2" /> No UG Link
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+              <DropdownMenuRadioGroup value={activeFilters.hasUgChords} onValueChange={(value: 'all' | 'yes' | 'no') => onFilterChange({ ...activeFilters, hasUgChords: value })}>
+                <DropdownMenuRadioItem value="all" className="rounded-xl h-10 px-3 cursor-pointer hover:bg-white/10">
+                  <ListFilter className="w-3.5 h-3.5 mr-2" /> All UG Chords
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="yes" className="rounded-xl h-10 px-3 cursor-pointer hover:bg-white/10">
+                  <Guitar className="w-3.5 h-3.5 mr-2" /> Has UG Chords
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="no" className="rounded-xl h-10 px-3 cursor-pointer hover:bg-white/10">
+                  <FileX2 className="w-3.5 h-3.5 mr-2" /> No UG Chords
+                </DropdownMenuRadioItem>
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Video Toggle (Icon only) */}
           <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className={cn(
-                      "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.hasVideo !== 'all' ? "bg-red-600 text-white shadow-lg" : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-500"
-                    )}
-                  >
-                    <Youtube className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent className="text-[10px] font-black uppercase">Video Link</TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-slate-950 border-white/10 text-white">
-              <DropdownMenuRadioGroup value={activeFilters.hasVideo} onValueChange={(v) => onFilterChange({ ...activeFilters, hasVideo: v as any })}>
-                <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Has Video</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-10 rounded-xl text-red-400">Missing Video</DropdownMenuRadioItem>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9 px-4 rounded-xl border-indigo-100 dark:border-slate-800 bg-white dark:bg-slate-950 text-indigo-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-sm">
+                <ShieldCheck className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Status</span> <ChevronDown className="w-3 h-3 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-48 p-2 rounded-2xl bg-slate-950 border-white/10 text-white">
+              <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-slate-500 px-3 py-2">Verification</DropdownMenuLabel>
+              <DropdownMenuSeparator className="bg-white/5" />
+              <DropdownMenuRadioGroup value={activeFilters.isConfirmed} onValueChange={(value: 'all' | 'yes' | 'no') => onFilterChange({ ...activeFilters, isConfirmed: value })}>
+                <DropdownMenuRadioItem value="all" className="rounded-xl h-10 px-3 cursor-pointer hover:bg-white/10">
+                  <ListFilter className="w-3.5 h-3.5 mr-2" /> All Confirmed
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="yes" className="rounded-xl h-10 px-3 cursor-pointer hover:bg-white/10">
+                  <Check className="w-3.5 h-3.5 mr-2" /> Confirmed
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="no" className="rounded-xl h-10 px-3 cursor-pointer hover:bg-white/10">
+                  <AlertCircle className="w-3.5 h-3.5 mr-2" /> Unconfirmed
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+              <DropdownMenuSeparator className="bg-white/5" />
+              <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-slate-500 px-3 py-2">Approval</DropdownMenuLabel>
+              <DropdownMenuRadioGroup value={activeFilters.isApproved} onValueChange={(value: 'all' | 'yes' | 'no') => onFilterChange({ ...activeFilters, isApproved: value })}>
+                <DropdownMenuRadioItem value="all" className="rounded-xl h-10 px-3 cursor-pointer hover:bg-white/10">
+                  <ListFilter className="w-3.5 h-3.5 mr-2" /> All Approved
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="yes" className="rounded-xl h-10 px-3 cursor-pointer hover:bg-white/10">
+                  <CheckCircle2 className="w-3.5 h-3.5 mr-2" /> Approved
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="no" className="rounded-xl h-10 px-3 cursor-pointer hover:bg-white/10">
+                  <CircleDashed className="w-3.5 h-3.5 mr-2" /> Unapproved
+                </DropdownMenuRadioItem>
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
-
-          {/* PDF Toggle (Icon only) */}
-          <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className={cn(
-                      "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.hasPdf !== 'all' ? "bg-emerald-600 text-white shadow-lg" : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-500"
-                    )}
-                  >
-                    <FileText className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent className="text-[10px] font-black uppercase">Sheet Music</TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-slate-950 border-white/10 text-white">
-              <DropdownMenuRadioGroup value={activeFilters.hasPdf} onValueChange={(v) => onFilterChange({ ...activeFilters, hasPdf: v as any })}>
-                <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Has PDF</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-10 rounded-xl text-red-400">Missing PDF</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* UG Toggle (Icon only) */}
-          <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className={cn(
-                      "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.hasUg !== 'all' ? "bg-orange-600 text-white shadow-lg" : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-500"
-                    )}
-                  >
-                    <FileSearch className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent className="text-[10px] font-black uppercase">Ultimate Guitar</TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-slate-950 border-white/10 text-white">
-              <DropdownMenuRadioGroup value={activeFilters.hasUg} onValueChange={(v) => onFilterChange({ ...activeFilters, hasUg: v as any })}>
-                <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Has UG Link</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-10 rounded-xl text-red-400">Missing UG Link</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* NEW: UG Chords Toggle (Icon only) */}
-          <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className={cn(
-                      "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.hasUgChords !== 'all' ? "bg-purple-600 text-white shadow-lg" : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-500"
-                    )}
-                  >
-                    <Guitar className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent className="text-[10px] font-black uppercase">UG Chords Text</TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-slate-950 border-white/10 text-white">
-              <DropdownMenuRadioGroup value={activeFilters.hasUgChords} onValueChange={(v) => onFilterChange({ ...activeFilters, hasUgChords: v as any })}>
-                <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Has Chords Text</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-10 rounded-xl text-red-400">Missing Chords Text</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {!isDefault && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => onFilterChange(DEFAULT_FILTERS)}
-              className="h-8 px-3 rounded-xl text-[9px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 gap-2"
-            >
-              <X className="w-3 h-3" /> Clear
-            </Button>
-          )}
         </div>
 
-        {/* Active Filter Badges */}
-        {!isDefault && (
-          <div className="flex flex-wrap gap-2 px-1">
-            <span className="text-[9px] font-black uppercase text-slate-400 flex items-center gap-2 mr-2">
-              <ListFilter className="w-3 h-3" /> Active Criteria:
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+              <BarChart3 className="w-3.5 h-3.5" /> Readiness Score
             </span>
-            {activeFilters.readiness > 0 && ( // Changed condition to > 0
-              <Badge 
-                variant="secondary" 
-                className="bg-orange-50 text-orange-600 border-orange-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-red-50 hover:text-red-600 transition-all group"
-                onClick={() => onFilterChange({ ...activeFilters, readiness: 0 })} // Changed reset to 0
-              >
-                Readiness: ≥{activeFilters.readiness}% <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
-              </Badge>
-            )}
-            {activeFilters.isConfirmed !== 'all' && (
-              <Badge 
-                variant="secondary" 
-                className="bg-emerald-50 text-emerald-600 border-emerald-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-red-50 hover:text-red-600 transition-all group"
-                onClick={() => onFilterChange({ ...activeFilters, isConfirmed: 'all' })}
-              >
-                Key Verified: {activeFilters.isConfirmed} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
-              </Badge>
-            )}
-            {activeFilters.isApproved !== 'all' && (
-              <Badge 
-                variant="secondary" 
-                className="bg-indigo-50 text-indigo-600 border-indigo-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-red-50 hover:text-red-600 transition-all group"
-                onClick={() => onFilterChange({ ...activeFilters, isApproved: 'all' })}
-              >
-                Approved: {activeFilters.isApproved} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
-              </Badge>
-            )}
-            {activeFilters.hasAudio !== 'all' && (
-              <Badge 
-                variant="secondary" 
-                className="bg-indigo-50 text-indigo-600 border-indigo-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-red-50 hover:text-red-600 transition-all group"
-                onClick={() => onFilterChange({ ...activeFilters, hasAudio: 'all' })}
-              >
-                Audio: {activeFilters.hasAudio} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
-              </Badge>
-            )}
-            {activeFilters.hasVideo !== 'all' && (
-              <Badge 
-                variant="secondary" 
-                className="bg-red-50 text-red-600 border-red-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-red-50 hover:text-red-600 transition-all group"
-                onClick={() => onFilterChange({ ...activeFilters, hasVideo: 'all' })}
-              >
-                Video: {activeFilters.hasVideo} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
-              </Badge>
-            )}
-            {activeFilters.hasPdf !== 'all' && (
-              <Badge 
-                variant="secondary" 
-                className="bg-emerald-50 text-emerald-600 border-emerald-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-red-50 hover:text-red-600 transition-all group"
-                onClick={() => onFilterChange({ ...activeFilters, hasPdf: 'all' })}
-              >
-                PDF: {activeFilters.hasPdf} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
-              </Badge>
-            )}
-            {activeFilters.hasUg !== 'all' && (
-              <Badge 
-                variant="secondary" 
-                className="bg-orange-50 text-orange-600 border-orange-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-red-50 hover:text-red-600 transition-all group"
-                onClick={() => onFilterChange({ ...activeFilters, hasUg: 'all' })}
-              >
-                UG: {activeFilters.hasUg} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
-              </Badge>
-            )}
-            {activeFilters.hasUgChords !== 'all' && ( // NEW: Badge for hasUgChords filter
-              <Badge 
-                variant="secondary" 
-                className="bg-purple-50 text-purple-600 border-purple-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-red-50 hover:text-red-600 transition-all group"
-                onClick={() => onFilterChange({ ...activeFilters, hasUgChords: 'all' })}
-              >
-                UG Chords: {activeFilters.hasUgChords} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
-              </Badge>
-            )}
+            <span className="text-xs font-black text-indigo-600">{activeFilters.readiness}%+</span>
           </div>
-        )}
+          <Slider 
+            value={[activeFilters.readiness]} 
+            onValueChange={([value]) => onFilterChange({ ...activeFilters, readiness: value })} 
+            min={0} 
+            max={100} 
+            step={5} 
+            className="w-full" 
+          />
+        </div>
       </div>
     </TooltipProvider>
   );
