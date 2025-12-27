@@ -15,7 +15,8 @@ import SetlistSettingsModal from "@/components/SetlistSettingsModal";
 import ResourceAuditModal from "@/components/ResourceAuditModal";
 import RepertoirePicker from "@/components/RepertoirePicker";
 import SetlistExporter from "@/components/SetlistExporter";
-import FloatingActionDock from "@/components/FloatingActionDock"; // Import the new dock component
+import FloatingCommandDock from "@/components/FloatingCommandDock"; // Import the new dock component
+import SheetReaderMode from './SheetReaderMode'; // Import SheetReaderMode
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { showSuccess, showError, showInfo } from '@/utils/toast';
 import { calculateSemitones } from '@/utils/keyUtils';
@@ -26,7 +27,7 @@ import {
   User as UserIcon, Loader2, Play, LayoutDashboard, 
   Search as SearchIcon, Rocket, Settings, Clock, 
   ShieldCheck, Settings2, FileText, Guitar, 
-  Library, ListMusic, ClipboardCheck 
+  Library, ListMusic, ClipboardCheck, Keyboard 
 } from 'lucide-react'; 
 import { cn } from "@/lib/utils";
 import { useSettings } from '@/hooks/use-settings';
@@ -74,6 +75,7 @@ const Index = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isSearchPanelOpen, setIsSearchPanelOpen] = useState(false); 
   const [isPerformanceMode, setIsPerformanceMode] = useState(false);
+  const [isSheetReaderMode, setIsSheetReaderMode] = useState(false); // NEW: Sheet Reader Mode
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false); 
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
@@ -83,6 +85,7 @@ const Index = () => {
   const [editingSongId, setEditingSongId] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showHeatmap, setShowHeatmap] = useState(false); // New state for heatmap
+  const [isCommandHubOpen, setIsCommandHubOpen] = useState(false); // NEW: Command Hub state
   
   const [sortMode, setSortMode] = useState<'none' | 'ready' | 'work'>(() => {
     return (localStorage.getItem('gig_sort_mode') as any) || 'none';
@@ -401,6 +404,12 @@ const Index = () => {
     handleSelectSong(playable[0]);
   };
 
+  const startSheetReader = () => {
+    const readable = songs.filter(s => s.ugUrl || s.pdfUrl || s.leadsheetUrl || s.ug_chords_text);
+    if (!readable.length) { showError("No readable charts found."); return; }
+    setIsSheetReaderMode(true);
+  };
+
   const handleSelectSong = async (song: SetlistSong) => {
     setActiveSongId(song.id);
     if (song.previewUrl && transposerRef.current) {
@@ -564,6 +573,114 @@ const Index = () => {
     }
   };
 
+  const hasPlayableSong = useMemo(() => {
+    return songs.filter(s => s.isApproved && s.previewUrl && !(s.previewUrl.includes('apple.com') || s.previewUrl.includes('itunes-assets'))).length > 0;
+  }, [songs]);
+
+  const hasReadableChart = useMemo(() => {
+    return songs.some(s => s.ugUrl || s.pdfUrl || s.leadsheetUrl || s.ug_chords_text);
+  }, [songs]);
+
+  const handleTogglePlayback = useCallback(() => {
+    transposerRef.current?.togglePlayback();
+  }, []);
+
+  const isPlaying = useMemo(() => {
+    return transposerRef.current?.getIsPlaying() || false;
+  }, [transposerRef.current?.getIsPlaying()]);
+
+  // Global Keyboard Bindings
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Ignore if user is typing in an input or textarea
+      if (
+        e.target instanceof HTMLInputElement || 
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target as HTMLElement).isContentEditable
+      ) {
+        return;
+      }
+
+      if (e.key === ' ') {
+        e.preventDefault();
+        handleTogglePlayback();
+      }
+      if (e.key.toLowerCase() === 'r') {
+        e.preventDefault();
+        startSheetReader();
+      }
+      if (e.key.toLowerCase() === 'h') {
+        e.preventDefault();
+        setShowHeatmap(prev => !prev);
+      }
+      if (e.key === 'Escape') {
+        if (isPerformanceMode) setIsPerformanceMode(false);
+        else if (isSheetReaderMode) setIsSheetReaderMode(false);
+        else if (isSearchPanelOpen) setIsSearchPanelOpen(false);
+        else if (isPreferencesOpen) setIsPreferencesOpen(false);
+        else if (isAdminOpen) setIsAdminOpen(false);
+        else if (isAuditModalOpen) setIsAuditModalOpen(false);
+        else if (isStudioModalOpen) setIsStudioModalOpen(false);
+        else if (isSetlistSettingsOpen) setIsSetlistSettingsOpen(false);
+        else if (isRepertoirePickerOpen) setIsRepertoirePickerOpen(false);
+        else if (isCommandHubOpen) setIsCommandHubOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [
+    handleTogglePlayback, startSheetReader, isPerformanceMode, isSheetReaderMode,
+    isSearchPanelOpen, isPreferencesOpen, isAdminOpen, isAuditModalOpen,
+    isStudioModalOpen, isSetlistSettingsOpen, isRepertoirePickerOpen, isCommandHubOpen
+  ]);
+
+  if (isPerformanceMode) {
+    const activeSong = songs.find(s => s.id === activeSongIdState);
+    const playableSongs = songs.filter(s => s.isApproved && s.previewUrl && !s.previewUrl.includes('apple.com'));
+    const currentPlayableIndex = playableSongs.findIndex(s => s.id === activeSongIdState);
+
+    const onNextPerformance = () => {
+      const nextIndex = (currentPlayableIndex + 1) % playableSongs.length;
+      handleSelectSong(playableSongs[nextIndex]);
+    };
+
+    const onPreviousPerformance = () => {
+      const prevIndex = (currentPlayableIndex - 1 + playableSongs.length) % playableSongs.length;
+      handleSelectSong(playableSongs[prevIndex]);
+    };
+
+    const onShufflePerformance = () => {
+      const shuffled = [...playableSongs].sort(() => Math.random() - 0.5);
+      handleSelectSong(shuffled[0]);
+    };
+
+    return (
+      <PerformanceOverlay 
+        songs={playableSongs} 
+        currentIndex={currentPlayableIndex} 
+        isPlaying={isPlaying} 
+        progress={transposerRef.current?.getProgress().progress || 0} 
+        duration={transposerRef.current?.getProgress().duration || 0} 
+        onTogglePlayback={handleTogglePlayback} 
+        onNext={onNextPerformance} 
+        onPrevious={onPreviousPerformance} 
+        onShuffle={onShufflePerformance} 
+        onClose={() => setIsPerformanceMode(false)} 
+        onUpdateSong={handleUpdateSong} 
+        onUpdateKey={handleUpdateKey} 
+        analyzer={transposerRef.current?.getAnalyzer()}
+        gigId={currentListId}
+      />
+    );
+  }
+
+  if (isSheetReaderMode) {
+    return (
+      <SheetReaderMode />
+    );
+  }
+
   return (
     <div className="h-screen bg-slate-50 dark:bg-slate-950 flex flex-col overflow-hidden relative">
       <nav className="h-16 md:h-20 bg-white dark:bg-slate-900 border-b px-4 md:px-6 flex items-center justify-between z-30 shadow-sm shrink-0">
@@ -719,10 +836,6 @@ const Index = () => {
       />
       <ResourceAuditModal isOpen={isAuditModalOpen} onClose={() => setIsAuditModalOpen(false)} songs={songs} onVerify={handleUpdateSong} />
       
-      {isPerformanceMode && (
-        <PerformanceOverlay songs={songs.filter(s => s.isApproved)} currentIndex={songs.findIndex(s => s.id === activeSongIdState)} isPlaying={false} progress={0} duration={0} onTogglePlayback={() => {}} onNext={() => {}} onPrevious={() => {}} onShuffle={() => {}} onClose={() => setIsPerformanceMode(false)} onUpdateSong={handleUpdateSong} onUpdateKey={handleUpdateKey} analyzer={null} />
-      )}
-
       <aside ref={searchPanelRef} className={cn("w-full md:w-[450px] bg-white dark:bg-slate-900 border-l absolute right-0 top-20 bottom-0 z-40 transition-transform duration-500", isSearchPanelOpen ? "translate-x-0" : "translate-x-full")}>
         <AudioTransposer 
           ref={transposerRef} 
@@ -738,7 +851,7 @@ const Index = () => {
         />
       </aside>
 
-      <FloatingActionDock
+      <FloatingCommandDock
         onOpenSearch={() => {
           setIsSearchPanelOpen(prev => {
             if (!prev) { // If opening
@@ -749,11 +862,17 @@ const Index = () => {
             return !prev;
           });
         }}
+        onOpenPractice={startPerformance}
+        onOpenReader={startSheetReader}
         onOpenAdmin={() => setIsAdminOpen(true)}
         onOpenPreferences={() => setIsPreferencesOpen(true)}
         onToggleHeatmap={() => setShowHeatmap(prev => !prev)}
         showHeatmap={showHeatmap}
         viewMode={viewMode}
+        hasPlayableSong={hasPlayableSong}
+        hasReadableChart={hasReadableChart}
+        onTogglePlayback={handleTogglePlayback}
+        isPlaying={isPlaying}
       />
     </div>
   );
