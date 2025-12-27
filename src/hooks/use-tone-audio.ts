@@ -104,7 +104,7 @@ export function useToneAudio(): AudioEngineControls {
       const arrayBuffer = await response.arrayBuffer();
       const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
       loadAudioBuffer(audioBuffer, initialPitch);
-      showSuccess("Audio Loaded");
+      // Removed: showSuccess("Audio Loaded");
     } catch (err) {
       showError("Audio load failed.");
     }
