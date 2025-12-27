@@ -441,7 +441,16 @@ const Index = () => {
       </main>
 
       <RepertoirePicker isOpen={isRepertoirePickerOpen} onClose={() => setIsRepertoirePickerOpen(false)} repertoire={masterRepertoire} currentSetlistSongs={currentList?.songs || []} onAdd={handleAddToGig} />
-      <SongStudioModal isOpen={isStudioModalOpen} onClose={() => setIsStudioModalOpen(false)} gigId={viewMode === 'repertoire' ? 'library' : currentListId} songId={editingSongId} visibleSongs={processedSongs} onSelectSong={setEditingSongId} />
+      <SongStudioModal 
+        isOpen={isStudioModalOpen} 
+        onClose={() => setIsStudioModalOpen(false)} 
+        gigId={viewMode === 'repertoire' ? 'library' : currentListId} 
+        songId={editingSongId} 
+        visibleSongs={processedSongs} 
+        onSelectSong={setEditingSongId} 
+        allSetlists={setlists} // Pass all setlists
+        masterRepertoire={masterRepertoire} // Pass master repertoire
+      />
       <PreferencesModal isOpen={isPreferencesOpen} onClose={() => setIsPreferencesOpen(false)} />
       <AdminPanel isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} />
       <ResourceAuditModal isOpen={isAuditModalOpen} onClose={() => setIsAuditModalOpen(false)} songs={songs} onVerify={handleUpdateSong} />

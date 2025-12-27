@@ -13,6 +13,8 @@ interface SongStudioModalProps {
   songId: string | null;
   visibleSongs?: SetlistSong[];
   onSelectSong?: (id: string) => void;
+  allSetlists?: { id: string; name: string; songs: SetlistSong[] }[]; // New prop
+  masterRepertoire?: SetlistSong[]; // New prop
 }
 
 const SongStudioModal: React.FC<SongStudioModalProps> = ({ 
@@ -21,7 +23,9 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   gigId, 
   songId,
   visibleSongs = [],
-  onSelectSong
+  onSelectSong,
+  allSetlists, // Destructure new prop
+  masterRepertoire // Destructure new prop
 }) => {
   const navigate = useNavigate();
 
@@ -51,6 +55,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
           onExpand={handleExpand}
           visibleSongs={visibleSongs}
           onSelectSong={onSelectSong}
+          allSetlists={allSetlists} // Pass new prop
+          masterRepertoire={masterRepertoire} // Pass new prop
         />
       </DialogContent>
     </Dialog>

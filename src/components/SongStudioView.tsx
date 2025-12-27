@@ -27,6 +27,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useKeyboardNavigation } from '@/hooks/use-keyboard-navigation';
+import SetlistMultiSelector from './SetlistMultiSelector'; // Import the new component
 
 type StudioTab = 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library';
 
@@ -38,10 +39,13 @@ interface SongStudioViewProps {
   onExpand?: () => void;
   visibleSongs?: SetlistSong[];
   onSelectSong?: (id: string) => void;
+  allSetlists?: { id: string; name: string; songs: SetlistSong[] }[]; // New prop
+  masterRepertoire?: SetlistSong[]; // New prop
 }
 
 const SongStudioView: React.FC<SongStudioViewProps> = ({ 
-  gigId, songId, onClose, isModal, onExpand, visibleSongs = [], onSelectSong 
+  gigId, songId, onClose, isModal, onExpand, visibleSongs = [], onSelectSong,
+  allSetlists = [], masterRepertoire = [] // Default to empty arrays
 }) => {
   const isMobile = useIsMobile();
   const { user } = useAuth();
@@ -72,7 +76,9 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           isMetadataConfirmed: data.is_metadata_confirmed, ug_chords_text: data.ug_chords_text,
           ug_chords_config: data.ug_chords_config, user_tags: data.user_tags, resources: data.resources,
           pdf_url: data.pdf_url, leadsheet_url: data.leadsheet_url, apple_music_url: data.apple_music_url,
-          duration_seconds: data.duration_seconds, genre: data.genre
+          duration_seconds: data.duration_seconds, genre: data.genre,
+          is_ug_chords_present: data.is_ug_chords_present, is_ug_link_verified: data.is_ug_link_verified,
+          sheet_music_url: data.sheet_music_url, is_sheet_verified: data.is_sheet_verified,
         } as SetlistSong;
       } else {
         const { data } = await supabase.from('setlists').select('songs').eq('id', gigId).single();
@@ -248,27 +254,28 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
               {isVerifying ? "VERIFYING..." : (formData.isMetadataConfirmed ? "METADATA VERIFIED" : "VERIFY METADATA")}
             </Button>
 
-            {/* Step 2: Setlist Confirmation Toggle */}
-            <div className="flex items-center gap-3 bg-white/5 px-4 h-11 rounded-xl border border-white/10">
-              <div className="flex flex-col items-end">
-                <Label htmlFor="setlist-confirm" className="text-[8px] font-black text-slate-500 uppercase tracking-widest cursor-pointer">Confirm for Setlist</Label>
-                {formData.isApproved && <span className="text-[7px] font-black text-emerald-500 uppercase">Gig Ready</span>}
+            {/* Conditional Rendering for Setlist Assignment */}
+            {gigId === 'library' ? (
+              <SetlistMultiSelector songMasterId={songId} allSetlists={allSetlists} />
+            ) : (
+              <div className="flex items-center gap-3 bg-white/5 px-4 h-11 rounded-xl border border-white/10">
+                <div className="flex flex-col items-end">
+                  <Label htmlFor="setlist-confirm" className="text-[8px] font-black text-slate-500 uppercase tracking-widest cursor-pointer">Confirm for Setlist</Label>
+                  {formData.isApproved && <span className="text-[7px] font-black text-emerald-500 uppercase">Gig Ready</span>}
+                </div>
+                <Switch 
+                  id="setlist-confirm"
+                  checked={formData.isApproved || false}
+                  onCheckedChange={handleConfirmForSetlist}
+                  className="data-[state=checked]:bg-emerald-500"
+                />
               </div>
-              <Switch 
-                id="setlist-confirm"
-                checked={formData.isApproved || false}
-                onCheckedChange={handleConfirmForSetlist}
-                className="data-[state=checked]:bg-emerald-500"
-              />
-            </div>
+            )}
           </div>
         </div>
       </header>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Removed the conditional aside for SongConfigTab */}
-        {/* The SongConfigTab will now be rendered as part of the main content tabs */}
-
         <div className="flex-1 flex flex-col min-w-0 bg-slate-950">
           <nav className="h-16 bg-black/20 border-b border-white/5 flex items-center px-6 overflow-x-auto no-scrollbar shrink-0">
             <div className="flex gap-8">
