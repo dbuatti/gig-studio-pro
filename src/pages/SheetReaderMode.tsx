@@ -182,6 +182,9 @@ const SheetReaderMode: React.FC = () => {
   // Load audio when song changes
   useEffect(() => {
     if (currentSong?.previewUrl) {
+      // Always stop playback before attempting to load or re-initialize
+      stopPlayback(); // Ensure any existing playback is stopped
+
       // Only load audio if the URL is different or no buffer is loaded
       if (audioEngine.currentUrl !== currentSong.previewUrl) {
         loadFromUrl(currentSong.previewUrl, pitch || 0);
@@ -189,7 +192,7 @@ const SheetReaderMode: React.FC = () => {
         // If same URL and buffer exists, just update pitch and reset progress
         setAudioPitch(pitch || 0);
         setAudioProgress(0);
-        stopPlayback(); // Ensure it's stopped to start fresh
+        // stopPlayback() was already called above
       }
     } else {
       stopPlayback();
@@ -548,13 +551,16 @@ const SheetReaderMode: React.FC = () => {
         {/* Chart Viewer */}
         <div className={cn("flex-1 bg-black overflow-hidden relative", isImmersive ? "mt-0" : "mt-16")}>
           {renderedCharts.map(rc => (
-            <div
+            <motion.div
               key={rc.id}
-              className="absolute inset-0 transition-opacity duration-300"
-              style={{ opacity: rc.opacity, zIndex: rc.zIndex }}
+              className="absolute inset-0"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: rc.opacity }}
+              transition={{ duration: 0.3 }}
+              style={{ zIndex: rc.zIndex }}
             >
               {rc.content}
-            </div>
+            </motion.div>
           ))}
           {/* Show a global loader if no chart is loaded yet for the current song */}
           {currentSong && !renderedCharts.find(c => c.id === currentSong.id)?.isLoaded && (
