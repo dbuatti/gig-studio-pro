@@ -427,8 +427,10 @@ const Index = () => {
     setActiveSongId(song.id);
     if (song.previewUrl && transposerRef.current) {
       await transposerRef.current.loadFromUrl(song.previewUrl, song.name, song.artist || "Unknown");
-      if (transposerRef.current) {
-        transposerRef.current.setPitch(song.pitch);
+      // Ensure song.pitch is a number, default to 0 if not.
+      const pitchValue = typeof song.pitch === 'number' ? song.pitch : 0;
+      if (transposerRef.current && transposerRef.current.setPitch) {
+          transposerRef.current.setPitch(pitchValue);
       }
     }
   };
