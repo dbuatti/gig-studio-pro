@@ -7,7 +7,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { SetlistSong } from '@/components/SetlistManager';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Music, Loader2, AlertCircle, ChevronLeft, ChevronRight, X, Settings, Maximize2, Minimize2 } from 'lucide-react';
+import { Music, Loader2, AlertCircle, ChevronLeft, ChevronRight, X, Settings, Maximize2, Minimize2, ExternalLink, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { useSettings } from '@/hooks/use-settings';
@@ -245,6 +245,13 @@ const SheetReaderMode: React.FC = () => {
     }
   }, [currentSong, user, setTargetKey]);
 
+  // Helper to check if a URL can be embedded
+  const isFramable = useCallback((url: string | null | undefined) => {
+    if (!url) return true; // No URL, so nothing to embed
+    const blockedSites = ['ultimate-guitar.com', 'musicnotes.com', 'sheetmusicplus.com'];
+    return !blockedSites.some(site => url.includes(site));
+  }, []);
+
   // === Chart Content Rendering Logic ===
   const renderChartForSong = useCallback((song: SetlistSong, isCurrent: boolean, isPreloading: boolean) => {
     const readiness = calculateReadiness(song);
@@ -298,7 +305,7 @@ const SheetReaderMode: React.FC = () => {
       return renderUgChordsReader(song, handleUgLoad);
     } else if (song.ug_chords_text && !song.pdfUrl && !song.leadsheetUrl && !song.ugUrl) {
       return renderUgChordsReader(song, handleUgLoad);
-    } else if (googleViewer) {
+    } else if (chartUrl && isFramable(chartUrl)) { // Check if the URL is framable
       return (
         <div className="w-full h-full relative bg-black">
           <iframe
@@ -322,6 +329,22 @@ const SheetReaderMode: React.FC = () => {
           </div>
         </div>
       );
+    } else if (chartUrl && !isFramable(chartUrl)) { // If URL exists but is not framable
+      return (
+        <div className="h-full flex flex-col items-center justify-center bg-slate-950 p-6 md:p-12 text-center">
+          <ShieldCheck className="w-12 h-12 md:w-16 md:h-16 text-indigo-400 mb-6 md:mb-10" />
+          <h4 className="text-3xl md:text-5xl font-black uppercase tracking-tight mb-4 md:mb-6 text-white">Asset Protected</h4>
+          <p className="text-slate-500 max-xl mb-8 md:mb-16 text-lg md:text-xl font-medium leading-relaxed">
+            External security prevents in-app display. Use the button below to launch in a secure dedicated performance window.
+          </p>
+          <Button 
+            onClick={() => window.open(chartUrl, '_blank')} 
+            className="bg-indigo-600 hover:bg-indigo-700 h-16 md:h-20 px-10 md:px-16 font-black uppercase tracking-[0.2em] text-xs md:text-sm rounded-2xl md:rounded-3xl shadow-2xl shadow-indigo-600/30 gap-4 md:gap-6"
+          >
+            <ExternalLink className="w-6 h-6 md:w-8 md:h-8" /> Launch Chart Window
+          </Button>
+        </div>
+      );
     } else {
       return (
         <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-950">
@@ -334,7 +357,7 @@ const SheetReaderMode: React.FC = () => {
         </div>
       );
     }
-  }, [forceReaderResource, ignoreConfirmedGate, navigate, targetKey, isPlaying, progress, duration, chordAutoScrollEnabled, chordScrollSpeed, pitch]);
+  }, [forceReaderResource, ignoreConfirmedGate, navigate, targetKey, isPlaying, progress, duration, chordAutoScrollEnabled, chordScrollSpeed, pitch, isFramable]);
 
   // Effect to manage the renderedCharts stack
   useEffect(() => {
@@ -421,34 +444,6 @@ const SheetReaderMode: React.FC = () => {
     });
 
   }, [currentSong, currentIndex, allSongs, renderChartForSong, targetKey, isPlaying, progress, duration, chordAutoScrollEnabled, chordScrollSpeed]);
-
-  // Effect to handle the "ghosting" transition
-  useEffect(() => {
-    if (!currentSong) return;
-
-    const currentChartInStack = renderedCharts.find(c => c.id === currentSong.id);
-
-    if (currentChartInStack && currentChartInStack.isLoaded) {
-      // Once the current chart is fully loaded, ensure it's fully opaque and on top
-      setRenderedCharts(prev => prev.map(rc => {
-        if (rc.id === currentSong.id) {
-          return { ...rc, opacity: 1, zIndex: 10 };
-        } else {
-          // Hide other charts that are not the current one
-          return { ...rc, opacity: 0, zIndex: 0 };
-        }
-      }));
-    } else if (currentChartInStack && !currentChartInStack.isLoaded) {
-      // If the current chart is not yet loaded, dim it and keep it on top
-      setRenderedCharts(prev => prev.map(rc => {
-        if (rc.id === currentSong.id) {
-          return { ...rc, opacity: 0.5, zIndex: 10 };
-        } else {
-          return { ...rc, opacity: 0, zIndex: 0 };
-        }
-      }));
-    }
-  }, [currentSong, renderedCharts]);
 
   // NEW: Keyboard shortcut for 'I' to open Song Studio Modal
   useEffect(() => {
