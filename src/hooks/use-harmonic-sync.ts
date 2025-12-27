@@ -12,9 +12,10 @@ interface UseHarmonicSyncProps {
 }
 
 export function useHarmonicSync({ formData, handleAutoSave, globalKeyPreference }: UseHarmonicSyncProps) {
-  // Internal state for pitch and linking, derived from formData
+  // Internal state for pitch, targetKey, and linking, derived from formData
   const [isPitchLinked, setIsPitchLinkedState] = useState(formData.is_pitch_linked ?? true);
   const [pitch, setPitchState] = useState(formData.pitch ?? 0);
+  const [targetKeyState, setTargetKeyState] = useState(formData.targetKey || formData.originalKey || 'C');
 
   // Sync internal state with formData changes
   useEffect(() => {
@@ -26,9 +27,10 @@ export function useHarmonicSync({ formData, handleAutoSave, globalKeyPreference 
     });
     setPitchState(formData.pitch ?? 0);
     setIsPitchLinkedState(formData.is_pitch_linked ?? true);
+    setTargetKeyState(formData.targetKey || formData.originalKey || 'C'); // Sync targetKeyState
   }, [formData.pitch, formData.is_pitch_linked, formData.originalKey, formData.targetKey]);
 
-  // Derived targetKey based on originalKey and current pitch
+  // Derived targetKey based on originalKey and current pitch (fallback if targetKeyState is not explicitly set)
   const derivedTargetKey = useCallback(() => {
     const original = formData.originalKey || 'C';
     const derived = transposeKey(original, pitch);
@@ -81,7 +83,7 @@ export function useHarmonicSync({ formData, handleAutoSave, globalKeyPreference 
   return {
     pitch,
     setPitch,
-    targetKey: formData.targetKey || derivedTargetKey(), // Use formData.targetKey if present, otherwise derive
+    targetKey: targetKeyState || derivedTargetKey(), // Use internal state, fallback to derived
     setTargetKey,
     isPitchLinked,
     setIsPitchLinked,

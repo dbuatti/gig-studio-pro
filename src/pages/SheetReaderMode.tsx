@@ -192,18 +192,17 @@ const SheetReaderMode: React.FC = () => {
 
   // Load audio when song changes
   useEffect(() => {
+    // Always stop playback when the song changes, to ensure a clean state
+    stopPlayback(); 
+
     if (!currentSong?.previewUrl) {
-      console.log("[SheetReaderMode] No previewUrl for current song. Stopping playback and resetting pitch.");
-      stopPlayback();
-      setPitch(0); // Reset pitch in harmonic sync hook
+      console.log("[SheetReaderMode] No previewUrl for current song. Stopping playback.");
+      // No need to set pitch to 0 here, useHarmonicSync will manage it based on formData
       return;
     }
 
     console.log("[SheetReaderMode] currentSong changed. Current song:", currentSong.name, "URL:", currentSong.previewUrl, "Initial Pitch:", pitch);
     
-    // Always stop playback when the song changes, to ensure a clean state
-    stopPlayback(); 
-
     // If the audio URL is different from what's currently loaded in Tone.js, load the new audio.
     // The `loadFromUrl` function in `useToneAudio` already handles preventing redundant fetches
     // if the URL is truly the same and a buffer exists.
@@ -214,10 +213,9 @@ const SheetReaderMode: React.FC = () => {
       // If the same audio URL is already loaded, just ensure the pitch is updated in Tone.js
       // and reset the playback progress.
       console.log("[SheetReaderMode] Same audio URL, updating pitch in Tone.js and resetting progress.");
-      // setAudioPitch(pitch || 0); // Removed redundant call
       setAudioProgress(0);
     }
-  }, [currentSong, loadFromUrl, stopPlayback, setPitch, setAudioPitch, setAudioProgress, audioEngine.currentUrl, audioEngine.currentBuffer]);
+  }, [currentSong, loadFromUrl, stopPlayback, pitch, setAudioProgress, audioEngine.currentUrl, audioEngine.currentBuffer]);
 
   // Update URL when song changes
   useEffect(() => {
