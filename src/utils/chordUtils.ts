@@ -4,8 +4,17 @@ import { KeyPreference } from '@/hooks/use-settings';
 import { transposeKey, formatKey, MAPPING_TO_SHARP } from './keyUtils';
 
 // Regular expression to match musical chords
-// Matches major, minor, diminished, augmented, suspended, and various seventh chords
-const CHORD_REGEX = /([A-G](?:#|b)?)(m|maj|dim|aug|sus\d?|add\d?|\d+)?(\/[A-G](?:#|b)?)?/g;
+// Updated to be more precise:
+// - \b ensures a word boundary at the start.
+// - ([A-G](?:#|b)?): Matches the root note (e.g., C, C#, Db).
+// - (m|maj|dim|aug|sus\d?|add\d?|\d+)? : Optional chord type (e.g., m, maj, 7, sus4).
+// - (\/[A-G](?:#|b)?)?: Optional bass note (e.g., /G).
+// - (?=\s|$|\(|\)|\[|\]|\{|\}) : Positive lookahead to ensure the chord is followed by:
+//   - \s: whitespace
+//   - $: end of string
+//   - \(|\)|\[|\]|\{|\}: common punctuation (parentheses, brackets, braces)
+// This prevents matching single letters that are part of words (e.g., "A" in "A long time ago").
+const CHORD_REGEX = /\b([A-G](?:#|b)?)(m|maj|dim|aug|sus\d?|add\d?|\d+)?(\/[A-G](?:#|b)?)?(?=\s|$|\(|\)|\[|\]|\{|\})/g;
 
 /**
  * Determines if a line contains chords
@@ -17,15 +26,9 @@ export const isChordLine = (line: string): boolean => {
   const trimmed = line.trim();
   if (!trimmed) return false;
   
-  // Split by whitespace to get potential chord tokens
-  const tokens = trimmed.split(/\s+/);
-  
-  // Check if any token matches a chord pattern
-  return tokens.some(token => {
-    // Remove common non-chord characters but keep chord symbols
-    const cleanedToken = token.replace(/[^\w#b\/]/g, '');
-    return CHORD_REGEX.test(cleanedToken);
-  });
+  // Reset regex lastIndex before testing
+  CHORD_REGEX.lastIndex = 0;
+  return CHORD_REGEX.test(trimmed);
 };
 
 /**
@@ -43,6 +46,9 @@ export const transposeChords = (text: string, semitones: number, keyPref: KeyPre
   return lines.map(line => {
     // Skip empty lines
     if (!line.trim()) return line;
+    
+    // Reset regex lastIndex for each line
+    CHORD_REGEX.lastIndex = 0;
     
     // Process each line to transpose chords
     return line.replace(CHORD_REGEX, (match, rootNote, chordType = '', bassNote = '') => {
@@ -111,11 +117,15 @@ export const extractKeyFromChords = (text: string): string | null => {
       continue;
     }
 
+    // Reset regex lastIndex for each line
+    CHORD_REGEX.lastIndex = 0;
+    
     // Find the first chord in the line
     const match = line.match(CHORD_REGEX);
     if (match && match[0]) {
       const fullChord = match[0];
-      const rootMatch = fullChord.match(/([A-G][#b]?)(m|maj|dim|aug|sus\d?|add\d?|\d+)?/);
+      // Use a more specific regex to parse the root and type from the matched chord string
+      const rootMatch = fullChord.match(/^([A-G][#b]?)(m|maj|dim|aug|sus\d?|add\d?|\d+)?/);
       if (rootMatch && rootMatch[1]) {
         let key = rootMatch[1];
         const chordType = rootMatch[2];

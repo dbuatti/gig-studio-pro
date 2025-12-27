@@ -54,6 +54,7 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
     if (!chordsText || !originalKey || !targetKey || originalKey === "TBC") return chordsText;
     
     const n = calculateSemitones(originalKey, targetKey);
+    // FIX: Ensure transposition is only applied if n is not 0
     if (n === 0) return chordsText;
     
     return transposeChords(chordsText, n, keyPreference); // Pass keyPreference
@@ -160,13 +161,15 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
         fontSize: `${config.fontSize}px`,
         lineHeight: config.lineSpacing,
         textAlign: config.textAlign as any,
-        color: readableChordColor || "#ffffff"
+        color: readableChordColor || "#ffffff",
+        touchAction: 'pan-y' // FIX: Add touch-action for smooth scrolling on touch devices
       }}
     >
       {chordsText ? (
+        // FIX: Ensure pre tag takes full height
         <pre 
           ref={contentRef} // Attach ref to the content for scrollHeight
-          className="whitespace-pre-wrap font-inherit flex-1 h-full"
+          className="whitespace-pre-wrap font-inherit flex-1 h-full" 
           dangerouslySetInnerHTML={{ __html: formattedHtml }} 
         />
       ) : (
