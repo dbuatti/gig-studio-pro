@@ -110,6 +110,7 @@ const Index = () => {
   }, [viewMode, masterRepertoire, currentList]);
 
   const processedSongs = useMemo(() => {
+    console.log("[processedSongs] Recalculating processed songs. Current filters:", activeFilters);
     let base = [...songs];
 
     if (searchTerm.trim()) {
@@ -123,7 +124,10 @@ const Index = () => {
     base = base.filter(s => {
       const score = calculateReadiness(s);
       // Corrected: Filter to show songs with readiness score >= activeFilters.readiness
-      if (score < activeFilters.readiness) return false; 
+      if (score < activeFilters.readiness) {
+        // console.log(`[processedSongs] Hiding ${s.name} due to readiness (${score}% < ${activeFilters.readiness}%)`);
+        return false; 
+      }
       
       const hasFullAudio = !!s.previewUrl && !(s.previewUrl.includes('apple.com') || s.previewUrl.includes('itunes-assets'));
       if (activeFilters.hasAudio === 'full' && !hasFullAudio) return false;
@@ -223,7 +227,14 @@ const Index = () => {
     try {
       const { data, error } = await supabase.from('setlists').select('*').order('updated_at', { ascending: false });
       if (data && data.length > 0) {
-        setSetlists(data.map(d => ({ id: d.id, name: d.name, songs: (d.songs as any[]) || [], time_goal: d.time_goal })));
+        setSetlists(prevSetlists => {
+          const newSetlists = data.map(d => ({ id: d.id, name: d.name, songs: (d.songs as any[]) || [], time_goal: d.time_goal }));
+          // Only update if there's a significant change to avoid unnecessary re-renders
+          if (JSON.stringify(newSetlists) !== JSON.stringify(prevSetlists)) {
+            return newSetlists;
+          }
+          return prevSetlists;
+        });
         if (!currentListId) setCurrentListId(data[0].id);
       }
     } catch (err) {
@@ -235,9 +246,11 @@ const Index = () => {
   const saveList = async (listId: string, updatedSongs: SetlistSong[], updates: any = {}, songsToSync?: SetlistSong[]) => {
     if (!user) return;
     setIsSaving(true);
+    console.log("[saveList] Attempting to save list:", listId, "with songs:", updatedSongs.map(s => s.name));
     try {
       let finalSongs = updatedSongs;
       if (songsToSync?.length) {
+        console.log("[saveList] Syncing songs to master repertoire:", songsToSync.map(s => s.name));
         const syncedBatch = await syncToMasterRepertoire(user.id, songsToSync);
         finalSongs = updatedSongs.map(s => {
           const matched = syncedBatch.find(sb => sb.id === s.id || (sb.name === s.name && sb.artist === s.artist));
@@ -246,9 +259,14 @@ const Index = () => {
       }
       
       const cleaned = finalSongs.map(({ isSyncing, ...rest }) => rest);
+      console.log("[saveList] Updating Supabase 'setlists' table with cleaned songs:", cleaned.map(s => s.name));
       await supabase.from('setlists').update({ songs: cleaned, updated_at: new Date().toISOString(), ...updates }).eq('id', listId);
       
-      setSetlists(prev => prev.map(l => l.id === listId ? { ...l, songs: finalSongs, ...updates } : l));
+      setSetlists(prev => {
+        const newSetlists = prev.map(l => l.id === listId ? { ...l, songs: finalSongs, ...updates } : l);
+        console.log("[saveList] setSetlists called. New setlists state:", newSetlists.find(l => l.id === listId)?.songs.map(s => s.name));
+        return newSetlists;
+      });
       if (songsToSync?.length) fetchMasterRepertoire();
       showSuccess("Setlist Saved!");
     } catch (err) {
@@ -280,6 +298,7 @@ const Index = () => {
       return;
     }
     const newEntry = { ...song, id: Math.random().toString(36).substr(2, 9), master_id: song.master_id || song.id, isPlayed: false, isApproved: false };
+    console.log("[handleAddToGig] Adding new song entry:", newEntry.name, "to list:", currentListId);
     saveList(currentListId, [...currentList!.songs, newEntry]);
     showSuccess(`Added "${song.name}" to gig`);
   };
@@ -324,6 +343,7 @@ const Index = () => {
       is_sheet_verified: false,
       sheet_music_url: null,
     };
+    console.log("[handleAddNewSongToCurrentSetlist] Adding new song:", newSong.name, "to list:", currentListId);
     await saveList(currentListId, [...currentList!.songs, newSong], {}, [newSong]);
     showSuccess(`Added "${name}" to gig`);
     setActiveSongId(newSong.id); // Make the newly added song active
