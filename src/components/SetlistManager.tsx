@@ -35,7 +35,6 @@ export interface SetlistSong {
   appleMusicUrl?: string;
   pdfUrl?: string;
   leadsheetUrl?: string;
-  sheet_music_url?: string;
   originalKey?: string;
   targetKey?: string;
   pitch: number;
@@ -63,11 +62,11 @@ export interface SetlistSong {
   is_ug_chords_present?: boolean;
   highest_note_original?: string;
   is_ug_link_verified?: boolean; 
-  is_sheet_verified?: boolean;
   metadata_source?: string; 
   sync_status?: 'IDLE' | 'SYNCING' | 'COMPLETED' | 'ERROR'; 
   last_sync_log?: string;
   auto_synced?: boolean;
+  is_sheet_verified?: boolean; // Added this line
 }
 
 interface SetlistManagerProps {
@@ -140,53 +139,45 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
         <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
           <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-full sm:w-auto overflow-x-auto no-scrollbar">
             <Button 
-              variant="ghost" 
-              size="sm" 
+              variant="ghost" size="sm" 
               onClick={() => setSortMode('none')}
               className={cn(
                 "h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg",
                 sortMode === 'none' && "bg-white dark:bg-slate-700 shadow-sm"
               )}
             >
-              <LayoutList className="w-3 h-3" />
-              <span className="hidden sm:inline">List Order</span>
+              <LayoutList className="w-3 h-3" /> <span className="hidden sm:inline">List Order</span>
             </Button>
             <Button 
-              variant="ghost" 
-              size="sm" 
+              variant="ghost" size="sm" 
               onClick={() => setSortMode('ready')}
               className={cn(
                 "h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg",
                 sortMode === 'ready' && "bg-white dark:bg-slate-700 shadow-sm text-indigo-600"
               )}
             >
-              <SortAsc className="w-3 h-3" />
-              <span className="hidden sm:inline">Readiness</span>
+              <SortAsc className="w-3 h-3" /> <span className="hidden sm:inline">Readiness</span>
             </Button>
             <Button 
-              variant="ghost" 
-              size="sm" 
+              variant="ghost" size="sm" 
               onClick={() => setSortMode('work')}
               className={cn(
                 "h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg",
                 sortMode === 'work' && "bg-white dark:bg-slate-700 shadow-sm text-orange-600"
               )}
             >
-              <SortDesc className="w-3 h-3" />
-              <span className="hidden sm:inline">Work Needed</span>
+              <SortDesc className="w-3 h-3" /> <span className="hidden sm:inline">Work Needed</span>
             </Button>
           </div>
           <Button 
-            variant="ghost" 
-            size="sm" 
+            variant="ghost" size="sm" 
             onClick={() => setIsFilterOpen(!isFilterOpen)}
             className={cn(
               "h-8 px-4 text-[10px] font-black uppercase tracking-widest rounded-xl gap-2 transition-all",
               isFilterOpen ? "bg-indigo-50 text-indigo-600" : "text-slate-500 hover:bg-slate-100"
             )}
           >
-            <Filter className="w-3.5 h-3.5" />
-            Filter Matrix
+            <Filter className="w-3.5 h-3.5" /> Filter Matrix
           </Button>
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -476,8 +467,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       <td className="px-6 text-center">
                         <div className="flex flex-col items-center justify-center gap-0.5 h-full">
                           <Button 
-                            variant="ghost" 
-                            size="icon" 
+                            variant="ghost" size="icon" 
                             className={cn(
                               "h-7 w-7 transition-all flex items-center justify-center",
                               isReorderingEnabled ? "text-slate-300 hover:text-indigo-600 hover:bg-indigo-50" : "text-slate-100 opacity-20 cursor-not-allowed"
@@ -491,8 +481,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                             <ChevronUp className="w-4 h-4" />
                           </Button>
                           <Button 
-                            variant="ghost" 
-                            size="icon" 
+                            variant="ghost" size="icon" 
                             className={cn(
                               "h-7 w-7 transition-all flex items-center justify-center",
                               isReorderingEnabled ? "text-slate-300 hover:text-indigo-600 hover:bg-indigo-50" : "text-slate-100 opacity-20 cursor-not-allowed"
@@ -549,8 +538,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                             <Play className={cn("w-3 h-3 fill-current", isSelected && "fill-indigo-600")} />
                           </Button>
                           <Button 
-                            variant="ghost" 
-                            size="icon" 
+                            variant="ghost" size="icon" 
                             className="h-9 w-9 rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors inline-flex items-center justify-center"
                             onClick={(e) => {
                               e.stopPropagation();

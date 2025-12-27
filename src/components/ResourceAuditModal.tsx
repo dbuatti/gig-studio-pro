@@ -21,7 +21,7 @@ import {
   Link2Off,
   ClipboardPaste,
   AlertTriangle,
-  AlertCircle,
+  AlertCircle, // Added this line
   FileText,
   Guitar,
   Check
