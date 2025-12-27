@@ -51,6 +51,7 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
 
   // Unified Transposition Logic: Calculate delta (n) between Original and Stage Key
   const transposedChordsText = useMemo(() => {
+    console.log(`[UGChordsReader:transposedChordsText] Props received: originalKey=${originalKey}, targetKey=${targetKey}, chordsText length=${chordsText.length}`);
     if (!chordsText || !originalKey || !targetKey || originalKey === "TBC") {
       console.log("[UGChordsReader] Skipping transposition: Missing chordsText, originalKey, or targetKey, or originalKey is TBC.");
       return chordsText;

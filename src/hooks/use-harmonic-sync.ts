@@ -20,11 +20,13 @@ export function useHarmonicSync({ formData, handleAutoSave, globalKeyPreference 
   useEffect(() => {
     console.log("[useHarmonicSync] formData changed. Syncing internal state:", {
       formDataPitch: formData.pitch,
-      formDataIsPitchLinked: formData.is_pitch_linked
+      formDataIsPitchLinked: formData.is_pitch_linked,
+      formDataOriginalKey: formData.originalKey,
+      formDataTargetKey: formData.targetKey
     });
     setPitchState(formData.pitch ?? 0);
     setIsPitchLinkedState(formData.is_pitch_linked ?? true);
-  }, [formData.pitch, formData.is_pitch_linked]);
+  }, [formData.pitch, formData.is_pitch_linked, formData.originalKey, formData.targetKey]);
 
   // Derived targetKey based on originalKey and current pitch
   const derivedTargetKey = useCallback(() => {
