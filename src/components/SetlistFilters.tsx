@@ -44,7 +44,7 @@ const DEFAULT_FILTERS: FilterState = {
   hasUg: 'all',
   isConfirmed: 'all',
   isApproved: 'all',
-  readiness: 100,
+  readiness: 0, // Changed default readiness to 0
   hasUgChords: 'all' // NEW: Default to 'all'
 };
 
@@ -352,11 +352,11 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
             <span className="text-[9px] font-black uppercase text-slate-400 flex items-center gap-2 mr-2">
               <ListFilter className="w-3 h-3" /> Active Criteria:
             </span>
-            {activeFilters.readiness < 100 && (
+            {activeFilters.readiness > 0 && ( // Changed condition to > 0
               <Badge 
                 variant="secondary" 
                 className="bg-orange-50 text-orange-600 border-orange-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-red-50 hover:text-red-600 transition-all group"
-                onClick={() => onFilterChange({ ...activeFilters, readiness: 100 })}
+                onClick={() => onFilterChange({ ...activeFilters, readiness: 0 })} // Changed reset to 0
               >
                 Readiness: ≤{activeFilters.readiness}% <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
               </Badge>
