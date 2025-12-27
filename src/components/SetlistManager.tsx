@@ -66,7 +66,8 @@ export interface SetlistSong {
   sync_status?: 'IDLE' | 'SYNCING' | 'COMPLETED' | 'ERROR'; 
   last_sync_log?: string;
   auto_synced?: boolean;
-  is_sheet_verified?: boolean; // Added this line
+  is_sheet_verified?: boolean;
+  sheet_music_url?: string; // Added this line
 }
 
 interface SetlistManagerProps {
