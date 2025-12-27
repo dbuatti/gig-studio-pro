@@ -22,6 +22,7 @@ import SongStudioModal from '@/components/SongStudioModal';
 import SheetReaderHeader from '@/components/SheetReaderHeader';
 import SheetReaderFooter from '@/components/SheetReaderFooter';
 import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
+import { motion } from 'framer-motion'; // Import motion
 
 // Define a type for a rendered chart in the stack
 interface RenderedChart {
