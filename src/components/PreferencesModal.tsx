@@ -137,6 +137,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
                 <Select 
                   value={safePitchMaxNote.slice(0, -1)} 
                   onValueChange={(note) => setSafePitchMaxNote(`${note}${safePitchMaxNote.slice(-1) || '3'}`)}
+                  onOpenChange={(open) => { if (open) { /* setIsOverlayOpen(true); */ } else { /* setIsOverlayOpen(false); */ } }} // Placeholder for potential overlay management
                 >
                   <SelectTrigger className="bg-black/20 border-white/5 text-xs font-mono font-bold h-10">
                     <SelectValue />
@@ -148,6 +149,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
                 <Select 
                   value={safePitchMaxNote.slice(-1)} 
                   onValueChange={(oct) => setSafePitchMaxNote(`${safePitchMaxNote.slice(0, -1) || 'G'}${oct}`)}
+                  onOpenChange={(open) => { if (open) { /* setIsOverlayOpen(true); */ } else { /* setIsOverlayOpen(false); */ } }} // Placeholder for potential overlay management
                 >
                   <SelectTrigger className="w-24 bg-black/20 border-white/5 text-xs font-mono font-bold h-10">
                     <SelectValue />
@@ -204,6 +206,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
                 <Switch 
                   checked={keyPreference === 'sharps'} 
                   onCheckedChange={(checked) => setKeyPreference(checked ? 'sharps' : 'flats')}
+                  onClick={(e) => e.stopPropagation()} // Stop propagation
                 />
                 <span className={cn("text-[10px] font-black uppercase", keyPreference === 'sharps' ? "text-indigo-400" : "text-slate-600")}>Sharps</span>
               </div>
@@ -232,6 +235,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
               <Select 
                 value={forceReaderResource} 
                 onValueChange={(value: ReaderResourceForce) => updateSetting('forceReaderResource', value)}
+                onOpenChange={(open) => { if (open) { /* setIsOverlayOpen(true); */ } else { /* setIsOverlayOpen(false); */ } }} // Placeholder for potential overlay management
               >
                 <SelectTrigger className="bg-black/20 border-white/5 text-xs font-mono font-bold h-10">
                   <SelectValue placeholder="Default (Auto)" />
@@ -260,6 +264,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
               <Switch 
                 checked={alwaysShowAllToasts} 
                 onCheckedChange={(checked) => updateSetting('alwaysShowAllToasts', checked)}
+                onClick={(e) => e.stopPropagation()} // Stop propagation
                 className="data-[state=checked]:bg-red-600"
               />
             </div>
@@ -278,6 +283,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
               <Switch 
                 checked={ignoreConfirmedGate} 
                 onCheckedChange={(checked) => updateSetting('ignoreConfirmedGate', checked)}
+                onClick={(e) => e.stopPropagation()} // Stop propagation
                 className="data-[state=checked]:bg-red-600"
               />
             </div>
@@ -296,6 +302,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
               <Switch 
                 checked={forceDesktopView} 
                 onCheckedChange={(checked) => updateSetting('forceDesktopView', checked)}
+                onClick={(e) => e.stopPropagation()} // Stop propagation
                 className="data-[state=checked]:bg-red-600"
               />
             </div>

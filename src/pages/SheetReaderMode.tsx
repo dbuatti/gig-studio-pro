@@ -29,7 +29,7 @@ import ResourceAuditModal from '@/components/ResourceAuditModal';
 import { AnimatePresence, motion } from 'framer-motion';
 import FloatingCommandDock from '@/components/FloatingCommandDock';
 import { useReaderSettings } from '@/hooks/use-reader-settings'; // NEW: Import useReaderSettings
-import { useIsMobile } from '@/hooks/use-mobile'; // NEW: Import useIsMobile
+import { useIsMobile as useIsMobileHook } from '@/hooks/use-mobile'; // NEW: Import useIsMobile
 
 interface FilterState {
   hasAudio: boolean;
@@ -56,7 +56,7 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
     forceDesktopView,    // NEW: Get forceDesktopView from hook
   } = useReaderSettings(); // NEW: Use reader settings hook
 
-  const isMobileHook = useIsMobile(); // Use the original useIsMobile hook
+  const isMobileHook = useIsMobileHook(); // Use the original useIsMobile hook
   const isMobile = forceDesktopView ? false : isMobileHook; // NEW: Override isMobile if forceDesktopView is true
 
   const [allSongs, setAllSongs] = useState<SetlistSong[]>([]);
@@ -75,7 +75,7 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
   const [autoAdvanceInterval, setAutoAdvanceInterval] = useState(30); // seconds
   const autoAdvanceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const audioEngine = useToneAudio(true); // Pass true to suppress toasts by default
+  const audioEngine = useToneAudio(alwaysShowAllToasts ? false : true); // Pass suppressToasts based on setting
   const { isPlaying, progress, duration, analyzer, loadFromUrl, togglePlayback, stopPlayback, setPitch: setAudioPitch, setVolume, setProgress: setAudioProgress, resetEngine } = audioEngine;
 
   const currentSong = filteredSongs[currentIndex];
@@ -83,11 +83,11 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
 
   const [localPitch, setLocalPitch] = useState(0);
   const [isUiVisible, setIsUiVisible] = useState(true);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false); // This will now be bound to isUiVisible
   const [isRepertoirePickerOpen, setIsRepertoirePickerOpen] = useState(false);
   const [isResourceAuditOpen, setIsResourceAuditOpen] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
-  const [isOverlayOpen, setIsOverlayOpen] = useState(false);
+  const [isOverlayOpen, setIsOverlayOpen] = useState(false); // For modals/dropdowns
 
   const mainContentRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number>(0);
@@ -96,6 +96,10 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
   const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const longPressTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const uiHideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const isOverrideActive = useMemo(() => {
+    return forceReaderResource !== 'default' || alwaysShowAllToasts || ignoreConfirmedGate || forceDesktopView;
+  }, [forceReaderResource, alwaysShowAllToasts, ignoreConfirmedGate, forceDesktopView]);
 
   const isFramable = useCallback((url: string | null | undefined) => {
     if (!url) return true;
@@ -107,11 +111,18 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
     if (!user) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('repertoire')
         .select('*')
         .eq('user_id', user.id)
-        .order('title'); // Removed .eq('is_approved', true) to allow filtering by ignoreConfirmedGate
+        .order('title');
+      
+      // NEW: Conditionally apply is_approved filter based on ignoreConfirmedGate
+      if (!ignoreConfirmedGate) {
+        query = query.eq('is_approved', true);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -161,7 +172,7 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
     } finally {
       setLoading(false);
     }
-  }, [user, initialSongId]);
+  }, [user, initialSongId, ignoreConfirmedGate]); // NEW: Add ignoreConfirmedGate to dependencies
 
   useEffect(() => {
     fetchSongs();
@@ -182,15 +193,10 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
     if (filters.hasAudio) {
       result = result.filter(s => !!s.previewUrl && !(s.previewUrl.includes('apple.com') || s.previewUrl.includes('itunes-assets')));
     }
-    // NEW: Apply ignoreConfirmedGate logic
-    if (!ignoreConfirmedGate && filters.isApproved) {
-      result = result.filter(s => s.isApproved);
-    } else if (ignoreConfirmedGate && filters.isApproved) {
-      // If ignoreConfirmedGate is true, but filter is still 'isApproved', it means we want to see ALL songs,
-      // but the filter state is still 'isApproved'. This is a bit contradictory.
-      // For simplicity, if ignoreConfirmedGate is true, we effectively ignore the 'isApproved' filter.
-      // So, no additional filtering here.
-    }
+    // The `isApproved` filter is now handled by `ignoreConfirmedGate` in `fetchSongs`
+    // If `ignoreConfirmedGate` is true, `isApproved` filter is effectively ignored here.
+    // If `ignoreConfirmedGate` is false, `fetchSongs` already filtered by `is_approved: true`.
+    // So, no explicit `isApproved` filter needed here.
     
     if (filters.hasCharts) {
       result = result.filter(s => s.pdfUrl || s.leadsheetUrl || s.ugUrl || s.ug_chords_text);
@@ -210,7 +216,7 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
 
     setFilteredSongs(result);
     setCurrentIndex(0);
-  }, [allSongs, searchTerm, filters, sortOption, ignoreConfirmedGate]); // NEW: Add ignoreConfirmedGate to dependencies
+  }, [allSongs, searchTerm, filters, sortOption]);
 
   useEffect(() => {
     if (currentSong?.previewUrl) {
@@ -319,6 +325,45 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [navigate, handlePrev, handleNext, togglePlayback, toggleFullScreen]);
 
+  // NEW: Center-tap UI toggle logic
+  const handleTap = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    // Only trigger if not interacting with a modal or dropdown
+    if (isOverlayOpen) return;
+
+    const target = e.target as HTMLElement;
+    // Check if the click/touch is on an interactive element (button, input, select, etc.)
+    const isInteractive = target.closest('button, a, input, textarea, select, [role="button"], [role="option"]');
+    if (isInteractive) {
+      // console.log("Tap on interactive element, ignoring UI toggle.");
+      return;
+    }
+
+    const rect = mainContentRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    let clientX, clientY;
+    if ('touches' in e) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+
+    const centerWidthStart = rect.width * 0.2;
+    const centerWidthEnd = rect.width * 0.8;
+    const centerHeightStart = rect.height * 0.2;
+    const centerHeightEnd = rect.height * 0.8;
+
+    if (x > centerWidthStart && x < centerWidthEnd && y > centerHeightStart && y < centerHeightEnd) {
+      setIsUiVisible(prev => !prev);
+      setIsMenuOpen(prev => !prev); // Bind sidebar visibility to isUiVisible
+    }
+  }, [isOverlayOpen]);
+
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
@@ -331,6 +376,7 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
     longPressTimeoutRef.current = setTimeout(() => {
       tapCountRef.current = 0;
       setIsRepertoirePickerOpen(true);
+      setIsOverlayOpen(true); // Indicate overlay is open
       longPressTimeoutRef.current = null;
     }, 500);
   }, []);
@@ -359,8 +405,7 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
     if (tapCountRef.current === 1) {
       if (tapTimeoutRef.current) clearTimeout(tapTimeoutRef.current);
       tapTimeoutRef.current = setTimeout(() => {
-        setIsUiVisible(prev => !prev);
-        setIsMenuOpen(prev => !prev);
+        handleTap(e); // Use the unified tap handler
         tapCountRef.current = 0;
         tapTimeoutRef.current = null;
       }, 250);
@@ -384,7 +429,34 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
         }
       }
     }
-  }, [handleNext, handlePrev, togglePlayback]);
+  }, [handleNext, handlePrev, togglePlayback, handleTap]);
+
+  useEffect(() => {
+    if (uiHideTimeoutRef.current) {
+      clearTimeout(uiHideTimeoutRef.current);
+    }
+    if (isUiVisible && !isOverlayOpen) {
+      uiHideTimeoutRef.current = setTimeout(() => {
+        setIsUiVisible(false);
+        setIsMenuOpen(false);
+      }, 5000);
+    }
+    return () => {
+      if (uiHideTimeoutRef.current) {
+        clearTimeout(uiHideTimeoutRef.current);
+      }
+    };
+  }, [isUiVisible, isOverlayOpen]);
+
+  useEffect(() => {
+    const onFullScreenChange = () => {
+      if (!document.fullscreenElement) {
+        setIsFullScreen(false);
+      }
+    };
+    document.addEventListener('fullscreenchange', onFullScreenChange);
+    return () => document.removeEventListener('fullscreenchange', onFullScreenChange);
+  }, []);
 
   const handleUpdateKey = useCallback(async (newTargetKey: string) => {
     if (!currentSong || !user) return;
@@ -434,7 +506,7 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
               This is a simulation. The song is currently showing as missing resources.
             </p>
             <Button 
-              onClick={() => setIsResourceAuditOpen(true)} 
+              onClick={() => { setIsResourceAuditOpen(true); setIsOverlayOpen(true); }} 
               className="mt-8 bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest px-8 h-14 rounded-2xl shadow-lg shadow-indigo-600/30"
             >
               <ShieldCheck className="w-5 h-5 mr-3" /> Open Resource Audit
@@ -456,7 +528,7 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
             Please audit its resources to ensure it's ready for performance.
           </p>
           <Button 
-            onClick={() => setIsResourceAuditOpen(true)} 
+            onClick={() => { setIsResourceAuditOpen(true); setIsOverlayOpen(true); }} 
             className="mt-8 bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest px-8 h-14 rounded-2xl shadow-lg shadow-indigo-600/30"
           >
             <ShieldCheck className="w-5 h-5 mr-3" /> Open Resource Audit
@@ -476,6 +548,7 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
     switch (forceReaderResource) {
       case 'force-pdf':
         if (currentSong.pdfUrl) { chartUrl = currentSong.pdfUrl; chartType = "Forced PDF"; }
+        else if (currentSong.leadsheetUrl) { chartUrl = currentSong.leadsheetUrl; chartType = "Forced Lead Sheet"; }
         break;
       case 'force-ug':
         if (currentSong.ugUrl) { chartUrl = currentSong.ugUrl; chartType = "Forced UG"; }
@@ -575,13 +648,14 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
         </div>
       </div>
     );
-  }, [currentSong, filteredSongs, isFramable, currentSongKeyPreference, localPitch, isFullScreen, forceReaderResource, isMobile]); // NEW: Add forceReaderResource and isMobile to dependencies
+  }, [currentSong, filteredSongs, isFramable, currentSongKeyPreference, localPitch, isFullScreen, forceReaderResource, isMobile, isOverlayOpen]); // NEW: Add forceReaderResource, isMobile, isOverlayOpen to dependencies
 
   const handleSelectSongFromPicker = useCallback((song: SetlistSong) => {
     const newIndex = allSongs.findIndex(s => s.id === song.id);
     if (newIndex !== -1) {
       setCurrentIndex(newIndex);
       setIsRepertoirePickerOpen(false);
+      setIsOverlayOpen(false); // Close overlay
     }
   }, [allSongs]);
 
@@ -594,33 +668,6 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
       showSuccess("Song updated in repertoire.");
     }
   }, [allSongs, user]);
-
-  useEffect(() => {
-    if (uiHideTimeoutRef.current) {
-      clearTimeout(uiHideTimeoutRef.current);
-    }
-    if (isUiVisible && !isOverlayOpen) {
-      uiHideTimeoutRef.current = setTimeout(() => {
-        setIsUiVisible(false);
-        setIsMenuOpen(false);
-      }, 5000);
-    }
-    return () => {
-      if (uiHideTimeoutRef.current) {
-        clearTimeout(uiHideTimeoutRef.current);
-      }
-    };
-  }, [isUiVisible, isOverlayOpen]);
-
-  useEffect(() => {
-    const onFullScreenChange = () => {
-      if (!document.fullscreenElement) {
-        setIsFullScreen(false);
-      }
-    };
-    document.addEventListener('fullscreenchange', onFullScreenChange);
-    return () => document.removeEventListener('fullscreenchange', onFullScreenChange);
-  }, []);
 
   return (
     <div
@@ -640,7 +687,7 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
             <SheetReaderHeader
               currentSong={currentSong}
               onClose={() => navigate('/dashboard')}
-              onSearchClick={() => setIsRepertoirePickerOpen(true)}
+              onSearchClick={() => { setIsRepertoirePickerOpen(true); setIsOverlayOpen(true); }}
               onPrevSong={handlePrev}
               onNextSong={handleNext}
               currentSongIndex={currentIndex}
@@ -651,7 +698,7 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
               isFullScreen={isFullScreen}
               onToggleFullScreen={toggleFullScreen}
               setIsOverlayOpen={setIsOverlayOpen}
-              isOverrideActive={forceReaderResource !== 'default' || alwaysShowAllToasts || ignoreConfirmedGate || forceDesktopView} // NEW: Pass override status
+              isOverrideActive={isOverrideActive} // NEW: Pass override status
             />
           </motion.div>
         )}
@@ -691,22 +738,29 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
             transition={{ duration: 0.3 }}
-            className="fixed left-0 top-0 z-50 h-full w-64 bg-slate-900 border-r border-white/10"
-            style={{ paddingTop: isUiVisible ? '64px' : '0', paddingBottom: isUiVisible ? '96px' : '0' }}
+            className="fixed left-0 z-50 w-64 bg-slate-900 border-r border-white/10 flex flex-col"
+            style={{ 
+              paddingTop: isUiVisible ? '64px' : '0', 
+              paddingBottom: isUiVisible ? '96px' : '0',
+              height: isUiVisible ? 'calc(100vh - 64px - 96px)' : '100vh', // Adjust height dynamically
+              top: isUiVisible ? '64px' : '0', // Position below header
+              bottom: isUiVisible ? '96px' : '0', // Position above footer
+            }}
           >
-            <div className="p-4 border-b border-white/10 flex justify-between items-center">
+            <div className="p-4 border-b border-white/10 flex justify-between items-center shrink-0">
               <h2 className="font-bold text-sm uppercase tracking-widest">Repertoire</h2>
-              <Button variant="ghost" size="icon" onClick={() => setIsMenuOpen(false)} className="text-slate-400 hover:text-white">
+              <Button variant="ghost" size="icon" onClick={() => { setIsMenuOpen(false); setIsUiVisible(false); }} className="text-slate-400 hover:text-white">
                 <X className="w-4 h-4" />
               </Button>
             </div>
-            <ScrollArea className="h-[calc(100%-60px)]">
+            <ScrollArea className="flex-1"> {/* Use flex-1 to make it fill available space */}
               {filteredSongs.map((song, index) => (
                 <button
                   key={song.id}
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent tap from hiding UI
                     setCurrentIndex(index);
-                    setIsMenuOpen(false);
+                    // setIsMenuOpen(false); // Keep menu open as per requirements
                   }}
                   className={cn(
                     "w-full text-left px-4 py-3 text-sm transition-colors flex items-center gap-2",
@@ -724,10 +778,7 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
 
       <main
         ref={mainContentRef}
-        onClick={() => {
-          if (isMenuOpen) setIsMenuOpen(false);
-          if (!isUiVisible) setIsUiVisible(true);
-        }}
+        onClick={handleTap} // Unified tap handler
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -735,7 +786,12 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
           "relative flex-1 transition-all duration-300 flex flex-col overflow-hidden z-40",
           isMenuOpen ? 'ml-64' : 'ml-0'
         )}
-        style={{ paddingTop: isUiVisible ? '64px' : '0', paddingBottom: isUiVisible ? '96px' : '0' }}
+        style={{ 
+          paddingTop: isUiVisible ? '64px' : '0', 
+          paddingBottom: isUiVisible ? '96px' : '0',
+          // PDF Full-Screen: Verify the PDF container is fixed inset-0 with no padding, allowing it to stay behind the persistent sidebar when menus are toggled on.
+          // This is handled by the renderChart logic for the iframe/div itself, not the main container.
+        }}
       >
         <div className="flex-1 flex flex-col overflow-hidden">
           {renderChart}
@@ -760,6 +816,7 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
         onSetMenuOpen={setIsMenuOpen}
         onSetUiVisible={setIsUiVisible}
         isMenuOpen={isMenuOpen}
+        isOverrideActive={isOverrideActive} // NEW: Pass override status
       />
 
       <RepertoirePicker 

@@ -2,16 +2,30 @@
 
 import { toast } from "sonner";
 
+// Global flag to suppress toasts, primarily for SheetReaderMode when UI is hidden
+let globalSuppressToasts = false;
+
+export const setGlobalSuppressToasts = (suppress: boolean) => {
+  globalSuppressToasts = suppress;
+};
+
 export const showSuccess = (message: string) => {
-  toast.success(message);
+  if (!globalSuppressToasts) {
+    toast.success(message);
+  }
 };
 
 export const showError = (message: string) => {
-  toast.error(message);
+  if (!globalSuppressToasts) {
+    toast.error(message);
+  }
 };
 
 export const showLoading = (message: string) => {
-  return toast.loading(message);
+  if (!globalSuppressToasts) {
+    return toast.loading(message);
+  }
+  return undefined; // Return undefined if suppressed
 };
 
 export const dismissToast = (toastId: string) => {
@@ -19,5 +33,7 @@ export const dismissToast = (toastId: string) => {
 };
 
 export const showInfo = (message: string, options?: any) => {
-  toast.info(message, options);
+  if (!globalSuppressToasts) {
+    toast.info(message, options);
+  }
 };
