@@ -6,7 +6,7 @@ import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Play, Pause, RotateCcw, Upload, Volume2, Waves, Settings2, Activity, Link as LinkIcon, Globe, Search, Youtube, PlusCircle, Library, Sparkles, Check, FileText, ExternalLink, Subtitles, X, ChevronUp, ChevronDown, Printer } from 'lucide-react';
+import { Play, Pause, RotateCcw, Volume2, Waves, Settings2, Link as LinkIcon, Globe, Search, Youtube, PlusCircle, Library, Sparkles, Check, FileText, Subtitles, ChevronUp, ChevronDown, Printer, ListPlus } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import AudioVisualizer from './AudioVisualizer';
 import SongSearch from './SongSearch';
@@ -19,9 +19,10 @@ import { SetlistSong } from './SetlistManager';
 import { transposeKey } from '@/utils/keyUtils';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { useToneAudio } from '@/hooks/use-tone-audio';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export interface AudioTransposerRef {
-  loadFromUrl: (url: string, name: string, artist: string, youtubeUrl?: string, originalKey?: string, ugUrl?: string) => Promise<void>;
+  loadFromUrl: (url: string, name: string, artist: string, youtubeUrl?: string, originalKey?: string, ugUrl?: string, appleMusicUrl?: string, genre?: string) => Promise<void>;
   setPitch: (pitch: number) => void;
   getPitch: () => number;
   triggerSearch: (query: string) => void;
@@ -41,6 +42,7 @@ interface AudioTransposerProps {
   repertoire?: SetlistSong[];
   currentSong?: SetlistSong | null;
   onOpenAdmin?: () => void;
+  currentList?: { id: string; name: string; songs: SetlistSong[] };
 }
 
 const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
@@ -51,30 +53,29 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
   onPlaybackChange,
   repertoire = [],
   currentSong,
-  onOpenAdmin
+  onOpenAdmin,
+  currentList
 }, ref) => {
+  const isMobile = useIsMobile();
   const audio = useToneAudio();
   
-  const [file, setFile] = useState<{ id?: string; name: string; artist?: string; url?: string; originalKey?: string; ugUrl?: string } | null>(null);
+  const [file, setFile] = useState<{ id?: string; name: string; artist?: string; url?: string; originalKey?: string; ugUrl?: string; youtubeUrl?: string; appleMusicUrl?: string; genre?: string } | null>(null);
   const [activeTab, setActiveTab] = useState("search");
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
   const [activeYoutubeUrl, setActiveYoutubeUrl] = useState<string | undefined>();
   const [activeUgUrl, setActiveUgUrl] = useState<string | undefined>();
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Sync hook state to local component state for UI controls
   const { 
     isPlaying, progress, duration, pitch, tempo, volume, fineTune, analyzer,
     setPitch, setTempo, setVolume, setFineTune, setProgress,
     loadFromUrl: hookLoadFromUrl, togglePlayback: hookTogglePlayback, stopPlayback: hookStopPlayback, resetEngine
   } = audio;
 
-  // Notify parent component of playback changes
   useEffect(() => {
     if (onPlaybackChange) onPlaybackChange(isPlaying);
   }, [isPlaying, onPlaybackChange]);
 
-  // Handle song ending
   useEffect(() => {
     if (duration > 0 && progress >= 100) {
       if (onSongEnded) onSongEnded();
@@ -87,14 +88,12 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
     return (match && match[2].length === 11) ? match[2] : null;
   };
 
-  const loadFromUrl = async (targetUrl: string, name: string, artist: string, youtubeUrl?: string, originalKey?: string, ugUrl?: string) => {
+  const loadFromUrl = async (targetUrl: string, name: string, artist: string, youtubeUrl?: string, originalKey?: string, ugUrl?: string, appleMusicUrl?: string, genre?: string) => {
     resetEngine();
-    
-    // Use the pitch from the current song if available, otherwise default to 0
     const initialPitch = currentSong?.pitch || 0;
     await hookLoadFromUrl(targetUrl, initialPitch);
     
-    setFile({ id: currentSong?.id, name, artist, url: targetUrl, originalKey, ugUrl });
+    setFile({ id: currentSong?.id, name, artist, url: targetUrl, originalKey, ugUrl, youtubeUrl, appleMusicUrl, genre });
     
     setActiveYoutubeUrl(youtubeUrl);
     setActiveUgUrl(ugUrl);
@@ -129,14 +128,11 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
   const handleOctaveShift = (direction: 'up' | 'down') => {
     const shift = direction === 'up' ? 12 : -12;
     const newPitch = pitch + shift;
-    
     if (newPitch > 24 || newPitch < -24) {
       showError("Range limit reached.");
       return;
     }
-
     setPitch(newPitch);
-    
     if (currentSong && onUpdateSongKey) {
       const activeKey = file?.originalKey || currentSong?.originalKey;
       if (activeKey && activeKey !== "TBC") {
@@ -152,11 +148,23 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
       showError("No tab linked.");
       return;
     }
-    const printUrl = ugUrl.includes('?') 
-      ? ugUrl.replace('?', '/print?') 
-      : `${ugUrl}/print`;
+    const printUrl = ugUrl.includes('?') ? ugUrl.replace('?', '/print?') : `${ugUrl}/print`;
     window.open(printUrl, '_blank');
-    showSuccess("Opening iPad-ready View");
+  };
+
+  const handleAddToGig = () => {
+    if (!file) return;
+    onAddToSetlist?.(
+      file.url || '', 
+      file.name, 
+      file.artist || "Unknown", 
+      activeYoutubeUrl || file.youtubeUrl, 
+      activeUgUrl || file.ugUrl, 
+      file.appleMusicUrl, 
+      file.genre, 
+      pitch
+    );
+    setFile(null); // Clear after add
   };
 
   const handleSelectSuggestion = (query: string) => {
@@ -166,7 +174,6 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
 
   const handleImportGlobal = (songData: Partial<SetlistSong>) => {
     if (onAddExistingSong) {
-      // Create a fresh song object without ANY IDs from the community database
       const { id, master_id, ...dataToClone } = songData;
       const newSong = {
         ...dataToClone,
@@ -178,12 +185,10 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
   };
 
   useImperativeHandle(ref, () => ({
-    loadFromUrl: async (targetUrl, name, artist, youtubeUrl, originalKey, ugUrl) => {
-      await loadFromUrl(targetUrl, name, artist, youtubeUrl, originalKey, ugUrl);
+    loadFromUrl: async (targetUrl, name, artist, youtubeUrl, originalKey, ugUrl, appleMusicUrl, genre) => {
+      await loadFromUrl(targetUrl, name, artist, youtubeUrl, originalKey, ugUrl, appleMusicUrl, genre);
     },
-    setPitch: (newPitch: number) => {
-      setPitch(newPitch);
-    },
+    setPitch: (newPitch: number) => setPitch(newPitch),
     getPitch: () => pitch,
     triggerSearch: (query: string) => {
       setSearchQuery(query);
@@ -191,13 +196,13 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
     },
     togglePlayback,
     stopPlayback,
-    getProgress: () => ({ progress: audio.progress, duration: audio.duration }),
+    getProgress: () => ({ progress, duration }),
     getAnalyzer: () => analyzer,
     getIsPlaying: () => isPlaying
   }));
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative">
       <div className="bg-indigo-600 px-6 py-2.5 flex items-center justify-between text-white shadow-sm shrink-0">
         <div className="flex items-center gap-2">
           <Subtitles className="w-3.5 h-3.5 animate-pulse" />
@@ -205,7 +210,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
         </div>
       </div>
       
-      <div className="p-6 space-y-6">
+      <div className={cn("p-6 space-y-6 pb-24 md:pb-6")}>
         <div className="flex items-center justify-between">
           <div>
             <h2 className="flex items-center gap-2 text-xl font-black uppercase tracking-tight text-slate-900 dark:text-white">
@@ -213,11 +218,11 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
               Song Studio
             </h2>
           </div>
-          {file && onAddToSetlist && (
+          {file && !isMobile && onAddToSetlist && (
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={() => onAddToSetlist(file.url || '', file.name, file.artist || "Unknown", activeYoutubeUrl, activeUgUrl, undefined, undefined, pitch)}
+              onClick={handleAddToGig}
               className="h-8 border-green-200 text-green-600 hover:bg-green-50 font-bold text-[10px] uppercase gap-2"
             >
               <PlusCircle className="w-3.5 h-3.5" /> Save to Gig
@@ -235,7 +240,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
           
           <TabsContent value="search" className="mt-0 space-y-4">
             <SongSearch 
-              onSelectSong={(url, name, artist, yt) => loadFromUrl(url, name, artist, yt)} 
+              onSelectSong={(url, name, artist, yt) => { loadFromUrl(url, name, artist, yt); }} 
               onAddToSetlist={(url, name, artist, yt, ug, apple, gen) => 
                 onAddToSetlist?.(url, name, artist, yt, ug, apple, gen, 0)
               }
@@ -326,10 +331,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
                   <Label className="text-[9px] font-bold text-slate-500 uppercase flex items-center justify-between">
                     <span>Ultimate Guitar Tab</span>
                     <div className="flex gap-2">
-                       <button 
-                        onClick={handleUgPrint}
-                        className="text-indigo-500 hover:text-indigo-600 flex items-center gap-1"
-                       >
+                       <button onClick={handleUgPrint} className="text-indigo-500 hover:text-indigo-600 flex items-center gap-1">
                          <Printer className="w-3 h-3" /> Print
                        </button>
                        <button 
@@ -364,23 +366,13 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <button 
-                              onClick={() => handleOctaveShift('down')}
-                              className="h-7 px-2 hover:bg-white dark:hover:bg-slate-700 rounded text-[10px] font-black uppercase text-slate-500 hover:text-indigo-600 transition-colors border-r"
-                            >
-                              - oct
-                            </button>
+                            <button onClick={() => handleOctaveShift('down')} className="h-7 px-2 hover:bg-white dark:hover:bg-slate-700 rounded text-[10px] font-black uppercase text-slate-500 hover:text-indigo-600 transition-colors border-r">- oct</button>
                           </TooltipTrigger>
                           <TooltipContent className="text-[9px] font-black uppercase">-12 ST</TooltipContent>
                         </Tooltip>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <button 
-                              onClick={() => handleOctaveShift('up')}
-                              className="h-7 px-2 hover:bg-white dark:hover:bg-slate-700 rounded text-[10px] font-black uppercase text-slate-500 hover:text-indigo-600 transition-colors"
-                            >
-                              + oct
-                            </button>
+                            <button onClick={() => handleOctaveShift('up')} className="h-7 px-2 hover:bg-white dark:hover:bg-slate-700 rounded text-[10px] font-black uppercase text-slate-500 hover:text-indigo-600 transition-colors">+ oct</button>
                           </TooltipTrigger>
                           <TooltipContent className="text-[9px] font-black uppercase">+12 ST</TooltipContent>
                         </Tooltip>
@@ -409,12 +401,9 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
                   </div>
                   <Slider value={[tempo]} min={0.5} max={1.5} step={0.01} onValueChange={([v]) => setTempo(v)} />
                 </div>
-
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
-                      <Volume2 className="w-3 h-3 text-indigo-500" /> Gain
-                    </Label>
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5"><Volume2 className="w-3 h-3 text-indigo-500" /> Gain</Label>
                     <span className="text-[10px] font-mono font-bold text-slate-600">{Math.round((volume + 60) * 1.66)}%</span>
                   </div>
                   <Slider value={[volume]} min={-60} max={0} step={1} onValueChange={([v]) => setVolume(v)} />
@@ -424,6 +413,23 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
           </div>
         )}
       </div>
+
+      {isMobile && file && (
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-slate-900 border-t border-white/10 z-[60] shadow-[0_-10px_30px_rgba(0,0,0,0.5)] animate-in slide-in-from-bottom duration-500">
+           <Button 
+            onClick={handleAddToGig} 
+            className="w-full h-14 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest rounded-2xl gap-3 shadow-2xl shadow-indigo-600/30"
+           >
+             <ListPlus className="w-6 h-6" />
+             {currentList ? `ADD TO ${currentList.name.toUpperCase()}` : 'ADD TO CURRENT GIG'}
+           </Button>
+           {currentList && (
+             <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest text-center mt-2">
+               Targeting: {currentList.name} ({currentList.songs.length} tracks)
+             </p>
+           )}
+        </div>
+      )}
     </div>
   );
 });
