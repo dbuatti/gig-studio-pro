@@ -39,7 +39,7 @@ const SheetReaderMode: React.FC = () => {
   const [isImmersive, setIsImmersive] = useState(false);
   const [isStudioModalOpen, setIsStudioModalOpen] = useState(false);
   const [isOverlayOpen, setIsOverlayOpen] = useState(false); // For dropdowns in header
-  const [isIframeLoaded, setIsIframeLoaded] = useState(false); // NEW: State to track iframe loading
+  const [isIframeLoaded, setIsIframeLoaded] = useState(false); // State to track iframe loading
 
   // Audio
   const audioEngine = useToneAudio(true);
@@ -56,11 +56,11 @@ const SheetReaderMode: React.FC = () => {
     setVolume,
   } = audioEngine;
 
-  // NEW: Auto-scroll state
+  // Auto-scroll state
   const [chordAutoScrollEnabled, setChordAutoScrollEnabled] = useState(true);
   const [chordScrollSpeed, setChordScrollSpeed] = useState(1.0);
 
-  // NEW: Harmonic Sync Hook
+  // Harmonic Sync Hook
   const [formData, setFormData] = useState<Partial<SetlistSong>>({}); // Local formData for the hook
   const handleAutoSave = useCallback((updates: Partial<SetlistSong>) => {
     setFormData(prev => ({ ...prev, ...updates }));
@@ -92,7 +92,6 @@ const SheetReaderMode: React.FC = () => {
         .order('title');
 
       if (error) {
-        // Added client-side error handling for Supabase fetch
         showError('Failed to load repertoire data.');
         throw error;
       }
@@ -132,8 +131,6 @@ const SheetReaderMode: React.FC = () => {
       setCurrentIndex(initialIndex);
 
     } catch (err) {
-      // The error is already logged and toasted above if it's a Supabase error.
-      // If it's another error, we catch it here.
       if (!(err instanceof Error && err.message.includes('Supabase fetch error'))) {
         showError('Failed to load repertoire');
       }
@@ -152,6 +149,7 @@ const SheetReaderMode: React.FC = () => {
   // Update formData for useHarmonicSync when currentSong changes
   useEffect(() => {
     if (currentSong) {
+      console.log(`[SheetReaderMode] Current song changed to: ${currentSong.name}`);
       setFormData({ 
         originalKey: currentSong.originalKey, 
         targetKey: currentSong.targetKey, 
@@ -159,14 +157,16 @@ const SheetReaderMode: React.FC = () => {
         is_pitch_linked: currentSong.is_pitch_linked,
       });
     }
-    setIsIframeLoaded(false); // NEW: Reset iframe loaded state when song changes
+    setIsIframeLoaded(false); // Reset iframe loaded state when song changes
   }, [currentSong]);
 
   // Load audio when song changes
   useEffect(() => {
     if (currentSong?.previewUrl) {
-      loadFromUrl(currentSong.previewUrl, pitch || 0); // Use pitch from useHarmonicSync
+      console.log(`[SheetReaderMode] Loading audio from URL: ${currentSong.previewUrl}`);
+      loadFromUrl(currentSong.previewUrl, pitch || 0);
     } else {
+      console.log("[SheetReaderMode] No preview URL, stopping audio.");
       stopPlayback();
       setPitch(0); // Reset pitch when no audio
     }
@@ -175,6 +175,7 @@ const SheetReaderMode: React.FC = () => {
   // Update URL when song changes
   useEffect(() => {
     if (currentSong) {
+      console.log(`[SheetReaderMode] Updating URL to song ID: ${currentSong.id}`);
       setSearchParams({ id: currentSong.id }, { replace: true });
     }
   }, [currentSong, setSearchParams]);
@@ -182,6 +183,7 @@ const SheetReaderMode: React.FC = () => {
   // === Navigation ===
   const handleNext = useCallback(() => {
     if (allSongs.length === 0) return;
+    console.log("[SheetReaderMode] Navigating to next song.");
     const nextIndex = (currentIndex + 1) % allSongs.length;
     setCurrentIndex(nextIndex);
     stopPlayback();
@@ -189,6 +191,7 @@ const SheetReaderMode: React.FC = () => {
 
   const handlePrev = useCallback(() => {
     if (allSongs.length === 0) return;
+    console.log("[SheetReaderMode] Navigating to previous song.");
     const prevIndex = (currentIndex - 1 + allSongs.length) % allSongs.length;
     setCurrentIndex(prevIndex);
     stopPlayback();
@@ -198,16 +201,15 @@ const SheetReaderMode: React.FC = () => {
   const handleUpdateKey = useCallback(async (newTargetKey: string) => {
     if (!currentSong || !user) return;
     
-    // Update the hook's targetKey, which will also update pitch if linked
+    console.log(`[SheetReaderMode] Updating key for ${currentSong.name} to ${newTargetKey}`);
     setTargetKey(newTargetKey);
 
-    // Calculate the new pitch based on the new target key
     const newPitch = calculateSemitones(currentSong.originalKey || 'C', newTargetKey);
 
     try {
       const { error } = await supabase
         .from('repertoire')
-        .update({ target_key: newTargetKey, pitch: newPitch }) // Use newPitch
+        .update({ target_key: newTargetKey, pitch: newPitch })
         .eq('id', currentSong.id);
       if (error) throw error;
 
@@ -225,10 +227,7 @@ const SheetReaderMode: React.FC = () => {
   // === Chart Content ===
   const chartContent = useMemo(() => {
     if (!currentSong) {
-      // This case should ideally only happen on initial load if allSongs is empty,
-      // which is handled by the main `if (loading)` block.
-      // If it happens during navigation, it indicates an unexpected state.
-      return null; // Return null to avoid flashing a loader if currentSong is briefly undefined
+      return null;
     }
 
     const readiness = calculateReadiness(currentSong);
@@ -254,7 +253,7 @@ const SheetReaderMode: React.FC = () => {
           config={currentSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
           isMobile={false}
           originalKey={currentSong.originalKey}
-          targetKey={targetKey} // Use targetKey from hook
+          targetKey={targetKey}
           isPlaying={isPlaying}
           progress={progress}
           duration={duration}
@@ -278,7 +277,7 @@ const SheetReaderMode: React.FC = () => {
           config={currentSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
           isMobile={false}
           originalKey={currentSong.originalKey}
-          targetKey={targetKey} // Use targetKey from hook
+          targetKey={targetKey}
           isPlaying={isPlaying}
           progress={progress}
           duration={duration}
@@ -296,8 +295,8 @@ const SheetReaderMode: React.FC = () => {
 
     return (
       <div className="w-full h-full relative bg-black">
-        {!isIframeLoaded && ( // NEW: Show loader while iframe is not loaded
-          <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
+        {!isIframeLoaded && ( // Show loader while iframe is not loaded
+          <div className="absolute inset-0 flex items-center justify-center bg-slate-900 z-10"> {/* Ensure loader is above iframe */}
             <Loader2 className="w-16 h-16 animate-spin text-indigo-500" />
           </div>
         )}
@@ -306,11 +305,17 @@ const SheetReaderMode: React.FC = () => {
           src={googleViewer}
           className="absolute inset-0 w-full h-full"
           title="Chart - Google Viewer"
-          style={{ border: 'none', opacity: isIframeLoaded ? 1 : 0, transition: 'opacity 0.3s ease-in-out' }} // NEW: Fade in iframe
+          style={{ border: 'none', opacity: isIframeLoaded ? 1 : 0, transition: 'opacity 0.3s ease-in-out' }}
           allowFullScreen
-          onLoad={() => setIsIframeLoaded(true)} // NEW: Set loaded state on iframe load
+          onLoad={() => {
+            console.log(`[SheetReaderMode] Iframe for ${currentSong.name} loaded. Delaying visibility...`);
+            setTimeout(() => {
+              setIsIframeLoaded(true);
+              console.log(`[SheetReaderMode] Iframe for ${currentSong.name} now visible.`);
+            }, 150); // Small delay to allow visual rendering
+          }}
         />
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10">
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20"> {/* Ensure button is above iframe */}
           <a
             href={chartUrl}
             target="_blank"
@@ -322,7 +327,7 @@ const SheetReaderMode: React.FC = () => {
         </div>
       </div>
     );
-  }, [currentSong, forceReaderResource, ignoreConfirmedGate, pitch, isPlaying, progress, duration, navigate, targetKey, chordAutoScrollEnabled, chordScrollSpeed, isIframeLoaded]); // NEW: Add isIframeLoaded to dependencies
+  }, [currentSong, forceReaderResource, ignoreConfirmedGate, pitch, isPlaying, progress, duration, navigate, targetKey, chordAutoScrollEnabled, chordScrollSpeed, isIframeLoaded]);
 
   if (loading) {
     return (
@@ -403,8 +408,8 @@ const SheetReaderMode: React.FC = () => {
           onToggleFullScreen={() => setIsImmersive(!isImmersive)}
           setIsOverlayOpen={setIsOverlayOpen}
           isOverrideActive={forceReaderResource !== 'default'}
-          pitch={pitch} // Pass pitch from useHarmonicSync
-          setPitch={setPitch} // Pass setPitch from useHarmonicSync
+          pitch={pitch}
+          setPitch={setPitch}
         />
 
         {/* Chart Viewer */}
@@ -422,8 +427,8 @@ const SheetReaderMode: React.FC = () => {
             onTogglePlayback={togglePlayback}
             onStopPlayback={stopPlayback}
             onSetProgress={setAudioProgress}
-            pitch={pitch} // Pass pitch from useHarmonicSync
-            setPitch={setPitch} // Pass setPitch from useHarmonicSync
+            pitch={pitch}
+            setPitch={setPitch}
             volume={volume}
             setVolume={setVolume}
             keyPreference={globalKeyPreference}
