@@ -59,10 +59,12 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   return (
     <div className="fixed top-0 left-0 right-0 z-60 bg-slate-900/80 backdrop-blur-xl border-b border-white/10 px-6 py-3 flex items-center justify-between shadow-lg animate-in slide-in-from-top duration-300">
       <div className="flex items-center gap-4">
+        {/* 1. Close Button */}
         <Button variant="ghost" size="icon" onClick={onClose} className="h-10 w-10 rounded-xl hover:bg-white/10 text-slate-400">
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div className="flex items-center gap-2">
+          {/* 2. Previous Song Button */}
           <Button variant="ghost" size="icon" onClick={onPrevSong} disabled={isLoading} className="h-9 w-9 rounded-lg hover:bg-white/10 text-slate-400">
             <ChevronLeft className="w-4 h-4" />
           </Button>
@@ -78,6 +80,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
               <p className="text-sm font-bold text-slate-500">No Song</p>
             )}
           </div>
+          {/* 3. Next Song Button */}
           <Button variant="ghost" size="icon" onClick={onNextSong} disabled={isLoading} className="h-9 w-9 rounded-lg hover:bg-white/10 text-slate-400">
             <ChevronRight className="w-4 h-4" />
           </Button>
@@ -95,6 +98,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
         {currentSong && (
           <DropdownMenu onOpenChange={setIsOverlayOpen}>
             <DropdownMenuTrigger asChild>
+              {/* 4. Key Signature Dropdown Trigger */}
               <Button 
                 variant="ghost" 
                 // Stop propagation to prevent iPad "Tap-to-Hide" UI logic from firing
@@ -122,9 +126,11 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
           </DropdownMenu>
         )}
 
+        {/* 5. Search Button */}
         <Button variant="ghost" size="icon" onClick={onSearchClick} className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400">
           <Search className="w-5 h-5" />
         </Button>
+        {/* 6. Fullscreen Toggle Button */}
         <Button variant="ghost" size="icon" onClick={onToggleFullScreen} className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400">
           {isFullScreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
         </Button>
