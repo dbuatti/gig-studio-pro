@@ -9,6 +9,7 @@ import { SetlistSong } from './SetlistManager';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from '@/lib/utils';
 import { Label } from './ui/label';
+import { showError } from '@/utils/toast'; // Import showError
 
 interface SongSuggestionsProps {
   repertoire: SetlistSong[];
@@ -47,25 +48,46 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
     if (repertoire.length === 0) return;
     
     setIsLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('suggest-songs', {
-        body: { 
-          // Pass more items to help AI context, but Gemini has limits
-          repertoire: repertoire.slice(0, 50),
-          seedSong: seedSong ? { name: seedSong.name, artist: seedSong.artist } : null
-        } 
-      });
+    let lastError = null;
+    const MAX_RETRIES = 3;
 
-      if (error) throw error;
-      
-      setRawSuggestions(data || []);
-      sessionSuggestionsCache = data || [];
-      sessionInitialLoadAttempted = true;
-    } catch (err) {
-      // console.error("Failed to fetch suggestions", err);
-    } finally {
-      setIsLoading(false);
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const { data, error } = await supabase.functions.invoke('suggest-songs', {
+          body: { 
+            repertoire: repertoire.slice(0, 50),
+            seedSong: seedSong ? { name: seedSong.name, artist: seedSong.artist } : null
+          } 
+        });
+
+        if (error) {
+          lastError = error;
+          if (attempt < MAX_RETRIES) {
+            console.warn(`[SongSuggestions] Attempt ${attempt} failed. Retrying in ${attempt * 2}s...`);
+            await new Promise(resolve => setTimeout(resolve, attempt * 2000));
+            continue;
+          }
+          throw error;
+        }
+        
+        setRawSuggestions(data || []);
+        sessionSuggestionsCache = data || [];
+        sessionInitialLoadAttempted = true;
+        setIsLoading(false);
+        return; // Success
+        
+      } catch (err: any) {
+        lastError = err;
+        if (attempt === MAX_RETRIES) {
+          console.error("[SongSuggestions] All retry attempts failed.", lastError);
+          showError("Song suggestions temporarily unavailable.");
+        } else {
+          // Retry logic handled inside the loop
+        }
+      }
     }
+    
+    setIsLoading(false);
   };
 
   useEffect(() => {
