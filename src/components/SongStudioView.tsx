@@ -18,7 +18,7 @@ import { useToneAudio } from '@/hooks/use-tone-audio';
 import { SetlistSong } from '@/components/SetlistManager';
 import { syncToMasterRepertoire, calculateReadiness } from '@/utils/repertoireSync';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
-import { showSuccess, showError } from '@/utils/toast';
+import { showSuccess, showError, showInfo } from '@/utils/toast';
 import StudioTabContent from '@/components/StudioTabContent';
 import SongConfigTab from '@/components/SongConfigTab';
 import ProSyncSearch from '@/components/ProSyncSearch';
@@ -163,6 +163,13 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
         console.log("[handleVerifyMetadata] Applying updates:", updates);
         handleAutoSave(updates);
         showSuccess(`Imported metadata: ${track.trackName} - ${track.artistName}`);
+
+        // New: Show info toast if metadata is confirmed but not yet approved
+        const currentFormData = { ...formData, ...updates };
+        if (currentFormData.isMetadataConfirmed && !currentFormData.isApproved) {
+            showInfo("Metadata verified! Now, toggle 'Confirm for Setlist' in the header to make it gig-ready.");
+        }
+
       } else {
         console.log("[handleVerifyMetadata] No iTunes match found.");
         showError("No iTunes match found. Try manual search.");

@@ -1,3 +1,5 @@
+"use client";
+
 import { toast } from "sonner";
 
 export const showSuccess = (message: string) => {
@@ -14,4 +16,8 @@ export const showLoading = (message: string) => {
 
 export const dismissToast = (toastId: string) => {
   toast.dismiss(toastId);
+};
+
+export const showInfo = (message: string, options?: any) => {
+  toast.info(message, options);
 };
