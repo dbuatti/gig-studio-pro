@@ -30,9 +30,9 @@ import { SetlistSong } from './SetlistManager';
 import { cn } from '@/lib/utils';
 import { sanitizeUGUrl } from '@/utils/ugUtils';
 import { showSuccess, showError } from '@/utils/toast';
-import { isChordLine, transposeChords } from '@/utils/chordUtils'; // Import chord utilities
-import { calculateSemitones, formatKey } from '@/utils/keyUtils'; // Import key utilities
-import { useSettings } from '@/hooks/use-settings'; // Import useSettings
+import { isChordLine, transposeChords } from '@/utils/chordUtils';
+import { calculateSemitones, formatKey } from '@/utils/keyUtils';
+import { useSettings } from '@/hooks/use-settings';
 
 interface ResourceAuditModalProps {
   isOpen: boolean;
@@ -46,13 +46,13 @@ type AuditTab = 'ug' | 'sheets';
 type AuditFilter = 'all' | 'missing-content' | 'missing-link' | 'unverified';
 
 const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose, songs, onVerify }) => {
-  const { keyPreference } = useSettings(); // Get global key preference
+  const { keyPreference } = useSettings();
   const [activeTab, setActiveTab] = useState<AuditTab>('ug');
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState<AuditFilter>('unverified');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
-  const [hoveredSongId, setHoveredSongId] = useState<string | null>(null); // State for hotkey support
+  const [hoveredSongId, setHoveredSongId] = useState<string | null>(null);
 
   const auditList = useMemo(() => {
     return songs.filter(s => {
@@ -126,29 +126,25 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
         return;
       }
 
-      // 1. Chord Detection
       if (!isChordLine(clipboardText) && !clipboardText.includes('[Verse]') && !clipboardText.includes('[Chorus]')) {
         showError("Clipboard content does not appear to be chord data.");
         return;
       }
 
-      // 2. Real-Time Transposition & Notation Formatting
       let processedChords = clipboardText;
-      const originalKey = song.originalKey || 'C'; // Default to C if not set
-      const targetKey = song.targetKey || originalKey; // Default to original if not set
+      const originalKey = song.originalKey || 'C';
+      const targetKey = song.targetKey || originalKey;
       const semitones = calculateSemitones(originalKey, targetKey);
 
       if (semitones !== 0) {
         processedChords = transposeChords(processedChords, semitones, keyPreference);
       }
-      // The transposeChords function already handles the keyPreference for sharps/flats.
 
-      // 3. Data Injection & UI Refresh
       onVerify(song.id, {
         ug_chords_text: processedChords,
         is_ug_chords_present: true,
-        is_ug_link_verified: true, // Assume verified if manually pasted
-        isMetadataConfirmed: true, // Update readiness level
+        is_ug_link_verified: true,
+        isMetadataConfirmed: true,
       });
       showSuccess(`Chords for "${song.name}" pasted & verified!`);
 
@@ -156,9 +152,8 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
       console.error("Failed to paste chords:", err);
       showError("Failed to paste chords. Ensure clipboard access is granted.");
     }
-  }, [onVerify, keyPreference]); // Added onVerify and keyPreference to dependencies
+  }, [onVerify, keyPreference]);
 
-  // Hotkey support for Cmd/Ctrl + V
   useEffect(() => {
     const handleKeyDown = async (event: KeyboardEvent) => {
       if (isOpen && (event.metaKey || event.ctrlKey) && event.key === 'v') {
@@ -223,11 +218,16 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <div className="flex bg-black/20 p-1 rounded-xl shrink-0 overflow-x-auto no-scrollbar">
+
+            {/* RESPONSIVE FILTER BUTTONS - FIXED SECTION */}
+            <div className="flex flex-wrap gap-2 bg-black/20 p-2 rounded-xl shrink-0">
               <Button 
                 variant="ghost" size="sm" 
                 onClick={() => setActiveFilter('unverified')}
-                className={cn("text-[9px] font-black uppercase tracking-widest h-10 px-4 rounded-lg", activeFilter === 'unverified' ? "bg-white text-indigo-600" : "text-white/60")}
+                className={cn(
+                  "text-[9px] font-black uppercase tracking-widest h-9 px-3 rounded-lg flex-shrink-0",
+                  activeFilter === 'unverified' ? "bg-white text-indigo-600" : "text-white/60"
+                )}
               >
                 Needs Audit
               </Button>
@@ -235,7 +235,10 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
                 <Button 
                   variant="ghost" size="sm" 
                   onClick={() => setActiveFilter('missing-content')}
-                  className={cn("text-[9px] font-black uppercase tracking-widest h-10 px-4 rounded-lg", activeFilter === 'missing-content' ? "bg-white text-indigo-600" : "text-white/60")}
+                  className={cn(
+                    "text-[9px] font-black uppercase tracking-widest h-9 px-3 rounded-lg flex-shrink-0",
+                    activeFilter === 'missing-content' ? "bg-white text-indigo-600" : "text-white/60"
+                  )}
                 >
                   Empty Sheets
                 </Button>
@@ -243,14 +246,20 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
               <Button 
                 variant="ghost" size="sm" 
                 onClick={() => setActiveFilter('missing-link')}
-                className={cn("text-[9px] font-black uppercase tracking-widest h-10 px-4 rounded-lg", activeFilter === 'missing-link' ? "bg-white text-indigo-600" : "text-white/60")}
+                className={cn(
+                  "text-[9px] font-black uppercase tracking-widest h-9 px-3 rounded-lg flex-shrink-0",
+                  activeFilter === 'missing-link' ? "bg-white text-indigo-600" : "text-white/60"
+                )}
               >
                 No Links
               </Button>
               <Button 
                 variant="ghost" size="sm" 
                 onClick={() => setActiveFilter('all')}
-                className={cn("text-[9px] font-black uppercase tracking-widest h-10 px-4 rounded-lg", activeFilter === 'all' ? "bg-white text-indigo-600" : "text-white/60")}
+                className={cn(
+                  "text-[9px] font-black uppercase tracking-widest h-9 px-3 rounded-lg flex-shrink-0",
+                  activeFilter === 'all' ? "bg-white text-indigo-600" : "text-white/60"
+                )}
               >
                 All Songs
               </Button>
