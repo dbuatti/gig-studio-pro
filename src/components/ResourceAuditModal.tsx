@@ -275,18 +275,18 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
                     onMouseEnter={() => setHoveredSongId(song.id)}
                     onMouseLeave={() => setHoveredSongId(null)}
                   >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
                       <div className="flex items-start gap-4 min-w-0 flex-1">
-                        <div className="bg-slate-800 p-2.5 rounded-xl text-slate-500">
+                        <div className="bg-slate-800 p-2.5 rounded-xl text-slate-500 shrink-0">
                           <Music className="w-5 h-5" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <h4 className="font-black text-sm uppercase tracking-tight truncate">{song.name}</h4>
-                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">{song.artist || "Unknown Artist"}</p>
+                          <h4 className="font-black text-sm md:text-base uppercase tracking-tight truncate">{song.name}</h4>
+                          <p className="text-xs md:text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1 truncate">{song.artist || "Unknown Artist"}</p>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 shrink-0">
                         {isEditing ? (
                           <div className="flex gap-2">
                             <Input value={editValue} onChange={(e) => setEditValue(e.target.value)} placeholder="Paste URL..." className="h-9 w-48 bg-black/40 text-[10px]" />
@@ -297,21 +297,21 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
                             {activeTab === 'ug' && activeFilter === 'missing-content' && !hasChords && (
                               <Button 
                                 onClick={() => handlePasteToAudit(song)}
-                                className="h-10 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] rounded-xl gap-2 shadow-lg shadow-indigo-600/20"
+                                className="h-9 px-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[9px] rounded-xl gap-2 shadow-lg shadow-indigo-600/20"
                               >
-                                <ClipboardPaste className="w-4 h-4" /> Paste Chords
+                                <ClipboardPaste className="w-3.5 h-3.5" /> Paste Chords
                               </Button>
                             )}
                             {hasLink && (
-                              <Button variant="ghost" size="sm" onClick={() => window.open(activeTab === 'ug' ? song.ugUrl : sheetUrl, '_blank')} className="h-9 px-3 bg-white/5 text-white font-bold text-[9px] uppercase rounded-xl gap-2">
-                                <ExternalLink className="w-3.5 h-3.5" /> Test
+                              <Button variant="ghost" size="sm" onClick={() => window.open(activeTab === 'ug' ? song.ugUrl : sheetUrl, '_blank')} className="h-8 px-2 bg-white/5 text-white font-bold text-[8px] uppercase rounded-xl gap-2">
+                                <ExternalLink className="w-3 h-3" /> Test
                               </Button>
                             )}
-                            <Button variant="ghost" size="sm" onClick={() => handleRebind(song)} className="h-9 px-3 bg-white/5 text-orange-400 font-bold text-[9px] uppercase rounded-xl gap-2">
-                              <SearchCode className="w-3.5 h-3.5" /> Find & Bind
+                            <Button variant="ghost" size="sm" onClick={() => handleRebind(song)} className="h-8 px-2 bg-white/5 text-orange-400 font-bold text-[8px] uppercase rounded-xl gap-2">
+                              <SearchCode className="w-3 h-3" /> Find & Bind
                             </Button>
                             {hasLink && !isVerified && (
-                              <Button onClick={() => handleVerify(song)} className="h-9 px-4 bg-emerald-600 text-white font-black uppercase text-[9px] rounded-xl gap-2 shadow-lg shadow-emerald-600/20">
+                              <Button onClick={() => handleVerify(song)} className="h-9 px-3 bg-emerald-600 text-white font-black uppercase text-[9px] rounded-xl gap-2 shadow-lg shadow-emerald-600/20">
                                 <ShieldCheck className="w-3.5 h-3.5" /> Verify
                               </Button>
                             )}
