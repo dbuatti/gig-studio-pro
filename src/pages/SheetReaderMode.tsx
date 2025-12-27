@@ -86,7 +86,12 @@ const SheetReaderMode: React.FC = () => {
         .eq('user_id', user.id)
         .order('title');
 
-      if (error) throw error;
+      if (error) {
+        // Added client-side error handling for Supabase fetch
+        console.error("Supabase fetch error in SheetReaderMode:", error);
+        showError('Failed to load repertoire data.');
+        throw error;
+      }
 
       const mappedSongs: SetlistSong[] = (data || []).map((d) => ({
         id: d.id,
@@ -123,7 +128,11 @@ const SheetReaderMode: React.FC = () => {
       setCurrentIndex(initialIndex);
 
     } catch (err) {
-      showError('Failed to load repertoire');
+      // The error is already logged and toasted above if it's a Supabase error.
+      // If it's another error, we catch it here.
+      if (!(err instanceof Error && err.message.includes('Supabase fetch error'))) {
+        showError('Failed to load repertoire');
+      }
     } finally {
       setLoading(false);
     }
@@ -187,23 +196,26 @@ const SheetReaderMode: React.FC = () => {
     // Update the hook's targetKey, which will also update pitch if linked
     setTargetKey(newTargetKey);
 
+    // Calculate the new pitch based on the new target key
+    const newPitch = calculateSemitones(currentSong.originalKey || 'C', newTargetKey);
+
     try {
       const { error } = await supabase
         .from('repertoire')
-        .update({ target_key: newTargetKey, pitch: pitch }) // Use pitch from hook
+        .update({ target_key: newTargetKey, pitch: newPitch }) // Use newPitch
         .eq('id', currentSong.id);
       if (error) throw error;
 
       setAllSongs((prev) =>
         prev.map((s) =>
-          s.id === currentSong.id ? { ...s, targetKey: newTargetKey, pitch: pitch } : s
+          s.id === currentSong.id ? { ...s, targetKey: newTargetKey, pitch: newPitch } : s
         )
       );
       showSuccess(`Stage Key set to ${newTargetKey}`);
     } catch {
       showError('Failed to update key');
     }
-  }, [currentSong, user, setTargetKey, pitch]);
+  }, [currentSong, user, setTargetKey]);
 
   // === Chart Content ===
   const chartContent = useMemo(() => {
