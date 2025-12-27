@@ -134,7 +134,10 @@ const Index = () => {
 
   useEffect(() => {
     localStorage.setItem('gig_view_mode', viewMode);
-  }, [viewMode]);
+    if (viewMode === 'repertoire' && user) {
+      fetchMasterRepertoire(); // Ensure master repertoire is fresh when switching to this view
+    }
+  }, [viewMode, user]);
 
   const fetchMasterRepertoire = async () => {
     if (!user) return;
