@@ -106,7 +106,12 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
     setEditValue(currentUrl || "");
     
     const query = encodeURIComponent(`${song.artist || ''} ${song.name} ${activeTab === 'ug' ? 'chords' : 'sheet music pdf'}`);
-    window.open(`https://www.google.com/search?q=${query}`, '_blank');
+    // Corrected: Navigate to Ultimate Guitar search for UG tabs, Google for other sheets
+    if (activeTab === 'ug') {
+      window.open(`https://www.ultimate-guitar.com/search.php?search_type=title&value=${query}`, '_blank');
+    } else {
+      window.open(`https://www.google.com/search?q=${query}`, '_blank');
+    }
   };
 
   return (
