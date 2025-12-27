@@ -7,31 +7,40 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { Input } from './ui/input';
 import SetlistExporter from './SetlistExporter';
-import { Button } from './ui/button'; // Import Button
+import { Button } from './ui/button';
 
 interface SetlistStatsProps {
   songs: SetlistSong[];
   goalSeconds?: number;
   onUpdateGoal?: (seconds: number) => void;
   onAutoLink?: () => Promise<void>;
-  onDownloadAllMissingAudio?: () => Promise<void>; // New prop for bulk download
-  isBulkDownloading?: boolean; // New prop for bulk download loading state
+  onGlobalAutoSync?: () => Promise<void>;
+  onBulkRefreshAudio?: () => Promise<void>;
+  onClearAutoLinks?: () => Promise<void>;
+  onDownloadAllMissingAudio?: () => Promise<void>;
+  isBulkDownloading?: boolean;
 }
 
-const SetlistStats: React.FC<SetlistStatsProps> = ({ songs, goalSeconds = 7200, onUpdateGoal, onAutoLink, onDownloadAllMissingAudio, isBulkDownloading }) => {
+const SetlistStats: React.FC<SetlistStatsProps> = ({ 
+  songs, 
+  goalSeconds = 7200, 
+  onUpdateGoal, 
+  onAutoLink, 
+  onGlobalAutoSync,
+  onBulkRefreshAudio,
+  onClearAutoLinks,
+  onDownloadAllMissingAudio, 
+  isBulkDownloading 
+}) => {
   const [isEditingGoal, setIsEditingGoal] = useState(false);
   
-  // Filter for approved songs
   const approvedSongs = songs.filter(song => song.isApproved);
   const totalApprovedSongs = approvedSongs.length;
 
-  // Only count approved songs that have "Ready" audio (not an iTunes sample)
   const totalSeconds = approvedSongs.reduce((acc, song) => {
     const isItunes = song.previewUrl?.includes('apple.com') || song.previewUrl?.includes('itunes-assets');
     const hasFullAudio = !!song.previewUrl && !isItunes;
-    
     if (hasFullAudio) {
-      // Use actual duration if available, fallback to 3:30 (210s)
       return acc + (song.duration_seconds || 210);
     }
     return acc;
@@ -49,7 +58,6 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({ songs, goalSeconds = 7200, 
   const remainingSeconds = Math.max(0, goalSeconds - totalSeconds);
   const isGoalMet = remainingSeconds <= 0;
 
-  // Genre distribution for approved songs
   const genres = approvedSongs.reduce((acc, song) => {
     const g = song.genre || "Standard";
     acc[g] = (acc[g] || 0) + 1;
@@ -67,7 +75,6 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({ songs, goalSeconds = 7200, 
   return (
     <div className="space-y-4 mb-8">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {/* Setlist Goal Tracker */}
         <div className="col-span-1 md:col-span-2 bg-slate-900 text-white p-6 rounded-[2rem] shadow-2xl shadow-indigo-500/10 border border-white/5 flex flex-col justify-between group relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-600/10 blur-[60px] rounded-full -mr-16 -mt-16 group-hover:bg-indigo-600/20 transition-all" />
           
@@ -147,10 +154,12 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({ songs, goalSeconds = 7200, 
 
         <SetlistExporter 
           songs={songs} 
-          onAutoLink={onAutoLink} 
-          onDownloadAllMissingAudio={onDownloadAllMissingAudio} // Pass the new prop
-          isBulkDownloading={isBulkDownloading} // Pass the new prop
-          missingAudioCount={missingAudioTracks} // Pass the count
+          onAutoLink={onAutoLink}
+          onGlobalAutoSync={onGlobalAutoSync}
+          onBulkRefreshAudio={onBulkRefreshAudio}
+          onClearAutoLinks={onClearAutoLinks}
+          isBulkDownloading={isBulkDownloading} 
+          missingAudioCount={missingAudioTracks}
         />
       </div>
 

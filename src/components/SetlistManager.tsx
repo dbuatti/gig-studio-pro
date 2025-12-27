@@ -62,6 +62,10 @@ export interface SetlistSong {
   is_ug_chords_present?: boolean;
   highest_note_original?: string;
   is_ug_link_verified?: boolean; // Added for UG Audit system
+  metadata_source?: string; // Added for Automation engine
+  sync_status?: 'IDLE' | 'SYNCING' | 'COMPLETED' | 'ERROR'; // Added for tracking
+  last_sync_log?: string;
+  auto_synced?: boolean;
 }
 
 interface SetlistManagerProps {

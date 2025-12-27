@@ -2,41 +2,78 @@
 
 import React, { useState, useMemo } from 'react';
 import { SetlistSong } from './SetlistManager';
-import { ClipboardCopy, Youtube, Sparkles, Loader2, Download } from 'lucide-react';
+import { 
+  ClipboardCopy, 
+  Youtube, 
+  Sparkles, 
+  Loader2, 
+  Download, 
+  Wand2, 
+  RefreshCcw, 
+  Undo2,
+  Settings2,
+  AlertTriangle
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { showSuccess, showError } from '@/utils/toast';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface SetlistExporterProps {
   songs: SetlistSong[];
   onAutoLink?: () => Promise<void>;
-  onDownloadAllMissingAudio?: () => Promise<void>;
+  onGlobalAutoSync?: () => Promise<void>;
+  onBulkRefreshAudio?: () => Promise<void>;
+  onClearAutoLinks?: () => Promise<void>;
   isBulkDownloading?: boolean;
   missingAudioCount?: number;
 }
 
-const SetlistExporter: React.FC<SetlistExporterProps> = ({ songs, onAutoLink, onDownloadAllMissingAudio, isBulkDownloading, missingAudioCount = 0 }) => {
+const SetlistExporter: React.FC<SetlistExporterProps> = ({ 
+  songs, 
+  onAutoLink, 
+  onGlobalAutoSync,
+  onBulkRefreshAudio,
+  onClearAutoLinks,
+  isBulkDownloading, 
+  missingAudioCount = 0 
+}) => {
   const [isLinking, setIsLinking] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
 
-  // Helper to determine if a URL is actually present and valid
   const isMissingLink = (url?: string) => {
     if (!url) return true;
     const clean = String(url).trim();
     return clean === "" || clean === "undefined" || clean === "null";
   };
 
-  const handleAutoLink = async () => {
-    if (!onAutoLink) return;
-    
-    setIsLinking(true);
+  const missingMetadataCount = useMemo(() => {
+    return songs.filter(s => isMissingLink(s.youtubeUrl) && s.name).length;
+  }, [songs]);
+
+  const autoPopulatedCount = useMemo(() => {
+    return (songs as any[]).filter(s => s.metadata_source === 'auto_populated').length;
+  }, [songs]);
+
+  const handleAction = async (action: () => Promise<void>, setter: (v: boolean) => void, successMsg: string) => {
+    setter(true);
     try {
-      await onAutoLink();
-      showSuccess("AI Discovery Pipeline Complete");
+      await action();
+      showSuccess(successMsg);
     } catch (err) {
-      showError("AI Auto-link engine failed to initialize");
+      // Errors handled by parent/toast
     } finally {
-      setIsLinking(false);
+      setter(false);
     }
   };
 
@@ -55,26 +92,59 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({ songs, onAutoLink, on
     showSuccess("Copied all YouTube links to clipboard");
   };
 
-  const handleBulkDownloadClick = async () => {
-    if (onDownloadAllMissingAudio) {
-      await onDownloadAllMissingAudio();
-    }
-  };
-
-  const missingMetadataCount = useMemo(() => {
-    return songs.filter(s => isMissingLink(s.youtubeUrl) && s.name).length;
-  }, [songs]);
-
   return (
     <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border shadow-sm flex flex-col justify-center gap-4 transition-transform hover:scale-[1.02]">
-      <div className="flex items-center gap-3 mb-1">
-        <div className="h-8 w-8 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center text-indigo-600">
-          <ClipboardCopy className="w-4 h-4" />
+      <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center text-indigo-600">
+            <Wand2 className="w-4 h-4" />
+          </div>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Automation Hub</p>
         </div>
-        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Manifest Tools</p>
+        
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 rounded-lg">
+              <Settings2 className="w-4 h-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56 bg-slate-950 border-white/10 text-white rounded-xl">
+            <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-slate-500">Maintenance Tools</DropdownMenuLabel>
+            <DropdownMenuSeparator className="bg-white/5" />
+            <DropdownMenuItem 
+              onClick={() => handleAction(onBulkRefreshAudio!, setIsRefreshing, "Global Audio Refresh Triggered")}
+              className="text-red-400 focus:text-red-400 focus:bg-red-500/10 cursor-pointer"
+            >
+              <RefreshCcw className="w-4 h-4 mr-2" /> Force Refresh All Audio
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              disabled={autoPopulatedCount === 0 || isClearing}
+              onClick={() => handleAction(onClearAutoLinks!, setIsClearing, "Auto-links cleared")}
+              className="cursor-pointer"
+            >
+              <Undo2 className="w-4 h-4 mr-2" /> Clear Auto-Links ({autoPopulatedCount})
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
       
       <div className="grid grid-cols-1 gap-2">
+        {/* Tier 1: iTunes -> YouTube Global Sync */}
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={() => handleAction(onGlobalAutoSync!, setIsSyncing, "Global Auto-Sync Pipeline Complete")}
+          disabled={isSyncing || songs.length === 0}
+          className={cn(
+            "h-9 w-full justify-start text-[10px] font-black uppercase tracking-widest rounded-xl gap-3 relative overflow-hidden transition-all",
+            isSyncing ? "bg-purple-50 text-purple-600" : "text-purple-600 hover:bg-purple-50"
+          )}
+        >
+          {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+          {isSyncing ? "Syncing Metadata..." : "Global Auto-Sync"}
+        </Button>
+
+        {/* Tier 2: Smart-Link (Missing Only) */}
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -82,20 +152,15 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({ songs, onAutoLink, on
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  onClick={handleAutoLink}
+                  onClick={() => handleAction(onAutoLink!, setIsLinking, "AI Discovery Pipeline Complete")}
                   disabled={isLinking || missingMetadataCount === 0}
                   className={cn(
                     "h-9 w-full justify-start text-[10px] font-black uppercase tracking-widest rounded-xl gap-3 relative overflow-hidden transition-all",
                     isLinking ? "bg-indigo-50 text-indigo-400" : "text-indigo-600 hover:bg-indigo-50"
                   )}
                 >
-                  {isLinking ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Sparkles className="w-4 h-4" />
-                  )}
-                  {isLinking ? `Analyzing ${missingMetadataCount} Tracks...` : `AI Auto-Link (${missingMetadataCount} Missing)`}
-                  {isLinking && <div className="absolute inset-0 bg-indigo-500/5 animate-pulse" />}
+                  {isLinking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Youtube className="w-4 h-4" />}
+                  Smart-Link Missing ({missingMetadataCount})
                 </Button>
               </div>
             </TooltipTrigger>
@@ -107,29 +172,16 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({ songs, onAutoLink, on
           </Tooltip>
         </TooltipProvider>
 
+        {/* Tier 3: Audio Extraction */}
         <Button 
           variant="ghost" 
           size="sm" 
-          onClick={handleBulkDownloadClick}
+          onClick={onBulkRefreshAudio}
           disabled={isBulkDownloading || missingAudioCount === 0}
           className="h-9 justify-start text-[10px] font-black uppercase tracking-widest text-emerald-600 hover:bg-emerald-50 rounded-xl gap-3 relative overflow-hidden"
         >
-          {isBulkDownloading ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Download className="w-4 h-4" />
-          )}
+          {isBulkDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
           Download Audio ({missingAudioCount} Missing)
-          {isBulkDownloading && <div className="absolute inset-0 bg-emerald-500/10 animate-pulse" />}
-        </Button>
-
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={copyAllYoutubeLinks}
-          className="h-9 justify-start text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-xl gap-3"
-        >
-          <Youtube className="w-4 h-4" /> Link Manifest (All YT)
         </Button>
       </div>
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import AudioTransposer, { AudioTransposerRef } from "@/components/AudioTransposer";
 import SetlistManager, { SetlistSong } from "@/components/SetlistManager";
 import SetlistSelector from "@/components/SetlistSelector";
@@ -286,7 +286,6 @@ const Index = () => {
     }
 
     try {
-      // 1. Ensure master records exist to get IDs
       const songsToSync = missingSongs.filter(s => !s.master_id);
       let workingSongs = [...songs];
 
@@ -308,14 +307,12 @@ const Index = () => {
         return;
       }
 
-      // 2. Run Discovery Engine
       const { data, error } = await supabase.functions.invoke('bulk-populate-youtube-links', {
         body: { songIds: batchIds }
       });
 
       if (error) throw error;
 
-      // 3. Multi-Strategy Binding: Match by ID, then by Name+Artist fallback
       if (data.successful > 0) {
         const resultsById = new Map(data.results.filter((r: any) => r.status === 'SUCCESS').map((r: any) => [r.id, r.videoId]));
         const resultsByNameArtist = new Map(data.results.filter((r: any) => r.status === 'SUCCESS').map((r: any) => [
@@ -337,7 +334,6 @@ const Index = () => {
           return s;
         });
 
-        // Atomic update of state and DB
         await saveList(currentListId, finalUpdatedSongs);
         showSuccess(`AI Engine: ${data.successful} matches bound.`);
         await fetchMasterRepertoire();
@@ -345,9 +341,81 @@ const Index = () => {
         showError("No high-confidence matches found.");
       }
     } catch (err: any) {
-      console.error("[GigStudio] Pipeline Error:", err);
       showError(`AI Engine Error: ${err.message}`);
     }
+  };
+
+  const handleGlobalAutoSync = async () => {
+    if (!currentListId || !songs.length) return;
+    
+    try {
+      const batchIds = songs.map(s => s.master_id).filter(Boolean) as string[];
+      if (batchIds.length === 0) {
+        showError("No master records found to sync.");
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('global-auto-sync', {
+        body: { songIds: batchIds, overwrite: false }
+      });
+
+      if (error) throw error;
+
+      const successfulIds = data.results
+        .filter((r: any) => r.status === 'SUCCESS')
+        .map((r: any) => r.id);
+
+      if (successfulIds.length > 0) {
+        showSuccess(`Auto-Sync Complete: ${successfulIds.length} tracks enriched.`);
+        await fetchSetlists();
+        await fetchMasterRepertoire();
+      } else {
+        showSuccess("Library is already up to date.");
+      }
+    } catch (err: any) {
+      showError(`Pipeline Error: ${err.message}`);
+    }
+  };
+
+  const handleClearAutoLinks = async () => {
+    if (!currentListId) return;
+    const autoPopulatedCount = songs.filter(s => s.metadata_source === 'auto_populated').length;
+    
+    if (autoPopulatedCount === 0) {
+      showError("No auto-populated links to clear.");
+      return;
+    }
+
+    if (!confirm(`Clear ${autoPopulatedCount} AI-found links?`)) return;
+
+    const updatedSongs = songs.map(s => {
+      if (s.metadata_source === 'auto_populated') {
+        return { ...s, youtubeUrl: "", metadata_source: undefined };
+      }
+      return s;
+    });
+
+    await saveList(currentListId, updatedSongs);
+    showSuccess("Automation reverted.");
+  };
+
+  const handleBulkRefreshAudio = async () => {
+    if (!currentListId || !songs.length) return;
+    const songsWithLinks = songs.filter(s => s.youtubeUrl);
+    
+    if (songsWithLinks.length === 0) {
+      showError("No tracks with YouTube links found.");
+      return;
+    }
+
+    if (!confirm(`Override existing audio for ${songsWithLinks.length} tracks?`)) return;
+
+    setIsBulkDownloading(true);
+    for (const song of songsWithLinks) {
+      await downloadAndUploadAudioForSong(song);
+    }
+    setIsBulkDownloading(false);
+    showSuccess("Global audio refresh complete.");
   };
 
   const handleAddToSetlist = async (previewUrl: string, name: string, artist: string, youtubeUrl?: string, ugUrl?: string, appleMusicUrl?: string, genre?: string, pitch: number = 0) => {
@@ -609,6 +677,9 @@ const Index = () => {
                 goalSeconds={currentList?.time_goal} 
                 onUpdateGoal={(s) => currentListId && saveList(currentListId, songs, { time_goal: s }, undefined)} 
                 onAutoLink={handleAutoLinkSetlist}
+                onGlobalAutoSync={handleGlobalAutoSync}
+                onBulkRefreshAudio={handleBulkRefreshAudio}
+                onClearAutoLinks={handleClearAutoLinks}
                 onDownloadAllMissingAudio={handleDownloadAllMissingAudio} 
                 isBulkDownloading={isBulkDownloading} 
               />
