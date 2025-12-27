@@ -77,7 +77,7 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
           case 'missing-link': return !hasLink;
           case 'all': return true;
           case 'unverified':
-          default: return hasLink && !hasChords; // If UG link exists but no chords, it needs audit
+          default: return hasLink && !s.is_ug_link_verified; // Only unverified if there's a link
         }
       } else {
         const sheetUrl = (s as any).sheet_music_url || s.pdfUrl || s.leadsheetUrl;
@@ -98,7 +98,7 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
     if (activeTab === 'ug') {
       const urlToVerify = customUrl || song.ugUrl;
       if (!urlToVerify) return;
-      onVerify(song.id, { ugUrl: sanitizeUGUrl(urlToVerify) }); // No is_ug_link_verified
+      onVerify(song.id, { ugUrl: sanitizeUGUrl(urlToVerify), is_ug_link_verified: true }); // Keep is_ug_link_verified for internal state
     } else {
       const urlToVerify = customUrl || (song as any).sheet_music_url || song.pdfUrl || song.leadsheetUrl;
       if (!urlToVerify) return;
@@ -166,6 +166,7 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
       onVerify(song.id, {
         ug_chords_text: processedChords,
         is_ug_chords_present: true,
+        is_ug_link_verified: true, // Mark as verified upon pasting chords
         isMetadataConfirmed: true,
         originalKey: extractedOriginalKey,
         targetKey: newTargetKey,
@@ -355,7 +356,7 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
                 const isEditing = editingId === song.id;
                 const sheetUrl = (song as any).sheet_music_url || song.pdfUrl || song.leadsheetUrl;
                 const hasLink = activeTab === 'ug' ? !!song.ugUrl : !!sheetUrl;
-                const isVerified = activeTab === 'ug' ? !!song.ugUrl && !!song.ug_chords_text : (song as any).is_sheet_verified; // UG is verified if link and chords exist
+                const isVerified = activeTab === 'ug' ? song.is_ug_link_verified : (song as any).is_sheet_verified;
                 const hasChords = !!song.ug_chords_text && song.ug_chords_text.trim() !== "";
 
                 return (

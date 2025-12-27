@@ -61,6 +61,7 @@ export interface SetlistSong {
   ug_chords_config?: UGChordsConfig;
   is_ug_chords_present?: boolean;
   highest_note_original?: string;
+  is_ug_link_verified?: boolean; 
   metadata_source?: string; 
   sync_status?: 'IDLE' | 'SYNCING' | 'COMPLETED' | 'ERROR'; 
   last_sync_log?: string;
@@ -157,6 +158,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
     // Orange (Needs Review/Unverified)
     if (
+      (hasUgLink && !song.is_ug_link_verified) || // Unverified UG link (still using this for internal state, but UI will simplify)
       (hasSheetLink && !song.is_sheet_verified) || // Unverified sheet music link
       !song.isMetadataConfirmed // Metadata not confirmed
     ) {
@@ -174,21 +176,30 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
             <Button 
               variant="ghost" size="sm" 
               onClick={() => setSortMode('none')}
-              className={cn("h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg", sortMode === 'none' && "bg-white dark:bg-slate-700 shadow-sm")}
+              className={cn(
+                "h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg",
+                sortMode === 'none' && "bg-white dark:bg-slate-700 shadow-sm"
+              )}
             >
               <LayoutList className="w-3 h-3" /> <span className="hidden sm:inline">List Order</span>
             </Button>
             <Button 
               variant="ghost" size="sm" 
               onClick={() => setSortMode('ready')}
-              className={cn("h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg", sortMode === 'ready' && "bg-white dark:bg-slate-700 shadow-sm text-indigo-600")}
+              className={cn(
+                "h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg",
+                sortMode === 'ready' && "bg-white dark:bg-slate-700 shadow-sm text-indigo-600"
+              )}
             >
               <SortAsc className="w-3 h-3" /> <span className="hidden sm:inline">Readiness</span>
             </Button>
             <Button 
               variant="ghost" size="sm" 
               onClick={() => setSortMode('work')}
-              className={cn("h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg", sortMode === 'work' && "bg-white dark:bg-slate-700 shadow-sm text-orange-600")}
+              className={cn(
+                "h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg",
+                sortMode === 'work' && "bg-white dark:bg-slate-700 shadow-sm text-orange-600"
+              )}
             >
               <SortDesc className="w-3 h-3" /> <span className="hidden sm:inline">Work Needed</span>
             </Button>

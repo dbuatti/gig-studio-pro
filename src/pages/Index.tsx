@@ -186,7 +186,8 @@ const Index = () => {
           pdfUrl: d.pdf_url, isMetadataConfirmed: d.is_metadata_confirmed, isKeyConfirmed: d.is_key_confirmed,
           duration_seconds: d.duration_seconds, notes: d.notes, user_tags: d.user_tags || [], resources: d.resources || [],
           isApproved: d.is_approved, preferred_reader: d.preferred_reader, ug_chords_text: d.ug_chords_text,
-          ug_chords_config: d.ug_chords_config, is_pitch_linked: d.is_pitch_linked,
+          ug_chords_config: d.ug_chords_config, is_pitch_linked: d.is_pitch_link_verified, is_ug_link_verified: d.is_ug_link_verified,
+          sheet_music_url: d.sheet_music_url, is_sheet_verified: d.is_sheet_verified,
           is_ug_chords_present: d.is_ug_chords_present, highest_note_original: d.highest_note_original
         }));
         setMasterRepertoire(prevMasterRepertoire => {
@@ -375,6 +376,7 @@ const Index = () => {
       ug_chords_config: DEFAULT_UG_CHORDS_CONFIG,
       is_ug_chords_present: false,
       highest_note_original: null,
+      is_ug_link_verified: false,
       metadata_source: null,
       sync_status: 'IDLE',
       last_sync_log: null,
