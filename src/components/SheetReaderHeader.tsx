@@ -81,9 +81,11 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
                 className="bg-white/5 border-white/10 text-xs font-black font-mono h-10 px-4 rounded-xl text-indigo-400 gap-2"
                 disabled={isLoading}
               >
-                <Music className="w-3.5 h-3.5" />
-                {displayKey}
-                <ChevronDown className="w-3 h-3 opacity-50" />
+                <span className="flex items-center gap-2"> {/* Wrapped content in a span */}
+                  <Music className="w-3.5 h-3.5" />
+                  {displayKey}
+                  <ChevronDown className="w-3 h-3 opacity-50" />
+                </span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-slate-900 border-white/10 text-white z-[300] max-h-60 overflow-y-auto custom-scrollbar">
