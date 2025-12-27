@@ -114,6 +114,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   const { keyPreference: globalPreference } = useSettings();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [isSearchInputVisible, setIsSearchInputVisible] = useState(false); // New state for search input visibility
 
   const isItunesPreview = (url: string) => url && (url.includes('apple.com') || url.includes('itunes-assets'));
 
@@ -182,15 +183,27 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
           </Button>
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
-          <div className="relative flex-1 sm:w-64 group">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-            <Input 
-              placeholder="Search Gig Repertoire..." 
-              value={searchTerm} 
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-10 sm:h-9 pl-9 text-[11px] font-bold bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-xl focus-visible:ring-indigo-500"
-            />
-          </div>
+          {/* Search Toggle Button */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => setIsSearchInputVisible(prev => !prev)}
+            className="h-9 w-9 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700"
+          >
+            <Search className="w-4 h-4" />
+          </Button>
+          {/* Search Input Field (Conditionally Rendered) */}
+          {isSearchInputVisible && (
+            <div className="relative flex-1 sm:w-64 group animate-in fade-in slide-in-from-right-2 duration-200">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+              <Input 
+                placeholder="Search Gig Repertoire..." 
+                value={searchTerm} 
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="h-10 sm:h-9 pl-9 text-[11px] font-bold bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-xl focus-visible:ring-indigo-500"
+              />
+            </div>
+          )}
         </div>
       </div>
 
