@@ -39,9 +39,6 @@ serve(async (req) => {
         fileSizeLimit: 52428800 // 50 MB
       })
       if (createError) throw createError
-      console.log(`Bucket '${bucketName}' created successfully.`)
-    } else {
-      console.log(`Bucket '${bucketName}' already exists.`)
     }
 
     // 3. Set up RLS policies using the Storage API
@@ -50,9 +47,6 @@ serve(async (req) => {
     // The previous SQL error was due to missing permissions, but using the Service Role Key via `supabaseAdmin.rpc` or direct SQL execution should work.
     // However, the `supabaseAdmin` client doesn't have a direct method for storage policies.
     // The most reliable way is to execute SQL commands using the Service Role Key.
-    
-    // Let's try a different approach: Use `supabaseAdmin.rpc` to execute SQL commands that manage storage policies.
-    // This requires the `pg_crypto` extension to be enabled, which is usually default.
     
     // We will execute the SQL commands directly using the admin client's `rpc` capability if available, or fall back to a message.
     // Since `supabase-js` doesn't have a direct method for storage RLS, we'll provide the SQL commands for the user to run manually in the Supabase SQL Editor.
@@ -89,7 +83,7 @@ USING (bucket_id = 'public_audio');
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
 
-  } catch (error) {
+  } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

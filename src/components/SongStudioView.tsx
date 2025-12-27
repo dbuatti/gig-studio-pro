@@ -100,21 +100,15 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
 
   const fetchData = async () => {
     if (!user || !songId) {
-      console.warn("[SongStudioView] fetchData aborted: user or songId missing.", { user, songId });
       return;
     }
     setLoading(true);
-    console.log("[SongStudioView] Attempting to fetch data for songId:", songId, "gigId:", gigId, "userId:", user.id); // Add this log
     try {
       let targetSong: SetlistSong | undefined;
       
       if (gigId === 'library') {
-        console.log("[SongStudioView] Fetching from 'repertoire' table for songId:", songId);
         const { data, error } = await supabase.from('repertoire').select('*').eq('id', songId).single();
-        if (error) {
-          console.error("[SongStudioView] Supabase fetch error for repertoire (gigId=library):", error.message, error.details); // Add detailed error log
-          throw error;
-        }
+        if (error) throw error;
         if (data) {
           targetSong = {
             id: data.id, master_id: data.id, name: data.title, artist: data.artist, previewUrl: data.preview_url,
@@ -128,21 +122,11 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
             is_ug_chords_present: data.is_ug_chords_present, is_ug_link_verified: data.is_ug_link_verified,
             sheet_music_url: data.sheet_music_url, is_sheet_verified: data.is_sheet_verified,
           } as SetlistSong;
-          console.log("[SongStudioView] Successfully fetched song from repertoire:", targetSong.name);
         }
       } else {
-        console.log("[SongStudioView] Fetching from 'setlists' table for gigId:", gigId);
         const { data, error } = await supabase.from('setlists').select('songs').eq('id', gigId).single();
-        if (error) {
-          console.error("[SongStudioView] Supabase fetch error for setlists:", error.message, error.details); // Add detailed error log
-          throw error;
-        }
+        if (error) throw error;
         targetSong = (data?.songs as SetlistSong[])?.find(s => s.id === songId);
-        if (targetSong) {
-          console.log("[SongStudioView] Successfully found song in setlist:", targetSong.name);
-        } else {
-          console.warn("[SongStudioView] Song not found in setlist for songId:", songId);
-        }
       }
 
       if (!targetSong) throw new Error("Song not found in database or setlist.");
@@ -150,11 +134,9 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
       setSong(targetSong);
       setFormData({ ...targetSong, is_pitch_linked: targetSong.is_pitch_linked ?? true });
       if (targetSong.previewUrl) {
-        console.log("[SongStudioView] Loading audio from URL:", targetSong.previewUrl);
         await audio.loadFromUrl(targetSong.previewUrl, targetSong.pitch || 0);
       }
     } catch (err: any) {
-      console.error("[SongStudioView] Caught error during fetchData:", err.message, err); // Add general error log
       showError("Studio failed to initialize: " + err.message);
       onClose();
     } finally {
@@ -185,9 +167,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   }, [song, gigId, user]);
 
   const handleVerifyMetadata = async () => {
-    console.log("[handleVerifyMetadata] Function started.");
     if (!formData.name || !formData.artist) {
-      console.log("[handleVerifyMetadata] Error: Song title or artist missing.");
       showError("Please enter song title and artist first.");
       return;
     }
@@ -195,20 +175,16 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     setIsVerifying(true);
     try {
       const query = encodeURIComponent(`${formData.artist} ${formData.name}`);
-      console.log(`[handleVerifyMetadata] Fetching iTunes data for query: ${query}`);
       const response = await fetch(`https://itunes.apple.com/search?term=${query}&entity=song&limit=1`);
       
       if (!response.ok) {
-        console.error(`[handleVerifyMetadata] iTunes API response not OK: ${response.status} ${response.statusText}`);
         throw new Error(`iTunes API error: ${response.statusText}`);
       }
 
       const data = await response.json();
-      console.log("[handleVerifyMetadata] iTunes API response received:", data);
       
       if (data.results && data.results.length > 0) {
         const track = data.results[0];
-        console.log("[handleVerifyMetadata] Top iTunes result:", track);
         
         // Extract duration in seconds
         const durationSeconds = track.trackTimeMillis ? Math.floor(track.trackTimeMillis / 1000) : 0;
@@ -226,11 +202,9 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
         // Fix: Set a reasonable default BPM if not already present, instead of incorrect calculation
         if (durationSeconds > 0 && !formData.bpm) {
           updates.bpm = "120"; // Set a reasonable default BPM
-          console.log(`[handleVerifyMetadata] Default BPM set to: 120`);
         }
 
         // Apply updates
-        console.log("[handleVerifyMetadata] Applying updates:", updates);
         handleAutoSave(updates);
         showSuccess(`Imported metadata: ${track.trackName} - ${track.artistName}`);
 
@@ -241,17 +215,14 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
         }
 
       } else {
-        console.log("[handleVerifyMetadata] No iTunes match found.");
         showError("No iTunes match found. Try manual search.");
         window.open(`https://music.apple.com/us/search?term=${query}`, '_blank');
       }
     } catch (err: any) {
-      console.error("[handleVerifyMetadata] Caught error:", err.message);
       showError("Failed to fetch iTunes data. Opening manual search.");
       window.open(`https://music.apple.com/us/search?term=${encodeURIComponent(`${formData.artist} ${formData.name}`)}`, '_blank');
     } finally {
       setIsVerifying(false);
-      console.log("[handleVerifyMetadata] Function finished.");
     }
   };
 

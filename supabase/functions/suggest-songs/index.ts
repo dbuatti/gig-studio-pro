@@ -11,8 +11,6 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders })
   }
 
-  const functionName = "suggest-songs";
-
   try {
     const { repertoire, seedSong } = await req.json();
     
@@ -23,7 +21,6 @@ serve(async (req) => {
     ].filter(Boolean);
 
     if (keys.length === 0) {
-      console.error(`[${functionName}] Error: Missing API Key configuration.`);
       throw new Error("Missing API Key configuration.");
     }
 
@@ -47,7 +44,6 @@ serve(async (req) => {
       Return ONLY a JSON array of objects: [{"name": "Song Title", "artist": "Artist Name", "reason": "Short reason why"}]. No markdown.`;
     }
 
-    console.log(`[${functionName}] Starting AI request. Seed: ${seedSong ? seedSong.name : 'Profile'}`);
     let lastError = null;
 
     for (const apiKey of keys) {
@@ -66,19 +62,16 @@ serve(async (req) => {
         
         if (response.status === 429 || response.status >= 500) {
           lastError = result.error?.message || response.statusText;
-          console.warn(`[${functionName}] API attempt failed (Status ${response.status}). Retrying key. Error: ${lastError}`);
           continue;
         }
 
         if (!response.ok) {
-          console.error(`[${functionName}] API returned non-OK status: ${response.status}. Error: ${result.error?.message}`);
           throw new Error(result.error?.message || "Gemini Error");
         }
 
         const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
         
         if (!text) {
-          console.error(`[${functionName}] AI returned empty text response.`);
           throw new Error("AI returned empty response.");
         }
 
@@ -86,29 +79,24 @@ serve(async (req) => {
         const jsonMatch = text.match(/\[[\s\S]*\]/);
         
         if (!jsonMatch) {
-          console.error(`[${functionName}] Invalid format from AI. Raw text: ${text.substring(0, 200)}`);
           throw new Error("Invalid format from AI: Expected JSON array.");
         }
         
-        console.log(`[${functionName}] Successfully received and parsed AI response.`);
         return new Response(jsonMatch[0], {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
 
       } catch (err: any) {
         lastError = err.message;
-        console.error(`[${functionName}] Request/Parsing error: ${err.message}`);
       }
     }
 
-    console.error(`[${functionName}] All API keys exhausted. Final error: ${lastError}`);
     return new Response(JSON.stringify({ error: `Engine exhausted all keys. Final error: ${lastError}` }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
   } catch (error: any) {
-    console.error(`[${functionName}] Uncaught error: ${error.message}`);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

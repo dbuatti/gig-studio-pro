@@ -70,9 +70,6 @@ serve(async (req) => {
       const placeholders = result.metadata?.secret_scanning?.bypass_placeholders;
       
       if (placeholders && Array.isArray(placeholders)) {
-        console.log(`[Sync] Secret detected. Attempting bypass with ${placeholders.length} IDs...`);
-        
-        // Extract IDs and build bypass message
         const bypassIds = placeholders.map(p => p.placeholder_id).join(', ');
         const bypassMessage = `${message || 'Update via Studio Admin'} [bypass-secret: ${bypassIds}]`;
         
@@ -97,7 +94,7 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
-  } catch (error) {
+  } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

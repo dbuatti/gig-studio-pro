@@ -70,13 +70,12 @@ serve(async (req) => {
 
       } catch (err) {
         lastError = err.message;
-        console.error(`[AI Engine] Attempt failed: ${err.message}`);
       }
     }
 
     throw new Error(`All API keys exhausted. Last error: ${lastError}`);
 
-  } catch (error) {
+  } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

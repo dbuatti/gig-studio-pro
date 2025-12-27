@@ -86,9 +86,6 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
     setYtResults([]);
     setLastQuery(searchTerm);
 
-    // Debug Log as per notes
-    console.log(`[YoutubeDiscovery] Executing Level 1 Query: "${searchTerm}"`);
-
     // Strategy 1: Google YouTube API (Optimized with Developer Notes Alignment)
     if (ytApiKey) {
       try {
@@ -122,7 +119,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
           }
         }
       } catch (e) {
-        console.error("YouTube API failed, switching to proxy fallback", e);
+        // Silent failure, will try proxy fallback
       }
     }
 
@@ -244,7 +241,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
         .upload(fileName, audioArrayBuffer, { contentType: 'audio/mpeg', upsert: true });
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage.from('public_audio').getPublicUrl(fileName);
+      const { data: { publicUrl } } = await supabase.storage.from('public_audio').getPublicUrl(fileName);
 
       await onLoadAudioFromUrl(publicUrl, formData.pitch || 0);
       handleAutoSave({ previewUrl: publicUrl, duration_seconds: audioBuffer.duration });

@@ -27,8 +27,6 @@ serve(async (req) => {
       throw new Error("Invalid song list provided.");
     }
 
-    console.log(`[global-auto-sync] Processing ${songIds.length} tracks...`);
-
     const results = [];
 
     for (const id of songIds) {
@@ -76,7 +74,6 @@ serve(async (req) => {
             metadata_source: 'itunes_autosync',
             auto_synced: true
           };
-          console.log(`[global-auto-sync] iTunes Ref: ${topResult.trackName} (${itunesDurationSec}s)`);
         } else {
           lastSyncLog = 'No iTunes match found.';
           throw new Error(lastSyncLog);
@@ -110,12 +107,11 @@ serve(async (req) => {
               if (filtered.length > 0) {
                 videos = filtered;
                 searchSuccess = true;
-                console.log(`[global-auto-sync] [${song.title}] YouTube hits found on ${instance}`);
                 break;
               }
             }
           } catch (e) {
-            console.warn(`[global-auto-sync] Instance ${instance} failed for query ${ytSearchQuery}`);
+            // Fail silently, try next instance
           }
         }
 
@@ -148,7 +144,6 @@ serve(async (req) => {
         matchedVideo = findMatch(30); // Tier 1: Strict 30s match
         if (!matchedVideo) matchedVideo = findMatch(60); // Tier 2: Relaxed 60s match
         if (!matchedVideo) { // Tier 3: Fallback to best non-forbidden video if no duration match
-          console.log(`[global-auto-sync] [${song.title}] No duration match found. Falling back to best non-forbidden hit.`);
           matchedVideo = findMatch(null);
         }
 
@@ -171,7 +166,6 @@ serve(async (req) => {
         }
 
       } catch (err: any) {
-        console.error(`[global-auto-sync] Error on track ${id}:`, err.message);
         lastSyncLog = err.message;
         await supabaseAdmin.from('repertoire').update({ 
           sync_status: 'ERROR',
@@ -188,7 +182,6 @@ serve(async (req) => {
     });
 
   } catch (error: any) {
-    console.error(`[global-auto-sync] Uncaught error: ${error.message}`);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

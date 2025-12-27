@@ -317,7 +317,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
 
         if (uploadError) throw uploadError;
 
-        const { data: { publicUrl } } = supabase.storage.from('public_audio').getPublicUrl(fileName);
+        const { data: { publicUrl } } = await supabase.storage.from('public_audio').getPublicUrl(fileName);
 
         await supabase.from('repertoire').update({ 
           extraction_status: 'COMPLETED',

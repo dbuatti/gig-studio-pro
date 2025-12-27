@@ -39,8 +39,6 @@ serve(async (req) => {
       throw new Error("Invalid song list provided.");
     }
 
-    console.log(`[bulk-populate-youtube-links] Starting batch process for ${songIds.length} tracks.`);
-
     const results = [];
     const EXCLUDED_KEYWORDS = ['cover', 'tutorial', 'karaoke', 'lesson', 'instrumental', 'remix'];
 
@@ -58,7 +56,6 @@ serve(async (req) => {
         await supabaseAdmin.from('repertoire').update({ sync_status: 'SYNCING', last_sync_log: 'Starting link population...' }).eq('id', id);
 
         // 1. Get Reference Duration from iTunes (High Precision Metadata)
-        console.log(`[bulk-populate-youtube-links] [${song.title}] Fetching iTunes reference...`);
         const itunesQuery = encodeURIComponent(`${song.artist} ${song.title}`);
         const itunesRes = await fetch(`https://itunes.apple.com/search?term=${itunesQuery}&entity=song&limit=1`);
         
@@ -66,17 +63,11 @@ serve(async (req) => {
           const errorText = await itunesRes.text();
           console.error(`[bulk-populate-youtube-links] iTunes API request failed: ${itunesRes.status} - ${errorText.substring(0, 100)}`);
           // Don't throw, just log and continue without iTunes duration
-          lastSyncLog += `iTunes API failed: ${itunesRes.status}. `;
         }
         
         const itunesData = await itunesRes.json();
         const topItunes = itunesData.results?.[0];
         const refDurationSec = topItunes ? Math.floor(topItunes.trackTimeMillis / 1000) : 0;
-        if (refDurationSec > 0) {
-          lastSyncLog += `iTunes duration: ${refDurationSec}s. `;
-        } else {
-          lastSyncLog += `No iTunes duration found. `;
-        }
 
         // 2. Refined Multi-Pass Search
         const searchArtist = topItunes?.artistName || song.artist;
@@ -103,12 +94,11 @@ serve(async (req) => {
                 if (filtered.length > 0) {
                   videos = filtered;
                   searchSuccess = true;
-                  console.log(`[bulk-populate-youtube-links] [${song.title}] YouTube hits found on ${instance}`);
                   break;
                 }
               }
             } catch (e) {
-              console.warn(`[bulk-populate-youtube-links] Instance ${instance} failed for query ${query}`);
+              // Fail silently, try next instance
             }
           }
         }
@@ -146,7 +136,6 @@ serve(async (req) => {
 
         // Tier 3: Extreme Match (Ignore duration if we have a hit that isn't a forbidden keyword)
         if (!matchedVideo) {
-          console.log(`[bulk-populate-youtube-links] [${song.title}] No duration match found. Falling back to best hit.`);
           matchedVideo = findMatch(null);
         }
 
@@ -169,7 +158,6 @@ serve(async (req) => {
         }
 
       } catch (err: any) {
-        console.error(`[bulk-populate-youtube-links] Error on track ${id}:`, err.message);
         lastSyncLog = err.message;
         await supabaseAdmin.from('repertoire').update({ 
           sync_status: 'ERROR',
@@ -192,7 +180,6 @@ serve(async (req) => {
     });
 
   } catch (error: any) {
-    console.error(`[bulk-populate-youtube-links] Uncaught error: ${error.message}`);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

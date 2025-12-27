@@ -44,7 +44,7 @@ interface PerformanceOverlayProps {
 
 type ViewMode = 'visualizer' | 'pdf' | 'lyrics';
 
-const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
+const PerformanceOverlay: React.FC<OverlayProps> = ({
   songs,
   currentIndex,
   isPlaying,
@@ -257,7 +257,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
+    const secs = Math.floor(seconds %  60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
@@ -392,7 +392,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex overflow-hidden h-full">
+      <div className="flex-1 flex overflow-hidden">
         <div className="flex-1 flex flex-col relative overflow-hidden">
           {/* Background Ambient FX */}
           <div className="absolute inset-0 opacity-10 pointer-events-none blur-[120px] scale-150 overflow-hidden">
@@ -539,7 +539,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
                 </div>
                 <div className="space-y-3">
                   <div className="flex justify-between items-baseline">
-                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Velocity</span>
+                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Velocity</span>
                     <span className="text-xl font-black text-pink-400 font-mono">{scrollSpeed.toFixed(2)}x</span>
                   </div>
                   <Slider
@@ -562,12 +562,12 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
             <div className="bg-white/5 rounded-[2rem] p-6 xl:p-8 border border-white/10 space-y-6">
               <div className="grid grid-cols-2 gap-6 relative">
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest font-mono mb-1">Original</span>
+                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest font-mono mb-1">Original</span>
                   <span className="text-2xl font-mono font-black text-slate-400">{currentSong?.originalKey || "TBC"}</span>
                 </div>
                 <div className="h-10 w-px bg-white/10 absolute left-1/2 -translate-x-1/2 top-2" />
                 <div className="flex flex-col items-end">
-                  <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest font-mono mb-1">Stage Key</span>
+                  <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest font-mono mb-1">Stage Key</span>
                   <div className="flex items-center gap-2">
                     <span className="text-2xl font-mono font-black text-white">{displayCurrentKey}</span>
                     {currentSong?.isKeyConfirmed && <Check className="w-5 h-5 text-emerald-500" />}
@@ -638,7 +638,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
       {/* Bottom Performance Footer */}
       <div className="h-24 md:h-28 border-t border-white/10 bg-slate-900/90 backdrop-blur-2xl px-6 md:px-12 flex items-center justify-between shrink-0 relative z-50">
         <div className="hidden sm:flex items-center gap-6 md:gap-10 text-sm font-mono min-w-[280px] md:min-w-[320px]">
-          <span className="text-lg md:text-2xl font-black text-indigo-400">{formatTime(currentTimeValue)}</span>
+          <span className="text-lg md:text-2xl font-black text-indigo-400">{formatTime((progress / 100) * duration)}</span>
           <div className="flex-1 w-40 md:w-64 space-y-2">
              <Progress value={progress} className="h-2 md:h-3 bg-white/5" />
              <div className="flex justify-between text-[8px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest">
