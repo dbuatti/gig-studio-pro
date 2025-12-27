@@ -10,7 +10,8 @@ import Landing from "./pages/Landing";
 import NotFound from "./pages/NotFound";
 import Profile from "./pages/Profile";
 import PublicRepertoire from "./pages/PublicRepertoire";
-import SheetReaderMode from "./pages/SheetReaderMode"; // Import the new component
+import SheetReaderMode from "./pages/SheetReaderMode";
+import SongStudio from "./pages/SongStudio";
 
 const queryClient = new QueryClient();
 
@@ -47,6 +48,11 @@ const App = () => (
             <Route path="/sheet-reader" element={
               <ProtectedRoute>
                 <SheetReaderMode />
+              </ProtectedRoute>
+            } />
+            <Route path="/gig/:gigId/song/:songId" element={
+              <ProtectedRoute>
+                <SongStudio />
               </ProtectedRoute>
             } />
             <Route path="*" element={<NotFound />} />

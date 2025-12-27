@@ -21,7 +21,6 @@ import { cn } from "@/lib/utils";
 import { useSettings } from '@/hooks/use-settings';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { syncToMasterRepertoire } from '@/utils/repertoireSync';
-import SongStudioModal from '@/components/SongStudioModal';
 import * as Tone from 'tone';
 import { cleanYoutubeUrl } from '@/utils/youtubeUtils';
 import { useNavigate } from 'react-router-dom';
@@ -41,7 +40,6 @@ const Index = () => {
   const [activeSongIdState, setActiveSongId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isSearchPanelOpen, setIsSearchPanelOpen] = useState(false); 
-  const [selectedSongForStudio, setSelectedSongForStudio] = useState<SetlistSong | null>(null);
   const [isPerformanceMode, setIsPerformanceMode] = useState(false);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false); 
@@ -166,7 +164,6 @@ const Index = () => {
   const handleAddToSetlist = async (previewUrl: string, name: string, artist: string, youtubeUrl?: string, ugUrl?: string, appleMusicUrl?: string, genre?: string, pitch: number = 0) => {
     if (!user) return;
     
-    // Auto-create setlist if none exists
     let activeId = currentListId;
     if (!activeId) {
       const gigName = `Mobile Session ${new Date().toLocaleDateString()}`;
@@ -193,7 +190,7 @@ const Index = () => {
           is_pitch_linked: true
         };
     
-    const list = setlists.find(l => l.id === activeId) || (await supabase.from('setlists').select('*').eq('id', activeId).single()).data;
+    const list = setlists.find(l => l.id === activeId);
     if (!list) return;
 
     const updatedSongs = [...(list.songs || []), newSong];
@@ -291,84 +288,58 @@ const Index = () => {
     setTimeout(() => transposerRef.current?.togglePlayback(), 1000);
   };
 
-  const isItunesPreview = (url: string) => url && (url.includes('apple.com') || url.includes('itunes-assets'));
-
   const isPlayableMaster = (song: SetlistSong) => {
     if (!song.previewUrl) return false;
-    return !isItunesPreview(song.previewUrl);
+    return !(song.previewUrl.includes('apple.com') || song.previewUrl.includes('itunes-assets'));
   };
 
   const downloadAndUploadAudioForSong = async (songToProcess: SetlistSong) => {
     const targetVideoUrl = cleanYoutubeUrl(songToProcess.youtubeUrl || '');
-
-    if (!targetVideoUrl || !user?.id || !songToProcess.id) {
-      return { success: false, songId: songToProcess.id, error: "Missing required data." };
-    }
-
+    if (!targetVideoUrl || !user?.id || !songToProcess.id) return { success: false };
     handleUpdateSong(songToProcess.id, { isSyncing: true });
-
     try {
       const API_BASE_URL = "https://yt-audio-api-1-wedr.onrender.com";
-      
       const tokenResponse = await fetch(`${API_BASE_URL}/?url=${encodeURIComponent(targetVideoUrl)}`);
-      if (!tokenResponse.ok) throw new Error(`API Error: ${tokenResponse.status}`);
+      if (!tokenResponse.ok) throw new Error("API Error");
       const { token } = await tokenResponse.json();
-
       let attempts = 0;
-      const MAX_POLLING_ATTEMPTS = 30;
-      const POLLING_INTERVAL_MS = 5000;
-
-      let fileResponse: Response | undefined;
       let downloadReady = false;
-
-      while (attempts < MAX_POLLING_ATTEMPTS && !downloadReady) {
+      let fileResponse;
+      while (attempts < 30 && !downloadReady) {
         attempts++;
-        await new Promise(resolve => setTimeout(resolve, POLLING_INTERVAL_MS));
+        await new Promise(r => setTimeout(r, 5000));
         fileResponse = await fetch(`${API_BASE_URL}/download?token=${token}`);
-        if (fileResponse.status === 200) {
-          downloadReady = true;
-          break;
-        }
+        if (fileResponse.status === 200) { downloadReady = true; break; }
       }
-
       if (!downloadReady || !fileResponse) throw new Error("Timed out");
-
       const audioArrayBuffer = await fileResponse.arrayBuffer();
       const audioBuffer = await Tone.getContext().decodeAudioData(audioArrayBuffer.slice(0));
-
       const fileName = `${user.id}/${songToProcess.id}/${Date.now()}.mp3`;
-      const { error: uploadError } = await supabase.storage.from('public_audio').upload(fileName, audioArrayBuffer, { contentType: 'audio/mpeg', upsert: true });
-      if (uploadError) throw uploadError;
-
+      await supabase.storage.from('public_audio').upload(fileName, audioArrayBuffer, { contentType: 'audio/mpeg', upsert: true });
       const { data: { publicUrl } } = supabase.storage.from('public_audio').getPublicUrl(fileName);
-
-      handleUpdateSong(songToProcess.id, { 
-        previewUrl: publicUrl, 
-        duration_seconds: audioBuffer.duration,
-        isSyncing: false
-      });
-      return { success: true, songId: songToProcess.id };
-    } catch (err: any) {
+      handleUpdateSong(songToProcess.id, { previewUrl: publicUrl, duration_seconds: audioBuffer.duration, isSyncing: false });
+      return { success: true };
+    } catch (err) {
       handleUpdateSong(songToProcess.id, { isSyncing: false });
-      return { success: false, songId: songToProcess.id, error: err.message };
+      return { success: false };
     }
   };
 
   const handleDownloadAllMissingAudio = async () => {
     if (!currentListId) return;
-    const songsToDownload = songs.filter(song => song.youtubeUrl && (!song.previewUrl || isItunesPreview(song.previewUrl)));
+    const songsToDownload = songs.filter(song => song.youtubeUrl && (!song.previewUrl || song.previewUrl.includes('apple.com')));
     if (songsToDownload.length === 0) return;
-
     setIsBulkDownloading(true);
-    for (const song of songsToDownload) {
-      await downloadAndUploadAudioForSong(song);
-    }
+    for (const song of songsToDownload) await downloadAndUploadAudioForSong(song);
     setIsBulkDownloading(false);
   };
 
-  const handleSyncProData = async (song: SetlistSong) => {
-    // Placeholder logic for Pro Data sync
-    showSuccess(`Pro Data Sync initiated for ${song.name}`);
+  const handleEditSong = (song: SetlistSong) => {
+    if (currentListId) {
+      navigate(`/gig/${currentListId}/song/${song.id}`);
+    } else {
+      showError("Please select a gig first");
+    }
   };
 
   return (
@@ -376,9 +347,7 @@ const Index = () => {
       <nav className="h-16 md:h-20 bg-white dark:bg-slate-900 border-b px-4 md:px-6 flex items-center justify-between z-30 shadow-sm shrink-0">
         <div className="flex items-center gap-3 md:gap-6 flex-1 min-w-0">
           <div className="flex items-center gap-2 shrink-0 cursor-pointer select-none" onClick={() => setIsAdminOpen(true)}>
-            <div className="bg-indigo-600 p-1.5 rounded-lg text-white">
-              <LayoutDashboard className="w-5 h-5" />
-            </div>
+            <div className="bg-indigo-600 p-1.5 rounded-lg text-white"><LayoutDashboard className="w-5 h-5" /></div>
             <span className="font-black uppercase tracking-tighter text-lg text-slate-900 dark:text-white hidden sm:block">Gig Studio <span className="text-indigo-600">Pro</span></span>
           </div>
           <SetlistSelector setlists={setlists} currentId={currentListId || ''} onSelect={setCurrentListId}
@@ -386,18 +355,10 @@ const Index = () => {
               const name = prompt("Enter Gig Name:");
               if (name) {
                 const { data } = await supabase.from('setlists').insert([{ user_id: user?.id, name, songs: [], time_goal: 7200 }]).select().single();
-                if (data) {
-                   await fetchSetlists();
-                   setCurrentListId(data.id);
-                }
+                if (data) { await fetchSetlists(); setCurrentListId(data.id); }
               }
             }}
-            onDelete={async (id) => {
-              if (confirm("Delete gig?")) {
-                await supabase.from('setlists').delete().eq('id', id);
-                fetchSetlists();
-              }
-            }}
+            onDelete={async (id) => { if (confirm("Delete gig?")) { await supabase.from('setlists').delete().eq('id', id); fetchSetlists(); } }}
           />
         </div>
         <div className="flex items-center gap-2 md:gap-6 shrink-0 ml-2">
@@ -429,22 +390,19 @@ const Index = () => {
                   <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full"><ShieldCheck className="w-3 h-3 text-emerald-500" /><span className="text-[9px] font-black uppercase text-emerald-600 tracking-widest">Headless Sync Active</span></div>
                 </div>
               </div>
-              <ImportSetlist onImport={(newSongs) => {
-                if (!currentListId) return;
-                saveList(currentListId, [...songs, ...newSongs.map(s => ({ ...s, isSyncing: false, isApproved: false }))], {}, newSongs);
-              }} />
+              <ImportSetlist onImport={(newSongs) => { if (!currentListId) return; saveList(currentListId, [...songs, ...newSongs.map(s => ({ ...s, isSyncing: false, isApproved: false }))], {}, newSongs); }} />
             </div>
             <SetlistStats songs={songs} goalSeconds={currentList?.time_goal} onUpdateGoal={(s) => currentListId && saveList(currentListId, songs, { time_goal: s }, undefined)} onDownloadAllMissingAudio={handleDownloadAllMissingAudio} isBulkDownloading={isBulkDownloading} />
             <SetlistManager 
               songs={songs} 
               onRemove={(id) => currentListId && saveList(currentListId, songs.filter(s => s.id !== id), {}, undefined)} 
               onSelect={handleSelectSong} 
-              onEdit={setSelectedSongForStudio}
+              onEdit={handleEditSong}
               onUpdateKey={handleUpdateKey} 
               onTogglePlayed={handleTogglePlayed} 
               onLinkAudio={(n) => { setIsSearchPanelOpen(true); transposerRef.current?.triggerSearch(n); }}
               onUpdateSong={handleUpdateSong} 
-              onSyncProData={handleSyncProData}
+              onSyncProData={() => Promise.resolve()}
               onReorder={(ns) => currentListId && saveList(currentListId, ns, {}, undefined)} 
               currentSongId={activeSongIdState || undefined} 
               onOpenAdmin={() => setIsAdminOpen(true)} 
@@ -462,18 +420,7 @@ const Index = () => {
               <Button variant="ghost" size="sm" onClick={() => setIsSearchPanelOpen(false)} className="text-[10px] font-bold uppercase">Hide</Button>
             </div>
             <div className="flex-1 overflow-y-auto">
-              <AudioTransposer 
-                ref={transposerRef} 
-                onAddToSetlist={handleAddToSetlist} 
-                onAddExistingSong={handleAddExistingSong} 
-                onUpdateSongKey={handleUpdateKey} 
-                onSongEnded={handleNextSong} 
-                onPlaybackChange={setIsPlayerActive} 
-                repertoire={masterRepertoire} 
-                currentSong={activeSong} 
-                onOpenAdmin={() => setIsAdminOpen(true)} 
-                currentList={currentList}
-              />
+              <AudioTransposer ref={transposerRef} onAddToSetlist={handleAddToSetlist} onAddExistingSong={handleAddExistingSong} onUpdateSongKey={handleUpdateKey} onSongEnded={handleNextSong} onPlaybackChange={setIsPlayerActive} repertoire={masterRepertoire} currentSong={activeSong} onOpenAdmin={() => setIsAdminOpen(true)} currentList={currentList} />
             </div>
           </div>
         </aside>
@@ -483,21 +430,6 @@ const Index = () => {
       {isPerformanceMode && (
         <PerformanceOverlay songs={songs.filter(isPlayableMaster)} currentIndex={songs.filter(isPlayableMaster).findIndex(s => s.id === activeSongIdState)} isPlaying={isPlayerActive} progress={performanceState.progress} duration={performanceState.duration} onTogglePlayback={() => transposerRef.current?.togglePlayback()} onNext={handleNextSong} onPrevious={handlePreviousSong} onShuffle={handleShuffle} onClose={() => { setIsPerformanceMode(false); setActiveSongId(null); transposerRef.current?.stopPlayback(); }} onUpdateKey={handleUpdateKey} onUpdateSong={handleUpdateSong} analyzer={transposerRef.current?.getAnalyzer()} onOpenAdmin={() => setIsAdminOpen(true)} />
       )}
-      
-      <SongStudioModal 
-        song={selectedSongForStudio} 
-        isOpen={!!selectedSongForStudio}
-        onClose={() => setSelectedSongForStudio(null)}
-        onSave={handleUpdateSong} 
-        onUpdateKey={handleUpdateKey}
-        onOpenAdmin={() => setIsAdminOpen(true)}
-        onPerform={(songToPerform) => {
-          setSelectedSongForStudio(null);
-          handleSelectSong(songToPerform);
-        }}
-        currentList={currentList}
-        onAddSongToGig={handleAddToSetlist}
-      />
     </div>
   );
 };
