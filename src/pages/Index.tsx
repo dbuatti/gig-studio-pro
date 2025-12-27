@@ -14,8 +14,9 @@ import SongStudioModal from "@/components/SongStudioModal";
 import SetlistSettingsModal from "@/components/SetlistSettingsModal";
 import ResourceAuditModal from "@/components/ResourceAuditModal";
 import RepertoirePicker from "@/components/RepertoirePicker";
+import SetlistExporter from "@/components/SetlistExporter"; // Import SetlistExporter
 import { MadeWithDyad } from "@/components/made-with-dyad";
-import { showSuccess, showError } from '@/utils/toast';
+import { showSuccess, showError, showInfo } from '@/utils/toast';
 import { calculateSemitones } from '@/utils/keyUtils';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
@@ -83,6 +84,9 @@ const Index = () => {
   
   const [searchTerm, setSearchTerm] = useState("");
   const [isBulkDownloading, setIsBulkDownloading] = useState(false);
+  const [isAutoLinking, setIsAutoLinking] = useState(false);
+  const [isGlobalSyncing, setIsGlobalSyncing] = useState(false);
+  const [isClearingAutoLinks, setIsClearingAutoLinks] = useState(false);
 
   const isSyncingRef = useRef(false);
   const saveQueueRef = useRef<any[]>([]);
@@ -111,10 +115,27 @@ const Index = () => {
 
     base = base.filter(s => {
       const score = calculateReadiness(s);
-      if (score > activeFilters.readiness) return false;
+      if (score < activeFilters.readiness) return false; // Changed from > to <
+      
       const hasFullAudio = !!s.previewUrl && !(s.previewUrl.includes('apple.com') || s.previewUrl.includes('itunes-assets'));
       if (activeFilters.hasAudio === 'full' && !hasFullAudio) return false;
+      if (activeFilters.hasAudio === 'itunes' && !(s.previewUrl && (s.previewUrl.includes('apple.com') || s.previewUrl.includes('itunes-assets')))) return false;
+      if (activeFilters.hasAudio === 'none' && (s.previewUrl && !s.previewUrl.includes('apple.com') && !s.previewUrl.includes('itunes-assets'))) return false;
+
       if (activeFilters.isApproved === 'yes' && !s.isApproved) return false;
+      if (activeFilters.isApproved === 'no' && s.isApproved) return false;
+
+      if (activeFilters.isConfirmed === 'yes' && !s.isKeyConfirmed) return false;
+      if (activeFilters.isConfirmed === 'no' && s.isKeyConfirmed) return false;
+
+      if (activeFilters.hasVideo === 'yes' && !s.youtubeUrl) return false;
+      if (activeFilters.hasVideo === 'no' && s.youtubeUrl) return false;
+
+      if (activeFilters.hasPdf === 'yes' && !s.pdfUrl) return false;
+      if (activeFilters.hasPdf === 'no' && s.pdfUrl) return false;
+
+      if (activeFilters.hasUg === 'yes' && !s.ugUrl) return false;
+      if (activeFilters.hasUg === 'no' && s.ugUrl) return false;
       
       // NEW: Filter by hasUgChords
       if (activeFilters.hasUgChords === 'yes' && !s.is_ug_chords_present) return false;
@@ -184,7 +205,10 @@ const Index = () => {
           is_ug_chords_present: d.is_ug_chords_present // Ensure this is mapped
         })));
       }
-    } catch (err) {}
+    } catch (err) {
+      console.error("Error fetching master repertoire:", err);
+      showError("Failed to load master repertoire.");
+    }
   };
 
   const fetchSetlists = async () => {
@@ -194,7 +218,10 @@ const Index = () => {
         setSetlists(data.map(d => ({ id: d.id, name: d.name, songs: (d.songs as any[]) || [], time_goal: d.time_goal })));
         if (!currentListId) setCurrentListId(data[0].id);
       }
-    } catch (err) {}
+    } catch (err) {
+      console.error("Error fetching setlists:", err);
+      showError("Failed to load setlists.");
+    }
   };
 
   const saveList = async (listId: string, updatedSongs: SetlistSong[], updates: any = {}, songsToSync?: SetlistSong[]) => {
@@ -215,6 +242,10 @@ const Index = () => {
       
       setSetlists(prev => prev.map(l => l.id === listId ? { ...l, songs: finalSongs, ...updates } : l));
       if (songsToSync?.length) fetchMasterRepertoire();
+      showSuccess("Setlist Saved!");
+    } catch (err) {
+      console.error("Error saving setlist:", err);
+      showError("Failed to save setlist.");
     } finally {
       setIsSaving(false);
     }
@@ -236,7 +267,10 @@ const Index = () => {
   };
 
   const handleAddToGig = (song: SetlistSong) => {
-    if (!currentListId) return;
+    if (!currentListId) {
+      showError("No active setlist selected. Please create or select one.");
+      return;
+    }
     const newEntry = { ...song, id: Math.random().toString(36).substr(2, 9), master_id: song.master_id || song.id, isPlayed: false, isApproved: false };
     saveList(currentListId, [...currentList!.songs, newEntry]);
     showSuccess(`Added "${song.name}" to gig`);
@@ -244,7 +278,7 @@ const Index = () => {
 
   const handleAddNewSongToCurrentSetlist = async (previewUrl: string, name: string, artist: string, youtubeUrl?: string, ugUrl?: string, appleMusicUrl?: string, genre?: string, pitch?: number) => {
     if (!currentListId) {
-      showError("No active setlist selected.");
+      showError("No active setlist selected. Please create or select one.");
       return;
     }
     const newSong: SetlistSong = {
@@ -303,6 +337,153 @@ const Index = () => {
     }
   };
 
+  const missingAudioTracks = useMemo(() => {
+    return masterRepertoire.filter(song => 
+      song.youtubeUrl && (!song.previewUrl || (song.previewUrl.includes('apple.com') || song.previewUrl.includes('itunes-assets')))
+    ).length;
+  }, [masterRepertoire]);
+
+  const handleAutoLink = async () => {
+    setIsAutoLinking(true);
+    showInfo("Initiating Smart-Link Discovery...");
+    try {
+      const missingLinks = masterRepertoire.filter(s => !s.youtubeUrl || s.youtubeUrl.trim() === '');
+      if (missingLinks.length === 0) {
+        showSuccess("All tracks already have YouTube links.");
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('bulk-populate-youtube-links', {
+        body: { songIds: missingLinks.map(s => s.id) }
+      });
+
+      if (error) throw error;
+      showSuccess("Smart-Link Discovery Complete!");
+      fetchMasterRepertoire(); // Refresh repertoire after update
+    } catch (err: any) {
+      showError(`Smart-Link Failed: ${err.message}`);
+    } finally {
+      setIsAutoLinking(false);
+    }
+  };
+
+  const handleGlobalAutoSync = async () => {
+    setIsGlobalSyncing(true);
+    showInfo("Initiating Global Auto-Sync Pipeline...");
+    try {
+      const songsToSync = masterRepertoire.filter(s => !s.isMetadataConfirmed || !s.auto_synced);
+      if (songsToSync.length === 0) {
+        showSuccess("All tracks are already optimized.");
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('global-auto-sync', {
+        body: { songIds: songsToSync.map(s => s.id), overwrite: false } // Assuming no overwrite for now
+      });
+
+      if (error) throw error;
+      showSuccess("Global Auto-Sync Pipeline Complete!");
+      fetchMasterRepertoire(); // Refresh repertoire after update
+    } catch (err: any) {
+      showError(`Global Auto-Sync Failed: ${err.message}`);
+    } finally {
+      setIsGlobalSyncing(false);
+    }
+  };
+
+  const handleBulkRefreshAudio = async () => {
+    setIsBulkDownloading(true);
+    showInfo("Initiating Bulk Audio Re-Extraction...");
+    try {
+      const songsToExtract = masterRepertoire.filter(s => s.youtubeUrl && (!s.previewUrl || s.previewUrl.includes('apple.com') || s.previewUrl.includes('itunes-assets')));
+      if (songsToExtract.length === 0) {
+        showSuccess("No YouTube links found for re-extraction.");
+        return;
+      }
+
+      for (const song of songsToExtract) {
+        showInfo(`Extracting audio for: ${song.name}`);
+        const targetVideoUrl = cleanYoutubeUrl(song.youtubeUrl || '');
+        if (!targetVideoUrl) continue;
+
+        const API_BASE_URL = "https://yt-audio-api-1-wedr.onrender.com";
+        const tokenResponse = await fetch(`${API_BASE_URL}/?url=${encodeURIComponent(targetVideoUrl)}`);
+        if (!tokenResponse.ok) throw new Error("API Connection Failed");
+        const { token } = await tokenResponse.json();
+
+        let attempts = 0;
+        let fileResponse: Response | undefined;
+        let downloadReady = false;
+
+        while (attempts < 30 && !downloadReady) {
+          attempts++;
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          fileResponse = await fetch(`${API_BASE_URL}/download?token=${token}`);
+          if (fileResponse.status === 200) {
+            downloadReady = true;
+            break;
+          }
+        }
+
+        if (!downloadReady || !fileResponse) throw new Error("Audio extraction timed out.");
+
+        const audioArrayBuffer = await fileResponse.arrayBuffer();
+        const audioBuffer = await Tone.getContext().decodeAudioData(audioArrayBuffer.slice(0));
+
+        const fileName = `${user?.id}/${song.id}/${Date.now()}.mp3`;
+        const { error: uploadError } = await supabase.storage
+          .from('public_audio')
+          .upload(fileName, audioArrayBuffer, { contentType: 'audio/mpeg', upsert: true });
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage.from('public_audio').getPublicUrl(fileName);
+
+        await supabase.from('repertoire').update({ 
+          preview_url: publicUrl, 
+          duration_seconds: audioBuffer.duration,
+          extraction_status: 'COMPLETED'
+        }).eq('id', song.id);
+        showSuccess(`Audio extracted for "${song.name}"`);
+      }
+      showSuccess("Bulk Audio Re-Extraction Complete!");
+      fetchMasterRepertoire(); // Refresh repertoire after update
+    } catch (err: any) {
+      showError(`Bulk Audio Extraction Failed: ${err.message}`);
+    } finally {
+      setIsBulkDownloading(false);
+    }
+  };
+
+  const handleClearAutoLinks = async () => {
+    setIsClearingAutoLinks(true);
+    showInfo("Clearing auto-populated links...");
+    try {
+      const autoPopulated = masterRepertoire.filter(s => s.metadata_source === 'auto_populated');
+      if (autoPopulated.length === 0) {
+        showSuccess("No auto-populated links found to clear.");
+        return;
+      }
+
+      const { error } = await supabase
+        .from('repertoire')
+        .update({ 
+          youtube_url: null, 
+          metadata_source: null,
+          sync_status: 'IDLE',
+          last_sync_log: 'Cleared auto-populated link'
+        })
+        .in('id', autoPopulated.map(s => s.id));
+
+      if (error) throw error;
+      showSuccess("Auto-populated links cleared!");
+      fetchMasterRepertoire(); // Refresh repertoire after update
+    } catch (err: any) {
+      showError(`Failed to clear auto-links: ${err.message}`);
+    } finally {
+      setIsClearingAutoLinks(false);
+    }
+  };
+
   return (
     <div className="h-screen bg-slate-50 dark:bg-slate-950 flex flex-col overflow-hidden relative">
       <nav className="h-16 md:h-20 bg-white dark:bg-slate-900 border-b px-4 md:px-6 flex items-center justify-between z-30 shadow-sm shrink-0">
@@ -335,7 +516,7 @@ const Index = () => {
                 const name = prompt("Gig Name:");
                 if (name) {
                   const { data } = await supabase.from('setlists').insert([{ user_id: user?.id, name, songs: [] }]).select().single();
-                  if (data) { await fetchSetlists(); setCurrentListId(data.id); }
+                  if (data) { await fetchSetlists(); setCurrentListId(data[0].id); }
                 }
               }}
               onDelete={async (id) => { if(confirm("Delete gig?")) { await supabase.from('setlists').delete().eq('id', id); fetchSetlists(); } }}
@@ -416,6 +597,17 @@ const Index = () => {
           </div>
 
           {/* Automation Hub (Only on Repertoire) */}
+          {viewMode === 'repertoire' && (
+            <SetlistExporter 
+              songs={masterRepertoire} 
+              onAutoLink={handleAutoLink}
+              onGlobalAutoSync={handleGlobalAutoSync}
+              onBulkRefreshAudio={handleBulkRefreshAudio}
+              onClearAutoLinks={handleClearAutoLinks}
+              isBulkDownloading={isBulkDownloading} 
+              missingAudioCount={missingAudioTracks}
+            />
+          )}
           {viewMode === 'setlist' && (
             <SetlistStats songs={songs} goalSeconds={currentList?.time_goal} onUpdateGoal={(s) => saveList(currentListId!, songs, { time_goal: s })} />
           )}
@@ -452,7 +644,11 @@ const Index = () => {
         masterRepertoire={masterRepertoire} // Pass master repertoire
       />
       <PreferencesModal isOpen={isPreferencesOpen} onClose={() => setIsPreferencesOpen(false)} />
-      <AdminPanel isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} />
+      <AdminPanel 
+        isOpen={isAdminOpen} 
+        onClose={() => setIsAdminOpen(false)} 
+        onRefreshRepertoire={fetchMasterRepertoire} // Pass refresh function
+      />
       <ResourceAuditModal isOpen={isAuditModalOpen} onClose={() => setIsAuditModalOpen(false)} songs={songs} onVerify={handleUpdateSong} />
       
       {isPerformanceMode && (

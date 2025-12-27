@@ -6,7 +6,6 @@ import { Clock, Music, Target, PieChart, BarChart3, Download, Loader2 } from 'lu
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { Input } from './ui/input';
-import SetlistExporter from './SetlistExporter';
 import { Button } from './ui/button';
 import { calculateReadiness } from '@/utils/repertoireSync';
 
@@ -14,24 +13,12 @@ interface SetlistStatsProps {
   songs: SetlistSong[];
   goalSeconds?: number;
   onUpdateGoal?: (seconds: number) => void;
-  onAutoLink?: () => Promise<void>;
-  onGlobalAutoSync?: () => Promise<void>;
-  onBulkRefreshAudio?: () => Promise<void>;
-  onClearAutoLinks?: () => Promise<void>;
-  onDownloadAllMissingAudio?: () => Promise<void>;
-  isBulkDownloading?: boolean;
 }
 
 const SetlistStats: React.FC<SetlistStatsProps> = ({ 
   songs, 
   goalSeconds = 7200, 
   onUpdateGoal, 
-  onAutoLink, 
-  onGlobalAutoSync,
-  onBulkRefreshAudio,
-  onClearAutoLinks,
-  onDownloadAllMissingAudio, 
-  isBulkDownloading 
 }) => {
   const [isEditingGoal, setIsEditingGoal] = useState(false);
   
@@ -73,10 +60,6 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({
     .sort((a, b) => b[1] - a[1])
     .slice(0, 3);
 
-  const missingAudioTracks = songs.filter(song => 
-    song.youtubeUrl && (!song.previewUrl || (song.previewUrl.includes('apple.com') || song.previewUrl.includes('itunes-assets')))
-  ).length;
-
   return (
     <div className="space-y-4 mb-8">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -85,7 +68,7 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({
           
           <div className="flex items-center justify-between mb-4 relative z-10">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/20">
+              <div className="h-10 w-10 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-600/20">
                 <Target className="w-5 h-5" />
               </div>
               <div>
@@ -163,15 +146,7 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({
           </div>
         </div>
 
-        <SetlistExporter 
-          songs={songs} 
-          onAutoLink={onAutoLink}
-          onGlobalAutoSync={onGlobalAutoSync}
-          onBulkRefreshAudio={onBulkRefreshAudio}
-          onClearAutoLinks={onClearAutoLinks}
-          isBulkDownloading={isBulkDownloading} 
-          missingAudioCount={missingAudioTracks}
-        />
+        {/* SetlistExporter removed from here */}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

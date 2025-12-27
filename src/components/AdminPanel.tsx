@@ -50,11 +50,12 @@ import * as Tone from 'tone';
 interface AdminPanelProps {
   isOpen: boolean;
   onClose: () => void;
+  onRefreshRepertoire: () => void; // New prop
 }
 
 type AdminTab = 'vault' | 'maintenance' | 'automation';
 
-const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
+const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshRepertoire }) => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<AdminTab>('vault');
   
@@ -156,6 +157,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     setIsAutoSyncing(false);
     showSuccess("Global Auto-Sync Operation Finished");
     fetchMaintenanceData();
+    onRefreshRepertoire(); // Refresh main repertoire view
   };
 
   const handlePopulateMissingLinks = async () => {
@@ -197,6 +199,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     setIsPopulatingLinks(false);
     showSuccess("Bulk Link Population Complete");
     fetchMaintenanceData();
+    onRefreshRepertoire(); // Refresh main repertoire view
   };
 
   const handleClearAutoPopulatedLinks = async () => {
@@ -229,6 +232,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
       addLog(`Cleared ${autoPopulated.length} links successfully.`, 'success');
       showSuccess("Links cleared");
       fetchMaintenanceData();
+      onRefreshRepertoire(); // Refresh main repertoire view
     } catch (err: any) {
       addLog(`Clear Error: ${err.message}`, 'error');
     } finally {
@@ -332,6 +336,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     setIsExtracting(false);
     showSuccess("Bulk Override Process Complete");
     fetchMaintenanceData();
+    onRefreshRepertoire(); // Refresh main repertoire view
   };
 
   const handleSupabaseUpload = async (file: File) => {
@@ -585,7 +590,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                     </div>
                     <div>
                       <h4 className="text-xl font-black uppercase tracking-tight">GitHub Clipboard Push</h4>
-                      <p className="text-[10px] text-indigo-400 font-black uppercase tracking-widest">Update Repository Assets</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest">Update Repository Assets</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
