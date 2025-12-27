@@ -53,7 +53,7 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
     const n = calculateSemitones(originalKey, targetKey);
     if (n === 0) return chordsText;
     
-    return transposeChords(chordsText, n, keyPreference);
+    return transposeChords(chordsText, n, keyPreference); // Pass keyPreference
   }, [chordsText, originalKey, targetKey, keyPreference]);
 
   // Ensure chords are readable on dark background if color is set to black

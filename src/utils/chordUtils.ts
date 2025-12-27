@@ -46,18 +46,14 @@ export const transposeChords = (text: string, semitones: number, keyPref: KeyPre
     
     // Process each line to transpose chords
     return line.replace(CHORD_REGEX, (match, rootNote, chordType = '', bassNote = '') => {
-      // Transpose the root note (returns sharp notation internally)
-      const transposedRootSharp = transposeKey(rootNote, semitones);
-      
-      // Format the transposed root based on preference (e.g., C# -> Db if flats selected)
-      const transposedRoot = formatKey(transposedRootSharp, keyPref);
+      // Transpose the root note using the updated transposeKey
+      const transposedRoot = transposeKey(rootNote, semitones, keyPref);
       
       // If there's a bass note, transpose it too
       let transposedBass = '';
       if (bassNote) {
         const bassNoteRoot = bassNote.substring(1); // Remove the '/'
-        const transposedBassSharp = transposeKey(bassNoteRoot, semitones);
-        const transposedBassRoot = formatKey(transposedBassSharp, keyPref);
+        const transposedBassRoot = transposeKey(bassNoteRoot, semitones, keyPref);
         transposedBass = `/${transposedBassRoot}`;
       }
       

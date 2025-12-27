@@ -43,7 +43,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
   isPitchLinked,
   setIsPitchLinked,
 }) => {
-  const { keyPreference } = useSettings();
+  const { keyPreference } = useSettings(); // Use global key preference
   const [chordsText, setChordsText] = useState(formData.ug_chords_text || "");
   // localTransposeSemitones is only active when isPitchLinked is false
   const [localTransposeSemitones, setLocalTransposeSemitones] = useState(0);
@@ -55,7 +55,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
 
   const transposedText = useMemo(() => {
     if (!chordsText || activeTransposeOffset === 0) return chordsText;
-    return transposeChords(chordsText, activeTransposeOffset, keyPreference);
+    return transposeChords(chordsText, activeTransposeOffset, keyPreference); // Pass keyPreference
   }, [chordsText, activeTransposeOffset, keyPreference]);
 
   useEffect(() => {
@@ -316,7 +316,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
                   variant="outline" 
                   size="sm" 
                   onClick={handleApplyTranspose}
-                  disabled={isPitchLinked || activeTransposeOffset === 0}
+                  disabled={isPitchLinked || activeTransposeOffset === 0} // Disable if linked or no offset
                   className="h-7 px-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase rounded-lg"
                 >
                   Apply

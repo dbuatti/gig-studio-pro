@@ -87,14 +87,14 @@ export const calculateSemitones = (original: string | undefined, target: string 
   return diff;
 };
 
-export const transposeKey = (key: string | undefined, semitones: number): string => {
+export const transposeKey = (key: string | undefined, semitones: number, preference: 'flats' | 'sharps' = 'sharps'): string => {
   const normKey = normalizeKeyString(key);
   if (normKey === "TBC") return "TBC";
   
   const isMinor = normKey.endsWith('m');
   const root = isMinor ? normKey.slice(0, -1) : normKey;
   
-  const normalizedRoot = MAPPING_TO_SHARP[root] || root;
+  const normalizedRoot = MAPPING_TO_SHARP[root] || root; // Always convert to sharp for calculation
   let idx = SHARP_KEYS.indexOf(normalizedRoot);
   
   if (idx === -1) return normKey; 
@@ -102,8 +102,12 @@ export const transposeKey = (key: string | undefined, semitones: number): string
   let newIdx = (idx + semitones) % 12;
   if (newIdx < 0) newIdx += 12;
   
-  const newRoot = SHARP_KEYS[newIdx];
-  return isMinor ? `${newRoot}m` : newRoot;
+  const newRootSharp = SHARP_KEYS[newIdx];
+  
+  // Now format the new root based on the preference
+  const newRootFormatted = preference === 'flats' ? (MAPPING_TO_FLAT[newRootSharp] || newRootSharp) : newRootSharp;
+
+  return isMinor ? `${newRootFormatted}m` : newRootFormatted;
 };
 
 /**
