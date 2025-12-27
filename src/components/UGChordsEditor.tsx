@@ -11,7 +11,7 @@ import { SetlistSong } from './SetlistManager';
 import { transposeChords } from '@/utils/chordUtils';
 import { useSettings } from '@/hooks/use-settings';
 import { cn } from "@/lib/utils";
-import { Play, RotateCcw, Download, Palette, Type, AlignCenter, AlignLeft, AlignRight, ExternalLink, Search, Check, Link as LinkIcon, Loader2, Music } from 'lucide-react';
+import { Play, RotateCcw, Download, Palette, Type, AlignCenter, AlignLeft, AlignRight, ExternalLink, Search, Check, Link as LinkIcon, Loader2, Music, Eye } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { calculateSemitones, transposeKey } from '@/utils/keyUtils';
@@ -552,9 +552,14 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
 
           {/* Preview */}
           <div className="bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-3xl p-6 flex flex-col flex-1">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
-              Preview
-            </Label>
+            <div className="flex items-center justify-between mb-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Live Preview
+              </Label>
+              <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">
+                {activeTransposeOffset > 0 ? '+' : ''}{activeTransposeOffset} ST
+              </span>
+            </div>
             <div 
               className="flex-1 bg-slate-950 rounded-xl p-4 overflow-auto border border-white/10 font-mono"
               style={{ 
