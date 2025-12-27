@@ -44,7 +44,7 @@ interface PerformanceOverlayProps {
 
 type ViewMode = 'visualizer' | 'pdf' | 'lyrics';
 
-const PerformanceOverlay: React.FC<OverlayProps> = ({
+const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
   songs,
   currentIndex,
   isPlaying,

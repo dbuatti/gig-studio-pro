@@ -1058,7 +1058,7 @@ const Index = () => {
           currentSong={processedSongs.find(s => s.id === activeSongIdState) || null}
           onUpdateSongKey={handleUpdateKey}
           onSongEnded={() => { console.log("[Index]   AudioTransposer: Song ended."); }}
-          onPlaybackChange={(isPlaying) => { console.log("[Index]   AudioTransposer: Playback changed to:", isPlaying); }}
+          onPlaybackChange={useCallback((isPlaying) => { console.log("[Index]   AudioTransposer: Playback changed to:", isPlaying); }, [])}
           onOpenAdmin={() => { setIsAdminOpen(true); console.log("[Index]   AudioTransposer: Opening admin panel."); }}
           currentList={currentList}
         />
