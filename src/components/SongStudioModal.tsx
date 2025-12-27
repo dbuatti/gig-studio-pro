@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import SongStudioView from './SongStudioView';
 import { useNavigate } from 'react-router-dom';
 import { SetlistSong } from './SetlistManager';
@@ -35,6 +35,14 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-[95vw] w-[1400px] h-[90vh] p-0 overflow-hidden bg-slate-950 border-white/10 rounded-[2.5rem] shadow-2xl">
+        {/* Accessible Header (Hidden visually) */}
+        <DialogHeader className="sr-only">
+          <DialogTitle>Song Studio - Editing Song</DialogTitle>
+          <DialogDescription>
+            Configure audio processing, metadata, and charts for the selected track.
+          </DialogDescription>
+        </DialogHeader>
+
         <SongStudioView 
           gigId={gigId} 
           songId={songId} 
