@@ -59,20 +59,13 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
   // Ensure chords are readable on dark background if color is set to black
   const readableChordColor = config.chordColor === "#000000" ? "#ffffff" : config.chordColor;
 
-  const formattedHtml = formatChordText(transposedChordsText, {
+  const formattedHtml = useMemo(() => formatChordText(transposedChordsText, {
     fontFamily: config.fontFamily,
     fontSize: config.fontSize,
     chordBold: config.chordBold,
     chordColor: readableChordColor,
     lineSpacing: config.lineSpacing
-  });
-
-  // NEW: Debugging logs
-  useEffect(() => {
-    console.log("[UGChordsReader] Rendered. chordsText length:", chordsText?.length, "formattedHtml length:", formattedHtml?.length);
-    console.log("[UGChordsReader] Config:", config);
-    console.log("[UGChordsReader] Transposed Text (first 100 chars):", transposedChordsText?.substring(0, 100));
-  }, [chordsText, formattedHtml, config, transposedChordsText]);
+  }), [transposedChordsText, config, readableChordColor]);
 
   // NEW: Auto-scroll logic
   useEffect(() => {

@@ -17,7 +17,7 @@ import { showSuccess, showError } from '@/utils/toast';
 interface FloatingCommandDockProps {
   onOpenSearch: () => void;
   onOpenPractice: () => void;
-  onOpenReader: (initialSongId?: string) => void; // Updated to accept initialSongId
+  onOpenReader: (initialSongId?: string) => void;
   onOpenAdmin: () => void;
   onOpenPreferences: () => void;
   onToggleHeatmap: () => void;
@@ -60,21 +60,19 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   currentSongHighestNote,
   currentSongPitch,
   onSafePitchToggle,
-  isReaderMode = false, // Default to false
-  activeSongId, // Use activeSongId
-  onSetMenuOpen, // NEW
-  onSetUiVisible, // NEW
-  isMenuOpen, // NEW
+  isReaderMode = false,
+  activeSongId,
+  onSetMenuOpen,
+  onSetUiVisible,
+  isMenuOpen,
 }) => {
-  const [isCommandHubOpen, setIsCommandHubOpen] = useState(false); // This is for the main dock (non-reader mode)
-  const [isSafePitchActive, setIsSafePitchActive] = useState(false); // Declare isSafePitchActive
+  const [isCommandHubOpen, setIsCommandHubOpen] = useState(false);
+  const [isSafePitchActive, setIsSafePitchActive] = useState(false);
   const { safePitchMaxNote } = useSettings();
 
   // Calculate safe pitch limit
   const safePitchLimit = useMemo(() => {
     if (!currentSongHighestNote || !safePitchMaxNote) return null;
-    // Calculate the semitone difference between the song's highest note and the user's safe limit
-    // Positive value means we can go up, negative means we are already over the limit
     const semitones = compareNotes(safePitchMaxNote, currentSongHighestNote);
     return semitones;
   }, [currentSongHighestNote, safePitchMaxNote]);
@@ -82,7 +80,6 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   // Effect to handle Safe Pitch Mode logic
   useEffect(() => {
     if (isSafePitchActive && safePitchLimit !== null) {
-      // If current pitch is already over the limit, reset to 0 or the limit
       const currentPitch = currentSongPitch || 0;
       if (currentPitch > safePitchLimit) {
         onSafePitchToggle?.(false, 0);
@@ -91,11 +88,9 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
         return;
       }
       
-      // Apply the calculated safe pitch
       onSafePitchToggle?.(true, safePitchLimit);
       showSuccess(`Safe Pitch Mode Active: Max shift ${safePitchLimit} semitones`);
     } else if (!isSafePitchActive) {
-      // Reset pitch when mode is disabled
       onSafePitchToggle?.(false, 0);
     }
   }, [isSafePitchActive, safePitchLimit, currentSongPitch, onSafePitchToggle]);

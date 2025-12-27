@@ -39,7 +39,7 @@ import { cleanYoutubeUrl } from '@/utils/youtubeUtils';
 import { useNavigate } from 'react-router-dom';
 import { FilterState } from '@/components/SetlistFilters';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
-import { useReaderSettings } from '@/hooks/use-reader-settings'; // NEW: Import useReaderSettings
+import { useReaderSettings } from '@/hooks/use-reader-settings';
 
 type ViewMode = 'repertoire' | 'setlist';
 
@@ -59,7 +59,7 @@ const Index = () => {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const { keyPreference, safePitchMaxNote } = useSettings();
-  const { alwaysShowAllToasts } = useReaderSettings(); // NEW: Get alwaysShowAllToasts
+  const { alwaysShowAllToasts } = useReaderSettings();
   const navigate = useNavigate();
   
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
@@ -489,14 +489,29 @@ const Index = () => {
 
   const startSheetReader = (initialSongId?: string) => {
     console.log("[Index] [startSheetReader] called with initialSongId:", initialSongId);
+    
+    // FIX: Reset filters to ensure songs are visible in the Reader
+    console.log("[Index]   Resetting filters to ensure visibility in Reader.");
+    setActiveFilters(INITIAL_FILTERS);
+    setSearchTerm("");
+    setSortMode("none");
+
+    // Calculate readable songs based on the full list (not filtered)
     const readable = songs.filter(s => s.ugUrl || s.pdfUrl || s.leadsheetUrl || s.ug_chords_text);
     if (!readable.length) { 
       showError("No readable charts found."); 
       console.warn("[Index]   No readable charts found for sheet reader mode.");
       return; 
     }
+    
     setIsSheetReaderMode(true);
-    navigate(initialSongId ? `/sheet-reader/${initialSongId}` : '/sheet-reader');
+    
+    // If we have an active song, pass it to the reader
+    if (activeSongIdState) {
+        navigate(`/sheet-reader/${activeSongIdState}`);
+    } else {
+        navigate('/sheet-reader');
+    }
     console.log("[Index]   Entering sheet reader mode.");
   };
 

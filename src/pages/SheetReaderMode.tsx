@@ -121,11 +121,20 @@ const SheetReaderMode: React.FC = () => {
 
       setAllSongs(mappedSongs);
 
+      // Determine initial index
+      let initialIndex = 0;
       const targetId = routeSongId || searchParams.get('id');
+      
       if (targetId) {
         const idx = mappedSongs.findIndex((s) => s.id === targetId);
-        if (idx !== -1) setCurrentIndex(idx);
+        if (idx !== -1) initialIndex = idx;
       }
+      
+      // Safety check: if index is out of bounds (e.g. song deleted), reset to 0
+      if (initialIndex >= mappedSongs.length) initialIndex = 0;
+      
+      setCurrentIndex(initialIndex);
+
     } catch (err) {
       showError('Failed to load repertoire');
     } finally {
@@ -138,12 +147,14 @@ const SheetReaderMode: React.FC = () => {
   }, [fetchSongs]);
 
   // === Filtering ===
+  // In Reader Mode, we ignore the Dashboard filters to ensure we can navigate ALL songs
   const filteredSongs = useMemo(() => {
+    // We only filter by "Approved" unless the user has explicitly disabled the gate in settings
     let result = allSongs.filter((s) => ignoreConfirmedGate || s.isApproved);
     return result.sort((a, b) => a.name.localeCompare(b.name));
   }, [allSongs, ignoreConfirmedGate]);
 
-  // Index safety
+  // Index safety - ensure we never have an invalid index
   useEffect(() => {
     if (filteredSongs.length === 0) return;
     if (currentIndex >= filteredSongs.length) {
@@ -151,10 +162,13 @@ const SheetReaderMode: React.FC = () => {
     }
   }, [filteredSongs, currentIndex]);
 
-  // URL sync
+  // URL sync - update URL when song changes
   useEffect(() => {
     const song = filteredSongs[currentIndex];
-    if (song) setSearchParams({ id: song.id }, { replace: true });
+    if (song) {
+      // Use replace to avoid filling history stack
+      setSearchParams({ id: song.id }, { replace: true });
+    }
   }, [currentIndex, filteredSongs, setSearchParams]);
 
   const currentSong = filteredSongs[currentIndex];
@@ -193,7 +207,11 @@ const SheetReaderMode: React.FC = () => {
   // === Navigation ===
   const goToSong = useCallback(
     (index: number) => {
-      if (isNavigatingRef.current || index === currentIndex) return;
+      // Prevent rapid clicks and ensure we stay within bounds
+      if (isNavigatingRef.current) return;
+      if (index < 0 || index >= filteredSongs.length) return;
+      if (index === currentIndex) return;
+
       isNavigatingRef.current = true;
 
       setCurrentIndex(index);
@@ -201,22 +219,24 @@ const SheetReaderMode: React.FC = () => {
       setIsImmersiveMode(false);
       showTemporaryUI();
 
-      // Reset the navigation lock after a short delay to allow state updates to settle
+      // Reset the navigation lock after a short delay
       setTimeout(() => {
         isNavigatingRef.current = false;
       }, 500);
     },
-    [currentIndex, stopPlayback, showTemporaryUI]
+    [currentIndex, filteredSongs.length, stopPlayback, showTemporaryUI]
   );
 
   const handleNext = useCallback(() => {
     if (filteredSongs.length === 0) return;
-    goToSong((currentIndex + 1) % filteredSongs.length);
+    const nextIndex = (currentIndex + 1) % filteredSongs.length;
+    goToSong(nextIndex);
   }, [currentIndex, filteredSongs.length, goToSong]);
 
   const handlePrev = useCallback(() => {
     if (filteredSongs.length === 0) return;
-    goToSong((currentIndex - 1 + filteredSongs.length) % filteredSongs.length);
+    const prevIndex = (currentIndex - 1 + filteredSongs.length) % filteredSongs.length;
+    goToSong(prevIndex);
   }, [currentIndex, filteredSongs.length, goToSong]);
 
   // === Swipe Navigation ===
@@ -413,7 +433,9 @@ const SheetReaderMode: React.FC = () => {
             >
               <SheetReaderHeader
                 currentSong={currentSong}
-                onClose={() => navigate('/')}
+                onClose={() => {
+                  navigate('/');
+                }}
                 onSearchClick={() => setIsRepertoirePickerOpen(true)}
                 onPrevSong={handlePrev}
                 onNextSong={handleNext}
