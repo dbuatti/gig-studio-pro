@@ -38,6 +38,10 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
   // 6. Basic Metadata (Max 5)
   if (song.artist && song.artist !== "Unknown Artist") assetScore += 5;
 
+  // 7. UG Link Presence (Max 5) - NEW REQUIREMENT
+  // If a UG link is present, it contributes to the readiness score.
+  if (song.ugUrl) assetScore += 5;
+
   // Final Gate Steps
   let finalScore = Math.min(85, assetScore);
   

@@ -82,6 +82,13 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
     return isFramable(currentChartUrl);
   }, [activeChartType, formData.ugUrl, currentChartUrl, isFramable]);
 
+  // Auto-switch to UG tab if UG URL is saved and no PDF is present
+  React.useEffect(() => {
+    if (formData.ugUrl && !formData.pdfUrl && activeChartType !== 'ug') {
+      setActiveChartType('ug');
+    }
+  }, [formData.ugUrl, formData.pdfUrl, activeChartType, setActiveChartType]);
+
   return (
     <div className={cn("h-full flex flex-col animate-in fade-in duration-500", isReaderExpanded ? "gap-0" : "gap-8")}>
       {!isReaderExpanded && (

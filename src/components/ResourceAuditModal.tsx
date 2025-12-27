@@ -21,7 +21,7 @@ import {
   Link2Off,
   ClipboardPaste,
   AlertTriangle,
-  AlertCircle, // Added this line
+  AlertCircle, 
   FileText,
   Guitar,
   Check
@@ -235,7 +235,7 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
                               <SearchCode className="w-3.5 h-3.5" /> Find & Bind
                             </Button>
                             {hasLink && !isVerified && (
-                              <Button onClick={() => handleVerify(song)} className="h-9 px-4 bg-emerald-600 text-white font-black uppercase text-[9px] rounded-xl gap-2 shadow-lg">
+                              <Button onClick={() => handleVerify(song)} className="h-9 px-4 bg-emerald-600 text-white font-black uppercase text-[9px] rounded-xl gap-2 shadow-lg shadow-emerald-600/20">
                                 <ShieldCheck className="w-3.5 h-3.5" /> Verify
                               </Button>
                             )}

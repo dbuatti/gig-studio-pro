@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { SetlistSong } from './SetlistManager';
 import { sanitizeUGUrl } from '@/utils/ugUtils';
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { showSuccess } from '@/utils/toast';
 
 const StudioInput = React.memo(({ label, value, onChange, placeholder, className, isTextarea = false, type = "text" }: {
   label?: string;
@@ -63,9 +63,12 @@ interface SongDetailsTabProps {
 }
 
 const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSave, isMobile }) => {
+  // State for UG Link
   const [localUgUrl, setLocalUgUrl] = useState(formData.ugUrl || "");
-  const [localSheetUrl, setLocalSheetUrl] = useState(formData.sheet_music_url || formData.pdfUrl || formData.leadsheetUrl || "");
   const [isUgModified, setIsUgModified] = useState(false);
+
+  // State for Sheet Music Link
+  const [localSheetUrl, setLocalSheetUrl] = useState(formData.sheet_music_url || formData.pdfUrl || formData.leadsheetUrl || "");
   const [isSheetModified, setIsSheetModified] = useState(false);
 
   // Sync local state when formData changes (e.g., from parent or auto-save)
@@ -89,17 +92,21 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
   const handleUgBlur = () => {
     if (localUgUrl !== formData.ugUrl) {
       const cleanUrl = sanitizeUGUrl(localUgUrl);
+      // Explicitly save to the database
       handleAutoSave({ ugUrl: cleanUrl, is_ug_link_verified: false });
+      showSuccess("UG Link Saved");
     }
   };
 
   const handleVerifyUgLink = () => {
     handleAutoSave({ is_ug_link_verified: true });
+    showSuccess("UG Link Verified");
   };
 
   const handleRebindUg = () => {
     handleAutoSave({ ugUrl: "", is_ug_link_verified: false });
-    window.open(`https://www.ultimate-guitar.com/search.php?search_type=title&value=${encodeURIComponent((formData.artist || '') + ' ' + (formData.name || ''))}`, '_blank');
+    const query = encodeURIComponent((formData.artist || '') + ' ' + (formData.name || '') + ' chords');
+    window.open(`https://www.ultimate-guitar.com/search.php?search_type=title&value=${query}`, '_blank');
   };
 
   // --- Sheet Music Link Handlers ---
@@ -116,16 +123,19 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
         sheet_music_url: localSheetUrl,
         is_sheet_verified: false 
       });
+      showSuccess("Sheet Music Link Saved");
     }
   };
 
   const handleVerifySheetLink = () => {
     handleAutoSave({ is_sheet_verified: true });
+    showSuccess("Sheet Link Verified");
   };
 
   const handleRebindSheet = () => {
     handleAutoSave({ sheet_music_url: "", is_sheet_verified: false });
-    window.open(`https://www.google.com/search?q=${encodeURIComponent((formData.artist || '') + ' ' + (formData.name || '') + ' sheet music pdf')}`, '_blank');
+    const query = encodeURIComponent((formData.artist || '') + ' ' + (formData.name || '') + ' sheet music pdf');
+    window.open(`https://www.google.com/search?q=${query}`, '_blank');
   };
 
   return (
@@ -165,7 +175,7 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
                 <Input 
                   value={localUgUrl} 
                   onChange={(e) => handleUgChange(e.target.value)}
-                  onBlur={handleUgBlur}
+                  onBlur={handleUgBlur} // Ensure save on blur
                   placeholder="Paste direct UG URL..." 
                   className={cn(
                     "bg-white/5 border-white/10 font-bold h-12 rounded-xl w-full pl-10",
@@ -218,7 +228,7 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
                 <Input 
                   value={localSheetUrl} 
                   onChange={(e) => handleSheetChange(e.target.value)}
-                  onBlur={handleSheetBlur}
+                  onBlur={handleSheetBlur} // Ensure save on blur
                   placeholder="Paste PDF, Leadsheet, or UG URL..." 
                   className={cn(
                     "bg-white/5 border-white/10 font-bold h-12 rounded-xl w-full pl-10",
