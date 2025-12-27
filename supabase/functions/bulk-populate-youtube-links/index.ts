@@ -45,6 +45,7 @@ serve(async (req) => {
     const EXCLUDED_KEYWORDS = ['cover', 'tutorial', 'karaoke', 'lesson', 'instrumental', 'remix'];
 
     for (const id of songIds) {
+      let lastSyncLog = '';
       try {
         const { data: song, error: fetchErr } = await supabaseAdmin
           .from('repertoire')
@@ -54,15 +55,28 @@ serve(async (req) => {
 
         if (fetchErr || !song) throw new Error(`Fetch failed for ID ${id}`);
 
-        await supabaseAdmin.from('repertoire').update({ sync_status: 'SYNCING' }).eq('id', id);
+        await supabaseAdmin.from('repertoire').update({ sync_status: 'SYNCING', last_sync_log: 'Starting link population...' }).eq('id', id);
 
         // 1. Get Reference Duration from iTunes (High Precision Metadata)
         console.log(`[bulk-populate-youtube-links] [${song.title}] Fetching iTunes reference...`);
         const itunesQuery = encodeURIComponent(`${song.artist} ${song.title}`);
         const itunesRes = await fetch(`https://itunes.apple.com/search?term=${itunesQuery}&entity=song&limit=1`);
+        
+        if (!itunesRes.ok) {
+          const errorText = await itunesRes.text();
+          console.error(`[bulk-populate-youtube-links] iTunes API request failed: ${itunesRes.status} - ${errorText.substring(0, 100)}`);
+          // Don't throw, just log and continue without iTunes duration
+          lastSyncLog += `iTunes API failed: ${itunesRes.status}. `;
+        }
+        
         const itunesData = await itunesRes.json();
         const topItunes = itunesData.results?.[0];
         const refDurationSec = topItunes ? Math.floor(topItunes.trackTimeMillis / 1000) : 0;
+        if (refDurationSec > 0) {
+          lastSyncLog += `iTunes duration: ${refDurationSec}s. `;
+        } else {
+          lastSyncLog += `No iTunes duration found. `;
+        }
 
         // 2. Refined Multi-Pass Search
         const searchArtist = topItunes?.artistName || song.artist;
@@ -89,7 +103,7 @@ serve(async (req) => {
                 if (filtered.length > 0) {
                   videos = filtered;
                   searchSuccess = true;
-                  console.log(`[bulk-populate-youtube-links] [${song.title}] Hits found on ${instance}`);
+                  console.log(`[bulk-populate-youtube-links] [${song.title}] YouTube hits found on ${instance}`);
                   break;
                 }
               }
@@ -97,6 +111,11 @@ serve(async (req) => {
               console.warn(`[bulk-populate-youtube-links] Instance ${instance} failed for query ${query}`);
             }
           }
+        }
+
+        if (!searchSuccess) {
+          lastSyncLog += 'No YouTube search results found across instances.';
+          throw new Error(lastSyncLog);
         }
 
         let matchedVideo = null;
@@ -135,25 +154,28 @@ serve(async (req) => {
           const youtubeUrl = `https://www.youtube.com/watch?v=${matchedVideo.videoId}`;
           const diff = refDurationSec ? Math.abs(matchedVideo.durationSeconds - refDurationSec) : 'N/A';
           
+          lastSyncLog += `Bound: ${matchedVideo.videoId} (Duration Delta: ${diff}s)`;
           await supabaseAdmin.from('repertoire').update({
             youtube_url: youtubeUrl,
             metadata_source: 'auto_populated',
             sync_status: 'COMPLETED',
-            last_sync_log: `Bound: ${matchedVideo.videoId} (Duration Delta: ${diff}s)`
+            last_sync_log: lastSyncLog
           }).eq('id', id);
 
           results.push({ id, status: 'SUCCESS', title: song.title, videoId: matchedVideo.videoId });
         } else {
-          throw new Error("No searchable records found for this track title/artist combination.");
+          lastSyncLog += "No searchable records found for this track title/artist combination.";
+          throw new Error(lastSyncLog);
         }
 
       } catch (err: any) {
         console.error(`[bulk-populate-youtube-links] Error on track ${id}:`, err.message);
+        lastSyncLog = err.message;
         await supabaseAdmin.from('repertoire').update({ 
           sync_status: 'ERROR',
-          last_sync_log: err.message 
+          last_sync_log: lastSyncLog 
         }).eq('id', id);
-        results.push({ id, status: 'ERROR', msg: err.message, song_id: id });
+        results.push({ id, status: 'ERROR', msg: lastSyncLog, song_id: id });
       }
 
       await new Promise(r => setTimeout(r, 600)); // Rate limit protection
@@ -170,6 +192,7 @@ serve(async (req) => {
     });
 
   } catch (error: any) {
+    console.error(`[bulk-populate-youtube-links] Uncaught error: ${error.message}`);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

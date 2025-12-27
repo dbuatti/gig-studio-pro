@@ -115,7 +115,8 @@ const Index = () => {
 
     base = base.filter(s => {
       const score = calculateReadiness(s);
-      if (score < activeFilters.readiness) return false; // Changed from > to <
+      // Corrected: Filter to show songs with readiness score >= activeFilters.readiness
+      if (score < activeFilters.readiness) return false; 
       
       const hasFullAudio = !!s.previewUrl && !(s.previewUrl.includes('apple.com') || s.previewUrl.includes('itunes-assets'));
       if (activeFilters.hasAudio === 'full' && !hasFullAudio) return false;
