@@ -166,7 +166,8 @@ const Index = () => {
   const fetchMasterRepertoire = async () => {
     if (!user) return;
     try {
-      const { data } = await supabase.from('repertoire').select('*').eq('id', user.id);
+      // FIX: Use user_id instead of id to fetch the repertoire for the current user
+      const { data } = await supabase.from('repertoire').select('*').eq('user_id', user.id);
       if (data) {
         const mapped = (data || []).map(d => ({
           id: d.id, master_id: d.id, name: d.title, artist: d.artist, bpm: d.bpm, lyrics: d.lyrics,
