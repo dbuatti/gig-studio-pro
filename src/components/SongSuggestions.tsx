@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Sparkles, Loader2, Music, Search, PlusCircle, Filter, Target, X } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Sparkles, Loader2, Music, Search, Target, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,14 +15,29 @@ interface SongSuggestionsProps {
   onSelectSuggestion: (query: string) => void;
 }
 
-// Global session cache to persist suggestions and "first load" status across tab remounts
+// Global session cache to persist raw suggestions
 let sessionSuggestionsCache: any[] | null = null;
 let sessionInitialLoadAttempted = false;
 
 const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectSuggestion }) => {
-  const [suggestions, setSuggestions] = useState<any[]>(sessionSuggestionsCache || []);
+  const [rawSuggestions, setRawSuggestions] = useState<any[]>(sessionSuggestionsCache || []);
   const [isLoading, setIsLoading] = useState(false);
   const [seedSongId, setSeedSongId] = useState<string | null>(null);
+
+  // Robust matching logic for duplicates
+  const existingKeys = useMemo(() => {
+    return new Set(repertoire.map(s => 
+      `${s.name.trim().toLowerCase()}-${(s.artist || "").trim().toLowerCase()}`
+    ));
+  }, [repertoire]);
+
+  // Reactive filtering/marking of suggestions
+  const suggestions = useMemo(() => {
+    return rawSuggestions.map(s => ({
+      ...s,
+      isDuplicate: existingKeys.has(`${s.name.trim().toLowerCase()}-${s.artist.trim().toLowerCase()}`)
+    }));
+  }, [rawSuggestions, existingKeys]);
 
   const seedSong = useMemo(() => 
     repertoire.find(s => s.id === seedSongId), 
@@ -35,21 +50,16 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
     try {
       const { data, error } = await supabase.functions.invoke('suggest-songs', {
         body: { 
-          repertoire: repertoire.slice(0, 20),
+          // Pass more items to help AI context, but Gemini has limits
+          repertoire: repertoire.slice(0, 50),
           seedSong: seedSong ? { name: seedSong.name, artist: seedSong.artist } : null
         } 
       });
 
       if (error) throw error;
       
-      const existingKeys = new Set(repertoire.map(s => `${s.name.toLowerCase()}-${(s.artist || "").toLowerCase()}`));
-      const filtered = (data || []).filter((s: any) => {
-        const key = `${s.name.toLowerCase()}-${(s.artist || "").toLowerCase()}`;
-        return !existingKeys.has(key);
-      });
-
-      setSuggestions(filtered);
-      sessionSuggestionsCache = filtered;
+      setRawSuggestions(data || []);
+      sessionSuggestionsCache = data || [];
       sessionInitialLoadAttempted = true;
     } catch (err) {
       console.error("Failed to fetch suggestions", err);
@@ -58,9 +68,8 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
     }
   };
 
-  // Automated load trigger: Only executes if we have never loaded suggestions this session
   useEffect(() => {
-    if (repertoire.length > 0 && !sessionInitialLoadAttempted && suggestions.length === 0) {
+    if (repertoire.length > 0 && !sessionInitialLoadAttempted && rawSuggestions.length === 0) {
       fetchSuggestions();
     }
   }, [repertoire]);
@@ -137,26 +146,41 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
               suggestions.map((song, i) => (
                 <div 
                   key={i}
-                  className="group p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl hover:border-indigo-200 transition-all shadow-sm"
+                  className={cn(
+                    "group p-4 border rounded-2xl transition-all shadow-sm",
+                    song.isDuplicate 
+                      ? "bg-slate-50/50 dark:bg-slate-900/30 border-slate-100 dark:border-slate-800 opacity-60"
+                      : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:border-indigo-200"
+                  )}
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
-                      <h4 className="text-sm font-black uppercase tracking-tight truncate">{song.name}</h4>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-black uppercase tracking-tight truncate">{song.name}</h4>
+                        {song.isDuplicate && <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
+                      </div>
                       <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mt-0.5">{song.artist}</p>
-                      {song.reason && (
+                      {song.isDuplicate ? (
+                        <span className="inline-block mt-2 text-[8px] font-black bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                          Already in Set
+                        </span>
+                      ) : song.reason && (
                         <p className="text-[9px] text-slate-400 font-bold uppercase mt-2 leading-relaxed">
                           {song.reason}
                         </p>
                       )}
                     </div>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={() => onSelectSuggestion(`${song.artist} ${song.name}`)}
-                      className="h-10 w-10 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white shrink-0"
-                    >
-                      <Search className="w-4 h-4" />
-                    </Button>
+                    
+                    {!song.isDuplicate && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => onSelectSuggestion(`${song.artist} ${song.name}`)}
+                        className="h-10 w-10 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white shrink-0"
+                      >
+                        <Search className="w-4 h-4" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))

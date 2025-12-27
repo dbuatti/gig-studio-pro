@@ -24,17 +24,23 @@ serve(async (req) => {
       throw new Error("Missing API Key configuration.");
     }
 
-    const songList = repertoire.map((s: any) => `${s.name || 'Unknown'} - ${s.artist || 'Unknown'}`).join(', ');
+    // Prepare a comprehensive list of titles to exclude
+    const existingTitles = repertoire.map((s: any) => `${s.name || 'Unknown'} - ${s.artist || 'Unknown'}`);
+    const songListString = existingTitles.join(', ');
     
     let prompt = "";
     if (seedSong) {
-      prompt = `Act as a professional music curator. Based specifically on the vibe, genre, and era of the song "${seedSong.name}" by ${seedSong.artist}, suggest 10 similar tracks.
-      EXCLUDE these songs already in the user's repertoire: [${songList}].
-      Focus on tracks that would transition well from the seed song in a live set.
+      prompt = `Act as a professional music curator. Based specifically on the vibe, genre, and era of the song "${seedSong.name}" by ${seedSong.artist}, suggest 10 similar tracks for a live set.
+      
+      CRITICAL: You MUST NOT suggest any of these songs which are ALREADY in the user's library: [${songListString}].
+      
+      Focus on tracks that would transition well from the seed song.
       Return ONLY a JSON array of objects: [{"name": "Song Title", "artist": "Artist Name", "reason": "Connection to ${seedSong.name}"}]. No markdown.`;
     } else {
-      prompt = `Act as a professional music curator. Based on this repertoire: [${songList}], suggest 10 similar songs that would fit this artist's style. 
-      CRITICAL: Do NOT suggest any songs that are already in the list provided above. Suggest entirely new tracks.
+      prompt = `Act as a professional music curator. Based on this existing repertoire: [${songListString}], suggest 10 similar songs that would fit this artist's style. 
+      
+      CRITICAL: You MUST NOT suggest any songs that are already in the library list provided above. Suggest entirely new tracks.
+      
       Return ONLY a JSON array of objects: [{"name": "Song Title", "artist": "Artist Name", "reason": "Short reason why"}]. No markdown.`;
     }
 
@@ -42,7 +48,7 @@ serve(async (req) => {
 
     for (const apiKey of keys) {
       try {
-        const endpoint = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`;
+        const endpoint = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
         
         const response = await fetch(endpoint, {
           method: 'POST',
