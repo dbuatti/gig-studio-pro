@@ -55,7 +55,7 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
   const { keyPreference } = useSettings();
   const [activeTab, setActiveTab] = useState<AuditTab>('ug');
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeFilter, setActiveFilter] = useState<AuditFilter>('unverified');
+  const [activeFilter, setActiveFilter] = useState<AuditFilter>('missing-content'); // Default to missing content
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [hoveredSongId, setHoveredSongId] = useState<string | null>(null);
@@ -73,41 +73,51 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
         const hasChords = !!s.ug_chords_text && s.ug_chords_text.trim() !== "";
         
         switch (activeFilter) {
-          case 'missing-content': return hasLink && !hasChords; // Refined logic
-          case 'missing-link': return !hasLink;
-          case 'all': return true;
+          case 'missing-content': 
+            // NEW LOGIC: Has link but missing chords text
+            return hasLink && !hasChords;
+          case 'missing-link': 
+            return !hasLink;
+          case 'all': 
+            return true;
           case 'unverified':
-          default: return hasLink && !s.is_ug_link_verified; // Only unverified if there's a link
+          default: 
+            // Deprecated: Treat as 'all' since verification is presence-based
+            return true;
         }
       } else {
         const sheetUrl = (s as any).sheet_music_url || s.pdfUrl || s.leadsheetUrl;
         const hasLink = !!sheetUrl && sheetUrl.trim() !== "";
-        const isVerified = (s as any).is_sheet_verified;
-
+        
         switch (activeFilter) {
           case 'missing-link': return !hasLink;
           case 'all': return true;
+          case 'missing-content': return false; // Not applicable for sheets
           case 'unverified':
-          default: return hasLink && !isVerified; // Only unverified if there's a link
+          default: return true;
         }
       }
     });
   }, [songs, searchTerm, activeFilter, activeTab]);
 
+  // Deprecated: Verification is now presence-based. 
+  // This function now just handles the "Paste Chords" workflow or re-binding links.
   const handleVerify = (song: SetlistSong, customUrl?: string) => {
     if (activeTab === 'ug') {
       const urlToVerify = customUrl || song.ugUrl;
       if (!urlToVerify) return;
-      onVerify(song.id, { ugUrl: sanitizeUGUrl(urlToVerify), is_ug_link_verified: true }); // Keep is_ug_link_verified for internal state
+      // Presence-based: Just save the URL, verification flag is set automatically by sync logic
+      onVerify(song.id, { ugUrl: sanitizeUGUrl(urlToVerify) }); 
     } else {
       const urlToVerify = customUrl || (song as any).sheet_music_url || song.pdfUrl || song.leadsheetUrl;
       if (!urlToVerify) return;
-      onVerify(song.id, { sheet_music_url: urlToVerify, is_sheet_verified: true } as any);
+      // Presence-based: Just save the URL
+      onVerify(song.id, { sheet_music_url: urlToVerify } as any);
     }
     
     setEditingId(null);
     setEditValue("");
-    showSuccess(`Verified: ${song.name}`);
+    showSuccess(`Link Saved: ${song.name}`);
   };
 
   const handleRebind = (song: SetlistSong) => {
@@ -166,7 +176,6 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
       onVerify(song.id, {
         ug_chords_text: processedChords,
         is_ug_chords_present: true,
-        is_ug_link_verified: true, // Mark as verified upon pasting chords
         isMetadataConfirmed: true,
         originalKey: extractedOriginalKey,
         targetKey: newTargetKey,
@@ -293,26 +302,14 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
             <div className="flex flex-wrap gap-2 bg-black/20 p-2 rounded-xl shrink-0">
               <Button 
                 variant="ghost" size="sm" 
-                onClick={() => setActiveFilter('unverified')}
+                onClick={() => setActiveFilter('missing-content')}
                 className={cn(
                   "text-[9px] font-black uppercase tracking-widest h-9 px-3 rounded-lg flex-shrink-0",
-                  activeFilter === 'unverified' ? "bg-white text-indigo-600" : "text-white/60"
+                  activeFilter === 'missing-content' ? "bg-white text-indigo-600" : "text-white/60"
                 )}
               >
-                Needs Audit
+                Empty Sheets
               </Button>
-              {activeTab === 'ug' && (
-                <Button 
-                  variant="ghost" size="sm" 
-                  onClick={() => setActiveFilter('missing-content')}
-                  className={cn(
-                    "text-[9px] font-black uppercase tracking-widest h-9 px-3 rounded-lg flex-shrink-0",
-                    activeFilter === 'missing-content' ? "bg-white text-indigo-600" : "text-white/60"
-                  )}
-                >
-                  Empty Sheets
-                </Button>
-              )}
               <Button 
                 variant="ghost" size="sm" 
                 onClick={() => setActiveFilter('missing-link')}
@@ -356,7 +353,6 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
                 const isEditing = editingId === song.id;
                 const sheetUrl = (song as any).sheet_music_url || song.pdfUrl || song.leadsheetUrl;
                 const hasLink = activeTab === 'ug' ? !!song.ugUrl : !!sheetUrl;
-                const isVerified = activeTab === 'ug' ? song.is_ug_link_verified : (song as any).is_sheet_verified;
                 const hasChords = !!song.ug_chords_text && song.ug_chords_text.trim() !== "";
 
                 return (
@@ -385,7 +381,7 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
                           </div>
                         ) : (
                           <>
-                            {activeTab === 'ug' && activeFilter === 'missing-content' && hasLink && ( // Only show if link exists but chords are missing
+                            {activeTab === 'ug' && activeFilter === 'missing-content' && hasLink && !hasChords && (
                               <Button 
                                 onClick={() => handlePasteToAudit(song)}
                                 className="h-9 px-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[9px] rounded-xl gap-2 shadow-lg shadow-indigo-600/20"
@@ -395,18 +391,14 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
                             )}
                             {hasLink && (
                               <Button variant="ghost" size="sm" onClick={() => window.open(activeTab === 'ug' ? song.ugUrl : sheetUrl, '_blank')} className="h-8 px-2 bg-white/5 text-white font-bold text-[8px] uppercase rounded-xl gap-2">
-                                <ExternalLink className="w-3 h-3" /> Test
+                                <ExternalLink className="w-3 h-3" /> Open
                               </Button>
                             )}
                             <Button variant="ghost" size="sm" onClick={() => handleRebind(song)} className="h-8 px-2 bg-white/5 text-orange-400 font-bold text-[8px] uppercase rounded-xl gap-2">
                               <SearchCode className="w-3 h-3" /> Find & Bind
                             </Button>
-                            {hasLink && !isVerified && (
-                              <Button onClick={() => handleVerify(song)} className="h-9 px-3 bg-emerald-600 text-white font-black uppercase text-[9px] rounded-xl gap-2 shadow-lg shadow-emerald-600/20">
-                                <ShieldCheck className="w-3.5 h-3.5" /> Verify
-                              </Button>
-                            )}
-                            {hasLink && isVerified && ( // Show verified badge if link exists and is verified
+                            {/* Verification badge is now automatic based on presence */}
+                            {hasLink && (
                               <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
                                 <Check className="w-3 h-3 text-emerald-500" />
                                 <span className="text-[8px] font-black text-emerald-500 uppercase">Verified</span>

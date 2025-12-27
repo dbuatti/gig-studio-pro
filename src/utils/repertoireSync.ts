@@ -4,11 +4,15 @@ import { SetlistSong } from "@/components/SetlistManager";
 import { DEFAULT_UG_CHORDS_CONFIG } from "./constants";
 
 /**
- * Calculates a readiness score (0-100) based on assets and manual verification steps.
+ * Calculates a readiness score (0-100) based on asset presence.
  * Weights:
  * - Technical Assets: 85% (Audio, Chords, Lyrics, etc.)
  * - Metadata Verified: 10% (Manual Step 1)
  * - Setlist Confirmed: 5%  (Manual Step 2)
+ * 
+ * NEW LOGIC: Presence-based verification.
+ * - ug_url presence counts as verified UG link.
+ * - sheet_music_url presence counts as verified Sheet link.
  */
 export const calculateReadiness = (song: Partial<SetlistSong>): number => {
   let assetScore = 0;
@@ -31,16 +35,16 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
   if (song.bpm) assetScore += 10;
 
   // 5. External Assets & Sheet Verification (Max 10)
-  // If sheet is verified, full points. Otherwise, if URL exists, partial.
-  if (song.is_sheet_verified) assetScore += 10;
-  else if (song.pdfUrl || song.leadsheetUrl || song.sheet_music_url) assetScore += 5;
+  // Presence-based check: If URL exists, it counts as verified.
+  const hasSheetLink = (song.sheet_music_url || song.pdfUrl || song.leadsheetUrl || "").length > 0;
+  if (hasSheetLink) assetScore += 10;
 
   // 6. Basic Metadata (Max 5)
   if (song.artist && song.artist !== "Unknown Artist") assetScore += 5;
 
-  // 7. UG Link Presence (Max 5) - NEW REQUIREMENT
-  // If a UG link is present, it contributes to the readiness score.
-  if (song.ugUrl) assetScore += 5;
+  // 7. UG Link Presence (Max 5)
+  // Presence-based check: If URL exists, it counts as verified.
+  if (song.ugUrl && song.ugUrl.length > 0) assetScore += 5;
 
   // Final Gate Steps
   let finalScore = Math.min(85, assetScore);
@@ -96,9 +100,11 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       is_pitch_linked: song.is_pitch_linked ?? true,
       highest_note_original: song.highest_note_original || null,
       is_approved: song.isApproved || false,
-      is_ug_link_verified: song.is_ug_link_verified || false,
+      // Presence-based verification: Set to true if URL exists
+      is_ug_link_verified: (song.ugUrl && song.ugUrl.length > 0) || false,
       sheet_music_url: song.sheet_music_url || null,
-      is_sheet_verified: song.is_sheet_verified || false,
+      // Presence-based verification: Set to true if URL exists
+      is_sheet_verified: ((song.sheet_music_url || song.pdfUrl || song.leadsheetUrl || "").length > 0) || false,
       // Sync tracking fields
       sync_status: (song as any).sync_status || 'IDLE',
       last_sync_log: (song as any).last_sync_log || null,
