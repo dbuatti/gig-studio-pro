@@ -39,6 +39,7 @@ const SheetReaderMode: React.FC = () => {
   const [isImmersive, setIsImmersive] = useState(false);
   const [isStudioModalOpen, setIsStudioModalOpen] = useState(false);
   const [isOverlayOpen, setIsOverlayOpen] = useState(false); // For dropdowns in header
+  const [isIframeLoaded, setIsIframeLoaded] = useState(false); // NEW: State to track iframe loading
 
   // Audio
   const audioEngine = useToneAudio(true);
@@ -158,6 +159,7 @@ const SheetReaderMode: React.FC = () => {
         is_pitch_linked: currentSong.is_pitch_linked,
       });
     }
+    setIsIframeLoaded(false); // NEW: Reset iframe loaded state when song changes
   }, [currentSong]);
 
   // Load audio when song changes
@@ -294,13 +296,19 @@ const SheetReaderMode: React.FC = () => {
 
     return (
       <div className="w-full h-full relative bg-black">
+        {!isIframeLoaded && ( // NEW: Show loader while iframe is not loaded
+          <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
+            <Loader2 className="w-16 h-16 animate-spin text-indigo-500" />
+          </div>
+        )}
         <iframe
           key={`${currentSong.id}-google`}
           src={googleViewer}
           className="absolute inset-0 w-full h-full"
           title="Chart - Google Viewer"
-          style={{ border: 'none' }}
+          style={{ border: 'none', opacity: isIframeLoaded ? 1 : 0, transition: 'opacity 0.3s ease-in-out' }} // NEW: Fade in iframe
           allowFullScreen
+          onLoad={() => setIsIframeLoaded(true)} // NEW: Set loaded state on iframe load
         />
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10">
           <a
@@ -314,7 +322,7 @@ const SheetReaderMode: React.FC = () => {
         </div>
       </div>
     );
-  }, [currentSong, forceReaderResource, ignoreConfirmedGate, pitch, isPlaying, progress, duration, navigate, targetKey, chordAutoScrollEnabled, chordScrollSpeed]);
+  }, [currentSong, forceReaderResource, ignoreConfirmedGate, pitch, isPlaying, progress, duration, navigate, targetKey, chordAutoScrollEnabled, chordScrollSpeed, isIframeLoaded]); // NEW: Add isIframeLoaded to dependencies
 
   if (loading) {
     return (
