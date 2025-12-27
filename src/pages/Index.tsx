@@ -87,6 +87,8 @@ const Index = () => {
   const isSyncingRef = useRef(false);
   const saveQueueRef = useRef<any[]>([]);
   const transposerRef = useRef<AudioTransposerRef>(null);
+  const searchPanelRef = useRef<HTMLElement>(null); // Ref for the search panel
+  const searchButtonRef = useRef<HTMLButtonElement>(null); // Ref for the search button
 
   const currentList = setlists.find(l => l.id === currentListId);
   
@@ -113,6 +115,11 @@ const Index = () => {
       const hasFullAudio = !!s.previewUrl && !(s.previewUrl.includes('apple.com') || s.previewUrl.includes('itunes-assets'));
       if (activeFilters.hasAudio === 'full' && !hasFullAudio) return false;
       if (activeFilters.isApproved === 'yes' && !s.isApproved) return false;
+      
+      // NEW: Filter by hasUgChords
+      if (activeFilters.hasUgChords === 'yes' && !s.is_ug_chords_present) return false;
+      if (activeFilters.hasUgChords === 'no' && s.is_ug_chords_present) return false;
+
       return true;
     });
 
@@ -140,6 +147,26 @@ const Index = () => {
     }
   }, [viewMode, user]);
 
+  // Effect to handle clicks outside the search panel
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        isSearchPanelOpen &&
+        searchPanelRef.current &&
+        !searchPanelRef.current.contains(event.target as Node) &&
+        searchButtonRef.current &&
+        !searchButtonRef.current.contains(event.target as Node)
+      ) {
+        setIsSearchPanelOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isSearchPanelOpen]);
+
   const fetchMasterRepertoire = async () => {
     if (!user) return;
     try {
@@ -153,7 +180,8 @@ const Index = () => {
           duration_seconds: d.duration_seconds, notes: d.notes, user_tags: d.user_tags || [], resources: d.resources || [],
           isApproved: d.is_approved, preferred_reader: d.preferred_reader, ug_chords_text: d.ug_chords_text,
           ug_chords_config: d.ug_chords_config, is_pitch_linked: d.is_pitch_linked, is_ug_link_verified: d.is_ug_link_verified,
-          sheet_music_url: d.sheet_music_url, is_sheet_verified: d.is_sheet_verified
+          sheet_music_url: d.sheet_music_url, is_sheet_verified: d.is_sheet_verified,
+          is_ug_chords_present: d.is_ug_chords_present // Ensure this is mapped
         })));
       }
     } catch (err) {}
@@ -317,6 +345,7 @@ const Index = () => {
 
         <div className="flex items-center gap-4 shrink-0">
           <Button 
+            ref={searchButtonRef} // Attach ref to the search button
             variant="ghost" 
             size="sm" 
             onClick={() => {
@@ -421,7 +450,7 @@ const Index = () => {
         <PerformanceOverlay songs={songs.filter(s => s.isApproved)} currentIndex={songs.findIndex(s => s.id === activeSongIdState)} isPlaying={false} progress={0} duration={0} onTogglePlayback={() => {}} onNext={() => {}} onPrevious={() => {}} onShuffle={() => {}} onClose={() => setIsPerformanceMode(false)} onUpdateSong={handleUpdateSong} onUpdateKey={handleUpdateKey} analyzer={null} />
       )}
 
-      <aside className={cn("w-full md:w-[450px] bg-white dark:bg-slate-900 border-l absolute right-0 top-20 bottom-0 z-40 transition-transform duration-500", isSearchPanelOpen ? "translate-x-0" : "translate-x-full")}>
+      <aside ref={searchPanelRef} className={cn("w-full md:w-[450px] bg-white dark:bg-slate-900 border-l absolute right-0 top-20 bottom-0 z-40 transition-transform duration-500", isSearchPanelOpen ? "translate-x-0" : "translate-x-full")}>
         <AudioTransposer 
           ref={transposerRef} 
           onAddToSetlist={handleAddNewSongToCurrentSetlist} 
