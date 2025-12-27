@@ -104,7 +104,7 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  disabled={!formData.pdfUrl && !formData.leadsheetUrl}
+                  disabled={!formData.pdfUrl}
                   onClick={() => setActiveChartType('pdf')}
                   className={cn(
                     "text-[9px] font-black uppercase h-8 px-4 rounded-lg",

@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { 
   LayoutDashboard, Search, Sparkles, ShieldCheck, X, 
   Settings, Play, FileText, Pause, BookOpen, 
-  AlertTriangle, Volume2, ShieldAlert, Music, ListMusic, Bug
+  AlertTriangle, Volume2, ShieldAlert, Music, ListMusic
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { motion, AnimatePresence } from 'framer-motion';
@@ -37,7 +37,6 @@ interface FloatingCommandDockProps {
   onSetMenuOpen?: (open: boolean) => void; // NEW: Callback to set menu open state in SheetReaderMode
   onSetUiVisible?: (visible: boolean) => void; // NEW: Callback to set UI visible state in SheetReaderMode
   isMenuOpen?: boolean; // NEW: Current menu open state from SheetReaderMode
-  isOverrideActive?: boolean; // NEW: Prop to indicate if any override is active
 }
 
 /**
@@ -66,7 +65,6 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   onSetMenuOpen, // NEW
   onSetUiVisible, // NEW
   isMenuOpen, // NEW
-  isOverrideActive, // NEW
 }) => {
   const [isCommandHubOpen, setIsCommandHubOpen] = useState(false);
   const [isSafePitchActive, setIsSafePitchActive] = useState(false);
@@ -276,12 +274,6 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
               </motion.div>
             )}
           </AnimatePresence>
-          {isOverrideActive && ( // NEW: Debug Active Indicator
-            <div className="absolute -top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1 bg-red-600/20 border border-red-500/20 rounded-full">
-              <Bug className="w-3 h-3 text-red-400" />
-              <span className="text-[9px] font-black uppercase tracking-widest text-red-400">DEBUG ACTIVE</span>
-            </div>
-          )}
         </div>
       </TooltipProvider>
     );

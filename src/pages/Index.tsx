@@ -86,7 +86,7 @@ const Index = () => {
   const [isStudioModalOpen, setIsStudioModalOpen] = useState(false);
   const [isSetlistSettingsOpen, setIsSetlistSettingsOpen] = useState(false);
   const [isRepertoirePickerOpen, setIsRepertoirePickerOpen] = useState(false);
-  const [editingSongId, setEditingSongId, ] = useState<string | null>(null);
+  const [editingSongId, setEditingSongId] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [isCommandHubOpen, setIsCommandHubOpen] = useState(false);

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import * as Tone from 'tone';
-import { showSuccess as globalShowSuccess, showError as globalShowError } from '@/utils/toast';
+import { showSuccess, showError } from '@/utils/toast';
 
 export interface AudioEngineControls {
   isPlaying: boolean;
@@ -95,9 +95,9 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
       playerRef.current.volume.value = -6;
       
       if (!suppressToasts) {
-        globalShowSuccess("Audio Loaded");
+        showSuccess("Audio Loaded");
       }
-    }).catch(() => globalShowError("Failed to initialize audio engine."));
+    }).catch(() => showError("Failed to initialize audio engine."));
   }, [initEngine, resetEngine, suppressToasts]);
 
   const loadFromUrl = useCallback(async (url: string, initialPitch: number = 0) => {
@@ -109,7 +109,7 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
       const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
       loadAudioBuffer(audioBuffer, initialPitch);
     } catch (err) {
-      globalShowError("Audio load failed.");
+      showError("Audio load failed.");
     }
   }, [loadAudioBuffer]);
 
