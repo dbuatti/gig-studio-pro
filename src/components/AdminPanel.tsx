@@ -31,7 +31,9 @@ import {
   Settings2,
   Wand2,
   Box,
-  Monitor
+  Monitor,
+  Link2,
+  Undo2
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
@@ -71,6 +73,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
 
   // Automation State
   const [isAutoSyncing, setIsAutoSyncing] = useState(false);
+  const [isPopulatingLinks, setIsPopulatingLinks] = useState(false);
+  const [isClearingLinks, setIsClearingLinks] = useState(false);
   const [overwriteExisting, setOverwriteExisting] = useState(false);
   const [syncBatchSize, setSyncBatchSize] = useState(5);
 
@@ -122,7 +126,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     setIsAutoSyncing(true);
     addLog(`Initiating Global Auto-Sync for ${songsToProcess.length} tracks...`, 'info');
 
-    // Process in batches of syncBatchSize
     for (let i = 0; i < songsToProcess.length; i += syncBatchSize) {
       const batch = songsToProcess.slice(i, i + syncBatchSize);
       const batchIds = batch.map(s => s.id);
@@ -143,25 +146,94 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
             addLog(`[!] Sync Failed: ${res.msg}`, 'error');
           }
         });
-
-        // Trigger extraction for the successful ones in this batch
-        const successfulIds = data.results.filter((r: any) => r.status === 'SUCCESS').map((r: any) => r.id);
-        if (successfulIds.length > 0) {
-          addLog(`Queueing audio extraction for batch successes...`, 'info');
-          // In a real scenario, we might trigger a bulk extraction function here
-        }
-
       } catch (err: any) {
         addLog(`Batch Process Error: ${err.message}`, 'error');
       }
 
-      // Small pause between batches
       await new Promise(r => setTimeout(r, 2000));
     }
 
     setIsAutoSyncing(false);
     showSuccess("Global Auto-Sync Operation Finished");
     fetchMaintenanceData();
+  };
+
+  const handlePopulateMissingLinks = async () => {
+    const missing = maintenanceSongs.filter(s => !s.youtube_url || s.youtube_url.trim() === '');
+    
+    if (missing.length === 0) {
+      showSuccess("No missing links found.");
+      return;
+    }
+
+    setIsPopulatingLinks(true);
+    addLog(`Smart-Populating ${missing.length} missing links...`, 'info');
+
+    for (let i = 0; i < missing.length; i += syncBatchSize) {
+      const batch = missing.slice(i, i + syncBatchSize);
+      const batchIds = batch.map(s => s.id);
+      
+      addLog(`Populating batch ${Math.floor(i/syncBatchSize) + 1}...`, 'info');
+
+      try {
+        const { data, error } = await supabase.functions.invoke('bulk-populate-youtube-links', {
+          body: { songIds: batchIds }
+        });
+
+        if (error) throw error;
+
+        data.results.forEach((res: any) => {
+          if (res.status === 'SUCCESS') {
+            addLog(`[✓] Link Bound: ${res.title}`, 'success');
+          } else if (res.status === 'ERROR') {
+            addLog(`[!] Link Error: ${res.msg}`, 'error');
+          }
+        });
+      } catch (err: any) {
+        addLog(`Link Batch Error: ${err.message}`, 'error');
+      }
+    }
+
+    setIsPopulatingLinks(false);
+    showSuccess("Bulk Link Population Complete");
+    fetchMaintenanceData();
+  };
+
+  const handleClearAutoPopulatedLinks = async () => {
+    const autoPopulated = maintenanceSongs.filter(s => s.metadata_source === 'auto_populated');
+    
+    if (autoPopulated.length === 0) {
+      showError("No auto-populated links found to clear.");
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to clear ${autoPopulated.length} auto-populated links?`)) return;
+
+    setIsClearingLinks(true);
+    addLog(`Clearing ${autoPopulated.length} auto-populated links...`, 'info');
+
+    try {
+      const { error } = await supabase
+        .from('repertoire')
+        .update({ 
+          youtube_url: null, 
+          metadata_source: null,
+          sync_status: 'IDLE',
+          last_sync_log: 'Cleared auto-populated link'
+        })
+        .eq('metadata_source', 'auto_populated')
+        .eq('user_id', user?.id);
+
+      if (error) throw error;
+
+      addLog(`Cleared ${autoPopulated.length} links successfully.`, 'success');
+      showSuccess("Links cleared");
+      fetchMaintenanceData();
+    } catch (err: any) {
+      addLog(`Clear Error: ${err.message}`, 'error');
+    } finally {
+      setIsClearingLinks(false);
+    }
   };
 
   const checkVaultStatus = async () => {
@@ -399,7 +471,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                       </div>
                       <div>
                         <h3 className="text-2xl font-black uppercase tracking-tight text-white">Global Auto-Sync Engine</h3>
-                        <p className="text-sm text-slate-400 mt-1">Automate metadata enrichment and audio discovery across your library.</p>
+                        <p className="text-sm text-slate-400 mt-1">Automate metadata enrichment and audio discovery.</p>
                       </div>
                     </div>
                     <Button 
@@ -412,37 +484,50 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                     </Button>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="p-6 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="p-2 bg-indigo-600/10 rounded-lg">
-                          <Settings2 className="w-4 h-4 text-indigo-400" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold">Overwrite Existing</p>
-                          <p className="text-[9px] text-slate-500 font-black uppercase">Refresh verified metadata</p>
-                        </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-white/5">
+                    <div className="space-y-4">
+                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Smart-Link Discovery</h4>
+                      <div className="flex flex-col gap-3">
+                        <Button 
+                          onClick={handlePopulateMissingLinks}
+                          disabled={isPopulatingLinks}
+                          className="w-full bg-emerald-600 hover:bg-emerald-700 h-14 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg"
+                        >
+                          {isPopulatingLinks ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
+                          Populate Missing Links
+                        </Button>
+                        <Button 
+                          variant="ghost"
+                          onClick={handleClearAutoPopulatedLinks}
+                          disabled={isClearingLinks}
+                          className="w-full text-red-500 hover:bg-red-500/10 h-12 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3"
+                        >
+                          {isClearingLinks ? <Loader2 className="w-4 h-4 animate-spin" /> : <Undo2 className="w-4 h-4" />}
+                          Clear Auto-Populated
+                        </Button>
                       </div>
-                      <Switch 
-                        checked={overwriteExisting} 
-                        onCheckedChange={setOverwriteExisting}
-                        className="data-[state=checked]:bg-indigo-600"
-                      />
                     </div>
-                    <div className="p-6 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="p-2 bg-indigo-600/10 rounded-lg">
-                          <Box className="w-4 h-4 text-indigo-400" />
+
+                    <div className="space-y-4">
+                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Global Configuration</h4>
+                      <div className="space-y-4">
+                        <div className="p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Settings2 className="w-4 h-4 text-indigo-400" />
+                            <p className="text-xs font-bold uppercase">Overwrite Verified</p>
+                          </div>
+                          <Switch checked={overwriteExisting} onCheckedChange={setOverwriteExisting} />
                         </div>
-                        <div>
-                          <p className="text-sm font-bold">Concurrency Control</p>
-                          <p className="text-[9px] text-slate-500 font-black uppercase">{syncBatchSize} tracks per batch</p>
+                        <div className="p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Box className="w-4 h-4 text-indigo-400" />
+                            <p className="text-xs font-bold uppercase">Batch Size: {syncBatchSize}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => setSyncBatchSize(Math.max(1, syncBatchSize - 1))} className="h-7 w-7 bg-black/20 rounded-lg">-</button>
+                            <button onClick={() => setSyncBatchSize(Math.min(10, syncBatchSize + 1))} className="h-7 w-7 bg-black/20 rounded-lg">+</button>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                         <button onClick={() => setSyncBatchSize(Math.max(1, syncBatchSize - 1))} className="h-8 w-8 bg-black/20 rounded-lg hover:bg-black/40">-</button>
-                         <span className="text-sm font-mono font-bold w-4 text-center">{syncBatchSize}</span>
-                         <button onClick={() => setSyncBatchSize(Math.min(10, syncBatchSize + 1))} className="h-8 w-8 bg-black/20 rounded-lg hover:bg-black/40">+</button>
                       </div>
                     </div>
                   </div>
@@ -450,9 +535,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                   <div className="p-6 bg-indigo-600/5 border border-indigo-600/20 rounded-2xl flex items-start gap-4">
                     <AlertCircle className="w-6 h-6 text-indigo-500 shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-sm font-black uppercase text-indigo-400">Automation Logic Pipeline</p>
+                      <p className="text-sm font-black uppercase text-indigo-400">Smart-Link Automation Policy</p>
                       <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                        1. Query iTunes Search API for master metadata. 2. Match with YouTube Official Audio using Smart-Discovery. 3. Update master song records and queue for audio extraction.
+                        Population logic uses [Artist] + [Title] + 'official audio' and strictly assigns the top video hit.
                       </p>
                     </div>
                   </div>
@@ -460,7 +545,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
 
                 <div className="bg-white/5 border border-white/10 rounded-[2.5rem] overflow-hidden">
                    <div className="p-6 bg-black/20 border-b border-white/5 flex items-center justify-between">
-                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Sync Status Dashboard</h4>
+                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Repertoire Library Sync Status</h4>
                    </div>
                    <div className="divide-y divide-white/5 max-h-[400px] overflow-y-auto custom-scrollbar">
                       {maintenanceSongs.map((s) => (
@@ -642,7 +727,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         </div>
 
         <div className="p-8 border-t border-white/5 bg-slate-900 flex items-center justify-between shrink-0">
-           <p className="text-[10px] font-black uppercase tracking-widest text-slate-600 font-mono">Control Unit v4.0 // Global Auto-Sync Engine Online</p>
+           <p className="text-[10px] font-black uppercase tracking-widest text-slate-600 font-mono">Control Unit v4.0 // Smart-Link Logic Engine Online</p>
            <Button onClick={onClose} variant="ghost" className="text-slate-400 hover:text-white font-black uppercase tracking-widest text-[10px]">Close Admin</Button>
         </div>
       </DialogContent>
