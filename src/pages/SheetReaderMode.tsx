@@ -757,6 +757,9 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
         isPlaying={isPlaying}
         onTogglePlayback={togglePlayback}
         hasReadableChart={true}
+        onSetMenuOpen={setIsMenuOpen}
+        onSetUiVisible={setIsUiVisible}
+        isMenuOpen={isMenuOpen}
       />
 
       <RepertoirePicker 

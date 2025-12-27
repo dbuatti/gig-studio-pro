@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { 
   LayoutDashboard, Search, Sparkles, ShieldCheck, X, 
   Settings, Play, FileText, Pause, BookOpen, 
-  AlertTriangle, Volume2, ShieldAlert, Music
+  AlertTriangle, Volume2, ShieldAlert, Music, ListMusic
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { motion, AnimatePresence } from 'framer-motion';
@@ -34,6 +34,9 @@ interface FloatingCommandDockProps {
   onSafePitchToggle?: (active: boolean, safePitch: number) => void;
   isReaderMode?: boolean; // New prop to indicate if in SheetReaderMode
   activeSongId?: string | null; // New prop to pass active song ID
+  onSetMenuOpen?: (open: boolean) => void; // NEW: Callback to set menu open state in SheetReaderMode
+  onSetUiVisible?: (visible: boolean) => void; // NEW: Callback to set UI visible state in SheetReaderMode
+  isMenuOpen?: boolean; // NEW: Current menu open state from SheetReaderMode
 }
 
 /**
@@ -59,6 +62,9 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   onSafePitchToggle,
   isReaderMode = false, // Default to false
   activeSongId, // Use activeSongId
+  onSetMenuOpen, // NEW
+  onSetUiVisible, // NEW
+  isMenuOpen, // NEW
 }) => {
   const [isCommandHubOpen, setIsCommandHubOpen] = useState(false);
   const [isSafePitchActive, setIsSafePitchActive] = useState(false);
@@ -114,7 +120,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
       id: 'reader',
       icon: <FileText className="w-6 h-6" />,
       label: "Reader Mode",
-      onClick: () => onOpenReader(activeSongId || undefined), // Pass activeSongId
+      onClick: () => onOpenReader(activeSongId || undefined),
       disabled: !hasReadableChart,
       className: cn(
         "bg-slate-900/80 backdrop-blur-md text-slate-400 border border-white/10 hover:text-white",
@@ -199,13 +205,16 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
           <Button
             variant="ghost"
             size="icon"
-            onClick={toggleCommandHub}
+            onClick={() => {
+              onSetUiVisible?.(true); // Ensure UI is visible
+              onSetMenuOpen?.(!isMenuOpen); // Toggle the menu
+            }}
             className={cn(
               "h-14 w-14 rounded-full transition-all duration-500 bg-black/40 backdrop-blur-xl border border-white/5 shadow-2xl",
-              isCommandHubOpen ? "text-white rotate-90" : "text-slate-400 hover:text-white"
+              isMenuOpen ? "text-white rotate-90" : "text-slate-400 hover:text-white"
             )}
           >
-            {isCommandHubOpen ? <X className="w-6 h-6" /> : <Music className="w-6 h-6" />}
+            {isMenuOpen ? <X className="w-6 h-6" /> : <ListMusic className="w-6 h-6" />}
           </Button>
 
           <AnimatePresence>
@@ -222,7 +231,11 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => { btn.onClick(); setIsCommandHubOpen(false); }}
+                        onClick={() => { 
+                          btn.onClick(); 
+                          setIsCommandHubOpen(false); 
+                          onSetUiVisible?.(true); // Ensure UI is visible on secondary button click
+                        }}
                         className={cn("h-12 w-12 rounded-full border shadow-xl", btn.className)}
                       >
                         {btn.icon}
@@ -238,7 +251,10 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={onTogglePlayback}
+                      onClick={() => {
+                        onTogglePlayback();
+                        onSetUiVisible?.(true); // Ensure UI is visible on play/pause
+                      }}
                       disabled={!hasPlayableSong}
                       className={cn(
                         "h-12 w-12 rounded-full border shadow-xl transition-all duration-300",
