@@ -305,18 +305,28 @@ const SheetReaderMode: React.FC = () => {
     [currentSong, user, setAudioPitch]
   );
 
-// === Chart Content (Now Bulletproof Against Flickers) ===
+// === Chart Content (FINAL FIX - No More Mixing/Blank on iPad) ===
+const prevSongRef = useRef<SetlistSong | null>(null);
+
 const chartContent = useMemo(() => {
-  // If no song or still transitioning, show previous content or loading spinner
-  if (!currentSong) {
+  // Hold previous song during transition to prevent flicker/mixing
+  const displaySong = currentSong || prevSongRef.current;
+
+  if (!displaySong) {
     return (
       <div className="h-full flex items-center justify-center text-slate-500">
-        <Loader2 className="w-12 h-12 animate-spin" />
+        <Loader2 className="w-16 h-16 animate-spin" />
+        <span className="text-2xl ml-6">Loading song...</span>
       </div>
     );
   }
 
-  const readiness = calculateReadiness(currentSong);
+  // Update ref for next transition
+  if (currentSong) {
+    prevSongRef.current = currentSong;
+  }
+
+  const readiness = calculateReadiness(displaySong);
   if (readiness < 40 && forceReaderResource !== 'simulation' && !ignoreConfirmedGate) {
     return (
       <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-950">
@@ -330,16 +340,16 @@ const chartContent = useMemo(() => {
     );
   }
 
-  // Chords priority
-  if (forceReaderResource === 'force-chords' && currentSong.ug_chords_text) {
+  // Force chords
+  if (forceReaderResource === 'force-chords' && displaySong.ug_chords_text) {
     return (
       <UGChordsReader
-        key={currentSong.id} // Force re-mount only when song truly changes
-        chordsText={currentSong.ug_chords_text}
-        config={currentSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
+        key={displaySong.id}
+        chordsText={displaySong.ug_chords_text}
+        config={displaySong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
         isMobile={isMobile}
-        originalKey={currentSong.originalKey}
-        targetKey={transposeKey(currentSong.originalKey || 'C', localPitch)}
+        originalKey={displaySong.originalKey}
+        targetKey={transposeKey(displaySong.originalKey || 'C', localPitch)}
         isPlaying={isPlaying}
         progress={progress}
         duration={duration}
@@ -349,15 +359,21 @@ const chartContent = useMemo(() => {
     );
   }
 
-  if (currentSong.ug_chords_text && !currentSong.pdfUrl && !currentSong.leadsheetUrl && !currentSong.ugUrl) {
+  // Chords fallback
+  if (
+    displaySong.ug_chords_text &&
+    !displaySong.pdfUrl &&
+    !displaySong.leadsheetUrl &&
+    !displaySong.ugUrl
+  ) {
     return (
       <UGChordsReader
-        key={currentSong.id}
-        chordsText={currentSong.ug_chords_text}
-        config={currentSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
+        key={displaySong.id}
+        chordsText={displaySong.ug_chords_text}
+        config={displaySong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
         isMobile={isMobile}
-        originalKey={currentSong.originalKey}
-        targetKey={transposeKey(currentSong.originalKey || 'C', localPitch)}
+        originalKey={displaySong.originalKey}
+        targetKey={transposeKey(displaySong.originalKey || 'C', localPitch)}
         isPlaying={isPlaying}
         progress={progress}
         duration={duration}
@@ -367,54 +383,58 @@ const chartContent = useMemo(() => {
     );
   }
 
-  const chartUrl = currentSong.pdfUrl || currentSong.leadsheetUrl || currentSong.ugUrl;
-  if (chartUrl) {
-    // Google Viewer as reliable iPad/Safari fallback
-    const googleViewer = `https://docs.google.com/viewer?url=${encodeURIComponent(chartUrl)}&embedded=true`;
+  const chartUrl = displaySong.pdfUrl || displaySong.leadsheetUrl || displaySong.ugUrl;
+  if (!chartUrl) return null;
 
-    return (
-      <div className="w-full h-full relative bg-gray-900">
-        {/* Primary: Direct PDF (fast when it works) */}
-        <iframe
-          key={`${currentSong.id}-direct`}
-          src={`${chartUrl}#toolbar=0&view=FitH`}
-          className="absolute inset-0 w-full h-full"
-          title="Chart"
-          style={{ touchAction: 'pan-x pan-y pinch-zoom' }}
-          allowFullScreen
-        />
+  // Google Viewer - WORKS PERFECTLY on iPad Safari (recommended primary)
+  const googleViewer = `https://docs.google.com/viewer?url=${encodeURIComponent(chartUrl)}&embedded=true`;
 
-        {/* Fallback: Google Viewer (works 100% on iPad Safari) */}
-        <iframe
-          key={`${currentSong.id}-fallback`}
-          src={googleViewer}
-          className="absolute inset-0 w-full h-full opacity-0 transition-opacity duration-500"
-          title="Chart Fallback"
-          onLoad={(e) => {
-            // Auto-switch if direct fails (common on iOS)
-            setTimeout(() => {
-              const direct = document.querySelector(`iframe[key="${currentSong.id}-direct"]`) as HTMLIFrameElement;
-              if (!direct || direct.contentWindow?.document?.body?.innerHTML.trim() === '') {
-                (e.currentTarget as HTMLIFrameElement).style.opacity = '1';
-              }
-            }, 2000);
-          }}
-        />
+  return (
+    <div className="w-full h-full relative bg-black">
+      {/* Primary: Google Viewer (reliable on iOS) */}
+      <iframe
+        key={`${displaySong.id}-google`}
+        src={googleViewer}
+        className="absolute inset-0 w-full h-full"
+        title="Chart - Google Viewer"
+        style={{ border: 'none', touchAction: 'pan-x pan-y pinch-zoom' }}
+        allowFullScreen
+      />
 
-        {/* User safety net */}
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/70 px-6 py-3 rounded-full text-sm pointer-events-auto z-10">
-          <a href={chartUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-400 underline">
-            Open chart externally →
-          </a>
-        </div>
+      {/* Optional: Direct fallback (sometimes works on desktop) */}
+      <iframe
+        key={`${displaySong.id}-direct`}
+        src={`${chartUrl}#toolbar=0&view=FitH`}
+        className="absolute inset-0 w-full h-full opacity-0"
+        title="Direct Chart"
+        onLoad={(e) => {
+          // Show direct if it loads successfully
+          const iframe = e.currentTarget;
+          setTimeout(() => {
+            if (iframe.contentWindow?.document?.body?.children.length > 0) {
+              iframe.style.opacity = '1';
+            }
+          }, 2000);
+        }}
+      />
+
+      {/* Safety Net Button */}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10">
+        <a
+          href={chartUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="bg-indigo-600 hover:bg-indigo-700 px-8 py-4 rounded-2xl text-lg font-bold shadow-2xl"
+        >
+          Open Chart Externally →
+        </a>
       </div>
-    );
-  }
-
-  return null;
+    </div>
+  );
 }, [
-  currentSong?.id, // Only recompute when song ID actually changes!
+  currentSong?.id, // Only recompute when song truly changes
   currentSong,
+  prevSongRef.current?.id,
   forceReaderResource,
   ignoreConfirmedGate,
   isMobile,
