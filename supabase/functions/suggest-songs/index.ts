@@ -21,6 +21,7 @@ serve(async (req) => {
     ].filter(Boolean);
 
     if (keys.length === 0) {
+      console.error("[suggest-songs] Missing API Key configuration.");
       throw new Error("Missing API Key configuration.");
     }
 
@@ -62,24 +63,31 @@ serve(async (req) => {
         
         if (response.status === 429 || response.status >= 500) {
           lastError = result.error?.message || response.statusText;
+          console.warn(`[suggest-songs] Gemini API rate limit or server error (Status: ${response.status}): ${lastError}`);
           continue;
         }
 
         if (!response.ok) {
-          throw new Error(result.error?.message || "Gemini Error");
+          lastError = result.error?.message || `Gemini API returned non-OK status: ${response.status}`;
+          console.error(`[suggest-songs] Gemini API request failed: ${lastError}`, { result });
+          throw new Error(lastError);
         }
 
         const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
         
         if (!text) {
-          throw new Error("AI returned empty response.");
+          lastError = "AI returned empty response.";
+          console.error(`[suggest-songs] ${lastError}`, { result });
+          throw new Error(lastError);
         }
 
         // Robust JSON extraction
         const jsonMatch = text.match(/\[[\s\S]*\]/);
         
         if (!jsonMatch) {
-          throw new Error("Invalid format from AI: Expected JSON array.");
+          lastError = "Invalid format from AI: Expected JSON array.";
+          console.error(`[suggest-songs] ${lastError}`, { text });
+          throw new Error(lastError);
         }
         
         return new Response(jsonMatch[0], {
@@ -88,15 +96,18 @@ serve(async (req) => {
 
       } catch (err: any) {
         lastError = err.message;
+        console.error(`[suggest-songs] Error during Gemini API call: ${err.message}`);
       }
     }
 
+    console.error(`[suggest-songs] Engine exhausted all keys. Final error: ${lastError}`);
     return new Response(JSON.stringify({ error: `Engine exhausted all keys. Final error: ${lastError}` }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
   } catch (error: any) {
+    console.error(`[suggest-songs] Top-level error: ${error.message}`);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
