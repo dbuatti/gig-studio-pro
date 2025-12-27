@@ -90,6 +90,7 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
   };
 
   const handleUgBlur = () => {
+    // Only save if the local URL is different from the one in formData
     if (localUgUrl !== formData.ugUrl) {
       const cleanUrl = sanitizeUGUrl(localUgUrl);
       // Explicitly save to the database and mark as unverified if the URL has changed
@@ -97,6 +98,8 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
       showSuccess("UG Link Saved");
     }
     // If the URL hasn't changed, do nothing to is_ug_link_verified
+    // The badge will reflect the existing formData.is_ug_link_verified state
+    setIsUgModified(false); // Reset modified state after blur/save attempt
   };
 
   const handleVerifyUgLink = () => {
@@ -127,6 +130,7 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
       showSuccess("Sheet Music Link Saved");
     }
     // If the URL hasn't changed, do nothing to is_sheet_verified
+    setIsSheetModified(false); // Reset modified state after blur/save attempt
   };
 
   const handleVerifySheetLink = () => {
