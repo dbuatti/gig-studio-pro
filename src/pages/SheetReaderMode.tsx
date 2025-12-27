@@ -7,9 +7,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { SetlistSong } from '@/components/SetlistManager';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Music, Loader2, AlertCircle,
-} from 'lucide-react';
+import { Music, Loader2, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import UGChordsReader from '@/components/UGChordsReader';
 import { transposeKey, calculateSemitones } from '@/utils/keyUtils';
@@ -29,15 +27,6 @@ import FloatingCommandDock from '@/components/FloatingCommandDock';
 import { useReaderSettings } from '@/hooks/use-reader-settings';
 import { useIsMobile } from '@/hooks/use-mobile';
 
-interface FilterState {
-  hasAudio: boolean;
-  isApproved: boolean;
-  hasCharts: boolean;
-  hasUgChords: boolean;
-}
-
-type SortOption = 'alphabetical' | 'readiness_asc' | 'readiness_desc';
-
 const SheetReaderMode: React.FC = () => {
   const navigate = useNavigate();
   const { songId: routeSongId } = useParams<{ songId?: string }>();
@@ -45,17 +34,21 @@ const SheetReaderMode: React.FC = () => {
   const { user } = useAuth();
   const { keyPreference: globalKeyPreference } = useSettings();
   const { forceReaderResource, ignoreConfirmedGate, forceDesktopView } = useReaderSettings();
+
+  // Detect tablet (iPad Pro) — wider than mobile, narrower than desktop
   const isMobileHook = useIsMobile();
+  const isTablet = !isMobileHook && window.innerWidth <= 1024; // iPad Pro in portrait/landscape
   const isMobile = forceDesktopView ? false : isMobileHook;
+  const showSidebar = !isMobile && (isTablet || !isMobile); // Always show on iPad+
 
   // Core state
   const [allSongs, setAllSongs] = useState<SetlistSong[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
 
   // UI state
   const [isUiVisible, setIsUiVisible] = useState(true);
+  const [isImmersiveMode, setIsImmersiveMode] = useState(false); // Full chart-only mode
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
 
@@ -70,6 +63,7 @@ const SheetReaderMode: React.FC = () => {
   const [chordScrollSpeed, setChordScrollSpeed] = useState(1.0);
 
   const uiHideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastTapRef = useRef<number>(0);
 
   // Audio
   const audioEngine = useToneAudio(true);
@@ -125,7 +119,6 @@ const SheetReaderMode: React.FC = () => {
 
       setAllSongs(mappedSongs);
 
-      // Recover song from URL
       const targetId = routeSongId || searchParams.get('id');
       if (targetId) {
         const idx = mappedSongs.findIndex((s) => s.id === targetId);
@@ -142,7 +135,7 @@ const SheetReaderMode: React.FC = () => {
     fetchSongs();
   }, [fetchSongs]);
 
-  // === Filtering & Sorting ===
+  // === Filtering ===
   const filteredSongs = useMemo(() => {
     let result = allSongs;
 
@@ -150,28 +143,21 @@ const SheetReaderMode: React.FC = () => {
       result = result.filter((s) => s.isApproved);
     }
 
-    if (searchTerm.trim()) {
-      const query = searchTerm.toLowerCase();
-      result = result.filter(
-        (s) =>
-          s.name.toLowerCase().includes(query) ||
-          (s.artist && s.artist.toLowerCase().includes(query))
-      );
-    }
-
-    // Sort (currently only alphabetical)
     return result.sort((a, b) => a.name.localeCompare(b.name));
-  }, [allSongs, searchTerm, ignoreConfirmedGate]);
+  }, [allSongs, ignoreConfirmedGate]);
 
-  // Preserve current song when filtering changes
+  // Index safety
   useEffect(() => {
-    const currentSong = filteredSongs[currentIndex];
-    if (!currentSong && filteredSongs.length > 0) {
+    if (filteredSongs.length === 0) {
       setCurrentIndex(0);
+      return;
+    }
+    if (currentIndex >= filteredSongs.length) {
+      setCurrentIndex(filteredSongs.length - 1);
     }
   }, [filteredSongs, currentIndex]);
 
-  // Sync URL with current song
+  // URL sync
   useEffect(() => {
     const song = filteredSongs[currentIndex];
     if (song) {
@@ -181,7 +167,7 @@ const SheetReaderMode: React.FC = () => {
 
   const currentSong = filteredSongs[currentIndex];
 
-  // === Audio Loading ===
+  // === Audio ===
   useEffect(() => {
     if (currentSong?.previewUrl) {
       loadFromUrl(currentSong.previewUrl, currentSong.pitch || 0);
@@ -197,6 +183,7 @@ const SheetReaderMode: React.FC = () => {
     (index: number) => {
       setCurrentIndex(index);
       stopPlayback();
+      setIsImmersiveMode(false); // Exit immersive on song change
     },
     [stopPlayback]
   );
@@ -241,79 +228,40 @@ const SheetReaderMode: React.FC = () => {
     [currentSong, user, setAudioPitch]
   );
 
-  // === Fullscreen ===
-  const toggleFullScreen = useCallback(() => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen();
-      setIsFullScreen(true);
-    } else {
-      document.exitFullscreen();
-      setIsFullScreen(false);
+  // === Immersive Mode (Double-tap to toggle chart-only view) ===
+  const handleDoubleTap = useCallback(() => {
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 300;
+
+    if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
+      setIsImmersiveMode((prev) => !prev);
+      setIsUiVisible(!isImmersiveMode); // Sync with old system
     }
-  }, []);
+    lastTapRef.current = now;
+  }, [isImmersiveMode]);
 
-  // === Keyboard Shortcuts ===
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)
-        return;
-
-      switch (e.key) {
-        case 'Escape':
-          navigate('/');
-          break;
-        case 'ArrowLeft':
-          handlePrev();
-          break;
-        case 'ArrowRight':
-          handleNext();
-          break;
-        case ' ':
-          e.preventDefault();
-          togglePlayback();
-          break;
-        case 'f':
-        case 'F':
-          e.preventDefault();
-          toggleFullScreen();
-          break;
-        case 'i':
-        case 'I':
-          e.preventDefault();
-          setIsStudioModalOpen(true);
-          break;
-      }
-    };
-
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, [navigate, handlePrev, handleNext, togglePlayback, toggleFullScreen]);
-
-  // === UI Auto-Hide ===
+  // === Touch/Mouse Activity Reset (only if not in immersive) ===
   const resetHideTimer = useCallback(() => {
+    if (isImmersiveMode || isOverlayOpen) return;
+
     if (uiHideTimeoutRef.current) clearTimeout(uiHideTimeoutRef.current);
-    if (!isOverlayOpen) {
-      uiHideTimeoutRef.current = setTimeout(() => setIsUiVisible(false), 8000);
-    }
-  }, [isOverlayOpen]);
+    setIsUiVisible(true);
+
+    uiHideTimeoutRef.current = setTimeout(() => {
+      setIsUiVisible(false);
+    }, 10000); // Longer on tablet
+  }, [isImmersiveMode, isOverlayOpen]);
 
   useEffect(() => {
-    if (isUiVisible && !isOverlayOpen) {
+    if (!isImmersiveMode && isUiVisible && !isOverlayOpen) {
       resetHideTimer();
     }
     return () => {
       if (uiHideTimeoutRef.current) clearTimeout(uiHideTimeoutRef.current);
     };
-  }, [isUiVisible, isOverlayOpen, resetHideTimer]);
+  }, [isUiVisible, isImmersiveMode, isOverlayOpen, resetHideTimer]);
 
-  const handleMainClick = useCallback(() => {
-    if (!isOverlayOpen) {
-      setIsUiVisible((v) => !v);
-      if (!isUiVisible) resetHideTimer();
-    }
-  }, [isOverlayOpen, isUiVisible, resetHideTimer]);
-
-  // === Content Rendering ===
+  // === Content ===
   const chartContent = useMemo(() => {
     if (!currentSong) {
       return (
@@ -338,7 +286,6 @@ const SheetReaderMode: React.FC = () => {
       );
     }
 
-    // Force overrides
     if (forceReaderResource === 'force-chords' && currentSong.ug_chords_text) {
       return (
         <UGChordsReader
@@ -356,8 +303,7 @@ const SheetReaderMode: React.FC = () => {
       );
     }
 
-    // Prefer UG chords if no PDF/leadsheet
-    if (currentSong.ug_chords_text && !currentSong.pdfUrl && !currentSong.leadsheetUrl) {
+    if (currentSong.ug_chords_text && !currentSong.pdfUrl && !currentSong.leadsheetUrl && !currentSong.ugUrl) {
       return (
         <UGChordsReader
           chordsText={currentSong.ug_chords_text}
@@ -379,9 +325,10 @@ const SheetReaderMode: React.FC = () => {
       return (
         <iframe
           key={currentSong.id}
-          src={`${chartUrl}#toolbar=0&view=FitH`}
-          className="w-full h-full bg-white"
+          src={`${chartUrl}#toolbar=0&view=FitH&zoom=100`}
+          className="w-full h-full bg-white touch-pan-x touch-pan-y touch-pinch-zoom"
           title="Sheet Music"
+          allowFullScreen
         />
       );
     }
@@ -410,15 +357,15 @@ const SheetReaderMode: React.FC = () => {
 
   return (
     <div className="relative flex h-screen w-screen overflow-hidden bg-slate-950 text-white selection:bg-indigo-500/30">
-      {/* UI Panels */}
+      {/* UI Panels - Hidden in Immersive Mode */}
       <AnimatePresence>
-        {isUiVisible && (
+        {isUiVisible && !isImmersiveMode && (
           <>
             <motion.div
               initial={{ y: -100 }}
               animate={{ y: 0 }}
               exit={{ y: -100 }}
-              className="fixed top-0 left-0 right-0 z-70"
+              className="fixed top-0 left-0 right-0 z-50"
             >
               <SheetReaderHeader
                 currentSong={currentSong}
@@ -432,7 +379,7 @@ const SheetReaderMode: React.FC = () => {
                 keyPreference={globalKeyPreference}
                 onUpdateKey={handleUpdateKey}
                 isFullScreen={isFullScreen}
-                onToggleFullScreen={toggleFullScreen}
+                onToggleFullScreen={() => {}}
                 setIsOverlayOpen={setIsOverlayOpen}
                 isOverrideActive={forceReaderResource !== 'default' || ignoreConfirmedGate}
               />
@@ -442,7 +389,7 @@ const SheetReaderMode: React.FC = () => {
               initial={{ y: 100 }}
               animate={{ y: 0 }}
               exit={{ y: 100 }}
-              className="fixed bottom-0 left-0 right-0 z-70"
+              className="fixed bottom-0 left-0 right-0 z-50"
             >
               <SheetReaderFooter
                 currentSong={currentSong}
@@ -464,38 +411,41 @@ const SheetReaderMode: React.FC = () => {
               />
             </motion.div>
 
-            {!isMobile && (
+            {showSidebar && (
               <motion.aside
                 initial={{ x: -300 }}
                 animate={{ x: 0 }}
                 exit={{ x: -300 }}
-                className="fixed left-0 top-0 bottom-0 w-64 bg-slate-900 border-r border-white/10 z-60 pt-24 pb-32"
+                className="fixed left-0 top-0 bottom-0 w-80 bg-slate-900 border-r border-white/10 z-40 pt-24 pb-32"
               >
-                <div className="p-4 border-b border-white/10 flex justify-between items-center bg-black/20">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                    Immersive List
+                <div className="p-5 border-b border-white/10 flex justify-between items-center bg-black/30">
+                  <span className="text-sm font-black uppercase tracking-widest text-slate-400">
+                    Song List
                   </span>
-                  <span className="text-[10px] font-mono text-indigo-400">
+                  <span className="text-sm font-mono text-indigo-400">
                     {filteredSongs.length} Tracks
                   </span>
                 </div>
                 <ScrollArea className="h-full">
-                  <div className="p-2 space-y-1">
-                    {filteredSongs.map((s, idx) => (
+                  <div className="p-3 space-y-2">
+                    {filteredSongs.map((song, index) => (
                       <button
-                        key={s.id}
-                        onClick={() => goToSong(idx)}
+                        key={song.id}
+                        onClick={() => goToSong(index)}
                         className={cn(
-                          'w-full text-left p-3 rounded-xl transition-all flex items-center gap-3 group',
-                          idx === currentIndex
-                            ? 'bg-indigo-600 text-white shadow-lg'
-                            : 'hover:bg-white/5 text-slate-400'
+                          'w-full text-left p-4 rounded-2xl transition-all flex items-center gap-4 text-lg',
+                          index === currentIndex
+                            ? 'bg-indigo-600 text-white shadow-2xl'
+                            : 'hover:bg-white/10 text-slate-300'
                         )}
                       >
-                        <span className="text-[10px] font-mono opacity-50">
-                          {(idx + 1).toString().padStart(2, '0')}
+                        <span className="text-sm font-mono opacity-60 min-w-8">
+                          {(index + 1).toString().padStart(2, '0')}
                         </span>
-                        <span className="text-xs font-bold uppercase truncate">{s.name}</span>
+                        <div className="truncate">
+                          <div className="font-bold truncate">{song.name}</div>
+                          {song.artist && <div className="text-xs opacity-70 truncate">{song.artist}</div>}
+                        </div>
                       </button>
                     ))}
                   </div>
@@ -506,37 +456,47 @@ const SheetReaderMode: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* Main Content */}
+      {/* Main Content - Always Visible */}
       <main
-        onClick={handleMainClick}
+        onTouchStart={handleDoubleTap}
+        onClick={resetHideTimer}
         onMouseMove={resetHideTimer}
+        onTouchMove={resetHideTimer}
         className={cn(
-          'flex-1 transition-all duration-500 bg-black',
-          isUiVisible && !isMobile ? 'ml-64' : 'ml-0'
+          'flex-1 bg-black transition-all duration-500',
+          showSidebar && isUiVisible && !isImmersiveMode ? 'ml-80' : 'ml-0'
         )}
       >
         <div className="h-full w-full">{chartContent}</div>
+
+        {/* Immersive Mode Hint */}
+        {isImmersiveMode && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-md px-6 py-3 rounded-full text-sm opacity-80 pointer-events-none">
+            Double-tap to exit full view
+          </div>
+        )}
       </main>
 
-<FloatingCommandDock
-  onOpenSearch={() => setIsRepertoirePickerOpen(true)}
-  onOpenPractice={togglePlayback}
-  onOpenReader={() => {}} // Required prop — no action needed in reader mode
-  onOpenAdmin={() => setIsResourceAuditOpen(true)}
-  onOpenPreferences={() => setIsPreferencesOpen(true)}
-  onToggleHeatmap={() => {}} // Required — not used in reader
-  onOpenUserGuide={() => {}} // Required — placeholder
-  showHeatmap={false} // Required boolean
-  viewMode="repertoire" // Required string
-  hasPlayableSong={!!currentSong?.previewUrl}
-  hasReadableChart={true}
-  isPlaying={isPlaying}
-  onTogglePlayback={togglePlayback}
-  isReaderMode={true}
-  onSetMenuOpen={setIsOverlayOpen}
-  onSetUiVisible={setIsUiVisible}
-  isMenuOpen={isOverlayOpen}
-/>
+      {/* Floating Dock - Always accessible */}
+      <FloatingCommandDock
+        onOpenSearch={() => setIsRepertoirePickerOpen(true)}
+        onOpenPractice={togglePlayback}
+        onOpenReader={() => {}}
+        onOpenAdmin={() => setIsResourceAuditOpen(true)}
+        onOpenPreferences={() => setIsPreferencesOpen(true)}
+        onToggleHeatmap={() => {}}
+        onOpenUserGuide={() => {}}
+        showHeatmap={false}
+        viewMode="repertoire"
+        hasPlayableSong={!!currentSong?.previewUrl}
+        hasReadableChart={true}
+        isPlaying={isPlaying}
+        onTogglePlayback={togglePlayback}
+        isReaderMode={true}
+        onSetMenuOpen={setIsOverlayOpen}
+        onSetUiVisible={setIsUiVisible}
+        isMenuOpen={isOverlayOpen}
+      />
 
       {/* Modals */}
       <RepertoirePicker
@@ -544,9 +504,9 @@ const SheetReaderMode: React.FC = () => {
         onClose={() => setIsRepertoirePickerOpen(false)}
         repertoire={allSongs}
         currentSetlistSongs={[]}
-        onAdd={(s) => {
-          const idx = allSongs.findIndex((x) => x.id === s.id);
-          if (idx !== -1) goToSong(idx);
+        onAdd={(selectedSong: SetlistSong) => {
+          const filteredIndex = filteredSongs.findIndex((s) => s.id === selectedSong.id);
+          if (filteredIndex !== -1) goToSong(filteredIndex);
           setIsRepertoirePickerOpen(false);
         }}
       />
