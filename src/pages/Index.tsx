@@ -921,7 +921,13 @@ const Index = () => {
         onClose={() => { setIsAdminOpen(false); }} 
         onRefreshRepertoire={fetchMasterRepertoire}
       />
-      <ResourceAuditModal isOpen={isAuditModalOpen} onClose={() => { setIsAuditModalOpen(false); }} songs={songs} onVerify={handleUpdateSong} />
+      <ResourceAuditModal 
+        isOpen={isAuditModalOpen} 
+        onClose={() => { setIsAuditModalOpen(false); }} 
+        songs={songs} 
+        onVerify={handleUpdateSong} 
+        onRefreshRepertoire={fetchMasterRepertoire} // Pass the refresh function
+      />
       <UserGuideModal isOpen={isUserGuideOpen} onClose={() => { setIsUserGuideOpen(false); }} />
       
       <aside ref={searchPanelRef} className={cn("w-full md:w-[450px] bg-white dark:bg-slate-900 border-l absolute right-0 top-20 bottom-0 z-40 transition-transform duration-500", isSearchPanelOpen ? "translate-x-0" : "translate-x-full")}>

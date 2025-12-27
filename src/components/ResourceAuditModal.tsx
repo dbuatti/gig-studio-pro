@@ -24,7 +24,9 @@ import {
   AlertCircle, 
   FileText,
   Guitar,
-  Check
+  Check,
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 import { SetlistSong } from './SetlistManager';
 import { cn } from '@/lib/utils';
@@ -33,6 +35,8 @@ import { showSuccess, showError, showInfo } from '@/utils/toast';
 import { isChordLine, transposeChords, extractKeyFromChords } from '@/utils/chordUtils';
 import { calculateSemitones, formatKey } from '@/utils/keyUtils';
 import { useSettings } from '@/hooks/use-settings';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './AuthProvider';
 
 interface ResourceAuditModalProps {
   isOpen: boolean;
@@ -40,12 +44,14 @@ interface ResourceAuditModalProps {
   songs: SetlistSong[];
   onVerify: (songId: string, updates: Partial<SetlistSong>) => void;
   onOpenStudio?: (songId: string) => void;
+  onRefreshRepertoire: () => void; // New prop to refresh parent's repertoire
 }
 
 type AuditTab = 'ug' | 'sheets';
 type AuditFilter = 'all' | 'missing-content' | 'missing-link' | 'unverified';
 
-const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose, songs, onVerify }) => {
+const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose, songs, onVerify, onRefreshRepertoire }) => {
+  const { user } = useAuth();
   const { keyPreference } = useSettings();
   const [activeTab, setActiveTab] = useState<AuditTab>('ug');
   const [searchTerm, setSearchTerm] = useState("");
@@ -53,6 +59,7 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [hoveredSongId, setHoveredSongId] = useState<string | null>(null);
+  const [isBulkPullingKeys, setIsBulkPullingKeys] = useState(false);
 
   const auditList = useMemo(() => {
     return songs.filter(s => {
@@ -174,6 +181,49 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
     }
   }, [onVerify, keyPreference]);
 
+  const handleBulkPullKeys = async () => {
+    if (!user) {
+      showError("User not authenticated.");
+      return;
+    }
+
+    const songsToProcess = songs.filter(s => 
+      s.ug_chords_text && s.ug_chords_text.trim() !== "" && (!s.originalKey || s.originalKey === "TBC")
+    );
+
+    if (songsToProcess.length === 0) {
+      showInfo("No songs found with chords but missing original key.");
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to pull keys for ${songsToProcess.length} songs? This will update their original key, target key, and pitch.`)) {
+      return;
+    }
+
+    setIsBulkPullingKeys(true);
+    showInfo(`Initiating bulk key extraction for ${songsToProcess.length} songs...`);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('bulk-pull-keys', {
+        body: { songIds: songsToProcess.map(s => s.id), userId: user.id }
+      });
+
+      if (error) throw error;
+
+      const successful = data.results.filter((r: any) => r.status === 'SUCCESS').length;
+      const failed = data.results.filter((r: any) => r.status === 'ERROR').length;
+      const skipped = data.results.filter((r: any) => r.status === 'SKIPPED').length;
+
+      showSuccess(`Bulk Key Pull Complete! ${successful} successful, ${failed} failed, ${skipped} skipped.`);
+      onRefreshRepertoire(); // Refresh the parent component's repertoire data
+    } catch (err: any) {
+      console.error("Bulk key pull failed:", err);
+      showError(`Bulk key pull failed: ${err.message}`);
+    } finally {
+      setIsBulkPullingKeys(false);
+    }
+  };
+
   useEffect(() => {
     const handleKeyDown = async (event: KeyboardEvent) => {
       if (isOpen && (event.metaKey || event.ctrlKey) && event.key === 'v') {
@@ -290,6 +340,18 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
         <div className="flex-1 min-h-0 overflow-hidden bg-slate-900/50">
           <ScrollArea className="h-full w-full">
             <div className="p-4 sm:p-6 space-y-3">
+              {activeTab === 'ug' && (
+                <div className="flex justify-end mb-4">
+                  <Button 
+                    onClick={handleBulkPullKeys}
+                    disabled={isBulkPullingKeys}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] rounded-xl gap-2 shadow-lg shadow-indigo-600/20 h-10 px-6"
+                  >
+                    {isBulkPullingKeys ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                    Bulk Pull Keys
+                  </Button>
+                </div>
+              )}
               {auditList.map((song) => {
                 const isEditing = editingId === song.id;
                 const sheetUrl = (song as any).sheet_music_url || song.pdfUrl || song.leadsheetUrl;
