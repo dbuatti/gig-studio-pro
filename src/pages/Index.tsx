@@ -166,7 +166,6 @@ const Index = () => {
   const fetchMasterRepertoire = async () => {
     if (!user) return;
     try {
-      // FIX: Use user_id instead of id to fetch the repertoire for the current user
       const { data } = await supabase.from('repertoire').select('*').eq('user_id', user.id);
       if (data) {
         const mapped = (data || []).map(d => ({
@@ -222,8 +221,8 @@ const Index = () => {
       if (songsToSync && songsToSync.length > 0) {
         const syncedBatch = await syncToMasterRepertoire(user.id, songsToSync);
         finalSongs = updatedSongs.map(s => {
-          const synced = syncedBatch.find(sb => sb.id === s.id);
-          return synced || s;
+          const synced = syncedBatch.find(sb => sb.id === s.id || (sb.name === s.name && sb.artist === s.artist));
+          return synced ? { ...s, master_id: synced.master_id } : s;
         });
       }
       setSetlists(prev => prev.map(l => l.id === listId ? { ...l, songs: finalSongs, ...updates } : l));
@@ -262,36 +261,53 @@ const Index = () => {
 
   const handleAutoLinkSetlist = async () => {
     if (!currentListId || !songs.length) return;
-    const missingSongs = songs.filter(s => (!s.youtubeUrl || s.youtubeUrl.trim() === '') && s.name && s.artist);
+    
+    // Improved detection logic that matches SetlistExporter
+    const isMissing = (url?: string) => !url || url.trim() === "" || url === "undefined" || url === "null";
+    const missingSongs = songs.filter(s => isMissing(s.youtubeUrl) && s.name && s.artist);
+    
     if (missingSongs.length === 0) {
       showSuccess("All songs are already optimized.");
       return;
     }
+
     try {
-      const batchIds = missingSongs.map(s => s.master_id).filter(Boolean) as string[];
-      if (batchIds.length === 0) {
-        const synced = await syncToMasterRepertoire(user!.id, missingSongs);
-        const newBatchIds = synced.map(s => s.master_id).filter(Boolean) as string[];
-        await invokeAutoLink(newBatchIds);
-      } else {
-        await invokeAutoLink(batchIds);
+      // 1. Ensure all missing songs are in master repertoire first to get master_ids
+      const songsToSync = missingSongs.filter(s => !s.master_id);
+      let batchIds: string[] = missingSongs.filter(s => !!s.master_id).map(s => s.master_id!);
+
+      if (songsToSync.length > 0) {
+        const synced = await syncToMasterRepertoire(user!.id, songsToSync);
+        const newIds = synced.map(s => s.master_id).filter(Boolean) as string[];
+        batchIds = [...batchIds, ...newIds];
       }
-      fetchSetlists();
-      fetchMasterRepertoire();
+
+      if (batchIds.length === 0) {
+        showError("Could not verify master records for tracks. Try saving individually.");
+        return;
+      }
+
+      // 2. Invoke the discovery engine
+      const { data, error } = await supabase.functions.invoke('bulk-populate-youtube-links', {
+        body: { songIds: batchIds }
+      });
+
+      if (error) throw error;
+
+      if (data.successful > 0) {
+        showSuccess(`AI Engine: ${data.successful} matches bound.`);
+        await fetchSetlists(); // Refresh state
+        await fetchMasterRepertoire();
+      } else {
+        showError("AI could not find high-confidence matches for remaining tracks.");
+      }
     } catch (err: any) {
+      console.error("AutoLink Error:", err);
       showError(`AI Engine Error: ${err.message}`);
     }
   };
 
-  const invokeAutoLink = async (ids: string[]) => {
-    const { data, error } = await supabase.functions.invoke('bulk-populate-youtube-links', {
-      body: { songIds: ids }
-    });
-    if (error) throw error;
-    if (data.successful > 0) showSuccess(`AI Engine: ${data.successful} matches bound.`);
-    else showError("AI could not find high-confidence matches for remaining tracks.");
-  };
-
+  // Rest of the component logic stays the same...
   const handleAddToSetlist = async (previewUrl: string, name: string, artist: string, youtubeUrl?: string, ugUrl?: string, appleMusicUrl?: string, genre?: string, pitch: number = 0) => {
     if (!user) return;
     let activeId = currentListId;

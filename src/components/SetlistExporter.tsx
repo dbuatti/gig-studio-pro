@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { SetlistSong } from './SetlistManager';
 import { ClipboardCopy, Youtube, Sparkles, Loader2, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { showSuccess, showError } from '@/utils/toast';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 interface SetlistExporterProps {
   songs: SetlistSong[];
@@ -18,15 +19,23 @@ interface SetlistExporterProps {
 const SetlistExporter: React.FC<SetlistExporterProps> = ({ songs, onAutoLink, onDownloadAllMissingAudio, isBulkDownloading, missingAudioCount = 0 }) => {
   const [isLinking, setIsLinking] = useState(false);
 
+  // Helper to determine if a URL is actually present and valid
+  const isMissingLink = (url?: string) => {
+    if (!url) return true;
+    const clean = url.trim();
+    return clean === "" || clean === "undefined" || clean === "null";
+  };
+
   const handleAutoLink = async () => {
     if (!onAutoLink) return;
     
     setIsLinking(true);
     try {
       await onAutoLink();
-      showSuccess("Manifest Sync Complete");
+      // Note: Success message is also handled in the parent, but we add reinforcement here
+      showSuccess("AI Discovery Pipeline Complete");
     } catch (err) {
-      showError("AI Auto-link engine failed");
+      showError("AI Auto-link engine failed to initialize");
     } finally {
       setIsLinking(false);
     }
@@ -34,7 +43,7 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({ songs, onAutoLink, on
 
   const copyAllYoutubeLinks = () => {
     const links = songs
-      .filter(s => s.youtubeUrl)
+      .filter(s => !isMissingLink(s.youtubeUrl))
       .map(s => s.youtubeUrl)
       .join("\n");
 
@@ -53,7 +62,10 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({ songs, onAutoLink, on
     }
   };
 
-  const missingMetadataCount = songs.filter(s => !s.youtubeUrl || s.youtubeUrl.trim() === '').length;
+  // Improved calculation logic for missing metadata
+  const missingMetadataCount = useMemo(() => 
+    songs.filter(s => isMissingLink(s.youtubeUrl) && s.name && s.artist).length,
+  [songs]);
 
   return (
     <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border shadow-sm flex flex-col justify-center gap-4 transition-transform hover:scale-[1.02]">
@@ -74,15 +86,18 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({ songs, onAutoLink, on
                   size="sm" 
                   onClick={handleAutoLink}
                   disabled={isLinking || missingMetadataCount === 0}
-                  className="h-9 w-full justify-start text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:bg-indigo-50 rounded-xl gap-3 relative overflow-hidden"
+                  className={cn(
+                    "h-9 w-full justify-start text-[10px] font-black uppercase tracking-widest rounded-xl gap-3 relative overflow-hidden transition-all",
+                    isLinking ? "bg-indigo-50 text-indigo-400" : "text-indigo-600 hover:bg-indigo-50"
+                  )}
                 >
                   {isLinking ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <Sparkles className="w-4 h-4" />
                   )}
-                  {isLinking ? `Linking Engine Active...` : `AI Auto-Link (${missingMetadataCount} Missing)`}
-                  {isLinking && <div className="absolute inset-0 bg-indigo-500/10 animate-pulse" />}
+                  {isLinking ? `Analyzing ${missingMetadataCount} Tracks...` : `AI Auto-Link (${missingMetadataCount} Missing)`}
+                  {isLinking && <div className="absolute inset-0 bg-indigo-500/5 animate-pulse" />}
                 </Button>
               </div>
             </TooltipTrigger>
