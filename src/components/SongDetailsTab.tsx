@@ -22,7 +22,6 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
   // --- UG Link Handlers ---
   const handleUgChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newUrl = e.target.value;
-    console.log("[SongDetailsTab] UG URL changed:", newUrl); // Log change
     // Save immediately to parent state
     handleAutoSave({ ugUrl: newUrl });
   };
@@ -32,7 +31,6 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
     if (newUrl) {
       const cleanUrl = sanitizeUGUrl(newUrl);
       if (cleanUrl !== newUrl) {
-        console.log("[SongDetailsTab] UG URL sanitized:", cleanUrl); // Log sanitization
         // If the URL was cleaned, save the cleaned version
         handleAutoSave({ ugUrl: cleanUrl });
       }
@@ -49,7 +47,6 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
   // --- Sheet Music Link Handlers ---
   const handleSheetChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newUrl = e.target.value;
-    console.log("[SongDetailsTab] Sheet URL changed:", newUrl); // Log change
     // Save immediately to parent state
     handleAutoSave({ sheet_music_url: newUrl });
   };
@@ -84,8 +81,6 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
   // Determine verification status based on presence
   const isUgVerified = !!formData.ugUrl;
   const isSheetVerified = !!(formData.sheet_music_url || formData.pdfUrl || formData.leadsheetUrl);
-
-  console.log("[SongDetailsTab] Rendering with formData.ugUrl:", formData.ugUrl); // Log on render
 
   return (
     <div className="space-y-10 animate-in fade-in duration-500">

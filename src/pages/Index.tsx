@@ -180,7 +180,6 @@ const Index = () => {
 
       if (data) {
         const mappedRepertoire = data.map(d => {
-          console.log(`[Index] Master Repertoire Song: ${d.title}, ug_url: ${d.ug_url}`); // Log ug_url
           return {
             id: d.id, master_id: d.id, name: d.title, artist: d.artist, bpm: d.bpm, lyrics: d.lyrics,
             originalKey: d.original_key, targetKey: d.target_key, pitch: d.pitch, ugUrl: d.ug_url,

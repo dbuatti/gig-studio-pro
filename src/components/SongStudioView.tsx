@@ -121,6 +121,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
             duration_seconds: data.duration_seconds, genre: data.genre,
             is_ug_chords_present: data.is_ug_chords_present, is_ug_link_verified: data.is_ug_link_verified,
             sheet_music_url: data.sheet_music_url, is_sheet_verified: data.is_sheet_verified,
+            ugUrl: data.ug_url, // ADDED THIS LINE
           } as SetlistSong;
         }
       } else {
@@ -131,7 +132,6 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
 
       if (!targetSong) throw new Error("Song not found in database or setlist.");
 
-      console.log("[SongStudioView] Fetched targetSong:", targetSong); // Log fetched song
       setSong(targetSong);
       setFormData({ ...targetSong, is_pitch_linked: targetSong.is_pitch_linked ?? true });
       if (targetSong.previewUrl) {
@@ -152,7 +152,6 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     if (!song) return;
     setFormData(prev => {
       const next = { ...prev, ...updates };
-      console.log("[SongStudioView] Auto-saving updates:", updates); // Log auto-save updates
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
       saveTimeoutRef.current = setTimeout(async () => {
         try {
