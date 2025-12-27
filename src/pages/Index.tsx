@@ -55,14 +55,30 @@ const Index = () => {
   const [isPlayerActive, setIsPlayerActive] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   
-  // Lifted Filter State
   const [sortMode, setSortMode] = useState<'none' | 'ready' | 'work'>(() => {
-    const saved = localStorage.getItem('gig_sort_mode');
-    return (saved as any) || 'none';
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('gig_sort_mode');
+      return (saved as any) || 'none';
+    }
+    return 'none';
   });
+  
   const [activeFilters, setActiveFilters] = useState<FilterState>(() => {
-    const saved = localStorage.getItem('gig_active_filters');
-    return saved ? JSON.parse(saved) : {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('gig_active_filters');
+      return saved ? JSON.parse(saved) : {
+        hasAudio: 'all',
+        hasVideo: 'all',
+        hasChart: 'all',
+        hasPdf: 'all',
+        hasUg: 'all',
+        isConfirmed: 'all',
+        isApproved: 'all',
+        readiness: 100,
+        hasUgChords: 'all'
+      };
+    }
+    return {
       hasAudio: 'all',
       hasVideo: 'all',
       hasChart: 'all',
@@ -74,14 +90,13 @@ const Index = () => {
       hasUgChords: 'all'
     };
   });
+  
   const [searchTerm, setSearchTerm] = useState("");
-
   const [masterRepertoire, setMasterRepertoire] = useState<SetlistSong[]>([]);
   const [isBulkDownloading, setIsBulkDownloading] = useState(false);
 
   const isSyncingRef = useRef(false);
   const saveQueueRef = useRef<{ listId: string; songs: SetlistSong[]; updates: any; songsToSync?: SetlistSong[] }[]>([]);
-
   const transposerRef = useRef<AudioTransposerRef>(null);
 
   const currentList = setlists.find(l => l.id === currentListId);
@@ -265,71 +280,63 @@ const Index = () => {
     const isMissing = (url?: string) => !url || url.trim() === "" || url === "undefined" || url === "null";
     const missingSongs = songs.filter(s => isMissing(s.youtubeUrl) && s.name);
     
-    console.log("[GigStudio] Starting AI Auto-Link Pipeline", { 
-      total: songs.length, 
-      missing: missingSongs.length,
-      names: missingSongs.map(s => s.name)
-    });
-
     if (missingSongs.length === 0) {
       showSuccess("All songs are already optimized.");
       return;
     }
 
     try {
-      // 1. Ensure all missing songs are in master repertoire first to get master_ids
+      // 1. Ensure master records exist to get IDs
       const songsToSync = missingSongs.filter(s => !s.master_id);
       let batchIds: string[] = missingSongs.filter(s => !!s.master_id).map(s => s.master_id!);
-
-      console.log("[GigStudio] Step 1: Validating Master Library Records", { 
-        needsSync: songsToSync.length,
-        alreadyMaster: batchIds.length 
-      });
 
       if (songsToSync.length > 0) {
         const synced = await syncToMasterRepertoire(user!.id, songsToSync);
         const newIds = synced.map(s => s.master_id).filter(Boolean) as string[];
         batchIds = [...batchIds, ...newIds];
-        console.log("[GigStudio] Sync Complete", { newIdsBound: newIds.length });
       }
 
       if (batchIds.length === 0) {
-        console.error("[GigStudio] Sync Error: No Master IDs returned.");
-        showError("Could not verify master records for tracks.");
+        showError("Could not verify master records.");
         return;
       }
 
-      // 2. Invoke the discovery engine
-      console.log("[GigStudio] Step 2: Invoking Discovery Engine Edge Function", { songIds: batchIds });
+      // 2. Run Discovery Engine
       const { data, error } = await supabase.functions.invoke('bulk-populate-youtube-links', {
         body: { songIds: batchIds }
       });
 
-      if (error) {
-        console.error("[GigStudio] Edge Function Error:", error);
-        throw error;
-      }
+      if (error) throw error;
 
-      console.log("[GigStudio] Engine Result Received", { 
-        successful: data.successful, 
-        failed: data.failed,
-        results: data.results 
-      });
-
+      // 3. CRITICAL: Merge results back into local setlist state immediately
       if (data.successful > 0) {
+        const resultsMap = new Map(data.results.filter((r: any) => r.status === 'SUCCESS').map((r: any) => [r.id, r.videoId]));
+        
+        const updatedSongs = songs.map(s => {
+          const matchedVideoId = resultsMap.get(s.master_id);
+          if (matchedVideoId) {
+            return {
+              ...s,
+              youtubeUrl: `https://www.youtube.com/watch?v=${matchedVideoId}`,
+              metadata_source: 'auto_populated'
+            };
+          }
+          return s;
+        });
+
+        // Update local state and trigger DB save for the setlist JSONB
+        await saveList(currentListId, updatedSongs);
         showSuccess(`AI Engine: ${data.successful} matches bound.`);
-        await fetchSetlists(); // Refresh state
         await fetchMasterRepertoire();
       } else {
-        showError("AI could not find high-confidence matches for remaining tracks.");
+        showError("No high-confidence matches found.");
       }
     } catch (err: any) {
-      console.error("[GigStudio] Pipeline Crash:", err);
+      console.error("[GigStudio] Pipeline Error:", err);
       showError(`AI Engine Error: ${err.message}`);
     }
   };
 
-  // ... (rest of component remains unchanged)
   const handleAddToSetlist = async (previewUrl: string, name: string, artist: string, youtubeUrl?: string, ugUrl?: string, appleMusicUrl?: string, genre?: string, pitch: number = 0) => {
     if (!user) return;
     let activeId = currentListId;
