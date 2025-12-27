@@ -184,6 +184,9 @@ const SheetReaderMode: React.FC = () => {
       console.log("[SheetReaderMode]   Filtered by searchTerm. Count:", result.length);
     }
 
+    // Store the ID of the currently active song before updating filteredSongs
+    const previouslyActiveSongId = currentSong?.id;
+
     // Only update state if the filtered songs have actually changed
     setFilteredSongs(prevFilteredSongs => {
       if (JSON.stringify(result) !== JSON.stringify(prevFilteredSongs)) {
@@ -193,6 +196,27 @@ const SheetReaderMode: React.FC = () => {
       console.log("[SheetReaderMode] Filtered songs unchanged. Skipping state update.");
       return prevFilteredSongs;
     });
+
+    // NEW LOGIC: Update currentIndex after filteredSongs has been updated
+    setCurrentIndex(prevIndex => {
+      if (result.length === 0) {
+        console.log("[SheetReaderMode]   Filtered songs is empty. Setting currentIndex to 0.");
+        return 0; // Or -1 if you want to explicitly indicate no song selected
+      }
+
+      // Try to find the previously active song in the new filtered list
+      const newIndex = previouslyActiveSongId ? result.findIndex(s => s.id === previouslyActiveSongId) : -1;
+
+      if (newIndex !== -1) {
+        console.log("[SheetReaderMode]   Previously active song found in new filtered list. Setting currentIndex to:", newIndex);
+        return newIndex;
+      } else {
+        // If the previous song is no longer in the filtered list, default to the first song
+        console.log("[SheetReaderMode]   Previously active song not found or no previous song. Setting currentIndex to 0.");
+        return 0;
+      }
+    });
+
   }, [allSongs, searchTerm, ignoreConfirmedGate]); // Dependencies for filtering useEffect
 
   // Sync URL with state for persistence
@@ -208,17 +232,19 @@ const SheetReaderMode: React.FC = () => {
 
   // Load Audio when song changes
   useEffect(() => {
-    console.log("[SheetReaderMode] Effect: currentSong changed. Loading audio... Dependencies: [currentSong, loadFromUrl, resetEngine]");
+    console.log("[SheetReaderMode] Effect: currentSong changed. Loading audio... Dependencies: [currentSong, loadFromUrl, audioEngine.stopPlayback]");
     if (currentSong?.previewUrl) {
       console.log("[SheetReaderMode]   Loading audio from URL:", currentSong.previewUrl, "initial pitch:", currentSong.pitch);
       loadFromUrl(currentSong.previewUrl, currentSong.pitch || 0);
       setLocalPitch(currentSong.pitch || 0);
     } else {
-      console.log("[SheetReaderMode]   No previewUrl for current song. Resetting audio engine.");
-      resetEngine();
+      // If no previewUrl, stop playback but don't reset the entire engine
+      // The resetEngine is handled internally by loadFromUrl when a new audio is loaded.
+      console.log("[SheetReaderMode]   No previewUrl for current song. Stopping playback.");
+      audioEngine.stopPlayback(); // Use stopPlayback instead of resetEngine
       setLocalPitch(0);
     }
-  }, [currentSong, loadFromUrl, resetEngine]);
+  }, [currentSong, loadFromUrl, audioEngine.stopPlayback]);
 
   const handleNext = useCallback(() => {
     console.log("[SheetReaderMode] handleNext called.");
@@ -541,7 +567,7 @@ const SheetReaderMode: React.FC = () => {
         isMenuOpen={isOverlayOpen} // Pass current overlay state
       />
 
-      <RepertoirePicker isOpen={isRepertoirePickerOpen} onClose={() => setIsRepertoirePickerOpen(false)} repertoire={allSongs} currentSetlistSongs={[]} onAdd={(s) => {
+      <RepertoirePicker isOpen={isRepertoirePickerOpen} onClose={() => { setIsRepertoirePickerOpen(false); console.log("[SheetReaderMode]   Closing repertoire picker."); }} repertoire={allSongs} currentSetlistSongs={[]} onAdd={(s) => {
         const idx = allSongs.findIndex(x => x.id === s.id);
         if (idx !== -1) setCurrentIndex(idx);
         setIsRepertoirePickerOpen(false);
