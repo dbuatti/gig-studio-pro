@@ -87,6 +87,7 @@ const SheetReaderMode: React.FC = () => {
 
   // Sync localPitch with pitch from useHarmonicSync
   useEffect(() => {
+    console.log("[SheetReaderMode] Syncing audio pitch:", pitch);
     setAudioPitch(pitch);
   }, [pitch, setAudioPitch]);
 
@@ -151,6 +152,7 @@ const SheetReaderMode: React.FC = () => {
       }
       
       setCurrentIndex(initialIndex);
+      console.log("[SheetReaderMode] Fetched songs. Initial song:", readableAndApprovedSongs[initialIndex]?.name, "ID:", readableAndApprovedSongs[initialIndex]?.id);
 
     } catch (err) {
       if (!(err instanceof Error && err.message.includes('Supabase fetch error'))) {
@@ -171,6 +173,14 @@ const SheetReaderMode: React.FC = () => {
   // Update formData for useHarmonicSync when currentSong changes
   useEffect(() => {
     if (currentSong) {
+      console.log("[SheetReaderMode] currentSong changed. Updating formData for harmonic sync:", {
+        id: currentSong.id,
+        name: currentSong.name,
+        originalKey: currentSong.originalKey, 
+        targetKey: currentSong.targetKey, 
+        pitch: currentSong.pitch,
+        is_pitch_linked: currentSong.is_pitch_linked,
+      });
       setFormData({ 
         originalKey: currentSong.originalKey, 
         targetKey: currentSong.targetKey, 
@@ -183,6 +193,7 @@ const SheetReaderMode: React.FC = () => {
   // Load audio when song changes
   useEffect(() => {
     if (currentSong?.previewUrl) {
+      console.log("[SheetReaderMode] Attempting to load audio for:", currentSong.name, "URL:", currentSong.previewUrl, "Initial Pitch:", pitch);
       // Always stop playback before attempting to load or re-initialize
       stopPlayback(); // Ensure any existing playback is stopped
 
@@ -191,11 +202,13 @@ const SheetReaderMode: React.FC = () => {
         loadFromUrl(currentSong.previewUrl, pitch || 0);
       } else {
         // If same URL and buffer exists, just update pitch and reset progress
+        console.log("[SheetReaderMode] Same audio URL, updating pitch and resetting progress.");
         setAudioPitch(pitch || 0);
         setAudioProgress(0);
         // stopPlayback() was already called above
       }
     } else {
+      console.log("[SheetReaderMode] No previewUrl for current song. Stopping playback and resetting pitch.");
       stopPlayback();
       setPitch(0); // Reset pitch when no audio
     }
@@ -204,6 +217,7 @@ const SheetReaderMode: React.FC = () => {
   // Update URL when song changes
   useEffect(() => {
     if (currentSong) {
+      console.log("[SheetReaderMode] Updating URL search params for song:", currentSong.id);
       setSearchParams({ id: currentSong.id }, { replace: true });
     }
   }, [currentSong, setSearchParams]);
@@ -214,22 +228,26 @@ const SheetReaderMode: React.FC = () => {
     const nextIndex = (currentIndex + 1) % allSongs.length;
     setCurrentIndex(nextIndex);
     stopPlayback();
-  }, [currentIndex, allSongs.length, stopPlayback]);
+    console.log("[SheetReaderMode] Navigating to next song. New index:", nextIndex, "Song:", allSongs[nextIndex]?.name);
+  }, [currentIndex, allSongs.length, stopPlayback, allSongs]);
 
   const handlePrev = useCallback(() => {
     if (allSongs.length === 0) return;
     const prevIndex = (currentIndex - 1 + allSongs.length) % allSongs.length;
     setCurrentIndex(prevIndex);
     stopPlayback();
-  }, [currentIndex, allSongs.length, stopPlayback]);
+    console.log("[SheetReaderMode] Navigating to previous song. New index:", prevIndex, "Song:", allSongs[prevIndex]?.name);
+  }, [currentIndex, allSongs.length, stopPlayback, allSongs]);
 
   // === Key Update ===
   const handleUpdateKey = useCallback(async (newTargetKey: string) => {
     if (!currentSong || !user) return;
     
+    console.log("[SheetReaderMode] handleUpdateKey: Setting new target key to:", newTargetKey);
     setTargetKey(newTargetKey);
 
     const newPitch = calculateSemitones(currentSong.originalKey || 'C', newTargetKey);
+    console.log("[SheetReaderMode] handleUpdateKey: Calculated new pitch:", newPitch, "from originalKey:", currentSong.originalKey, "and newTargetKey:", newTargetKey);
 
     try {
       const { error } = await supabase
@@ -244,7 +262,9 @@ const SheetReaderMode: React.FC = () => {
         )
       );
       showSuccess(`Stage Key set to ${newTargetKey}`);
-    } catch {
+      console.log("[SheetReaderMode] handleUpdateKey: Successfully updated song in DB and local state.");
+    } catch (err) {
+      console.error("[SheetReaderMode] handleUpdateKey: Failed to update key:", err);
       showError('Failed to update key');
     }
   }, [currentSong, user, setTargetKey]);
@@ -260,6 +280,7 @@ const SheetReaderMode: React.FC = () => {
   const renderChartForSong = useCallback((song: SetlistSong, isCurrent: boolean, isPreloading: boolean) => {
     const readiness = calculateReadiness(song);
     if (readiness < 40 && forceReaderResource !== 'simulation' && !ignoreConfirmedGate) {
+      console.log(`[SheetReaderMode] Rendering fallback for ${song.name}: Low readiness (${readiness}%)`);
       return (
         <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-950">
           <AlertCircle className="w-24 h-24 text-red-500 mb-8" />
@@ -294,6 +315,7 @@ const SheetReaderMode: React.FC = () => {
     const googleViewer = chartUrl ? `https://docs.google.com/viewer?url=${encodeURIComponent(chartUrl)}&embedded=true` : null;
 
     const handleIframeLoad = () => {
+      console.log(`[SheetReaderMode] Iframe loaded for song ID: ${song.id}`);
       // Delay setting loaded state to allow iframe content to fully render visually
       chartLoadTimers.current.set(song.id, setTimeout(() => {
         setRenderedCharts(prev => prev.map(rc => rc.id === song.id ? { ...rc, isLoaded: true } : rc));
@@ -302,17 +324,21 @@ const SheetReaderMode: React.FC = () => {
     };
 
     const handleUgLoad = () => {
+      console.log(`[SheetReaderMode] UGChordsReader content loaded for song ID: ${song.id}`);
       setRenderedCharts(prev => prev.map(rc => rc.id === song.id ? { ...rc, isLoaded: true } : rc));
     };
 
     // NEW LOGIC: Prioritize ug_chords_text if available
     if (song.ug_chords_text && song.ug_chords_text.trim().length > 0) {
+      console.log(`[SheetReaderMode] Rendering UGChordsReader for ${song.name} (ug_chords_text present)`);
       return renderUgChordsReader(song, handleUgLoad);
     }
     // Fallback to other chart types if ug_chords_text is not present
     else if (forceReaderResource === 'force-chords' && song.ug_chords_text) {
+      console.log(`[SheetReaderMode] Rendering UGChordsReader for ${song.name} (force-chords override)`);
       return renderUgChordsReader(song, handleUgLoad);
-    } else if (chartUrl && isFramable(chartUrl)) { // Check if the URL is framable
+    } else if (chartUrl && isFramable(chartUrl)) { // If URL exists and is framable
+      console.log(`[SheetReaderMode] Rendering iframe for ${song.name} (URL: ${chartUrl})`);
       return (
         <div className="w-full h-full relative bg-black">
           <iframe
@@ -337,6 +363,7 @@ const SheetReaderMode: React.FC = () => {
         </div>
       );
     } else if (chartUrl && !isFramable(chartUrl)) { // If URL exists but is not framable
+      console.log(`[SheetReaderMode] Rendering protected asset fallback for ${song.name} (URL: ${chartUrl})`);
       return (
         <div className="h-full flex flex-col items-center justify-center bg-slate-950 p-6 md:p-12 text-center">
           <ShieldCheck className="w-12 h-12 md:w-16 md:h-16 text-indigo-400 mb-6 md:mb-10" />
@@ -353,6 +380,7 @@ const SheetReaderMode: React.FC = () => {
         </div>
       );
     } else {
+      console.log(`[SheetReaderMode] Rendering no chart available fallback for ${song.name}`);
       return (
         <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-950">
           <Music className="w-24 h-24 text-slate-700 mb-8" />
@@ -439,6 +467,7 @@ const SheetReaderMode: React.FC = () => {
       filteredPrevCharts.forEach(c => finalChartsMap.set(c.id, c));
       newCharts.forEach(c => finalChartsMap.set(c.id, c));
 
+      console.log("[SheetReaderMode] Updated renderedCharts stack:", Array.from(finalChartsMap.values()).map(c => ({ id: c.id, isLoaded: c.isLoaded, opacity: c.opacity, zIndex: c.zIndex })));
       return Array.from(finalChartsMap.values());
     });
 
@@ -458,6 +487,7 @@ const SheetReaderMode: React.FC = () => {
       if (e.key.toLowerCase() === 'i' && currentSong && !isStudioModalOpen) {
         e.preventDefault();
         setIsStudioModalOpen(true);
+        console.log("[SheetReaderMode] 'I' key pressed. Opening Song Studio Modal.");
       }
     };
 

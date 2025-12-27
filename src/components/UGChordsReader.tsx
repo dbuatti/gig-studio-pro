@@ -51,13 +51,23 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
 
   // Unified Transposition Logic: Calculate delta (n) between Original and Stage Key
   const transposedChordsText = useMemo(() => {
-    if (!chordsText || !originalKey || !targetKey || originalKey === "TBC") return chordsText;
+    if (!chordsText || !originalKey || !targetKey || originalKey === "TBC") {
+      console.log("[UGChordsReader] Skipping transposition: Missing chordsText, originalKey, or targetKey, or originalKey is TBC.");
+      return chordsText;
+    }
     
     const n = calculateSemitones(originalKey, targetKey);
-    // FIX: Ensure transposition is only applied if n is not 0
-    if (n === 0) return chordsText;
+    console.log(`[UGChordsReader] Calculating transposition for "${originalKey}" to "${targetKey}". Semitones: ${n}. Key Preference: ${keyPreference}`);
     
-    return transposeChords(chordsText, n, keyPreference); // Pass keyPreference
+    // FIX: Ensure transposition is only applied if n is not 0
+    if (n === 0) {
+      console.log("[UGChordsReader] Semitones is 0. Returning original chordsText.");
+      return chordsText;
+    }
+    
+    const transposed = transposeChords(chordsText, n, keyPreference); // Pass keyPreference
+    console.log("[UGChordsReader] Transposed chordsText generated.");
+    return transposed;
   }, [chordsText, originalKey, targetKey, keyPreference]);
 
   // Ensure chords are readable on dark background if color is set to black
@@ -146,6 +156,7 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
     if (onLoad && !hasLoadedRef.current && chordsText) {
       onLoad();
       hasLoadedRef.current = true;
+      console.log("[UGChordsReader] onLoad callback fired.");
     }
   }, [onLoad, chordsText]);
 
