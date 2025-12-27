@@ -255,14 +255,14 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
     };
   }, [autoAdvanceEnabled, autoAdvanceInterval, filteredSongs.length, handleNext]);
 
-  // NEW: Immersive Mode Logic - Controls initial UI visibility based on playback state
-  useEffect(() => {
-    if (isPlaying) {
-      setIsUiVisible(false); // Hide UI when playback starts
-    } else {
-      setIsUiVisible(true); // Show UI when playback stops
-    }
-  }, [isPlaying]);
+  // Removed: Immersive Mode Logic - Controls initial UI visibility based on playback state
+  // useEffect(() => {
+  //   if (isPlaying) {
+  //     setIsUiVisible(false); // Hide UI when playback starts
+  //   } else {
+  //     setIsUiVisible(true); // Show UI when playback stops
+  //   }
+  // }, [isPlaying]);
 
   // Keyboard shortcuts
   useEffect(() => {
