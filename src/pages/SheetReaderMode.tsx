@@ -92,7 +92,6 @@ const SheetReaderMode: React.FC = () => {
 
       if (error) {
         // Added client-side error handling for Supabase fetch
-        console.error("Supabase fetch error in SheetReaderMode:", error);
         showError('Failed to load repertoire data.');
         throw error;
       }
@@ -224,12 +223,10 @@ const SheetReaderMode: React.FC = () => {
   // === Chart Content ===
   const chartContent = useMemo(() => {
     if (!currentSong) {
-      return (
-        <div className="h-full flex items-center justify-center text-slate-500">
-          <Loader2 className="w-16 h-16 animate-spin" />
-          <span className="text-2xl ml-6">Loading song...</span>
-        </div>
-      );
+      // This case should ideally only happen on initial load if allSongs is empty,
+      // which is handled by the main `if (loading)` block.
+      // If it happens during navigation, it indicates an unexpected state.
+      return null; // Return null to avoid flashing a loader if currentSong is briefly undefined
     }
 
     const readiness = calculateReadiness(currentSong);
