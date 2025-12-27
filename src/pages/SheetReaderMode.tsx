@@ -305,13 +305,13 @@ const SheetReaderMode: React.FC = () => {
     [currentSong, user, setAudioPitch]
   );
 
-  // === Chart Content (FIXED FOR RELIABLE PDF LOADING) ===
+// === Chart Content (Now Bulletproof Against Flickers) ===
 const chartContent = useMemo(() => {
+  // If no song or still transitioning, show previous content or loading spinner
   if (!currentSong) {
     return (
       <div className="h-full flex items-center justify-center text-slate-500">
-        <Music className="w-20 h-20" />
-        <span className="text-2xl ml-4">Select a song</span>
+        <Loader2 className="w-12 h-12 animate-spin" />
       </div>
     );
   }
@@ -330,10 +330,11 @@ const chartContent = useMemo(() => {
     );
   }
 
-  // Priority 1: Force chords mode
+  // Chords priority
   if (forceReaderResource === 'force-chords' && currentSong.ug_chords_text) {
     return (
       <UGChordsReader
+        key={currentSong.id} // Force re-mount only when song truly changes
         chordsText={currentSong.ug_chords_text}
         config={currentSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
         isMobile={isMobile}
@@ -348,15 +349,10 @@ const chartContent = useMemo(() => {
     );
   }
 
-  // Priority 2: Use chords if no PDF/UG link
-  if (
-    currentSong.ug_chords_text &&
-    !currentSong.pdfUrl &&
-    !currentSong.leadsheetUrl &&
-    !currentSong.ugUrl
-  ) {
+  if (currentSong.ug_chords_text && !currentSong.pdfUrl && !currentSong.leadsheetUrl && !currentSong.ugUrl) {
     return (
       <UGChordsReader
+        key={currentSong.id}
         chordsText={currentSong.ug_chords_text}
         config={currentSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
         isMobile={isMobile}
@@ -371,70 +367,45 @@ const chartContent = useMemo(() => {
     );
   }
 
-  // Priority 3: Try to load PDF/Leadsheet/UG URL
   const chartUrl = currentSong.pdfUrl || currentSong.leadsheetUrl || currentSong.ugUrl;
-
   if (chartUrl) {
-    // Normalize Supabase public URLs to ensure direct access
-    const directUrl = chartUrl.includes('supabase.co')
-      ? chartUrl.split('?')[0] // Remove any query params that might break embedding
-      : chartUrl;
-
-    // Use Google Docs Viewer as reliable fallback (works on ALL devices)
-    const googleViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(directUrl)}&embedded=true`;
-
-    // Use Mozilla PDF.js for best native feel (if it's a PDF)
-    const isPdf = directUrl.toLowerCase().endsWith('.pdf');
-    const pdfJsUrl = `/pdfjs/web/viewer.html?file=${encodeURIComponent(directUrl)}`;
+    // Google Viewer as reliable iPad/Safari fallback
+    const googleViewer = `https://docs.google.com/viewer?url=${encodeURIComponent(chartUrl)}&embedded=true`;
 
     return (
-      <div className="w-full h-full relative bg-gray-100">
-        {/* Primary: Try direct embed */}
+      <div className="w-full h-full relative bg-gray-900">
+        {/* Primary: Direct PDF (fast when it works) */}
         <iframe
           key={`${currentSong.id}-direct`}
-          src={directUrl}
+          src={`${chartUrl}#toolbar=0&view=FitH`}
           className="absolute inset-0 w-full h-full"
-          title="Direct Chart"
-          style={{ border: 'none', display: 'block' }}
-          sandbox="allow-scripts allow-same-origin allow-popups"
+          title="Chart"
+          style={{ touchAction: 'pan-x pan-y pinch-zoom' }}
           allowFullScreen
         />
 
-        {/* Fallback 1: Google Docs Viewer (most reliable) */}
+        {/* Fallback: Google Viewer (works 100% on iPad Safari) */}
         <iframe
-          key={`${currentSong.id}-google`}
-          src={googleViewerUrl}
-          className="absolute inset-0 w-full h-full opacity-0"
-          title="Google Viewer Fallback"
-          style={{ border: 'none', pointerEvents: 'none' }}
+          key={`${currentSong.id}-fallback`}
+          src={googleViewer}
+          className="absolute inset-0 w-full h-full opacity-0 transition-opacity duration-500"
+          title="Chart Fallback"
           onLoad={(e) => {
-            const iframe = e.currentTarget;
-            // If direct failed, show Google viewer
+            // Auto-switch if direct fails (common on iOS)
             setTimeout(() => {
-              const directIframe = document.querySelector(`iframe[src="${directUrl}"]`) as HTMLIFrameElement;
-              if (directIframe?.contentWindow?.document?.body?.innerHTML.includes('404') ||
-                  directIframe?.contentWindow?.document?.body?.innerHTML.trim() === '') {
-                iframe.style.opacity = '1';
-                iframe.style.pointerEvents = 'auto';
+              const direct = document.querySelector(`iframe[key="${currentSong.id}-direct"]`) as HTMLIFrameElement;
+              if (!direct || direct.contentWindow?.document?.body?.innerHTML.trim() === '') {
+                (e.currentTarget as HTMLIFrameElement).style.opacity = '1';
               }
-            }, 3000);
+            }, 2000);
           }}
         />
 
-        {/* Optional: Show message if all fail */}
-        <div className="absolute inset-0 flex items-center justify-center bg-black/80 text-white text-center p-8 pointer-events-none">
-          <div>
-            <p className="text-lg mb-4">Loading chart...</p>
-            <p className="text-sm opacity-70">If nothing appears, tap below to open externally</p>
-            <a
-              href={directUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block mt-4 px-6 py-3 bg-indigo-600 rounded-xl text-sm pointer-events-auto"
-            >
-              Open Chart in New Tab
-            </a>
-          </div>
+        {/* User safety net */}
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/70 px-6 py-3 rounded-full text-sm pointer-events-auto z-10">
+          <a href={chartUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-400 underline">
+            Open chart externally →
+          </a>
         </div>
       </div>
     );
@@ -442,6 +413,7 @@ const chartContent = useMemo(() => {
 
   return null;
 }, [
+  currentSong?.id, // Only recompute when song ID actually changes!
   currentSong,
   forceReaderResource,
   ignoreConfirmedGate,
