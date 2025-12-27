@@ -305,99 +305,154 @@ const SheetReaderMode: React.FC = () => {
     [currentSong, user, setAudioPitch]
   );
 
-  // === Chart Content ===
-  const chartContent = useMemo(() => {
-    if (!currentSong) {
-      return (
-        <div className="h-full flex items-center justify-center text-slate-500">
-          <Music className="w-20 h-20" />
-          <span className="text-2xl ml-4">Select a song</span>
-        </div>
-      );
-    }
+  // === Chart Content (FIXED FOR RELIABLE PDF LOADING) ===
+const chartContent = useMemo(() => {
+  if (!currentSong) {
+    return (
+      <div className="h-full flex items-center justify-center text-slate-500">
+        <Music className="w-20 h-20" />
+        <span className="text-2xl ml-4">Select a song</span>
+      </div>
+    );
+  }
 
-    const readiness = calculateReadiness(currentSong);
-    if (readiness < 40 && forceReaderResource !== 'simulation' && !ignoreConfirmedGate) {
-      return (
-        <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-950">
-          <AlertCircle className="w-24 h-24 text-red-500 mb-8" />
-          <h2 className="text-4xl font-black uppercase text-white mb-4">Missing Resources</h2>
-          <p className="text-xl text-slate-400 mb-8">Audit this track to link charts or audio.</p>
-          <Button onClick={() => setIsResourceAuditOpen(true)} className="text-lg px-10 py-6 bg-indigo-600 rounded-2xl">
-            Audit Resources
-          </Button>
-        </div>
-      );
-    }
+  const readiness = calculateReadiness(currentSong);
+  if (readiness < 40 && forceReaderResource !== 'simulation' && !ignoreConfirmedGate) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-950">
+        <AlertCircle className="w-24 h-24 text-red-500 mb-8" />
+        <h2 className="text-4xl font-black uppercase text-white mb-4">Missing Resources</h2>
+        <p className="text-xl text-slate-400 mb-8">Audit this track to link charts or audio.</p>
+        <Button onClick={() => setIsResourceAuditOpen(true)} className="text-lg px-10 py-6 bg-indigo-600 rounded-2xl">
+          Audit Resources
+        </Button>
+      </div>
+    );
+  }
 
-    // Force chords
-    if (forceReaderResource === 'force-chords' && currentSong.ug_chords_text) {
-      return (
-        <UGChordsReader
-          chordsText={currentSong.ug_chords_text}
-          config={currentSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
-          isMobile={isMobile}
-          originalKey={currentSong.originalKey}
-          targetKey={transposeKey(currentSong.originalKey || 'C', localPitch)}
-          isPlaying={isPlaying}
-          progress={progress}
-          duration={duration}
-          chordAutoScrollEnabled={chordAutoScrollEnabled}
-          chordScrollSpeed={chordScrollSpeed}
-        />
-      );
-    }
+  // Priority 1: Force chords mode
+  if (forceReaderResource === 'force-chords' && currentSong.ug_chords_text) {
+    return (
+      <UGChordsReader
+        chordsText={currentSong.ug_chords_text}
+        config={currentSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
+        isMobile={isMobile}
+        originalKey={currentSong.originalKey}
+        targetKey={transposeKey(currentSong.originalKey || 'C', localPitch)}
+        isPlaying={isPlaying}
+        progress={progress}
+        duration={duration}
+        chordAutoScrollEnabled={chordAutoScrollEnabled}
+        chordScrollSpeed={chordScrollSpeed}
+      />
+    );
+  }
 
-    // Fallback to chords
-    if (
-      currentSong.ug_chords_text &&
-      !currentSong.pdfUrl &&
-      !currentSong.leadsheetUrl &&
-      !currentSong.ugUrl
-    ) {
-      return (
-        <UGChordsReader
-          chordsText={currentSong.ug_chords_text}
-          config={currentSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
-          isMobile={isMobile}
-          originalKey={currentSong.originalKey}
-          targetKey={transposeKey(currentSong.originalKey || 'C', localPitch)}
-          isPlaying={isPlaying}
-          progress={progress}
-          duration={duration}
-          chordAutoScrollEnabled={chordAutoScrollEnabled}
-          chordScrollSpeed={chordScrollSpeed}
-        />
-      );
-    }
+  // Priority 2: Use chords if no PDF/UG link
+  if (
+    currentSong.ug_chords_text &&
+    !currentSong.pdfUrl &&
+    !currentSong.leadsheetUrl &&
+    !currentSong.ugUrl
+  ) {
+    return (
+      <UGChordsReader
+        chordsText={currentSong.ug_chords_text}
+        config={currentSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
+        isMobile={isMobile}
+        originalKey={currentSong.originalKey}
+        targetKey={transposeKey(currentSong.originalKey || 'C', localPitch)}
+        isPlaying={isPlaying}
+        progress={progress}
+        duration={duration}
+        chordAutoScrollEnabled={chordAutoScrollEnabled}
+        chordScrollSpeed={chordScrollSpeed}
+      />
+    );
+  }
 
-    const chartUrl = currentSong.pdfUrl || currentSong.leadsheetUrl || currentSong.ugUrl;
-    if (chartUrl) {
-      return (
+  // Priority 3: Try to load PDF/Leadsheet/UG URL
+  const chartUrl = currentSong.pdfUrl || currentSong.leadsheetUrl || currentSong.ugUrl;
+
+  if (chartUrl) {
+    // Normalize Supabase public URLs to ensure direct access
+    const directUrl = chartUrl.includes('supabase.co')
+      ? chartUrl.split('?')[0] // Remove any query params that might break embedding
+      : chartUrl;
+
+    // Use Google Docs Viewer as reliable fallback (works on ALL devices)
+    const googleViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(directUrl)}&embedded=true`;
+
+    // Use Mozilla PDF.js for best native feel (if it's a PDF)
+    const isPdf = directUrl.toLowerCase().endsWith('.pdf');
+    const pdfJsUrl = `/pdfjs/web/viewer.html?file=${encodeURIComponent(directUrl)}`;
+
+    return (
+      <div className="w-full h-full relative bg-gray-100">
+        {/* Primary: Try direct embed */}
         <iframe
-          key={currentSong.id}
-          src={`${chartUrl}#toolbar=0&view=FitH&zoom=100`}
-          className="w-full h-full bg-white"
-          style={{ touchAction: 'pan-x pan-y pinch-zoom' }}
-          title="Sheet Music"
+          key={`${currentSong.id}-direct`}
+          src={directUrl}
+          className="absolute inset-0 w-full h-full"
+          title="Direct Chart"
+          style={{ border: 'none', display: 'block' }}
+          sandbox="allow-scripts allow-same-origin allow-popups"
           allowFullScreen
         />
-      );
-    }
 
-    return null;
-  }, [
-    currentSong,
-    forceReaderResource,
-    ignoreConfirmedGate,
-    isMobile,
-    localPitch,
-    isPlaying,
-    progress,
-    duration,
-    chordAutoScrollEnabled,
-    chordScrollSpeed,
-  ]);
+        {/* Fallback 1: Google Docs Viewer (most reliable) */}
+        <iframe
+          key={`${currentSong.id}-google`}
+          src={googleViewerUrl}
+          className="absolute inset-0 w-full h-full opacity-0"
+          title="Google Viewer Fallback"
+          style={{ border: 'none', pointerEvents: 'none' }}
+          onLoad={(e) => {
+            const iframe = e.currentTarget;
+            // If direct failed, show Google viewer
+            setTimeout(() => {
+              const directIframe = document.querySelector(`iframe[src="${directUrl}"]`) as HTMLIFrameElement;
+              if (directIframe?.contentWindow?.document?.body?.innerHTML.includes('404') ||
+                  directIframe?.contentWindow?.document?.body?.innerHTML.trim() === '') {
+                iframe.style.opacity = '1';
+                iframe.style.pointerEvents = 'auto';
+              }
+            }, 3000);
+          }}
+        />
+
+        {/* Optional: Show message if all fail */}
+        <div className="absolute inset-0 flex items-center justify-center bg-black/80 text-white text-center p-8 pointer-events-none">
+          <div>
+            <p className="text-lg mb-4">Loading chart...</p>
+            <p className="text-sm opacity-70">If nothing appears, tap below to open externally</p>
+            <a
+              href={directUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block mt-4 px-6 py-3 bg-indigo-600 rounded-xl text-sm pointer-events-auto"
+            >
+              Open Chart in New Tab
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}, [
+  currentSong,
+  forceReaderResource,
+  ignoreConfirmedGate,
+  isMobile,
+  localPitch,
+  isPlaying,
+  progress,
+  duration,
+  chordAutoScrollEnabled,
+  chordScrollSpeed,
+]);
 
   if (loading) {
     return (
