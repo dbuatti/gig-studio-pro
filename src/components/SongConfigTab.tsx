@@ -14,8 +14,6 @@ import { Check, Hash, Music2, Link as LinkIcon, ChevronUp, ChevronDown, Sparkles
 import SongAssetMatrix from './SongAssetMatrix';
 import SongTagManager from './SongTagManager';
 import SheetMusicRecommender from './SheetMusicRecommender';
-import { AddToGigButton } from './AddToGigButton';
-import { useIsMobile } from '@/hooks/use-mobile';
 
 interface SongConfigTabProps {
   song: SetlistSong | null;
@@ -57,7 +55,6 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
   const { keyPreference: globalPreference } = useSettings();
   const currentKeyPreference = formData.key_preference || globalPreference;
   const keysToUse = currentKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
-  const isMobileDevice = useIsMobile();
 
   const updateHarmonics = useCallback((updates: Partial<SetlistSong>) => {
     if (!song) return;
@@ -150,7 +147,7 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
                       if (formData.targetKey) {
                         const newTarget = formatKey(formData.targetKey, nextPref);
                         updates.targetKey = newTarget;
-                        if (newTarget !== song song) {
+                        if (newTarget !== formData.targetKey && song) {
                           onUpdateKey(song.id, newTarget);
                         }
                       }
@@ -254,19 +251,6 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
       
       <SongAssetMatrix formData={formData} handleAutoSave={handleAutoSave} />
       <SongTagManager formData={formData} handleAutoSave={handleAutoSave} />
-
-      {/* NEW: Add to Gig Button for Mobile */}
-      {isMobileDevice && (
-        <div className="sticky bottom-0 bg-slate-950/95 backdrop-blur-xl border-t border-white/10 p-4 pb-safe -mx-6 md:-mx-8">
-          <AddToGigButton
-            songData={formData}
-            onAdded={() => {}}
-            className="w-full h-14 text-base font-black uppercase tracking-widest gap-3"
-            size="lg"
-            variant="default"
-          />
-        </div>
-      )}
     </div>
   );
 };

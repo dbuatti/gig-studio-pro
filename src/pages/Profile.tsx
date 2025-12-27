@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { showSuccess, showError } from '@/utils/toast';
-import { Globe, User, Loader2, ArrowLeft, RotateCcw, Sparkles, ExternalLink, Link as LinkIcon, Copy, Check, Share2, Mail, MessageCircle, Twitter } from 'lucide-react';
+import { Globe, User, Loader2, ArrowLeft, RotateCcw, Sparkles, ExternalLink, Link as LinkIcon, Check, Copy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import PublicRepertoireView from '@/components/PublicRepertoireView';
 import { cn } from '@/lib/utils';
@@ -31,7 +31,6 @@ const Profile = () => {
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<any>(null);
   const [songs, setSongs] = useState<any[]>([]);
-  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
 
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -100,105 +99,20 @@ const Profile = () => {
     }
   };
 
-  // Generate the full public URL
-  const getPublicUrl = () => {
-    if (!profile?.repertoire_slug) return '';
-    const baseUrl = window.location.origin;
-    return `${baseUrl}/repertoire/${profile.repertoire_slug}`;
+  const publicUrl = `${window.location.origin}/repertoire/${profile?.repertoire_slug || 'your-link'}`;
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(publicUrl);
+    showSuccess("Share Link Copied!");
   };
-
-  const publicUrl = getPublicUrl();
-
-  const handleCopyLink = async () => {
-    if (!publicUrl) {
-      showError("Please set a unique slug first.");
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(publicUrl);
-      setCopyState('copied');
-      showSuccess("Public link copied to clipboard!");
-      
-      // Reset after 2 seconds
-      setTimeout(() => setCopyState('idle'), 2000);
-    } catch (err) {
-      console.error("Copy failed:", err);
-      setCopyState('error');
-      showError("Failed to copy link. Please copy manually.");
-    }
-  };
-
-  const handleOpenInNewTab = () => {
-    if (!publicUrl) {
-      showError("Please set a unique slug first.");
-      return;
-    }
-
-    if (!profile?.is_repertoire_public) {
-      showError("Enable public sharing to preview your page.");
-      return;
-    }
-
-    window.open(publicUrl, '_blank', 'noopener,noreferrer');
-  };
-
-  const handleShare = async () => {
-    if (!publicUrl) {
-      showError("Please set a unique slug first.");
-      return;
-    }
-
-    const shareData = {
-      title: `${profile?.first_name || 'Artist'}'s Repertoire`,
-      text: 'Check out my live repertoire and available songs!',
-      url: publicUrl
-    };
-
-    // Try Web Share API first (mobile native share)
-    if (navigator.share) {
-      try {
-        await navigator.share(shareData);
-        showSuccess("Share sheet opened!");
-        return;
-      } catch (err) {
-        // User cancelled or share failed, continue to fallback
-        console.log("Web Share API cancelled or failed:", err);
-      }
-    }
-
-    // Fallback: Open share options
-    const shareOptions = [
-      { name: 'Email', icon: Mail, url: `mailto:?subject=${encodeURIComponent(shareData.title)}&body=${encodeURIComponent(shareData.text + '\n\n' + shareData.url)}` },
-      { name: 'WhatsApp', icon: MessageCircle, url: `https://wa.me/?text=${encodeURIComponent(shareData.text + '\n\n' + shareData.url)}` },
-      { name: 'Twitter', icon: Twitter, url: `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareData.text)}&url=${encodeURIComponent(shareData.url)}` }
-    ];
-
-    // For mobile, show a simple prompt with these options
-    if (window.innerWidth < 768) {
-      const choice = window.prompt(`Share via:\n1. Email\n2. WhatsApp\n3. Twitter\n\nEnter number (or cancel):`);
-      if (choice === '1') window.location.href = shareOptions[0].url;
-      else if (choice === '2') window.open(shareOptions[1].url, '_blank');
-      else if (choice === '3') window.open(shareOptions[2].url, '_blank');
-    } else {
-      // Desktop: open Twitter as default fallback
-      window.open(shareOptions[2].url, '_blank');
-      showSuccess("Opened Twitter share. Other options available on mobile.");
-    }
-  };
-
-  const handleSlugChange = (newSlug: string) => {
-    const sanitized = newSlug.toLowerCase().replace(/[^a-z0-9-]/g, '-');
-    handleUpdateLocal({ repertoire_slug: sanitized });
-  };
-
-  const thresholdFilteredSongs = songs.filter(s => (s.readiness_score || 0) >= (profile?.repertoire_threshold || 0));
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-slate-950">
       <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
     </div>
   );
+
+  const thresholdFilteredSongs = songs.filter(s => (s.readiness_score || 0) >= (profile?.repertoire_threshold || 0));
 
   return (
     <div className="h-screen bg-slate-950 text-white flex overflow-hidden">
@@ -279,7 +193,6 @@ const Profile = () => {
               />
             </div>
 
-            {/* NEW: Public Link Section */}
             <div className="space-y-4">
               <div className="p-6 bg-emerald-500/5 border border-emerald-500/20 rounded-[2rem] flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -333,119 +246,23 @@ const Profile = () => {
                         const slug = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-');
                         saveToDatabase({ repertoire_slug: slug });
                       }}
-                      onChange={(e) => handleSlugChange(e.target.value)}
+                      onChange={(e) => handleUpdateLocal({ repertoire_slug: e.target.value })}
                       className="h-10 pl-24 text-xs bg-white/5 border-white/10 font-bold"
                     />
                   </div>
                 </div>
               </div>
 
-              {/* NEW: Public Link Display & Actions */}
-              {profile?.repertoire_slug && (
-                <div className="space-y-3 pt-4 border-t border-white/10">
-                  <Label className="text-[9px] font-bold text-slate-500 uppercase">Your Public Link</Label>
-                  
-                  {/* Full URL Display */}
-                  <div className="bg-slate-900/50 border border-white/10 rounded-xl p-3 flex items-center justify-between gap-3">
-                    <code className="text-[10px] font-mono text-indigo-300 truncate flex-1 select-all">
-                      {publicUrl}
-                    </code>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={handleCopyLink}
-                      className={cn(
-                        "h-8 px-3 rounded-lg transition-all",
-                        copyState === 'copied' ? "bg-emerald-600 text-white" : "bg-white/5 hover:bg-white/10"
-                      )}
-                    >
-                      {copyState === 'copied' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                    </Button>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="grid grid-cols-1 gap-2">
-                    <Button 
-                      onClick={handleCopyLink}
-                      disabled={!profile?.is_repertoire_public}
-                      className={cn(
-                        "w-full h-12 rounded-xl font-black uppercase tracking-widest text-xs gap-2 shadow-lg transition-all",
-                        copyState === 'copied' 
-                          ? "bg-emerald-600 text-white" 
-                          : "bg-indigo-600 hover:bg-indigo-700 text-white"
-                      )}
-                    >
-                      <LinkIcon className="w-4 h-4" />
-                      {copyState === 'copied' ? "COPIED ✓" : "COPY PUBLIC LINK"}
-                    </Button>
-
-                    <Button 
-                      variant="outline"
-                      onClick={handleOpenInNewTab}
-                      disabled={!profile?.is_repertoire_public}
-                      className="w-full h-12 rounded-xl border-indigo-500/50 text-indigo-400 hover:bg-indigo-600/10 font-black uppercase tracking-widest text-xs gap-2"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                      OPEN IN NEW TAB
-                    </Button>
-                  </div>
-
-                  {/* Share Options */}
-                  <div className="flex items-center justify-center gap-4 pt-2">
-                    <span className="text-[9px] text-slate-500 font-bold uppercase">Share via:</span>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={handleShare}
-                      disabled={!profile?.is_repertoire_public}
-                      className="h-8 w-8 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white"
-                      title="Share"
-                    >
-                      <Share2 className="w-3.5 h-3.5" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => window.open(`mailto:?subject=Check%20out%20my%20repertoire&body=${encodeURIComponent(publicUrl)}`)}
-                      disabled={!profile?.is_repertoire_public}
-                      className="h-8 w-8 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white"
-                      title="Email"
-                    >
-                      <Mail className="w-3.5 h-3.5" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(publicUrl)}`)}
-                      disabled={!profile?.is_repertoire_public}
-                      className="h-8 w-8 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white"
-                      title="WhatsApp"
-                    >
-                      <MessageCircle className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
-
-                  {!profile?.is_repertoire_public && (
-                    <Alert className="bg-yellow-500/10 border-yellow-500/20 text-yellow-200">
-                      <AlertTitle className="font-black uppercase text-[10px]">Sharing Disabled</AlertTitle>
-                      <AlertDescription className="text-xs font-medium">
-                        Enable public sharing above to activate your link and allow clients to view your repertoire.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-2 px-1">
-              <Label className="text-[9px] font-bold text-slate-500 uppercase">Repertoire Bio / Mission</Label>
-              <Textarea 
-                defaultValue={profile?.repertoire_bio}
-                onBlur={(e) => saveToDatabase({ repertoire_bio: e.target.value })}
-                onChange={(e) => handleUpdateLocal({ repertoire_bio: e.target.value })}
-                className="bg-white/5 border-white/10 min-h-[100px] text-xs resize-none rounded-xl"
-                placeholder="Tell clients about your vibe..."
-              />
+              <div className="space-y-2 px-1">
+                <Label className="text-[9px] font-bold text-slate-500 uppercase">Repertoire Bio / Mission</Label>
+                <Textarea 
+                  defaultValue={profile?.repertoire_bio}
+                  onBlur={(e) => saveToDatabase({ repertoire_bio: e.target.value })}
+                  onChange={(e) => handleUpdateLocal({ repertoire_bio: e.target.value })}
+                  className="bg-white/5 border-white/10 min-h-[100px] text-xs resize-none rounded-xl"
+                  placeholder="Tell clients about your vibe..."
+                />
+              </div>
             </div>
           </section>
 
@@ -532,26 +349,19 @@ const Profile = () => {
 
             <div className="flex items-center gap-2">
               <div className="bg-slate-900 border border-white/10 rounded-xl px-4 py-2 flex items-center gap-4 shadow-xl">
-                 <span className="text-[10px] font-mono text-slate-400 truncate max-w-[200px]">{publicUrl || "Set a slug to generate link"}</span>
-                 <Button 
-                   onClick={handleCopyLink} 
-                   size="sm" 
-                   className={cn(
-                     "h-8 px-4 text-[10px] font-black uppercase rounded-lg",
-                     copyState === 'copied' ? "bg-emerald-600" : "bg-indigo-600 hover:bg-indigo-700"
-                   )}
-                 >
-                   {copyState === 'copied' ? "Copied!" : "Copy"}
+                 <span className="text-[10px] font-mono text-slate-400 truncate max-w-[200px]">{publicUrl}</span>
+                 <Button onClick={copyLink} size="sm" className="bg-indigo-600 hover:bg-indigo-700 h-8 px-4 text-[10px] font-black uppercase rounded-lg">
+                   <Copy className="w-3.5 h-3.5 mr-2" /> Copy Link
                  </Button>
               </div>
-              <Button 
-                onClick={handleOpenInNewTab}
-                disabled={!profile?.is_repertoire_public}
+              <a 
+                href={publicUrl} 
+                target="_child" 
                 className="h-10 w-10 bg-white/5 border border-white/10 flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all"
                 title="Open in new tab"
               >
                 <ExternalLink className="w-4 h-4" />
-              </Button>
+              </a>
             </div>
           </div>
 

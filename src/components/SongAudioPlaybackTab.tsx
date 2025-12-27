@@ -3,7 +3,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import * as Tone from 'tone';
 import { analyze } from 'web-audio-beat-detector';
-import { Music, Play, Pause, RotateCcw, Loader2, PlusCircle } from 'lucide-react';
+import { Music, Play, Pause, RotateCcw, Loader2 } from 'lucide-react';
 
 import { Button } from "@/components/ui/button";
 import { Slider } from '@/components/ui/slider';
@@ -15,7 +15,6 @@ import SongAnalysisTools from './SongAnalysisTools';
 import SongAudioControls from './SongAudioControls';
 import { SetlistSong } from './SetlistManager';
 import { AudioEngineControls } from '@/hooks/use-tone-audio';
-import { AddToGigButton } from './AddToGigButton';
 
 interface SongAudioPlaybackTabProps {
   song: SetlistSong | null;
@@ -23,10 +22,9 @@ interface SongAudioPlaybackTabProps {
   audioEngine: AudioEngineControls;
   isMobile: boolean;
   onLoadAudioFromUrl: (url: string, initialPitch: number) => Promise<void>;
-  onSave: (updates: Partial<SetlistSong>) => void;
+  onSave: (updates: Partial<SetlistSong>) => void; // Changed from (id: string, updates: Partial<SetlistSong>)
   onUpdateKey: (id: string, targetKey: string) => void;
   transposeKey: (key: string, semitones: number) => string;
-  currentGigId?: string; // NEW: Added currentGigId prop
 }
 
 const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
@@ -35,10 +33,9 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
   audioEngine,
   isMobile,
   onLoadAudioFromUrl,
-  onSave,
+  onSave, // Now expects (updates: Partial<SetlistSong>)
   onUpdateKey,
-  transposeKey,
-  currentGigId, // NEW: Receive currentGigId
+  transposeKey
 }) => {
   const {
     isPlaying, progress, duration, analyzer, currentBuffer,
@@ -46,10 +43,12 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
     setProgress, togglePlayback, stopPlayback,
   } = audioEngine;
 
+  // --- State & Refs ---
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const metronomeSynth = useRef<Tone.MembraneSynth | null>(null);
   const metronomeLoop = useRef<Tone.Loop | null>(null);
 
+  // --- Helpers ---
   const formatTime = (seconds: number) => 
     new Date(seconds * 1000).toISOString().substr(14, 5);
 
@@ -59,9 +58,12 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
   );
 
   const handleAutoSave = (updates: Partial<SetlistSong>) => {
+    // This component's handleAutoSave should call the onSave prop
+    // The parent (StudioTabContent/SongStudioModal) will handle the song.id
     onSave(updates); 
   };
 
+  // --- Handlers ---
   const handleLoadAudio = async () => {
     if (!formData.previewUrl) return showError("No audio URL available.");
     await onLoadAudioFromUrl(formData.previewUrl, formData.pitch || 0);
@@ -93,14 +95,6 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
             Real-time pitch and time-stretching engine active.
           </p>
         </div>
-        {/* NEW: Add to Gig Button (Desktop) */}
-        {!isMobile && song && (
-          <AddToGigButton
-            songData={formData}
-            onAdded={() => showSuccess("Song added to gig!")}
-            className="gap-2"
-          />
-        )}
       </header>
 
       {/* 2. Visualizer & Transport */}
@@ -172,19 +166,6 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
           isMobile={isMobile}
         />
       </div>
-
-      {/* NEW: Mobile Add to Gig Button */}
-      {isMobile && song && (
-        <div className="sticky bottom-0 bg-slate-950/95 backdrop-blur-xl border-t border-white/10 p-4 pb-safe -mx-6 md:-mx-12">
-          <AddToGigButton
-            songData={formData}
-            onAdded={() => showSuccess("Song added to gig!")}
-            className="w-full h-14 text-base font-black uppercase tracking-widest gap-3"
-            size="lg"
-            variant="default"
-          />
-        </div>
-      )}
     </div>
   );
 };

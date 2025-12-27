@@ -11,21 +11,18 @@ import {
   ExternalLink, 
   Printer, 
   ClipboardPaste, 
-  Eye,
-  PlusCircle
+  Eye 
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { SetlistSong } from './SetlistManager';
 import { showSuccess } from '@/utils/toast';
-import { AddToGigButton } from './AddToGigButton';
-import { useIsMobile } from '@/hooks/use-mobile';
 
 interface LibraryEngineProps {
   formData: Partial<SetlistSong>;
   handleDownloadAll: () => Promise<void>;
   isMobile: boolean;
   setPreviewPdfUrl?: (url: string | null) => void;
-  handleUgPrint?: () => void;
+  handleUgPrint?: () => void; // Keep this prop for now, but its internal logic will change
 }
 
 const LibraryEngine: React.FC<LibraryEngineProps> = ({ 
@@ -35,8 +32,6 @@ const LibraryEngine: React.FC<LibraryEngineProps> = ({
   setPreviewPdfUrl,
   handleUgPrint 
 }) => {
-  const isMobileDevice = useIsMobile();
-
   return (
     <div className="space-y-8 md:space-y-12 animate-in fade-in duration-500 h-full flex flex-col">
       {/* HEADER SECTION */}
@@ -162,19 +157,6 @@ const LibraryEngine: React.FC<LibraryEngineProps> = ({
           </div>
         </div>
       </div>
-
-      {/* NEW: Add to Gig Button for Mobile */}
-      {isMobileDevice && (
-        <div className="sticky bottom-0 bg-slate-950/95 backdrop-blur-xl border-t border-white/10 p-4 pb-safe -mx-4">
-          <AddToGigButton
-            songData={formData}
-            onAdded={() => {}}
-            className="w-full h-14 text-base font-black uppercase tracking-widest gap-3"
-            size="lg"
-            variant="default"
-          />
-        </div>
-      )}
     </div>
   );
 };

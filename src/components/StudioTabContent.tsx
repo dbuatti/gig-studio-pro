@@ -12,7 +12,6 @@ import YoutubeMediaManager from './YoutubeMediaManager';
 import { transposeKey } from '@/utils/keyUtils';
 import { cn } from '@/lib/utils';
 import { Youtube } from 'lucide-react';
-import { useCurrentGig } from '@/hooks/use-current-gig';
 
 interface StudioTabContentProps {
   activeTab: 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library';
@@ -51,8 +50,6 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
   handleDownloadAll,
   onSwitchTab,
 }) => {
-  const { currentGigId } = useCurrentGig();
-
   switch (activeTab) {
     case 'config':
       return (
@@ -85,7 +82,6 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
           onSave={handleAutoSave}
           onUpdateKey={onUpdateKey}
           transposeKey={transposeKey}
-          currentGigId={currentGigId} // NEW: Pass currentGigId
         />
       );
     case 'details':

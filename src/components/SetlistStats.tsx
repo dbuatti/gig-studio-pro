@@ -2,32 +2,24 @@
 
 import React, { useState } from 'react';
 import { SetlistSong } from './SetlistManager';
-import { Clock, Music, Target, PieChart, BarChart3, Download, Loader2, Plus, ListMusic } from 'lucide-react';
+import { Clock, Music, Target, PieChart, BarChart3, Download, Loader2 } from 'lucide-react';
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { Input } from './ui/input';
 import SetlistExporter from './SetlistExporter';
-import { Button } from './ui/button';
-import { useCurrentGig } from '@/hooks/use-current-gig';
-import { useAuth } from './AuthProvider';
-import { supabase } from '@/integrations/supabase/client';
-import { showSuccess, showError } from '@/utils/toast';
+import { Button } from './ui/button'; // Import Button
 
 interface SetlistStatsProps {
   songs: SetlistSong[];
   goalSeconds?: number;
   onUpdateGoal?: (seconds: number) => void;
   onAutoLink?: () => Promise<void>;
-  onDownloadAllMissingAudio?: () => Promise<void>;
-  isBulkDownloading?: boolean;
+  onDownloadAllMissingAudio?: () => Promise<void>; // New prop for bulk download
+  isBulkDownloading?: boolean; // New prop for bulk download loading state
 }
 
 const SetlistStats: React.FC<SetlistStatsProps> = ({ songs, goalSeconds = 7200, onUpdateGoal, onAutoLink, onDownloadAllMissingAudio, isBulkDownloading }) => {
   const [isEditingGoal, setIsEditingGoal] = useState(false);
-  const { currentGigId, currentGigName, setCurrentGig, ensureGig } = useCurrentGig();
-  const { user } = useAuth();
-  const [newGigName, setNewGigName] = useState("");
-  const [isCreatingGig, setIsCreatingGig] = useState(false);
   
   // Filter for approved songs
   const approvedSongs = songs.filter(song => song.isApproved);
@@ -72,78 +64,8 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({ songs, goalSeconds = 7200, 
     song.youtubeUrl && (!song.previewUrl || (song.previewUrl.includes('apple.com') || song.previewUrl.includes('itunes-assets')))
   ).length;
 
-  const handleCreateGig = async () => {
-    if (!newGigName.trim()) {
-      showError("Please enter a gig name");
-      return;
-    }
-    if (!user) {
-      showError("You must be logged in");
-      return;
-    }
-
-    setIsCreatingGig(true);
-    try {
-      const { data, error } = await supabase
-        .from('setlists')
-        .insert({
-          user_id: user.id,
-          name: newGigName.trim(),
-          songs: [],
-          time_goal: 7200
-        })
-        .select('id, name')
-        .single();
-
-      if (error) throw error;
-
-      setCurrentGig(data.id, data.name);
-      setNewGigName("");
-      showSuccess(`Created and set active: ${data.name}`);
-    } catch (err) {
-      showError("Failed to create gig");
-    } finally {
-      setIsCreatingGig(false);
-    }
-  };
-
   return (
     <div className="space-y-4 mb-8">
-      {/* NEW: Gig Context Banner */}
-      {!currentGigId && (
-        <div className="bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2">
-          <div className="flex items-center gap-4">
-            <div className="bg-indigo-600 p-3 rounded-2xl text-white shadow-lg shadow-indigo-600/20">
-              <ListMusic className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-lg font-bold text-indigo-900 dark:text-indigo-100">No Active Gig</p>
-              <p className="text-xs text-indigo-600 dark:text-indigo-400 font-bold uppercase">Create or select one to start adding songs</p>
-            </div>
-          </div>
-          <div className="flex gap-2 w-full md:w-auto">
-            <Input
-              placeholder="Gig name (e.g., Friday Night)"
-              value={newGigName}
-              onChange={(e) => setNewGigName(e.target.value)}
-              className="flex-1 md:w-64 bg-white dark:bg-slate-900 border-indigo-200 dark:border-indigo-800 h-12 rounded-xl"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleCreateGig();
-              }}
-            />
-            <Button
-              onClick={handleCreateGig}
-              disabled={!newGigName.trim() || isCreatingGig}
-              className="h-12 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-xs rounded-xl gap-2"
-            >
-              {isCreatingGig ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-              Create Gig
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Existing Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {/* Setlist Goal Tracker */}
         <div className="col-span-1 md:col-span-2 bg-slate-900 text-white p-6 rounded-[2rem] shadow-2xl shadow-indigo-500/10 border border-white/5 flex flex-col justify-between group relative overflow-hidden">

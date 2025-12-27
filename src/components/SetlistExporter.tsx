@@ -5,7 +5,6 @@ import { SetlistSong } from './SetlistManager';
 import { ClipboardCopy, Youtube, ListMusic, Sparkles, Loader2, Download, ExternalLink } from 'lucide-react'; // Changed Printer to ExternalLink
 import { Button } from '@/components/ui/button';
 import { showSuccess, showError } from '@/utils/toast';
-import { useCurrentGig } from '@/hooks/use-current-gig';
 
 interface SetlistExporterProps {
   songs: SetlistSong[];
@@ -17,7 +16,6 @@ interface SetlistExporterProps {
 
 const SetlistExporter: React.FC<SetlistExporterProps> = ({ songs, onAutoLink, onDownloadAllMissingAudio, isBulkDownloading, missingAudioCount = 0 }) => {
   const [isLinking, setIsLinking] = useState(false);
-  const { currentGigName } = useCurrentGig();
 
   const handleAutoLink = async () => {
     if (!onAutoLink) return;
@@ -61,12 +59,7 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({ songs, onAutoLink, on
         <div className="h-8 w-8 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center text-indigo-600">
           <ClipboardCopy className="w-4 h-4" />
         </div>
-        <div>
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Manifest Tools</p>
-          <p className="text-[9px] font-bold text-slate-500 uppercase mt-0.5">
-            {currentGigName ? `For: ${currentGigName}` : "No active gig"}
-          </p>
-        </div>
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Manifest Tools</p>
       </div>
       
       <div className="grid grid-cols-1 gap-2">

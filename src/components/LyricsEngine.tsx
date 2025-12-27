@@ -4,12 +4,10 @@ import React, { useState } from 'react';
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Sparkles, Search, Loader2, PlusCircle } from 'lucide-react';
+import { Sparkles, Search, Loader2 } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
-import { AddToGigButton } from './AddToGigButton';
-import { useIsMobile } from '@/hooks/use-mobile';
 
 interface LyricsEngineProps {
   lyrics: string;
@@ -21,7 +19,6 @@ interface LyricsEngineProps {
 
 const LyricsEngine: React.FC<LyricsEngineProps> = ({ lyrics, onUpdate, artist, title, isMobile }) => {
   const [isFormatting, setIsFormatting] = useState(false);
-  const isMobileDevice = useIsMobile();
 
   const handleMagicFormatLyrics = async () => {
     if (!lyrics?.trim()) {
@@ -55,11 +52,11 @@ const LyricsEngine: React.FC<LyricsEngineProps> = ({ lyrics, onUpdate, artist, t
       <div className="flex justify-between items-center shrink-0">
         <h3 className="text-sm font-black uppercase tracking-[0.3em] text-pink-400">Lyrics Engine</h3>
         <div className="flex gap-4">
-          <Button variant="outline" onClick={handleLyricsSearch} className="bg-white/5 text-slate-400 text-[9px] h-10 px-4 rounded-xl font-black uppercase gap-2">
-            <Search className="w-3.5 h-3.5" /> Search
+          <Button variant="outline" onClick={handleLyricsSearch} className="bg-white/5 text-slate-400 text-[9px] h-10 px-4 rounded-xl font-black uppercase">
+            <Search className="w-3.5 h-3.5 mr-2" /> Search
           </Button>
-          <Button variant="outline" onClick={handleMagicFormatLyrics} disabled={isFormatting || !lyrics} className="bg-indigo-600 text-white text-[9px] h-10 px-4 rounded-xl font-black uppercase gap-2">
-            {isFormatting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} Magic Format
+          <Button variant="outline" onClick={handleMagicFormatLyrics} disabled={isFormatting || !lyrics} className="bg-indigo-600 text-white text-[9px] h-10 px-4 rounded-xl font-black uppercase">
+            {isFormatting ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <Sparkles className="w-3.5 h-3.5 mr-2" />} Magic Format
           </Button>
         </div>
       </div>
@@ -71,23 +68,6 @@ const LyricsEngine: React.FC<LyricsEngineProps> = ({ lyrics, onUpdate, artist, t
           className={cn("bg-white/5 border-white/10 text-xl leading-relaxed p-10 font-medium whitespace-pre-wrap h-full", isMobile ? "rounded-2xl" : "rounded-[2.5rem]")} 
         />
       </div>
-
-      {/* NEW: Add to Gig Button for Mobile */}
-      {isMobileDevice && (
-        <div className="sticky bottom-0 bg-slate-950/95 backdrop-blur-xl border-t border-white/10 p-4 pb-safe -mx-4">
-          <AddToGigButton
-            songData={{
-              name: title,
-              artist: artist,
-              lyrics: lyrics
-            }}
-            onAdded={() => {}}
-            className="w-full h-14 text-base font-black uppercase tracking-widest gap-3"
-            size="lg"
-            variant="default"
-          />
-        </div>
-      )}
     </div>
   );
 };

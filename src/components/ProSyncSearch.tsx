@@ -7,9 +7,6 @@ import { Search, Music, Loader2, Check, Globe, Disc, Star, X } from 'lucide-reac
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { AddToGigButton } from './AddToGigButton';
-import { SetlistSong } from './SetlistManager';
-import { showSuccess } from '@/utils/toast';
 
 interface ProSyncSearchProps {
   isOpen: boolean;
@@ -22,7 +19,6 @@ const ProSyncSearch: React.FC<ProSyncSearchProps> = ({ isOpen, onClose, onSelect
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedSong, setSelectedSong] = useState<any>(null);
 
   const performSearch = async (searchQuery: string) => {
     if (!searchQuery.trim()) return;
@@ -44,26 +40,12 @@ const ProSyncSearch: React.FC<ProSyncSearchProps> = ({ isOpen, onClose, onSelect
     performSearch(query);
   };
 
-  const handleSelect = (song: any) => {
-    setSelectedSong(song);
-    onSelect(song);
-  };
-
-  const handleAddToGig = () => {
-    if (selectedSong) {
-      showSuccess(`"${selectedSong.trackName}" added to gig!`);
-      onClose();
-      setSelectedSong(null);
-    }
-  };
-
   useEffect(() => {
     if (isOpen && initialQuery) {
       setQuery(initialQuery);
       performSearch(initialQuery);
     } else if (!isOpen) {
       setResults([]);
-      setSelectedSong(null);
     }
   }, [isOpen, initialQuery]);
 
@@ -116,74 +98,44 @@ const ProSyncSearch: React.FC<ProSyncSearchProps> = ({ isOpen, onClose, onSelect
             <div className="space-y-2 pr-4">
               {results.length > 0 ? (
                 results.map((song) => (
-                  <div key={song.trackId} className="flex flex-col gap-2">
-                    <button
-                      onClick={() => handleSelect(song)}
-                      className={cn(
-                        "w-full flex items-center gap-4 p-3 rounded-2xl transition-all group border text-left",
-                        selectedSong?.trackId === song.trackId 
-                          ? "bg-indigo-600/20 border-indigo-500" 
-                          : "bg-white/5 border-transparent hover:bg-white/10 hover:border-white/5"
-                      )}
-                    >
-                      <div className="relative shrink-0">
-                        <img 
-                          src={song.artworkUrl100} 
-                          alt={song.trackName} 
-                          className="w-14 h-14 rounded-xl shadow-lg group-hover:scale-105 transition-transform object-cover" 
-                        />
-                        {selectedSong?.trackId === song.trackId && (
-                          <div className="absolute inset-0 bg-indigo-600/20 rounded-xl flex items-center justify-center">
-                            <Check className="w-6 h-6 text-white" />
-                          </div>
+                  <button
+                    key={song.trackId}
+                    onClick={() => onSelect(song)}
+                    className="w-full flex items-center gap-4 p-3 hover:bg-white/5 rounded-2xl transition-all group border border-transparent hover:border-white/5 text-left"
+                  >
+                    <div className="relative shrink-0">
+                      <img 
+                        src={song.artworkUrl100} 
+                        alt={song.trackName} 
+                        className="w-14 h-14 rounded-xl shadow-lg group-hover:scale-105 transition-transform object-cover" 
+                      />
+                      <div className="absolute inset-0 bg-indigo-600/20 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center">
+                        <Check className="w-6 h-6 text-white" />
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-black text-sm uppercase tracking-tight truncate">{song.trackName}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">{song.artistName}</span>
+                        <span className="text-slate-700 text-[8px]">•</span>
+                        <span className="text-[10px] font-bold text-indigo-400 uppercase truncate">{song.collectionName}</span>
+                      </div>
+                      <div className="flex items-center gap-3 mt-1.5">
+                        <span className="text-[9px] font-black bg-white/5 text-slate-500 px-2 py-0.5 rounded border border-white/5 uppercase tracking-tighter">
+                          {song.primaryGenreName}
+                        </span>
+                        {song.trackExplicitness === 'explicit' && (
+                          <span className="text-[9px] font-black bg-red-600/10 text-red-500 px-2 py-0.5 rounded border border-red-500/10 uppercase">Explicit</span>
                         )}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-black text-sm uppercase tracking-tight truncate">{song.trackName}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">{song.artistName}</span>
-                          <span className="text-slate-700 text-[8px]">•</span>
-                          <span className="text-[10px] font-bold text-indigo-400 uppercase truncate">{song.collectionName}</span>
-                        </div>
-                        <div className="flex items-center gap-3 mt-1.5">
-                          <span className="text-[9px] font-black bg-white/5 text-slate-500 px-2 py-0.5 rounded border border-white/5 uppercase tracking-tighter">
-                            {song.primaryGenreName}
-                          </span>
-                          {song.trackExplicitness === 'explicit' && (
-                            <span className="text-[9px] font-black bg-red-600/10 text-red-500 px-2 py-0.5 rounded border border-red-500/10 uppercase">Explicit</span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="shrink-0 flex flex-col items-end gap-1 ml-auto">
-                        <Disc className="w-4 h-4 text-slate-600 group-hover:text-indigo-400 transition-colors" />
-                        <span className="text-[9px] font-mono font-bold text-slate-500">
-                          {new Date(song.releaseDate).getFullYear()}
-                        </span>
-                      </div>
-                    </button>
-
-                    {/* NEW: Add to Gig Button appears after selection */}
-                    {selectedSong?.trackId === song.trackId && (
-                      <div className="px-2 pb-2 animate-in slide-in-from-top-2 duration-300">
-                        <AddToGigButton
-                          songData={{
-                            name: song.trackName,
-                            artist: song.artistName,
-                            genre: song.primaryGenreName,
-                            appleMusicUrl: song.trackViewUrl,
-                            user_tags: [song.primaryGenreName, new Date(song.releaseDate).getFullYear().toString()],
-                            isMetadataConfirmed: true
-                          }}
-                          onAdded={() => {
-                            showSuccess(`"${song.trackName}" added to gig!`);
-                            onClose();
-                          }}
-                          className="w-full h-12 gap-2"
-                          size="lg"
-                        />
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                    <div className="shrink-0 flex flex-col items-end gap-1 ml-auto">
+                      <Disc className="w-4 h-4 text-slate-600 group-hover:text-indigo-400 transition-colors" />
+                      <span className="text-[9px] font-mono font-bold text-slate-500">
+                        {new Date(song.releaseDate).getFullYear()}
+                      </span>
+                    </div>
+                  </button>
                 ))
               ) : (
                 !isLoading && query && (

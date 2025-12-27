@@ -2,8 +2,11 @@
 
 import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef, useMemo } from 'react';
 import * as Tone from 'tone';
-import { analyze } from 'web-audio-beat-detector';
-import { Play, Pause, RotateCcw, Loader2, Upload, Volume2, Waves, Settings2, Activity, Link as LinkIcon, Globe, Search, Youtube, PlusCircle, Library, Sparkles, Check, FileText, ExternalLink, Subtitles, X, ChevronUp, ChevronDown, Printer, ListPlus } from 'lucide-react';
+import { Slider } from "@/components/ui/slider";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Play, Pause, RotateCcw, Upload, Volume2, Waves, Settings2, Activity, Link as LinkIcon, Globe, Search, Youtube, PlusCircle, Library, Sparkles, Check, FileText, ExternalLink, Subtitles, X, ChevronUp, ChevronDown, Printer } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import AudioVisualizer from './AudioVisualizer';
 import SongSearch from './SongSearch';
@@ -16,8 +19,6 @@ import { SetlistSong } from './SetlistManager';
 import { transposeKey } from '@/utils/keyUtils';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { useToneAudio } from '@/hooks/use-tone-audio';
-import { AddToGigButton } from './AddToGigButton';
-import { useCurrentGig } from '@/hooks/use-current-gig';
 
 export interface AudioTransposerRef {
   loadFromUrl: (url: string, name: string, artist: string, youtubeUrl?: string, originalKey?: string, ugUrl?: string) => Promise<void>;
@@ -53,7 +54,6 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
   onOpenAdmin
 }, ref) => {
   const audio = useToneAudio();
-  const { currentGigId, currentGigName } = useCurrentGig();
   
   const [file, setFile] = useState<{ id?: string; name: string; artist?: string; url?: string; originalKey?: string; ugUrl?: string } | null>(null);
   const [activeTab, setActiveTab] = useState("search");
@@ -213,23 +213,15 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
               Song Studio
             </h2>
           </div>
-          {/* NEW: Add to Gig Button for Desktop */}
-          {file && (
-            <div className="hidden md:block">
-              <AddToGigButton
-                songData={{
-                  name: file.name,
-                  artist: file.artist,
-                  originalKey: file.originalKey,
-                  previewUrl: file.url,
-                  youtubeUrl: activeYoutubeUrl,
-                  ugUrl: activeUgUrl,
-                  pitch: pitch
-                }}
-                onAdded={() => showSuccess("Song added to gig!")}
-                className="gap-2"
-              />
-            </div>
+          {file && onAddToSetlist && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => onAddToSetlist(file.url || '', file.name, file.artist || "Unknown", activeYoutubeUrl, activeUgUrl, undefined, undefined, pitch)}
+              className="h-8 border-green-200 text-green-600 hover:bg-green-50 font-bold text-[10px] uppercase gap-2"
+            >
+              <PlusCircle className="w-3.5 h-3.5" /> Save to Gig
+            </Button>
           )}
         </div>
 
@@ -432,40 +424,6 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
           </div>
         )}
       </div>
-
-      {/* NEW: Mobile Sticky Add to Gig Button */}
-      {file && (
-        <div className="md:hidden bg-slate-50 dark:bg-slate-900 border-t border-white/10 p-4 pb-safe sticky bottom-0">
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
-              <span className="uppercase tracking-widest">
-                {currentGigId ? `Active: ${currentGigName}` : "No Active Gig"}
-              </span>
-              <span className="uppercase font-black text-emerald-400">
-                Ready
-              </span>
-            </div>
-            <AddToGigButton
-              songData={{
-                name: file.name,
-                artist: file.artist,
-                originalKey: file.originalKey,
-                previewUrl: file.url,
-                youtubeUrl: activeYoutubeUrl,
-                ugUrl: activeUgUrl,
-                pitch: pitch,
-                tempo: tempo,
-                volume: volume,
-                fineTune: fineTune
-              }}
-              onAdded={() => showSuccess("Song added to gig!")}
-              className="w-full h-14 text-base font-black uppercase tracking-widest gap-3"
-              size="lg"
-              variant="default"
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 });
