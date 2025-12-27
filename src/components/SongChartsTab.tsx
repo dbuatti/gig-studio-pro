@@ -1,7 +1,7 @@
 "use client";
 import React, { useMemo, useState } from 'react';
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn } "@/lib/utils";
 import { SetlistSong } from './SetlistManager';
 import { ExternalLink, ShieldCheck, Printer, FileText, Music, Guitar, Search, Maximize, Minimize, Eye } from 'lucide-react';
 import { showError, showSuccess } from '@/utils/toast';
@@ -141,6 +141,11 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
                 isMobile={isMobile}
                 originalKey={formData.originalKey}
                 targetKey={formData.targetKey}
+                isPlaying={isPlaying}
+                progress={progress}
+                duration={duration}
+                chordAutoScrollEnabled={chordAutoScrollEnabled}
+                chordScrollSpeed={chordScrollSpeed}
               />
             ) : currentChartUrl ? (
               canEmbedUg ? (

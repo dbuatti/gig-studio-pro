@@ -87,10 +87,20 @@ const SheetReaderMode: React.FC = () => {
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
 
+  // NEW: Chord auto-scroll state
+  const [chordAutoScrollEnabled, setChordAutoScrollEnabled] = useState(true);
+  const [chordScrollSpeed, setChordScrollSpeed] = useState(1.0);
+
   const uiHideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  console.log("[SheetReaderMode] Component Rendered. isMobile:", isMobile, "forceDesktopView:", forceDesktopView);
+
   const fetchSongs = useCallback(async () => {
-    if (!user) return;
+    console.log("[SheetReaderMode] fetchSongs called.");
+    if (!user) {
+      console.log("[SheetReaderMode] No user, skipping fetchSongs.");
+      return;
+    }
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -122,6 +132,7 @@ const SheetReaderMode: React.FC = () => {
         is_ug_link_verified: d.is_ug_link_verified
       }));
       setAllSongs(mappedSongs);
+      console.log("[SheetReaderMode] All songs fetched:", mappedSongs.length);
 
       // Refresh Recovery Logic: Prioritize URL param, then query param
       const targetId = routeSongId || searchParams.get('id');
@@ -129,120 +140,206 @@ const SheetReaderMode: React.FC = () => {
         const initialIdx = mappedSongs.findIndex(s => s.id === targetId);
         if (initialIdx !== -1) {
           setCurrentIndex(initialIdx);
+          console.log("[SheetReaderMode] Initial song set from URL/params:", mappedSongs[initialIdx].name);
+        } else {
+          console.log("[SheetReaderMode] Target song ID from URL/params not found in fetched songs.");
         }
+      } else {
+        console.log("[SheetReaderMode] No initial song ID from URL/params.");
       }
     } catch (err) {
+      console.error("[SheetReaderMode] Failed to load repertoire:", err);
       showError("Failed to load repertoire.");
     } finally {
       setLoading(false);
+      console.log("[SheetReaderMode] fetchSongs finished. Loading set to false.");
     }
   }, [user, routeSongId, searchParams]);
 
   useEffect(() => {
+    console.log("[SheetReaderMode] Effect: Initial fetchSongs on mount/user change.");
     fetchSongs();
   }, [fetchSongs]);
 
   // Filtering Logic
   useEffect(() => {
+    console.log("[SheetReaderMode] Effect: Filtering songs. allSongs count:", allSongs.length, "searchTerm:", searchTerm, "ignoreConfirmedGate:", ignoreConfirmedGate);
     let result = [...allSongs];
     if (!ignoreConfirmedGate) {
       result = result.filter(s => s.isApproved);
+      console.log("[SheetReaderMode] Filtered by isApproved. Count:", result.length);
     }
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase();
       result = result.filter(s => s.name.toLowerCase().includes(q) || s.artist?.toLowerCase().includes(q));
+      console.log("[SheetReaderMode] Filtered by searchTerm. Count:", result.length);
     }
     setFilteredSongs(result);
+    console.log("[SheetReaderMode] Filtered songs updated. Count:", result.length);
   }, [allSongs, searchTerm, ignoreConfirmedGate]);
 
   // Sync URL with state for persistence
   useEffect(() => {
     if (currentSong) {
+      console.log("[SheetReaderMode] Effect: Updating URL with current song ID:", currentSong.id);
       setSearchParams({ id: currentSong.id }, { replace: true });
     }
   }, [currentSong, setSearchParams]);
 
   // Load Audio when song changes
   useEffect(() => {
+    console.log("[SheetReaderMode] Effect: currentSong changed. Loading audio...");
     if (currentSong?.previewUrl) {
+      console.log("[SheetReaderMode] Loading audio from URL:", currentSong.previewUrl, "initial pitch:", currentSong.pitch);
       loadFromUrl(currentSong.previewUrl, currentSong.pitch || 0);
       setLocalPitch(currentSong.pitch || 0);
     } else {
+      console.log("[SheetReaderMode] No previewUrl for current song. Resetting audio engine.");
       resetEngine();
       setLocalPitch(0);
     }
   }, [currentSong, loadFromUrl, resetEngine]);
 
   const handleNext = useCallback(() => {
-    if (filteredSongs.length === 0) return;
-    setCurrentIndex((prev) => (prev + 1) % filteredSongs.length);
+    console.log("[SheetReaderMode] handleNext called.");
+    if (filteredSongs.length === 0) {
+      console.log("[SheetReaderMode] No filtered songs to navigate.");
+      return;
+    }
+    setCurrentIndex((prev) => {
+      const nextIdx = (prev + 1) % filteredSongs.length;
+      console.log("[SheetReaderMode] Next song index:", nextIdx);
+      return nextIdx;
+    });
     stopPlayback();
   }, [filteredSongs, stopPlayback]);
 
   const handlePrev = useCallback(() => {
-    if (filteredSongs.length === 0) return;
-    setCurrentIndex((prev) => (prev - 1 + filteredSongs.length) % filteredSongs.length);
+    console.log("[SheetReaderMode] handlePrev called.");
+    if (filteredSongs.length === 0) {
+      console.log("[SheetReaderMode] No filtered songs to navigate.");
+      return;
+    }
+    setCurrentIndex((prev) => {
+      const prevIdx = (prev - 1 + filteredSongs.length) % filteredSongs.length;
+      console.log("[SheetReaderMode] Previous song index:", prevIdx);
+      return prevIdx;
+    });
     stopPlayback();
   }, [filteredSongs, stopPlayback]);
+
+  const toggleFullScreen = useCallback(() => {
+    console.log("[SheetReaderMode] toggleFullScreen called. Current fullscreenElement:", document.fullscreenElement);
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch((e) => console.error("[SheetReaderMode] Fullscreen request failed:", e));
+      setIsFullScreen(true);
+      console.log("[SheetReaderMode] Fullscreen activated.");
+    } else {
+      document.exitFullscreen();
+      setIsFullScreen(false);
+      console.log("[SheetReaderMode] Fullscreen deactivated.");
+    }
+  }, []);
 
   // Keyboard Hotkeys
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      console.log("[SheetReaderMode] KeyDown event:", e.key, "target:", e.target);
       if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) return;
 
-      if (e.key === 'Escape') navigate('/');
-      if (e.key === 'ArrowLeft') handlePrev();
-      if (e.key === 'ArrowRight') handleNext();
-      if (e.code === 'Space') { e.preventDefault(); togglePlayback(); }
-      if (e.key.toLowerCase() === 'i') { e.preventDefault(); setIsStudioModalOpen(true); }
-      if (e.key.toLowerCase() === 'f') { e.preventDefault(); toggleFullScreen(); }
+      if (e.key === 'Escape') {
+        console.log("[SheetReaderMode] Escape key pressed. Navigating to /.");
+        navigate('/');
+      }
+      if (e.key === 'ArrowLeft') {
+        console.log("[SheetReaderMode] ArrowLeft key pressed.");
+        handlePrev();
+      }
+      if (e.key === 'ArrowRight') {
+        console.log("[SheetReaderMode] ArrowRight key pressed.");
+        handleNext();
+      }
+      if (e.code === 'Space') { 
+        e.preventDefault(); 
+        console.log("[SheetReaderMode] Spacebar pressed. Toggling playback.");
+        togglePlayback(); 
+      }
+      if (e.key.toLowerCase() === 'i') { 
+        e.preventDefault(); 
+        console.log("[SheetReaderMode] 'i' key pressed. Opening Studio Modal.");
+        setIsStudioModalOpen(true); 
+      }
+      if (e.key.toLowerCase() === 'f') { 
+        e.preventDefault(); 
+        console.log("[SheetReaderMode] 'f' key pressed. Toggling Fullscreen.");
+        toggleFullScreen(); 
+      }
     };
+    console.log("[SheetReaderMode] Adding global keydown listener.");
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate, handlePrev, handleNext, togglePlayback]);
-
-  const toggleFullScreen = useCallback(() => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(() => {});
-      setIsFullScreen(true);
-    } else {
-      document.exitFullscreen();
-      setIsFullScreen(false);
-    }
-  }, []);
+    return () => {
+      console.log("[SheetReaderMode] Removing global keydown listener.");
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [navigate, handlePrev, handleNext, togglePlayback, toggleFullScreen]);
 
   const handleUpdateKey = useCallback(async (newTargetKey: string) => {
-    if (!currentSong || !user) return;
+    console.log("[SheetReaderMode] handleUpdateKey called. New target key:", newTargetKey);
+    if (!currentSong || !user) {
+      console.log("[SheetReaderMode] Cannot update key: currentSong or user missing.");
+      return;
+    }
     const newPitch = calculateSemitones(currentSong.originalKey || "C", newTargetKey);
     setLocalPitch(newPitch);
     setAudioPitch(newPitch);
     try {
+      console.log("[SheetReaderMode] Updating Supabase with new targetKey and pitch.");
       await supabase.from('repertoire').update({ target_key: newTargetKey, pitch: newPitch }).eq('id', currentSong.id);
       setAllSongs(prev => prev.map(s => s.id === currentSong.id ? { ...s, targetKey: newTargetKey, pitch: newPitch } : s));
       showSuccess(`Stage Key set to ${newTargetKey}`);
-    } catch (err) {}
+      console.log("[SheetReaderMode] Supabase update successful.");
+    } catch (err) {
+      console.error("[SheetReaderMode] Failed to update key in Supabase:", err);
+      showError("Failed to update key.");
+    }
   }, [currentSong, user, setAudioPitch]);
 
   // Tap-to-Hide UI logic (Unit Toggle: Sidebar + Header + Footer)
   const handleMainContentClick = () => {
+    console.log("[SheetReaderMode] Main content clicked. isOverlayOpen:", isOverlayOpen);
     if (!isOverlayOpen) {
       setIsUiVisible(prev => !prev);
+      console.log("[SheetReaderMode] Toggling isUiVisible to:", !isUiVisible);
     }
   };
 
   useEffect(() => {
+    console.log("[SheetReaderMode] Effect: isUiVisible or isOverlayOpen changed. Setting UI hide timeout.");
     if (uiHideTimeoutRef.current) clearTimeout(uiHideTimeoutRef.current);
     if (isUiVisible && !isOverlayOpen) {
-      uiHideTimeoutRef.current = setTimeout(() => setIsUiVisible(false), 8000);
+      uiHideTimeoutRef.current = setTimeout(() => {
+        setIsUiVisible(false);
+        console.log("[SheetReaderMode] UI hide timeout triggered. isUiVisible set to false.");
+      }, 8000);
     }
-    return () => { if (uiHideTimeoutRef.current) clearTimeout(uiHideTimeoutRef.current); };
+    return () => { 
+      if (uiHideTimeoutRef.current) {
+        clearTimeout(uiHideTimeoutRef.current); 
+        console.log("[SheetReaderMode] Clearing UI hide timeout on cleanup.");
+      }
+    };
   }, [isUiVisible, isOverlayOpen]);
 
   const renderChart = useMemo(() => {
-    if (!currentSong) return <div className="h-full flex items-center justify-center text-slate-500"><Music className="w-12 h-12 mr-4" /> Select a song</div>;
+    console.log("[SheetReaderMode] renderChart memo re-evaluating. currentSong:", currentSong?.name, "forceReaderResource:", forceReaderResource);
+    if (!currentSong) {
+      console.log("[SheetReaderMode] No current song, rendering placeholder.");
+      return <div className="h-full flex items-center justify-center text-slate-500"><Music className="w-12 h-12 mr-4" /> Select a song</div>;
+    }
 
     const readiness = calculateReadiness(currentSong);
     if (readiness < 40 && forceReaderResource !== 'simulation') {
+      console.log("[SheetReaderMode] Song readiness is low and not in simulation mode. Rendering audit prompt.");
       return (
         <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-950">
           <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
@@ -256,8 +353,12 @@ const SheetReaderMode: React.FC = () => {
     let chartUrl = currentSong.pdfUrl || currentSong.leadsheetUrl || currentSong.ugUrl;
     
     // Debug Overrides
-    if (forceReaderResource === 'force-pdf') chartUrl = currentSong.pdfUrl;
+    if (forceReaderResource === 'force-pdf') {
+      chartUrl = currentSong.pdfUrl;
+      console.log("[SheetReaderMode] forceReaderResource: force-pdf. Chart URL:", chartUrl);
+    }
     if (forceReaderResource === 'force-chords' && currentSong.ug_chords_text) {
+      console.log("[SheetReaderMode] forceReaderResource: force-chords. Rendering UGChordsReader.");
       return (
         <UGChordsReader
           chordsText={currentSong.ug_chords_text}
@@ -265,11 +366,17 @@ const SheetReaderMode: React.FC = () => {
           isMobile={isMobile}
           originalKey={currentSong.originalKey}
           targetKey={transposeKey(currentSong.originalKey || "C", localPitch)}
+          isPlaying={isPlaying} // Pass to UGChordsReader
+          progress={progress} // Pass to UGChordsReader
+          duration={duration} // Pass to UGChordsReader
+          chordAutoScrollEnabled={chordAutoScrollEnabled} // Pass to UGChordsReader
+          chordScrollSpeed={chordScrollSpeed} // Pass to UGChordsReader
         />
       );
     }
 
     if (currentSong.ug_chords_text && !chartUrl) {
+      console.log("[SheetReaderMode] currentSong has ug_chords_text but no other chartUrl. Rendering UGChordsReader.");
       return (
         <UGChordsReader
           chordsText={currentSong.ug_chords_text}
@@ -277,14 +384,25 @@ const SheetReaderMode: React.FC = () => {
           isMobile={isMobile}
           originalKey={currentSong.originalKey}
           targetKey={transposeKey(currentSong.originalKey || "C", localPitch)}
+          isPlaying={isPlaying} // Pass to UGChordsReader
+          progress={progress} // Pass to UGChordsReader
+          duration={duration} // Pass to UGChordsReader
+          chordAutoScrollEnabled={chordAutoScrollEnabled} // Pass to UGChordsReader
+          chordScrollSpeed={chordScrollSpeed} // Pass to UGChordsReader
         />
       );
     }
 
-    return chartUrl ? (
-      <iframe src={`${chartUrl}#toolbar=0&view=FitH`} className="w-full h-full bg-white" title="Sheet" />
-    ) : null;
-  }, [currentSong, forceReaderResource, isMobile, localPitch]);
+    if (chartUrl) {
+      console.log("[SheetReaderMode] Rendering iframe with chartUrl:", chartUrl);
+      return (
+        <iframe src={`${chartUrl}#toolbar=0&view=FitH`} className="w-full h-full bg-white" title="Sheet" />
+      );
+    }
+    
+    console.log("[SheetReaderMode] No chart URL or UG chords text found. Rendering null.");
+    return null;
+  }, [currentSong, forceReaderResource, isMobile, localPitch, isPlaying, progress, duration, chordAutoScrollEnabled, chordScrollSpeed, ignoreConfirmedGate]);
 
   if (loading) return <div className="h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-indigo-500" /></div>;
 
@@ -327,6 +445,10 @@ const SheetReaderMode: React.FC = () => {
                 volume={audioEngine.volume}
                 setVolume={audioEngine.setVolume}
                 keyPreference={globalKeyPreference}
+                chordAutoScrollEnabled={chordAutoScrollEnabled} // Pass to footer
+                setChordAutoScrollEnabled={setChordAutoScrollEnabled} // Pass to footer
+                chordScrollSpeed={chordScrollSpeed} // Pass to footer
+                setChordScrollSpeed={setChordScrollSpeed} // Pass to footer
               />
             </motion.div>
 
@@ -383,6 +505,9 @@ const SheetReaderMode: React.FC = () => {
         isPlaying={isPlaying}
         onTogglePlayback={togglePlayback}
         isReaderMode={true}
+        onSetMenuOpen={setIsOverlayOpen} // Pass setter for overlay
+        onSetUiVisible={setIsUiVisible} // Pass setter for UI visibility
+        isMenuOpen={isOverlayOpen} // Pass current overlay state
       />
 
       <RepertoirePicker isOpen={isRepertoirePickerOpen} onClose={() => setIsRepertoirePickerOpen(false)} repertoire={allSongs} currentSetlistSongs={[]} onAdd={(s) => {
