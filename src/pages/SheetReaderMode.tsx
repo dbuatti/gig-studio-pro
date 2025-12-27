@@ -450,6 +450,19 @@ const SheetReaderMode: React.FC = () => {
     }
   }, [currentSong, renderedCharts]);
 
+  // NEW: Keyboard shortcut for 'I' to open Song Studio Modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 'i' && currentSong && !isStudioModalOpen) {
+        e.preventDefault();
+        setIsStudioModalOpen(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentSong, isStudioModalOpen]);
+
 
   if (initialLoading) {
     return (
