@@ -1,162 +1,143 @@
-"""
-main.py
-Final Production Version: Fixes CORS + YouTube Block + Proxies
-"""
-import os, secrets, threading, time, uuid, requests
-from flask import Flask, request, jsonify, send_from_directory
+import os
+import threading
+import time
+import uuid
+import sys
+import traceback
+from flask import Flask, request, send_file, jsonify, make_response
 from flask_cors import CORS
-from pathlib import Path
 import yt_dlp
 
 app = Flask(__name__)
 
-# --- FIX: BROAD CORS FOR DEVELOPMENT ---
+# Strict CORS for production stability
 CORS(app, resources={
     r"/*": {
-        "origins": "*",  # Allows local dev and production
+        "origins": "*",
         "methods": ["GET", "POST", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"]
+        "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"]
     }
 })
 
-DOWNLOAD_DIR = Path("downloads")
-DOWNLOAD_DIR.mkdir(exist_ok=True)
-REPO_COOKIES_PATH = Path(__file__).resolve().parent / "cookies.txt"
+def log(message):
+    print(f"[SERVER LOG] {message}")
+    sys.stdout.flush()
+
+DOWNLOAD_DIR = "/tmp/downloads"
+os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 active_tokens = {}
-TOKEN_EXPIRY = 600
 
-# --- BACKGROUND CLEANUP ---
-def cleanup_expired_files():
+def cleanup_old_files():
     while True:
         now = time.time()
-        expired = [t for t, d in active_tokens.items() if now > d["expiry"]]
-        for t in expired:
-            data = active_tokens.pop(t, None)
-            if data and data["file"] and (DOWNLOAD_DIR / data["file"]).exists():
-                (DOWNLOAD_DIR / data["file"]).unlink()
-                print(f"[Cleanup] Removed expired file: {data['file']}", flush=True) # Added log
+        for token, data in list(active_tokens.items()):
+            if now - data['timestamp'] > 600:
+                file_path = data.get('file_path')
+                if file_path and os.path.exists(file_path):
+                    try:
+                        os.remove(file_path)
+                        log(f"Cleanup: Removed {token}")
+                    except Exception as e:
+                        log(f"Cleanup error: {e}")
+                active_tokens.pop(token, None)
         time.sleep(60)
 
-threading.Thread(target=cleanup_expired_files, daemon=True).start()
+threading.Thread(target=cleanup_old_files, daemon=True).start()
 
-# --- YT-DLP PROGRESS HOOK ---
-def progress_hook(d, token):
-    if token not in active_tokens:
-        print(f"[{token}] Progress hook called for expired/missing token.", flush=True)
-        return
-
-    if d['status'] == 'downloading':
-        percentage = d.get('downloaded_bytes', 0) / d.get('total_bytes', 1) * 100
-        active_tokens[token]["progress_percentage"] = round(percentage)
-        print(f"[{token}] Downloading: {active_tokens[token]['progress_percentage']}%", flush=True)
-    elif d['status'] == 'finished':
-        active_tokens[token]["progress_percentage"] = 100
-        print(f"[{token}] Download finished.", flush=True)
-    elif d['status'] == 'error':
-        active_tokens[token]["progress_percentage"] = -1 # Indicate error
-        print(f"[{token}] Download error.", flush=True)
-
-# --- CORE DOWNLOAD LOGIC ---
-def run_yt_dlp(video_url, token):
-    print(f"[{token}] Starting yt-dlp for URL: {video_url}", flush=True) # Added log
-    po_token = os.getenv("YOUTUBE_PO_TOKEN")
-    visitor_data = os.getenv("YOUTUBE_VISITOR_DATA")
-    proxy_url = os.getenv("PROXY_URL") 
+def download_task(token, video_url):
+    log(f"--- STARTING DOWNLOAD TASK | Token: {token} ---")
     
-    filename = f"{token}.mp3"
-    output_path = DOWNLOAD_DIR / filename
+    def progress_hook(d):
+        if d['status'] == 'downloading':
+            p = d.get('_percent_str', '0%').replace('%','')
+            try:
+                active_tokens[token]['progress'] = float(p)
+            except:
+                pass
+        elif d['status'] == 'finished':
+            active_tokens[token]['progress'] = 100
+
+    po_token = os.environ.get("YOUTUBE_PO_TOKEN")
+    visitor_data = os.environ.get("YOUTUBE_VISITOR_DATA")
+    proxy_url = os.environ.get("PROXY_URL")
+    
+    file_id = str(uuid.uuid4())
+    output_template = os.path.join(DOWNLOAD_DIR, f"{file_id}.%(ext)s")
+
+    # Check for cookies in Render secrets or root
+    paths_to_check = ['./cookies.txt', '/etc/secrets/cookies.txt']
+    use_cookies = next((p for p in paths_to_check if os.path.exists(p)), None)
 
     ydl_opts = {
-        'format': 'bestaudio/best',
-        'outtmpl': str(output_path.with_suffix('')),
-        'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'}],
-        'impersonate': 'chrome', # CRITICAL: Mimics browser TLS
-        'proxy': proxy_url if proxy_url else None, # CRITICAL: Bypasses Data Center Block
-        'extractor_args': {
-            'youtube': {
-                'player_client': ['mweb', 'ios', 'android'],
-                'po_token': [f'web+{po_token}'] if po_token else [],
-                'visitor_data': visitor_data if visitor_data else ""
-            }
-        },
-        'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Mobile Safari/537.36',
-            'Accept-Language': 'en-GB,en;q=0.9',
-            'Referer': 'https://m.youtube.com/'
-        },
-        'progress_hooks': [lambda d: progress_hook(d, token)], # Added progress hook
-        'noplaylist': True # CRITICAL: Prevents downloading entire playlists
+        'format': 'wa',
+        'noplaylist': True,
+        'outtmpl': output_template,
+        'progress_hooks': [progress_hook],
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '128',
+        }],
+        'po_token': f"web+none:{po_token}" if po_token else None,
+        'headers': {'X-Goog-Visitor-Id': visitor_data if visitor_data else None},
+        'proxy': proxy_url if proxy_url else None,
+        'cookiefile': use_cookies,
+        'nocheckcertificate': True,
+        'verbose': True,
+        'quiet': False,
     }
 
-    if REPO_COOKIES_PATH.exists():
-        ydl_opts['cookiefile'] = str(REPO_COOKIES_PATH)
-        print(f"[{token}] Using cookie file: {REPO_COOKIES_PATH}", flush=True) # Added log
-    else:
-        print(f"[{token}] Cookie file not found at: {REPO_COOKIES_PATH}", flush=True) # Added log
-
     try:
-        print(f"[{token}] Executing yt-dlp download command...", flush=True)
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([video_url])
         
-        if output_path.exists(): # Check if file was actually created
-            if token in active_tokens:
-                active_tokens[token].update({"status": "ready", "file": filename, "progress_percentage": 100}) # Set progress to 100%
-                print(f"[{token}] Download successful. File: {filename}", flush=True) # Added log
-            else:
-                print(f"[{token}] Token disappeared from active_tokens after successful download.", flush=True) # Added log
+        expected_file = os.path.join(DOWNLOAD_DIR, f"{file_id}.mp3")
+        if os.path.exists(expected_file):
+            log(f"SUCCESS | MP3 ready: {token}")
+            active_tokens[token]['file_path'] = expected_file
+            active_tokens[token]['status'] = 'ready'
         else:
-            print(f"[{token}] yt-dlp finished, but file {output_path} does not exist. Setting status to error.", flush=True) # Added log
-            if token in active_tokens:
-                active_tokens[token].update({"status": "error", "error_msg": f"File {filename} not created by yt-dlp."})
+            raise Exception("Conversion Error")
 
     except Exception as e:
-        print(f"[{token}] yt-dlp Error: {e}", flush=True)
-        if token in active_tokens:
-            active_tokens[token].update({"status": "error", "error_msg": str(e)})
-        else:
-            print(f"[{token}] Token disappeared from active_tokens during error handling.", flush=True) # Added log
+        log(f"ERROR | {token} | {str(e)}")
+        active_tokens[token]['status'] = 'error'
+        active_tokens[token]['error_message'] = str(e)
 
-# --- ROUTES ---
-@app.route("/", methods=["GET"])
-def start_request():
-    url = request.args.get("url")
-    if not url: return jsonify(error="Missing URL"), 400
+@app.route('/')
+def init_download():
+    video_url = request.args.get('url')
+    if not video_url: return jsonify({"error": "No URL"}), 400
+    token = str(uuid.uuid4())
+    active_tokens[token] = {'status': 'processing', 'progress': 0, 'timestamp': time.time(), 'file_path': None}
+    threading.Thread(target=download_task, args=(token, video_url)).start()
+    return jsonify({"token": token})
 
-    job_token = str(uuid.uuid4())
-    active_tokens[job_token] = {
-        "file": None,
-        "status": "processing",
-        "expiry": time.time() + TOKEN_EXPIRY,
-        "error_msg": None,
-        "progress_percentage": 0 # Initialize progress
-    }
-    print(f"[{job_token}] New request received. Status: processing", flush=True) # Added log
-
-    threading.Thread(target=run_yt_dlp, args=(url, job_token), daemon=True).start()
-    return jsonify({"token": job_token})
-
-@app.route("/download", methods=["GET"])
-def check_or_download():
-    token = request.args.get("token")
-    data = active_tokens.get(token)
-
-    if not data: 
-        print(f"[{token}] Download request for invalid/missing token. Active tokens: {list(active_tokens.keys())}", flush=True) # Added log
-        return jsonify(error="Invalid Token"), 404
+@app.route('/download')
+def get_file():
+    token = request.args.get('token')
+    if not token or token not in active_tokens:
+        return jsonify({"error": "Invalid token"}), 404
     
-    if data["status"] == "processing":
-        print(f"[{token}] Download status: processing (202), Progress: {data['progress_percentage']}%", flush=True) # Added log
-        return jsonify(status="processing", progress_percentage=data["progress_percentage"]), 202
+    task = active_tokens[token]
+    if task['status'] == 'processing':
+        return jsonify({"status": "processing", "progress": task.get('progress', 0)}), 202
     
-    if data["status"] == "error":
-        print(f"[{token}] Download status: error (500). Details: {data['error_msg']}", flush=True) # Added log
-        return jsonify(error="YouTube Block", detail=data["error_msg"]), 500
+    if task['status'] == 'error':
+        return jsonify({"status": "error", "error": task.get('error_message')}), 500
 
-    print(f"[{token}] Download status: ready (200). Serving file: {data['file']}", flush=True) # Added log
-    return send_from_directory(DOWNLOAD_DIR, path=data["file"], as_attachment=True)
+    if task['status'] == 'ready':
+        log(f"Serving file: {token}")
+        # Explicitly inject CORS headers for file delivery
+        response = make_response(send_file(
+            task['file_path'], 
+            as_attachment=True, 
+            download_name="audio.mp3",
+            mimetype="audio/mpeg"
+        ))
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        return response
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))

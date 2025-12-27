@@ -445,7 +445,10 @@ const Index = () => {
     setActiveSongId(song.id);
     if (song.previewUrl && transposerRef.current) {
       await transposerRef.current.loadFromUrl(song.previewUrl, song.name, song.artist || "Unknown");
-      transposerRef.current.setPitch(song.pitch);
+      // Add the null check here, as suggested by the user's intent
+      if (transposerRef.current) { // Check again after async operation
+        transposerRef.current.setPitch(song.pitch);
+      }
     }
   };
 
