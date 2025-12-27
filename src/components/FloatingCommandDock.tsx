@@ -66,8 +66,8 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   onSetUiVisible, // NEW
   isMenuOpen, // NEW
 }) => {
-  const [isCommandHubOpen, setIsCommandHubOpen] = useState(false);
-  const [isSafePitchActive, setIsSafePitchActive] = useState(false);
+  const [isCommandHubOpen, setIsCommandHubOpen] = useState(false); // This is for the main dock (non-reader mode)
+  const [isSafePitchActive, setIsSafePitchActive] = useState(false); // Declare isSafePitchActive
   const { safePitchMaxNote } = useSettings();
 
   // Calculate safe pitch limit
@@ -207,18 +207,18 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
             size="icon"
             onClick={() => {
               onSetUiVisible?.(true); // Ensure UI is visible
-              onSetMenuOpen?.(!isMenuOpen); // Toggle the menu
+              onSetMenuOpen?.(!isMenuOpen); // Toggle the menu (isOverlayOpen in SheetReaderMode)
             }}
             className={cn(
               "h-14 w-14 rounded-full transition-all duration-500 bg-black/40 backdrop-blur-xl border border-white/5 shadow-2xl",
-              isMenuOpen ? "text-white rotate-90" : "text-slate-400 hover:text-white"
+              isMenuOpen ? "text-white rotate-90" : "text-slate-400 hover:text-white" // Use isMenuOpen prop here
             )}
           >
-            {isMenuOpen ? <X className="w-6 h-6" /> : <ListMusic className="w-6 h-6" />}
+            {isMenuOpen ? <X className="w-6 h-6" /> : <ListMusic className="w-6 h-6" />} {/* Use isMenuOpen prop here */}
           </Button>
 
           <AnimatePresence>
-            {isCommandHubOpen && (
+            {isMenuOpen && ( // Use isMenuOpen prop here to control visibility of secondary buttons
               <motion.div
                 initial={{ opacity: 0, y: 20, scale: 0.8 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -233,7 +233,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                         size="icon"
                         onClick={() => { 
                           btn.onClick(); 
-                          setIsCommandHubOpen(false); 
+                          onSetMenuOpen?.(false); // Close the menu after clicking a secondary button
                           onSetUiVisible?.(true); // Ensure UI is visible on secondary button click
                         }}
                         className={cn("h-12 w-12 rounded-full border shadow-xl", btn.className)}

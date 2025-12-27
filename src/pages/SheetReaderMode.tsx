@@ -85,7 +85,7 @@ const SheetReaderMode: React.FC = () => {
   const [isStudioModalOpen, setIsStudioModalOpen] = useState(false);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
-  const [isOverlayOpen, setIsOverlayOpen] = useState(false);
+  const [isOverlayOpen, setIsOverlayOpen] = useState(false); // Controls FloatingCommandDock menu
 
   // NEW: Chord auto-scroll state
   const [chordAutoScrollEnabled, setChordAutoScrollEnabled] = useState(true);
@@ -330,8 +330,8 @@ const SheetReaderMode: React.FC = () => {
     };
   }, [isUiVisible, isOverlayOpen]);
 
-  const renderChart = useMemo(() => {
-    console.log("[SheetReaderMode] renderChart memo re-evaluating. currentSong:", currentSong?.name, "forceReaderResource:", forceReaderResource);
+  const renderChartContent = useMemo(() => {
+    console.log("[SheetReaderMode] renderChartContent memo re-evaluating. currentSong:", currentSong?.name, "forceReaderResource:", forceReaderResource);
     if (!currentSong) {
       console.log("[SheetReaderMode] No current song, rendering placeholder.");
       return <div className="h-full flex items-center justify-center text-slate-500"><Music className="w-12 h-12 mr-4" /> Select a song</div>;
@@ -361,16 +361,17 @@ const SheetReaderMode: React.FC = () => {
       console.log("[SheetReaderMode] forceReaderResource: force-chords. Rendering UGChordsReader.");
       return (
         <UGChordsReader
+          key={currentSong.id + "-chords"} // Add key to ensure re-render on song change
           chordsText={currentSong.ug_chords_text}
           config={currentSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
           isMobile={isMobile}
           originalKey={currentSong.originalKey}
           targetKey={transposeKey(currentSong.originalKey || "C", localPitch)}
-          isPlaying={isPlaying} // Pass to UGChordsReader
-          progress={progress} // Pass to UGChordsReader
-          duration={duration} // Pass to UGChordsReader
-          chordAutoScrollEnabled={chordAutoScrollEnabled} // Pass to UGChordsReader
-          chordScrollSpeed={chordScrollSpeed} // Pass to UGChordsReader
+          isPlaying={isPlaying}
+          progress={progress}
+          duration={duration}
+          chordAutoScrollEnabled={chordAutoScrollEnabled}
+          chordScrollSpeed={chordScrollSpeed}
         />
       );
     }
@@ -379,16 +380,17 @@ const SheetReaderMode: React.FC = () => {
       console.log("[SheetReaderMode] currentSong has ug_chords_text but no other chartUrl. Rendering UGChordsReader.");
       return (
         <UGChordsReader
+          key={currentSong.id + "-chords-fallback"} // Add key
           chordsText={currentSong.ug_chords_text}
           config={currentSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
           isMobile={isMobile}
           originalKey={currentSong.originalKey}
           targetKey={transposeKey(currentSong.originalKey || "C", localPitch)}
-          isPlaying={isPlaying} // Pass to UGChordsReader
-          progress={progress} // Pass to UGChordsReader
-          duration={duration} // Pass to UGChordsReader
-          chordAutoScrollEnabled={chordAutoScrollEnabled} // Pass to UGChordsReader
-          chordScrollSpeed={chordScrollSpeed} // Pass to UGChordsReader
+          isPlaying={isPlaying}
+          progress={progress}
+          duration={duration}
+          chordAutoScrollEnabled={chordAutoScrollEnabled}
+          chordScrollSpeed={chordScrollSpeed}
         />
       );
     }
@@ -396,7 +398,12 @@ const SheetReaderMode: React.FC = () => {
     if (chartUrl) {
       console.log("[SheetReaderMode] Rendering iframe with chartUrl:", chartUrl);
       return (
-        <iframe src={`${chartUrl}#toolbar=0&view=FitH`} className="w-full h-full bg-white" title="Sheet" />
+        <iframe 
+          key={currentSong.id + "-iframe"} // Add key
+          src={`${chartUrl}#toolbar=0&view=FitH`} 
+          className="w-full h-full bg-white" 
+          title="Sheet" 
+        />
       );
     }
     
@@ -412,8 +419,9 @@ const SheetReaderMode: React.FC = () => {
       <AnimatePresence>
         {isUiVisible && (
           <>
-            <motion.div initial={{ y: -100 }} animate={{ y: 0 }} exit={{ y: -100 }} className="fixed top-0 left-0 right-0 z-[70]">
+            <motion.div key="header-motion" initial={{ y: -100 }} animate={{ y: 0 }} exit={{ y: -100 }} className="fixed top-0 left-0 right-0 z-[70]">
               <SheetReaderHeader
+                key="sheet-reader-header"
                 currentSong={currentSong}
                 onClose={() => navigate('/')}
                 onSearchClick={() => setIsRepertoirePickerOpen(true)}
@@ -431,8 +439,9 @@ const SheetReaderMode: React.FC = () => {
               />
             </motion.div>
 
-            <motion.div initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }} className="fixed bottom-0 left-0 right-0 z-[70]">
+            <motion.div key="footer-motion" initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }} className="fixed bottom-0 left-0 right-0 z-[70]">
               <SheetReaderFooter
+                key="sheet-reader-footer"
                 currentSong={currentSong}
                 isPlaying={isPlaying}
                 progress={progress}
@@ -445,14 +454,14 @@ const SheetReaderMode: React.FC = () => {
                 volume={audioEngine.volume}
                 setVolume={audioEngine.setVolume}
                 keyPreference={globalKeyPreference}
-                chordAutoScrollEnabled={chordAutoScrollEnabled} // Pass to footer
-                setChordAutoScrollEnabled={setChordAutoScrollEnabled} // Pass to footer
-                chordScrollSpeed={chordScrollSpeed} // Pass to footer
-                setChordScrollSpeed={setChordScrollSpeed} // Pass to footer
+                chordAutoScrollEnabled={chordAutoScrollEnabled}
+                setChordAutoScrollEnabled={setChordAutoScrollEnabled}
+                chordScrollSpeed={chordScrollSpeed}
+                setChordScrollSpeed={setChordScrollSpeed}
               />
             </motion.div>
 
-            <motion.aside initial={{ x: -300 }} animate={{ x: 0 }} exit={{ x: -300 }} className="fixed left-0 top-0 bottom-0 w-64 bg-slate-900 border-r border-white/10 z-[60] pt-24 pb-32">
+            <motion.aside key="aside-motion" initial={{ x: -300 }} animate={{ x: 0 }} exit={{ x: -300 }} className="fixed left-0 top-0 bottom-0 w-64 bg-slate-900 border-r border-white/10 z-[60] pt-24 pb-32">
               <div className="p-4 border-b border-white/10 flex justify-between items-center bg-black/20">
                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Immersive List</span>
                 <span className="text-[10px] font-mono text-indigo-400">{filteredSongs.length} Tracks</span>
@@ -486,7 +495,7 @@ const SheetReaderMode: React.FC = () => {
           isUiVisible && !isMobile ? "ml-64" : "ml-0"
         )}
       >
-        <div className="h-full w-full">{renderChart}</div>
+        <div className="h-full w-full">{renderChartContent}</div>
       </main>
 
       {/* Floating Control for Audio/Studio access */}

@@ -67,6 +67,13 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
     lineSpacing: config.lineSpacing
   });
 
+  // NEW: Debugging logs
+  useEffect(() => {
+    console.log("[UGChordsReader] Rendered. chordsText length:", chordsText?.length, "formattedHtml length:", formattedHtml?.length);
+    console.log("[UGChordsReader] Config:", config);
+    console.log("[UGChordsReader] Transposed Text (first 100 chars):", transposedChordsText?.substring(0, 100));
+  }, [chordsText, formattedHtml, config, transposedChordsText]);
+
   // NEW: Auto-scroll logic
   useEffect(() => {
     const container = scrollContainerRef.current;
