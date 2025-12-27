@@ -8,7 +8,8 @@ import {
   ChevronLeft, ChevronRight, AlertCircle, 
   ShieldAlert,
   ClipboardCheck,
-  CheckCircle2
+  CheckCircle2,
+  Music
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
@@ -113,9 +114,13 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   }, [song, gigId, user]);
 
   const handleVerifyMetadata = () => {
-    const isNowVerified = !formData.isMetadataConfirmed;
-    handleAutoSave({ isMetadataConfirmed: isNowVerified });
-    showSuccess(isNowVerified ? "Technical Metadata Verified" : "Verification Rescinded");
+    if (!formData.name || !formData.artist) {
+      showError("Please enter song title and artist first.");
+      return;
+    }
+    const query = encodeURIComponent(`${formData.artist} ${formData.name}`);
+    window.open(`https://music.apple.com/us/search?term=${query}`, '_blank');
+    showSuccess("Opening iTunes search...");
   };
 
   const handleConfirmForSetlist = (checked: boolean) => {
@@ -174,8 +179,8 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
                   : "bg-white/5 hover:bg-white/10 text-slate-400 border border-white/10"
               )}
             >
-              {formData.isMetadataConfirmed ? <ShieldCheck className="w-4 h-4" /> : <ClipboardCheck className="w-4 h-4" />}
-              {formData.isMetadataConfirmed ? "METADATA VERIFIED" : "VERIFY METADATA"}
+              <Music className="w-4 h-4" />
+              VERIFY METADATA
             </Button>
 
             {/* Step 2: Setlist Confirmation Toggle */}
