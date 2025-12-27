@@ -12,6 +12,8 @@ import Profile from "./pages/Profile";
 import PublicRepertoire from "./pages/PublicRepertoire";
 import SheetReaderMode from "./pages/SheetReaderMode";
 import SongStudio from "./pages/SongStudio";
+import GigEntry from "./pages/GigEntry";
+import PublicGigView from "./pages/PublicGigView";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +37,8 @@ const App = () => (
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
             <Route path="/repertoire/:slug" element={<PublicRepertoire />} />
+            <Route path="/gig" element={<GigEntry />} />
+            <Route path="/gig/:code" element={<PublicGigView />} />
             <Route path="/dashboard" element={
               <ProtectedRoute>
                 <Index />

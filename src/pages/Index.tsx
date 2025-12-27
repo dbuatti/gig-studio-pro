@@ -11,6 +11,7 @@ import SetlistStats from "@/components/SetlistStats";
 import PreferencesModal from "@/components/PreferencesModal";
 import AdminPanel from "@/components/AdminPanel";
 import SongStudioModal from "@/components/SongStudioModal";
+import GigSessionManager from "@/components/GigSessionManager";
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { showSuccess, showError } from '@/utils/toast';
 import { calculateSemitones } from '@/utils/keyUtils';
@@ -397,21 +398,29 @@ const Index = () => {
               </div>
               <ImportSetlist onImport={(newSongs) => { if (!currentListId) return; saveList(currentListId, [...songs, ...newSongs.map(s => ({ ...s, isSyncing: false, isApproved: false }))], {}, newSongs); }} />
             </div>
-            <SetlistStats songs={songs} goalSeconds={currentList?.time_goal} onUpdateGoal={(s) => currentListId && saveList(currentListId, songs, { time_goal: s }, undefined)} onDownloadAllMissingAudio={handleDownloadAllMissingAudio} isBulkDownloading={isBulkDownloading} />
-            <SetlistManager 
-              songs={songs} 
-              onRemove={(id) => currentListId && saveList(currentListId, songs.filter(s => s.id !== id), {}, undefined)} 
-              onSelect={handleSelectSong} 
-              onEdit={handleEditSong}
-              onUpdateKey={handleUpdateKey} 
-              onTogglePlayed={handleTogglePlayed} 
-              onLinkAudio={(n) => { setIsSearchPanelOpen(true); transposerRef.current?.triggerSearch(n); }}
-              onUpdateSong={handleUpdateSong} 
-              onSyncProData={() => Promise.resolve()}
-              onReorder={(ns) => currentListId && saveList(currentListId, ns, {}, undefined)} 
-              currentSongId={activeSongIdState || undefined} 
-              onOpenAdmin={() => setIsAdminOpen(true)} 
-            />
+            
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+              <div className="xl:col-span-2 space-y-8">
+                <SetlistStats songs={songs} goalSeconds={currentList?.time_goal} onUpdateGoal={(s) => currentListId && saveList(currentListId, songs, { time_goal: s }, undefined)} onDownloadAllMissingAudio={handleDownloadAllMissingAudio} isBulkDownloading={isBulkDownloading} />
+                <SetlistManager 
+                  songs={songs} 
+                  onRemove={(id) => currentListId && saveList(currentListId, songs.filter(s => s.id !== id), {}, undefined)} 
+                  onSelect={handleSelectSong} 
+                  onEdit={handleEditSong}
+                  onUpdateKey={handleUpdateKey} 
+                  onTogglePlayed={handleTogglePlayed} 
+                  onLinkAudio={(n) => { setIsSearchPanelOpen(true); transposerRef.current?.triggerSearch(n); }}
+                  onUpdateSong={handleUpdateSong} 
+                  onSyncProData={() => Promise.resolve()}
+                  onReorder={(ns) => currentListId && saveList(currentListId, ns, {}, undefined)} 
+                  currentSongId={activeSongIdState || undefined} 
+                  onOpenAdmin={() => setIsAdminOpen(true)} 
+                />
+              </div>
+              <div className="space-y-8">
+                {currentListId && <GigSessionManager setlistId={currentListId} />}
+              </div>
+            </div>
           </div>
           <MadeWithDyad />
         </main>
