@@ -63,10 +63,6 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
   const [autoAdvanceInterval, setAutoAdvanceInterval] = useState(30); // seconds
   const autoAdvanceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // NEW: Chord auto-scroll states
-  const [chordAutoScrollEnabled, setChordAutoScrollEnabled] = useState(true);
-  const [chordScrollSpeed, setChordScrollSpeed] = useState(1.0); // Multiplier for scroll speed
-
   const audioEngine = useToneAudio();
   const { isPlaying, progress, duration, analyzer, loadFromUrl, togglePlayback, stopPlayback, setPitch: setAudioPitch, setVolume, setProgress: setAudioProgress, resetEngine } = audioEngine;
 
@@ -80,10 +76,10 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
 
   const mainContentRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number>(0);
-  const touchStartY = useRef<number>(0); // NEW: Track Y for swipe direction
-  const tapCountRef = useRef<number>(0); // NEW: For double tap detection
-  const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null); // NEW: For tap timeout
-  const longPressTimeoutRef = useRef<NodeJS.Timeout | null>(null); // NEW: For long press detection
+  const touchStartY = useRef<number>(0); // Track Y for swipe direction
+  const tapCountRef = useRef<number>(0); // For double tap detection
+  const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null); // For tap timeout
+  const longPressTimeoutRef = useRef<NodeJS.Timeout | null>(null); // For long press detection
 
   const isFramable = useCallback((url: string | null | undefined) => {
     if (!url) return true;
@@ -290,7 +286,7 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [navigate, handlePrev, handleNext, togglePlayback]);
 
-  // NEW: Gesture Handlers
+  // Gesture Handlers
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY; // Record Y position
@@ -313,15 +309,8 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
       clearTimeout(longPressTimeoutRef.current);
       longPressTimeoutRef.current = null;
     }
-    // Prevent tap detection if there's significant movement
-    const currentX = e.touches[0].clientX;
-    const currentY = e.touches[0].clientY;
-    const deltaX = Math.abs(touchStartX.current - currentX);
-    const deltaY = Math.abs(touchStartY.current - currentY);
-
-    if (deltaX > 10 || deltaY > 10) { // Threshold for movement
-      tapCountRef.current = 0; // Cancel tap if moved
-    }
+    // Allow native scrolling by not preventing default
+    // The swipe detection will still work on touchEnd
   }, []);
 
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
@@ -434,12 +423,6 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
           isMobile={false}
           originalKey={currentSong.originalKey}
           targetKey={transposeKey(currentSong.originalKey || "C", localPitch)} // Use localPitch for transposition
-          // NEW: Pass auto-scroll props
-          autoScrollEnabled={chordAutoScrollEnabled}
-          scrollSpeed={chordScrollSpeed}
-          isPlaying={isPlaying}
-          progress={progress}
-          duration={duration}
         />
       );
       chartType = "UG Chords";
@@ -459,12 +442,6 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
             isMobile={false}
             originalKey={currentSong.originalKey}
             targetKey={transposeKey(currentSong.originalKey || "C", localPitch)} // Use localPitch for transposition
-            // NEW: Pass auto-scroll props
-            autoScrollEnabled={chordAutoScrollEnabled}
-            scrollSpeed={chordScrollSpeed}
-            isPlaying={isPlaying}
-            progress={progress}
-            duration={duration}
           />
         );
         chartType = "UG Chords (Fallback)";
@@ -512,7 +489,7 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
         </div>
       </div>
     );
-  }, [currentSong, filteredSongs, isFramable, currentSongKeyPreference, localPitch, handleUpdateKey, chordAutoScrollEnabled, chordScrollSpeed, isPlaying, progress, duration]);
+  }, [currentSong, filteredSongs, isFramable, currentSongKeyPreference, localPitch, handleUpdateKey]);
 
   const handleSelectSongFromPicker = useCallback((song: SetlistSong) => {
     const newIndex = allSongs.findIndex(s => s.id === song.id);
@@ -595,11 +572,6 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
               volume={audioEngine.volume}
               setVolume={audioEngine.setVolume}
               keyPreference={globalKeyPreference}
-              // NEW: Pass chord auto-scroll props
-              chordAutoScrollEnabled={chordAutoScrollEnabled}
-              setChordAutoScrollEnabled={setChordAutoScrollEnabled}
-              chordScrollSpeed={chordScrollSpeed}
-              setChordScrollSpeed={setChordScrollSpeed}
             />
           </motion.div>
         )}

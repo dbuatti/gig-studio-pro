@@ -18,7 +18,7 @@ interface SongChartsTabProps {
   activeChartType: 'pdf' | 'leadsheet' | 'web' | 'ug';
   setActiveChartType: (type: 'pdf' | 'leadsheet' | 'web' | 'ug') => void;
   handleUgPrint: () => void;
-  // NEW: Auto-scroll props
+  // Auto-scroll props are no longer passed to UGChordsReader, but kept here if needed elsewhere in SongChartsTab
   isPlaying: boolean;
   progress: number;
   duration: number;
@@ -35,7 +35,7 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
   activeChartType,
   setActiveChartType,
   handleUgPrint,
-  // NEW: Auto-scroll props
+  // Auto-scroll props are no longer passed to UGChordsReader, but kept here if needed elsewhere in SongChartsTab
   isPlaying,
   progress,
   duration,
@@ -137,16 +137,10 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
             {activeChartType === 'ug' && (formData.ug_chords_text || formData.ugUrl) ? (
               <UGChordsReader
                 chordsText={formData.ug_chords_text || ""}
-                config={formData.ug_chords_config || defaultUgChordsConfig}
+                config={formData.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
                 isMobile={isMobile}
                 originalKey={formData.originalKey}
                 targetKey={formData.targetKey}
-                // NEW: Pass auto-scroll props
-                autoScrollEnabled={chordAutoScrollEnabled}
-                scrollSpeed={chordScrollSpeed}
-                isPlaying={isPlaying}
-                progress={progress}
-                duration={duration}
               />
             ) : currentChartUrl ? (
               canEmbedUg ? (
