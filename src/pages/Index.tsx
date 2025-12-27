@@ -13,13 +13,19 @@ import AdminPanel from "@/components/AdminPanel";
 import SongStudioModal from "@/components/SongStudioModal";
 import SetlistSettingsModal from "@/components/SetlistSettingsModal";
 import UGLinkAuditModal from "@/components/UGLinkAuditModal";
+import RepertoirePicker from "@/components/RepertoirePicker";
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { showSuccess, showError } from '@/utils/toast';
 import { calculateSemitones } from '@/utils/keyUtils';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { User as UserIcon, Loader2, Play, LayoutDashboard, Search as SearchIcon, Rocket, Settings, Clock, ShieldCheck, Settings2, FileText, Guitar } from 'lucide-react'; 
+import { 
+  User as UserIcon, Loader2, Play, LayoutDashboard, 
+  Search as SearchIcon, Rocket, Settings, Clock, 
+  ShieldCheck, Settings2, FileText, Guitar, 
+  Library, ListMusic 
+} from 'lucide-react'; 
 import { cn } from "@/lib/utils";
 import { useSettings } from '@/hooks/use-settings';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -29,18 +35,25 @@ import { cleanYoutubeUrl } from '@/utils/youtubeUtils';
 import { useNavigate } from 'react-router-dom';
 import { FilterState } from '@/components/SetlistFilters';
 
+type ViewMode = 'repertoire' | 'setlist';
+
 const Index = () => {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const { keyPreference } = useSettings();
   const navigate = useNavigate();
+  
+  // App State
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    return (localStorage.getItem('gig_view_mode') as ViewMode) || 'repertoire';
+  });
   const [setlists, setSetlists] = useState<{ id: string; name: string; songs: SetlistSong[]; time_goal?: number }[]>([]);
   const [currentListId, setCurrentListId] = useState<string | null>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('active_gig_id');
-    }
-    return null;
+    return localStorage.getItem('active_gig_id');
   });
+  const [masterRepertoire, setMasterRepertoire] = useState<SetlistSong[]>([]);
+  
+  // UI Control State
   const [activeSongIdState, setActiveSongId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isSearchPanelOpen, setIsSearchPanelOpen] = useState(false); 
@@ -50,60 +63,40 @@ const Index = () => {
   const [isUGAuditOpen, setIsUGAuditOpen] = useState(false);
   const [isStudioModalOpen, setIsStudioModalOpen] = useState(false);
   const [isSetlistSettingsOpen, setIsSetlistSettingsOpen] = useState(false);
+  const [isRepertoirePickerOpen, setIsRepertoirePickerOpen] = useState(false);
   const [editingSongId, setEditingSongId] = useState<string | null>(null);
-  const [performanceState, setPerformanceState] = useState({ progress: 0, duration: 0 });
-  const [isPlayerActive, setIsPlayerActive] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   
   const [sortMode, setSortMode] = useState<'none' | 'ready' | 'work'>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('gig_sort_mode');
-      return (saved as any) || 'none';
-    }
-    return 'none';
+    return (localStorage.getItem('gig_sort_mode') as any) || 'none';
   });
   
   const [activeFilters, setActiveFilters] = useState<FilterState>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('gig_active_filters');
-      return saved ? JSON.parse(saved) : {
-        hasAudio: 'all',
-        hasVideo: 'all',
-        hasChart: 'all',
-        hasPdf: 'all',
-        hasUg: 'all',
-        isConfirmed: 'all',
-        isApproved: 'all',
-        readiness: 100,
-        hasUgChords: 'all'
-      };
-    }
-    return {
-      hasAudio: 'all',
-      hasVideo: 'all',
-      hasChart: 'all',
-      hasPdf: 'all',
-      hasUg: 'all',
-      isConfirmed: 'all',
-      isApproved: 'all',
-      readiness: 100,
-      hasUgChords: 'all'
+    const saved = localStorage.getItem('gig_active_filters');
+    return saved ? JSON.parse(saved) : {
+      hasAudio: 'all', hasVideo: 'all', hasChart: 'all',
+      hasPdf: 'all', hasUg: 'all', isConfirmed: 'all',
+      isApproved: 'all', readiness: 100, hasUgChords: 'all'
     };
   });
   
   const [searchTerm, setSearchTerm] = useState("");
-  const [masterRepertoire, setMasterRepertoire] = useState<SetlistSong[]>([]);
   const [isBulkDownloading, setIsBulkDownloading] = useState(false);
 
   const isSyncingRef = useRef(false);
-  const saveQueueRef = useRef<{ listId: string; songs: SetlistSong[]; updates: any; songsToSync?: SetlistSong[] }[]>([]);
+  const saveQueueRef = useRef<any[]>([]);
   const transposerRef = useRef<AudioTransposerRef>(null);
 
   const currentList = setlists.find(l => l.id === currentListId);
-  const songs = currentList?.songs || [];
+  
+  // Core Logic: Which songs are we displaying?
+  const songs = useMemo(() => {
+    if (viewMode === 'repertoire') return masterRepertoire;
+    return currentList?.songs || [];
+  }, [viewMode, masterRepertoire, currentList]);
 
   const processedSongs = useMemo(() => {
-    let base = songs;
+    let base = [...songs];
 
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase();
@@ -116,52 +109,19 @@ const Index = () => {
     base = base.filter(s => {
       const score = calculateReadiness(s);
       if (score > activeFilters.readiness) return false;
-
-      const isItunesPreview = (url: string) => url && (url.includes('apple.com') || url.includes('itunes-assets'));
-      const hasPreview = !!s.previewUrl;
-      const isItunes = hasPreview && isItunesPreview(s.previewUrl);
-      const hasFullAudio = hasPreview && !isItunes;
-
+      const hasFullAudio = !!s.previewUrl && !(s.previewUrl.includes('apple.com') || s.previewUrl.includes('itunes-assets'));
       if (activeFilters.hasAudio === 'full' && !hasFullAudio) return false;
-      if (activeFilters.hasAudio === 'itunes' && !isItunes) return false;
-      if (activeFilters.hasAudio === 'none' && hasFullAudio) return false;
-
-      if (activeFilters.hasVideo === 'yes' && !s.youtubeUrl) return false;
-      if (activeFilters.hasVideo === 'no' && s.youtubeUrl) return false;
-
-      if (activeFilters.hasChart === 'yes' && !(s.pdfUrl || s.leadsheetUrl || s.ugUrl || s.ug_chords_text)) return false;
-      if (activeFilters.hasChart === 'no' && (s.pdfUrl || s.leadsheetUrl || s.ugUrl || s.ug_chords_text)) return false;
-
-      if (activeFilters.hasPdf === 'yes' && !(s.pdfUrl || s.leadsheetUrl)) return false;
-      if (activeFilters.hasPdf === 'no' && (s.pdfUrl || s.leadsheetUrl)) return false;
-
-      if (activeFilters.hasUg === 'yes' && !s.ugUrl) return false;
-      if (activeFilters.hasUg === 'no' && s.ugUrl) return false;
-
-      if (activeFilters.isConfirmed === 'yes' && !s.isKeyConfirmed) return false;
-      if (activeFilters.isConfirmed === 'no' && s.isKeyConfirmed) return false;
-
       if (activeFilters.isApproved === 'yes' && !s.isApproved) return false;
-      if (activeFilters.isApproved === 'no' && s.isApproved) return false;
-
-      const hasUgChordsText = !!(s.ug_chords_text && s.ug_chords_text.trim().length > 0);
-      if (activeFilters.hasUgChords === 'yes' && !hasUgChordsText) return false;
-      if (activeFilters.hasUgChords === 'no' && hasUgChordsText) return false;
-
       return true;
     });
 
     if (sortMode === 'none') return base;
-
-    return [...base].sort((a, b) => {
+    return base.sort((a, b) => {
       const scoreA = calculateReadiness(a);
       const scoreB = calculateReadiness(b);
       return sortMode === 'ready' ? scoreB - scoreA : scoreA - scoreB;
     });
   }, [songs, sortMode, searchTerm, activeFilters]);
-
-  const activeSongIndex = songs.findIndex(s => s.id === activeSongIdState);
-  const activeSong = songs[activeSongIndex] || null;
 
   useEffect(() => {
     if (user) {
@@ -173,580 +133,204 @@ const Index = () => {
   }, [user]);
 
   useEffect(() => {
-    if (currentListId) {
-      localStorage.setItem('active_gig_id', currentListId);
-    }
-  }, [currentListId]);
+    localStorage.setItem('gig_view_mode', viewMode);
+  }, [viewMode]);
 
   const fetchMasterRepertoire = async () => {
     if (!user) return;
     try {
-      const { data } = await supabase.from('repertoire').select('*').eq('user_id', user.id);
+      const { data } = await supabase.from('repertoire').select('*').eq('user_id', user.id).order('title');
       if (data) {
-        const mapped = (data || []).map(d => ({
+        setMasterRepertoire(data.map(d => ({
           id: d.id, master_id: d.id, name: d.title, artist: d.artist, bpm: d.bpm, lyrics: d.lyrics,
           originalKey: d.original_key, targetKey: d.target_key, pitch: d.pitch, ugUrl: d.ug_url,
           previewUrl: d.preview_url, youtubeUrl: d.youtube_url, appleMusicUrl: d.apple_music_url,
           pdfUrl: d.pdf_url, isMetadataConfirmed: d.is_metadata_confirmed, isKeyConfirmed: d.is_key_confirmed,
           duration_seconds: d.duration_seconds, notes: d.notes, user_tags: d.user_tags || [], resources: d.resources || [],
-          isApproved: d.is_approved,
-          preferred_reader: d.preferred_reader,
-          ug_chords_text: d.ug_chords_text,
-          ug_chords_config: d.ug_chords_config,
-          is_pitch_linked: d.is_pitch_linked,
-          extraction_status: d.extraction_status,
-          is_ug_link_verified: d.is_ug_link_verified
-        }));
-        setMasterRepertoire(mapped);
-      }
-    } catch (err) {
-      console.error("Error fetching master repertoire:", err);
-    }
-  };
-
-  const fetchSetlists = async () => {
-    try {
-      const { data: setlistData, error } = await supabase.from('setlists').select('*').order('updated_at', { ascending: false });
-      if (error) throw error;
-      if (setlistData && setlistData.length > 0) {
-        setSetlists(setlistData.map(d => ({ 
-          id: d.id, 
-          name: d.name, 
-          songs: (d.songs as any[]).map(s => ({
-            ...s,
-            is_ug_link_verified: s.is_ug_link_verified || false
-          })), 
-          time_goal: d.time_goal 
+          isApproved: d.is_approved, preferred_reader: d.preferred_reader, ug_chords_text: d.ug_chords_text,
+          ug_chords_config: d.ug_chords_config, is_pitch_linked: d.is_pitch_linked, is_ug_link_verified: d.is_ug_link_verified
         })));
-        if (!currentListId) setCurrentListId(setlistData[0].id);
       }
     } catch (err) {}
   };
 
-  const saveList = async (listId: string, updatedSongs: SetlistSong[], updates: Partial<any> = {}, songsToSync?: SetlistSong[]) => {
+  const fetchSetlists = async () => {
+    try {
+      const { data, error } = await supabase.from('setlists').select('*').order('updated_at', { ascending: false });
+      if (data && data.length > 0) {
+        setSetlists(data.map(d => ({ id: d.id, name: d.name, songs: (d.songs as any[]) || [], time_goal: d.time_goal })));
+        if (!currentListId) setCurrentListId(data[0].id);
+      }
+    } catch (err) {}
+  };
+
+  const saveList = async (listId: string, updatedSongs: SetlistSong[], updates: any = {}, songsToSync?: SetlistSong[]) => {
     if (!user) return;
-    if (isSyncingRef.current) {
-      saveQueueRef.current.push({ listId, songs: updatedSongs, updates, songsToSync });
-      return;
-    }
-    isSyncingRef.current = true;
     setIsSaving(true);
     try {
       let finalSongs = updatedSongs;
-      if (songsToSync && songsToSync.length > 0) {
+      if (songsToSync?.length) {
         const syncedBatch = await syncToMasterRepertoire(user.id, songsToSync);
         finalSongs = updatedSongs.map(s => {
-          const synced = syncedBatch.find(sb => sb.id === s.id || (sb.name === s.name && sb.artist === s.artist));
-          return synced ? { ...s, master_id: synced.master_id } : s;
+          const matched = syncedBatch.find(sb => sb.id === s.id || (sb.name === s.name && sb.artist === s.artist));
+          return matched ? { ...s, master_id: matched.master_id } : s;
         });
       }
+      
+      const cleaned = finalSongs.map(({ isSyncing, ...rest }) => rest);
+      await supabase.from('setlists').update({ songs: cleaned, updated_at: new Date().toISOString(), ...updates }).eq('id', listId);
+      
       setSetlists(prev => prev.map(l => l.id === listId ? { ...l, songs: finalSongs, ...updates } : l));
-      const cleanedSongsForJson = finalSongs.map(({ isSyncing, ...rest }) => rest);
-      await supabase.from('setlists').update({ 
-        songs: cleanedSongsForJson, 
-        updated_at: new Date().toISOString(), 
-        ...updates 
-      }).eq('id', listId);
-      if (songsToSync && songsToSync.length > 0) fetchMasterRepertoire();
-    } catch (err) {
-      console.error("[GigStudio] Save failure:", err);
+      if (songsToSync?.length) fetchMasterRepertoire();
     } finally {
       setIsSaving(false);
-      isSyncingRef.current = false;
-      if (saveQueueRef.current.length > 0) {
-        const next = saveQueueRef.current.shift()!;
-        saveList(next.listId, next.songs, next.updates, next.songsToSync);
-      }
     }
   };
 
   const handleUpdateSong = (songId: string, updates: Partial<SetlistSong>) => {
-    if (!currentListId) return;
-    setSetlists(prev => {
-      const list = prev.find(l => l.id === currentListId);
-      if (!list) return prev;
-      const updatedSongs = list.songs.map(s => s.id === songId ? { ...s, ...updates } : s);
-      const updatedSong = updatedSongs.find(s => s.id === songId);
-      const masterFields = ['name', 'artist', 'previewUrl', 'youtubeUrl', 'originalKey', 'targetKey', 'pitch', 'bpm', 'lyrics', 'pdfUrl', 'ugUrl', 'isMetadataConfirmed', 'isKeyConfirmed', 'isApproved', 'duration_seconds', 'preferred_reader', 'ug_chords_text', 'ug_chords_config', 'is_pitch_linked', 'is_ug_link_verified'];
-      const needsMasterSync = Object.keys(updates).some(key => masterFields.includes(key));
-      saveList(currentListId, updatedSongs, {}, needsMasterSync && updatedSong ? [updatedSong] : undefined);
-      return prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l);
-    });
-  };
-
-  const handleAutoLinkSetlist = async () => {
-    if (!currentListId || !songs.length) return;
-    
-    const isMissing = (url?: string) => !url || String(url).trim() === "" || url === "undefined" || url === "null";
-    const missingSongs = songs.filter(s => isMissing(s.youtubeUrl) && s.name);
-    
-    if (missingSongs.length === 0) {
-      showSuccess("All songs are already optimized.");
+    if (viewMode === 'repertoire') {
+      syncToMasterRepertoire(user!.id, [{ ...masterRepertoire.find(s => s.id === songId)!, ...updates }]).then(fetchMasterRepertoire);
       return;
     }
-
-    try {
-      const songsToSync = missingSongs.filter(s => !s.master_id);
-      let workingSongs = [...songs];
-
-      if (songsToSync.length > 0) {
-        const synced = await syncToMasterRepertoire(user!.id, songsToSync);
-        workingSongs = workingSongs.map(s => {
-          const match = synced.find(sync => sync.id === s.id);
-          return match ? { ...s, master_id: match.master_id } : s;
-        });
-      }
-
-      const batchIds = workingSongs
-        .filter(s => missingSongs.some(m => m.id === s.id))
-        .map(s => s.master_id)
-        .filter(Boolean) as string[];
-
-      if (batchIds.length === 0) {
-        showError("Could not verify master records.");
-        return;
-      }
-
-      const { data, error } = await supabase.functions.invoke('bulk-populate-youtube-links', {
-        body: { songIds: batchIds }
-      });
-
-      if (error) throw error;
-
-      if (data.successful > 0) {
-        const resultsById = new Map(data.results.filter((r: any) => r.status === 'SUCCESS').map((r: any) => [r.id, r.videoId]));
-        const resultsByNameArtist = new Map(data.results.filter((r: any) => r.status === 'SUCCESS').map((r: any) => [
-          `${String(r.title).toLowerCase().trim()}-${String(r.artist || "").toLowerCase().trim()}`, 
-          r.videoId
-        ]));
-        
-        const finalUpdatedSongs = workingSongs.map(s => {
-          const matchedVideoId = resultsById.get(s.master_id!) || 
-                                 resultsByNameArtist.get(`${s.name.toLowerCase().trim()}-${(s.artist || "").toLowerCase().trim()}`);
-          
-          if (matchedVideoId) {
-            return {
-              ...s,
-              youtubeUrl: `https://www.youtube.com/watch?v=${matchedVideoId}`,
-              metadata_source: 'auto_populated'
-            };
-          }
-          return s;
-        });
-
-        await saveList(currentListId, finalUpdatedSongs);
-        showSuccess(`AI Engine: ${data.successful} matches bound.`);
-        await fetchMasterRepertoire();
-      } else {
-        showError("No high-confidence matches found.");
-      }
-    } catch (err: any) {
-      showError(`AI Engine Error: ${err.message}`);
-    }
-  };
-
-  const handleGlobalAutoSync = async () => {
-    if (!currentListId || !songs.length) return;
-    
-    try {
-      const batchIds = songs.map(s => s.master_id).filter(Boolean) as string[];
-      if (batchIds.length === 0) {
-        showError("No master records found to sync.");
-        return;
-      }
-
-      const { data, error } = await supabase.functions.invoke('global-auto-sync', {
-        body: { songIds: batchIds, overwrite: false }
-      });
-
-      if (error) throw error;
-
-      const successfulIds = data.results
-        .filter((r: any) => r.status === 'SUCCESS')
-        .map((r: any) => r.id);
-
-      if (successfulIds.length > 0) {
-        showSuccess(`Auto-Sync Complete: ${successfulIds.length} tracks enriched.`);
-        await fetchSetlists();
-        await fetchMasterRepertoire();
-      } else {
-        showSuccess("Library is already up to date.");
-      }
-    } catch (err: any) {
-      showError(`Pipeline Error: ${err.message}`);
-    }
-  };
-
-  const handleClearAutoLinks = async () => {
     if (!currentListId) return;
-    const autoPopulatedCount = songs.filter(s => s.metadata_source === 'auto_populated').length;
-    
-    if (autoPopulatedCount === 0) {
-      showError("No auto-populated links to clear.");
-      return;
-    }
-
-    if (!confirm(`Clear ${autoPopulatedCount} AI-found links?`)) return;
-
-    const updatedSongs = songs.map(s => {
-      if (s.metadata_source === 'auto_populated') {
-        return { ...s, youtubeUrl: "", metadata_source: undefined };
-      }
-      return s;
-    });
-
-    await saveList(currentListId, updatedSongs);
-    showSuccess("Automation reverted.");
+    const updatedSongs = currentList!.songs.map(s => s.id === songId ? { ...s, ...updates } : s);
+    saveList(currentListId, updatedSongs, {}, [updatedSongs.find(s => s.id === songId)!]);
   };
 
-  const handleBulkRefreshAudio = async () => {
-    if (!currentListId || !songs.length) return;
-    const songsWithLinks = songs.filter(s => s.youtubeUrl);
-    
-    if (songsWithLinks.length === 0) {
-      showError("No tracks with YouTube links found.");
-      return;
-    }
-
-    if (!confirm(`Override existing audio for ${songsWithLinks.length} tracks?`)) return;
-
-    setIsBulkDownloading(true);
-    for (const song of songsWithLinks) {
-      await downloadAndUploadAudioForSong(song);
-    }
-    setIsBulkDownloading(false);
-    showSuccess("Global audio refresh complete.");
+  const handleUpdateKey = (songId: string, newTargetKey: string) => {
+    handleUpdateSong(songId, { targetKey: newTargetKey });
   };
 
-  const handleAddToSetlist = async (previewUrl: string, name: string, artist: string, youtubeUrl?: string, ugUrl?: string, appleMusicUrl?: string, genre?: string, pitch: number = 0) => {
-    if (!user) return;
-    let activeId = currentListId;
-    if (!activeId) {
-      const gigName = `Mobile Session ${new Date().toLocaleDateString()}`;
-      const { data } = await supabase.from('setlists').insert([{ user_id: user.id, name: gigName, songs: [], time_goal: 7200 }]).select().single();
-      if (data) {
-        activeId = data.id;
-        setCurrentListId(data.id);
-        await fetchSetlists();
-      } else {
-        showError("Please create a gig first");
-        return;
-      }
-    }
-    const existing = masterRepertoire.find(s => s.name.toLowerCase() === name.toLowerCase() && s.artist?.toLowerCase() === artist.toLowerCase());
-    const newSongId = Math.random().toString(36).substr(2, 9);
-    const newSong: SetlistSong = existing 
-      ? { ...existing, id: newSongId, master_id: existing.master_id, isPlayed: false, isApproved: false }
-      : { 
-          id: newSongId, name, artist, previewUrl, youtubeUrl, ugUrl, appleMusicUrl, genre, pitch, 
-          originalKey: "TBC", targetKey: "TBC", isPlayed: false, isSyncing: false, isMetadataConfirmed: false,
-          user_tags: genre ? [genre] : [],
-          isApproved: false,
-          is_pitch_linked: true,
-          is_ug_link_verified: false
-        };
-    const list = setlists.find(l => l.id === activeId);
-    if (!list) return;
-    const updatedSongs = [...(list.songs || []), newSong];
-    await saveList(activeId!, updatedSongs, {}, [newSong]);
-    showSuccess(`"${name}" added to ${list.name}`);
-    setIsSearchPanelOpen(false);
-  };
-
-  const handleAddExistingSong = (song: SetlistSong) => {
-    if (!currentListId) { showError("Please select a gig first"); return; }
-    const newSongId = Math.random().toString(36).substr(2, 9);
-    const list = setlists.find(l => l.id === currentListId);
-    if (!list) return;
-    const newEntry = { ...song, id: newSongId, master_id: song.master_id || song.id, isPlayed: false, isApproved: false };
-    const updatedSongs = [...list.songs, newEntry];
-    saveList(currentListId, updatedSongs, {}, [newEntry]);
-    showSuccess(`Imported "${song.name}"`);
-    setIsSearchPanelOpen(false);
-  };
-
-  const handleUpdateKey = (songId: string, targetKey: string) => {
+  const handleAddToGig = (song: SetlistSong) => {
     if (!currentListId) return;
-    const list = setlists.find(l => l.id === currentListId);
-    if (!list) return;
-    const updatedSongs = list.songs.map(s => {
-      if (s.id === songId) {
-        const pitch = calculateSemitones(s.originalKey || "C", targetKey);
-        if (activeSongIdState === songId && transposerRef.current) transposerRef.current.setPitch(pitch);
-        return { ...s, targetKey, pitch };
-      }
-      return s;
-    });
-    const updatedSong = updatedSongs.find(s => s.id === songId);
-    saveList(currentListId, updatedSongs, {}, updatedSong ? [updatedSong] : undefined);
+    const newEntry = { ...song, id: Math.random().toString(36).substr(2, 9), master_id: song.master_id || song.id, isPlayed: false, isApproved: false };
+    saveList(currentListId, [...currentList!.songs, newEntry]);
+    showSuccess(`Added "${song.name}" to gig`);
   };
 
-  const handleTogglePlayed = (songId: string) => {
-    if (!currentListId) return;
-    const list = setlists.find(l => l.id === currentListId);
-    if (!list) return;
-    const updatedSongs = list.songs.map(s => s.id === songId ? { ...s, isPlayed: !s.isPlayed } : s);
-    saveList(currentListId, updatedSongs, {}, undefined);
+  const startPerformance = () => {
+    const playable = songs.filter(s => s.isApproved && s.previewUrl && !s.previewUrl.includes('apple.com'));
+    if (!playable.length) { showError("No approved tracks found."); return; }
+    setIsPerformanceMode(true);
+    handleSelectSong(playable[0]);
   };
 
   const handleSelectSong = async (song: SetlistSong) => {
     setActiveSongId(song.id);
     if (song.previewUrl && transposerRef.current) {
-      await transposerRef.current.loadFromUrl(song.previewUrl, song.name, song.artist || "Unknown", song.youtubeUrl, song.originalKey, song.ugUrl);
+      await transposerRef.current.loadFromUrl(song.previewUrl, song.name, song.artist || "Unknown");
       transposerRef.current.setPitch(song.pitch);
-    }
-  };
-
-  const handleNextSong = async () => {
-    const playable = songs.filter(isPlayableMaster);
-    const currIdx = playable.findIndex(s => s.id === activeSongIdState);
-    if (currIdx !== -1 && currIdx < playable.length - 1) {
-      handleSelectSong(playable[currIdx + 1]);
-      if (isPerformanceMode) setTimeout(() => transposerRef.current?.togglePlayback(), 1000);
-    } else {
-      setIsPerformanceMode(false);
-      setActiveSongId(null);
-      transposerRef.current?.stopPlayback();
-      showSuccess("Gig Finished!");
-    }
-  };
-
-  const handlePreviousSong = () => {
-    const playable = songs.filter(isPlayableMaster);
-    const currIdx = playable.findIndex(s => s.id === activeSongIdState);
-    if (currIdx > 0) handleSelectSong(playable[currIdx - 1]);
-  };
-
-  const handleShuffle = () => {
-    if (!currentListId || songs.length < 2) return;
-    const shuffled = [...songs];
-    const currentIndex = shuffled.findIndex(s => s.id === activeSongIdState);
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      if (i === currentIndex) continue;
-      let j = Math.floor(Math.random() * (i + 1));
-      while (j === currentIndex) j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    saveList(currentListId, shuffled);
-    showSuccess("Setlist Shuffled");
-  };
-
-  const startPerformance = async () => {
-    const first = songs.filter(song => song.isApproved).find(isPlayableMaster);
-    if (!first) { showError("No approved full audio tracks found."); return; }
-    setIsPerformanceMode(true);
-    handleSelectSong(first);
-    setTimeout(() => transposerRef.current?.togglePlayback(), 1000);
-  };
-
-  const isPlayableMaster = (song: SetlistSong) => {
-    if (!song.previewUrl) return false;
-    return !(song.previewUrl.includes('apple.com') || song.previewUrl.includes('itunes-assets'));
-  };
-
-  const downloadAndUploadAudioForSong = async (songToProcess: SetlistSong) => {
-    const targetVideoUrl = cleanYoutubeUrl(songToProcess.youtubeUrl || '');
-    if (!targetVideoUrl || !user?.id || !songToProcess.id) return { success: false };
-    handleUpdateSong(songToProcess.id, { isSyncing: true });
-    try {
-      const API_BASE_URL = "https://yt-audio-api-1-wedr.onrender.com";
-      const tokenResponse = await fetch(`${API_BASE_URL}/?url=${encodeURIComponent(targetVideoUrl)}`);
-      if (!tokenResponse.ok) throw new Error("API Error");
-      const { token } = await tokenResponse.json();
-      let attempts = 0;
-      let downloadReady = false;
-      let fileResponse;
-      while (attempts < 30 && !downloadReady) {
-        attempts++;
-        await new Promise(r => setTimeout(r, 5000));
-        fileResponse = await fetch(`${API_BASE_URL}/download?token=${token}`);
-        if (fileResponse.status === 200) { downloadReady = true; break; }
-      }
-      if (!downloadReady || !fileResponse) throw new Error("Timed out");
-      const audioArrayBuffer = await fileResponse.arrayBuffer();
-      const audioBuffer = await Tone.getContext().decodeAudioData(audioArrayBuffer.slice(0));
-      const fileName = `${user.id}/${songToProcess.id}/${Date.now()}.mp3`;
-      await supabase.storage.from('public_audio').upload(fileName, audioArrayBuffer, { contentType: 'audio/mpeg', upsert: true });
-      const { data: { publicUrl } } = supabase.storage.from('public_audio').getPublicUrl(fileName);
-      handleUpdateSong(songToProcess.id, { previewUrl: publicUrl, duration_seconds: audioBuffer.duration, isSyncing: false });
-      return { success: true };
-    } catch (err) {
-      handleUpdateSong(songToProcess.id, { isSyncing: false });
-      return { success: false };
-    }
-  };
-
-  const handleDownloadAllMissingAudio = async () => {
-    if (!currentListId) return;
-    const songsToDownload = songs.filter(song => song.youtubeUrl && (!song.previewUrl || song.previewUrl.includes('apple.com')));
-    if (songsToDownload.length === 0) return;
-    setIsBulkDownloading(true);
-    for (const song of songsToDownload) await downloadAndUploadAudioForSong(song);
-    setIsBulkDownloading(false);
-  };
-
-  const handleEditSong = (song: SetlistSong) => {
-    if (isMobile) navigate(`/gig/${currentListId}/song/${song.id}`);
-    else { setEditingSongId(song.id); setIsStudioModalOpen(true); }
-  };
-
-  const handleNavigateStudioSong = (songId: string) => setEditingSongId(songId);
-
-  const handleDeleteSetlist = async (id: string) => {
-    if (confirm("Delete this entire gig?")) {
-      await supabase.from('setlists').delete().eq('id', id);
-      setIsSetlistSettingsOpen(false);
-      fetchSetlists();
-    }
-  };
-
-  const handleRenameSetlist = async (id: string) => {
-    const list = setlists.find(l => l.id === id);
-    const newName = prompt("Rename Gig:", list?.name);
-    if (newName && newName !== list?.name) {
-      await supabase.from('setlists').update({ name: newName }).eq('id', id);
-      fetchSetlists();
     }
   };
 
   return (
     <div className="h-screen bg-slate-50 dark:bg-slate-950 flex flex-col overflow-hidden relative">
       <nav className="h-16 md:h-20 bg-white dark:bg-slate-900 border-b px-4 md:px-6 flex items-center justify-between z-30 shadow-sm shrink-0">
-        <div className="flex items-center gap-3 md:gap-6 flex-1 min-w-0">
-          <div className="flex items-center gap-2 shrink-0 cursor-pointer select-none" onClick={() => setIsAdminOpen(true)}>
+        <div className="flex items-center gap-6 flex-1 min-w-0">
+          <div className="flex items-center gap-2 shrink-0">
             <div className="bg-indigo-600 p-1.5 rounded-lg text-white"><LayoutDashboard className="w-5 h-5" /></div>
-            <span className="font-black uppercase tracking-tighter text-lg text-slate-900 dark:text-white hidden sm:block">Gig Studio <span className="text-indigo-600">Pro</span></span>
+            <span className="font-black uppercase tracking-tighter text-lg hidden sm:block">Gig Studio <span className="text-indigo-600">Pro</span></span>
           </div>
-          <SetlistSelector setlists={setlists} currentId={currentListId || ''} onSelect={setCurrentListId}
-            onCreate={async () => {
-              const name = prompt("Enter Gig Name:");
-              if (name) {
-                const { data } = await supabase.from('setlists').insert([{ user_id: user?.id, name, songs: [], time_goal: 7200 }]).select().single();
-                if (data) { await fetchSetlists(); setCurrentListId(data.id); }
-              }
-            }}
-            onDelete={handleDeleteSetlist}
-          />
+
+          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl shrink-0">
+            <Button 
+              variant="ghost" size="sm" 
+              onClick={() => setViewMode('repertoire')}
+              className={cn("h-8 px-4 text-[10px] font-black uppercase tracking-widest gap-2 rounded-lg transition-all", viewMode === 'repertoire' ? "bg-white dark:bg-slate-700 shadow-sm text-indigo-600" : "text-slate-500")}
+            >
+              <Library className="w-3.5 h-3.5" /> <span className="hidden md:inline">Repertoire</span>
+            </Button>
+            <Button 
+              variant="ghost" size="sm" 
+              onClick={() => setViewMode('setlist')}
+              className={cn("h-8 px-4 text-[10px] font-black uppercase tracking-widest gap-2 rounded-lg transition-all", viewMode === 'setlist' ? "bg-white dark:bg-slate-700 shadow-sm text-indigo-600" : "text-slate-500")}
+            >
+              <ListMusic className="w-3.5 h-3.5" /> <span className="hidden md:inline">Gigs</span>
+            </Button>
+          </div>
+
+          {viewMode === 'setlist' && (
+            <SetlistSelector setlists={setlists} currentId={currentListId || ''} onSelect={setCurrentListId}
+              onCreate={async () => {
+                const name = prompt("Gig Name:");
+                if (name) {
+                  const { data } = await supabase.from('setlists').insert([{ user_id: user?.id, name, songs: [] }]).select().single();
+                  if (data) { await fetchSetlists(); setCurrentListId(data.id); }
+                }
+              }}
+              onDelete={async (id) => { if(confirm("Delete gig?")) { await supabase.from('setlists').delete().eq('id', id); fetchSetlists(); } }}
+            />
+          )}
         </div>
-        <div className="flex items-center gap-2 md:gap-6 shrink-0 ml-2">
+
+        <div className="flex items-center gap-4 shrink-0">
           <div className="hidden lg:flex items-center gap-2 bg-slate-50 dark:bg-slate-800/50 px-4 py-1.5 rounded-full border border-slate-100 dark:border-white/5">
             <Clock className="w-3.5 h-3.5 text-indigo-500" />
-            <span className="text-[11px] font-black font-mono text-slate-600 dark:text-slate-300">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+            <span className="text-[11px] font-black font-mono text-slate-600">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
-          <div className="flex items-center gap-2 md:gap-4">
-            <Button variant="outline" size="sm" onClick={() => setIsUGAuditOpen(true)} className="h-9 md:h-10 gap-2 border-orange-500/30 text-orange-500 font-bold uppercase tracking-tight shadow-sm px-3 md:px-4"><Guitar className="w-4 h-4" /><span className="hidden md:inline">UG Audit</span></Button>
-            <Button variant="default" size="sm" onClick={startPerformance} className="h-9 md:h-10 gap-2 bg-indigo-600 font-bold uppercase tracking-tight shadow-lg shadow-indigo-600/20 px-3 md:px-4"><Rocket className="w-4 h-4" /><span className="hidden md:inline">Start Show</span></Button>
-            <Button variant="default" size="sm" onClick={() => navigate('/sheet-reader')} className="h-9 md:h-10 gap-2 bg-purple-600 font-bold uppercase tracking-tight shadow-lg shadow-purple-600/20 px-3 md:px-4"><FileText className="w-4 h-4" /><span className="hidden md:inline">Sheet Reader</span></Button>
-            <div className="h-6 w-px bg-slate-200 hidden sm:block" />
-            <Button variant="ghost" size="icon" onClick={() => setIsSearchPanelOpen(!isSearchPanelOpen)} className={cn("h-9 w-9 md:h-10 md:w-10 rounded-lg shrink-0", isSearchPanelOpen && "text-indigo-600 bg-indigo-50")}><SearchIcon className="w-4 h-4" /></Button>
-            <button onClick={() => setIsPreferencesOpen(true)} className="flex items-center gap-2 px-2 md:px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
-              <UserIcon className="w-3 h-3 text-slate-500" /><span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest hidden sm:inline">{user?.email?.split('@')[0]}</span>{isSaving && <Loader2 className="w-3 h-3 animate-spin text-indigo-500 ml-1" />}<Settings className="w-3 h-3 text-slate-400 ml-1" />
-            </button>
-          </div>
+          <Button variant="default" size="sm" onClick={startPerformance} className="h-10 gap-2 bg-indigo-600 font-bold uppercase tracking-tight shadow-lg shadow-indigo-600/20 px-4"><Rocket className="w-4 h-4" /> Start Show</Button>
+          <button onClick={() => setIsPreferencesOpen(true)} className="flex items-center gap-2 px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full">
+            <UserIcon className="w-3 h-3 text-slate-500" /><span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest hidden sm:inline">{user?.email?.split('@')[0]}</span>{isSaving && <Loader2 className="w-3 h-3 animate-spin text-indigo-500" />}<Settings className="w-3 h-3 text-slate-400" />
+          </button>
         </div>
       </nav>
-      <div className="flex-1 flex overflow-hidden">
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 relative scroll-smooth cursor-default">
-          <div className="max-w-6xl mx-auto space-y-6 md:space-y-8">
-            <ActiveSongBanner song={activeSong} isPlaying={isPlayerActive} onTogglePlayback={() => transposerRef.current?.togglePlayback()} onClear={() => { setActiveSongId(null); transposerRef.current?.stopPlayback(); }} />
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div>
-                  <h2 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase truncate max-w-full">{currentList?.name}</h2>
-                  <div className="flex items-center gap-3 md:gap-4 mt-1 overflow-x-auto no-scrollbar pb-1">
-                    <p className="text-slate-500 text-xs font-medium whitespace-nowrap">{songs.length} Tracks</p>
-                    <div className="h-1 w-1 rounded-full bg-slate-300 shrink-0" />
-                    <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full"><ShieldCheck className="w-3 h-3 text-emerald-500" /><span className="text-[9px] font-black uppercase text-emerald-600 tracking-widest">Headless Sync Active</span></div>
-                  </div>
-                </div>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={() => setIsSetlistSettingsOpen(true)}
-                  className="h-10 w-10 rounded-xl bg-white dark:bg-slate-900 border shadow-sm text-slate-400 hover:text-indigo-600 transition-all mt-1"
-                >
-                  <Settings2 className="w-5 h-5" />
+
+      <main className="flex-1 overflow-y-auto p-4 md:p-8 relative">
+        <div className="max-w-6xl mx-auto space-y-8">
+          <ActiveSongBanner song={processedSongs.find(s => s.id === activeSongIdState) || null} onClear={() => setActiveSongId(null)} />
+          
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-3xl font-black tracking-tight uppercase">{viewMode === 'repertoire' ? 'Global Repertoire' : currentList?.name}</h2>
+              <p className="text-slate-500 text-xs font-medium mt-1">{songs.length} Tracks Bound to {viewMode === 'repertoire' ? 'Master Library' : 'Gig'}</p>
+            </div>
+            <div className="flex gap-3">
+              {viewMode === 'setlist' && (
+                <Button onClick={() => setIsRepertoirePickerOpen(true)} className="bg-indigo-600 h-10 px-6 rounded-xl font-black uppercase text-[10px] tracking-widest gap-2 shadow-lg">
+                  <Library className="w-3.5 h-3.5" /> Add from Repertoire
                 </Button>
-              </div>
-              <ImportSetlist onImport={(newSongs) => { if (!currentListId) return; saveList(currentListId, [...songs, ...newSongs.map(s => ({ ...s, isSyncing: false, isApproved: false }))], {}, newSongs); }} />
-            </div>
-            
-            <div className="space-y-8">
-              <SetlistStats 
-                songs={songs} 
-                goalSeconds={currentList?.time_goal} 
-                onUpdateGoal={(s) => currentListId && saveList(currentListId, songs, { time_goal: s }, undefined)} 
-                onAutoLink={handleAutoLinkSetlist}
-                onGlobalAutoSync={handleGlobalAutoSync}
-                onBulkRefreshAudio={handleBulkRefreshAudio}
-                onClearAutoLinks={handleClearAutoLinks}
-                onDownloadAllMissingAudio={handleDownloadAllMissingAudio} 
-                isBulkDownloading={isBulkDownloading} 
-              />
-              <SetlistManager 
-                songs={processedSongs} 
-                onRemove={(id) => currentListId && saveList(currentListId, songs.filter(s => s.id !== id), {}, undefined)} 
-                onSelect={handleSelectSong} 
-                onEdit={handleEditSong}
-                onUpdateKey={handleUpdateKey} 
-                onTogglePlayed={handleTogglePlayed} 
-                onLinkAudio={(n) => { setIsSearchPanelOpen(true); transposerRef.current?.triggerSearch(n); }}
-                onUpdateSong={handleUpdateSong} 
-                onSyncProData={() => Promise.resolve()}
-                onReorder={(ns) => currentListId && saveList(currentListId, ns, {}, undefined)} 
-                currentSongId={activeSongIdState || undefined} 
-                onOpenAdmin={() => setIsAdminOpen(true)}
-                sortMode={sortMode}
-                setSortMode={setSortMode}
-                activeFilters={activeFilters}
-                setActiveFilters={setActiveFilters}
-                searchTerm={searchTerm}
-                setSearchTerm={setSearchTerm}
-              />
+              )}
+              <ImportSetlist onImport={(newSongs) => viewMode === 'repertoire' ? syncToMasterRepertoire(user!.id, newSongs).then(fetchMasterRepertoire) : saveList(currentListId!, [...songs, ...newSongs], {}, newSongs)} />
             </div>
           </div>
-          <MadeWithDyad />
-        </main>
-        <aside className={cn("w-full md:w-[450px] bg-white dark:bg-slate-900 border-l shadow-2xl transition-all duration-500 shrink-0 relative z-40", isSearchPanelOpen ? "translate-x-0" : "translate-x-full absolute right-0 top-16 bottom-0 md:top-20")}>
-          <div className="h-full flex flex-col">
-            <div className="p-4 border-b flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="bg-indigo-600 p-2 rounded-full text-white animate-pulse"><SearchIcon className="w-4 h-4" /></div>
-                <div><h3 className="text-xs font-black uppercase tracking-widest text-indigo-600">Discovery Engine</h3><p className="text-sm font-bold truncate max-w-[200px]">Find & Add New Tracks</p></div>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => setIsSearchPanelOpen(false)} className="text-[10px] font-bold uppercase">Hide</Button>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              <AudioTransposer ref={transposerRef} onAddToSetlist={handleAddToSetlist} onAddExistingSong={handleAddExistingSong} onUpdateSongKey={handleUpdateKey} onSongEnded={handleNextSong} onPlaybackChange={setIsPlayerActive} repertoire={masterRepertoire} currentSong={activeSong} onOpenAdmin={() => setIsAdminOpen(true)} currentList={currentList} />
-            </div>
-          </div>
-        </aside>
-      </div>
+
+          {viewMode === 'setlist' && (
+            <SetlistStats songs={songs} goalSeconds={currentList?.time_goal} onUpdateGoal={(s) => saveList(currentListId!, songs, { time_goal: s })} />
+          )}
+
+          <SetlistManager 
+            songs={processedSongs} 
+            currentSongId={activeSongIdState || undefined}
+            onSelect={handleSelectSong}
+            onEdit={(s) => { setEditingSongId(s.id); setIsStudioModalOpen(true); }}
+            onRemove={(id) => viewMode === 'repertoire' ? supabase.from('repertoire').delete().eq('id', id).then(fetchMasterRepertoire) : saveList(currentListId!, songs.filter(s => s.id !== id))}
+            onUpdateKey={handleUpdateKey}
+            onTogglePlayed={(id) => viewMode === 'setlist' && saveList(currentListId!, songs.map(s => s.id === id ? { ...s, isPlayed: !s.isPlayed } : s))}
+            onUpdateSong={handleUpdateSong}
+            onSyncProData={() => Promise.resolve()}
+            onReorder={(ns) => viewMode === 'setlist' && saveList(currentListId!, ns)}
+            sortMode={sortMode} setSortMode={setSortMode}
+            activeFilters={activeFilters} setActiveFilters={setActiveFilters}
+            searchTerm={searchTerm} setSearchTerm={setSearchTerm}
+            onLinkAudio={(n) => { setIsSearchPanelOpen(true); transposerRef.current?.triggerSearch(n); }}
+          />
+        </div>
+        <MadeWithDyad />
+      </main>
+
+      <RepertoirePicker isOpen={isRepertoirePickerOpen} onClose={() => setIsRepertoirePickerOpen(false)} repertoire={masterRepertoire} currentSetlistSongs={currentList?.songs || []} onAdd={handleAddToGig} />
+      <SongStudioModal isOpen={isStudioModalOpen} onClose={() => setIsStudioModalOpen(false)} gigId={viewMode === 'repertoire' ? 'library' : currentListId} songId={editingSongId} visibleSongs={processedSongs} onSelectSong={setEditingSongId} />
       <PreferencesModal isOpen={isPreferencesOpen} onClose={() => setIsPreferencesOpen(false)} />
       <AdminPanel isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} />
-      <UGLinkAuditModal 
-        isOpen={isUGAuditOpen} 
-        onClose={() => setIsUGAuditOpen(false)} 
-        songs={songs} 
-        onVerify={handleUpdateSong}
-        onOpenStudio={(id) => {
-            const song = songs.find(s => s.id === id);
-            if (song) handleEditSong(song);
-            setIsUGAuditOpen(false);
-        }}
-      />
-      <SongStudioModal isOpen={isStudioModalOpen} onClose={() => setIsStudioModalOpen(false)} gigId={currentListId} songId={editingSongId} visibleSongs={processedSongs} onSelectSong={handleNavigateStudioSong} />
-      <SetlistSettingsModal 
-        isOpen={isSetlistSettingsOpen} 
-        onClose={() => setIsSetlistSettingsOpen(false)} 
-        setlistId={currentListId} 
-        setlistName={currentList?.name || "Active Gig"} 
-        onDelete={handleDeleteSetlist}
-        onRename={handleRenameSetlist}
-      />
+      <UGLinkAuditModal isOpen={isUGAuditOpen} onClose={() => setIsUGAuditOpen(false)} songs={songs} onVerify={handleUpdateSong} />
+      
       {isPerformanceMode && (
-        <PerformanceOverlay songs={songs.filter(isPlayableMaster)} currentIndex={songs.filter(isPlayableMaster).findIndex(s => s.id === activeSongIdState)} isPlaying={isPlayerActive} progress={performanceState.progress} duration={performanceState.duration} onTogglePlayback={() => transposerRef.current?.togglePlayback()} onNext={handleNextSong} onPrevious={handlePreviousSong} onShuffle={handleShuffle} onClose={() => { setIsPerformanceMode(false); setActiveSongId(null); transposerRef.current?.stopPlayback(); }} onUpdateKey={handleUpdateKey} onUpdateSong={handleUpdateSong} analyzer={transposerRef.current?.getAnalyzer()} onOpenAdmin={() => setIsAdminOpen(true)} gigId={currentListId} />
+        <PerformanceOverlay songs={songs.filter(s => s.isApproved)} currentIndex={songs.findIndex(s => s.id === activeSongIdState)} isPlaying={false} progress={0} duration={0} onTogglePlayback={() => {}} onNext={() => {}} onPrevious={() => {}} onShuffle={() => {}} onClose={() => setIsPerformanceMode(false)} onUpdateSong={handleUpdateSong} onUpdateKey={handleUpdateKey} analyzer={null} />
       )}
+
+      <aside className={cn("w-full md:w-[450px] bg-white dark:bg-slate-900 border-l absolute right-0 top-20 bottom-0 z-40 transition-transform duration-500", isSearchPanelOpen ? "translate-x-0" : "translate-x-full")}>
+        <AudioTransposer ref={transposerRef} onAddToSetlist={(u, n, a, yt, ug) => handleUpdateSong(activeSongIdState!, { previewUrl: u, youtubeUrl: yt, ugUrl: ug })} repertoire={masterRepertoire} />
+      </aside>
     </div>
   );
 };

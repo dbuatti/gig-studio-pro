@@ -3,25 +3,16 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { 
-  ArrowLeft, 
-  Activity, 
-  Check, 
-  Sparkles, 
-  Loader2, 
-  Save,
-  ShieldCheck,
-  Maximize2,
-  ChevronLeft,
-  ChevronRight,
-  AlertCircle
+  ArrowLeft, Activity, Check, Sparkles, 
+  Loader2, ShieldCheck, Maximize2, 
+  ChevronLeft, ChevronRight, AlertCircle 
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useSettings } from '@/hooks/use-settings';
 import { useToneAudio } from '@/hooks/use-tone-audio';
 import { SetlistSong } from '@/components/SetlistManager';
-import { calculateReadiness, syncToMasterRepertoire } from '@/utils/repertoireSync';
+import { syncToMasterRepertoire, calculateReadiness } from '@/utils/repertoireSync';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { showSuccess, showError } from '@/utils/toast';
 import StudioTabContent from '@/components/StudioTabContent';
@@ -34,7 +25,7 @@ import { useKeyboardNavigation } from '@/hooks/use-keyboard-navigation';
 type StudioTab = 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library';
 
 interface SongStudioViewProps {
-  gigId: string;
+  gigId: string | 'library';
   songId: string;
   onClose: () => void;
   isModal?: boolean;
@@ -44,20 +35,12 @@ interface SongStudioViewProps {
 }
 
 const SongStudioView: React.FC<SongStudioViewProps> = ({ 
-  gigId, 
-  songId, 
-  onClose, 
-  isModal, 
-  onExpand,
-  visibleSongs = [],
-  onSelectSong
+  gigId, songId, onClose, isModal, onExpand, visibleSongs = [], onSelectSong 
 }) => {
   const isMobile = useIsMobile();
   const { user } = useAuth();
   const audio = useToneAudio();
-  
   const [song, setSong] = useState<SetlistSong | null>(null);
-  const [gigName, setGigName] = useState<string>("");
   const [formData, setFormData] = useState<Partial<SetlistSong>>({});
   const [activeTab, setActiveTab] = useState<StudioTab>('audio');
   const [loading, setLoading] = useState(true);
@@ -65,387 +48,119 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   const [isProSyncing, setIsProSyncing] = useState(false);
   const [activeChartType, setActiveChartType] = useState<'pdf' | 'leadsheet' | 'web' | 'ug'>('pdf');
   
-  const tabOrder: StudioTab[] = (isMobile || isModal)
-    ? ['audio', 'config', 'details', 'charts', 'lyrics', 'visual', 'library'] 
-    : ['audio', 'details', 'charts', 'lyrics', 'visual', 'library'];
-
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
 
   const fetchData = async () => {
-    if (!user || !gigId || !songId) return;
-    
+    if (!user || !songId) return;
     setLoading(true);
     try {
-      const { data: gigData, error: gigError } = await supabase
-        .from('setlists')
-        .select('*')
-        .eq('id', gigId)
-        .single();
-
-      if (gigError) throw gigError;
-      setGigName(gigData.name);
-
-      const songsList = gigData.songs as SetlistSong[];
-      const targetSong = songsList.find(s => s.id === songId);
-
-      if (!targetSong) {
-        showError("Song not found.");
-        onClose();
-        return;
+      let targetSong: SetlistSong | undefined;
+      
+      if (gigId === 'library') {
+        const { data } = await supabase.from('repertoire').select('*').eq('id', songId).single();
+        if (data) targetSong = {
+          id: data.id, name: data.title, artist: data.artist, previewUrl: data.preview_url,
+          youtubeUrl: data.youtube_url, originalKey: data.original_key, targetKey: data.target_key,
+          pitch: data.pitch, bpm: data.bpm, lyrics: data.lyrics, notes: data.notes, 
+          is_pitch_linked: data.is_pitch_linked, isApproved: data.is_approved
+        } as SetlistSong;
+      } else {
+        const { data } = await supabase.from('setlists').select('songs').eq('id', gigId).single();
+        targetSong = (data?.songs as SetlistSong[])?.find(s => s.id === songId);
       }
+
+      if (!targetSong) throw new Error("Song not found");
 
       setSong(targetSong);
-      setFormData({
-        ...targetSong,
-        is_pitch_linked: targetSong.is_pitch_linked ?? true,
-        ug_chords_config: targetSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG
-      });
-
-      if (targetSong.previewUrl) {
-        await audio.loadFromUrl(targetSong.previewUrl, targetSong.pitch || 0);
-      }
+      setFormData({ ...targetSong, is_pitch_linked: targetSong.is_pitch_linked ?? true });
+      if (targetSong.previewUrl) await audio.loadFromUrl(targetSong.previewUrl, targetSong.pitch || 0);
     } catch (err) {
-      console.error("Studio Fetch Error:", err);
-      showError("Failed to load song data.");
+      showError("Studio failed to initialize.");
+      onClose();
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchData();
-    // Cleanup audio on song switch
-    return () => audio.stopPlayback();
-  }, [user, gigId, songId]);
+  useEffect(() => { fetchData(); return () => audio.stopPlayback(); }, [songId, gigId]);
 
   const handleAutoSave = useCallback(async (updates: Partial<SetlistSong>) => {
-    if (!song || !gigId) return;
-
+    if (!song) return;
     setFormData(prev => {
       const next = { ...prev, ...updates };
-      
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-      
       saveTimeoutRef.current = setTimeout(async () => {
         try {
-          const masterFields = ['name', 'artist', 'previewUrl', 'youtubeUrl', 'originalKey', 'targetKey', 'pitch', 'bpm', 'lyrics', 'pdfUrl', 'ugUrl', 'isMetadataConfirmed', 'isKeyConfirmed', 'isApproved', 'duration_seconds', 'preferred_reader', 'ug_chords_text', 'ug_chords_config', 'is_pitch_linked', 'highest_note_original'];
-          const needsMasterSync = Object.keys(updates).some(key => masterFields.includes(key));
-          
-          let updatedSong = { ...song, ...next };
-
-          if (needsMasterSync && user) {
-            const synced = await syncToMasterRepertoire(user.id, [updatedSong]);
-            updatedSong = { ...updatedSong, master_id: synced[0].master_id };
+          const updatedSong = { ...song, ...next };
+          if (user) await syncToMasterRepertoire(user.id, [updatedSong]);
+          if (gigId !== 'library') {
+            const { data } = await supabase.from('setlists').select('songs').eq('id', gigId).single();
+            const songs = (data?.songs as SetlistSong[]) || [];
+            await supabase.from('setlists').update({ songs: songs.map(s => s.id === song.id ? updatedSong : s) }).eq('id', gigId);
           }
-
-          const { data: gigData } = await supabase.from('setlists').select('songs').eq('id', gigId).single();
-          if (gigData) {
-            const updatedSongs = (gigData.songs as SetlistSong[]).map(s => 
-              s.id === song.id ? updatedSong : s
-            );
-            await supabase.from('setlists').update({ 
-              songs: updatedSongs,
-              updated_at: new Date().toISOString() 
-            }).eq('id', gigId);
-          }
-        } catch (err) {
-          console.error("Auto-save failed:", err);
-        }
+        } catch (err) {}
       }, 1000);
-
       return next;
     });
   }, [song, gigId, user]);
 
-  const handleNavigate = useCallback((direction: 'next' | 'prev') => {
-    if (visibleSongs.length <= 1 || !onSelectSong) return;
-
-    const currentIndex = visibleSongs.findIndex(s => s.id === songId);
-    if (currentIndex === -1) return;
-
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-
-    let nextIndex;
-    if (direction === 'next') {
-      nextIndex = (currentIndex + 1) % visibleSongs.length;
-    } else {
-      nextIndex = (currentIndex - 1 + visibleSongs.length) % visibleSongs.length;
-    }
-
-    onSelectSong(visibleSongs[nextIndex].id);
-  }, [visibleSongs, songId, onSelectSong]);
-
   useKeyboardNavigation({
-    onNext: () => handleNavigate('next'),
-    onPrev: () => handleNavigate('prev'),
-    onClose: onClose,
-    onPlayPause: () => audio.togglePlayback(),
-    disabled: loading || isProSyncSearchOpen
+    onNext: () => visibleSongs.length > 1 && onSelectSong?.(visibleSongs[(visibleSongs.findIndex(s => s.id === songId) + 1) % visibleSongs.length].id),
+    onPrev: () => visibleSongs.length > 1 && onSelectSong?.(visibleSongs[(visibleSongs.findIndex(s => s.id === songId) - 1 + visibleSongs.length) % visibleSongs.length].id),
+    onClose, onPlayPause: audio.togglePlayback, disabled: loading || isProSyncSearchOpen
   });
 
-  const handleSelectProSync = async (itunesData: any) => {
-    setIsProSyncSearchOpen(false);
-    setIsProSyncing(true);
-    try {
-      const basicUpdates: Partial<SetlistSong> = {
-        name: itunesData.trackName,
-        artist: itunesData.artistName,
-        genre: itunesData.primaryGenreName,
-        appleMusicUrl: itunesData.trackViewUrl,
-        user_tags: [...(formData.user_tags || []), itunesData.primaryGenreName],
-        isMetadataConfirmed: true
-      };
-      
-      const { data, error } = await supabase.functions.invoke('enrich-metadata', { 
-        body: { queries: [`${itunesData.trackName} by ${itunesData.artistName}`] } 
-      });
-      
-      if (error) throw error;
-      const aiResult = Array.isArray(data) ? data[0] : data;
-      
-      const finalUpdates = { 
-        ...basicUpdates, 
-        originalKey: aiResult?.originalKey || formData.originalKey, 
-        targetKey: aiResult?.originalKey || formData.targetKey, 
-        bpm: aiResult?.bpm?.toString() || formData.bpm, 
-        pitch: 0 
-      };
-      
-      handleAutoSave(finalUpdates);
-      audio.setPitch(0);
-      showSuccess(`Synced "${itunesData.trackName}"`);
-    } catch (err) {
-      showError("Pro Sync failed.");
-    } finally {
-      setIsProSyncing(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="h-full flex flex-col items-center justify-center text-white bg-slate-950/50">
-        <Loader2 className="w-10 h-10 animate-spin text-indigo-500 mb-4" />
-        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Initializing Studio Engine...</p>
-      </div>
-    );
-  }
+  if (loading) return <div className="h-full flex flex-col items-center justify-center bg-slate-950"><Loader2 className="w-10 h-10 animate-spin text-indigo-500" /></div>;
 
   const readiness = calculateReadiness(formData);
-  const readinessColor = readiness === 100 ? 'bg-emerald-500' : readiness > 60 ? 'bg-indigo-500' : 'bg-slate-500';
-  const hasMultipleSongs = visibleSongs.length > 1;
-
-  // Masters Check for Confirmation
-  const hasMasterAudio = !!formData.previewUrl && !(formData.previewUrl.includes('apple.com') || formData.previewUrl.includes('itunes-assets'));
 
   return (
     <div className="flex flex-col h-full bg-slate-950 overflow-hidden relative">
-      <header className="h-20 bg-slate-900 border-b border-white/5 flex items-center justify-between px-6 shrink-0 relative z-50">
+      <header className="h-20 bg-slate-900 border-b border-white/5 flex items-center justify-between px-6 shrink-0 z-50">
         <div className="flex items-center gap-4">
-          <Button 
-            variant="ghost" 
-            onClick={onClose}
-            className="h-12 w-12 rounded-2xl bg-white/5 hover:bg-white/10 transition-all flex items-center justify-center p-0"
-          >
-            <ArrowLeft className="w-5 h-5 text-slate-400" />
-          </Button>
-          
-          {hasMultipleSongs && !isMobile && (
-            <div className="flex gap-1">
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={() => handleNavigate('prev')}
-                className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
-                title="Previous Song (←)"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={() => handleNavigate('next')}
-                className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
-                title="Next Song (→)"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </Button>
-            </div>
-          )}
-
+          <Button variant="ghost" onClick={onClose} className="h-12 w-12 rounded-2xl bg-white/5 hover:bg-white/10 p-0"><ArrowLeft className="w-5 h-5 text-slate-400" /></Button>
           <div className="min-w-0">
-            <p className="text-[9px] font-black text-indigo-400 uppercase tracking-[0.2em] truncate max-w-[200px]">
-              {gigName}
-            </p>
-            <h2 className="text-xl font-black uppercase tracking-tight truncate max-w-[250px] leading-tight text-white">
-              {formData.name}
-            </h2>
+            <p className="text-[9px] font-black text-indigo-400 uppercase tracking-[0.2em]">{gigId === 'library' ? 'MASTER LIBRARY' : 'ACTIVE GIG'}</p>
+            <h2 className="text-xl font-black uppercase text-white truncate max-w-[250px]">{formData.name}</h2>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          {onExpand && (
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={onExpand}
-              className="h-11 w-11 rounded-xl bg-white/5 text-slate-400 hover:text-white"
-              title="Full Screen Mode"
-            >
-              <Maximize2 className="w-4 h-4" />
-            </Button>
-          )}
           <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-xl border border-white/10">
             <ShieldCheck className={cn("w-3.5 h-3.5", readiness === 100 ? "text-emerald-500" : "text-indigo-400")} />
             <span className="text-[10px] font-black font-mono text-white">{readiness}% READY</span>
           </div>
-          <Button 
-            onClick={() => setIsProSyncSearchOpen(true)}
-            className={cn(
-              "h-11 rounded-xl font-black uppercase text-[9px] tracking-widest gap-2 px-4 shadow-lg",
-              formData.isMetadataConfirmed ? "bg-emerald-600 hover:bg-emerald-700" : "bg-indigo-600 hover:bg-indigo-700"
-            )}
-          >
-            {isProSyncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : formData.isMetadataConfirmed ? <Check className="w-3.5 h-3.5" /> : <Sparkles className="w-3.5 h-3.5" />}
-            <span className="hidden sm:inline">{formData.isMetadataConfirmed ? "SYNCED" : "PRO SYNC"}</span>
+          <Button onClick={() => setIsProSyncSearchOpen(true)} className="h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 font-black uppercase text-[9px] tracking-widest gap-2 px-4 shadow-lg">
+            <Sparkles className="w-3.5 h-3.5" /> PRO SYNC
           </Button>
         </div>
       </header>
 
-      <div className="h-0.5 w-full bg-white/5 overflow-hidden">
-        <motion.div 
-          className={cn("h-full", readinessColor)}
-          initial={{ width: 0 }}
-          animate={{ width: `${readiness}%` }}
-          transition={{ duration: 0.8 }}
-        />
-      </div>
-
       <div className="flex-1 flex overflow-hidden">
         {!isMobile && !isModal && (
-          <aside className="w-96 bg-slate-900/50 border-r border-white/5 flex flex-col shrink-0 overflow-y-auto custom-scrollbar">
-            <SongConfigTab 
-              song={song}
-              formData={formData}
-              handleAutoSave={handleAutoSave}
-              onUpdateKey={(id, key) => handleAutoSave({ targetKey: key })}
-              setPitch={audio.setPitch}
-              setTempo={audio.setTempo}
-              setVolume={audio.setVolume}
-              setFineTune={audio.setFineTune}
-              currentBuffer={audio.currentBuffer}
-              isPlaying={audio.isPlaying}
-              progress={audio.progress}
-              duration={audio.duration}
-              togglePlayback={audio.togglePlayback}
-              stopPlayback={audio.stopPlayback}
-              isMobile={false}
-            />
+          <aside className="w-96 bg-slate-900/50 border-r border-white/5 overflow-y-auto custom-scrollbar">
+            <SongConfigTab song={song} formData={formData} handleAutoSave={handleAutoSave} onUpdateKey={(id, k) => handleAutoSave({ targetKey: k })} setPitch={audio.setPitch} setTempo={audio.setTempo} setVolume={audio.setVolume} setFineTune={audio.setFineTune} currentBuffer={audio.currentBuffer} isPlaying={audio.isPlaying} progress={audio.progress} duration={audio.duration} togglePlayback={audio.togglePlayback} stopPlayback={audio.stopPlayback} isMobile={false} />
           </aside>
         )}
 
         <div className="flex-1 flex flex-col min-w-0 bg-slate-950">
           <nav className="h-16 bg-black/20 border-b border-white/5 flex items-center px-6 overflow-x-auto no-scrollbar shrink-0">
             <div className="flex gap-8">
-              {tabOrder.map(tab => (
-                <button 
-                  key={tab} 
-                  onClick={() => setActiveTab(tab)}
-                  className={cn(
-                    "text-[10px] font-black uppercase tracking-[0.2em] transition-all border-b-4 h-16 flex items-center shrink-0",
-                    activeTab === tab ? "text-indigo-400 border-indigo-500" : "text-slate-500 border-transparent hover:text-white"
-                  )}
-                >
-                  {tab === 'config' ? 'SETTINGS' : tab.toUpperCase()}
+              {['audio', 'details', 'charts', 'lyrics', 'visual', 'library'].map(tab => (
+                <button key={tab} onClick={() => setActiveTab(tab as any)} className={cn("text-[10px] font-black uppercase tracking-[0.2em] transition-all border-b-4 h-16 flex items-center", activeTab === tab ? "text-indigo-400 border-indigo-50" : "text-slate-500 border-transparent hover:text-white")}>
+                  {tab.toUpperCase()}
                 </button>
               ))}
             </div>
           </nav>
 
-          <div className={cn(
-            "flex-1 overflow-y-auto p-6 relative custom-scrollbar",
-            isMobile && "pb-32" // Prevent content cut-off by sticky footer
-          )}>
-            <StudioTabContent 
-              activeTab={activeTab}
-              song={song}
-              formData={formData}
-              handleAutoSave={handleAutoSave}
-              onUpdateKey={(id, key) => handleAutoSave({ targetKey: key })}
-              audioEngine={audio}
-              isMobile={isMobile}
-              onLoadAudioFromUrl={audio.loadFromUrl}
-              setPreviewPdfUrl={() => {}}
-              isFramable={() => true}
-              activeChartType={activeChartType}
-              setActiveChartType={setActiveChartType}
-              handleUgPrint={() => {}}
-              handleDownloadAll={async () => {}}
-              onSwitchTab={setActiveTab}
-            />
+          <div className="flex-1 overflow-y-auto p-6 relative custom-scrollbar">
+            <StudioTabContent activeTab={activeTab} song={song} formData={formData} handleAutoSave={handleAutoSave} onUpdateKey={(id, k) => handleAutoSave({ targetKey: k })} audioEngine={audio} isMobile={isMobile} onLoadAudioFromUrl={audio.loadFromUrl} setPreviewPdfUrl={() => {}} isFramable={() => true} activeChartType={activeChartType} setActiveChartType={setActiveChartType} handleUgPrint={() => {}} handleDownloadAll={async () => {}} onSwitchTab={setActiveTab} />
           </div>
         </div>
       </div>
 
-      {/* MOBILE STICKY ACTION BAR */}
-      {isMobile && (
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-slate-900/95 backdrop-blur-xl border-t border-white/10 z-[100] flex flex-col gap-3 pb-[calc(1rem+env(safe-area-inset-bottom))] animate-in slide-in-from-bottom duration-500">
-          {!hasMasterAudio && (
-            <div className="flex items-center justify-center gap-2 text-amber-500">
-              <AlertCircle className="w-3 h-3" />
-              <span className="text-[8px] font-black uppercase tracking-widest">Attach Master Audio to confirm for setlist</span>
-            </div>
-          )}
-          
-          <div className="flex items-center gap-3">
-            <Button 
-              onClick={() => handleAutoSave({ isApproved: !formData.isApproved })}
-              disabled={!hasMasterAudio}
-              className={cn(
-                "flex-1 h-14 rounded-2xl font-black uppercase tracking-[0.1em] text-xs transition-all shadow-2xl flex items-center justify-center gap-2",
-                formData.isApproved 
-                  ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20" 
-                  : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/20"
-              )}
-            >
-              {formData.isApproved ? (
-                <><ShieldCheck className="w-5 h-5" /> SONG CONFIRMED</>
-              ) : (
-                <><Check className="w-5 h-5" /> CONFIRM FOR SETLIST</>
-              )}
-            </Button>
-            
-            {hasMultipleSongs && (
-              <div className="flex gap-2">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={() => handleNavigate('prev')}
-                  className="h-14 w-14 rounded-2xl bg-white/5 border border-white/10 text-slate-400 active:scale-95"
-                >
-                  <ChevronLeft className="w-6 h-6" />
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={() => handleNavigate('next')}
-                  className="h-14 w-14 rounded-2xl bg-white/5 border border-white/10 text-slate-400 active:scale-95"
-                >
-                  <ChevronRight className="w-6 h-6" />
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      <ProSyncSearch 
-        isOpen={isProSyncSearchOpen} 
-        onClose={() => setIsProSyncSearchOpen(false)} 
-        onSelect={handleSelectProSync} 
-        initialQuery={`${formData.artist} ${formData.name}`} 
-      />
+      <ProSyncSearch isOpen={isProSyncSearchOpen} onClose={() => setIsProSyncSearchOpen(false)} onSelect={(d) => handleAutoSave({ name: d.trackName, artist: d.artistName, isMetadataConfirmed: true })} initialQuery={`${formData.artist} ${formData.name}`} />
     </div>
   );
 };
