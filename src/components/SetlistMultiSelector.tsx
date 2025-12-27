@@ -19,11 +19,15 @@ import { cn } from '@/lib/utils';
 interface SetlistMultiSelectorProps {
   songMasterId: string;
   allSetlists: { id: string; name: string; songs: SetlistSong[] }[];
+  songToAssign: SetlistSong; // The full song object from the studio
+  onUpdateSetlistSongs: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>;
 }
 
 const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
   songMasterId,
   allSetlists,
+  songToAssign,
+  onUpdateSetlistSongs,
 }) => {
   const [assignedSetlistIds, setAssignedSetlistIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
@@ -65,6 +69,7 @@ const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
         if (error) throw error;
         setAssignedSetlistIds(prev => new Set(prev).add(setlistId));
         showSuccess(`Added to "${allSetlists.find(s => s.id === setlistId)?.name}"`);
+        await onUpdateSetlistSongs(setlistId, songToAssign, 'add'); // Update the setlist's songs array
       } else {
         // Remove from setlist_songs junction table
         const { error } = await supabase
@@ -79,6 +84,7 @@ const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
           return newSet;
         });
         showSuccess(`Removed from "${allSetlists.find(s => s.id === setlistId)?.name}"`);
+        await onUpdateSetlistSongs(setlistId, songToAssign, 'remove'); // Update the setlist's songs array
       }
     } catch (err: any) {
       console.error("Failed to update setlist assignment:", err);

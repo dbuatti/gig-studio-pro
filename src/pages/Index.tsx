@@ -350,6 +350,48 @@ const Index = () => {
     setIsSearchPanelOpen(false); // Close the search panel after adding
   };
 
+  const handleUpdateSetlistSongs = useCallback(async (setlistId: string, songToUpdate: SetlistSong, action: 'add' | 'remove') => {
+    const targetSetlist = setlists.find(l => l.id === setlistId);
+    if (!targetSetlist) {
+      console.error(`[handleUpdateSetlistSongs] Setlist with ID ${setlistId} not found.`);
+      return;
+    }
+
+    let updatedSongsArray = [...targetSetlist.songs];
+    if (action === 'add') {
+      // Ensure the song is not already in the setlist by master_id or id
+      const isAlreadyInList = updatedSongsArray.some(s => 
+        (s.master_id && s.master_id === songToUpdate.master_id) || 
+        s.id === songToUpdate.id
+      );
+      if (!isAlreadyInList) {
+        // Create a new instance for the setlist, linking to master_id
+        const newSetlistSong: SetlistSong = {
+          ...songToUpdate,
+          id: Math.random().toString(36).substr(2, 9), // Unique ID for this setlist instance
+          master_id: songToUpdate.master_id || songToUpdate.id, // Link to the master repertoire song
+          isPlayed: false,
+          isApproved: false, // Default to not approved for the setlist
+        };
+        updatedSongsArray.push(newSetlistSong);
+        console.log(`[handleUpdateSetlistSongs] Added song ${songToUpdate.name} to setlist ${setlistId}.`);
+      } else {
+        console.log(`[handleUpdateSetlistSongs] Song ${songToUpdate.name} already in setlist ${setlistId}. Skipping add.`);
+      }
+    } else if (action === 'remove') {
+      updatedSongsArray = updatedSongsArray.filter(s => 
+        (s.master_id && s.master_id !== songToUpdate.master_id) && 
+        s.id !== songToUpdate.id
+      );
+      console.log(`[handleUpdateSetlistSongs] Removed song ${songToUpdate.name} from setlist ${setlistId}.`);
+    }
+
+    // Save the updated songs array back to the setlist
+    await saveList(setlistId, updatedSongsArray);
+    fetchSetlists(); // Re-fetch to ensure UI is fully updated
+  }, [setlists, saveList]);
+
+
   const startPerformance = () => {
     const playable = songs.filter(s => s.isApproved && s.previewUrl && !s.previewUrl.includes('apple.com'));
     if (!playable.length) { showError("No approved tracks found."); return; }
@@ -674,6 +716,7 @@ const Index = () => {
         onSelectSong={setEditingSongId} 
         allSetlists={setlists} // Pass all setlists
         masterRepertoire={masterRepertoire} // Pass master repertoire
+        onUpdateSetlistSongs={handleUpdateSetlistSongs} // Pass the new callback
       />
       <PreferencesModal isOpen={isPreferencesOpen} onClose={() => setIsPreferencesOpen(false)} />
       <AdminPanel 

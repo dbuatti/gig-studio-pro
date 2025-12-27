@@ -41,11 +41,13 @@ interface SongStudioViewProps {
   onSelectSong?: (id: string) => void;
   allSetlists?: { id: string; name: string; songs: SetlistSong[] }[]; // New prop
   masterRepertoire?: SetlistSong[]; // New prop
+  onUpdateSetlistSongs: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>; // New prop
 }
 
 const SongStudioView: React.FC<SongStudioViewProps> = ({ 
   gigId, songId, onClose, isModal, onExpand, visibleSongs = [], onSelectSong,
-  allSetlists = [], masterRepertoire = [] // Default to empty arrays
+  allSetlists = [], masterRepertoire = [], // Default to empty arrays
+  onUpdateSetlistSongs // Destructure new prop
 }) => {
   const isMobile = useIsMobile();
   const { user } = useAuth();
@@ -282,7 +284,12 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
 
             {/* Conditional Rendering for Setlist Assignment */}
             {gigId === 'library' ? (
-              <SetlistMultiSelector songMasterId={songId} allSetlists={allSetlists} />
+              <SetlistMultiSelector 
+                songMasterId={songId} 
+                allSetlists={allSetlists} 
+                songToAssign={song!} // Pass the full song object
+                onUpdateSetlistSongs={onUpdateSetlistSongs} // Pass the new callback
+              />
             ) : (
               <div className="flex items-center gap-3 bg-white/5 px-4 h-11 rounded-xl border border-white/10">
                 <div className="flex flex-col items-end">
