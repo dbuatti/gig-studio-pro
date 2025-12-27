@@ -93,7 +93,8 @@ const Index = () => {
           preferred_reader: d.preferred_reader,
           ug_chords_text: d.ug_chords_text,
           ug_chords_config: d.ug_chords_config,
-          is_pitch_linked: d.is_pitch_linked
+          is_pitch_linked: d.is_pitch_linked,
+          extraction_status: d.extraction_status
         }));
         setMasterRepertoire(mapped);
       }
@@ -430,7 +431,7 @@ const Index = () => {
         </aside>
       </div>
       <PreferencesModal isOpen={isPreferencesOpen} onClose={() => setIsPreferencesOpen(false)} />
-      <AdminPanel isOpen={isAdminOpen} onClose={() => setIsAdminOpen(true)} />
+      <AdminPanel isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} />
       <SongStudioModal 
         isOpen={isStudioModalOpen} 
         onClose={() => setIsStudioModalOpen(false)} 

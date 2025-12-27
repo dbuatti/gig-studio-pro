@@ -27,15 +27,12 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
 
 /**
  * Synchronizes local setlist songs with the master repertoire table.
- * Optimized to use a single batch upsert for performance.
  */
 export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong | SetlistSong[]): Promise<SetlistSong[]> => {
   if (!userId) return Array.isArray(songs) ? songs : [songs];
   
   const songsArray = Array.isArray(songs) ? songs : [songs];
   if (songsArray.length === 0) return [];
-  
-  console.log(`[SYNC ENGINE] Batch processing ${songsArray.length} items...`);
   
   try {
     const payloads = songsArray.map(song => ({
@@ -68,7 +65,10 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       ug_chords_config: song.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
       is_ug_chords_present: !!(song.ug_chords_text && song.ug_chords_text.trim().length > 0),
       is_pitch_linked: song.is_pitch_linked ?? true,
-      highest_note_original: song.highest_note_original || null
+      highest_note_original: song.highest_note_original || null,
+      // Maintenance fields
+      extraction_status: (song as any).extraction_status || 'PENDING',
+      source_type: (song as any).source_type || 'YOUTUBE'
     }));
     
     const { data, error } = await supabase
@@ -76,10 +76,7 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       .upsert(payloads, { onConflict: 'id' })
       .select('id, title, artist');
       
-    if (error) {
-      console.error("[SYNC ENGINE] Supabase upsert error details:", error);
-      throw error;
-    }
+    if (error) throw error;
     
     return songsArray.map(song => {
       const dbMatch = data.find(d => 

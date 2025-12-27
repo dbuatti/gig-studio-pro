@@ -23,36 +23,45 @@ import {
   Database,
   Terminal,
   AlertCircle,
-  Copy,
   Upload,
-  ExternalLink
+  Zap,
+  HardDriveDownload,
+  AlertTriangle,
+  Play
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Progress } from '@/components/ui/progress';
 import { cn } from "@/lib/utils";
 import { useAuth } from './AuthProvider';
 import { Textarea } from '@/components/ui/textarea';
+import { cleanYoutubeUrl } from '@/utils/youtubeUtils';
+import * as Tone from 'tone';
 
 interface AdminPanelProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+type AdminTab = 'vault' | 'maintenance';
+
 const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   const { user } = useAuth();
-  const [isUploading, setIsUploading] = useState(false);
-  const [isCheckingHealth, setIsCheckingHealth] = useState(false);
-  const [healthStatus, setHealthStatus] = useState<'online' | 'offline' | 'error' | null>(null);
-  const [healthData, setHealthData] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<AdminTab>('vault');
   
+  // Vault State
+  const [isUploading, setIsUploading] = useState(false);
   const [cookieMetadata, setCookieMetadata] = useState<{
     size: number;
     lastUpdated: string;
     name: string;
   } | null>(null);
-  
-  const [syncLogs, setSyncLogs] = useState<{ msg: string; type: 'info' | 'success' | 'error'; time: string }[]>([]);
+
+  // Maintenance / Bulk Extraction State
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractionProgress, setExtractionProgress] = useState({ current: 0, total: 0 });
+  const [maintenanceSongs, setMaintenanceSongs] = useState<any[]>([]);
 
   // GitHub State
   const [githubToken, setGithubToken] = useState("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");
@@ -60,6 +69,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   const [githubFile, setGithubFile] = useState("cookies.txt");
   const [clipboardContent, setClipboardContent] = useState("");
   const [isGithubUploading, setIsGithubUploading] = useState(false);
+  
+  const [syncLogs, setSyncLogs] = useState<{ msg: string; type: 'info' | 'success' | 'error'; time: string }[]>([]);
 
   const addLog = (msg: string, type: 'info' | 'success' | 'error' = 'info') => {
     setSyncLogs(prev => [{ msg, type, time: new Date().toLocaleTimeString() }, ...prev].slice(0, 15));
@@ -68,11 +79,26 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   useEffect(() => {
     if (isOpen) {
       checkVaultStatus();
+      fetchMaintenanceData();
     }
   }, [isOpen]);
 
+  const fetchMaintenanceData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('repertoire')
+        .select('id, title, artist, youtube_url, extraction_status, last_extracted_at')
+        .eq('user_id', user?.id)
+        .order('title', { ascending: true });
+      
+      if (error) throw error;
+      setMaintenanceSongs(data || []);
+    } catch (e: any) {
+      addLog(`Maintenance Fetch Error: ${e.message}`, 'error');
+    }
+  };
+
   const checkVaultStatus = async () => {
-    addLog("Querying Cloud Vault...", 'info');
     try {
       const { data: files, error } = await supabase.storage
         .from('cookies')
@@ -87,14 +113,93 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
           lastUpdated: cookieFile.updated_at || cookieFile.created_at,
           name: cookieFile.name
         });
-        addLog(`Vault Match Found: cookies.txt (${Math.round(cookieFile.metadata?.size / 1024)} KB)`, 'success');
-      } else {
-        setCookieMetadata(null);
-        addLog("Vault check complete: No cookies.txt file detected.", 'info');
       }
     } catch (e: any) {
       addLog(`Vault Access Error: ${e.message}`, 'error');
     }
+  };
+
+  // --- Bulk Extraction Logic ---
+  const handleBulkExtract = async () => {
+    const songsToProcess = maintenanceSongs.filter(s => s.youtube_url);
+    if (songsToProcess.length === 0) {
+      showError("No songs with YouTube links found.");
+      return;
+    }
+
+    if (!confirm(`WARNING: This will override existing master audio for ${songsToProcess.length} songs with fresh extractions. This may take several minutes. Continue?`)) {
+      return;
+    }
+
+    setIsExtracting(true);
+    setExtractionProgress({ current: 0, total: songsToProcess.length });
+    addLog(`Starting bulk override for ${songsToProcess.length} tracks...`, 'info');
+
+    for (let i = 0; i < songsToProcess.length; i++) {
+      const song = songsToProcess[i];
+      setExtractionProgress(prev => ({ ...prev, current: i + 1 }));
+      addLog(`Processing [${i+1}/${songsToProcess.length}]: ${song.title}`, 'info');
+
+      try {
+        // 1. Mark as Processing
+        await supabase.from('repertoire').update({ extraction_status: 'PROCESSING' }).eq('id', song.id);
+        
+        // 2. Trigger Extraction via Render API
+        const targetVideoUrl = cleanYoutubeUrl(song.youtube_url);
+        const API_BASE_URL = "https://yt-audio-api-1-wedr.onrender.com";
+        
+        const tokenRes = await fetch(`${API_BASE_URL}/?url=${encodeURIComponent(targetVideoUrl)}`);
+        if (!tokenRes.ok) throw new Error("API Token Fetch Failed");
+        const { token } = await tokenRes.json();
+
+        let downloadReady = false;
+        let fileResponse;
+        let attempts = 0;
+        
+        // Poll for completion (Max 2 minutes per song)
+        while (attempts < 24 && !downloadReady) {
+          attempts++;
+          await new Promise(r => setTimeout(r, 5000));
+          fileResponse = await fetch(`${API_BASE_URL}/download?token=${token}`);
+          if (fileResponse.status === 200) {
+            downloadReady = true;
+            break;
+          }
+        }
+
+        if (!downloadReady || !fileResponse) throw new Error("Extraction Timeout");
+
+        const audioArrayBuffer = await fileResponse.arrayBuffer();
+        const audioBuffer = await Tone.getContext().decodeAudioData(audioArrayBuffer.slice(0));
+
+        // 3. Upload & Override
+        const fileName = `${user?.id}/${song.id}/${Date.now()}.mp3`;
+        const { error: uploadError } = await supabase.storage
+          .from('public_audio')
+          .upload(fileName, audioArrayBuffer, { contentType: 'audio/mpeg', upsert: true });
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage.from('public_audio').getPublicUrl(fileName);
+
+        // 4. Mark Completed
+        await supabase.from('repertoire').update({ 
+          extraction_status: 'COMPLETED',
+          preview_url: publicUrl,
+          duration_seconds: Math.round(audioBuffer.duration),
+          last_extracted_at: new Date().toISOString()
+        }).eq('id', song.id);
+
+        addLog(`Success: ${song.title}`, 'success');
+      } catch (err: any) {
+        addLog(`Failed: ${song.title} - ${err.message}`, 'error');
+        await supabase.from('repertoire').update({ extraction_status: 'FAILED' }).eq('id', song.id);
+      }
+    }
+
+    setIsExtracting(false);
+    showSuccess("Bulk Override Process Complete");
+    fetchMaintenanceData();
   };
 
   const handleSupabaseUpload = async (file: File) => {
@@ -134,7 +239,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     addLog(`Initiating GitHub upload to ${githubRepo}...`, 'info');
 
     try {
-      // 1. Get current file SHA if it exists
       const getRes = await fetch(`https://api.github.com/repos/${githubRepo}/contents/${githubFile}`, {
         headers: {
           'Authorization': `Bearer ${githubToken}`,
@@ -148,13 +252,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         const fileData = await getRes.json();
         sha = fileData.sha;
         addLog(`Found existing file. SHA: ${sha.substring(0, 7)}...`, 'info');
-      } else if (getRes.status === 404) {
-        addLog("File does not exist, will be created.", 'info');
-      } else {
-        throw new Error(`GitHub GET failed: ${getRes.statusText}`);
       }
 
-      // 2. Upload/Update the file
       const putRes = await fetch(`https://api.github.com/repos/${githubRepo}/contents/${githubFile}`, {
         method: 'PUT',
         headers: {
@@ -165,8 +264,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         },
         body: JSON.stringify({
           message: `Update ${githubFile} via Gig Studio Admin`,
-          content: btoa(unescape(encodeURIComponent(clipboardContent))), // Base64 encode
-          sha: sha // Required for updates
+          content: btoa(unescape(encodeURIComponent(clipboardContent))),
+          sha: sha
         })
       });
 
@@ -175,26 +274,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         throw new Error(errorData.message || `GitHub PUT failed: ${putRes.statusText}`);
       }
 
-      const result = await putRes.json();
-      addLog(`GitHub Upload Successful! Commit: ${result.commit.sha.substring(0, 7)}...`, 'success');
-      showSuccess("Content pushed to GitHub successfully!");
-      setClipboardContent(""); // Clear on success
+      addLog(`GitHub Upload Successful!`, 'success');
+      showSuccess("Content pushed to GitHub!");
+      setClipboardContent("");
 
     } catch (err: any) {
-      addLog(`GitHub Upload Error: ${err.message}`, 'error');
+      addLog(`GitHub Error: ${err.message}`, 'error');
       showError(`GitHub Error: ${err.message}`);
     } finally {
       setIsGithubUploading(false);
-    }
-  };
-
-  const handlePaste = async () => {
-    try {
-      const text = await navigator.clipboard.readText();
-      setClipboardContent(text);
-      addLog("Pasted content from clipboard.", 'info');
-    } catch (err) {
-      showError("Failed to read clipboard. Please paste manually.");
     }
   };
 
@@ -208,193 +296,172 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
             </div>
             <div>
               <DialogTitle className="text-2xl font-black uppercase tracking-tight">System Core Admin</DialogTitle>
-              <DialogDescription className="text-red-100 font-medium">GitHub & Cloud Vault Management</DialogDescription>
+              <DialogDescription className="text-red-100 font-medium">Core Infrastructure & Maintenance</DialogDescription>
             </div>
+          </div>
+          <div className="flex bg-black/20 p-1 rounded-xl">
+             <Button 
+               variant="ghost" 
+               size="sm" 
+               onClick={() => setActiveTab('vault')}
+               className={cn("text-[10px] font-black uppercase tracking-widest h-8 px-6 rounded-lg", activeTab === 'vault' ? "bg-white text-red-600" : "text-white/60")}
+             >
+               Cloud Vault
+             </Button>
+             <Button 
+               variant="ghost" 
+               size="sm" 
+               onClick={() => setActiveTab('maintenance')}
+               className={cn("text-[10px] font-black uppercase tracking-widest h-8 px-6 rounded-lg", activeTab === 'maintenance' ? "bg-white text-red-600" : "text-white/60")}
+             >
+               Maintenance
+             </Button>
           </div>
         </div>
 
         <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
           <ScrollArea className="flex-1 border-r border-white/5">
-            <div className="p-8 space-y-8">
-              {/* GitHub Upload Section */}
-              <div className="bg-indigo-600/10 border border-indigo-600/20 rounded-[2.5rem] p-8 space-y-6">
-                <div className="flex items-center gap-4">
-                  <div className="bg-indigo-600 p-2.5 rounded-xl">
-                    <Upload className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h4 className="text-xl font-black uppercase tracking-tight">GitHub Clipboard Push</h4>
-                    <p className="text-[10px] text-indigo-400 font-black uppercase tracking-widest">Send clipboard content to repo</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-[9px] font-black uppercase text-slate-500">Repository</label>
-                    <input 
-                      type="text" 
-                      value={githubRepo} 
-                      onChange={(e) => setGithubRepo(e.target.value)}
-                      className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-sm font-mono"
-                      placeholder="owner/repo"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[9px] font-black uppercase text-slate-500">File Path</label>
-                    <input 
-                      type="text" 
-                      value={githubFile} 
-                      onChange={(e) => setGithubFile(e.target.value)}
-                      className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-sm font-mono"
-                      placeholder="cookies.txt"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[9px] font-black uppercase text-slate-500">GitHub PAT</label>
-                    <input 
-                      type="password" 
-                      value={githubToken} 
-                      onChange={(e) => setGithubToken(e.target.value)}
-                      className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-sm font-mono"
-                      placeholder="ghp_..."
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <label className="text-[9px] font-black uppercase text-slate-500">Content to Push</label>
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={handlePaste}
-                        className="h-7 px-3 bg-white/5 text-[9px] font-bold uppercase rounded-lg hover:bg-white/10"
-                      >
-                        Paste Clipboard
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        onClick={handleGithubUpload}
-                        disabled={isGithubUploading || !clipboardContent}
-                        className="h-7 px-4 bg-indigo-600 hover:bg-indigo-700 text-[9px] font-bold uppercase rounded-lg shadow-lg"
-                      >
-                        {isGithubUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Upload className="w-3.5 h-3.5 mr-1" />}
-                        Push to GitHub
-                      </Button>
-                    </div>
-                  </div>
-                  <Textarea 
-                    value={clipboardContent}
-                    onChange={(e) => setClipboardContent(e.target.value)}
-                    placeholder="Paste your cookies or data here..."
-                    className="min-h-[120px] bg-slate-900 border-white/10 font-mono text-xs p-4 rounded-xl"
-                  />
-                </div>
-              </div>
-
-              {/* Supabase Vault Section */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                 <div className="bg-white/5 border border-white/10 rounded-2xl p-6 min-h-[140px] flex flex-col justify-between">
-                    <div className="flex items-center gap-2 text-slate-500 mb-4">
-                      <Server className="w-4 h-4" />
-                      <span className="text-[10px] font-black uppercase tracking-widest">API Engine</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-lg font-black uppercase text-slate-500">N/A</span>
-                    </div>
-                 </div>
-
-                 <div className="bg-white/5 border border-white/10 rounded-2xl p-6 min-h-[140px] flex flex-col justify-between">
-                    <div className="flex items-center gap-2 text-slate-500 mb-4">
-                      <ShieldCheck className="w-4 h-4" />
-                      <span className="text-[10px] font-black uppercase tracking-widest">Engine Cache</span>
-                    </div>
-                    <span className="text-lg font-black uppercase text-red-500">
-                      N/A
-                    </span>
-                 </div>
-
-                 <div className="bg-white/5 border border-white/10 rounded-2xl p-6 min-h-[140px] flex flex-col justify-between">
-                    <div className="flex items-center gap-2 text-slate-500 mb-4">
-                      <Cloud className="w-4 h-4" />
-                      <span className="text-[10px] font-black uppercase tracking-widest">Vault State</span>
-                    </div>
-                    <span className="text-lg font-black uppercase text-indigo-400">
-                      {cookieMetadata ? `${(cookieMetadata.size / 1024).toFixed(1)} KB` : "Empty"}
-                    </span>
-                 </div>
-              </div>
-
-              <div className="bg-indigo-600/10 border border-indigo-600/20 rounded-[2.5rem] p-8 space-y-8">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            {activeTab === 'vault' ? (
+              <div className="p-8 space-y-8">
+                {/* Existing Vault UI */}
+                <div className="bg-indigo-600/10 border border-indigo-600/20 rounded-[2.5rem] p-8 space-y-6">
                   <div className="flex items-center gap-4">
                     <div className="bg-indigo-600 p-2.5 rounded-xl">
-                      <Database className="w-6 h-6 text-white" />
+                      <Upload className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                      <h4 className="text-xl font-black uppercase tracking-tight">Supabase Synchronizer</h4>
-                      <p className="text-[10px] text-indigo-400 font-black uppercase tracking-widest">Manually trigger the engine to fetch from Supabase</p>
+                      <h4 className="text-xl font-black uppercase tracking-tight">GitHub Clipboard Push</h4>
+                      <p className="text-[10px] text-indigo-400 font-black uppercase tracking-widest">Update Repository Assets</p>
                     </div>
                   </div>
-                  <Button onClick={() => checkVaultStatus()} className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] h-11 px-8 rounded-xl gap-3 shadow-lg shadow-indigo-600/20">
-                    <RefreshCw className="w-4 h-4" /> Force Sync
-                  </Button>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black uppercase text-slate-500">Repository</label>
+                      <input type="text" value={githubRepo} onChange={(e) => setGithubRepo(e.target.value)} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-sm font-mono"/>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black uppercase text-slate-500">File Path</label>
+                      <input type="text" value={githubFile} onChange={(e) => setGithubFile(e.target.value)} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-sm font-mono"/>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black uppercase text-slate-500">Token</label>
+                      <input type="password" value={githubToken} onChange={(e) => setGithubToken(e.target.value)} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-sm font-mono"/>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <Textarea value={clipboardContent} onChange={(e) => setClipboardContent(e.target.value)} placeholder="Paste cookies or data..." className="min-h-[120px] bg-slate-900 border-white/10 font-mono text-xs rounded-xl"/>
+                    <Button onClick={handleGithubUpload} disabled={isGithubUploading || !clipboardContent} className="w-full bg-indigo-600 h-12 rounded-xl font-black uppercase">
+                      {isGithubUploading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Zap className="w-4 h-4 mr-2" />} Push Update
+                    </Button>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div 
-                    className={cn(
-                      "bg-black/20 border-2 border-dashed rounded-3xl p-12 flex flex-col items-center justify-center text-center transition-all min-h-[300px] relative cursor-pointer",
-                      isUploading ? "opacity-50" : "hover:border-indigo-500 hover:bg-indigo-600/5"
-                    )}
-                    onDragOver={(e) => { e.preventDefault(); }}
-                    onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleSupabaseUpload(f); }}
-                    onClick={() => document.getElementById('cookie-upload-main')?.click()}
-                  >
-                    {isUploading ? (
-                      <div className="flex flex-col items-center gap-6">
-                        <Loader2 className="w-16 h-16 text-indigo-500 animate-spin" />
-                        <p className="text-sm font-black uppercase tracking-[0.3em] animate-pulse">Pushing to Vault...</p>
-                      </div>
-                    ) : (
-                      <>
-                        <FileText className="w-16 h-16 text-indigo-400 mb-6" />
-                        <h5 className="text-xl font-black uppercase tracking-tight mb-2">Drop cookies.txt here</h5>
-                        <p className="text-xs text-slate-500 font-medium max-w-sm mb-10 leading-relaxed">
-                          Upload to Supabase Storage. The engine will automatically attempt a sync.
-                        </p>
-                        <input type="file" accept=".txt" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleSupabaseUpload(f); }} className="hidden" id="cookie-upload-main" />
-                        <Button className="bg-indigo-600 hover:bg-indigo-700 h-14 px-12 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-2xl">
-                          Select File
-                        </Button>
-                      </>
-                    )}
-                  </div>
-
-                  <div className="bg-slate-900/50 rounded-3xl border border-white/5 p-8 flex flex-col justify-between">
-                     <div className="space-y-6">
-                        <div className="flex items-center gap-3">
-                           <Terminal className="w-5 h-5 text-indigo-400" />
-                           <span className="text-sm font-black uppercase text-white">Engine Diagnostics</span>
-                        </div>
-                        <div className="bg-black/40 rounded-xl p-4 font-mono text-[10px] text-slate-500 leading-relaxed border border-white/5">
-                           <p className="text-emerald-400"># Last Engine Message:</p>
-                           <p className="text-indigo-300 mt-1 whitespace-pre-wrap">{healthData?.last_error || "No errors reported. System stable."}</p>
-                           <p className="mt-4 text-slate-500">Supabase Connection: {healthData?.supabase_initialized ? "ONLINE" : "OFFLINE"}</p>
-                        </div>
+                <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8">
+                   <div className="flex justify-between items-center mb-8">
+                     <div className="flex items-center gap-4">
+                       <div className="bg-indigo-600 p-2.5 rounded-xl"><Database className="w-6 h-6" /></div>
+                       <h4 className="text-xl font-black uppercase tracking-tight">Supabase Vault</h4>
                      </div>
-                     <Button 
-                       variant="ghost" 
-                       onClick={() => { /* Removed checkHealth */ }}
-                       className="w-full mt-6 h-12 bg-white/5 border border-white/10 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-white/10 gap-2"
-                     >
-                       Refresh Health Status <Activity className="w-3.5 h-3.5" />
-                     </Button>
-                  </div>
+                     <input type="file" accept=".txt" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleSupabaseUpload(f); }} className="hidden" id="v-upload" />
+                     <Button onClick={() => document.getElementById('v-upload')?.click()} className="bg-indigo-600 h-10 px-6 rounded-xl font-black uppercase text-[10px]">Select Cookies.txt</Button>
+                   </div>
+                   {isUploading && (
+                     <div className="flex flex-col items-center py-10 gap-4">
+                        <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
+                        <p className="text-[10px] font-black uppercase tracking-widest animate-pulse">Syncing Vault...</p>
+                     </div>
+                   )}
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="p-8 space-y-8 animate-in fade-in duration-500">
+                <div className="bg-red-600/10 border border-red-600/20 rounded-[2.5rem] p-10 space-y-8">
+                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                      <div className="flex items-center gap-6">
+                         <div className="bg-red-600 p-4 rounded-3xl shadow-xl shadow-red-600/20">
+                            <HardDriveDownload className="w-8 h-8 text-white" />
+                         </div>
+                         <div>
+                            <h3 className="text-2xl font-black uppercase tracking-tight text-white">Audio Re-Extraction Hub</h3>
+                            <p className="text-sm text-slate-400 mt-1">Force refresh all master audio assets from source links.</p>
+                         </div>
+                      </div>
+                      <Button 
+                        onClick={handleBulkExtract} 
+                        disabled={isExtracting}
+                        className="bg-red-600 hover:bg-red-700 h-16 px-10 rounded-2xl font-black uppercase tracking-[0.2em] text-xs shadow-2xl shadow-red-600/30 gap-4"
+                      >
+                        {isExtracting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5 fill-current" />}
+                        Run Global Override
+                      </Button>
+                   </div>
+
+                   <div className="p-6 bg-red-600/5 border border-red-600/20 rounded-2xl flex items-start gap-4">
+                      <AlertTriangle className="w-6 h-6 text-red-500 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-black uppercase text-red-500">CRITICAL MAINTENANCE ADVISORY</p>
+                        <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                          This operation will purge existing audio files in your Supabase storage and re-process them from YouTube. 
+                          Only tracks with a valid YouTube URL will be updated. Estimated time: ~15s per track.
+                        </p>
+                      </div>
+                   </div>
+
+                   {isExtracting && (
+                     <div className="space-y-4 pt-4">
+                        <div className="flex justify-between items-end">
+                           <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400">Processing Engine Active</span>
+                           <span className="text-sm font-mono font-black text-white">{extractionProgress.current} / {extractionProgress.total}</span>
+                        </div>
+                        <Progress value={(extractionProgress.current / extractionProgress.total) * 100} className="h-3 bg-white/5" />
+                     </div>
+                   )}
+                </div>
+
+                <div className="bg-white/5 border border-white/10 rounded-[2.5rem] overflow-hidden">
+                   <div className="p-6 bg-black/20 border-b border-white/5 flex items-center justify-between">
+                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Song Registry & Extraction State</h4>
+                      <Button variant="ghost" onClick={fetchMaintenanceData} className="h-8 px-4 text-[9px] font-black uppercase gap-2 hover:bg-white/5">
+                        <RefreshCw className="w-3 h-3" /> Refresh Registry
+                      </Button>
+                   </div>
+                   <div className="divide-y divide-white/5 max-h-[400px] overflow-y-auto custom-scrollbar">
+                      {maintenanceSongs.map((s) => (
+                        <div key={s.id} className="p-5 flex items-center justify-between group hover:bg-white/5 transition-colors">
+                           <div className="flex items-center gap-4">
+                              <div className={cn(
+                                "w-2 h-2 rounded-full",
+                                s.extraction_status === 'COMPLETED' ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" :
+                                s.extraction_status === 'PROCESSING' ? "bg-indigo-500 animate-pulse" :
+                                s.extraction_status === 'FAILED' ? "bg-red-500" : "bg-slate-700"
+                              )} />
+                              <div>
+                                 <p className="text-sm font-black uppercase tracking-tight">{s.title}</p>
+                                 <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{s.artist || "Unknown"}</p>
+                              </div>
+                           </div>
+                           <div className="flex items-center gap-8">
+                              <div className="text-right">
+                                 <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Status</p>
+                                 <p className={cn(
+                                   "text-[10px] font-mono font-black uppercase",
+                                   s.extraction_status === 'COMPLETED' ? "text-emerald-400" :
+                                   s.extraction_status === 'FAILED' ? "text-red-400" : "text-slate-500"
+                                 )}>{s.extraction_status || "PENDING"}</p>
+                              </div>
+                              <div className="text-right w-32">
+                                 <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Last Override</p>
+                                 <p className="text-[10px] font-mono font-bold text-slate-400">
+                                   {s.last_extracted_at ? new Date(s.last_extracted_at).toLocaleDateString() : "Never"}
+                                 </p>
+                              </div>
+                           </div>
+                        </div>
+                      ))}
+                   </div>
+                </div>
+              </div>
+            )}
           </ScrollArea>
 
           <aside className="w-full md:w-80 bg-slate-900/50 flex flex-col shrink-0">
@@ -455,7 +522,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         </div>
 
         <div className="p-8 border-t border-white/5 bg-slate-900 flex items-center justify-between shrink-0">
-           <p className="text-[10px] font-black uppercase tracking-widest text-slate-600 font-mono">Control Unit v2.9.1 // Enhanced Error Resilience</p>
+           <p className="text-[10px] font-black uppercase tracking-widest text-slate-600 font-mono">Control Unit v3.0 // Bulk Override Engine Active</p>
            <Button onClick={onClose} variant="ghost" className="text-slate-400 hover:text-white font-black uppercase tracking-widest text-[10px]">Close Admin</Button>
         </div>
       </DialogContent>
