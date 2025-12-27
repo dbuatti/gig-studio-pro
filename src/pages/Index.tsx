@@ -288,13 +288,21 @@ const Index = () => {
     try {
       // 1. Ensure master records exist to get IDs
       const songsToSync = missingSongs.filter(s => !s.master_id);
-      let batchIds: string[] = missingSongs.filter(s => !!s.master_id).map(s => s.master_id!);
+      let workingSongs = [...songs];
 
       if (songsToSync.length > 0) {
         const synced = await syncToMasterRepertoire(user!.id, songsToSync);
-        const newIds = synced.map(s => s.master_id).filter(Boolean) as string[];
-        batchIds = [...batchIds, ...newIds];
+        // Map master_ids back to our working list
+        workingSongs = workingSongs.map(s => {
+          const match = synced.find(sync => sync.id === s.id);
+          return match ? { ...s, master_id: match.master_id } : s;
+        });
       }
+
+      const batchIds = workingSongs
+        .filter(s => missingSongs.some(m => m.id === s.id))
+        .map(s => s.master_id)
+        .filter(Boolean) as string[];
 
       if (batchIds.length === 0) {
         showError("Could not verify master records.");
@@ -308,11 +316,11 @@ const Index = () => {
 
       if (error) throw error;
 
-      // 3. CRITICAL: Merge results back into local setlist state immediately
+      // 3. Merge results back into local setlist state using the synced workingSongs
       if (data.successful > 0) {
         const resultsMap = new Map(data.results.filter((r: any) => r.status === 'SUCCESS').map((r: any) => [r.id, r.videoId]));
         
-        const updatedSongs = songs.map(s => {
+        const finalUpdatedSongs = workingSongs.map(s => {
           const matchedVideoId = resultsMap.get(s.master_id);
           if (matchedVideoId) {
             return {
@@ -324,8 +332,8 @@ const Index = () => {
           return s;
         });
 
-        // Update local state and trigger DB save for the setlist JSONB
-        await saveList(currentListId, updatedSongs);
+        // Update local state and trigger DB save
+        await saveList(currentListId, finalUpdatedSongs);
         showSuccess(`AI Engine: ${data.successful} matches bound.`);
         await fetchMasterRepertoire();
       } else {
