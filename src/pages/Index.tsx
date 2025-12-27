@@ -305,7 +305,8 @@ const Index = () => {
             </div>
           </div>
 
-          {viewMode === 'setlist' && (
+          {/* Automation Hub (Only on Repertoire) */}
+          {viewMode === 'repertoire' && (
             <SetlistStats songs={songs} goalSeconds={currentList?.time_goal} onUpdateGoal={(s) => saveList(currentListId!, songs, { time_goal: s })} />
           )}
 
