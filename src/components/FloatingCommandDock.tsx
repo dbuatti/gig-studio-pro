@@ -1,14 +1,18 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { 
   LayoutDashboard, Search, Sparkles, ShieldCheck, X, 
-  Settings, Play, FileText, Pause, BookOpen 
+  Settings, Play, FileText, Pause, BookOpen, 
+  AlertTriangle, Volume2, ShieldAlert
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSettings } from '@/hooks/use-settings';
+import { transposeNote, compareNotes } from '@/utils/keyUtils';
+import { showSuccess, showError } from '@/utils/toast';
 
 interface FloatingCommandDockProps {
   onOpenSearch: () => void;
@@ -23,7 +27,11 @@ interface FloatingCommandDockProps {
   hasPlayableSong: boolean;
   hasReadableChart: boolean;
   isPlaying: boolean;
-  onTogglePlayback: () => void; // Added missing prop
+  onTogglePlayback: () => void;
+  // New props for Safe Pitch Mode
+  currentSongHighestNote?: string;
+  currentSongPitch?: number;
+  onSafePitchToggle?: (active: boolean, safePitch: number) => void;
 }
 
 /**
@@ -43,15 +51,58 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   hasPlayableSong,
   hasReadableChart,
   isPlaying,
-  onTogglePlayback, // Added missing prop
+  onTogglePlayback,
+  currentSongHighestNote,
+  currentSongPitch,
+  onSafePitchToggle,
 }) => {
   const [isCommandHubOpen, setIsCommandHubOpen] = useState(false);
+  const [isSafePitchActive, setIsSafePitchActive] = useState(false);
+  const { safePitchMaxNote } = useSettings();
+
+  // Calculate safe pitch limit
+  const safePitchLimit = useMemo(() => {
+    if (!currentSongHighestNote || !safePitchMaxNote) return null;
+    // Calculate the semitone difference between the song's highest note and the user's safe limit
+    // Positive value means we can go up, negative means we are already over the limit
+    const semitones = compareNotes(safePitchMaxNote, currentSongHighestNote);
+    return semitones;
+  }, [currentSongHighestNote, safePitchMaxNote]);
+
+  // Effect to handle Safe Pitch Mode logic
+  useEffect(() => {
+    if (isSafePitchActive && safePitchLimit !== null) {
+      // If current pitch is already over the limit, reset to 0 or the limit
+      const currentPitch = currentSongPitch || 0;
+      if (currentPitch > safePitchLimit) {
+        onSafePitchToggle?.(false, 0);
+        setIsSafePitchActive(false);
+        showError("Current pitch exceeds safe limit. Resetting.");
+        return;
+      }
+      
+      // Apply the calculated safe pitch
+      onSafePitchToggle?.(true, safePitchLimit);
+      showSuccess(`Safe Pitch Mode Active: Max shift ${safePitchLimit} semitones`);
+    } else if (!isSafePitchActive) {
+      // Reset pitch when mode is disabled
+      onSafePitchToggle?.(false, 0);
+    }
+  }, [isSafePitchActive, safePitchLimit, currentSongPitch, onSafePitchToggle]);
 
   const toggleCommandHub = () => {
     setIsCommandHubOpen(prev => !prev);
     if (typeof window !== 'undefined' && window.navigator.vibrate) {
-      window.navigator.vibrate(40); // Haptic feedback for iPhone users
+      window.navigator.vibrate(40);
     }
+  };
+
+  const toggleSafePitch = () => {
+    if (safePitchLimit === null) {
+      showError("Please set a Safe Pitch Max Note in Preferences.");
+      return;
+    }
+    setIsSafePitchActive(prev => !prev);
   };
 
   const primaryButtons = [
@@ -123,6 +174,16 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
         showHeatmap ? "bg-amber-500 text-black" : "bg-slate-800 text-slate-400"
       ),
       tooltip: "Heatmap Overlay (H)",
+    },
+    {
+      id: 'safe-pitch',
+      icon: isSafePitchActive ? <ShieldAlert className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />,
+      onClick: toggleSafePitch,
+      className: cn(
+        "transition-colors",
+        isSafePitchActive ? "bg-emerald-600 text-white shadow-[0_0_10px_rgba(16,185,129,0.4)]" : "bg-slate-800 text-slate-400"
+      ),
+      tooltip: isSafePitchActive ? "Safe Pitch Mode: ON" : "Safe Pitch Mode: OFF",
     },
   ];
 

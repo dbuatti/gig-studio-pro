@@ -20,7 +20,7 @@ import UserGuideModal from "@/components/UserGuideModal";
 import SheetReaderMode from './SheetReaderMode';
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { showSuccess, showError, showInfo } from '@/utils/toast';
-import { calculateSemitones } from '@/utils/keyUtils';
+import { calculateSemitones, transposeKey } from '@/utils/keyUtils';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -58,7 +58,7 @@ const INITIAL_FILTERS: FilterState = {
 const Index = () => {
   const { user } = useAuth();
   const isMobile = useIsMobile();
-  const { keyPreference } = useSettings();
+  const { keyPreference, safePitchMaxNote } = useSettings();
   const navigate = useNavigate();
   
   // App State
@@ -87,7 +87,7 @@ const Index = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [isCommandHubOpen, setIsCommandHubOpen] = useState(false);
-  const [isUserGuideOpen, setIsUserGuideOpen] = useState(false); // NEW: State for User Guide Modal
+  const [isUserGuideOpen, setIsUserGuideOpen] = useState(false);
   
   const [sortMode, setSortMode] = useState<'none' | 'ready' | 'work'>(() => {
     return (localStorage.getItem('gig_sort_mode') as any) || 'none';
@@ -219,9 +219,9 @@ const Index = () => {
           pdfUrl: d.pdf_url, isMetadataConfirmed: d.is_metadata_confirmed, isKeyConfirmed: d.is_key_confirmed,
           duration_seconds: d.duration_seconds, notes: d.notes, user_tags: d.user_tags || [], resources: d.resources || [],
           isApproved: d.is_approved, preferred_reader: d.preferred_reader, ug_chords_text: d.ug_chords_text,
-          ug_chords_config: d.ug_chords_config, is_pitch_linked: d.is_pitch_linked, is_ug_link_verified: d.is_ug_link_verified,
+          ug_chords_config: d.ug_chords_config, is_pitch_linked: d.is_pitch_link_verified, is_ug_link_verified: d.is_ug_link_verified,
           sheet_music_url: d.sheet_music_url, is_sheet_verified: d.is_sheet_verified,
-          is_ug_chords_present: d.is_ug_chords_present
+          is_ug_chords_present: d.is_ug_chords_present, highest_note_original: d.highest_note_original
         })));
       }
     } catch (err) {
@@ -591,6 +591,23 @@ const Index = () => {
     return transposerRef.current?.getIsPlaying() || false;
   }, [transposerRef.current?.getIsPlaying()]);
 
+  // Safe Pitch Mode Handlers
+  const handleSafePitchToggle = useCallback((active: boolean, safePitch: number) => {
+    if (!transposerRef.current) return;
+    if (active) {
+      transposerRef.current.setPitch(safePitch);
+    } else {
+      // Reset to original pitch (0)
+      transposerRef.current.setPitch(0);
+    }
+  }, []);
+
+  // Get current song for Safe Pitch Mode
+  const currentSongForSafePitch = useMemo(() => {
+    if (!activeSongIdState) return null;
+    return songs.find(s => s.id === activeSongIdState);
+  }, [activeSongIdState, songs]);
+
   // Global Keyboard Bindings
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -626,7 +643,7 @@ const Index = () => {
         else if (isSetlistSettingsOpen) setIsSetlistSettingsOpen(false);
         else if (isRepertoirePickerOpen) setIsRepertoirePickerOpen(false);
         else if (isCommandHubOpen) setIsCommandHubOpen(false);
-        else if (isUserGuideOpen) setIsUserGuideOpen(false); // NEW: Close User Guide
+        else if (isUserGuideOpen) setIsUserGuideOpen(false);
       }
     };
 
@@ -636,7 +653,7 @@ const Index = () => {
     handleTogglePlayback, startSheetReader, isPerformanceMode, isSheetReaderMode,
     isSearchPanelOpen, isPreferencesOpen, isAdminOpen, isAuditModalOpen,
     isStudioModalOpen, isSetlistSettingsOpen, isRepertoirePickerOpen, isCommandHubOpen,
-    isUserGuideOpen // Add to dependencies
+    isUserGuideOpen
   ]);
 
   if (isPerformanceMode) {
@@ -838,7 +855,7 @@ const Index = () => {
         onRefreshRepertoire={fetchMasterRepertoire}
       />
       <ResourceAuditModal isOpen={isAuditModalOpen} onClose={() => setIsAuditModalOpen(false)} songs={songs} onVerify={handleUpdateSong} />
-      <UserGuideModal isOpen={isUserGuideOpen} onClose={() => setIsUserGuideOpen(false)} /> {/* NEW: Render UserGuideModal */}
+      <UserGuideModal isOpen={isUserGuideOpen} onClose={() => setIsUserGuideOpen(false)} />
       
       <aside ref={searchPanelRef} className={cn("w-full md:w-[450px] bg-white dark:bg-slate-900 border-l absolute right-0 top-20 bottom-0 z-40 transition-transform duration-500", isSearchPanelOpen ? "translate-x-0" : "translate-x-full")}>
         <AudioTransposer 
@@ -871,13 +888,17 @@ const Index = () => {
         onOpenAdmin={() => setIsAdminOpen(true)}
         onOpenPreferences={() => setIsPreferencesOpen(true)}
         onToggleHeatmap={() => setShowHeatmap(prev => !prev)}
-        onOpenUserGuide={() => setIsUserGuideOpen(true)} // NEW: Pass handler for User Guide
+        onOpenUserGuide={() => setIsUserGuideOpen(true)}
         showHeatmap={showHeatmap}
         viewMode={viewMode}
         hasPlayableSong={hasPlayableSong}
         hasReadableChart={hasReadableChart}
         isPlaying={isPlaying}
         onTogglePlayback={handleTogglePlayback}
+        // Pass Safe Pitch Mode props
+        currentSongHighestNote={currentSongForSafePitch?.highest_note_original}
+        currentSongPitch={currentSongForSafePitch?.pitch}
+        onSafePitchToggle={handleSafePitchToggle}
       />
     </div>
   );
