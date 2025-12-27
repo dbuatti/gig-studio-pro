@@ -4,15 +4,25 @@ import React from 'react';
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import SongStudioView from './SongStudioView';
 import { useNavigate } from 'react-router-dom';
+import { SetlistSong } from './SetlistManager';
 
 interface SongStudioModalProps {
   isOpen: boolean;
   onClose: () => void;
   gigId: string | null;
   songId: string | null;
+  visibleSongs?: SetlistSong[];
+  onSelectSong?: (id: string) => void;
 }
 
-const SongStudioModal: React.FC<SongStudioModalProps> = ({ isOpen, onClose, gigId, songId }) => {
+const SongStudioModal: React.FC<SongStudioModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  gigId, 
+  songId,
+  visibleSongs = [],
+  onSelectSong
+}) => {
   const navigate = useNavigate();
 
   if (!gigId || !songId) return null;
@@ -31,6 +41,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({ isOpen, onClose, gigI
           onClose={onClose} 
           isModal 
           onExpand={handleExpand}
+          visibleSongs={visibleSongs}
+          onSelectSong={onSelectSong}
         />
       </DialogContent>
     </Dialog>

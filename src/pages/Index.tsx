@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import AudioTransposer, { AudioTransposerRef } from "@/components/AudioTransposer";
 import SetlistManager, { SetlistSong } from "@/components/SetlistManager";
 import SetlistSelector from "@/components/SetlistSelector";
@@ -22,10 +22,11 @@ import { User as UserIcon, Loader2, Play, LayoutDashboard, Search as SearchIcon,
 import { cn } from "@/lib/utils";
 import { useSettings } from '@/hooks/use-settings';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { syncToMasterRepertoire } from '@/utils/repertoireSync';
+import { syncToMasterRepertoire, calculateReadiness } from '@/utils/repertoireSync';
 import * as Tone from 'tone';
 import { cleanYoutubeUrl } from '@/utils/youtubeUtils';
 import { useNavigate } from 'react-router-dom';
+import { FilterState } from '@/components/SetlistFilters';
 
 const Index = () => {
   const { user } = useAuth();
@@ -51,6 +52,27 @@ const Index = () => {
   const [isPlayerActive, setIsPlayerActive] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   
+  // Lifted Filter State
+  const [sortMode, setSortMode] = useState<'none' | 'ready' | 'work'>(() => {
+    const saved = localStorage.getItem('gig_sort_mode');
+    return (saved as any) || 'none';
+  });
+  const [activeFilters, setActiveFilters] = useState<FilterState>(() => {
+    const saved = localStorage.getItem('gig_active_filters');
+    return saved ? JSON.parse(saved) : {
+      hasAudio: 'all',
+      hasVideo: 'all',
+      hasChart: 'all',
+      hasPdf: 'all',
+      hasUg: 'all',
+      isConfirmed: 'all',
+      isApproved: 'all',
+      readiness: 100,
+      hasUgChords: 'all'
+    };
+  });
+  const [searchTerm, setSearchTerm] = useState("");
+
   const [masterRepertoire, setMasterRepertoire] = useState<SetlistSong[]>([]);
   const [isBulkDownloading, setIsBulkDownloading] = useState(false);
 
@@ -61,6 +83,66 @@ const Index = () => {
 
   const currentList = setlists.find(l => l.id === currentListId);
   const songs = currentList?.songs || [];
+
+  // Centralized filtering logic for shared context
+  const processedSongs = useMemo(() => {
+    let base = songs;
+
+    if (searchTerm.trim()) {
+      const q = searchTerm.toLowerCase();
+      base = base.filter(s => 
+        s.name.toLowerCase().includes(q) || 
+        s.artist?.toLowerCase().includes(q)
+      );
+    }
+
+    base = base.filter(s => {
+      const score = calculateReadiness(s);
+      if (score > activeFilters.readiness) return false;
+
+      const isItunesPreview = (url: string) => url && (url.includes('apple.com') || url.includes('itunes-assets'));
+      const hasPreview = !!s.previewUrl;
+      const isItunes = hasPreview && isItunesPreview(s.previewUrl);
+      const hasFullAudio = hasPreview && !isItunes;
+
+      if (activeFilters.hasAudio === 'full' && !hasFullAudio) return false;
+      if (activeFilters.hasAudio === 'itunes' && !isItunes) return false;
+      if (activeFilters.hasAudio === 'none' && hasFullAudio) return false;
+
+      if (activeFilters.hasVideo === 'yes' && !s.youtubeUrl) return false;
+      if (activeFilters.hasVideo === 'no' && s.youtubeUrl) return false;
+
+      if (activeFilters.hasChart === 'yes' && !(s.pdfUrl || s.leadsheetUrl || s.ugUrl || s.ug_chords_text)) return false;
+      if (activeFilters.hasChart === 'no' && (s.pdfUrl || s.leadsheetUrl || s.ugUrl || s.ug_chords_text)) return false;
+
+      if (activeFilters.hasPdf === 'yes' && !(s.pdfUrl || s.leadsheetUrl)) return false;
+      if (activeFilters.hasPdf === 'no' && (s.pdfUrl || s.leadsheetUrl)) return false;
+
+      if (activeFilters.hasUg === 'yes' && !s.ugUrl) return false;
+      if (activeFilters.hasUg === 'no' && s.ugUrl) return false;
+
+      if (activeFilters.isConfirmed === 'yes' && !s.isKeyConfirmed) return false;
+      if (activeFilters.isConfirmed === 'no' && s.isKeyConfirmed) return false;
+
+      if (activeFilters.isApproved === 'yes' && !s.isApproved) return false;
+      if (activeFilters.isApproved === 'no' && s.isApproved) return false;
+
+      const hasUgChordsText = !!(s.ug_chords_text && s.ug_chords_text.trim().length > 0);
+      if (activeFilters.hasUgChords === 'yes' && !hasUgChordsText) return false;
+      if (activeFilters.hasUgChords === 'no' && hasUgChordsText) return false;
+
+      return true;
+    });
+
+    if (sortMode === 'none') return base;
+
+    return [...base].sort((a, b) => {
+      const scoreA = calculateReadiness(a);
+      const scoreB = calculateReadiness(b);
+      return sortMode === 'ready' ? scoreB - scoreA : scoreA - scoreB;
+    });
+  }, [songs, sortMode, searchTerm, activeFilters]);
+
   const activeSongIndex = songs.findIndex(s => s.id === activeSongIdState);
   const activeSong = songs[activeSongIndex] || null;
 
@@ -348,6 +430,10 @@ const Index = () => {
     }
   };
 
+  const handleNavigateStudioSong = (songId: string) => {
+    setEditingSongId(songId);
+  };
+
   return (
     <div className="h-screen bg-slate-50 dark:bg-slate-950 flex flex-col overflow-hidden relative">
       <nav className="h-16 md:h-20 bg-white dark:bg-slate-900 border-b px-4 md:px-6 flex items-center justify-between z-30 shadow-sm shrink-0">
@@ -403,7 +489,7 @@ const Index = () => {
               <div className="xl:col-span-2 space-y-8">
                 <SetlistStats songs={songs} goalSeconds={currentList?.time_goal} onUpdateGoal={(s) => currentListId && saveList(currentListId, songs, { time_goal: s }, undefined)} onDownloadAllMissingAudio={handleDownloadAllMissingAudio} isBulkDownloading={isBulkDownloading} />
                 <SetlistManager 
-                  songs={songs} 
+                  songs={processedSongs} 
                   onRemove={(id) => currentListId && saveList(currentListId, songs.filter(s => s.id !== id), {}, undefined)} 
                   onSelect={handleSelectSong} 
                   onEdit={handleEditSong}
@@ -414,7 +500,13 @@ const Index = () => {
                   onSyncProData={() => Promise.resolve()}
                   onReorder={(ns) => currentListId && saveList(currentListId, ns, {}, undefined)} 
                   currentSongId={activeSongIdState || undefined} 
-                  onOpenAdmin={() => setIsAdminOpen(true)} 
+                  onOpenAdmin={() => setIsAdminOpen(true)}
+                  sortMode={sortMode}
+                  setSortMode={setSortMode}
+                  activeFilters={activeFilters}
+                  setActiveFilters={setActiveFilters}
+                  searchTerm={searchTerm}
+                  setSearchTerm={setSearchTerm}
                 />
               </div>
               <div className="space-y-8">
@@ -446,6 +538,8 @@ const Index = () => {
         onClose={() => setIsStudioModalOpen(false)} 
         gigId={currentListId} 
         songId={editingSongId} 
+        visibleSongs={processedSongs}
+        onSelectSong={handleNavigateStudioSong}
       />
       {isPerformanceMode && (
         <PerformanceOverlay songs={songs.filter(isPlayableMaster)} currentIndex={songs.filter(isPlayableMaster).findIndex(s => s.id === activeSongIdState)} isPlaying={isPlayerActive} progress={performanceState.progress} duration={performanceState.duration} onTogglePlayback={() => transposerRef.current?.togglePlayback()} onNext={handleNextSong} onPrevious={handlePreviousSong} onShuffle={handleShuffle} onClose={() => { setIsPerformanceMode(false); setActiveSongId(null); transposerRef.current?.stopPlayback(); }} onUpdateKey={handleUpdateKey} onUpdateSong={handleUpdateSong} analyzer={transposerRef.current?.getAnalyzer()} onOpenAdmin={() => setIsAdminOpen(true)} gigId={currentListId} />

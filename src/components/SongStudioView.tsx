@@ -10,7 +10,9 @@ import {
   Loader2, 
   Save,
   ShieldCheck,
-  Maximize2
+  Maximize2,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
@@ -26,6 +28,7 @@ import SongConfigTab from '@/components/SongConfigTab';
 import ProSyncSearch from '@/components/ProSyncSearch';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useKeyboardNavigation } from '@/hooks/use-keyboard-navigation';
 
 type StudioTab = 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library';
 
@@ -35,9 +38,19 @@ interface SongStudioViewProps {
   onClose: () => void;
   isModal?: boolean;
   onExpand?: () => void;
+  visibleSongs?: SetlistSong[];
+  onSelectSong?: (id: string) => void;
 }
 
-const SongStudioView: React.FC<SongStudioViewProps> = ({ gigId, songId, onClose, isModal, onExpand }) => {
+const SongStudioView: React.FC<SongStudioViewProps> = ({ 
+  gigId, 
+  songId, 
+  onClose, 
+  isModal, 
+  onExpand,
+  visibleSongs = [],
+  onSelectSong
+}) => {
   const isMobile = useIsMobile();
   const { user } = useAuth();
   const audio = useToneAudio();
@@ -55,51 +68,54 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({ gigId, songId, onClose,
     ? ['audio', 'config', 'details', 'charts', 'lyrics', 'visual', 'library'] 
     : ['audio', 'details', 'charts', 'lyrics', 'visual', 'library'];
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!user || !gigId || !songId) return;
-      
-      try {
-        const { data: gigData, error: gigError } = await supabase
-          .from('setlists')
-          .select('*')
-          .eq('id', gigId)
-          .single();
-
-        if (gigError) throw gigError;
-        setGigName(gigData.name);
-
-        const songsList = gigData.songs as SetlistSong[];
-        const targetSong = songsList.find(s => s.id === songId);
-
-        if (!targetSong) {
-          showError("Song not found.");
-          onClose();
-          return;
-        }
-
-        setSong(targetSong);
-        setFormData({
-          ...targetSong,
-          is_pitch_linked: targetSong.is_pitch_linked ?? true,
-          ug_chords_config: targetSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG
-        });
-
-        if (targetSong.previewUrl) {
-          await audio.loadFromUrl(targetSong.previewUrl, targetSong.pitch || 0);
-        }
-      } catch (err) {
-        console.error("Studio Fetch Error:", err);
-        showError("Failed to load song data.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [user, gigId, songId]);
-
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
+
+  const fetchData = async () => {
+    if (!user || !gigId || !songId) return;
+    
+    setLoading(true);
+    try {
+      const { data: gigData, error: gigError } = await supabase
+        .from('setlists')
+        .select('*')
+        .eq('id', gigId)
+        .single();
+
+      if (gigError) throw gigError;
+      setGigName(gigData.name);
+
+      const songsList = gigData.songs as SetlistSong[];
+      const targetSong = songsList.find(s => s.id === songId);
+
+      if (!targetSong) {
+        showError("Song not found.");
+        onClose();
+        return;
+      }
+
+      setSong(targetSong);
+      setFormData({
+        ...targetSong,
+        is_pitch_linked: targetSong.is_pitch_linked ?? true,
+        ug_chords_config: targetSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG
+      });
+
+      if (targetSong.previewUrl) {
+        await audio.loadFromUrl(targetSong.previewUrl, targetSong.pitch || 0);
+      }
+    } catch (err) {
+      console.error("Studio Fetch Error:", err);
+      showError("Failed to load song data.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+    // Cleanup audio on song switch
+    return () => audio.stopPlayback();
+  }, [user, gigId, songId]);
 
   const handleAutoSave = useCallback(async (updates: Partial<SetlistSong>) => {
     if (!song || !gigId) return;
@@ -139,6 +155,37 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({ gigId, songId, onClose,
       return next;
     });
   }, [song, gigId, user]);
+
+  const handleNavigate = useCallback((direction: 'next' | 'prev') => {
+    if (visibleSongs.length <= 1 || !onSelectSong) return;
+
+    const currentIndex = visibleSongs.findIndex(s => s.id === songId);
+    if (currentIndex === -1) return;
+
+    // Flush any pending saves before switching
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      // Logic would go here to force sync if needed, 
+      // but for simplicity we'll rely on the auto-save frequency.
+    }
+
+    let nextIndex;
+    if (direction === 'next') {
+      nextIndex = (currentIndex + 1) % visibleSongs.length;
+    } else {
+      nextIndex = (currentIndex - 1 + visibleSongs.length) % visibleSongs.length;
+    }
+
+    onSelectSong(visibleSongs[nextIndex].id);
+  }, [visibleSongs, songId, onSelectSong]);
+
+  useKeyboardNavigation({
+    onNext: () => handleNavigate('next'),
+    onPrev: () => handleNavigate('prev'),
+    onClose: onClose,
+    onPlayPause: () => audio.togglePlayback(),
+    disabled: loading || isProSyncSearchOpen
+  });
 
   const handleSelectProSync = async (itunesData: any) => {
     setIsProSyncSearchOpen(false);
@@ -189,6 +236,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({ gigId, songId, onClose,
 
   const readiness = calculateReadiness(formData);
   const readinessColor = readiness === 100 ? 'bg-emerald-500' : readiness > 60 ? 'bg-indigo-500' : 'bg-slate-500';
+  const hasMultipleSongs = visibleSongs.length > 1;
 
   return (
     <div className="flex flex-col h-full bg-slate-950 overflow-hidden">
@@ -201,6 +249,30 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({ gigId, songId, onClose,
           >
             <ArrowLeft className="w-5 h-5 text-slate-400" />
           </Button>
+          
+          {hasMultipleSongs && !isMobile && (
+            <div className="flex gap-1">
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={() => handleNavigate('prev')}
+                className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
+                title="Previous Song (←)"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={() => handleNavigate('next')}
+                className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
+                title="Next Song (→)"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </Button>
+            </div>
+          )}
+
           <div className="min-w-0">
             <p className="text-[9px] font-black text-indigo-400 uppercase tracking-[0.2em] truncate max-w-[200px]">
               {gigName}

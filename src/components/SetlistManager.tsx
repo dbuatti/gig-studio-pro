@@ -64,7 +64,7 @@ export interface SetlistSong {
 }
 
 interface SetlistManagerProps {
-  songs: SetlistSong[];
+  songs: SetlistSong[]; // This is now already processed (filtered/sorted)
   onRemove: (id: string) => void;
   onSelect: (song: SetlistSong) => void;
   onEdit: (song: SetlistSong) => void;
@@ -76,12 +76,16 @@ interface SetlistManagerProps {
   onReorder: (newSongs: SetlistSong[]) => void;
   currentSongId?: string;
   onOpenAdmin?: () => void;
+  sortMode: 'none' | 'ready' | 'work';
+  setSortMode: (mode: 'none' | 'ready' | 'work') => void;
+  activeFilters: FilterState;
+  setActiveFilters: (filters: FilterState) => void;
+  searchTerm: string;
+  setSearchTerm: (term: string) => void;
 }
 
-type SortMode = 'none' | 'ready' | 'work';
-
 const SetlistManager: React.FC<SetlistManagerProps> = ({
-  songs,
+  songs: processedSongs,
   onRemove,
   onSelect,
   onEdit,
@@ -91,106 +95,31 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   onSyncProData,
   onReorder,
   currentSongId,
-  onOpenAdmin
+  onOpenAdmin,
+  sortMode,
+  setSortMode,
+  activeFilters,
+  setActiveFilters,
+  searchTerm,
+  setSearchTerm
 }) => {
   const isMobile = useIsMobile();
   const { keyPreference: globalPreference } = useSettings();
-  const [sortMode, setSortMode] = useState<SortMode>(() => {
-    const saved = localStorage.getItem('gig_sort_mode');
-    return (saved as SortMode) || 'none';
-  });
-  const [activeFilters, setActiveFilters] = useState<FilterState>(() => {
-    const saved = localStorage.getItem('gig_active_filters');
-    return saved ? JSON.parse(saved) : {
-      hasAudio: 'all',
-      hasVideo: 'all',
-      hasChart: 'all',
-      hasPdf: 'all',
-      hasUg: 'all',
-      isConfirmed: 'all',
-      isApproved: 'all',
-      readiness: 100,
-      hasUgChords: 'all'
-    };
-  });
-  const [searchTerm, setSearchTerm] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  useEffect(() => {
-    localStorage.setItem('gig_sort_mode', sortMode);
-    localStorage.setItem('gig_active_filters', JSON.stringify(activeFilters));
-  }, [sortMode, activeFilters]);
-
   const isItunesPreview = (url: string) => url && (url.includes('apple.com') || url.includes('itunes-assets'));
-
-  const processedSongs = useMemo(() => {
-    let base = songs;
-
-    if (searchTerm.trim()) {
-      const q = searchTerm.toLowerCase();
-      base = base.filter(s => 
-        s.name.toLowerCase().includes(q) || 
-        s.artist?.toLowerCase().includes(q)
-      );
-    }
-
-    base = base.filter(s => {
-      const score = calculateReadiness(s);
-      if (score > activeFilters.readiness) return false;
-
-      const hasPreview = !!s.previewUrl;
-      const isItunes = hasPreview && isItunesPreview(s.previewUrl);
-      const hasFullAudio = hasPreview && !isItunes;
-
-      if (activeFilters.hasAudio === 'full' && !hasFullAudio) return false;
-      if (activeFilters.hasAudio === 'itunes' && !isItunes) return false;
-      if (activeFilters.hasAudio === 'none' && hasFullAudio) return false;
-
-      if (activeFilters.hasVideo === 'yes' && !s.youtubeUrl) return false;
-      if (activeFilters.hasVideo === 'no' && s.youtubeUrl) return false;
-
-      if (activeFilters.hasChart === 'yes' && !(s.pdfUrl || s.leadsheetUrl || s.ugUrl || s.ug_chords_text)) return false;
-      if (activeFilters.hasChart === 'no' && (s.pdfUrl || s.leadsheetUrl || s.ugUrl || s.ug_chords_text)) return false;
-
-      if (activeFilters.hasPdf === 'yes' && !(s.pdfUrl || s.leadsheetUrl)) return false;
-      if (activeFilters.hasPdf === 'no' && (s.pdfUrl || s.leadsheetUrl)) return false;
-
-      if (activeFilters.hasUg === 'yes' && !s.ugUrl) return false;
-      if (activeFilters.hasUg === 'no' && s.ugUrl) return false;
-
-      if (activeFilters.isConfirmed === 'yes' && !s.isKeyConfirmed) return false;
-      if (activeFilters.isConfirmed === 'no' && s.isKeyConfirmed) return false;
-
-      if (activeFilters.isApproved === 'yes' && !s.isApproved) return false;
-      if (activeFilters.isApproved === 'no' && s.isApproved) return false;
-
-      const hasUgChordsText = !!(s.ug_chords_text && s.ug_chords_text.trim().length > 0);
-      if (activeFilters.hasUgChords === 'yes' && !hasUgChordsText) return false;
-      if (activeFilters.hasUgChords === 'no' && hasUgChordsText) return false;
-
-      return true;
-    });
-
-    if (sortMode === 'none') return base;
-
-    return [...base].sort((a, b) => {
-      const scoreA = calculateReadiness(a);
-      const scoreB = calculateReadiness(b);
-      return sortMode === 'ready' ? scoreB - scoreA : scoreA - scoreB;
-    });
-  }, [songs, sortMode, searchTerm, activeFilters]);
 
   const handleMove = (id: string, direction: 'up' | 'down') => {
     if (sortMode !== 'none' || searchTerm) return;
     
-    const index = songs.findIndex(s => s.id === id);
+    const index = processedSongs.findIndex(s => s.id === id);
     if (index === -1) return;
     
     if (direction === 'up' && index === 0) return;
-    if (direction === 'down' && index === songs.length - 1) return;
+    if (direction === 'down' && index === processedSongs.length - 1) return;
     
-    const newSongs = [...songs];
+    const newSongs = [...processedSongs];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     [newSongs[index], newSongs[targetIndex]] = [newSongs[targetIndex], newSongs[index]];
     onReorder(newSongs);
