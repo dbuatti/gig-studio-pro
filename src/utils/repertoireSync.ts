@@ -66,6 +66,11 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       is_ug_chords_present: !!(song.ug_chords_text && song.ug_chords_text.trim().length > 0),
       is_pitch_linked: song.is_pitch_linked ?? true,
       highest_note_original: song.highest_note_original || null,
+      // Sync tracking fields
+      sync_status: (song as any).sync_status || 'IDLE',
+      last_sync_log: (song as any).last_sync_log || null,
+      auto_synced: (song as any).auto_synced || false,
+      metadata_source: (song as any).metadata_source || null,
       // Maintenance fields
       extraction_status: (song as any).extraction_status || 'PENDING',
       source_type: (song as any).source_type || 'YOUTUBE'

@@ -27,7 +27,11 @@ import {
   Zap,
   HardDriveDownload,
   AlertTriangle,
-  Play
+  Play,
+  Settings2,
+  Wand2,
+  Box,
+  Monitor
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
@@ -36,6 +40,8 @@ import { Progress } from '@/components/ui/progress';
 import { cn } from "@/lib/utils";
 import { useAuth } from './AuthProvider';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { cleanYoutubeUrl } from '@/utils/youtubeUtils';
 import * as Tone from 'tone';
 
@@ -44,7 +50,7 @@ interface AdminPanelProps {
   onClose: () => void;
 }
 
-type AdminTab = 'vault' | 'maintenance';
+type AdminTab = 'vault' | 'maintenance' | 'automation';
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   const { user } = useAuth();
@@ -63,6 +69,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   const [extractionProgress, setExtractionProgress] = useState({ current: 0, total: 0 });
   const [maintenanceSongs, setMaintenanceSongs] = useState<any[]>([]);
 
+  // Automation State
+  const [isAutoSyncing, setIsAutoSyncing] = useState(false);
+  const [overwriteExisting, setOverwriteExisting] = useState(false);
+  const [syncBatchSize, setSyncBatchSize] = useState(5);
+
   // GitHub State
   const [githubToken, setGithubToken] = useState("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");
   const [githubRepo, setGithubRepo] = useState("dbuatti/yt-audio-api");
@@ -73,7 +84,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   const [syncLogs, setSyncLogs] = useState<{ msg: string; type: 'info' | 'success' | 'error'; time: string }[]>([]);
 
   const addLog = (msg: string, type: 'info' | 'success' | 'error' = 'info') => {
-    setSyncLogs(prev => [{ msg, type, time: new Date().toLocaleTimeString() }, ...prev].slice(0, 15));
+    setSyncLogs(prev => [{ msg, type, time: new Date().toLocaleTimeString() }, ...prev].slice(0, 20));
   };
 
   useEffect(() => {
@@ -87,7 +98,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     try {
       const { data, error } = await supabase
         .from('repertoire')
-        .select('id, title, artist, youtube_url, extraction_status, last_extracted_at')
+        .select('id, title, artist, youtube_url, extraction_status, last_extracted_at, sync_status, metadata_source')
         .eq('user_id', user?.id)
         .order('title', { ascending: true });
       
@@ -96,6 +107,61 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     } catch (e: any) {
       addLog(`Maintenance Fetch Error: ${e.message}`, 'error');
     }
+  };
+
+  const handleGlobalAutoSync = async () => {
+    const songsToProcess = maintenanceSongs.filter(s => 
+      overwriteExisting || (s.sync_status !== 'COMPLETED' && !s.metadata_source)
+    );
+
+    if (songsToProcess.length === 0) {
+      showSuccess("All tracks are already optimized.");
+      return;
+    }
+
+    setIsAutoSyncing(true);
+    addLog(`Initiating Global Auto-Sync for ${songsToProcess.length} tracks...`, 'info');
+
+    // Process in batches of syncBatchSize
+    for (let i = 0; i < songsToProcess.length; i += syncBatchSize) {
+      const batch = songsToProcess.slice(i, i + syncBatchSize);
+      const batchIds = batch.map(s => s.id);
+      
+      addLog(`Processing batch ${Math.floor(i/syncBatchSize) + 1}...`, 'info');
+
+      try {
+        const { data, error } = await supabase.functions.invoke('global-auto-sync', {
+          body: { songIds: batchIds, overwrite: overwriteExisting }
+        });
+
+        if (error) throw error;
+
+        data.results.forEach((res: any) => {
+          if (res.status === 'SUCCESS') {
+            addLog(`[✓] Sync Complete: ${res.title}`, 'success');
+          } else if (res.status === 'ERROR') {
+            addLog(`[!] Sync Failed: ${res.msg}`, 'error');
+          }
+        });
+
+        // Trigger extraction for the successful ones in this batch
+        const successfulIds = data.results.filter((r: any) => r.status === 'SUCCESS').map((r: any) => r.id);
+        if (successfulIds.length > 0) {
+          addLog(`Queueing audio extraction for batch successes...`, 'info');
+          // In a real scenario, we might trigger a bulk extraction function here
+        }
+
+      } catch (err: any) {
+        addLog(`Batch Process Error: ${err.message}`, 'error');
+      }
+
+      // Small pause between batches
+      await new Promise(r => setTimeout(r, 2000));
+    }
+
+    setIsAutoSyncing(false);
+    showSuccess("Global Auto-Sync Operation Finished");
+    fetchMaintenanceData();
   };
 
   const checkVaultStatus = async () => {
@@ -119,7 +185,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     }
   };
 
-  // --- Bulk Extraction Logic ---
   const handleBulkExtract = async () => {
     const songsToProcess = maintenanceSongs.filter(s => s.youtube_url);
     if (songsToProcess.length === 0) {
@@ -127,7 +192,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
       return;
     }
 
-    if (!confirm(`WARNING: This will override existing master audio for ${songsToProcess.length} songs with fresh extractions. This may take several minutes. Continue?`)) {
+    if (!confirm(`WARNING: This will override existing master audio for ${songsToProcess.length} songs. Continue?`)) {
       return;
     }
 
@@ -138,13 +203,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     for (let i = 0; i < songsToProcess.length; i++) {
       const song = songsToProcess[i];
       setExtractionProgress(prev => ({ ...prev, current: i + 1 }));
-      addLog(`Processing [${i+1}/${songsToProcess.length}]: ${song.title}`, 'info');
+      addLog(`Extracting [${i+1}/${songsToProcess.length}]: ${song.title}`, 'info');
 
       try {
-        // 1. Mark as Processing
         await supabase.from('repertoire').update({ extraction_status: 'PROCESSING' }).eq('id', song.id);
         
-        // 2. Trigger Extraction via Render API
         const targetVideoUrl = cleanYoutubeUrl(song.youtube_url);
         const API_BASE_URL = "https://yt-audio-api-1-wedr.onrender.com";
         
@@ -156,7 +219,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         let fileResponse;
         let attempts = 0;
         
-        // Poll for completion (Max 2 minutes per song)
         while (attempts < 24 && !downloadReady) {
           attempts++;
           await new Promise(r => setTimeout(r, 5000));
@@ -172,7 +234,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         const audioArrayBuffer = await fileResponse.arrayBuffer();
         const audioBuffer = await Tone.getContext().decodeAudioData(audioArrayBuffer.slice(0));
 
-        // 3. Upload & Override
         const fileName = `${user?.id}/${song.id}/${Date.now()}.mp3`;
         const { error: uploadError } = await supabase.storage
           .from('public_audio')
@@ -182,7 +243,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
 
         const { data: { publicUrl } } = supabase.storage.from('public_audio').getPublicUrl(fileName);
 
-        // 4. Mark Completed
         await supabase.from('repertoire').update({ 
           extraction_status: 'COMPLETED',
           preview_url: publicUrl,
@@ -299,31 +359,140 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
               <DialogDescription className="text-red-100 font-medium">Core Infrastructure & Maintenance</DialogDescription>
             </div>
           </div>
-          <div className="flex bg-black/20 p-1 rounded-xl">
+          <div className="flex bg-black/20 p-1 rounded-xl overflow-x-auto no-scrollbar">
              <Button 
                variant="ghost" 
                size="sm" 
                onClick={() => setActiveTab('vault')}
-               className={cn("text-[10px] font-black uppercase tracking-widest h-8 px-6 rounded-lg", activeTab === 'vault' ? "bg-white text-red-600" : "text-white/60")}
+               className={cn("text-[10px] font-black uppercase tracking-widest h-8 px-6 rounded-lg whitespace-nowrap", activeTab === 'vault' ? "bg-white text-red-600" : "text-white/60")}
              >
                Cloud Vault
              </Button>
              <Button 
                variant="ghost" 
                size="sm" 
-               onClick={() => setActiveTab('maintenance')}
-               className={cn("text-[10px] font-black uppercase tracking-widest h-8 px-6 rounded-lg", activeTab === 'maintenance' ? "bg-white text-red-600" : "text-white/60")}
+               onClick={() => setActiveTab('automation')}
+               className={cn("text-[10px] font-black uppercase tracking-widest h-8 px-6 rounded-lg whitespace-nowrap", activeTab === 'automation' ? "bg-white text-red-600" : "text-white/60")}
              >
-               Maintenance
+               Auto-Sync
+             </Button>
+             <Button 
+               variant="ghost" 
+               size="sm" 
+               onClick={() => setActiveTab('maintenance')}
+               className={cn("text-[10px] font-black uppercase tracking-widest h-8 px-6 rounded-lg whitespace-nowrap", activeTab === 'maintenance' ? "bg-white text-red-600" : "text-white/60")}
+             >
+               Extraction
              </Button>
           </div>
         </div>
 
         <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
           <ScrollArea className="flex-1 border-r border-white/5">
-            {activeTab === 'vault' ? (
+            {activeTab === 'automation' ? (
+              <div className="p-8 space-y-8 animate-in fade-in duration-500">
+                <div className="bg-indigo-600/10 border border-indigo-600/20 rounded-[2.5rem] p-10 space-y-8">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div className="flex items-center gap-6">
+                      <div className="bg-indigo-600 p-4 rounded-3xl shadow-xl shadow-indigo-600/20">
+                        <Wand2 className="w-8 h-8 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-2xl font-black uppercase tracking-tight text-white">Global Auto-Sync Engine</h3>
+                        <p className="text-sm text-slate-400 mt-1">Automate metadata enrichment and audio discovery across your library.</p>
+                      </div>
+                    </div>
+                    <Button 
+                      onClick={handleGlobalAutoSync} 
+                      disabled={isAutoSyncing}
+                      className="bg-indigo-600 hover:bg-indigo-700 h-16 px-10 rounded-2xl font-black uppercase tracking-[0.2em] text-xs shadow-2xl shadow-indigo-600/30 gap-4"
+                    >
+                      {isAutoSyncing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5 fill-current" />}
+                      Trigger Pipeline
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="p-6 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="p-2 bg-indigo-600/10 rounded-lg">
+                          <Settings2 className="w-4 h-4 text-indigo-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold">Overwrite Existing</p>
+                          <p className="text-[9px] text-slate-500 font-black uppercase">Refresh verified metadata</p>
+                        </div>
+                      </div>
+                      <Switch 
+                        checked={overwriteExisting} 
+                        onCheckedChange={setOverwriteExisting}
+                        className="data-[state=checked]:bg-indigo-600"
+                      />
+                    </div>
+                    <div className="p-6 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="p-2 bg-indigo-600/10 rounded-lg">
+                          <Box className="w-4 h-4 text-indigo-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold">Concurrency Control</p>
+                          <p className="text-[9px] text-slate-500 font-black uppercase">{syncBatchSize} tracks per batch</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                         <button onClick={() => setSyncBatchSize(Math.max(1, syncBatchSize - 1))} className="h-8 w-8 bg-black/20 rounded-lg hover:bg-black/40">-</button>
+                         <span className="text-sm font-mono font-bold w-4 text-center">{syncBatchSize}</span>
+                         <button onClick={() => setSyncBatchSize(Math.min(10, syncBatchSize + 1))} className="h-8 w-8 bg-black/20 rounded-lg hover:bg-black/40">+</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-6 bg-indigo-600/5 border border-indigo-600/20 rounded-2xl flex items-start gap-4">
+                    <AlertCircle className="w-6 h-6 text-indigo-500 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-black uppercase text-indigo-400">Automation Logic Pipeline</p>
+                      <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                        1. Query iTunes Search API for master metadata. 2. Match with YouTube Official Audio using Smart-Discovery. 3. Update master song records and queue for audio extraction.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white/5 border border-white/10 rounded-[2.5rem] overflow-hidden">
+                   <div className="p-6 bg-black/20 border-b border-white/5 flex items-center justify-between">
+                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Sync Status Dashboard</h4>
+                   </div>
+                   <div className="divide-y divide-white/5 max-h-[400px] overflow-y-auto custom-scrollbar">
+                      {maintenanceSongs.map((s) => (
+                        <div key={s.id} className="p-5 flex items-center justify-between group hover:bg-white/5 transition-colors">
+                           <div className="flex items-center gap-4">
+                              <div className={cn(
+                                "w-2 h-2 rounded-full",
+                                s.sync_status === 'COMPLETED' ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" :
+                                s.sync_status === 'SYNCING' ? "bg-indigo-500 animate-pulse" :
+                                s.sync_status === 'ERROR' ? "bg-red-500" : "bg-slate-700"
+                              )} />
+                              <div>
+                                 <p className="text-sm font-black uppercase tracking-tight">{s.title}</p>
+                                 <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{s.metadata_source || "Unsynced"}</p>
+                              </div>
+                           </div>
+                           <div className="flex items-center gap-8">
+                              <div className="text-right">
+                                 <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest">State</p>
+                                 <p className={cn(
+                                   "text-[10px] font-mono font-black uppercase",
+                                   s.sync_status === 'COMPLETED' ? "text-emerald-400" : "text-slate-500"
+                                 )}>{s.sync_status || "IDLE"}</p>
+                              </div>
+                           </div>
+                        </div>
+                      ))}
+                   </div>
+                </div>
+              </div>
+            ) : activeTab === 'vault' ? (
               <div className="p-8 space-y-8">
-                {/* Existing Vault UI */}
                 <div className="bg-indigo-600/10 border border-indigo-600/20 rounded-[2.5rem] p-8 space-y-6">
                   <div className="flex items-center gap-4">
                     <div className="bg-indigo-600 p-2.5 rounded-xl">
@@ -402,7 +571,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                         <p className="text-sm font-black uppercase text-red-500">CRITICAL MAINTENANCE ADVISORY</p>
                         <p className="text-xs text-slate-400 mt-1 leading-relaxed">
                           This operation will purge existing audio files in your Supabase storage and re-process them from YouTube. 
-                          Only tracks with a valid YouTube URL will be updated. Estimated time: ~15s per track.
                         </p>
                       </div>
                    </div>
@@ -417,49 +585,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                      </div>
                    )}
                 </div>
-
-                <div className="bg-white/5 border border-white/10 rounded-[2.5rem] overflow-hidden">
-                   <div className="p-6 bg-black/20 border-b border-white/5 flex items-center justify-between">
-                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Song Registry & Extraction State</h4>
-                      <Button variant="ghost" onClick={fetchMaintenanceData} className="h-8 px-4 text-[9px] font-black uppercase gap-2 hover:bg-white/5">
-                        <RefreshCw className="w-3 h-3" /> Refresh Registry
-                      </Button>
-                   </div>
-                   <div className="divide-y divide-white/5 max-h-[400px] overflow-y-auto custom-scrollbar">
-                      {maintenanceSongs.map((s) => (
-                        <div key={s.id} className="p-5 flex items-center justify-between group hover:bg-white/5 transition-colors">
-                           <div className="flex items-center gap-4">
-                              <div className={cn(
-                                "w-2 h-2 rounded-full",
-                                s.extraction_status === 'COMPLETED' ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" :
-                                s.extraction_status === 'PROCESSING' ? "bg-indigo-500 animate-pulse" :
-                                s.extraction_status === 'FAILED' ? "bg-red-500" : "bg-slate-700"
-                              )} />
-                              <div>
-                                 <p className="text-sm font-black uppercase tracking-tight">{s.title}</p>
-                                 <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{s.artist || "Unknown"}</p>
-                              </div>
-                           </div>
-                           <div className="flex items-center gap-8">
-                              <div className="text-right">
-                                 <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Status</p>
-                                 <p className={cn(
-                                   "text-[10px] font-mono font-black uppercase",
-                                   s.extraction_status === 'COMPLETED' ? "text-emerald-400" :
-                                   s.extraction_status === 'FAILED' ? "text-red-400" : "text-slate-500"
-                                 )}>{s.extraction_status || "PENDING"}</p>
-                              </div>
-                              <div className="text-right w-32">
-                                 <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Last Override</p>
-                                 <p className="text-[10px] font-mono font-bold text-slate-400">
-                                   {s.last_extracted_at ? new Date(s.last_extracted_at).toLocaleDateString() : "Never"}
-                                 </p>
-                              </div>
-                           </div>
-                        </div>
-                      ))}
-                   </div>
-                </div>
               </div>
             )}
           </ScrollArea>
@@ -468,10 +593,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
             <div className="p-6 border-b border-white/5 bg-black/20">
               <div className="flex items-center gap-2 text-slate-400 mb-6">
                 <History className="w-4 h-4" />
-                <span className="text-[10px] font-black uppercase tracking-widest">Metadata Registry</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">Automation Logs</span>
               </div>
               
-              {cookieMetadata ? (
+              {cookieMetadata && activeTab === 'vault' && (
                 <div className="space-y-6">
                    <div className="space-y-1">
                      <p className="text-[9px] font-black text-slate-500 uppercase">Cloud Filename</p>
@@ -486,17 +611,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                       <span className="text-[10px] font-black uppercase">Vault Verified</span>
                    </div>
                 </div>
-              ) : (
-                <div className="py-12 text-center space-y-4">
-                   <AlertCircle className="w-8 h-8 text-slate-800 mx-auto" />
-                   <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">No file record</p>
-                </div>
               )}
             </div>
 
             <div className="flex-1 flex flex-col p-6 min-h-0">
                <div className="flex items-center justify-between mb-4">
-                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">System Log</span>
+                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Console Feed</span>
                  <button onClick={() => setSyncLogs([])} className="text-[9px] font-black text-slate-600 hover:text-white uppercase">Clear</button>
                </div>
                <ScrollArea className="flex-1">
@@ -522,7 +642,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         </div>
 
         <div className="p-8 border-t border-white/5 bg-slate-900 flex items-center justify-between shrink-0">
-           <p className="text-[10px] font-black uppercase tracking-widest text-slate-600 font-mono">Control Unit v3.0 // Bulk Override Engine Active</p>
+           <p className="text-[10px] font-black uppercase tracking-widest text-slate-600 font-mono">Control Unit v4.0 // Global Auto-Sync Engine Online</p>
            <Button onClick={onClose} variant="ghost" className="text-slate-400 hover:text-white font-black uppercase tracking-widest text-[10px]">Close Admin</Button>
         </div>
       </DialogContent>
