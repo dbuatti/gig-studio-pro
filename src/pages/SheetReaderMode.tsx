@@ -519,21 +519,25 @@ const SheetReaderMode: React.FC = () => {
         <div className="h-full w-full">{chartContent}</div>
       </main>
 
-      {/* Floating Dock */}
-      <FloatingCommandDock
-        onOpenSearch={() => setIsRepertoirePickerOpen(true)}
-        onOpenPractice={togglePlayback}
-        onOpenAdmin={() => setIsResourceAuditOpen(true)}
-        onOpenPreferences={() => setIsPreferencesOpen(true)}
-        hasPlayableSong={!!currentSong?.previewUrl}
-        hasReadableChart={true}
-        isPlaying={isPlaying}
-        onTogglePlayback={togglePlayback}
-        isReaderMode={true}
-        onSetMenuOpen={setIsOverlayOpen}
-        onSetUiVisible={setIsUiVisible}
-        isMenuOpen={isOverlayOpen}
-      />
+<FloatingCommandDock
+  onOpenSearch={() => setIsRepertoirePickerOpen(true)}
+  onOpenPractice={togglePlayback}
+  onOpenReader={() => {}} // Required prop — no action needed in reader mode
+  onOpenAdmin={() => setIsResourceAuditOpen(true)}
+  onOpenPreferences={() => setIsPreferencesOpen(true)}
+  onToggleHeatmap={() => {}} // Required — not used in reader
+  onOpenUserGuide={() => {}} // Required — placeholder
+  showHeatmap={false} // Required boolean
+  viewMode="repertoire" // Required string
+  hasPlayableSong={!!currentSong?.previewUrl}
+  hasReadableChart={true}
+  isPlaying={isPlaying}
+  onTogglePlayback={togglePlayback}
+  isReaderMode={true}
+  onSetMenuOpen={setIsOverlayOpen}
+  onSetUiVisible={setIsUiVisible}
+  isMenuOpen={isOverlayOpen}
+/>
 
       {/* Modals */}
       <RepertoirePicker
