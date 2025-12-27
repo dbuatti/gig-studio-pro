@@ -169,6 +169,75 @@ const Index = () => {
     });
   }, [songs, sortMode, searchTerm, activeFilters]);
 
+  // Moved useCallback definitions before useEffect
+  const fetchMasterRepertoire = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data } = await supabase.from('repertoire').select('*').eq('user_id', user.id).order('title');
+      if (data) {
+        const mappedRepertoire = data.map(d => ({
+          id: d.id, master_id: d.id, name: d.title, artist: d.artist, bpm: d.bpm, lyrics: d.lyrics,
+          originalKey: d.original_key, targetKey: d.target_key, pitch: d.pitch, ugUrl: d.ug_url,
+          previewUrl: d.preview_url, youtubeUrl: d.youtube_url, appleMusicUrl: d.apple_music_url,
+          pdfUrl: d.pdf_url, isMetadataConfirmed: d.is_metadata_confirmed, isKeyConfirmed: d.is_key_confirmed,
+          duration_seconds: d.duration_seconds, notes: d.notes, user_tags: d.user_tags || [], resources: d.resources || [],
+          isApproved: d.is_approved, preferred_reader: d.preferred_reader, ug_chords_text: d.ug_chords_text,
+          ug_chords_config: d.ug_chords_config, is_pitch_linked: d.is_pitch_link_verified, is_ug_link_verified: d.is_ug_link_verified,
+          sheet_music_url: d.sheet_music_url, is_sheet_verified: d.is_sheet_verified,
+          is_ug_chords_present: d.is_ug_chords_present, highest_note_original: d.highest_note_original
+        }));
+        setMasterRepertoire(prevMasterRepertoire => {
+          if (JSON.stringify(mappedRepertoire) !== JSON.stringify(prevMasterRepertoire)) {
+            return mappedRepertoire;
+          }
+          return prevMasterRepertoire;
+        });
+      }
+    } catch (err) {
+      console.error("Error fetching master repertoire:", err);
+      showError("Failed to load master repertoire.");
+    }
+  }, [user]); // Dependency for fetchMasterRepertoire useCallback
+
+  const fetchSetlists = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.from('setlists').select('*').order('updated_at', { ascending: false });
+      if (data && data.length > 0) {
+        const newSetlists = data.map(d => ({ id: d.id, name: d.name, songs: (d.songs as any[]) || [], time_goal: d.time_goal }));
+        setSetlists(prevSetlists => {
+          if (JSON.stringify(newSetlists) !== JSON.stringify(prevSetlists)) {
+            return newSetlists;
+          }
+          return prevSetlists;
+        });
+        
+        let activeId = currentListId; // Use currentListId from closure
+        
+        if (activeId && !data.find(d => d.id === activeId)) {
+          activeId = null;
+        }
+        
+        if (!activeId && data.length > 0) {
+          activeId = data[0].id;
+        }
+        
+        if (activeId && activeId !== currentListId) { // Only update if it's actually different
+          setCurrentListId(activeId);
+          localStorage.setItem('active_gig_id', activeId);
+        }
+      } else {
+        setSetlists([]); // Clear setlists if none found
+        if (currentListId !== null) { // Only update if it's not already null
+          setCurrentListId(null);
+          localStorage.removeItem('active_gig_id');
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching setlists:", err);
+      showError("Failed to load setlists.");
+    }
+  }, [currentListId]); // No dependencies for fetchSetlists useCallback
+
   useEffect(() => {
     if (user) {
       fetchSetlists();
@@ -176,14 +245,14 @@ const Index = () => {
     }
     const clockInterval = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(clockInterval);
-  }, [user]);
+  }, [user, fetchSetlists, fetchMasterRepertoire]);
 
   useEffect(() => {
     localStorage.setItem('gig_view_mode', viewMode);
     if (viewMode === 'repertoire' && user) {
       fetchMasterRepertoire();
     }
-  }, [viewMode, user]);
+  }, [viewMode, user, fetchMasterRepertoire]); // Added fetchMasterRepertoire to dependencies
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -203,65 +272,6 @@ const Index = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isSearchPanelOpen]);
-
-  const fetchMasterRepertoire = async () => {
-    if (!user) return;
-    try {
-      const { data } = await supabase.from('repertoire').select('*').eq('user_id', user.id).order('title');
-      if (data) {
-        setMasterRepertoire(data.map(d => ({
-          id: d.id, master_id: d.id, name: d.title, artist: d.artist, bpm: d.bpm, lyrics: d.lyrics,
-          originalKey: d.original_key, targetKey: d.target_key, pitch: d.pitch, ugUrl: d.ug_url,
-          previewUrl: d.preview_url, youtubeUrl: d.youtube_url, appleMusicUrl: d.apple_music_url,
-          pdfUrl: d.pdf_url, isMetadataConfirmed: d.is_metadata_confirmed, isKeyConfirmed: d.is_key_confirmed,
-          duration_seconds: d.duration_seconds, notes: d.notes, user_tags: d.user_tags || [], resources: d.resources || [],
-          isApproved: d.is_approved, preferred_reader: d.preferred_reader, ug_chords_text: d.ug_chords_text,
-          ug_chords_config: d.ug_chords_config, is_pitch_linked: d.is_pitch_link_verified, is_ug_link_verified: d.is_ug_link_verified,
-          sheet_music_url: d.sheet_music_url, is_sheet_verified: d.is_sheet_verified,
-          is_ug_chords_present: d.is_ug_chords_present, highest_note_original: d.highest_note_original
-        })));
-      }
-    } catch (err) {
-      console.error("Error fetching master repertoire:", err);
-      showError("Failed to load master repertoire.");
-    }
-  };
-
-  const fetchSetlists = async () => {
-    try {
-      const { data, error } = await supabase.from('setlists').select('*').order('updated_at', { ascending: false });
-      if (data && data.length > 0) {
-        setSetlists(prevSetlists => {
-          const newSetlists = data.map(d => ({ id: d.id, name: d.name, songs: (d.songs as any[]) || [], time_goal: d.time_goal }));
-          if (JSON.stringify(newSetlists) !== JSON.stringify(prevSetlists)) {
-            return newSetlists;
-          }
-          return prevSetlists;
-        });
-        
-        let activeId = currentListId;
-        
-        if (activeId && !data.find(d => d.id === activeId)) {
-          activeId = null;
-        }
-        
-        if (!activeId && data.length > 0) {
-          activeId = data[0].id;
-        }
-        
-        if (activeId) {
-          setCurrentListId(activeId);
-          localStorage.setItem('active_gig_id', activeId);
-        }
-      } else {
-        setCurrentListId(null);
-        localStorage.removeItem('active_gig_id');
-      }
-    } catch (err) {
-      console.error("Error fetching setlists:", err);
-      showError("Failed to load setlists.");
-    }
-  };
 
   const saveList = async (listId: string, updatedSongs: SetlistSong[], updates: any = {}, songsToSync?: SetlistSong[]) => {
     if (!user) return;
@@ -406,7 +416,7 @@ const Index = () => {
 
     await saveList(setlistId, updatedSongsArray);
     fetchSetlists();
-  }, [setlists, saveList]);
+  }, [setlists, saveList, fetchSetlists]);
 
 
   const startPerformance = () => {
@@ -895,7 +905,7 @@ const Index = () => {
             return !prev;
           });
         }}
-        onOpenPractice={startPerformance}
+        onOpenPractice={handleTogglePlayback}
         onOpenReader={() => startSheetReader(activeSongIdState || undefined)}
         onOpenAdmin={() => setIsAdminOpen(true)}
         onOpenPreferences={() => setIsPreferencesOpen(true)}

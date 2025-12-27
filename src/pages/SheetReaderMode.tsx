@@ -131,8 +131,16 @@ const SheetReaderMode: React.FC = () => {
         is_sheet_verified: d.is_sheet_verified,
         is_ug_link_verified: d.is_ug_link_verified
       }));
-      setAllSongs(mappedSongs);
-      console.log("[SheetReaderMode] All songs fetched:", mappedSongs.length);
+
+      // Only update state if the data has actually changed
+      setAllSongs(prevAllSongs => {
+        if (JSON.stringify(mappedSongs) !== JSON.stringify(prevAllSongs)) {
+          console.log("[SheetReaderMode] All songs fetched and updated:", mappedSongs.length);
+          return mappedSongs;
+        }
+        console.log("[SheetReaderMode] All songs fetched, but no change detected. Skipping state update.");
+        return prevAllSongs;
+      });
 
       // Refresh Recovery Logic: Prioritize URL param, then query param
       const targetId = routeSongId || searchParams.get('id');
@@ -154,12 +162,12 @@ const SheetReaderMode: React.FC = () => {
       setLoading(false);
       console.log("[SheetReaderMode] fetchSongs finished. Loading set to false.");
     }
-  }, [user, routeSongId, searchParams]);
+  }, [user, routeSongId, searchParams]); // Dependencies for fetchSongs useCallback
 
   useEffect(() => {
     console.log("[SheetReaderMode] Effect: Initial fetchSongs on mount/user change.");
     fetchSongs();
-  }, [fetchSongs]);
+  }, [fetchSongs]); // Dependency for useEffect
 
   // Filtering Logic
   useEffect(() => {
@@ -174,9 +182,17 @@ const SheetReaderMode: React.FC = () => {
       result = result.filter(s => s.name.toLowerCase().includes(q) || s.artist?.toLowerCase().includes(q));
       console.log("[SheetReaderMode] Filtered by searchTerm. Count:", result.length);
     }
-    setFilteredSongs(result);
-    console.log("[SheetReaderMode] Filtered songs updated. Count:", result.length);
-  }, [allSongs, searchTerm, ignoreConfirmedGate]);
+
+    // Only update state if the filtered songs have actually changed
+    setFilteredSongs(prevFilteredSongs => {
+      if (JSON.stringify(result) !== JSON.stringify(prevFilteredSongs)) {
+        console.log("[SheetReaderMode] Filtered songs updated. Count:", result.length);
+        return result;
+      }
+      console.log("[SheetReaderMode] Filtered songs unchanged. Skipping state update.");
+      return prevFilteredSongs;
+    });
+  }, [allSongs, searchTerm, ignoreConfirmedGate]); // Dependencies for filtering useEffect
 
   // Sync URL with state for persistence
   useEffect(() => {
@@ -338,8 +354,8 @@ const SheetReaderMode: React.FC = () => {
     }
 
     const readiness = calculateReadiness(currentSong);
-    if (readiness < 40 && forceReaderResource !== 'simulation') {
-      console.log("[SheetReaderMode] Song readiness is low and not in simulation mode. Rendering audit prompt.");
+    if (readiness < 40 && forceReaderResource !== 'simulation' && !ignoreConfirmedGate) {
+      console.log("[SheetReaderMode] Song readiness is low and not in simulation/ignoreConfirmedGate mode. Rendering audit prompt.");
       return (
         <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-950">
           <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
