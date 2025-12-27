@@ -12,7 +12,8 @@ import {
   ShieldCheck,
   Maximize2,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  AlertCircle
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
@@ -162,11 +163,8 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     const currentIndex = visibleSongs.findIndex(s => s.id === songId);
     if (currentIndex === -1) return;
 
-    // Flush any pending saves before switching
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
-      // Logic would go here to force sync if needed, 
-      // but for simplicity we'll rely on the auto-save frequency.
     }
 
     let nextIndex;
@@ -238,8 +236,11 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   const readinessColor = readiness === 100 ? 'bg-emerald-500' : readiness > 60 ? 'bg-indigo-500' : 'bg-slate-500';
   const hasMultipleSongs = visibleSongs.length > 1;
 
+  // Masters Check for Confirmation
+  const hasMasterAudio = !!formData.previewUrl && !(formData.previewUrl.includes('apple.com') || formData.previewUrl.includes('itunes-assets'));
+
   return (
-    <div className="flex flex-col h-full bg-slate-950 overflow-hidden">
+    <div className="flex flex-col h-full bg-slate-950 overflow-hidden relative">
       <header className="h-20 bg-slate-900 border-b border-white/5 flex items-center justify-between px-6 shrink-0 relative z-50">
         <div className="flex items-center gap-4">
           <Button 
@@ -277,7 +278,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
             <p className="text-[9px] font-black text-indigo-400 uppercase tracking-[0.2em] truncate max-w-[200px]">
               {gigName}
             </p>
-            <h2 className="text-xl font-black uppercase tracking-tight truncate max-w-[250px] leading-tight">
+            <h2 className="text-xl font-black uppercase tracking-tight truncate max-w-[250px] leading-tight text-white">
               {formData.name}
             </h2>
           </div>
@@ -297,7 +298,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           )}
           <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-xl border border-white/10">
             <ShieldCheck className={cn("w-3.5 h-3.5", readiness === 100 ? "text-emerald-500" : "text-indigo-400")} />
-            <span className="text-[10px] font-black font-mono">{readiness}% READY</span>
+            <span className="text-[10px] font-black font-mono text-white">{readiness}% READY</span>
           </div>
           <Button 
             onClick={() => setIsProSyncSearchOpen(true)}
@@ -362,7 +363,10 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
             </div>
           </nav>
 
-          <div className="flex-1 overflow-y-auto p-6 relative custom-scrollbar">
+          <div className={cn(
+            "flex-1 overflow-y-auto p-6 relative custom-scrollbar",
+            isMobile && "pb-32" // Prevent content cut-off by sticky footer
+          )}>
             <StudioTabContent 
               activeTab={activeTab}
               song={song}
@@ -383,6 +387,58 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* MOBILE STICKY ACTION BAR */}
+      {isMobile && (
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-slate-900/95 backdrop-blur-xl border-t border-white/10 z-[100] flex flex-col gap-3 pb-[calc(1rem+env(safe-area-inset-bottom))] animate-in slide-in-from-bottom duration-500">
+          {!hasMasterAudio && (
+            <div className="flex items-center justify-center gap-2 text-amber-500">
+              <AlertCircle className="w-3 h-3" />
+              <span className="text-[8px] font-black uppercase tracking-widest">Attach Master Audio to confirm for setlist</span>
+            </div>
+          )}
+          
+          <div className="flex items-center gap-3">
+            <Button 
+              onClick={() => handleAutoSave({ isApproved: !formData.isApproved })}
+              disabled={!hasMasterAudio}
+              className={cn(
+                "flex-1 h-14 rounded-2xl font-black uppercase tracking-[0.1em] text-xs transition-all shadow-2xl flex items-center justify-center gap-2",
+                formData.isApproved 
+                  ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20" 
+                  : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/20"
+              )}
+            >
+              {formData.isApproved ? (
+                <><ShieldCheck className="w-5 h-5" /> SONG CONFIRMED</>
+              ) : (
+                <><Check className="w-5 h-5" /> CONFIRM FOR SETLIST</>
+              )}
+            </Button>
+            
+            {hasMultipleSongs && (
+              <div className="flex gap-2">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => handleNavigate('prev')}
+                  className="h-14 w-14 rounded-2xl bg-white/5 border border-white/10 text-slate-400 active:scale-95"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => handleNavigate('next')}
+                  className="h-14 w-14 rounded-2xl bg-white/5 border border-white/10 text-slate-400 active:scale-95"
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <ProSyncSearch 
         isOpen={isProSyncSearchOpen} 

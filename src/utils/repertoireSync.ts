@@ -5,6 +5,7 @@ import { DEFAULT_UG_CHORDS_CONFIG } from "./constants";
 
 /**
  * Calculates a readiness score (0-100) based on available assets and metadata.
+ * Now includes isApproved status as a key component for reaching 100%.
  */
 export const calculateReadiness = (song: Partial<SetlistSong>): number => {
   let score = 0;
@@ -12,10 +13,11 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
   const isItunes = preview.includes('apple.com') || preview.includes('itunes-assets');
   
   if (preview && !isItunes) score += 25;
-  if (song.isKeyConfirmed) score += 20;
-  if ((song.lyrics || "").length > 20) score += 15;
-  if (song.pdfUrl || song.leadsheetUrl) score += 15;
-  if (song.ugUrl) score += 10;
+  if (song.isKeyConfirmed) score += 15;
+  if (song.isApproved) score += 20; // Approval is a major weight
+  if ((song.lyrics || "").length > 20) score += 10;
+  if (song.pdfUrl || song.leadsheetUrl) score += 10;
+  if (song.ugUrl) score += 5;
   if (song.bpm) score += 5;
   if ((song.notes || "").length > 10) score += 5;
   if (song.artist && song.artist !== "Unknown Artist") score += 5;
@@ -48,8 +50,8 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       pitch: song.pitch || 0,
       ug_url: song.ugUrl || null,
       pdf_url: song.pdfUrl || null,
-      leadsheet_url: song.leadsheetUrl || null,
-      youtube_url: song.youtubeUrl || null,
+      leadsheet_url: song.leadsheet_url || null,
+      youtube_url: song.youtube_url || null,
       preview_url: song.previewUrl || null,
       apple_music_url: song.appleMusicUrl || null,
       is_metadata_confirmed: song.isMetadataConfirmed || false,
@@ -66,6 +68,7 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       is_ug_chords_present: !!(song.ug_chords_text && song.ug_chords_text.trim().length > 0),
       is_pitch_linked: song.is_pitch_linked ?? true,
       highest_note_original: song.highest_note_original || null,
+      is_approved: song.isApproved || false,
       // Sync tracking fields
       sync_status: (song as any).sync_status || 'IDLE',
       last_sync_log: (song as any).last_sync_log || null,
