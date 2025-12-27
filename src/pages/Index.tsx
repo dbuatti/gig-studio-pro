@@ -617,7 +617,11 @@ const Index = () => {
             songs={processedSongs} 
             currentSongId={activeSongIdState || undefined}
             onSelect={handleSelectSong}
-            onEdit={(s) => { setEditingSongId(s.id); setIsStudioModalOpen(true); }}
+            onEdit={(s) => { 
+              console.log("[Index] Editing song with ID:", s.id, "and master_id:", s.master_id); // Add this log
+              setEditingSongId(s.id); 
+              setIsStudioModalOpen(true); 
+            }}
             onRemove={(id) => viewMode === 'repertoire' ? supabase.from('repertoire').delete().eq('id', id).then(fetchMasterRepertoire) : saveList(currentListId!, songs.filter(s => s.id !== id))}
             onUpdateKey={handleUpdateKey}
             onTogglePlayed={(id) => viewMode === 'setlist' && saveList(currentListId!, songs.map(s => s.id === id ? { ...s, isPlayed: !s.isPlayed } : s))}

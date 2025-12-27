@@ -61,37 +61,63 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
 
   const fetchData = async () => {
-    if (!user || !songId) return;
+    if (!user || !songId) {
+      console.warn("[SongStudioView] fetchData aborted: user or songId missing.", { user, songId });
+      return;
+    }
     setLoading(true);
+    console.log("[SongStudioView] Attempting to fetch data for songId:", songId, "gigId:", gigId, "userId:", user.id); // Add this log
     try {
       let targetSong: SetlistSong | undefined;
       
       if (gigId === 'library') {
-        const { data } = await supabase.from('repertoire').select('*').eq('id', songId).single();
-        if (data) targetSong = {
-          id: data.id, master_id: data.id, name: data.title, artist: data.artist, previewUrl: data.preview_url,
-          youtubeUrl: data.youtube_url, originalKey: data.original_key, targetKey: data.target_key,
-          pitch: data.pitch, bpm: data.bpm, lyrics: data.lyrics, notes: data.notes, 
-          is_pitch_linked: data.is_pitch_linked, isApproved: data.is_approved,
-          isMetadataConfirmed: data.is_metadata_confirmed, ug_chords_text: data.ug_chords_text,
-          ug_chords_config: data.ug_chords_config, user_tags: data.user_tags, resources: data.resources,
-          pdf_url: data.pdf_url, leadsheet_url: data.leadsheet_url, apple_music_url: data.apple_music_url,
-          duration_seconds: data.duration_seconds, genre: data.genre,
-          is_ug_chords_present: data.is_ug_chords_present, is_ug_link_verified: data.is_ug_link_verified,
-          sheet_music_url: data.sheet_music_url, is_sheet_verified: data.is_sheet_verified,
-        } as SetlistSong;
+        console.log("[SongStudioView] Fetching from 'repertoire' table for songId:", songId);
+        const { data, error } = await supabase.from('repertoire').select('*').eq('id', songId).single();
+        if (error) {
+          console.error("[SongStudioView] Supabase fetch error for repertoire (gigId=library):", error.message, error.details); // Add detailed error log
+          throw error;
+        }
+        if (data) {
+          targetSong = {
+            id: data.id, master_id: data.id, name: data.title, artist: data.artist, previewUrl: data.preview_url,
+            youtubeUrl: data.youtube_url, originalKey: data.original_key, targetKey: data.target_key,
+            pitch: data.pitch, bpm: data.bpm, lyrics: data.lyrics, notes: data.notes, 
+            is_pitch_linked: data.is_pitch_linked, isApproved: data.is_approved,
+            isMetadataConfirmed: data.is_metadata_confirmed, ug_chords_text: data.ug_chords_text,
+            ug_chords_config: data.ug_chords_config, user_tags: data.user_tags, resources: data.resources,
+            pdf_url: data.pdf_url, leadsheet_url: data.leadsheet_url, apple_music_url: data.apple_music_url,
+            duration_seconds: data.duration_seconds, genre: data.genre,
+            is_ug_chords_present: data.is_ug_chords_present, is_ug_link_verified: data.is_ug_link_verified,
+            sheet_music_url: data.sheet_music_url, is_sheet_verified: data.is_sheet_verified,
+          } as SetlistSong;
+          console.log("[SongStudioView] Successfully fetched song from repertoire:", targetSong.name);
+        }
       } else {
-        const { data } = await supabase.from('setlists').select('songs').eq('id', gigId).single();
+        console.log("[SongStudioView] Fetching from 'setlists' table for gigId:", gigId);
+        const { data, error } = await supabase.from('setlists').select('songs').eq('id', gigId).single();
+        if (error) {
+          console.error("[SongStudioView] Supabase fetch error for setlists:", error.message, error.details); // Add detailed error log
+          throw error;
+        }
         targetSong = (data?.songs as SetlistSong[])?.find(s => s.id === songId);
+        if (targetSong) {
+          console.log("[SongStudioView] Successfully found song in setlist:", targetSong.name);
+        } else {
+          console.warn("[SongStudioView] Song not found in setlist for songId:", songId);
+        }
       }
 
-      if (!targetSong) throw new Error("Song not found");
+      if (!targetSong) throw new Error("Song not found in database or setlist.");
 
       setSong(targetSong);
       setFormData({ ...targetSong, is_pitch_linked: targetSong.is_pitch_linked ?? true });
-      if (targetSong.previewUrl) await audio.loadFromUrl(targetSong.previewUrl, targetSong.pitch || 0);
-    } catch (err) {
-      showError("Studio failed to initialize.");
+      if (targetSong.previewUrl) {
+        console.log("[SongStudioView] Loading audio from URL:", targetSong.previewUrl);
+        await audio.loadFromUrl(targetSong.previewUrl, targetSong.pitch || 0);
+      }
+    } catch (err: any) {
+      console.error("[SongStudioView] Caught error during fetchData:", err.message, err); // Add general error log
+      showError("Studio failed to initialize: " + err.message);
       onClose();
     } finally {
       setLoading(false);
