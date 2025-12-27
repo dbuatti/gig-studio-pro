@@ -80,7 +80,6 @@ const Index = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isSearchPanelOpen, setIsSearchPanelOpen] = useState(false); 
   const [isPerformanceMode, setIsPerformanceMode] = useState(false);
-  const [isSheetReaderMode, setIsSheetReaderMode] = useState(false);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false); 
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
@@ -505,8 +504,6 @@ const Index = () => {
       return; 
     }
     
-    setIsSheetReaderMode(true);
-    
     // If we have an active song, pass it to the reader
     if (activeSongIdState) {
         navigate(`/sheet-reader/${activeSongIdState}`);
@@ -772,7 +769,7 @@ const Index = () => {
   }, [activeSongIdState, songs]);
 
   useEffect(() => {
-    console.log("[Index] Effect: Global keydown listener setup. Dependencies: [handleTogglePlayback, startSheetReader, isPerformanceMode, isSheetReaderMode, isSearchPanelOpen, isPreferencesOpen, isAdminOpen, isAuditModalOpen, isStudioModalOpen, isSetlistSettingsOpen, isRepertoirePickerOpen, isCommandHubOpen, isUserGuideOpen, activeSongIdState]");
+    console.log("[Index] Effect: Global keydown listener setup. Dependencies: [handleTogglePlayback, startSheetReader, isPerformanceMode, isSearchPanelOpen, isPreferencesOpen, isAdminOpen, isAuditModalOpen, isStudioModalOpen, isSetlistSettingsOpen, isRepertoirePickerOpen, isCommandHubOpen, isUserGuideOpen, activeSongIdState]");
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if (
         e.target instanceof HTMLInputElement || 
@@ -800,7 +797,6 @@ const Index = () => {
       if (e.key === 'Escape') {
         console.log("[Index]   Global keydown: Escape pressed. Checking open modals/modes.");
         if (isPerformanceMode) { setIsPerformanceMode(false); console.log("[Index]     Exiting performance mode."); }
-        else if (isSheetReaderMode) { setIsSheetReaderMode(false); console.log("[Index]     Exiting sheet reader mode."); }
         else if (isSearchPanelOpen) { setIsSearchPanelOpen(false); console.log("[Index]     Closing search panel."); }
         else if (isPreferencesOpen) { setIsPreferencesOpen(false); console.log("[Index]     Closing preferences."); }
         else if (isAdminOpen) { setIsAdminOpen(false); console.log("[Index]     Closing admin panel."); }
@@ -816,7 +812,7 @@ const Index = () => {
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, [
-    handleTogglePlayback, startSheetReader, isPerformanceMode, isSheetReaderMode,
+    handleTogglePlayback, startSheetReader, isPerformanceMode,
     isSearchPanelOpen, isPreferencesOpen, isAdminOpen, isAuditModalOpen,
     isStudioModalOpen, isSetlistSettingsOpen, isRepertoirePickerOpen, isCommandHubOpen,
     isUserGuideOpen, activeSongIdState
@@ -863,13 +859,6 @@ const Index = () => {
         analyzer={transposerRef.current?.getAnalyzer()}
         gigId={currentListId}
       />
-    );
-  }
-
-  if (isSheetReaderMode) {
-    console.log("[Index] Rendering SheetReaderMode.");
-    return (
-      <SheetReaderMode />
     );
   }
 
@@ -1102,7 +1091,7 @@ const Index = () => {
         currentSongHighestNote={currentSongForSafePitch?.highest_note_original}
         currentSongPitch={currentSongForSafePitch?.pitch}
         onSafePitchToggle={handleSafePitchToggle}
-        isReaderMode={isSheetReaderMode}
+        isReaderMode={false} // Always false now that it's a separate page
         activeSongId={activeSongIdState}
       />
     </div>

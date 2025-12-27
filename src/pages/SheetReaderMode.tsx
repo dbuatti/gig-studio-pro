@@ -55,6 +55,10 @@ const SheetReaderMode: React.FC = () => {
     setVolume,
   } = audioEngine;
 
+  // NEW: Auto-scroll state
+  const [chordAutoScrollEnabled, setChordAutoScrollEnabled] = useState(true);
+  const [chordScrollSpeed, setChordScrollSpeed] = useState(1.0);
+
   // NEW: Harmonic Sync Hook
   const [formData, setFormData] = useState<Partial<SetlistSong>>({}); // Local formData for the hook
   const handleAutoSave = useCallback((updates: Partial<SetlistSong>) => {
@@ -255,8 +259,8 @@ const SheetReaderMode: React.FC = () => {
           isPlaying={isPlaying}
           progress={progress}
           duration={duration}
-          chordAutoScrollEnabled={true}
-          chordScrollSpeed={1.0}
+          chordAutoScrollEnabled={chordAutoScrollEnabled}
+          chordScrollSpeed={chordScrollSpeed}
         />
       );
     }
@@ -279,8 +283,8 @@ const SheetReaderMode: React.FC = () => {
           isPlaying={isPlaying}
           progress={progress}
           duration={duration}
-          chordAutoScrollEnabled={true}
-          chordScrollSpeed={1.0}
+          chordAutoScrollEnabled={chordAutoScrollEnabled}
+          chordScrollSpeed={chordScrollSpeed}
         />
       );
     }
@@ -313,7 +317,7 @@ const SheetReaderMode: React.FC = () => {
         </div>
       </div>
     );
-  }, [currentSong, forceReaderResource, ignoreConfirmedGate, pitch, isPlaying, progress, duration, navigate, targetKey]);
+  }, [currentSong, forceReaderResource, ignoreConfirmedGate, pitch, isPlaying, progress, duration, navigate, targetKey, chordAutoScrollEnabled, chordScrollSpeed]);
 
   if (loading) {
     return (
@@ -418,10 +422,10 @@ const SheetReaderMode: React.FC = () => {
             volume={volume}
             setVolume={setVolume}
             keyPreference={globalKeyPreference}
-            chordAutoScrollEnabled={true} // Default to true for now
-            setChordAutoScrollEnabled={() => {}} // Placeholder
-            chordScrollSpeed={1.0} // Default to 1.0 for now
-            setChordScrollSpeed={() => {}} // Placeholder
+            chordAutoScrollEnabled={chordAutoScrollEnabled}
+            setChordAutoScrollEnabled={setChordAutoScrollEnabled}
+            chordScrollSpeed={chordScrollSpeed}
+            setChordScrollSpeed={setChordScrollSpeed}
           />
         )}
       </main>
