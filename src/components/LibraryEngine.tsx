@@ -64,11 +64,11 @@ const LibraryEngine: React.FC<LibraryEngineProps> = ({
           </div>
           <div className="space-y-2">
             <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400">MASTER PERFORMANCE AUDIO</span>
-            <p className="text-xl md:text-3xl font-black tracking-tight truncate">{formData.previewUrl ? `${formData.name}_Stream_Master` : "Not Linked"}</p>
+            <p className="text-xl md:text-3xl font-black tracking-tight truncate text-white">{formData.previewUrl ? `${formData.name}_Stream_Master` : "Not Linked"}</p>
           </div>
         </div>
 
-        {/* 2. APPLE MUSIC MODULE (MISSING IN YOUR FIRST CODE) */}
+        {/* 2. APPLE MUSIC MODULE */}
         <div className={cn(
           "p-8 md:p-10 border transition-all flex flex-col justify-between h-[280px] md:h-[350px] relative group",
           formData.appleMusicUrl ? "bg-slate-900 border-white/10 shadow-2xl" : "bg-white/5 border-white/5 opacity-40 border-dashed",
@@ -82,7 +82,7 @@ const LibraryEngine: React.FC<LibraryEngineProps> = ({
               <Button 
                 variant="ghost" size="icon" 
                 onClick={() => window.open(formData.appleMusicUrl, '_blank')}
-                className="h-10 w-10 bg-white/5 rounded-xl hover:bg-red-600 transition-all"
+                className="h-10 w-10 bg-white/5 rounded-xl hover:bg-red-600 transition-all text-white"
               >
                 <ExternalLink className="w-4 h-4" />
               </Button>
@@ -90,12 +90,12 @@ const LibraryEngine: React.FC<LibraryEngineProps> = ({
           </div>
           <div className="space-y-2">
             <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] text-red-400">APPLE MUSIC LINK</span>
-            <p className="text-xl md:text-3xl font-black tracking-tight truncate">{formData.appleMusicUrl ? "Integrated App Link" : "Offline"}</p>
+            <p className="text-xl md:text-3xl font-black tracking-tight truncate text-white">{formData.appleMusicUrl ? "Integrated App Link" : "Offline"}</p>
             <p className="text-[10px] font-bold text-slate-500 uppercase">Launch directly in Apple Music</p>
           </div>
         </div>
 
-        {/* 3. ULTIMATE GUITAR MODULE (MISSING IN YOUR FIRST CODE) */}
+        {/* 3. ULTIMATE GUITAR MODULE */}
         <div className={cn(
           "p-8 md:p-10 border transition-all flex flex-col justify-between h-[280px] md:h-[350px] relative group",
           formData.ugUrl ? "bg-slate-900 border-white/10 shadow-2xl" : "bg-white/5 border-white/5 opacity-40 border-dashed",
@@ -107,8 +107,8 @@ const LibraryEngine: React.FC<LibraryEngineProps> = ({
             </div>
             {formData.ugUrl && (
               <div className="flex gap-2">
-                <Button variant="ghost" size="icon" onClick={handleUgPrint} className="h-10 w-10 bg-white/5 rounded-xl hover:bg-orange-600 transition-all">
-                  <ExternalLink className="w-4 h-4" /> {/* Changed icon to ExternalLink */}
+                <Button variant="ghost" size="icon" onClick={handleUgPrint} className="h-10 w-10 bg-white/5 rounded-xl hover:bg-orange-600 transition-all text-white">
+                  <ExternalLink className="w-4 h-4" />
                 </Button>
                 <Button 
                   variant="ghost" size="icon" 
@@ -116,7 +116,7 @@ const LibraryEngine: React.FC<LibraryEngineProps> = ({
                     navigator.clipboard.writeText(formData.ugUrl || "");
                     showSuccess("UG Link Copied");
                   }} 
-                  className="h-10 w-10 bg-white/5 rounded-xl hover:bg-orange-600 transition-all"
+                  className="h-10 w-10 bg-white/5 rounded-xl hover:bg-orange-600 transition-all text-white"
                 >
                   <ClipboardPaste className="w-4 h-4" />
                 </Button>
@@ -125,7 +125,7 @@ const LibraryEngine: React.FC<LibraryEngineProps> = ({
           </div>
           <div className="space-y-2">
             <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] text-orange-400">ULTIMATE GUITAR PRO</span>
-            <p className="text-xl md:text-3xl font-black tracking-tight truncate">{formData.ugUrl ? "Verified Official Link" : "Not Linked"}</p>
+            <p className="text-xl md:text-3xl font-black tracking-tight truncate text-white">{formData.ugUrl ? "Verified Official Link" : "Not Linked"}</p>
             <p className="text-[10px] font-bold text-slate-500 uppercase">Mobile App Integration Ready</p>
           </div>
         </div>
@@ -144,7 +144,7 @@ const LibraryEngine: React.FC<LibraryEngineProps> = ({
               <Button 
                 variant="ghost" size="icon" 
                 onClick={() => setPreviewPdfUrl(formData.pdfUrl || null)}
-                className="h-10 w-10 bg-white/5 rounded-xl hover:bg-emerald-600 transition-all"
+                className="h-10 w-10 bg-white/5 rounded-xl hover:bg-emerald-600 transition-all text-white"
               >
                 <Eye className="w-4 h-4" />
               </Button>
@@ -152,7 +152,7 @@ const LibraryEngine: React.FC<LibraryEngineProps> = ({
           </div>
           <div className="space-y-2">
             <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] text-emerald-400">STAGE CHART / PDF</span>
-            <p className="text-xl md:text-3xl font-black tracking-tight truncate">{formData.pdfUrl ? "Performance_Chart" : "No Asset Linked"}</p>
+            <p className="text-xl md:text-3xl font-black tracking-tight truncate text-white">{formData.pdfUrl ? "Performance_Chart" : "No Asset Linked"}</p>
             <p className="text-[10px] font-bold text-slate-500 uppercase">Ready for Stage View</p>
           </div>
         </div>

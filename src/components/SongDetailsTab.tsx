@@ -41,14 +41,14 @@ const StudioInput = React.memo(({ label, value, onChange, placeholder, className
 
   return (
     <div className={cn("space-y-4", isTextarea && "flex-1 flex flex-col h-full")}>
-      {label && <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">{label}</Label>}
+      {label && <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">{label}</Label>}
       <Comp
         type={type}
         placeholder={placeholder}
         value={localValue}
         onChange={handleChange}
         onBlur={handleBlur}
-        className={cn(className, isTextarea && "flex-1")}
+        className={cn("text-white placeholder:text-slate-600", className, isTextarea && "flex-1")}
       />
     </div>
   );
@@ -100,7 +100,7 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
       </div>
       <div className={cn("grid gap-10", isMobile ? "grid-cols-1" : "grid-cols-2")}>
         <div className="space-y-4">
-          <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Chart Link</Label>
+          <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Chart Link</Label>
           <div className="flex gap-3">
             <StudioInput value={formData.pdfUrl} onChange={(val: string) => handleAutoSave({ pdfUrl: val })} placeholder="Paste URL..." className="bg-white/5 border-white/10 font-bold h-12 rounded-xl w-full" />
             <Button variant="outline" className="h-12 border-white/10 text-slate-400 px-4 rounded-xl font-bold text-[10px] uppercase gap-2 shrink-0 min-w-[120px]" onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent((formData.artist || '') + ' ' + (formData.name || '') + ' sheet music pdf')}`, '_blank')}><Search className="w-3.5 h-3.5" /> Find</Button>
@@ -108,7 +108,7 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
         </div>
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Ultimate Guitar</Label>
+            <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Ultimate Guitar</Label>
             <div className="flex gap-2">
               {isModified ? (
                 <Badge variant="secondary" className="bg-amber-500/10 text-amber-500 text-[8px] font-black uppercase flex items-center gap-1">

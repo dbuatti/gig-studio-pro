@@ -52,7 +52,7 @@ const LyricsEngine: React.FC<LyricsEngineProps> = ({ lyrics, onUpdate, artist, t
       <div className="flex justify-between items-center shrink-0">
         <h3 className="text-sm font-black uppercase tracking-[0.3em] text-pink-400">Lyrics Engine</h3>
         <div className="flex gap-4">
-          <Button variant="outline" onClick={handleLyricsSearch} className="bg-white/5 text-slate-400 text-[9px] h-10 px-4 rounded-xl font-black uppercase">
+          <Button variant="outline" onClick={handleLyricsSearch} className="bg-white/5 border-white/10 text-slate-400 hover:text-white text-[9px] h-10 px-4 rounded-xl font-black uppercase">
             <Search className="w-3.5 h-3.5 mr-2" /> Search
           </Button>
           <Button variant="outline" onClick={handleMagicFormatLyrics} disabled={isFormatting || !lyrics} className="bg-indigo-600 text-white text-[9px] h-10 px-4 rounded-xl font-black uppercase">
@@ -65,7 +65,7 @@ const LyricsEngine: React.FC<LyricsEngineProps> = ({ lyrics, onUpdate, artist, t
           placeholder="Paste lyrics..." 
           value={lyrics} 
           onChange={(e) => onUpdate(e.target.value)} 
-          className={cn("bg-white/5 border-white/10 text-xl leading-relaxed p-10 font-medium whitespace-pre-wrap h-full", isMobile ? "rounded-2xl" : "rounded-[2.5rem]")} 
+          className={cn("bg-white/5 border-white/10 text-white text-xl leading-relaxed p-10 font-medium whitespace-pre-wrap h-full placeholder:text-slate-600", isMobile ? "rounded-2xl" : "rounded-[2.5rem]")} 
         />
       </div>
     </div>

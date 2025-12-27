@@ -72,7 +72,7 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
             onClick={() => setActiveSubTab("view")}
             className={cn(
               "flex-1 text-[10px] font-black uppercase tracking-widest",
-              activeSubTab === "view" && "bg-indigo-600 text-white"
+              activeSubTab === "view" ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-white"
             )}
           >
             View Charts
@@ -82,7 +82,7 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
             onClick={() => setActiveSubTab("edit-ug")}
             className={cn(
               "flex-1 text-[10px] font-black uppercase tracking-widest",
-              activeSubTab === "edit-ug" && "bg-indigo-600 text-white"
+              activeSubTab === "edit-ug" ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-white"
             )}
           >
             Edit UG Chords
@@ -104,7 +104,7 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
                   onClick={() => setActiveChartType('pdf')}
                   className={cn(
                     "text-[9px] font-black uppercase h-8 px-4 rounded-lg",
-                    activeChartType === 'pdf' ? "bg-indigo-600 text-white" : "text-slate-500"
+                    activeChartType === 'pdf' ? "bg-indigo-600 text-white" : "text-slate-500 hover:text-slate-300"
                   )}
                 >
                   PDF
@@ -116,7 +116,7 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
                   onClick={() => setActiveChartType('ug')}
                   className={cn(
                     "text-[9px] font-black uppercase h-8 px-4 rounded-lg",
-                    activeChartType === 'ug' ? "bg-indigo-600 text-white" : "text-slate-500"
+                    activeChartType === 'ug' ? "bg-indigo-600 text-white" : "text-slate-500 hover:text-slate-300"
                   )}
                 >
                   UG

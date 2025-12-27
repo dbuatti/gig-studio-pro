@@ -273,7 +273,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
           value={formData.youtubeUrl || ""}
           onChange={(e) => handleAutoSave({ youtubeUrl: e.target.value })}
           onKeyDown={(e) => e.key === 'Enter' && performYoutubeDiscovery(formData.youtubeUrl || '')}
-          className="flex-1 bg-slate-900 border-white/10 h-14 px-6 rounded-xl"
+          className="flex-1 bg-slate-900 border-white/10 h-14 px-6 rounded-xl text-white placeholder:text-slate-600"
         />
         <div className="flex gap-3">
           <Button
