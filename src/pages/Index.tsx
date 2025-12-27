@@ -39,6 +39,19 @@ import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 
 type ViewMode = 'repertoire' | 'setlist';
 
+// Define the default filters here, matching the DEFAULT_FILTERS in SetlistFilters.tsx
+const INITIAL_FILTERS: FilterState = {
+  hasAudio: 'all',
+  hasVideo: 'all',
+  hasChart: 'all',
+  hasPdf: 'all',
+  hasUg: 'all',
+  isConfirmed: 'all',
+  isApproved: 'all',
+  readiness: 0,
+  hasUgChords: 'all'
+};
+
 const Index = () => {
   const { user } = useAuth();
   const isMobile = useIsMobile();
@@ -73,14 +86,8 @@ const Index = () => {
     return (localStorage.getItem('gig_sort_mode') as any) || 'none';
   });
   
-  const [activeFilters, setActiveFilters] = useState<FilterState>(() => {
-    const saved = localStorage.getItem('gig_active_filters');
-    return saved ? JSON.parse(saved) : {
-      hasAudio: 'all', hasVideo: 'all', hasChart: 'all',
-      hasPdf: 'all', hasUg: 'all', isConfirmed: 'all',
-      isApproved: 'all', readiness: 100, hasUgChords: 'all'
-    };
-  });
+  // Initialize activeFilters directly to ensure reset on refresh
+  const [activeFilters, setActiveFilters] = useState<FilterState>(INITIAL_FILTERS);
   
   const [searchTerm, setSearchTerm] = useState("");
   const [isBulkDownloading, setIsBulkDownloading] = useState(false);
@@ -396,7 +403,7 @@ const Index = () => {
     setIsBulkDownloading(true);
     showInfo("Initiating Bulk Audio Re-Extraction...");
     try {
-      const songsToExtract = masterRepertoire.filter(s => s.youtubeUrl && (!s.previewUrl || s.previewUrl.includes('apple.com') || s.previewUrl.includes('itunes-assets')));
+      const songsToExtract = masterRepertoire.filter(s => s.youtubeUrl && (!s.previewUrl || (s.previewUrl.includes('apple.com') || s.previewUrl.includes('itunes-assets'))));
       if (songsToExtract.length === 0) {
         showSuccess("No YouTube links found for re-extraction.");
         return;
