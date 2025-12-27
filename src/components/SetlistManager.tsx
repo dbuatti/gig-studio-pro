@@ -35,6 +35,7 @@ export interface SetlistSong {
   appleMusicUrl?: string;
   pdfUrl?: string;
   leadsheetUrl?: string;
+  sheet_music_url?: string;
   originalKey?: string;
   targetKey?: string;
   pitch: number;
@@ -62,6 +63,7 @@ export interface SetlistSong {
   is_ug_chords_present?: boolean;
   highest_note_original?: string;
   is_ug_link_verified?: boolean; 
+  is_sheet_verified?: boolean;
   metadata_source?: string; 
   sync_status?: 'IDLE' | 'SYNCING' | 'COMPLETED' | 'ERROR'; 
   last_sync_log?: string;

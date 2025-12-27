@@ -33,7 +33,7 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
   // 5. External Assets & Sheet Verification (Max 10)
   // If sheet is verified, full points. Otherwise, if URL exists, partial.
   if (song.is_sheet_verified) assetScore += 10;
-  else if (song.pdfUrl || song.leadsheetUrl || (song as any).sheet_music_url) assetScore += 5;
+  else if (song.pdfUrl || song.leadsheetUrl || song.sheet_music_url) assetScore += 5;
 
   // 6. Basic Metadata (Max 5)
   if (song.artist && song.artist !== "Unknown Artist") assetScore += 5;
@@ -75,7 +75,7 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       pdf_url: song.pdfUrl || null,
       leadsheet_url: song.leadsheetUrl || null,
       youtube_url: song.youtubeUrl || null,
-      preview_url: song.previewUrl || null,
+      preview_url: song.preview_url || song.previewUrl || null,
       apple_music_url: song.appleMusicUrl || null,
       is_metadata_confirmed: song.isMetadataConfirmed || false,
       is_key_confirmed: song.isKeyConfirmed || false,
@@ -93,8 +93,8 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       highest_note_original: song.highest_note_original || null,
       is_approved: song.isApproved || false,
       is_ug_link_verified: song.is_ug_link_verified || false,
-      sheet_music_url: (song as any).sheet_music_url || null,
-      is_sheet_verified: (song as any).is_sheet_verified || false,
+      sheet_music_url: song.sheet_music_url || null,
+      is_sheet_verified: song.is_sheet_verified || false,
       // Sync tracking fields
       sync_status: (song as any).sync_status || 'IDLE',
       last_sync_log: (song as any).last_sync_log || null,
