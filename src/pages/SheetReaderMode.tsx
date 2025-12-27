@@ -18,6 +18,7 @@ import { useToneAudio } from '@/hooks/use-tone-audio';
 import { transposeKey, calculateSemitones } from '@/utils/keyUtils';
 import { useReaderSettings } from '@/hooks/use-reader-settings';
 import PreferencesModal from '@/components/PreferencesModal';
+import SongStudioModal from '@/components/SongStudioModal';
 
 const SheetReaderMode: React.FC = () => {
   const navigate = useNavigate();
@@ -33,6 +34,7 @@ const SheetReaderMode: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [isImmersive, setIsImmersive] = useState(false);
+  const [isStudioModalOpen, setIsStudioModalOpen] = useState(false);
 
   // Audio
   const audioEngine = useToneAudio(true);
@@ -338,7 +340,12 @@ const SheetReaderMode: React.FC = () => {
               <ChevronLeft className="w-5 h-5" />
             </Button>
             <div className="min-w-[300px]">
-              <h2 className="text-xl font-bold truncate">{currentSong?.name || "No Song Selected"}</h2>
+              <button 
+                onClick={() => setIsStudioModalOpen(true)}
+                className="text-xl font-bold truncate hover:text-indigo-400 transition-colors text-left"
+              >
+                {currentSong?.name || "No Song Selected"}
+              </button>
               <p className="text-sm text-slate-400 truncate">{currentSong?.artist || ""}</p>
             </div>
             <Button variant="ghost" size="icon" onClick={handleNext} className="rounded-lg hover:bg-white/10">
@@ -439,6 +446,16 @@ const SheetReaderMode: React.FC = () => {
       </main>
 
       <PreferencesModal isOpen={isPreferencesOpen} onClose={() => setIsPreferencesOpen(false)} />
+      
+      {/* Song Studio Modal */}
+      {currentSong && (
+        <SongStudioModal
+          isOpen={isStudioModalOpen}
+          onClose={() => setIsStudioModalOpen(false)}
+          gigId="library"
+          songId={currentSong.id}
+        />
+      )}
     </div>
   );
 };
