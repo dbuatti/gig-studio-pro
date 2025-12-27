@@ -27,7 +27,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useKeyboardNavigation } from '@/hooks/use-keyboard-navigation';
-import SetlistMultiSelector from '@/components/SetlistMultiSelector'; // FIX: Corrected import path
+import SetlistMultiSelector from './SetlistMultiSelector'; // Import the new component
 import { useSettings } from '@/hooks/use-settings'; // Import useSettings
 import { useHarmonicSync } from '@/hooks/use-harmonic-sync'; // NEW: Import useHarmonicSync
 
