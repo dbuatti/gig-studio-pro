@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, AlertTriangle, CheckCircle2, ShieldCheck, Link2, RotateCcw, FileText } from 'lucide-react';
+import { Search, AlertTriangle, CheckCircle2, ShieldCheck, Link2, RotateCcw, FileText, XCircle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -106,6 +106,11 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
     window.open(`https://www.ultimate-guitar.com/search.php?search_type=title&value=${query}`, '_blank');
   };
 
+  const handleUnverifyUg = () => {
+    handleAutoSave({ is_ug_link_verified: false });
+    showSuccess("UG Link Unverified");
+  };
+
   // --- Sheet Music Link Handlers ---
   const handleSheetChange = (val: string) => {
     setLocalSheetUrl(val);
@@ -193,6 +198,14 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
                 className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest text-[9px] h-10 rounded-xl gap-2 shadow-lg shadow-emerald-600/20"
               >
                 <CheckCircle2 className="w-4 h-4" /> Confirm & Verify This Link
+              </Button>
+            )}
+            {formData.ugUrl && formData.is_ug_link_verified && ( // NEW: Unverify button
+              <Button 
+                onClick={handleUnverifyUg}
+                className="w-full bg-red-600/10 hover:bg-red-600/20 text-red-500 font-black uppercase tracking-widest text-[9px] h-10 rounded-xl gap-2 shadow-lg shadow-red-600/20"
+              >
+                <XCircle className="w-4 h-4" /> Unverify Link
               </Button>
             )}
           </div>
