@@ -65,6 +65,7 @@ const SheetReaderMode: React.FC = () => {
   const touchStartX = useRef<number | null>(null);
   const dockTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const mainRef = useRef<HTMLDivElement>(null);
+  const isNavigatingRef = useRef(false); // NEW: Prevent rapid navigation
 
   // Audio
   const audioEngine = useToneAudio(true);
@@ -159,7 +160,8 @@ const SheetReaderMode: React.FC = () => {
 
   // === Audio ===
   useEffect(() => {
-    if (currentSong?.previewUrl) {
+    // Only load audio if we have a valid song and we aren't in the middle of a navigation operation
+    if (currentSong?.previewUrl && !isNavigatingRef.current) {
       loadFromUrl(currentSong.previewUrl, currentSong.pitch || 0);
       setLocalPitch(currentSong.pitch || 0);
     } else {
@@ -168,15 +170,38 @@ const SheetReaderMode: React.FC = () => {
     }
   }, [currentSong, loadFromUrl, stopPlayback]);
 
+  // === UI Visibility ===
+  const showTemporaryUI = useCallback(() => {
+    setIsUiVisible(true);
+    setIsDockVisible(true);
+    setIsImmersiveMode(false);
+
+    if (dockTimeoutRef.current) clearTimeout(dockTimeoutRef.current);
+    dockTimeoutRef.current = setTimeout(() => {
+      if (!isOverlayOpen) {
+        setIsUiVisible(false);
+        setIsDockVisible(false);
+      }
+    }, 5000);
+  }, [isOverlayOpen]);
+
   // === Navigation ===
   const goToSong = useCallback(
     (index: number) => {
+      if (isNavigatingRef.current || index === currentIndex) return;
+      isNavigatingRef.current = true;
+
       setCurrentIndex(index);
       stopPlayback();
       setIsImmersiveMode(false);
       showTemporaryUI();
+
+      // Reset the navigation lock after a short delay to allow state updates to settle
+      setTimeout(() => {
+        isNavigatingRef.current = false;
+      }, 500);
     },
-    [stopPlayback]
+    [currentIndex, stopPlayback, showTemporaryUI]
   );
 
   const handleNext = useCallback(() => {
@@ -205,21 +230,6 @@ const SheetReaderMode: React.FC = () => {
     }
     touchStartX.current = null;
   };
-
-  // === UI Visibility ===
-  const showTemporaryUI = useCallback(() => {
-    setIsUiVisible(true);
-    setIsDockVisible(true);
-    setIsImmersiveMode(false);
-
-    if (dockTimeoutRef.current) clearTimeout(dockTimeoutRef.current);
-    dockTimeoutRef.current = setTimeout(() => {
-      if (!isOverlayOpen) {
-        setIsUiVisible(false);
-        setIsDockVisible(false);
-      }
-    }, 5000);
-  }, [isOverlayOpen]);
 
   const toggleImmersive = useCallback(() => {
     setIsImmersiveMode((prev) => !prev);
