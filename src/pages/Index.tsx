@@ -248,6 +248,54 @@ const Index = () => {
     });
   };
 
+  const handleAutoLinkSetlist = async () => {
+    if (!currentListId || !songs.length) return;
+    
+    // Filtering logic as per notes: Only pull songs with missing youtube_url and present title/artist
+    const missingSongs = songs.filter(s => 
+      (!s.youtubeUrl || s.youtubeUrl.trim() === '') && 
+      s.name && 
+      s.artist
+    );
+
+    if (missingSongs.length === 0) {
+      showSuccess("All songs are already optimized.");
+      return;
+    }
+
+    try {
+      const batchIds = missingSongs.map(s => s.master_id).filter(Boolean) as string[];
+      if (batchIds.length === 0) {
+        // Fallback: If songs don't have master_ids, sync them first
+        const synced = await syncToMasterRepertoire(user!.id, missingSongs);
+        const newBatchIds = synced.map(s => s.master_id).filter(Boolean) as string[];
+        await invokeAutoLink(newBatchIds);
+      } else {
+        await invokeAutoLink(batchIds);
+      }
+      
+      // Refresh to show updates
+      fetchSetlists();
+      fetchMasterRepertoire();
+    } catch (err: any) {
+      showError(`AI Engine Error: ${err.message}`);
+    }
+  };
+
+  const invokeAutoLink = async (ids: string[]) => {
+    const { data, error } = await supabase.functions.invoke('bulk-populate-youtube-links', {
+      body: { songIds: ids }
+    });
+
+    if (error) throw error;
+    
+    if (data.successful > 0) {
+      showSuccess(`AI Engine: ${data.successful} matches bound.`);
+    } else {
+      showError("AI could not find high-confidence matches for remaining tracks.");
+    }
+  };
+
   const handleAddToSetlist = async (previewUrl: string, name: string, artist: string, youtubeUrl?: string, ugUrl?: string, appleMusicUrl?: string, genre?: string, pitch: number = 0) => {
     if (!user) return;
     
@@ -487,7 +535,14 @@ const Index = () => {
             
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
               <div className="xl:col-span-2 space-y-8">
-                <SetlistStats songs={songs} goalSeconds={currentList?.time_goal} onUpdateGoal={(s) => currentListId && saveList(currentListId, songs, { time_goal: s }, undefined)} onDownloadAllMissingAudio={handleDownloadAllMissingAudio} isBulkDownloading={isBulkDownloading} />
+                <SetlistStats 
+                  songs={songs} 
+                  goalSeconds={currentList?.time_goal} 
+                  onUpdateGoal={(s) => currentListId && saveList(currentListId, songs, { time_goal: s }, undefined)} 
+                  onAutoLink={handleAutoLinkSetlist}
+                  onDownloadAllMissingAudio={handleDownloadAllMissingAudio} 
+                  isBulkDownloading={isBulkDownloading} 
+                />
                 <SetlistManager 
                   songs={processedSongs} 
                   onRemove={(id) => currentListId && saveList(currentListId, songs.filter(s => s.id !== id), {}, undefined)} 

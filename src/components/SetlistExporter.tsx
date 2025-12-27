@@ -2,9 +2,10 @@
 
 import React, { useState } from 'react';
 import { SetlistSong } from './SetlistManager';
-import { ClipboardCopy, Youtube, ListMusic, Sparkles, Loader2, Download, ExternalLink } from 'lucide-react'; // Changed Printer to ExternalLink
+import { ClipboardCopy, Youtube, Sparkles, Loader2, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { showSuccess, showError } from '@/utils/toast';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 interface SetlistExporterProps {
   songs: SetlistSong[];
@@ -23,6 +24,7 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({ songs, onAutoLink, on
     setIsLinking(true);
     try {
       await onAutoLink();
+      showSuccess("Manifest Sync Complete");
     } catch (err) {
       showError("AI Auto-link engine failed");
     } finally {
@@ -51,7 +53,7 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({ songs, onAutoLink, on
     }
   };
 
-  const missingMetadataCount = songs.filter(s => !s.isMetadataConfirmed).length;
+  const missingMetadataCount = songs.filter(s => !s.youtubeUrl || s.youtubeUrl.trim() === '').length;
 
   return (
     <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border shadow-sm flex flex-col justify-center gap-4 transition-transform hover:scale-[1.02]">
@@ -63,21 +65,35 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({ songs, onAutoLink, on
       </div>
       
       <div className="grid grid-cols-1 gap-2">
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={handleAutoLink}
-          disabled={isLinking || missingMetadataCount === 0}
-          className="h-9 justify-start text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:bg-indigo-50 rounded-xl gap-3 relative overflow-hidden"
-        >
-          {isLinking ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Sparkles className="w-4 h-4" />
-          )}
-          AI Auto-Link ({missingMetadataCount} Missing)
-          {isLinking && <div className="absolute inset-0 bg-indigo-500/10 animate-pulse" />}
-        </Button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="w-full">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={handleAutoLink}
+                  disabled={isLinking || missingMetadataCount === 0}
+                  className="h-9 w-full justify-start text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:bg-indigo-50 rounded-xl gap-3 relative overflow-hidden"
+                >
+                  {isLinking ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-4 h-4" />
+                  )}
+                  {isLinking ? `Linking Engine Active...` : `AI Auto-Link (${missingMetadataCount} Missing)`}
+                  {isLinking && <div className="absolute inset-0 bg-indigo-500/10 animate-pulse" />}
+                </Button>
+              </div>
+            </TooltipTrigger>
+            {missingMetadataCount === 0 && (
+              <TooltipContent className="bg-slate-900 text-white border-white/10 text-[10px] font-black uppercase">
+                All songs already have links bound.
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
+
         <Button 
           variant="ghost" 
           size="sm" 
@@ -90,9 +106,10 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({ songs, onAutoLink, on
           ) : (
             <Download className="w-4 h-4" />
           )}
-          Download All Audio ({missingAudioCount} Missing)
+          Download Audio ({missingAudioCount} Missing)
           {isBulkDownloading && <div className="absolute inset-0 bg-emerald-500/10 animate-pulse" />}
         </Button>
+
         <Button 
           variant="ghost" 
           size="sm" 

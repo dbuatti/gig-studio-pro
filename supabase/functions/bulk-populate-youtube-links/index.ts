@@ -27,9 +27,10 @@ serve(async (req) => {
       throw new Error("Invalid song list provided.");
     }
 
-    console.log(`[bulk-populate-youtube-links] Processing ${songIds.length} tracks with duration matching...`);
+    console.log(`[bulk-populate-youtube-links] Processing ${songIds.length} tracks with Safe-Match filtering...`);
 
     const results = [];
+    const EXCLUDED_KEYWORDS = ['live', 'cover', 'remix', 'tutorial', 'karaoke', 'instrumental'];
 
     for (const id of songIds) {
       try {
@@ -64,18 +65,35 @@ serve(async (req) => {
         const videos = ytData?.filter?.((v: any) => v.type === "video") || [];
 
         let matchedVideo = null;
+        const songTitleLower = song.title.toLowerCase();
 
-        // 3. Duration Matching Constraint (+/- 30s)
-        if (refDurationSec > 0) {
-          for (const v of videos) {
+        // 3. Safe-Match Logic (Duration +/- 15s + Keyword Filter)
+        for (const v of videos) {
+          const vTitleLower = v.title.toLowerCase();
+          
+          // A. Keyword Exclusion (skip if video title contains "live", "cover", etc unless song title has them)
+          const containsForbidden = EXCLUDED_KEYWORDS.some(kw => 
+            vTitleLower.includes(kw) && !songTitleLower.includes(kw)
+          );
+          
+          if (containsForbidden) {
+            console.log(`[bulk-populate-youtube-links] Skipping forbidden keyword match: ${v.title}`);
+            continue;
+          }
+
+          // B. Duration Matching Constraint (+/- 15s as per requirements)
+          if (refDurationSec > 0) {
             const diff = Math.abs(v.durationSeconds - refDurationSec);
-            if (diff <= 30) {
+            if (diff <= 15) {
               matchedVideo = v;
+              console.log(`[bulk-populate-youtube-links] Safe Match Found: ${v.title} (Diff: ${diff}s)`);
               break;
             }
+          } else {
+            // Fallback: If no iTunes duration, at least check keywords for the first video
+            matchedVideo = v;
+            break;
           }
-        } else {
-          matchedVideo = videos[0]; // Fallback to top hit if no ref duration
         }
 
         if (matchedVideo) {
@@ -90,7 +108,7 @@ serve(async (req) => {
 
           results.push({ id, status: 'SUCCESS', title: song.title, videoId: matchedVideo.videoId });
         } else {
-          throw new Error("No YouTube match meeting duration constraints (+/- 30s) found.");
+          throw new Error("No high-confidence Safe-Match (±15s, no forbidden keywords) found.");
         }
 
       } catch (err: any) {
@@ -99,13 +117,20 @@ serve(async (req) => {
           sync_status: 'ERROR',
           last_sync_log: err.message 
         }).eq('id', id);
-        results.push({ id, status: 'ERROR', msg: err.message });
+        results.push({ id, status: 'ERROR', msg: err.message, song_id: id });
       }
 
-      await new Promise(r => setTimeout(r, 1500));
+      // Small delay between tracks to avoid rate limiting
+      await new Promise(r => setTimeout(r, 1000));
     }
 
-    return new Response(JSON.stringify({ success: true, results }), {
+    return new Response(JSON.stringify({ 
+      success: true, 
+      processed: songIds.length,
+      successful: results.filter(r => r.status === 'SUCCESS').length,
+      failed: results.filter(r => r.status === 'ERROR').length,
+      results 
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
