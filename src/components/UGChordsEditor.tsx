@@ -181,8 +181,8 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
 
       if (extractedContent) {
         setChordsText(extractedContent);
-        // When new chords are fetched, the link should be considered unverified
-        handleAutoSave({ ugUrl: formData.ugUrl, is_ug_link_verified: false });
+        // When new chords are fetched, the link should be considered verified
+        handleAutoSave({ ugUrl: formData.ugUrl, is_ug_link_verified: true }); // Set to true upon successful fetch
         showSuccess("Chords fetched successfully!");
       } else {
         showError("Could not find chords content on the page. Try a different URL or paste manually.");
@@ -282,7 +282,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
                 <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <Input
                   value={formData.ugUrl || ""}
-                  onChange={(e) => handleAutoSave({ ugUrl: e.target.value, is_ug_link_verified: false })} // Mark unverified on change
+                  onChange={(e) => handleAutoSave({ ugUrl: e.target.value, is_ug_link_verified: !!e.target.value })} // Set to true if URL is present
                   placeholder="Paste Ultimate Guitar tab URL here..."
                   className="w-full bg-black/40 border border-white/20 rounded-xl p-4 pl-10 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
                 />

@@ -93,22 +93,15 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
     // Only save if the local URL is different from the one in formData
     if (localUgUrl !== formData.ugUrl) {
       const cleanUrl = sanitizeUGUrl(localUgUrl);
-      // Explicitly save to the database and mark as unverified if the URL has changed
-      handleAutoSave({ ugUrl: cleanUrl, is_ug_link_verified: false });
+      // Explicitly save to the database and mark as verified if the URL has changed
+      handleAutoSave({ ugUrl: cleanUrl, is_ug_link_verified: !!cleanUrl }); // Set to true if URL is present
       showSuccess("UG Link Saved");
     }
-    // If the URL hasn't changed, do nothing to is_ug_link_verified
-    // The badge will reflect the existing formData.is_ug_link_verified state
     setIsUgModified(false); // Reset modified state after blur/save attempt
   };
 
-  const handleVerifyUgLink = () => {
-    handleAutoSave({ is_ug_link_verified: true });
-    showSuccess("UG Link Verified");
-  };
-
   const handleRebindUg = () => {
-    handleAutoSave({ ugUrl: "", is_ug_link_verified: false });
+    handleAutoSave({ ugUrl: "", is_ug_link_verified: false }); // Reset link and verification
     const query = encodeURIComponent((formData.artist || '') + ' ' + (formData.name || '') + ' chords');
     window.open(`https://www.ultimate-guitar.com/search.php?search_type=title&value=${query}`, '_blank');
   };
@@ -162,7 +155,7 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
                   <AlertTriangle className="w-2.5 h-2.5" /> Modified
                 </Badge>
               ) : formData.ugUrl ? (
-                formData.is_ug_link_verified ? (
+                formData.is_ug_link_verified ? ( // Check is_ug_link_verified for badge
                   <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-500 text-[8px] font-black uppercase flex items-center gap-1">
                     <ShieldCheck className="w-2.5 h-2.5" /> Verified
                   </Badge>
@@ -194,9 +187,9 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
               </Button>
             </div>
             
-            {formData.ugUrl && !formData.is_ug_link_verified && (
+            {formData.ugUrl && !formData.is_ug_link_verified && ( // Only show verify button if link exists and is not verified
               <Button 
-                onClick={handleVerifyUgLink}
+                onClick={() => handleAutoSave({ is_ug_link_verified: true })} // Directly set to true
                 className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest text-[9px] h-10 rounded-xl gap-2 shadow-lg shadow-emerald-600/20"
               >
                 <CheckCircle2 className="w-4 h-4" /> Confirm & Verify This Link

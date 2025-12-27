@@ -73,11 +73,11 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
         const hasChords = !!s.ug_chords_text && s.ug_chords_text.trim() !== "";
         
         switch (activeFilter) {
-          case 'missing-content': return hasLink && !hasChords;
+          case 'missing-content': return hasLink && !hasChords; // Refined logic
           case 'missing-link': return !hasLink;
           case 'all': return true;
           case 'unverified':
-          default: return !s.is_ug_link_verified;
+          default: return hasLink && !s.is_ug_link_verified; // Only unverified if there's a link
         }
       } else {
         const sheetUrl = (s as any).sheet_music_url || s.pdfUrl || s.leadsheetUrl;
@@ -88,7 +88,7 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
           case 'missing-link': return !hasLink;
           case 'all': return true;
           case 'unverified':
-          default: return !isVerified;
+          default: return hasLink && !isVerified; // Only unverified if there's a link
         }
       }
     });
@@ -98,7 +98,7 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
     if (activeTab === 'ug') {
       const urlToVerify = customUrl || song.ugUrl;
       if (!urlToVerify) return;
-      onVerify(song.id, { ugUrl: sanitizeUGUrl(urlToVerify), is_ug_link_verified: true });
+      onVerify(song.id, { ugUrl: sanitizeUGUrl(urlToVerify), is_ug_link_verified: true }); // Keep is_ug_link_verified for internal state
     } else {
       const urlToVerify = customUrl || (song as any).sheet_music_url || song.pdfUrl || song.leadsheetUrl;
       if (!urlToVerify) return;
@@ -166,7 +166,7 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
       onVerify(song.id, {
         ug_chords_text: processedChords,
         is_ug_chords_present: true,
-        is_ug_link_verified: true,
+        is_ug_link_verified: true, // Mark as verified upon pasting chords
         isMetadataConfirmed: true,
         originalKey: extractedOriginalKey,
         targetKey: newTargetKey,
@@ -385,7 +385,7 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
                           </div>
                         ) : (
                           <>
-                            {activeTab === 'ug' && activeFilter === 'missing-content' && !hasChords && (
+                            {activeTab === 'ug' && activeFilter === 'missing-content' && hasLink && ( // Only show if link exists but chords are missing
                               <Button 
                                 onClick={() => handlePasteToAudit(song)}
                                 className="h-9 px-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[9px] rounded-xl gap-2 shadow-lg shadow-indigo-600/20"
@@ -406,7 +406,7 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
                                 <ShieldCheck className="w-3.5 h-3.5" /> Verify
                               </Button>
                             )}
-                            {isVerified && (
+                            {hasLink && isVerified && ( // Show verified badge if link exists and is verified
                               <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
                                 <Check className="w-3 h-3 text-emerald-500" />
                                 <span className="text-[8px] font-black text-emerald-500 uppercase">Verified</span>

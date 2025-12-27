@@ -142,15 +142,15 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     const readiness = calculateReadiness(song);
     const hasAudio = !!song.previewUrl && !isItunesPreview(song.previewUrl);
     const hasYoutubeLink = !!song.youtubeUrl && song.youtubeUrl.trim() !== "";
-    const hasUgChordsText = !!song.ug_chords_text && song.ug_chords_text.trim().length > 0;
     const hasUgLink = !!song.ugUrl && song.ugUrl.trim() !== "";
+    const hasUgChordsText = !!song.ug_chords_text && song.ug_chords_text.trim().length > 0;
     const hasSheetLink = !!(song.pdfUrl || song.leadsheetUrl || song.sheet_music_url);
 
     // Red (Critical Attention)
     if (
       !hasAudio || // Missing master audio
       !hasYoutubeLink || // Missing YouTube link
-      (hasUgLink && !hasUgChordsText) || // Has UG link but no chords content
+      (hasUgLink && !hasUgChordsText) || // Has UG link but no chords content (Empty Sheets)
       readiness < 40 // Low readiness score
     ) {
       return "bg-red-500/10 border-red-500/20";
@@ -158,7 +158,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
     // Orange (Needs Review/Unverified)
     if (
-      (hasUgLink && !song.is_ug_link_verified) || // Unverified UG link
+      (hasUgLink && !song.is_ug_link_verified) || // Unverified UG link (still using this for internal state, but UI will simplify)
       (hasSheetLink && !song.is_sheet_verified) || // Unverified sheet music link
       !song.isMetadataConfirmed // Metadata not confirmed
     ) {
