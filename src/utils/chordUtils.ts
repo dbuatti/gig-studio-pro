@@ -1,7 +1,7 @@
 "use client";
 
 import { KeyPreference } from '@/hooks/use-settings';
-import { transposeKey } from './keyUtils';
+import { transposeKey, formatKey } from './keyUtils';
 
 // Regular expression to match musical chords
 // Matches major, minor, diminished, augmented, suspended, and various seventh chords
@@ -46,14 +46,18 @@ export const transposeChords = (text: string, semitones: number, keyPref: KeyPre
     
     // Process each line to transpose chords
     return line.replace(CHORD_REGEX, (match, rootNote, chordType = '', bassNote = '') => {
-      // Transpose the root note
-      const transposedRoot = transposeKey(rootNote, semitones);
+      // Transpose the root note (returns sharp notation internally)
+      const transposedRootSharp = transposeKey(rootNote, semitones);
+      
+      // Format the transposed root based on preference (e.g., C# -> Db if flats selected)
+      const transposedRoot = formatKey(transposedRootSharp, keyPref);
       
       // If there's a bass note, transpose it too
       let transposedBass = '';
       if (bassNote) {
         const bassNoteRoot = bassNote.substring(1); // Remove the '/'
-        const transposedBassRoot = transposeKey(bassNoteRoot, semitones);
+        const transposedBassSharp = transposeKey(bassNoteRoot, semitones);
+        const transposedBassRoot = formatKey(transposedBassSharp, keyPref);
         transposedBass = `/${transposedBassRoot}`;
       }
       
