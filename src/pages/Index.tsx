@@ -17,7 +17,7 @@ import RepertoirePicker from "@/components/RepertoirePicker";
 import SetlistExporter from "@/components/SetlistExporter";
 import FloatingCommandDock from "@/components/FloatingCommandDock";
 import UserGuideModal from "@/components/UserGuideModal";
-import SheetReaderMode from './SheetReaderMode'; // Removed direct import
+import SheetReaderMode from './SheetReaderMode';
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { showSuccess, showError, showInfo } from '@/utils/toast';
 import { calculateSemitones, transposeKey } from '@/utils/keyUtils';
@@ -39,10 +39,10 @@ import { cleanYoutubeUrl } from '@/utils/youtubeUtils';
 import { useNavigate } from 'react-router-dom';
 import { FilterState } from '@/components/SetlistFilters';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
+import { useReaderSettings } from '@/hooks/use-reader-settings'; // NEW: Import useReaderSettings
 
 type ViewMode = 'repertoire' | 'setlist';
 
-// Define the default filters here, matching the DEFAULT_FILTERS in SetlistFilters.tsx
 const INITIAL_FILTERS: FilterState = {
   hasAudio: 'all',
   hasVideo: 'all',
@@ -59,25 +59,22 @@ const Index = () => {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const { keyPreference, safePitchMaxNote } = useSettings();
+  const { alwaysShowAllToasts } = useReaderSettings(); // NEW: Get alwaysShowAllToasts
   const navigate = useNavigate();
   
-  // App State
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     return (localStorage.getItem('gig_view_mode') as ViewMode) || 'repertoire';
   });
   const [setlists, setSetlists] = useState<{ id: string; name: string; songs: SetlistSong[]; time_goal?: number }[]>([]);
   const [currentListId, setCurrentListId] = useState<string | null>(() => {
-    // 1. Check URL parameter first (for direct navigation)
     const pathParts = window.location.pathname.split('/');
     if (pathParts[1] === 'dashboard' && pathParts[2]) {
       return pathParts[2];
     }
-    // 2. Fallback to localStorage
     return localStorage.getItem('active_gig_id');
   });
   const [masterRepertoire, setMasterRepertoire] = useState<SetlistSong[]>([]);
   
-  // UI Control State
   const [activeSongIdState, setActiveSongId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isSearchPanelOpen, setIsSearchPanelOpen] = useState(false); 
@@ -99,7 +96,6 @@ const Index = () => {
     return (localStorage.getItem('gig_sort_mode') as any) || 'none';
   });
   
-  // Initialize activeFilters directly to ensure reset on refresh
   const [activeFilters, setActiveFilters] = useState<FilterState>(INITIAL_FILTERS);
   
   const [searchTerm, setSearchTerm] = useState("");
@@ -116,7 +112,6 @@ const Index = () => {
 
   const currentList = setlists.find(l => l.id === currentListId);
   
-  // Core Logic: Which songs are we displaying?
   const songs = useMemo(() => {
     if (viewMode === 'repertoire') return masterRepertoire;
     return currentList?.songs || [];
@@ -136,9 +131,7 @@ const Index = () => {
 
     base = base.filter(s => {
       const score = calculateReadiness(s);
-      // Corrected: Filter to show songs with readiness score >= activeFilters.readiness
       if (score < activeFilters.readiness) {
-        // console.log(`[processedSongs] Hiding ${s.name} due to readiness (${score}% < ${activeFilters.readiness}%)`);
         return false; 
       }
       
@@ -162,7 +155,6 @@ const Index = () => {
       if (activeFilters.hasUg === 'yes' && !s.ugUrl) return false;
       if (activeFilters.hasUg === 'no' && s.ugUrl) return false;
       
-      // NEW: Filter by hasUgChords
       if (activeFilters.hasUgChords === 'yes' && !s.is_ug_chords_present) return false;
       if (activeFilters.hasUgChords === 'no' && s.is_ug_chords_present) return false;
 
@@ -189,11 +181,10 @@ const Index = () => {
   useEffect(() => {
     localStorage.setItem('gig_view_mode', viewMode);
     if (viewMode === 'repertoire' && user) {
-      fetchMasterRepertoire(); // Ensure master repertoire is fresh when switching to this view
+      fetchMasterRepertoire();
     }
   }, [viewMode, user]);
 
-  // Effect to handle clicks outside the search panel
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -242,33 +233,27 @@ const Index = () => {
       if (data && data.length > 0) {
         setSetlists(prevSetlists => {
           const newSetlists = data.map(d => ({ id: d.id, name: d.name, songs: (d.songs as any[]) || [], time_goal: d.time_goal }));
-          // Only update if there's a significant change to avoid unnecessary re-renders
           if (JSON.stringify(newSetlists) !== JSON.stringify(prevSetlists)) {
             return newSetlists;
           }
           return prevSetlists;
         });
         
-        // 3. Determine the active gig ID
         let activeId = currentListId;
         
-        // If we have a current ID, verify it exists in the new data
         if (activeId && !data.find(d => d.id === activeId)) {
-          activeId = null; // Reset if the ID no longer exists
+          activeId = null;
         }
         
-        // If no active ID, default to the first one in the list
         if (!activeId && data.length > 0) {
           activeId = data[0].id;
         }
         
-        // Update state and localStorage
         if (activeId) {
           setCurrentListId(activeId);
           localStorage.setItem('active_gig_id', activeId);
         }
       } else {
-        // No setlists exist
         setCurrentListId(null);
         localStorage.removeItem('active_gig_id');
       }
@@ -344,7 +329,7 @@ const Index = () => {
       return;
     }
     const newSong: SetlistSong = {
-      id: Math.random().toString(36).substr(2, 9), // Generate a unique ID for the new song
+      id: Math.random().toString(36).substr(2, 9),
       name,
       artist,
       previewUrl,
@@ -353,10 +338,10 @@ const Index = () => {
       appleMusicUrl,
       genre,
       pitch: pitch || 0,
-      originalKey: "C", // Default key
-      targetKey: "C", // Default key
+      originalKey: "C",
+      targetKey: "C",
       isPlayed: false,
-      isSyncing: true, // Mark as syncing for initial metadata fetch
+      isSyncing: true,
       isMetadataConfirmed: false,
       isKeyConfirmed: false,
       duration_seconds: 0,
@@ -381,8 +366,8 @@ const Index = () => {
     console.log("[handleAddNewSongToCurrentSetlist] Adding new song:", newSong.name, "to list:", currentListId);
     await saveList(currentListId, [...currentList!.songs, newSong], {}, [newSong]);
     showSuccess(`Added "${name}" to gig`);
-    setActiveSongId(newSong.id); // Make the newly added song active
-    setIsSearchPanelOpen(false); // Close the search panel after adding
+    setActiveSongId(newSong.id);
+    setIsSearchPanelOpen(false);
   };
 
   const handleUpdateSetlistSongs = useCallback(async (setlistId: string, songToUpdate: SetlistSong, action: 'add' | 'remove') => {
@@ -394,19 +379,17 @@ const Index = () => {
 
     let updatedSongsArray = [...targetSetlist.songs];
     if (action === 'add') {
-      // Ensure the song is not already in the setlist by master_id or id
       const isAlreadyInList = updatedSongsArray.some(s => 
         (s.master_id && s.master_id === songToUpdate.master_id) || 
         s.id === songToUpdate.id
       );
       if (!isAlreadyInList) {
-        // Create a new instance for the setlist, linking to master_id
         const newSetlistSong: SetlistSong = {
           ...songToUpdate,
-          id: Math.random().toString(36).substr(2, 9), // Unique ID for this setlist instance
-          master_id: songToUpdate.master_id || songToUpdate.id, // Link to the master repertoire song
+          id: Math.random().toString(36).substr(2, 9),
+          master_id: songToUpdate.master_id || songToUpdate.id,
           isPlayed: false,
-          isApproved: false, // Default to not approved for the setlist
+          isApproved: false,
         };
         updatedSongsArray.push(newSetlistSong);
         console.log(`[handleUpdateSetlistSongs] Added song ${songToUpdate.name} to setlist ${setlistId}.`);
@@ -421,9 +404,8 @@ const Index = () => {
       console.log(`[handleUpdateSetlistSongs] Removed song ${songToUpdate.name} from setlist ${setlistId}.`);
     }
 
-    // Save the updated songs array back to the setlist
     await saveList(setlistId, updatedSongsArray);
-    fetchSetlists(); // Re-fetch to ensure UI is fully updated
+    fetchSetlists();
   }, [setlists, saveList]);
 
 
@@ -445,14 +427,12 @@ const Index = () => {
     setActiveSongId(song.id);
     if (song.previewUrl && transposerRef.current) {
       await transposerRef.current.loadFromUrl(song.previewUrl, song.name, song.artist || "Unknown");
-      // Add the null check here, as suggested by the user's intent
-      if (transposerRef.current) { // Check again after async operation
+      if (transposerRef.current) {
         transposerRef.current.setPitch(song.pitch);
       }
     }
   };
 
-  // New wrapper function for onSelectSong prop
   const handleSelectSongById = useCallback((songId: string) => {
     const song = processedSongs.find(s => s.id === songId);
     if (song) {
@@ -482,7 +462,7 @@ const Index = () => {
 
       if (error) throw error;
       showSuccess("Smart-Link Discovery Complete!");
-      fetchMasterRepertoire(); // Refresh repertoire after update
+      fetchMasterRepertoire();
     } catch (err: any) {
       showError(`Smart-Link Failed: ${err.message}`);
     } finally {
@@ -501,12 +481,12 @@ const Index = () => {
       }
 
       const { data, error } = await supabase.functions.invoke('global-auto-sync', {
-        body: { songIds: songsToSync.map(s => s.id), overwrite: false } // Assuming no overwrite for now
+        body: { songIds: songsToSync.map(s => s.id), overwrite: false }
       });
 
       if (error) throw error;
       showSuccess("Global Auto-Sync Pipeline Complete!");
-      fetchMasterRepertoire(); // Refresh repertoire after update
+      fetchMasterRepertoire();
     } catch (err: any) {
       showError(`Global Auto-Sync Failed: ${err.message}`);
     } finally {
@@ -554,12 +534,13 @@ const Index = () => {
         const audioBuffer = await Tone.getContext().decodeAudioData(audioArrayBuffer.slice(0));
 
         const fileName = `${user?.id}/${song.id}/${Date.now()}.mp3`;
-        const { error: uploadError } = await supabase.storage
+        const { data: uploadData, error: uploadError } = await supabase.storage
           .from('public_audio')
           .upload(fileName, audioArrayBuffer, { contentType: 'audio/mpeg', upsert: true });
+
         if (uploadError) throw uploadError;
 
-        const { data: { publicUrl } } = await supabase.storage.from('public_audio').getPublicUrl(fileName);
+        const { data: { publicUrl } } = supabase.storage.from('public_audio').getPublicUrl(uploadData.path);
 
         await supabase.from('repertoire').update({ 
           preview_url: publicUrl, 
@@ -569,7 +550,7 @@ const Index = () => {
         showSuccess(`Audio extracted for "${song.name}"`);
       }
       showSuccess("Bulk Audio Re-Extraction Complete!");
-      fetchMasterRepertoire(); // Refresh repertoire after update
+      fetchMasterRepertoire();
     } catch (err: any) {
       showError(`Bulk Audio Extraction Failed: ${err.message}`);
     } finally {
@@ -599,7 +580,7 @@ const Index = () => {
 
       if (error) throw error;
       showSuccess("Auto-populated links cleared!");
-      fetchMasterRepertoire(); // Refresh repertoire after update
+      fetchMasterRepertoire();
     } catch (err: any) {
       showError(`Failed to clear auto-links: ${err.message}`);
     } finally {
@@ -623,27 +604,22 @@ const Index = () => {
     return transposerRef.current?.getIsPlaying() || false;
   }, [transposerRef.current?.getIsPlaying()]);
 
-  // Safe Pitch Mode Handlers
   const handleSafePitchToggle = useCallback((active: boolean, safePitch: number) => {
     if (!transposerRef.current) return;
     if (active) {
       transposerRef.current.setPitch(safePitch);
     } else {
-      // Reset to original pitch (0)
       transposerRef.current.setPitch(0);
     }
   }, []);
 
-  // Get current song for Safe Pitch Mode
   const currentSongForSafePitch = useMemo(() => {
     if (!activeSongIdState) return null;
     return songs.find(s => s.id === activeSongIdState);
   }, [activeSongIdState, songs]);
 
-  // Global Keyboard Bindings
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      // Ignore if user is typing in an input or textarea
       if (
         e.target instanceof HTMLInputElement || 
         e.target instanceof HTMLTextAreaElement ||
@@ -658,7 +634,7 @@ const Index = () => {
       }
       if (e.key.toLowerCase() === 'r') {
         e.preventDefault();
-        startSheetReader(activeSongIdState || undefined); // Pass activeSongIdState
+        startSheetReader(activeSongIdState || undefined);
       }
       if (e.key.toLowerCase() === 'h') {
         e.preventDefault();
@@ -685,7 +661,7 @@ const Index = () => {
     handleTogglePlayback, startSheetReader, isPerformanceMode, isSheetReaderMode,
     isSearchPanelOpen, isPreferencesOpen, isAdminOpen, isAuditModalOpen,
     isStudioModalOpen, isSetlistSettingsOpen, isRepertoirePickerOpen, isCommandHubOpen,
-    isUserGuideOpen, activeSongIdState // Added activeSongIdState to dependencies
+    isUserGuideOpen, activeSongIdState
   ]);
 
   if (isPerformanceMode) {
@@ -830,7 +806,6 @@ const Index = () => {
             </div>
           </div>
 
-          {/* Automation Hub (Only on Repertoire) */}
           {viewMode === 'repertoire' && (
             <SetlistExporter 
               songs={masterRepertoire} 
@@ -910,16 +885,16 @@ const Index = () => {
       <FloatingCommandDock
         onOpenSearch={() => {
           setIsSearchPanelOpen(prev => {
-            if (!prev) { // If opening
-              setActiveSongId(null); // Clear active song
-              transposerRef.current?.resetEngine(); // Reset audio engine
-              transposerRef.current?.triggerSearch(""); // Clear search query
+            if (!prev) {
+              setActiveSongId(null);
+              transposerRef.current?.resetEngine();
+              transposerRef.current?.triggerSearch("");
             }
             return !prev;
           });
         }}
         onOpenPractice={startPerformance}
-        onOpenReader={startSheetReader} // Pass activeSongIdState to startSheetReader
+        onOpenReader={() => startSheetReader(activeSongIdState || undefined)}
         onOpenAdmin={() => setIsAdminOpen(true)}
         onOpenPreferences={() => setIsPreferencesOpen(true)}
         onToggleHeatmap={() => setShowHeatmap(prev => !prev)}
@@ -930,12 +905,11 @@ const Index = () => {
         hasReadableChart={hasReadableChart}
         isPlaying={isPlaying}
         onTogglePlayback={handleTogglePlayback}
-        // Pass Safe Pitch Mode props
         currentSongHighestNote={currentSongForSafePitch?.highest_note_original}
         currentSongPitch={currentSongForSafePitch?.pitch}
         onSafePitchToggle={handleSafePitchToggle}
-        isReaderMode={isSheetReaderMode} // Indicate if in SheetReaderMode
-        activeSongId={activeSongIdState} // Pass active song ID
+        isReaderMode={isSheetReaderMode}
+        activeSongId={activeSongIdState}
       />
     </div>
   );

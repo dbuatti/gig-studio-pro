@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { useSettings } from '@/hooks/use-settings';
-import { Settings2, Hash, Music2, LogOut, ShieldCheck, Zap, Coffee, Heart, Globe, User, Youtube, Key, ShieldAlert } from 'lucide-react';
+import { Settings2, Hash, Music2, LogOut, ShieldCheck, Zap, Coffee, Heart, Globe, User, Youtube, Key, ShieldAlert, Bug, FileText, Monitor } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { cn } from "@/lib/utils";
 import { useNavigate } from 'react-router-dom';
@@ -15,6 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PURE_NOTES_SHARP, PURE_NOTES_FLAT } from '@/utils/keyUtils';
+import { useReaderSettings, ReaderResourceForce } from '@/hooks/use-reader-settings'; // NEW: Import useReaderSettings
 
 interface PreferencesModalProps {
   isOpen: boolean;
@@ -28,6 +29,15 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
   const [ytKey, setYtKey] = useState("");
   const [safePitchMaxNote, setSafePitchMaxNote] = useState("G3");
   const [isSaving, setIsSaving] = useState(false);
+
+  // NEW: Use reader settings hook
+  const {
+    forceReaderResource,
+    alwaysShowAllToasts,
+    ignoreConfirmedGate,
+    forceDesktopView,
+    updateSetting,
+  } = useReaderSettings();
 
   useEffect(() => {
     if (isOpen && user) {
@@ -197,6 +207,97 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
                 />
                 <span className={cn("text-[10px] font-black uppercase", keyPreference === 'sharps' ? "text-indigo-400" : "text-slate-600")}>Sharps</span>
               </div>
+            </div>
+          </div>
+
+          {/* NEW: DEBUG & OVERRIDE Section */}
+          <div className="space-y-4 border-t border-white/10 pt-6">
+            <div className="flex items-center gap-3">
+              <Bug className="w-5 h-5 text-red-400" />
+              <h4 className="text-xl font-black uppercase tracking-tight text-red-400">DEBUG & OVERRIDE</h4>
+            </div>
+            <p className="text-xs text-slate-500">Advanced settings for debugging and testing reader behavior.</p>
+
+            {/* Reader Resource Force */}
+            <div className="p-4 bg-red-950/10 rounded-2xl border border-red-900/50 space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-red-600/10 rounded-lg">
+                  <FileText className="w-4 h-4 text-red-500" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold">Reader Resource Force</p>
+                  <p className="text-[9px] text-slate-500 uppercase font-black">Override default chart logic</p>
+                </div>
+              </div>
+              <Select 
+                value={forceReaderResource} 
+                onValueChange={(value: ReaderResourceForce) => updateSetting('forceReaderResource', value)}
+              >
+                <SelectTrigger className="bg-black/20 border-white/5 text-xs font-mono font-bold h-10">
+                  <SelectValue placeholder="Default (Auto)" />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-900 border-white/10 text-white z-[300]">
+                  <SelectItem value="default" className="font-mono">Default (Auto)</SelectItem>
+                  <SelectItem value="force-pdf" className="font-mono">Force PDF Only</SelectItem>
+                  <SelectItem value="force-ug" className="font-mono">Force UG Only</SelectItem>
+                  <SelectItem value="force-chords" className="font-mono">Force Chords</SelectItem>
+                  <SelectItem value="simulation" className="font-mono">Simulation Mode</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Always Show All Toasts */}
+            <div className="p-4 bg-red-950/10 rounded-2xl border border-red-900/50 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-red-600/10 rounded-lg">
+                  <Zap className="w-4 h-4 text-red-500" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold">Always Show All Toasts</p>
+                  <p className="text-[9px] text-slate-500 uppercase font-black">Disable toast suppression</p>
+                </div>
+              </div>
+              <Switch 
+                checked={alwaysShowAllToasts} 
+                onCheckedChange={(checked) => updateSetting('alwaysShowAllToasts', checked)}
+                className="data-[state=checked]:bg-red-600"
+              />
+            </div>
+
+            {/* Ignore Confirmed Gate */}
+            <div className="p-4 bg-red-950/10 rounded-2xl border border-red-900/50 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-red-600/10 rounded-lg">
+                  <ShieldCheck className="w-4 h-4 text-red-500" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold">Ignore Confirmed Gate</p>
+                  <p className="text-[9px] text-slate-500 uppercase font-black">Cycle through all songs in Reader</p>
+                </div>
+              </div>
+              <Switch 
+                checked={ignoreConfirmedGate} 
+                onCheckedChange={(checked) => updateSetting('ignoreConfirmedGate', checked)}
+                className="data-[state=checked]:bg-red-600"
+              />
+            </div>
+
+            {/* Force Desktop View */}
+            <div className="p-4 bg-red-950/10 rounded-2xl border border-red-900/50 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-red-600/10 rounded-lg">
+                  <Monitor className="w-4 h-4 text-red-500" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold">Force Desktop View</p>
+                  <p className="text-[9px] text-slate-500 uppercase font-black">Disable mobile optimizations</p>
+                </div>
+              </div>
+              <Switch 
+                checked={forceDesktopView} 
+                onCheckedChange={(checked) => updateSetting('forceDesktopView', checked)}
+                className="data-[state=checked]:bg-red-600"
+              />
             </div>
           </div>
 

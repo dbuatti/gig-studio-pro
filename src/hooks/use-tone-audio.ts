@@ -26,7 +26,7 @@ export interface AudioEngineControls {
   resetEngine: () => void;
 }
 
-export function useToneAudio(suppressToasts: boolean = false): AudioEngineControls { // NEW: suppressToasts prop
+export function useToneAudio(suppressToasts: boolean = false): AudioEngineControls {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -94,11 +94,11 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
       playerRef.current.playbackRate = 1;
       playerRef.current.volume.value = -6;
       
-      if (!suppressToasts) { // NEW: Conditionally show toast
+      if (!suppressToasts) {
         showSuccess("Audio Loaded");
       }
     }).catch(() => showError("Failed to initialize audio engine."));
-  }, [initEngine, resetEngine, suppressToasts]); // Added suppressToasts to dependencies
+  }, [initEngine, resetEngine, suppressToasts]);
 
   const loadFromUrl = useCallback(async (url: string, initialPitch: number = 0) => {
     if (!url) return;
@@ -140,7 +140,6 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     }
   }, []);
 
-  // Animation loop for progress bar
   const animateProgress = useCallback(() => {
     if (isPlaying && playerRef.current && duration > 0) {
       const elapsed = (Tone.now() - playbackStartTimeRef.current) * tempo;
@@ -164,7 +163,6 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     return () => { if (requestRef.current) cancelAnimationFrame(requestRef.current); };
   }, [isPlaying, animateProgress]);
 
-  // Update Tone player parameters when state changes
   useEffect(() => {
     if (playerRef.current) {
       playerRef.current.detune = (pitch * 100) + fineTune;
@@ -183,7 +181,6 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     }
   }, [volume]);
 
-  // Handlers to update state and Tone player simultaneously
   const setPitch = useCallback((p: number) => {
     setPitchState(p);
     if (playerRef.current) playerRef.current.detune = (p * 100) + fineTune;

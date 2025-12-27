@@ -12,7 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
 import {
-  FileText, ArrowLeft, ChevronLeft, ChevronRight, Play, Pause, Shuffle, Timer, Filter, Music, Check, X, Loader2, Guitar, AlignLeft, ExternalLink, ShieldCheck, ListMusic, SortAsc, SortDesc, Search, Volume2, RotateCcw, Plus, Minus, AlertCircle
+  FileText, ArrowLeft, ChevronLeft, ChevronRight, Play, Pause, Shuffle, Timer, Filter, Music, Check, X, Loader2, Guitar, AlignLeft, ExternalLink, ShieldCheck, ListMusic, SortAsc, SortDesc, Search, Volume2, RotateCcw, Plus, Minus, AlertCircle, Bug
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import UGChordsReader from '@/components/UGChordsReader';
@@ -26,8 +26,10 @@ import SheetReaderHeader from '@/components/SheetReaderHeader';
 import SheetReaderFooter from '@/components/SheetReaderFooter';
 import RepertoirePicker from '@/components/RepertoirePicker';
 import ResourceAuditModal from '@/components/ResourceAuditModal';
-import { AnimatePresence, motion } from 'framer-motion'; // Import motion and AnimatePresence
-import FloatingCommandDock from '@/components/FloatingCommandDock'; // Import FloatingCommandDock
+import { AnimatePresence, motion } from 'framer-motion';
+import FloatingCommandDock from '@/components/FloatingCommandDock';
+import { useReaderSettings } from '@/hooks/use-reader-settings'; // NEW: Import useReaderSettings
+import { useIsMobile } from '@/hooks/use-mobile'; // NEW: Import useIsMobile
 
 interface FilterState {
   hasAudio: boolean;
@@ -44,9 +46,19 @@ interface SheetReaderModeProps {
 
 const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
   const navigate = useNavigate();
-  const { songId: initialSongId } = useParams<{ songId?: string }>(); // Get songId from URL params
+  const { songId: initialSongId } = useParams<{ songId?: string }>();
   const { user } = useAuth();
   const { keyPreference: globalKeyPreference } = useSettings();
+  const {
+    forceReaderResource, // NEW: Get forceReaderResource from hook
+    alwaysShowAllToasts, // NEW: Get alwaysShowAllToasts from hook
+    ignoreConfirmedGate, // NEW: Get ignoreConfirmedGate from hook
+    forceDesktopView,    // NEW: Get forceDesktopView from hook
+  } = useReaderSettings(); // NEW: Use reader settings hook
+
+  const isMobileHook = useIsMobile(); // Use the original useIsMobile hook
+  const isMobile = forceDesktopView ? false : isMobileHook; // NEW: Override isMobile if forceDesktopView is true
+
   const [allSongs, setAllSongs] = useState<SetlistSong[]>([]);
   const [filteredSongs, setFilteredSongs] = useState<SetlistSong[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -63,27 +75,27 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
   const [autoAdvanceInterval, setAutoAdvanceInterval] = useState(30); // seconds
   const autoAdvanceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const audioEngine = useToneAudio(true); // Pass true to suppress toasts
+  const audioEngine = useToneAudio(true); // Pass true to suppress toasts by default
   const { isPlaying, progress, duration, analyzer, loadFromUrl, togglePlayback, stopPlayback, setPitch: setAudioPitch, setVolume, setProgress: setAudioProgress, resetEngine } = audioEngine;
 
   const currentSong = filteredSongs[currentIndex];
   const currentSongKeyPreference = currentSong?.key_preference || globalKeyPreference;
 
   const [localPitch, setLocalPitch] = useState(0);
-  const [isUiVisible, setIsUiVisible] = useState(true); // State for UI visibility
-  const [isMenuOpen, setIsMenuOpen] = useState(false); // NEW: State for left menu visibility
-  const [isRepertoirePickerOpen, setIsRepertoirePickerOpen] = useState(false); // State for RepertoirePicker
-  const [isResourceAuditOpen, setIsResourceAuditOpen] = useState(false); // State for ResourceAuditModal
-  const [isFullScreen, setIsFullScreen] = useState(false); // NEW: State for full screen mode
-  const [isOverlayOpen, setIsOverlayOpen] = useState(false); // NEW: State to track if any overlay (dropdown, modal) is open
+  const [isUiVisible, setIsUiVisible] = useState(true);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isRepertoirePickerOpen, setIsRepertoirePickerOpen] = useState(false);
+  const [isResourceAuditOpen, setIsResourceAuditOpen] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
+  const [isOverlayOpen, setIsOverlayOpen] = useState(false);
 
   const mainContentRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number>(0);
-  const touchStartY = useRef<number>(0); // Track Y for swipe direction
-  const tapCountRef = useRef<number>(0); // For double tap detection
-  const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null); // For tap timeout
-  const longPressTimeoutRef = useRef<NodeJS.Timeout | null>(null); // For long press detection
-  const uiHideTimeoutRef = useRef<NodeJS.Timeout | null>(null); // NEW: UI auto-hide timer
+  const touchStartY = useRef<number>(0);
+  const tapCountRef = useRef<number>(0);
+  const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const longPressTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const uiHideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const isFramable = useCallback((url: string | null | undefined) => {
     if (!url) return true;
@@ -99,7 +111,7 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
         .from('repertoire')
         .select('*')
         .eq('user_id', user.id)
-        .eq('is_approved', true); // Filter for approved songs only
+        .order('title'); // Removed .eq('is_approved', true) to allow filtering by ignoreConfirmedGate
 
       if (error) throw error;
 
@@ -136,7 +148,6 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
       }));
       setAllSongs(mappedSongs);
 
-      // Set initial song if provided in URL
       if (initialSongId) {
         const initialIdx = mappedSongs.findIndex(s => s.id === initialSongId);
         if (initialIdx !== -1) {
@@ -159,7 +170,6 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
   useEffect(() => {
     let result = [...allSongs];
 
-    // Apply search term
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase();
       result = result.filter(s =>
@@ -172,9 +182,16 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
     if (filters.hasAudio) {
       result = result.filter(s => !!s.previewUrl && !(s.previewUrl.includes('apple.com') || s.previewUrl.includes('itunes-assets')));
     }
-    if (filters.isApproved) {
+    // NEW: Apply ignoreConfirmedGate logic
+    if (!ignoreConfirmedGate && filters.isApproved) {
       result = result.filter(s => s.isApproved);
+    } else if (ignoreConfirmedGate && filters.isApproved) {
+      // If ignoreConfirmedGate is true, but filter is still 'isApproved', it means we want to see ALL songs,
+      // but the filter state is still 'isApproved'. This is a bit contradictory.
+      // For simplicity, if ignoreConfirmedGate is true, we effectively ignore the 'isApproved' filter.
+      // So, no additional filtering here.
     }
+    
     if (filters.hasCharts) {
       result = result.filter(s => s.pdfUrl || s.leadsheetUrl || s.ugUrl || s.ug_chords_text);
     }
@@ -192,21 +209,19 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
     }
 
     setFilteredSongs(result);
-    setCurrentIndex(0); // Reset to first song on filter/sort change
-  }, [allSongs, searchTerm, filters, sortOption]);
+    setCurrentIndex(0);
+  }, [allSongs, searchTerm, filters, sortOption, ignoreConfirmedGate]); // NEW: Add ignoreConfirmedGate to dependencies
 
-  // Effect to load audio and set pitch when currentSong changes
   useEffect(() => {
     if (currentSong?.previewUrl) {
       loadFromUrl(currentSong.previewUrl, currentSong.pitch || 0);
-      setLocalPitch(currentSong.pitch || 0); // Initialize local pitch from song
+      setLocalPitch(currentSong.pitch || 0);
     } else {
       resetEngine();
       setLocalPitch(0);
     }
   }, [currentSong, loadFromUrl, resetEngine]);
 
-  // Effect to update song pitch in DB when localPitch changes
   useEffect(() => {
     const updateSongInDb = async () => {
       if (currentSong && user && localPitch !== currentSong.pitch) {
@@ -218,7 +233,6 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
             .eq('id', currentSong.id)
             .eq('user_id', user.id);
           
-          // Optimistically update local state
           setAllSongs(prev => prev.map(s => s.id === currentSong.id ? { ...s, pitch: localPitch, targetKey: newTargetKey } : s));
         } catch (error) {
           console.error("Failed to update song pitch in DB:", error);
@@ -232,13 +246,13 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
   const handleNext = useCallback(() => {
     if (filteredSongs.length === 0) return;
     setCurrentIndex((prev) => (prev + 1) % filteredSongs.length);
-    stopPlayback(); // Stop audio on song change
+    stopPlayback();
   }, [filteredSongs, stopPlayback]);
 
   const handlePrev = useCallback(() => {
     if (filteredSongs.length === 0) return;
     setCurrentIndex((prev) => (prev - 1 + filteredSongs.length) % filteredSongs.length);
-    stopPlayback(); // Stop audio on song change
+    stopPlayback();
   }, [filteredSongs, stopPlayback]);
 
   const handleToggleAutoAdvance = useCallback(() => {
@@ -271,13 +285,12 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
     }
   }, []);
 
-  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) return;
 
       if (e.key === 'Escape') {
-        navigate('/dashboard'); // NEW: Navigate to dashboard
+        navigate('/dashboard');
       }
       if (e.key === 'ArrowLeft') {
         handlePrev();
@@ -287,17 +300,17 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
       }
       if (e.code === 'Space') {
         e.preventDefault();
-        togglePlayback(); // Toggle audio playback
+        togglePlayback();
       }
-      if (e.key === 'p' || e.key === 'P') { // Transpose up
+      if (e.key === 'p' || e.key === 'P') {
         e.preventDefault();
         setLocalPitch(prev => Math.min(prev + 1, 24));
       }
-      if (e.key === 'o' || e.key === 'O') { // Transpose down
+      if (e.key === 'o' || e.key === 'O') {
         e.preventDefault();
         setLocalPitch(prev => Math.max(prev - 1, -24));
       }
-      if (e.key.toLowerCase() === 'f') { // Toggle full screen
+      if (e.key.toLowerCase() === 'f') {
         e.preventDefault();
         toggleFullScreen();
       }
@@ -306,10 +319,9 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [navigate, handlePrev, handleNext, togglePlayback, toggleFullScreen]);
 
-  // Gesture Handlers
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
-    touchStartY.current = e.touches[0].clientY; // Record Y position
+    touchStartY.current = e.touches[0].clientY;
     tapCountRef.current++;
 
     if (longPressTimeoutRef.current) {
@@ -317,11 +329,10 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
       longPressTimeoutRef.current = null;
     }
     longPressTimeoutRef.current = setTimeout(() => {
-      // This is a long press, prevent tap/swipe
-      tapCountRef.current = 0; // Reset tap count
-      setIsRepertoirePickerOpen(true); // Long press opens song selector
+      tapCountRef.current = 0;
+      setIsRepertoirePickerOpen(true);
       longPressTimeoutRef.current = null;
-    }, 500); // Adjust long press delay
+    }, 500);
   }, []);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
@@ -329,14 +340,13 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
       clearTimeout(longPressTimeoutRef.current);
       longPressTimeoutRef.current = null;
     }
-    // Prevent tap detection if there's significant movement
     const currentX = e.touches[0].clientX;
     const currentY = e.touches[0].clientY;
     const deltaX = Math.abs(touchStartX.current - currentX);
     const deltaY = Math.abs(touchStartY.current - currentY);
 
-    if (deltaX > 10 || deltaY > 10) { // Threshold for movement
-      tapCountRef.current = 0; // Cancel tap if moved
+    if (deltaX > 10 || deltaY > 10) {
+      tapCountRef.current = 0;
     }
   }, []);
 
@@ -347,32 +357,29 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
     }
 
     if (tapCountRef.current === 1) {
-      // Single tap logic
       if (tapTimeoutRef.current) clearTimeout(tapTimeoutRef.current);
       tapTimeoutRef.current = setTimeout(() => {
-        setIsUiVisible(prev => !prev); // Toggle UI visibility
-        setIsMenuOpen(prev => !prev); // Toggle menu visibility
+        setIsUiVisible(prev => !prev);
+        setIsMenuOpen(prev => !prev);
         tapCountRef.current = 0;
         tapTimeoutRef.current = null;
-      }, 250); // Single tap detection window
+      }, 250);
     } else if (tapCountRef.current === 2) {
-      // Double tap logic
       if (tapTimeoutRef.current) clearTimeout(tapTimeoutRef.current);
-      togglePlayback(); // Two-finger tap toggles playback
+      togglePlayback();
       tapCountRef.current = 0;
       tapTimeoutRef.current = null;
     }
 
-    // Swipe detection (only if not a tap)
-    if (tapCountRef.current === 0) { // Only process swipe if no tap was registered
+    if (tapCountRef.current === 0) {
       const endX = e.changedTouches[0].clientX;
       const diffX = touchStartX.current - endX;
-      const swipeThreshold = 50; // Pixels for a valid swipe
+      const swipeThreshold = 50;
 
       if (Math.abs(diffX) > swipeThreshold) {
-        if (diffX > 0) { // Swipe left
+        if (diffX > 0) {
           handleNext();
-        } else { // Swipe right
+        } else {
           handlePrev();
         }
       }
@@ -383,17 +390,16 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
     if (!currentSong || !user) return;
 
     const newPitch = calculateSemitones(currentSong.originalKey || "C", newTargetKey);
-    setLocalPitch(newPitch); // Update local pitch immediately
-    setAudioPitch(newPitch); // Update audio engine pitch
+    setLocalPitch(newPitch);
+    setAudioPitch(newPitch);
 
     try {
       await supabase
         .from('repertoire')
         .update({ target_key: newTargetKey, pitch: newPitch })
         .eq('id', currentSong.id)
-        .eq('user.id', user.id); // Corrected user.id filter
+        .eq('user_id', user.id);
       
-      // Optimistically update local state
       setAllSongs(prev => prev.map(s => s.id === currentSong.id ? { ...s, targetKey: newTargetKey, pitch: newPitch } : s));
       showSuccess(`Stage Key set to ${newTargetKey}`);
     } catch (error) {
@@ -413,6 +419,30 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
 
     const readiness = calculateReadiness(currentSong);
     const hasChartLink = currentSong.pdfUrl || currentSong.leadsheetUrl || currentSong.ugUrl || currentSong.ug_chords_text;
+
+    // NEW: Simulation Mode Logic
+    if (forceReaderResource === 'simulation') {
+      const isMissing = Math.random() > 0.5; // 50% chance to simulate missing resources
+      if (isMissing) {
+        return (
+          <div className="h-full flex flex-col items-center justify-center bg-slate-950 text-white p-8 text-center">
+            <div className="bg-red-500/10 w-20 h-20 rounded-[2rem] flex items-center justify-center text-red-500 mx-auto mb-6">
+              <AlertCircle className="w-10 h-10" />
+            </div>
+            <h1 className="text-3xl font-black uppercase tracking-tight mb-4">SIMULATION: Missing Resources</h1>
+            <p className="text-slate-500 max-w-md font-medium">
+              This is a simulation. The song is currently showing as missing resources.
+            </p>
+            <Button 
+              onClick={() => setIsResourceAuditOpen(true)} 
+              className="mt-8 bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest px-8 h-14 rounded-2xl shadow-lg shadow-indigo-600/30"
+            >
+              <ShieldCheck className="w-5 h-5 mr-3" /> Open Resource Audit
+            </Button>
+          </div>
+        );
+      }
+    }
 
     if (readiness < 40 || !hasChartLink) {
       return (
@@ -442,53 +472,78 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
     let chartType = "None";
     let chartUrl = null;
 
-    // Prioritize preferred reader
-    if (preferredReader === 'ug' && currentSong.ug_chords_text) {
-      chartContent = (
-        <UGChordsReader
-          chordsText={currentSong.ug_chords_text}
-          config={ugChordsConfig}
-          isMobile={false}
-          originalKey={currentSong.originalKey}
-          targetKey={transposeKey(currentSong.originalKey || "C", localPitch)} // Use localPitch for transposition
-        />
-      );
-      chartType = "UG Chords";
-    } else if (preferredReader === 'ls' && currentSong.leadsheetUrl) {
-      chartUrl = currentSong.leadsheetUrl;
-      chartType = "Lead Sheet";
-    } else if (preferredReader === 'fn' && currentSong.pdfUrl) {
-      chartUrl = currentSong.pdfUrl;
-      chartType = "Full Notation";
-    } else {
-      // Fallback to any available chart if preferred is not set or not available
-      if (currentSong.ug_chords_text) {
-        chartContent = (
-          <UGChordsReader
-            chordsText={currentSong.ug_chords_text}
-            config={ugChordsConfig}
-            isMobile={false}
-            originalKey={currentSong.originalKey}
-            targetKey={transposeKey(currentSong.originalKey || "C", localPitch)} // Use localPitch for transposition
-          />
-        );
-        chartType = "UG Chords (Fallback)";
-      } else if (currentSong.leadsheetUrl) {
-        chartUrl = currentSong.leadsheetUrl;
-        chartType = "Lead Sheet (Fallback)";
-      } else if (currentSong.pdfUrl) {
-        chartUrl = currentSong.pdfUrl;
-        chartType = "Full Notation (Fallback)";
-      } else {
-        chartContent = (
-          <div className="h-full flex flex-col items-center justify-center text-slate-500 text-center p-8">
-            <FileText className="w-16 h-16 mb-4" />
-            <p className="text-lg font-black uppercase tracking-tight">No Chart Linked</p>
-            <p className="text-sm mt-2">Add a PDF, Lead Sheet, or Ultimate Guitar tab in Song Studio.</p>
-          </div>
-        );
-        chartType = "None";
-      }
+    // NEW: Apply forceReaderResource logic
+    switch (forceReaderResource) {
+      case 'force-pdf':
+        if (currentSong.pdfUrl) { chartUrl = currentSong.pdfUrl; chartType = "Forced PDF"; }
+        break;
+      case 'force-ug':
+        if (currentSong.ugUrl) { chartUrl = currentSong.ugUrl; chartType = "Forced UG"; }
+        break;
+      case 'force-chords':
+        if (currentSong.ug_chords_text) {
+          chartContent = (
+            <UGChordsReader
+              chordsText={currentSong.ug_chords_text}
+              config={ugChordsConfig}
+              isMobile={isMobile}
+              originalKey={currentSong.originalKey}
+              targetKey={transposeKey(currentSong.originalKey || "C", localPitch)}
+            />
+          );
+          chartType = "Forced Chords";
+        }
+        break;
+      case 'default':
+      default:
+        // Existing logic for preferred reader and fallbacks
+        if (preferredReader === 'ug' && currentSong.ug_chords_text) {
+          chartContent = (
+            <UGChordsReader
+              chordsText={currentSong.ug_chords_text}
+              config={ugChordsConfig}
+              isMobile={isMobile}
+              originalKey={currentSong.originalKey}
+              targetKey={transposeKey(currentSong.originalKey || "C", localPitch)}
+            />
+          );
+          chartType = "UG Chords";
+        } else if (preferredReader === 'ls' && currentSong.leadsheetUrl) {
+          chartUrl = currentSong.leadsheetUrl;
+          chartType = "Lead Sheet";
+        } else if (preferredReader === 'fn' && currentSong.pdfUrl) {
+          chartUrl = currentSong.pdfUrl;
+          chartType = "Full Notation";
+        } else {
+          if (currentSong.ug_chords_text) {
+            chartContent = (
+              <UGChordsReader
+                chordsText={currentSong.ug_chords_text}
+                config={ugChordsConfig}
+                isMobile={isMobile}
+                originalKey={currentSong.originalKey}
+                targetKey={transposeKey(currentSong.originalKey || "C", localPitch)}
+              />
+            );
+            chartType = "UG Chords (Fallback)";
+          } else if (currentSong.leadsheetUrl) {
+            chartUrl = currentSong.leadsheetUrl;
+            chartType = "Lead Sheet (Fallback)";
+          } else if (currentSong.pdfUrl) {
+            chartUrl = currentSong.pdfUrl;
+            chartType = "Full Notation (Fallback)";
+          } else {
+            chartContent = (
+              <div className="h-full flex flex-col items-center justify-center text-slate-500 text-center p-8">
+                <FileText className="w-16 h-16 mb-4" />
+                <p className="text-lg font-black uppercase tracking-tight">No Chart Linked</p>
+                <p className="text-sm mt-2">Add a PDF, Lead Sheet, or Ultimate Guitar tab in Song Studio.</p>
+              </div>
+            );
+            chartType = "None";
+          }
+        }
+        break;
     }
 
     if (chartUrl) {
@@ -520,7 +575,7 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
         </div>
       </div>
     );
-  }, [currentSong, filteredSongs, isFramable, currentSongKeyPreference, localPitch, isFullScreen]);
+  }, [currentSong, filteredSongs, isFramable, currentSongKeyPreference, localPitch, isFullScreen, forceReaderResource, isMobile]); // NEW: Add forceReaderResource and isMobile to dependencies
 
   const handleSelectSongFromPicker = useCallback((song: SetlistSong) => {
     const newIndex = allSongs.findIndex(s => s.id === song.id);
@@ -534,22 +589,21 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
     if (!user) return;
     const target = allSongs.find(s => s.id === songId);
     if (target) {
-      await supabase.from('repertoire').update(updates).eq('id', songId).eq('user_id', user.id); // Corrected user_id filter
+      await supabase.from('repertoire').update(updates).eq('id', songId).eq('user_id', user.id);
       setAllSongs(prev => prev.map(s => s.id === songId ? { ...s, ...updates } : s));
       showSuccess("Song updated in repertoire.");
     }
   }, [allSongs, user]);
 
-  // Auto-hide UI logic
   useEffect(() => {
     if (uiHideTimeoutRef.current) {
       clearTimeout(uiHideTimeoutRef.current);
     }
-    if (isUiVisible && !isOverlayOpen) { // Only auto-hide if UI is visible and no overlay is open
+    if (isUiVisible && !isOverlayOpen) {
       uiHideTimeoutRef.current = setTimeout(() => {
         setIsUiVisible(false);
-        setIsMenuOpen(false); // Also hide menu
-      }, 5000); // 5 seconds
+        setIsMenuOpen(false);
+      }, 5000);
     }
     return () => {
       if (uiHideTimeoutRef.current) {
@@ -558,7 +612,6 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
     };
   }, [isUiVisible, isOverlayOpen]);
 
-  // Listen for fullscreen changes
   useEffect(() => {
     const onFullScreenChange = () => {
       if (!document.fullscreenElement) {
@@ -572,10 +625,9 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
   return (
     <div
       className={cn(
-        "relative flex h-screen w-screen overflow-hidden bg-slate-950 text-white", // Full viewport width/height
+        "relative flex h-screen w-screen overflow-hidden bg-slate-950 text-white",
       )}
     >
-      {/* Floating Header */}
       <AnimatePresence>
         {isUiVisible && (
           <motion.div
@@ -583,28 +635,28 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: -100, opacity: 0 }}
             transition={{ duration: 0.3 }}
-            className="fixed top-0 left-0 right-0 z-60" // NEW: Fixed position and z-index
+            className="fixed top-0 left-0 right-0 z-60"
           >
             <SheetReaderHeader
               currentSong={currentSong}
-              onClose={() => navigate('/dashboard')} // NEW: Navigate to dashboard
-              onSearchClick={() => setIsRepertoirePickerOpen(true)} // Search button opens RepertoirePicker
+              onClose={() => navigate('/dashboard')}
+              onSearchClick={() => setIsRepertoirePickerOpen(true)}
               onPrevSong={handlePrev}
               onNextSong={handleNext}
               currentSongIndex={currentIndex}
               totalSongs={filteredSongs.length}
               isLoading={loading}
               keyPreference={globalKeyPreference}
-              onUpdateKey={handleUpdateKey} // Pass the new handler
-              isFullScreen={isFullScreen} // Pass isFullScreen
-              onToggleFullScreen={toggleFullScreen} // Pass toggleFullScreen
-              setIsOverlayOpen={setIsOverlayOpen} // Pass setIsOverlayOpen
+              onUpdateKey={handleUpdateKey}
+              isFullScreen={isFullScreen}
+              onToggleFullScreen={toggleFullScreen}
+              setIsOverlayOpen={setIsOverlayOpen}
+              isOverrideActive={forceReaderResource !== 'default' || alwaysShowAllToasts || ignoreConfirmedGate || forceDesktopView} // NEW: Pass override status
             />
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Floating Footer */}
       <AnimatePresence>
         {isUiVisible && (
           <motion.div
@@ -612,7 +664,7 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
             transition={{ duration: 0.3 }}
-            className="fixed bottom-0 left-0 right-0 z-60" // NEW: Fixed position and z-index
+            className="fixed bottom-0 left-0 right-0 z-60"
           >
             <SheetReaderFooter
               currentSong={currentSong}
@@ -632,7 +684,6 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
         )}
       </AnimatePresence>
 
-      {/* Left Menu (Song List) */}
       <AnimatePresence>
         {isMenuOpen && (
           <motion.aside
@@ -641,22 +692,21 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
             exit={{ x: '-100%' }}
             transition={{ duration: 0.3 }}
             className="fixed left-0 top-0 z-50 h-full w-64 bg-slate-900 border-r border-white/10"
-            style={{ paddingTop: isUiVisible ? '64px' : '0', paddingBottom: isUiVisible ? '96px' : '0' }} // Adjust for header/footer height
+            style={{ paddingTop: isUiVisible ? '64px' : '0', paddingBottom: isUiVisible ? '96px' : '0' }}
           >
-            {/* Menu content */}
             <div className="p-4 border-b border-white/10 flex justify-between items-center">
               <h2 className="font-bold text-sm uppercase tracking-widest">Repertoire</h2>
               <Button variant="ghost" size="icon" onClick={() => setIsMenuOpen(false)} className="text-slate-400 hover:text-white">
                 <X className="w-4 h-4" />
               </Button>
             </div>
-            <ScrollArea className="h-[calc(100%-60px)]"> {/* Adjust height based on header */}
+            <ScrollArea className="h-[calc(100%-60px)]">
               {filteredSongs.map((song, index) => (
                 <button
                   key={song.id}
                   onClick={() => {
                     setCurrentIndex(index);
-                    setIsMenuOpen(false); // Close menu on song selection
+                    setIsMenuOpen(false);
                   }}
                   className={cn(
                     "w-full text-left px-4 py-3 text-sm transition-colors flex items-center gap-2",
@@ -672,53 +722,49 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
         )}
       </AnimatePresence>
 
-      {/* Main Reader Area */}
       <main
-        ref={mainContentRef} // Attach ref for touch events
+        ref={mainContentRef}
         onClick={() => {
-          if (isMenuOpen) setIsMenuOpen(false); // Close menu if open
-          if (!isUiVisible) setIsUiVisible(true); // Show UI if hidden
+          if (isMenuOpen) setIsMenuOpen(false);
+          if (!isUiVisible) setIsUiVisible(true);
         }}
-        onTouchStart={handleTouchStart} // NEW: Touch handlers on main content
+        onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         className={cn(
-          "relative flex-1 transition-all duration-300 flex flex-col overflow-hidden z-40", // NEW: z-index
+          "relative flex-1 transition-all duration-300 flex flex-col overflow-hidden z-40",
           isMenuOpen ? 'ml-64' : 'ml-0'
         )}
-        style={{ paddingTop: isUiVisible ? '64px' : '0', paddingBottom: isUiVisible ? '96px' : '0' }} // Adjust for header/footer height
+        style={{ paddingTop: isUiVisible ? '64px' : '0', paddingBottom: isUiVisible ? '96px' : '0' }}
       >
-        {/* The Actual Song Content */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {renderChart}
         </div>
       </main>
 
-      {/* Floating Command Dock */}
       <FloatingCommandDock
-        onOpenSearch={() => {}} // Not used in reader mode
-        onOpenPractice={() => {}} // Not used in reader mode
-        onOpenReader={() => {}} // Not used in reader mode
-        onOpenAdmin={() => {}} // Not used in reader mode
-        onOpenPreferences={() => {}} // Not used in reader mode
-        onToggleHeatmap={() => {}} // Not used in reader mode
-        onOpenUserGuide={() => {}} // Not used in reader mode
-        showHeatmap={false} // Always false in reader mode
-        viewMode="repertoire" // Irrelevant in reader mode
+        onOpenSearch={() => {}}
+        onOpenPractice={() => {}}
+        onOpenReader={() => {}}
+        onOpenAdmin={() => {}}
+        onOpenPreferences={() => {}}
+        onToggleHeatmap={() => {}}
+        onOpenUserGuide={() => {}}
+        showHeatmap={false}
+        viewMode="repertoire"
         hasPlayableSong={!!currentSong?.previewUrl}
-        isReaderMode={true} // Indicate that we are in reader mode
+        isReaderMode={true}
         isPlaying={isPlaying}
         onTogglePlayback={togglePlayback}
         hasReadableChart={true}
       />
 
-      {/* Modals */}
       <RepertoirePicker 
         isOpen={isRepertoirePickerOpen} 
         onClose={() => { setIsRepertoirePickerOpen(false); setIsOverlayOpen(false); }} 
         repertoire={allSongs} 
-        currentSetlistSongs={[]} // Not in a setlist context here
-        onAdd={handleSelectSongFromPicker} // Use onAdd to select a song
+        currentSetlistSongs={[]}
+        onAdd={handleSelectSongFromPicker}
       />
       <ResourceAuditModal 
         isOpen={isResourceAuditOpen} 
