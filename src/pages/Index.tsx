@@ -10,6 +10,7 @@ import ActiveSongBanner from "@/components/ActiveSongBanner";
 import SetlistStats from "@/components/SetlistStats";
 import PreferencesModal from "@/components/PreferencesModal";
 import AdminPanel from "@/components/AdminPanel";
+import SongStudioModal from "@/components/SongStudioModal";
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { showSuccess, showError } from '@/utils/toast';
 import { calculateSemitones } from '@/utils/keyUtils';
@@ -43,6 +44,8 @@ const Index = () => {
   const [isPerformanceMode, setIsPerformanceMode] = useState(false);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false); 
+  const [isStudioModalOpen, setIsStudioModalOpen] = useState(false);
+  const [editingSongId, setEditingSongId] = useState<string | null>(null);
   const [performanceState, setPerformanceState] = useState({ progress: 0, duration: 0 });
   const [isPlayerActive, setIsPlayerActive] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -335,10 +338,11 @@ const Index = () => {
   };
 
   const handleEditSong = (song: SetlistSong) => {
-    if (currentListId) {
+    if (isMobile) {
       navigate(`/gig/${currentListId}/song/${song.id}`);
     } else {
-      showError("Please select a gig first");
+      setEditingSongId(song.id);
+      setIsStudioModalOpen(true);
     }
   };
 
@@ -427,6 +431,12 @@ const Index = () => {
       </div>
       <PreferencesModal isOpen={isPreferencesOpen} onClose={() => setIsPreferencesOpen(false)} />
       <AdminPanel isOpen={isAdminOpen} onClose={() => setIsAdminOpen(true)} />
+      <SongStudioModal 
+        isOpen={isStudioModalOpen} 
+        onClose={() => setIsStudioModalOpen(false)} 
+        gigId={currentListId} 
+        songId={editingSongId} 
+      />
       {isPerformanceMode && (
         <PerformanceOverlay songs={songs.filter(isPlayableMaster)} currentIndex={songs.filter(isPlayableMaster).findIndex(s => s.id === activeSongIdState)} isPlaying={isPlayerActive} progress={performanceState.progress} duration={performanceState.duration} onTogglePlayback={() => transposerRef.current?.togglePlayback()} onNext={handleNextSong} onPrevious={handlePreviousSong} onShuffle={handleShuffle} onClose={() => { setIsPerformanceMode(false); setActiveSongId(null); transposerRef.current?.stopPlayback(); }} onUpdateKey={handleUpdateKey} onUpdateSong={handleUpdateSong} analyzer={transposerRef.current?.getAnalyzer()} onOpenAdmin={() => setIsAdminOpen(true)} gigId={currentListId} />
       )}
