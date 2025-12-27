@@ -71,6 +71,7 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
 
   const [localPitch, setLocalPitch] = useState(0);
   const [isUiVisible, setIsUiVisible] = useState(true); // State for UI visibility
+  const [isMenuOpen, setIsMenuOpen] = useState(false); // NEW: State for left menu visibility
   const [isRepertoirePickerOpen, setIsRepertoirePickerOpen] = useState(false); // State for RepertoirePicker
   const [isResourceAuditOpen, setIsResourceAuditOpen] = useState(false); // State for ResourceAuditModal
 
@@ -261,7 +262,7 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
       if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) return;
 
       if (e.key === 'Escape') {
-        navigate('/');
+        navigate('/dashboard'); // NEW: Navigate to dashboard
       }
       if (e.key === 'ArrowLeft') {
         handlePrev();
@@ -309,8 +310,15 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
       clearTimeout(longPressTimeoutRef.current);
       longPressTimeoutRef.current = null;
     }
-    // Allow native scrolling by not preventing default
-    // The swipe detection will still work on touchEnd
+    // Prevent tap detection if there's significant movement
+    const currentX = e.touches[0].clientX;
+    const currentY = e.touches[0].clientY;
+    const deltaX = Math.abs(touchStartX.current - currentX);
+    const deltaY = Math.abs(touchStartY.current - currentY);
+
+    if (deltaX > 10 || deltaY > 10) { // Threshold for movement
+      tapCountRef.current = 0; // Cancel tap if moved
+    }
   }, []);
 
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
@@ -512,13 +520,8 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
   return (
     <div
       className={cn(
-        "h-screen w-screen bg-slate-950 text-white flex flex-col overflow-hidden relative", // Full viewport width/height
-        isPlaying ? "absolute inset-0" : "" // Apply inset-0 when in immersive mode
+        "relative flex h-screen w-screen overflow-hidden bg-slate-950 text-white", // Full viewport width/height
       )}
-      ref={mainContentRef}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
     >
       {/* Floating Header */}
       <AnimatePresence>
@@ -528,10 +531,11 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: -100, opacity: 0 }}
             transition={{ duration: 0.3 }}
+            className="fixed top-0 left-0 right-0 z-60" // NEW: Fixed position and z-index
           >
             <SheetReaderHeader
               currentSong={currentSong}
-              onClose={() => navigate('/')}
+              onClose={() => navigate('/dashboard')} // NEW: Navigate to dashboard
               onSearchClick={() => setIsRepertoirePickerOpen(true)} // Search button opens RepertoirePicker
               onPrevSong={handlePrev}
               onNextSong={handleNext}
@@ -545,11 +549,6 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
         )}
       </AnimatePresence>
 
-      {/* Main Chart Canvas */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {renderChart}
-      </div>
-
       {/* Floating Footer */}
       <AnimatePresence>
         {isUiVisible && (
@@ -558,6 +557,7 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
             transition={{ duration: 0.3 }}
+            className="fixed bottom-0 left-0 right-0 z-60" // NEW: Fixed position and z-index
           >
             <SheetReaderFooter
               currentSong={currentSong}
@@ -577,7 +577,74 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
         )}
       </AnimatePresence>
 
-      {/* NEW: Ghost Transport Button (FloatingCommandDock) */}
+      {/* Left Menu (Song List) */}
+      <aside
+        className={cn(
+          "absolute left-0 top-0 z-50 h-full w-64 bg-slate-900 border-r border-white/10 transition-transform duration-300 ease-in-out",
+          isMenuOpen ? 'translate-x-0' : '-translate-x-full'
+        )}
+        style={{ paddingTop: isUiVisible ? '64px' : '0', paddingBottom: isUiVisible ? '96px' : '0' }} // Adjust for header/footer height
+      >
+        {/* Menu content */}
+        <div className="p-4 border-b border-white/10 flex justify-between items-center">
+          <h2 className="font-bold text-sm uppercase tracking-widest">Repertoire</h2>
+          <Button variant="ghost" size="icon" onClick={() => setIsMenuOpen(false)} className="text-slate-400 hover:text-white">
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+        <ScrollArea className="h-[calc(100%-60px)]"> {/* Adjust height based on header */}
+          {filteredSongs.map((song, index) => (
+            <button
+              key={song.id}
+              onClick={() => {
+                setCurrentIndex(index);
+                setIsMenuOpen(false); // Close menu on song selection
+              }}
+              className={cn(
+                "w-full text-left px-4 py-3 text-sm transition-colors flex items-center gap-2",
+                currentIndex === index ? 'bg-indigo-600 text-white' : 'hover:bg-white/5 text-slate-400'
+              )}
+            >
+              <Music className="w-4 h-4" />
+              <span className="flex-1 truncate">{index + 1}. {song.name}</span>
+            </button>
+          ))}
+        </ScrollArea>
+      </aside>
+
+      {/* Main Reader Area */}
+      <main
+        ref={mainContentRef} // Attach ref for touch events
+        onClick={() => isMenuOpen && setIsMenuOpen(false)} // Close if open
+        onTouchStart={handleTouchStart} // NEW: Touch handlers on main content
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        className={cn(
+          "relative flex-1 transition-all duration-300 flex flex-col overflow-hidden z-40", // NEW: z-index
+          isMenuOpen ? 'ml-64' : 'ml-0'
+        )}
+        style={{ paddingTop: isUiVisible ? '64px' : '0', paddingBottom: isUiVisible ? '96px' : '0' }} // Adjust for header/footer height
+      >
+        {/* Toggle Button (Only visible if menu is closed) */}
+        {!isMenuOpen && isUiVisible && ( // Only show if UI is visible
+          <Button
+            onClick={(e) => {
+              e.stopPropagation(); // Prevent main click from immediate close
+              setIsMenuOpen(true);
+            }}
+            className="absolute top-4 left-4 z-40 bg-slate-800 p-2 rounded-md border border-white/20 text-white"
+          >
+            <ListMusic className="w-5 h-5" />
+          </Button>
+        )}
+
+        {/* The Actual Song Content */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {renderChart}
+        </div>
+      </main>
+
+      {/* Floating Command Dock */}
       <FloatingCommandDock
         onOpenSearch={() => {}} // Not used in reader mode
         onOpenPractice={() => {}} // Not used in reader mode
@@ -589,10 +656,10 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
         showHeatmap={false} // Always false in reader mode
         viewMode="repertoire" // Irrelevant in reader mode
         hasPlayableSong={!!currentSong?.previewUrl}
-        hasReadableChart={true} // Always true in reader mode
+        isReaderMode={true} // Indicate that we are in reader mode
         isPlaying={isPlaying}
         onTogglePlayback={togglePlayback}
-        isReaderMode={true} // Indicate that we are in reader mode
+        hasReadableChart={true}
       />
 
       {/* Modals */}
