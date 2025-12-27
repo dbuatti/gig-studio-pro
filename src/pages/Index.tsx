@@ -333,14 +333,6 @@ const Index = () => {
           >
             <SearchIcon className="w-4 h-4" /> Search
           </Button>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => setIsAuditModalOpen(true)}
-            className="hidden sm:flex h-10 px-4 rounded-xl font-black uppercase text-[10px] tracking-widest gap-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100"
-          >
-            <ClipboardCheck className="w-4 h-4" /> Resource Audit
-          </Button>
           
           <div className="hidden lg:flex items-center gap-2 bg-slate-50 dark:bg-slate-800/50 px-4 py-1.5 rounded-full border border-slate-100 dark:border-white/5">
             <Clock className="w-3.5 h-3.5 text-indigo-500" />
@@ -364,11 +356,33 @@ const Index = () => {
             </div>
             <div className="flex gap-3">
               {viewMode === 'setlist' && (
-                <Button onClick={() => setIsRepertoirePickerOpen(true)} className="bg-indigo-600 h-10 px-6 rounded-xl font-black uppercase text-[10px] tracking-widest gap-2 shadow-lg">
-                  <Library className="w-3.5 h-3.5" /> Add from Repertoire
-                </Button>
+                <>
+                  <Button onClick={() => setIsRepertoirePickerOpen(true)} className="bg-indigo-600 h-10 px-6 rounded-xl font-black uppercase text-[10px] tracking-widest gap-2 shadow-lg">
+                    <Library className="w-3.5 h-3.5" /> Add from Repertoire
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setIsAuditModalOpen(true)}
+                    className="h-10 px-4 rounded-xl font-black uppercase text-[10px] tracking-widest gap-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100"
+                  >
+                    <ClipboardCheck className="w-4 h-4" /> Resource Audit
+                  </Button>
+                </>
               )}
-              <ImportSetlist onImport={(newSongs) => viewMode === 'repertoire' ? syncToMasterRepertoire(user!.id, newSongs).then(fetchMasterRepertoire) : saveList(currentListId!, [...songs, ...newSongs], {}, newSongs)} />
+              {viewMode === 'repertoire' && (
+                <>
+                  <ImportSetlist onImport={(newSongs) => viewMode === 'repertoire' ? syncToMasterRepertoire(user!.id, newSongs).then(fetchMasterRepertoire) : saveList(currentListId!, [...songs, ...newSongs], {}, newSongs)} />
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setIsAuditModalOpen(true)}
+                    className="h-10 px-4 rounded-xl font-black uppercase text-[10px] tracking-widest gap-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100"
+                  >
+                    <ClipboardCheck className="w-4 h-4" /> Resource Audit
+                  </Button>
+                </>
+              )}
             </div>
           </div>
 
