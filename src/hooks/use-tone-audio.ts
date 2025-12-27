@@ -26,7 +26,7 @@ export interface AudioEngineControls {
   resetEngine: () => void;
 }
 
-export function useToneAudio(): AudioEngineControls {
+export function useToneAudio(suppressToasts: boolean = false): AudioEngineControls { // NEW: suppressToasts prop
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -93,8 +93,12 @@ export function useToneAudio(): AudioEngineControls {
       playerRef.current.detune = (initialPitch * 100) + 0;
       playerRef.current.playbackRate = 1;
       playerRef.current.volume.value = -6;
+      
+      if (!suppressToasts) { // NEW: Conditionally show toast
+        showSuccess("Audio Loaded");
+      }
     }).catch(() => showError("Failed to initialize audio engine."));
-  }, [initEngine, resetEngine]);
+  }, [initEngine, resetEngine, suppressToasts]); // Added suppressToasts to dependencies
 
   const loadFromUrl = useCallback(async (url: string, initialPitch: number = 0) => {
     if (!url) return;
@@ -104,7 +108,6 @@ export function useToneAudio(): AudioEngineControls {
       const arrayBuffer = await response.arrayBuffer();
       const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
       loadAudioBuffer(audioBuffer, initialPitch);
-      // Removed: showSuccess("Audio Loaded");
     } catch (err) {
       showError("Audio load failed.");
     }

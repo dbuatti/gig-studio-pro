@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Search, Music, ChevronLeft, ChevronRight, Loader2, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Search, Music, ChevronLeft, ChevronRight, Loader2, ChevronDown, Maximize2, Minimize2 } from 'lucide-react'; // Import Maximize2, Minimize2
 import { cn } from '@/lib/utils';
 import { formatKey, ALL_KEYS_SHARP, ALL_KEYS_FLAT } from '@/utils/keyUtils';
 import { SetlistSong } from './SetlistManager';
@@ -19,7 +19,10 @@ interface SheetReaderHeaderProps {
   totalSongs: number;
   isLoading: boolean;
   keyPreference: KeyPreference;
-  onUpdateKey: (newTargetKey: string) => void; // New prop for updating key
+  onUpdateKey: (newTargetKey: string) => void;
+  isFullScreen: boolean; // NEW: isFullScreen prop
+  onToggleFullScreen: () => void; // NEW: onToggleFullScreen prop
+  setIsOverlayOpen: (isOpen: boolean) => void; // NEW: setIsOverlayOpen prop
 }
 
 const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
@@ -32,7 +35,10 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   totalSongs,
   isLoading,
   keyPreference,
-  onUpdateKey, // Destructure new prop
+  onUpdateKey,
+  isFullScreen, // Destructure new prop
+  onToggleFullScreen, // Destructure new prop
+  setIsOverlayOpen, // Destructure new prop
 }) => {
   const displayKey = formatKey(currentSong?.targetKey || currentSong?.originalKey, keyPreference);
   const keysToUse = keyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
@@ -52,8 +58,9 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
               <Loader2 className="w-5 h-5 animate-spin text-indigo-400 mx-auto" />
             ) : currentSong ? (
               <>
-                <h2 className="text-lg font-black uppercase tracking-tight text-white truncate">{currentSong.name}</h2>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 truncate">{currentSong.artist || "Unknown Artist"}</p>
+                {/* Removed max-w-[250px] and truncate */}
+                <h2 className="text-lg font-black uppercase tracking-tight text-white">{currentSong.name}</h2>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{currentSong.artist || "Unknown Artist"}</p>
               </>
             ) : (
               <p className="text-sm font-bold text-slate-500">No Song</p>
@@ -67,8 +74,8 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
 
       <div className="flex items-center gap-4">
         {currentSong && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+          <DropdownMenu onOpenChange={setIsOverlayOpen}> {/* NEW: Set setIsOverlayOpen */}
+            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}> {/* NEW: e.stopPropagation() */}
               <Button 
                 variant="ghost" 
                 className="bg-white/5 border-white/10 text-xs font-black font-mono h-10 px-4 rounded-xl text-indigo-400 gap-2"
@@ -90,6 +97,10 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
         )}
         <Button variant="ghost" size="icon" onClick={onSearchClick} className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400">
           <Search className="w-5 h-5" />
+        </Button>
+        {/* NEW: Full Screen Toggle Button */}
+        <Button variant="ghost" size="icon" onClick={onToggleFullScreen} className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400">
+          {isFullScreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
         </Button>
       </div>
     </div>

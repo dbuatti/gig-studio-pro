@@ -53,7 +53,7 @@ const RepertoirePicker: React.FC<RepertoirePickerProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] bg-slate-950 border-white/10 text-white rounded-[2rem] p-0 overflow-hidden flex flex-col shadow-2xl">
+      <DialogContent className="max-w-3xl w-[95vw] max-h-[85vh] bg-slate-950 border-white/10 text-white rounded-[2rem] p-0 overflow-hidden flex flex-col shadow-2xl"> {/* NEW: max-h-[85vh] */}
         <div className="p-8 bg-indigo-600 shrink-0 relative">
           {/* Removed redundant close button here */}
           
