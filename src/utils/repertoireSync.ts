@@ -38,7 +38,7 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
   // 6. Basic Metadata (Max 5)
   if (song.artist && song.artist !== "Unknown Artist") assetScore += 5;
 
-  // 7. UG Link Presence (Max 5) - NEW REQUIREMENT
+  // 7. UG Link Presence (Max 5)
   // If a UG link is present, it contributes to the readiness score.
   if (song.ugUrl) assetScore += 5;
 
@@ -96,7 +96,6 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       is_pitch_linked: song.is_pitch_linked ?? true,
       highest_note_original: song.highest_note_original || null,
       is_approved: song.isApproved || false,
-      is_ug_link_verified: song.is_ug_link_verified || false,
       sheet_music_url: song.sheet_music_url || null,
       is_sheet_verified: song.is_sheet_verified || false,
       // Sync tracking fields
