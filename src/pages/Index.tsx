@@ -605,24 +605,6 @@ const Index = () => {
         </div>
 
         <div className="flex items-center gap-4 shrink-0">
-          <Button 
-            ref={searchButtonRef} // Attach ref to the search button
-            variant="ghost" 
-            size="sm" 
-            onClick={() => {
-              setIsSearchPanelOpen(prev => {
-                if (!prev) { // If opening
-                  setActiveSongId(null); // Clear active song
-                  transposerRef.current?.resetEngine(); // Reset audio engine
-                  transposerRef.current?.triggerSearch(""); // Clear search query
-                }
-                return !prev;
-              });
-            }}
-            className="hidden sm:flex h-10 px-4 rounded-xl font-black uppercase text-[10px] tracking-widest gap-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100"
-          >
-            <SearchIcon className="w-4 h-4" /> Search
-          </Button>
           
           <div className="hidden lg:flex items-center gap-2 bg-slate-50 dark:bg-slate-800/50 px-4 py-1.5 rounded-full border border-slate-100 dark:border-white/5">
             <Clock className="w-3.5 h-3.5 text-indigo-500" />
@@ -757,7 +739,16 @@ const Index = () => {
       </aside>
 
       <FloatingActionDock
-        onOpenSearch={() => setIsSearchPanelOpen(true)}
+        onOpenSearch={() => {
+          setIsSearchPanelOpen(prev => {
+            if (!prev) { // If opening
+              setActiveSongId(null); // Clear active song
+              transposerRef.current?.resetEngine(); // Reset audio engine
+              transposerRef.current?.triggerSearch(""); // Clear search query
+            }
+            return !prev;
+          });
+        }}
         onOpenAdmin={() => setIsAdminOpen(true)}
         onOpenPreferences={() => setIsPreferencesOpen(true)}
         onToggleHeatmap={() => setShowHeatmap(prev => !prev)}
