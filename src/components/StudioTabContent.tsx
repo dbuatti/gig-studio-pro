@@ -30,6 +30,17 @@ interface StudioTabContentProps {
   handleUgPrint: () => void;
   handleDownloadAll: () => Promise<void>;
   onSwitchTab: (tab: 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library') => void;
+  // Props for SongConfigTab
+  setPitch: (pitch: number) => void;
+  setTempo: (tempo: number) => void;
+  setVolume: (volume: number) => void;
+  setFineTune: (fineTune: number) => void;
+  currentBuffer: AudioBuffer | null;
+  isPlaying: boolean;
+  progress: number;
+  duration: number;
+  togglePlayback: () => void;
+  stopPlayback: () => void;
 }
 
 const StudioTabContent: React.FC<StudioTabContentProps> = ({
@@ -49,6 +60,17 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
   handleUgPrint,
   handleDownloadAll,
   onSwitchTab,
+  // Destructure SongConfigTab props
+  setPitch,
+  setTempo,
+  setVolume,
+  setFineTune,
+  currentBuffer,
+  isPlaying,
+  progress,
+  duration,
+  togglePlayback,
+  stopPlayback,
 }) => {
   switch (activeTab) {
     case 'config':
@@ -58,16 +80,16 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
           formData={formData}
           handleAutoSave={handleAutoSave}
           onUpdateKey={onUpdateKey}
-          setPitch={audioEngine.setPitch}
-          setTempo={audioEngine.setTempo}
-          setVolume={audioEngine.setVolume}
-          setFineTune={audioEngine.setFineTune}
-          currentBuffer={audioEngine.currentBuffer}
-          isPlaying={audioEngine.isPlaying}
-          progress={audioEngine.progress}
-          duration={audioEngine.duration}
-          togglePlayback={audioEngine.togglePlayback}
-          stopPlayback={audioEngine.stopPlayback}
+          setPitch={setPitch}
+          setTempo={setTempo}
+          setVolume={setVolume}
+          setFineTune={setFineTune}
+          currentBuffer={currentBuffer}
+          isPlaying={isPlaying}
+          progress={progress}
+          duration={duration}
+          togglePlayback={togglePlayback}
+          stopPlayback={stopPlayback}
           isMobile={isMobile}
         />
       );

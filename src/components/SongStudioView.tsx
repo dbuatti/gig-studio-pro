@@ -266,16 +266,13 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
       </header>
 
       <div className="flex-1 flex overflow-hidden">
-        {!isMobile && !isModal && (
-          <aside className="w-96 bg-slate-900/50 border-r border-white/5 overflow-y-auto custom-scrollbar">
-            <SongConfigTab song={song} formData={formData} handleAutoSave={handleAutoSave} onUpdateKey={(id, k) => handleAutoSave({ targetKey: k })} setPitch={audio.setPitch} setTempo={audio.setTempo} setVolume={audio.setVolume} setFineTune={audio.setFineTune} currentBuffer={audio.currentBuffer} isPlaying={audio.isPlaying} progress={audio.progress} duration={audio.duration} togglePlayback={audio.togglePlayback} stopPlayback={audio.stopPlayback} isMobile={false} />
-          </aside>
-        )}
+        {/* Removed the conditional aside for SongConfigTab */}
+        {/* The SongConfigTab will now be rendered as part of the main content tabs */}
 
         <div className="flex-1 flex flex-col min-w-0 bg-slate-950">
           <nav className="h-16 bg-black/20 border-b border-white/5 flex items-center px-6 overflow-x-auto no-scrollbar shrink-0">
             <div className="flex gap-8">
-              {['audio', 'details', 'charts', 'lyrics', 'visual', 'library'].map(tab => (
+              {['config', 'audio', 'details', 'charts', 'lyrics', 'visual', 'library'].map(tab => ( // Added 'config' tab
                 <button key={tab} onClick={() => setActiveTab(tab as any)} className={cn("text-[10px] font-black uppercase tracking-[0.2em] transition-all border-b-4 h-16 flex items-center", activeTab === tab ? "text-indigo-400 border-indigo-50" : "text-slate-500 border-transparent hover:text-white")}>
                   {tab.toUpperCase()}
                 </button>
@@ -284,7 +281,34 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           </nav>
 
           <div className="flex-1 overflow-y-auto p-6 relative custom-scrollbar">
-            <StudioTabContent activeTab={activeTab} song={song} formData={formData} handleAutoSave={handleAutoSave} onUpdateKey={(id, k) => handleAutoSave({ targetKey: k })} audioEngine={audio} isMobile={isMobile} onLoadAudioFromUrl={audio.loadFromUrl} setPreviewPdfUrl={() => {}} isFramable={() => true} activeChartType={activeChartType} setActiveChartType={setActiveChartType} handleUgPrint={() => {}} handleDownloadAll={async () => {}} onSwitchTab={setActiveTab} />
+            <StudioTabContent 
+              activeTab={activeTab} 
+              song={song} 
+              formData={formData} 
+              handleAutoSave={handleAutoSave} 
+              onUpdateKey={(id, k) => handleAutoSave({ targetKey: k })} 
+              audioEngine={audio} 
+              isMobile={isMobile} 
+              onLoadAudioFromUrl={audio.loadFromUrl} 
+              setPreviewPdfUrl={() => {}} 
+              isFramable={() => true} 
+              activeChartType={activeChartType} 
+              setActiveChartType={setActiveChartType} 
+              handleUgPrint={() => {}} 
+              handleDownloadAll={async () => {}} 
+              onSwitchTab={setActiveTab}
+              // Pass all props required by SongConfigTab
+              setPitch={audio.setPitch} 
+              setTempo={audio.setTempo} 
+              setVolume={audio.setVolume} 
+              setFineTune={audio.setFineTune} 
+              currentBuffer={audio.currentBuffer} 
+              isPlaying={audio.isPlaying} 
+              progress={audio.progress} 
+              duration={audio.duration} 
+              togglePlayback={audio.togglePlayback} 
+              stopPlayback={audio.stopPlayback} 
+            />
           </div>
         </div>
       </div>
