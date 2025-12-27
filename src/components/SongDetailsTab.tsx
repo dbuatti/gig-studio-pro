@@ -4,10 +4,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Search } from 'lucide-react';
+import { Search, AlertTriangle, CheckCircle2, ShieldCheck, Link2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { SetlistSong } from './SetlistManager';
+import { sanitizeUGUrl } from '@/utils/ugUtils';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 // Memoized input component for better performance
 const StudioInput = React.memo(({ label, value, onChange, placeholder, className, isTextarea = false, type = "text" }: {
@@ -61,6 +64,15 @@ interface SongDetailsTabProps {
 }
 
 const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSave, isMobile }) => {
+  const handleUGChange = (val: string) => {
+    const cleanUrl = sanitizeUGUrl(val);
+    handleAutoSave({ ugUrl: cleanUrl, is_ug_link_verified: false });
+  };
+
+  const handleVerifyLink = () => {
+    handleAutoSave({ is_ug_link_verified: true });
+  };
+
   return (
     <div className="space-y-10 animate-in fade-in duration-500">
       <div className={cn("grid gap-10", isMobile ? "grid-cols-1" : "grid-cols-2")}>
@@ -76,10 +88,45 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
           </div>
         </div>
         <div className="space-y-4">
-          <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Ultimate Guitar</Label>
-          <div className="flex gap-3">
-            <StudioInput value={formData.ugUrl} onChange={(val: string) => handleAutoSave({ ugUrl: val })} placeholder="Paste URL..." className="bg-white/5 border-white/10 font-bold text-orange-400 h-12 rounded-xl w-full" />
-            <Button variant="outline" className="h-12 border-white/10 text-orange-400 px-4 rounded-xl font-bold text-[10px] uppercase gap-2 shrink-0 min-w-[120px]" onClick={() => window.open(`https://www.ultimate-guitar.com/search.php?search_type=title&value=${encodeURIComponent((formData.artist || '') + ' ' + (formData.name || '') + ' chords')}`, '_blank')}><Search className="w-3.5 h-3.5" /> Find</Button>
+          <div className="flex justify-between items-center">
+            <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Ultimate Guitar</Label>
+            {formData.ugUrl && (
+              <div className="flex gap-2">
+                {formData.is_ug_link_verified ? (
+                  <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-500 text-[8px] font-black uppercase flex items-center gap-1">
+                    <ShieldCheck className="w-2.5 h-2.5" /> Verified
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="bg-orange-500/10 text-orange-500 text-[8px] font-black uppercase flex items-center gap-1">
+                    <AlertTriangle className="w-2.5 h-2.5" /> Unverified
+                  </Badge>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="flex flex-col gap-3">
+            <div className="flex gap-3">
+              <div className="relative w-full">
+                <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                <Input 
+                  value={formData.ugUrl || ""} 
+                  onChange={(e) => handleUGChange(e.target.value)}
+                  onBlur={(e) => handleUGChange(e.target.value)}
+                  placeholder="Paste direct UG URL..." 
+                  className="bg-white/5 border-white/10 font-bold text-orange-400 h-12 rounded-xl w-full pl-10" 
+                />
+              </div>
+              <Button variant="outline" className="h-12 border-white/10 text-orange-400 px-4 rounded-xl font-bold text-[10px] uppercase gap-2 shrink-0 min-w-[120px]" onClick={() => window.open(`https://www.ultimate-guitar.com/search.php?search_type=title&value=${encodeURIComponent((formData.artist || '') + ' ' + (formData.name || '') + ' chords')}`, '_blank')}><Search className="w-3.5 h-3.5" /> Find</Button>
+            </div>
+            
+            {formData.ugUrl && !formData.is_ug_link_verified && (
+              <Button 
+                onClick={handleVerifyLink}
+                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest text-[9px] h-10 rounded-xl gap-2 shadow-lg shadow-emerald-600/20"
+              >
+                <CheckCircle2 className="w-4 h-4" /> Confirm & Verify This Link
+              </Button>
+            )}
           </div>
         </div>
       </div>

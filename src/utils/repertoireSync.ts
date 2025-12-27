@@ -50,8 +50,8 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       pitch: song.pitch || 0,
       ug_url: song.ugUrl || null,
       pdf_url: song.pdfUrl || null,
-      leadsheet_url: song.leadsheet_url || null,
-      youtube_url: song.youtube_url || null,
+      leadsheet_url: song.leadsheetUrl || null,
+      youtube_url: song.youtubeUrl || null,
       preview_url: song.previewUrl || null,
       apple_music_url: song.appleMusicUrl || null,
       is_metadata_confirmed: song.isMetadataConfirmed || false,
@@ -69,6 +69,7 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       is_pitch_linked: song.is_pitch_linked ?? true,
       highest_note_original: song.highest_note_original || null,
       is_approved: song.isApproved || false,
+      is_ug_link_verified: song.is_ug_link_verified || false,
       // Sync tracking fields
       sync_status: (song as any).sync_status || 'IDLE',
       last_sync_log: (song as any).last_sync_log || null,

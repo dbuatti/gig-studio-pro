@@ -12,13 +12,14 @@ import PreferencesModal from "@/components/PreferencesModal";
 import AdminPanel from "@/components/AdminPanel";
 import SongStudioModal from "@/components/SongStudioModal";
 import GigSessionManager from "@/components/GigSessionManager";
+import UGLinkAuditModal from "@/components/UGLinkAuditModal"; // NEW
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { showSuccess, showError } from '@/utils/toast';
 import { calculateSemitones } from '@/utils/keyUtils';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { User as UserIcon, Loader2, Play, LayoutDashboard, Search as SearchIcon, Rocket, Settings, Clock, ShieldCheck, Music, FileText } from 'lucide-react'; 
+import { User as UserIcon, Loader2, Play, LayoutDashboard, Search as SearchIcon, Rocket, Settings, Clock, ShieldCheck, Music, FileText, Guitar } from 'lucide-react'; 
 import { cn } from "@/lib/utils";
 import { useSettings } from '@/hooks/use-settings';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -46,6 +47,7 @@ const Index = () => {
   const [isPerformanceMode, setIsPerformanceMode] = useState(false);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false); 
+  const [isUGAuditOpen, setIsUGAuditOpen] = useState(false); // NEW
   const [isStudioModalOpen, setIsStudioModalOpen] = useState(false);
   const [editingSongId, setEditingSongId] = useState<string | null>(null);
   const [performanceState, setPerformanceState] = useState({ progress: 0, duration: 0 });
@@ -177,7 +179,8 @@ const Index = () => {
           ug_chords_text: d.ug_chords_text,
           ug_chords_config: d.ug_chords_config,
           is_pitch_linked: d.is_pitch_linked,
-          extraction_status: d.extraction_status
+          extraction_status: d.extraction_status,
+          is_ug_link_verified: d.is_ug_link_verified // NEW
         }));
         setMasterRepertoire(mapped);
       }
@@ -188,11 +191,19 @@ const Index = () => {
 
   const fetchSetlists = async () => {
     try {
-      const { data, error } = await supabase.from('setlists').select('*').order('updated_at', { ascending: false });
+      const { data: setlistData, error } = await supabase.from('setlists').select('*').order('updated_at', { ascending: false });
       if (error) throw error;
-      if (data && data.length > 0) {
-        setSetlists(data.map(d => ({ id: d.id, name: d.name, songs: d.songs as SetlistSong[], time_goal: d.time_goal })));
-        if (!currentListId) setCurrentListId(data[0].id);
+      if (setlistData && setlistData.length > 0) {
+        setSetlists(setlistData.map(d => ({ 
+          id: d.id, 
+          name: d.name, 
+          songs: (d.songs as any[]).map(s => ({
+            ...s,
+            is_ug_link_verified: s.is_ug_link_verified || false // Ensure field exists
+          })), 
+          time_goal: d.time_goal 
+        })));
+        if (!currentListId) setCurrentListId(setlistData[0].id);
       }
     } catch (err) {}
   };
@@ -241,7 +252,7 @@ const Index = () => {
       if (!list) return prev;
       const updatedSongs = list.songs.map(s => s.id === songId ? { ...s, ...updates } : s);
       const updatedSong = updatedSongs.find(s => s.id === songId);
-      const masterFields = ['name', 'artist', 'previewUrl', 'youtubeUrl', 'originalKey', 'targetKey', 'pitch', 'bpm', 'lyrics', 'pdfUrl', 'ugUrl', 'isMetadataConfirmed', 'isKeyConfirmed', 'isApproved', 'duration_seconds', 'preferred_reader', 'ug_chords_text', 'ug_chords_config', 'is_pitch_linked'];
+      const masterFields = ['name', 'artist', 'previewUrl', 'youtubeUrl', 'originalKey', 'targetKey', 'pitch', 'bpm', 'lyrics', 'pdfUrl', 'ugUrl', 'isMetadataConfirmed', 'isKeyConfirmed', 'isApproved', 'duration_seconds', 'preferred_reader', 'ug_chords_text', 'ug_chords_config', 'is_pitch_linked', 'is_ug_link_verified'];
       const needsMasterSync = Object.keys(updates).some(key => masterFields.includes(key));
       saveList(currentListId, updatedSongs, {}, needsMasterSync && updatedSong ? [updatedSong] : undefined);
       return prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l);
@@ -322,7 +333,8 @@ const Index = () => {
           originalKey: "TBC", targetKey: "TBC", isPlayed: false, isSyncing: false, isMetadataConfirmed: false,
           user_tags: genre ? [genre] : [],
           isApproved: false,
-          is_pitch_linked: true
+          is_pitch_linked: true,
+          is_ug_link_verified: false
         };
     
     const list = setlists.find(l => l.id === activeId);
@@ -507,6 +519,15 @@ const Index = () => {
             <span className="text-[11px] font-black font-mono text-slate-600 dark:text-slate-300">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
           </div>
           <div className="flex items-center gap-2 md:gap-4">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setIsUGAuditOpen(true)} 
+              className="h-9 md:h-10 gap-2 border-orange-500/30 text-orange-500 font-bold uppercase tracking-tight shadow-sm px-3 md:px-4"
+            >
+              <Guitar className="w-4 h-4" />
+              <span className="hidden md:inline">UG Audit</span>
+            </Button>
             <Button variant="default" size="sm" onClick={startPerformance} className="h-9 md:h-10 gap-2 bg-indigo-600 font-bold uppercase tracking-tight shadow-lg shadow-indigo-600/20 px-3 md:px-4"><Rocket className="w-4 h-4" /><span className="hidden md:inline">Start Show</span></Button>
             <Button variant="default" size="sm" onClick={() => navigate('/sheet-reader')} className="h-9 md:h-10 gap-2 bg-purple-600 font-bold uppercase tracking-tight shadow-lg shadow-purple-600/20 px-3 md:px-4"><FileText className="w-4 h-4" /><span className="hidden md:inline">Sheet Reader</span></Button>
             <div className="h-6 w-px bg-slate-200 hidden sm:block" />
@@ -588,6 +609,12 @@ const Index = () => {
       </div>
       <PreferencesModal isOpen={isPreferencesOpen} onClose={() => setIsPreferencesOpen(false)} />
       <AdminPanel isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} />
+      <UGLinkAuditModal 
+        isOpen={isUGAuditOpen} 
+        onClose={() => setIsUGAuditOpen(false)} 
+        songs={songs} 
+        onVerify={handleUpdateSong} 
+      />
       <SongStudioModal 
         isOpen={isStudioModalOpen} 
         onClose={() => setIsStudioModalOpen(false)} 
