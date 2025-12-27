@@ -19,13 +19,13 @@ import {
   FileX2,
   FileCheck2,
   Link2Off,
-  Copy,
+  ClipboardPaste,
   AlertTriangle
 } from 'lucide-react';
 import { SetlistSong } from './SetlistManager';
 import { cn } from '@/lib/utils';
 import { sanitizeUGUrl } from '@/utils/ugUtils';
-import { showSuccess } from '@/utils/toast';
+import { showSuccess, showError } from '@/utils/toast';
 
 interface UGLinkAuditModalProps {
   isOpen: boolean;
@@ -42,6 +42,7 @@ const UGLinkAuditModal: React.FC<UGLinkAuditModalProps> = ({ isOpen, onClose, so
   const [activeFilter, setActiveFilter] = useState<AuditFilter>('all');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [openedLinks, setOpenedLinks] = useState<Set<string>>(new Set());
 
   const auditList = useMemo(() => {
     return songs.filter(s => {
@@ -61,7 +62,7 @@ const UGLinkAuditModal: React.FC<UGLinkAuditModalProps> = ({ isOpen, onClose, so
         case 'unverified':
           return !s.is_ug_link_verified;
         default:
-          return !s.is_ug_link_verified; // Default to showing what needs attention
+          return !s.is_ug_link_verified;
       }
     });
   }, [songs, searchTerm, activeFilter]);
@@ -89,12 +90,31 @@ const UGLinkAuditModal: React.FC<UGLinkAuditModalProps> = ({ isOpen, onClose, so
     showSuccess(`Verified: ${song.name}`);
   };
 
-  const handleJumpToStudio = (song: SetlistSong) => {
+  const handleOpenUG = (song: SetlistSong) => {
     if (song.ugUrl) {
       window.open(song.ugUrl, '_blank');
+      setOpenedLinks(prev => new Set(prev).add(song.id));
     }
-    if (onOpenStudio) {
-      onOpenStudio(song.id);
+  };
+
+  const handlePasteAndSync = async (song: SetlistSong) => {
+    try {
+      const clipboardText = await navigator.clipboard.readText();
+      
+      if (!clipboardText || clipboardText.trim() === "") {
+        showError("Clipboard is empty");
+        return;
+      }
+
+      onVerify(song.id, { 
+        ug_chords_text: clipboardText,
+        is_ug_chords_present: true
+      });
+
+      showSuccess(`Chords imported for ${song.name}`);
+    } catch (err) {
+      console.error("Failed to read clipboard:", err);
+      showError("Clipboard access denied. Ensure you are on HTTPS.");
     }
   };
 
@@ -181,6 +201,7 @@ const UGLinkAuditModal: React.FC<UGLinkAuditModalProps> = ({ isOpen, onClose, so
                   const isEditing = editingId === song.id;
                   const hasLink = !!song.ugUrl && song.ugUrl.trim() !== "";
                   const hasChords = !!song.ug_chords_text && song.ug_chords_text.trim() !== "";
+                  const isOpened = openedLinks.has(song.id);
                   
                   return (
                     <div key={song.id} className="p-4 bg-white/5 border border-white/5 rounded-2xl flex flex-col gap-4 group hover:bg-white/10 transition-all">
@@ -240,15 +261,32 @@ const UGLinkAuditModal: React.FC<UGLinkAuditModalProps> = ({ isOpen, onClose, so
                           ) : (
                             <div className="flex flex-wrap justify-end gap-2">
                               {hasLink && !hasChords && (
-                                <Button 
-                                  onClick={() => handleJumpToStudio(song)}
-                                  className="h-9 px-3 sm:px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase text-[9px] tracking-widest gap-2 rounded-xl shadow-lg animate-pulse"
-                                >
-                                  <Copy className="w-3.5 h-3.5" /> <span className="hidden min-[450px]:inline">COPY FROM UG</span>
-                                </Button>
+                                <>
+                                  <Button 
+                                    onClick={() => handleOpenUG(song)}
+                                    className={cn(
+                                      "h-9 px-3 sm:px-4 font-black uppercase text-[9px] tracking-widest gap-2 rounded-xl shadow-lg transition-all",
+                                      isOpened ? "bg-white/10 text-white" : "bg-indigo-600 hover:bg-indigo-500 text-white"
+                                    )}
+                                  >
+                                    <ExternalLink className="w-3.5 h-3.5" /> 
+                                    <span>{isOpened ? "OPENED" : "OPEN UG"}</span>
+                                  </Button>
+                                  
+                                  <Button 
+                                    onClick={() => handlePasteAndSync(song)}
+                                    className={cn(
+                                      "h-9 px-3 sm:px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase text-[9px] tracking-widest gap-2 rounded-xl shadow-lg transition-all",
+                                      isOpened && "animate-pulse"
+                                    )}
+                                  >
+                                    <ClipboardPaste className="w-3.5 h-3.5" /> 
+                                    <span>PASTE & SYNC</span>
+                                  </Button>
+                                </>
                               )}
 
-                              {hasLink && (
+                              {hasLink && hasChords && (
                                 <>
                                   <Button 
                                     variant="ghost" 
@@ -264,7 +302,7 @@ const UGLinkAuditModal: React.FC<UGLinkAuditModalProps> = ({ isOpen, onClose, so
                                     onClick={() => startEditing(song)}
                                     className="h-9 px-3 bg-white/5 hover:bg-white/10 text-indigo-400 font-bold text-[9px] uppercase gap-2 rounded-xl"
                                   >
-                                    <Edit2 className="w-3.5 h-3.5" /> <span className="hidden md:inline">Edit</span>
+                                    <Edit2 className="w-3.5 h-3.5" /> <span className="hidden md:inline">Edit Link</span>
                                   </Button>
                                 </>
                               )}
@@ -341,7 +379,7 @@ const UGLinkAuditModal: React.FC<UGLinkAuditModalProps> = ({ isOpen, onClose, so
                 </span>
             </div>
           </div>
-          <p className="text-[8px] sm:text-[9px] font-mono text-slate-700 uppercase">Engine: combined Link & Content Audit v5.1</p>
+          <p className="text-[8px] sm:text-[9px] font-mono text-slate-700 uppercase">Engine: combined Link & Content Audit v5.2</p>
         </div>
       </DialogContent>
     </Dialog>
