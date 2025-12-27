@@ -92,6 +92,7 @@ const Index = () => {
           preferred_reader: d.preferred_reader,
           ug_chords_text: d.ug_chords_text,
           ug_chords_config: d.ug_chords_config,
+          is_pitch_linked: d.is_pitch_linked
         }));
         setMasterRepertoire(mapped);
       }
@@ -155,7 +156,7 @@ const Index = () => {
       if (!list) return prev;
       const updatedSongs = list.songs.map(s => s.id === songId ? { ...s, ...updates } : s);
       const updatedSong = updatedSongs.find(s => s.id === songId);
-      const masterFields = ['name', 'artist', 'previewUrl', 'youtubeUrl', 'originalKey', 'targetKey', 'pitch', 'bpm', 'lyrics', 'pdfUrl', 'ugUrl', 'isMetadataConfirmed', 'isKeyConfirmed', 'isApproved', 'duration_seconds', 'preferred_reader', 'ug_chords_text', 'ug_chords_config'];
+      const masterFields = ['name', 'artist', 'previewUrl', 'youtubeUrl', 'originalKey', 'targetKey', 'pitch', 'bpm', 'lyrics', 'pdfUrl', 'ugUrl', 'isMetadataConfirmed', 'isKeyConfirmed', 'isApproved', 'duration_seconds', 'preferred_reader', 'ug_chords_text', 'ug_chords_config', 'is_pitch_linked'];
       const needsMasterSync = Object.keys(updates).some(key => masterFields.includes(key));
       saveList(currentListId, updatedSongs, {}, needsMasterSync && updatedSong ? [updatedSong] : undefined);
       return prev.map(l => l.id === currentListId ? { ...l, songs: updatedSongs } : l);
@@ -188,7 +189,8 @@ const Index = () => {
           id: newSongId, name, artist, previewUrl, youtubeUrl, ugUrl, appleMusicUrl, genre, pitch, 
           originalKey: "TBC", targetKey: "TBC", isPlayed: false, isSyncing: false, isMetadataConfirmed: false,
           user_tags: genre ? [genre] : [],
-          isApproved: false 
+          isApproved: false,
+          is_pitch_linked: true
         };
     
     const list = setlists.find(l => l.id === activeId) || (await supabase.from('setlists').select('*').eq('id', activeId).single()).data;
@@ -364,6 +366,11 @@ const Index = () => {
     setIsBulkDownloading(false);
   };
 
+  const handleSyncProData = async (song: SetlistSong) => {
+    // Placeholder logic for Pro Data sync
+    showSuccess(`Pro Data Sync initiated for ${song.name}`);
+  };
+
   return (
     <div className="h-screen bg-slate-50 dark:bg-slate-950 flex flex-col overflow-hidden relative">
       <nav className="h-16 md:h-20 bg-white dark:bg-slate-900 border-b px-4 md:px-6 flex items-center justify-between z-30 shadow-sm shrink-0">
@@ -437,6 +444,7 @@ const Index = () => {
               onTogglePlayed={handleTogglePlayed} 
               onLinkAudio={(n) => { setIsSearchPanelOpen(true); transposerRef.current?.triggerSearch(n); }}
               onUpdateSong={handleUpdateSong} 
+              onSyncProData={handleSyncProData}
               onReorder={(ns) => currentListId && saveList(currentListId, ns, {}, undefined)} 
               currentSongId={activeSongIdState || undefined} 
               onOpenAdmin={() => setIsAdminOpen(true)} 

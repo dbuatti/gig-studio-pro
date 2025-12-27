@@ -20,7 +20,6 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
   if ((song.notes || "").length > 10) score += 5;
   if (song.artist && song.artist !== "Unknown Artist") score += 5;
   
-  // Add 10 points if UG chords text is present
   if (song.ug_chords_text && song.ug_chords_text.length > 10) score += 10;
   
   return Math.min(100, score);
@@ -65,13 +64,12 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       readiness_score: calculateReadiness(song),
       is_active: true,
       updated_at: new Date().toISOString(),
-      // Include UG chords fields
       ug_chords_text: song.ug_chords_text || null,
       ug_chords_config: song.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
-      is_ug_chords_present: !!(song.ug_chords_text && song.ug_chords_text.trim().length > 0) // NEW: Set based on text presence
+      is_ug_chords_present: !!(song.ug_chords_text && song.ug_chords_text.trim().length > 0),
+      is_pitch_linked: song.is_pitch_linked ?? true // Map to the new DB column
     }));
     
-    // Perform batch upsert
     const { data, error } = await supabase
       .from('repertoire')
       .upsert(payloads, { onConflict: 'id' })
@@ -82,7 +80,6 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       throw error;
     }
     
-    // Map the returned IDs back to the local songs
     return songsArray.map(song => {
       const dbMatch = data.find(d => 
         (song.master_id && d.id === song.master_id) || 

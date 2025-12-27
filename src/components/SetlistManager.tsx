@@ -48,7 +48,7 @@ export interface SetlistSong {
   lyrics?: string;
   resources?: string[];
   user_tags?: string[];
-  isKeyLinked?: boolean;
+  is_pitch_linked?: boolean; // Unified: Link state
   duration_seconds?: number;
   key_preference?: KeyPreference;
   is_active?: boolean;
@@ -59,7 +59,7 @@ export interface SetlistSong {
   preferred_reader?: 'ug' | 'ls' | 'fn' | null;
   ug_chords_text?: string;
   ug_chords_config?: UGChordsConfig;
-  is_ug_chords_present?: boolean; // NEW: Added is_ug_chords_present
+  is_ug_chords_present?: boolean;
 }
 
 interface SetlistManagerProps {
@@ -109,7 +109,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       isConfirmed: 'all',
       isApproved: 'all',
       readiness: 100,
-      hasUgChords: 'all' // NEW: Default to 'all'
+      hasUgChords: 'all'
     };
   });
   const [searchTerm, setSearchTerm] = useState("");
@@ -149,8 +149,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       if (activeFilters.hasVideo === 'yes' && !s.youtubeUrl) return false;
       if (activeFilters.hasVideo === 'no' && s.youtubeUrl) return false;
 
-      if (activeFilters.hasChart === 'yes' && !(s.pdfUrl || s.leadsheetUrl || s.ugUrl || s.ug_chords_text)) return false; // NEW: Check ug_chords_text
-      if (activeFilters.hasChart === 'no' && (s.pdfUrl || s.leadsheetUrl || s.ugUrl || s.ug_chords_text)) return false; // NEW: Check ug_chords_text
+      if (activeFilters.hasChart === 'yes' && !(s.pdfUrl || s.leadsheetUrl || s.ugUrl || s.ug_chords_text)) return false;
+      if (activeFilters.hasChart === 'no' && (s.pdfUrl || s.leadsheetUrl || s.ugUrl || s.ug_chords_text)) return false;
 
       if (activeFilters.hasPdf === 'yes' && !(s.pdfUrl || s.leadsheetUrl)) return false;
       if (activeFilters.hasPdf === 'no' && (s.pdfUrl || s.leadsheetUrl)) return false;
@@ -164,7 +164,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       if (activeFilters.isApproved === 'yes' && !s.isApproved) return false;
       if (activeFilters.isApproved === 'no' && s.isApproved) return false;
 
-      // NEW: Filter for hasUgChords
       const hasUgChordsText = !!(s.ug_chords_text && s.ug_chords_text.trim().length > 0);
       if (activeFilters.hasUgChords === 'yes' && !hasUgChordsText) return false;
       if (activeFilters.hasUgChords === 'no' && hasUgChordsText) return false;
@@ -506,7 +505,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                                   (res.id === 'UG' && song.ugUrl) || 
                                   (res.id === 'LYRICS' && song.lyrics) || 
                                   (res.id === 'LEAD' && song.leadsheetUrl) ||
-                                  (res.id === 'UG' && song.ug_chords_text); // NEW: Check ug_chords_text for UG resource
+                                  (res.id === 'UG' && song.ug_chords_text);
                                 
                                 if (!isActive) return null;
                                 

@@ -3,7 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SetlistSong } from './SetlistManager';
-import { ExternalLink, ShieldCheck, Printer, FileText, Music, Guitar, Search, Maximize, Minimize } from 'lucide-react';
+import { ExternalLink, ShieldCheck, Printer, FileText, Music, Guitar, Search, Maximize, Minimize, Eye } from 'lucide-react';
 import { showError, showSuccess } from '@/utils/toast';
 import UGChordsEditor from './UGChordsEditor';
 import UGChordsReader from './UGChordsReader';
@@ -16,7 +16,7 @@ interface SongChartsTabProps {
   isFramable: (url: string | null) => boolean;
   activeChartType: 'pdf' | 'leadsheet' | 'web' | 'ug';
   setActiveChartType: (type: 'pdf' | 'leadsheet' | 'web' | 'ug') => void;
-  handleUgPrint: () => void; // Keep this prop for now, but its internal logic will change
+  handleUgPrint: () => void;
 }
 
 const defaultUgChordsConfig = {
@@ -36,7 +36,7 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
   isFramable,
   activeChartType,
   setActiveChartType,
-  handleUgPrint, // Use the prop directly
+  handleUgPrint,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<"view" | "edit-ug">("view");
   const [isReaderExpanded, setIsReaderExpanded] = useState(false);
@@ -135,6 +135,8 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
                 chordsText={formData.ug_chords_text || ""}
                 config={formData.ug_chords_config || defaultUgChordsConfig}
                 isMobile={isMobile}
+                originalKey={formData.originalKey}
+                targetKey={formData.targetKey}
               />
             ) : currentChartUrl ? (
               canEmbedUg ? (
@@ -169,10 +171,10 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
           {activeChartType === 'ug' && (formData.ugUrl || formData.ug_chords_text) && (
             <div className="shrink-0 flex justify-center gap-3">
               <Button 
-                onClick={handleUgPrint} // Use the prop directly
+                onClick={handleUgPrint}
                 className="bg-orange-600 hover:bg-orange-700 text-white font-black uppercase tracking-widest text-[10px] h-12 px-8 rounded-xl shadow-lg shadow-orange-600/20 gap-3"
               >
-                <ExternalLink className="w-4 h-4" /> {/* Changed icon to ExternalLink */}
+                <ExternalLink className="w-4 h-4" />
                 Open in Ultimate Guitar
               </Button>
               <Button

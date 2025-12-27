@@ -172,7 +172,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         previewUrl: song.previewUrl || "", appleMusicUrl: song.appleMusicUrl || "",
         pdfUrl: song.pdfUrl || "", leadsheetUrl: song.leadsheetUrl || "",
         ugUrl: song.ugUrl || "", resources: song.resources || [], pitch: song.pitch || 0,
-        user_tags: song.user_tags || [], isKeyLinked: song.isKeyLinked ?? true,
+        user_tags: song.user_tags || [], is_pitch_linked: song.is_pitch_linked ?? true,
         isKeyConfirmed: song.isKeyConfirmed ?? false, duration_seconds: song.duration_seconds || 0,
         key_preference: song.key_preference, isMetadataConfirmed: song.isMetadataConfirmed,
         master_id: song.master_id, fineTune: song.fineTune || 0, tempo: song.tempo || 1,

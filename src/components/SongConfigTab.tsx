@@ -1,6 +1,5 @@
 "use client";
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -10,7 +9,7 @@ import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, calculateSemitones, formatKey, transpose
 import { cn } from "@/lib/utils";
 import { showSuccess, showError } from '@/utils/toast';
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
-import { Check, Hash, Music2, Link as LinkIcon, ChevronUp, ChevronDown, Sparkles, Play, Pause, RotateCcw } from 'lucide-react';
+import { Check, Hash, Music2, Link as LinkIcon, ChevronUp, ChevronDown, Sparkles, Play, Pause, RotateCcw, Activity } from 'lucide-react';
 import SongAssetMatrix from './SongAssetMatrix';
 import SongTagManager from './SongTagManager';
 import SheetMusicRecommender from './SheetMusicRecommender';
@@ -56,38 +55,31 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
   const currentKeyPreference = formData.key_preference || globalPreference;
   const keysToUse = currentKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
 
+  // Logic: When Stage Key changes, if Linked is ON, update pitch to match semitone delta
   const updateHarmonics = useCallback((updates: Partial<SetlistSong>) => {
     if (!song) return;
     const nextFormData = { ...formData, ...updates };
-    if (nextFormData.isKeyLinked) {
-      const diff = calculateSemitones(nextFormData.originalKey || "C", nextFormData.targetKey || "C");
-      nextFormData.pitch = diff;
-      setPitch(nextFormData.pitch);
+    
+    // Core Engine Logic: Linking Pitch to Keys
+    if (nextFormData.is_pitch_linked) {
+      const n = calculateSemitones(nextFormData.originalKey || "C", nextFormData.targetKey || "C");
+      nextFormData.pitch = n;
+      setPitch(n);
+    } else if (updates.is_pitch_linked === false) {
+      // If we just unlinked, snap audio back to original pitch (0) as per requirements
+      nextFormData.pitch = 0;
+      setPitch(0);
     }
+    
     handleAutoSave(nextFormData);
   }, [song, formData, handleAutoSave, setPitch]);
-
-  const handleOctaveShift = (direction: 'up' | 'down') => {
-    const currentPitch = formData.pitch || 0;
-    const shift = direction === 'up' ? 12 : -12;
-    const newPitch = currentPitch + shift;
-    if (newPitch > 24 || newPitch < -24) {
-      showError("Maximum transposition range reached.");
-      return;
-    }
-    const newTarget = transposeKey(formData.originalKey || "C", newPitch);
-    handleAutoSave({ pitch: newPitch, targetKey: newTarget });
-    setPitch(newPitch);
-    onUpdateKey(song!.id, newTarget);
-    showSuccess(`Octave Shift Applied: ${newPitch > 0 ? '+' : ''}${newPitch} ST`);
-  };
 
   const formatTime = (seconds: number) => 
     new Date(seconds * 1000).toISOString().substr(14, 5);
 
   return (
     <div className={cn("flex-1 p-6 md:p-8 space-y-8 md:space-y-10 overflow-y-auto")}>
-      {/* Mini Audio Playback Controls (Embedded from Audio Engine) */}
+      {/* Mini Audio Playback Controls */}
       {formData.previewUrl && (
         <div className="bg-slate-900/50 border border-white/10 rounded-3xl p-6 space-y-6">
           <div className="flex items-center justify-between">
@@ -103,27 +95,21 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
             </div>
 
             <div className="flex items-center justify-center gap-6">
-              <Button 
-                variant="ghost" 
-                size="icon" 
+              <button 
                 onClick={stopPlayback}
-                className="h-10 w-10 rounded-full"
+                className="h-10 w-10 rounded-full bg-white/5 flex items-center justify-center text-slate-400"
               >
                 <RotateCcw className="w-5 h-5" />
-              </Button>
+              </button>
 
-              <Button 
-                size="icon"
+              <button 
                 onClick={togglePlayback}
-                className="h-16 w-16 rounded-full bg-indigo-600 hover:bg-indigo-700 shadow-2xl"
+                className="h-16 w-16 rounded-full bg-indigo-600 hover:bg-indigo-700 shadow-2xl flex items-center justify-center text-white"
               >
-                {isPlaying ? 
-                  <Pause className="w-8 h-8" /> : 
-                  <Play className="w-8 h-8 ml-1" />
-                }
-              </Button>
+                {isPlaying ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8 ml-1" />}
+              </button>
 
-              <div className="w-10" /> {/* Spacer */}
+              <div className="w-10" />
             </div>
           </div>
         </div>
@@ -162,9 +148,7 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
                     <span className="text-[9px] font-black uppercase">{currentKeyPreference}</span>
                   </button>
                 </TooltipTrigger>
-                <TooltipContent className="text-[10px] font-black uppercase">
-                  Notation Preference
-                </TooltipContent>
+                <TooltipContent className="text-[10px] font-black uppercase">Notation Preference</TooltipContent>
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -178,32 +162,28 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
                     <Check className="w-3.5 h-3.5" />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent className="text-[10px] font-black uppercase">
-                  Verify Stage Key
-                </TooltipContent>
+                <TooltipContent className="text-[10px] font-black uppercase">Verify Stage Key</TooltipContent>
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button 
-                    onClick={() => updateHarmonics({ isKeyLinked: !formData.isKeyLinked })}
+                    onClick={() => updateHarmonics({ is_pitch_linked: !formData.is_pitch_linked })}
                     className={cn(
                       "p-1.5 rounded-lg border transition-all",
-                      formData.isKeyLinked ? "bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/20" : "bg-white/5 border-white/10 text-slate-500"
+                      formData.is_pitch_linked !== false ? "bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/20" : "bg-white/5 border-white/10 text-slate-500"
                     )}
                   >
                     <LinkIcon className="w-3.5 h-3.5" />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent className="text-[10px] font-black uppercase">
-                  Link Pitch to Key
-                </TooltipContent>
+                <TooltipContent className="text-[10px] font-black uppercase">Master Link: Sync Pitch & Chords</TooltipContent>
               </Tooltip>
             </div>
           </TooltipProvider>
         </div>
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label className="text-[9px] font-bold text-slate-400 uppercase">Original Key</Label>
+            <Label className="text-[9px] font-bold text-slate-400 uppercase">Original Key (K_orig)</Label>
             <Select 
               value={formatKey(formData.originalKey || "C", currentKeyPreference)} 
               onValueChange={(val) => updateHarmonics({ originalKey: val })}
@@ -218,8 +198,8 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
           </div>
           <div className="space-y-2">
             <div className="flex justify-between">
-              <Label className="text-[9px] font-bold text-indigo-400 uppercase">Stage Key</Label>
-              <span className="text-[9px] font-mono text-slate-500">{(formData.pitch || 0) > 0 ? '+' : ''}{formData.pitch || 0} ST</span>
+              <Label className="text-[9px] font-bold text-indigo-400 uppercase">Stage Key (K_stage)</Label>
+              <span className="text-[9px] font-mono text-slate-500">Offset: {calculateSemitones(formData.originalKey || "C", formData.targetKey || "C")} ST</span>
             </div>
             <Select 
               value={formatKey(formData.targetKey || formData.originalKey || "C", currentKeyPreference)} 
