@@ -17,6 +17,15 @@ import PublicGigView from "./pages/PublicGigView";
 
 const queryClient = new QueryClient();
 
+const RootRoute = () => {
+  const { session, loading } = useAuth();
+  
+  if (loading) return null;
+  
+  // Authenticated users go to Dashboard (Index), guests see Landing
+  return session ? <Index /> : <Landing />;
+};
+
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, loading } = useAuth();
   
@@ -31,19 +40,23 @@ const App = () => (
     <AuthProvider>
       <TooltipProvider>
         <Toaster />
-        <Sonner position="top-center" /> {/* Changed position to top-center */}
+        <Sonner position="top-center" />
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <Routes>
-            <Route path="/" element={<Landing />} />
+            {/* Professional Root Routing */}
+            <Route path="/" element={<RootRoute />} />
+            
             <Route path="/login" element={<Login />} />
             <Route path="/repertoire/:slug" element={<PublicRepertoire />} />
             <Route path="/gig" element={<GigEntry />} />
             <Route path="/gig/:code" element={<PublicGigView />} />
-            <Route path="/dashboard" element={
-              <ProtectedRoute>
-                <Index />
-              </ProtectedRoute>
-            } />
+            
+            {/* Specific Setlist Public View */}
+            <Route path="/setlist/:id" element={<PublicGigView />} />
+
+            {/* Legacy dashboard redirect for backward compatibility */}
+            <Route path="/dashboard" element={<Navigate to="/" replace />} />
+
             <Route path="/profile" element={
               <ProtectedRoute>
                 <Profile />
