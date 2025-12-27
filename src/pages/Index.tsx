@@ -216,7 +216,7 @@ const Index = () => {
   const fetchMasterRepertoire = async () => {
     if (!user) return;
     try {
-      const { data } = await supabase.from('repertoire').select('*').eq('user_id', user.id).order('title');
+      const { data } = await supabase.from('repertoire').select('*').eq('user.id', user.id).order('title');
       if (data) {
         setMasterRepertoire(data.map(d => ({
           id: d.id, master_id: d.id, name: d.title, artist: d.artist, bpm: d.bpm, lyrics: d.lyrics,
@@ -428,7 +428,7 @@ const Index = () => {
 
 
   const startPerformance = () => {
-    const playable = songs.filter(s => s.isApproved && s.previewUrl && !s.previewUrl.includes('apple.com'));
+    const playable = songs.filter(s => s.isApproved && s.previewUrl && !(s.previewUrl.includes('apple.com') || s.previewUrl.includes('itunes-assets')));
     if (!playable.length) { showError("No approved tracks found."); return; }
     setIsPerformanceMode(true);
     handleSelectSong(playable[0]);
@@ -686,7 +686,7 @@ const Index = () => {
 
   if (isPerformanceMode) {
     const activeSong = songs.find(s => s.id === activeSongIdState);
-    const playableSongs = songs.filter(s => s.isApproved && s.previewUrl && !s.previewUrl.includes('apple.com'));
+    const playableSongs = songs.filter(s => s.isApproved && s.previewUrl && !(s.previewUrl.includes('apple.com') || s.previewUrl.includes('itunes-assets')));
     const currentPlayableIndex = playableSongs.findIndex(s => s.id === activeSongIdState);
 
     const onNextPerformance = () => {
