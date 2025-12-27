@@ -52,6 +52,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   const [loading, setLoading] = useState(true);
   const [isProSyncSearchOpen, setIsProSyncSearchOpen] = useState(false);
   const [activeChartType, setActiveChartType] = useState<'pdf' | 'leadsheet' | 'web' | 'ug'>('pdf');
+  const [isVerifying, setIsVerifying] = useState(false);
   
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
 
@@ -71,7 +72,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           isMetadataConfirmed: data.is_metadata_confirmed, ug_chords_text: data.ug_chords_text,
           ug_chords_config: data.ug_chords_config, user_tags: data.user_tags, resources: data.resources,
           pdf_url: data.pdf_url, leadsheet_url: data.leadsheet_url, apple_music_url: data.apple_music_url,
-          duration_seconds: data.duration_seconds
+          duration_seconds: data.duration_seconds, genre: data.genre
         } as SetlistSong;
       } else {
         const { data } = await supabase.from('setlists').select('songs').eq('id', gigId).single();
@@ -113,14 +114,53 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     });
   }, [song, gigId, user]);
 
-  const handleVerifyMetadata = () => {
+  const handleVerifyMetadata = async () => {
     if (!formData.name || !formData.artist) {
       showError("Please enter song title and artist first.");
       return;
     }
-    const query = encodeURIComponent(`${formData.artist} ${formData.name}`);
-    window.open(`https://music.apple.com/us/search?term=${query}`, '_blank');
-    showSuccess("Opening iTunes search...");
+
+    setIsVerifying(true);
+    try {
+      const query = encodeURIComponent(`${formData.artist} ${formData.name}`);
+      const response = await fetch(`https://itunes.apple.com/search?term=${query}&entity=song&limit=1`);
+      const data = await response.json();
+      
+      if (data.results && data.results.length > 0) {
+        const track = data.results[0];
+        
+        // Extract duration in seconds
+        const durationSeconds = track.trackTimeMillis ? Math.floor(track.trackTimeMillis / 1000) : 0;
+        
+        // Prepare updates
+        const updates: Partial<SetlistSong> = {
+          name: track.trackName,
+          artist: track.artistName,
+          genre: track.primaryGenreName,
+          appleMusicUrl: track.trackViewUrl,
+          duration_seconds: durationSeconds,
+          isMetadataConfirmed: true
+        };
+
+        // Only update BPM if it's not already set
+        if (!formData.bpm && track.trackTimeMillis) {
+          // Simple heuristic: if duration is available, we could calculate BPM, but iTunes doesn't provide BPM
+          // So we'll leave BPM as is
+        }
+
+        // Apply updates
+        handleAutoSave(updates);
+        showSuccess(`Imported metadata: ${track.trackName} - ${track.artistName}`);
+      } else {
+        showError("No iTunes match found. Try manual search.");
+        window.open(`https://music.apple.com/us/search?term=${query}`, '_blank');
+      }
+    } catch (err) {
+      showError("Failed to fetch iTunes data. Opening manual search.");
+      window.open(`https://music.apple.com/us/search?term=${encodeURIComponent(`${formData.artist} ${formData.name}`)}`, '_blank');
+    } finally {
+      setIsVerifying(false);
+    }
   };
 
   const handleConfirmForSetlist = (checked: boolean) => {
@@ -172,6 +212,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
             {/* Step 1: Metadata Verification */}
             <Button 
               onClick={handleVerifyMetadata}
+              disabled={isVerifying}
               className={cn(
                 "h-11 rounded-xl font-black uppercase text-[9px] tracking-widest gap-2 px-6 transition-all shadow-lg",
                 formData.isMetadataConfirmed 
@@ -179,8 +220,8 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
                   : "bg-white/5 hover:bg-white/10 text-slate-400 border border-white/10"
               )}
             >
-              <Music className="w-4 h-4" />
-              VERIFY METADATA
+              {isVerifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Music className="w-4 h-4" />}
+              {isVerifying ? "VERIFYING..." : "VERIFY METADATA"}
             </Button>
 
             {/* Step 2: Setlist Confirmation Toggle */}
