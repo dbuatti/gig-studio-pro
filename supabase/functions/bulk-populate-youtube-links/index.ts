@@ -27,7 +27,7 @@ serve(async (req) => {
       throw new Error("Invalid song list provided.");
     }
 
-    console.log(`[bulk-populate-youtube-links] Processing ${songIds.length} tracks...`);
+    console.log(`[bulk-populate-youtube-links] Processing ${songIds.length} tracks with duration matching...`);
 
     const results = [];
 
@@ -43,8 +43,17 @@ serve(async (req) => {
 
         await supabaseAdmin.from('repertoire').update({ sync_status: 'SYNCING' }).eq('id', id);
 
-        // Refined Search Query (Level 1: Strict)
-        const ytSearchQuery = `${song.artist} - ${song.title} (Official Audio)`;
+        // 1. Get Reference Duration from iTunes (Level 1 Accuracy)
+        const itunesQuery = encodeURIComponent(`${song.artist} ${song.title}`);
+        const itunesRes = await fetch(`https://itunes.apple.com/search?term=${itunesQuery}&entity=song&limit=1`);
+        const itunesData = await itunesRes.json();
+        const topItunes = itunesData.results?.[0];
+        const refDurationSec = topItunes ? Math.floor(topItunes.trackTimeMillis / 1000) : 0;
+
+        // 2. Refined Search Query (Level 1: Strict as per notes)
+        const searchArtist = topItunes?.artistName || song.artist;
+        const searchTitle = topItunes?.trackName || song.title;
+        const ytSearchQuery = `${searchArtist} - ${searchTitle} (Official Audio)`;
 
         const instance = 'https://iv.ggtyler.dev';
         const ytRes = await fetch(`${instance}/api/v1/search?q=${encodeURIComponent(ytSearchQuery)}`);
@@ -52,24 +61,39 @@ serve(async (req) => {
         if (!ytRes.ok) throw new Error(`Search engine error: ${ytRes.status}`);
         
         const ytData = await ytRes.json();
-        const topVideo = ytData?.filter?.((v: any) => v.type === "video")[0];
+        const videos = ytData?.filter?.((v: any) => v.type === "video") || [];
 
-        if (topVideo) {
-          const youtubeUrl = `https://www.youtube.com/watch?v=${topVideo.videoId}`;
+        let matchedVideo = null;
+
+        // 3. Duration Matching Constraint (+/- 30s)
+        if (refDurationSec > 0) {
+          for (const v of videos) {
+            const diff = Math.abs(v.durationSeconds - refDurationSec);
+            if (diff <= 30) {
+              matchedVideo = v;
+              break;
+            }
+          }
+        } else {
+          matchedVideo = videos[0]; // Fallback to top hit if no ref duration
+        }
+
+        if (matchedVideo) {
+          const youtubeUrl = `https://www.youtube.com/watch?v=${matchedVideo.videoId}`;
           
           await supabaseAdmin.from('repertoire').update({
             youtube_url: youtubeUrl,
             metadata_source: 'auto_populated',
             sync_status: 'COMPLETED',
-            last_sync_log: `Auto-populated: ${topVideo.videoId} (Strict Query)`
+            last_sync_log: `Auto-populated: ${matchedVideo.videoId} (Diff: ${refDurationSec ? Math.abs(matchedVideo.durationSeconds - refDurationSec) : 'N/A'}s)`
           }).eq('id', id);
 
-          results.push({ id, status: 'SUCCESS', title: song.title, videoId: topVideo.videoId });
+          results.push({ id, status: 'SUCCESS', title: song.title, videoId: matchedVideo.videoId });
         } else {
-          throw new Error("No YouTube video match found.");
+          throw new Error("No YouTube match meeting duration constraints (+/- 30s) found.");
         }
 
-      } catch (err) {
+      } catch (err: any) {
         console.error(`[bulk-populate-youtube-links] Error on track ${id}:`, err.message);
         await supabaseAdmin.from('repertoire').update({ 
           sync_status: 'ERROR',
@@ -85,7 +109,7 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
-  } catch (error) {
+  } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
-  Youtube, Search, Loader2, X, Download, ExternalLink, PlayCircle
+  Youtube, Search, Loader2, X, Download, ExternalLink, PlayCircle, Terminal
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import YoutubeResultsShelf from './YoutubeResultsShelf';
@@ -41,6 +41,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadStatus, setDownloadStatus] = useState<'idle' | 'processing' | 'downloading' | 'error' | 'success'>('idle');
   const [downloadProgress, setDownloadProgress] = useState(0);
+  const [lastQuery, setLastQuery] = useState("");
 
   const currentVideoId = useMemo(() => {
     if (!formData.youtubeUrl) return null;
@@ -83,12 +84,15 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
 
     setIsSearchingYoutube(true);
     setYtResults([]);
+    setLastQuery(searchTerm);
 
-    // Strategy 1: Google YouTube API (Optimized for Music)
+    // Debug Log as per notes
+    console.log(`[YoutubeDiscovery] Executing Level 1 Query: "${searchTerm}"`);
+
+    // Strategy 1: Google YouTube API (Optimized with Developer Notes Alignment)
     if (ytApiKey) {
       try {
-        // Optimized with type=video, videoCategoryId=10 (Music), and relevance sorting
-        const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(searchTerm)}&type=video&videoCategoryId=10&relevanceLanguage=en&maxResults=10&key=${ytApiKey}`;
+        const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(searchTerm)}&type=video&videoCategoryId=10&relevanceLanguage=en&maxResults=12&key=${ytApiKey}`;
         const searchResponse = await fetch(searchUrl);
         const searchData = await searchResponse.json();
 
@@ -105,21 +109,24 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
               author: item.snippet.channelTitle,
               videoThumbnails: [{ url: item.snippet.thumbnails.medium.url }],
               duration: parseISO8601Duration(item.contentDetails.duration),
+              durationSeconds: (parseInt(item.contentDetails.duration.match(/(\d+)H/)?.[1] || "0") * 3600) + 
+                               (parseInt(item.contentDetails.duration.match(/(\d+)M/)?.[1] || "0") * 60) + 
+                               parseInt(item.contentDetails.duration.match(/(\d+)S/)?.[1] || "0"),
               viewCountText: `${parseInt(item.statistics.viewCount).toLocaleString()} views`
             }));
 
             setYtResults(resultsWithDurations);
             setIsSearchingYoutube(false);
-            showSuccess(`Engine Synced: Found ${resultsWithDurations.length} records`);
+            showSuccess(`Discovery Match: ${resultsWithDurations.length} records found`);
             return;
           }
         }
       } catch (e) {
-        console.error("YouTube API failed", e);
+        console.error("YouTube API failed, switching to proxy fallback", e);
       }
     }
 
-    // Strategy 2: Proxy Fallback (Mimicking Web Client)
+    // Strategy 2: Proxy Fallback (Desktop Chrome Header Simulation)
     try {
       const proxies = ["https://api.allorigins.win/get?url=", "https://corsproxy.io/?"];
       const instances = ['https://iv.ggtyler.dev', 'https://yewtu.be', 'https://invidious.flokinet.to'];
@@ -144,6 +151,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
                 title: v.title,
                 author: v.author,
                 videoThumbnails: v.videoThumbnails,
+                durationSeconds: v.durationSeconds,
                 duration: v.durationSeconds ? `${Math.floor(v.durationSeconds/60)}:${(v.durationSeconds%60).toString().padStart(2, '0')}` : '0:00',
                 viewCountText: v.viewCountText
               })));
@@ -153,13 +161,9 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
         }
       }
       
-      if (!success) {
-        showError("Search engines congested.");
-      } else {
-        showSuccess("Discovery complete.");
-      }
+      if (!success) showError("Global discovery engine congested.");
     } catch (err) {
-      showError("Global search engine offline.");
+      showError("Search services offline.");
     } finally {
       setIsSearchingYoutube(false);
     }
@@ -168,7 +172,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
   const handleYoutubeSearch = () => {
     const artist = (formData.artist || "").replace(/&/g, 'and'); 
     const title = (formData.name || "").replace(/&/g, 'and');
-    // Level 1 Strict Query Logic: ${artist} - ${title} (Official Audio)
+    // Level 1 Strict Query Logic as per Developer Notes
     const query = `${artist} - ${title} (Official Audio)`;
     performYoutubeDiscovery(query);
   };
@@ -180,23 +184,19 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
   const handleClearYoutubeSelection = () => {
     handleAutoSave({ youtubeUrl: "" });
     setYtResults([]);
+    setLastQuery("");
   };
 
   const handleDownloadViaProxy = async (videoUrlToDownload?: string) => {
     const targetVideoUrl = cleanYoutubeUrl(videoUrlToDownload || formData.youtubeUrl || '');
 
     if (!targetVideoUrl) {
-      showError("Please link a YouTube URL first.");
+      showError("Link a YouTube URL first.");
       return;
     }
     if (!user?.id || !song?.id) {
       showError("Session data missing.");
       return;
-    }
-
-    if (videoUrlToDownload && targetVideoUrl !== formData.youtubeUrl) {
-      handleAutoSave({ youtubeUrl: targetVideoUrl });
-      showSuccess("Target updated.");
     }
 
     setDownloadStatus('processing');
@@ -206,20 +206,16 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
     try {
       const API_BASE_URL = "https://yt-audio-api-1-wedr.onrender.com";
       const tokenResponse = await fetch(`${API_BASE_URL}/?url=${encodeURIComponent(targetVideoUrl)}`);
-      if (!tokenResponse.ok) throw new Error("API Token Fetch Failed");
+      if (!tokenResponse.ok) throw new Error("API Connection Failed");
       const { token } = await tokenResponse.json();
 
       let attempts = 0;
-      const MAX_POLLING_ATTEMPTS = 30;
-      const POLLING_INTERVAL_MS = 5000;
-
       let fileResponse: Response | undefined;
       let downloadReady = false;
 
-      while (attempts < MAX_POLLING_ATTEMPTS && !downloadReady) {
+      while (attempts < 30 && !downloadReady) {
         attempts++;
-        await new Promise(resolve => setTimeout(resolve, POLLING_INTERVAL_MS));
-
+        await new Promise(resolve => setTimeout(resolve, 5000));
         fileResponse = await fetch(`${API_BASE_URL}/download?token=${token}`);
         const clonedResponse = fileResponse.clone();
         const responseData = await clonedResponse.json().catch(() => ({}));
@@ -230,8 +226,6 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
           break;
         } else if (fileResponse.status === 202) {
           setDownloadProgress(responseData.progress_percentage || 0);
-        } else if (fileResponse.status === 500) {
-          throw new Error(responseData.error || "Proxy processing error.");
         }
       }
 
@@ -240,47 +234,40 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
       const audioArrayBuffer = await fileResponse.arrayBuffer();
       const audioBuffer = await Tone.getContext().decodeAudioData(audioArrayBuffer.slice(0));
 
-      const fileExt = 'mp3';
-      const fileName = `${user.id}/${song.id}/${Date.now()}.${fileExt}`;
-      const bucket = 'public_audio'; 
-      
+      const fileName = `${user.id}/${song.id}/${Date.now()}.mp3`;
       const { error: uploadError } = await supabase.storage
-        .from(bucket)
-        .upload(fileName, audioArrayBuffer, {
-          contentType: 'audio/mpeg', 
-          upsert: true
-        });
+        .from('public_audio')
+        .upload(fileName, audioArrayBuffer, { contentType: 'audio/mpeg', upsert: true });
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
-        .from(bucket)
-        .getPublicUrl(fileName);
+      const { data: { publicUrl } } = supabase.storage.from('public_audio').getPublicUrl(fileName);
 
       await onLoadAudioFromUrl(publicUrl, formData.pitch || 0);
       handleAutoSave({ previewUrl: publicUrl, duration_seconds: audioBuffer.duration });
-      showSuccess("Audio Engine Synced");
+      showSuccess("Master Audio Bound");
       setDownloadStatus('success');
-      setDownloadProgress(100);
 
     } catch (err: any) {
-      showError(`Download failed: ${err.message}`);
+      showError(`Extraction failed: ${err.message}`);
       setDownloadStatus('error');
-      setDownloadProgress(0);
     } finally {
       setIsDownloading(false);
     }
   };
 
-  const handlePreviewVideo = (videoUrl: string) => {
-    handleAutoSave({ youtubeUrl: cleanYoutubeUrl(videoUrl) });
-    onSwitchTab('visual');
-    showSuccess("Previewing reference media");
-  };
-
   return (
     <div className="space-y-10">
-      <h3 className="text-xl font-black uppercase tracking-tight text-indigo-400 shrink-0">REFERENCE MEDIA</h3>
-      <div className="flex flex-col md:flex-row gap-4 shrink-0">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xl font-black uppercase tracking-tight text-indigo-400">Discovery Matrix</h3>
+        {lastQuery && (
+          <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-lg border border-white/10">
+            <Terminal className="w-3 h-3 text-slate-500" />
+            <span className="text-[9px] font-mono text-slate-400 uppercase truncate max-w-[200px]">Query: {lastQuery}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-col md:flex-row gap-4">
         <Input
           placeholder="Search song or paste URL..."
           value={formData.youtubeUrl || ""}
@@ -307,21 +294,26 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
           </Button>
         </div>
       </div>
+
       {isDownloading && downloadStatus === 'processing' && (
         <div className="space-y-2 animate-in fade-in duration-300">
           <CustomProgress value={downloadProgress} className="h-2 bg-white/10" indicatorClassName="bg-indigo-500" />
           <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 text-center">
-            Audio conversion in progress... {downloadProgress}%
+            Cloud Conversion in progress... {downloadProgress}%
           </p>
         </div>
       )}
+
       {ytResults.length > 0 && (
         <YoutubeResultsShelf
           results={ytResults}
           currentVideoId={currentVideoId}
           onSelect={handleSelectYoutubeVideo}
           onDownloadAudio={handleDownloadViaProxy}
-          onPreviewVideo={handlePreviewVideo}
+          onPreviewVideo={(url) => {
+            handleAutoSave({ youtubeUrl: cleanYoutubeUrl(url) });
+            onSwitchTab('visual');
+          }}
           isLoading={isSearchingYoutube}
           isDownloading={isDownloading}
           downloadStatus={downloadStatus}
@@ -334,8 +326,8 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
             <div className="flex items-center gap-4">
               <Youtube className="w-6 h-6 text-red-500" />
               <div>
-                <h3 className="text-xl font-black uppercase tracking-tight">Linked YouTube Media</h3>
-                <p className="text-sm text-slate-400">Master audio extraction enabled via Render Proxy.</p>
+                <h3 className="text-xl font-black uppercase tracking-tight">Linked Reference Media</h3>
+                <p className="text-sm text-slate-400">Audio ready for extraction via Cloud Proxy.</p>
               </div>
             </div>
             <Button 
@@ -351,19 +343,19 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-white/5 rounded-2xl p-6 space-y-4 border border-white/5 flex flex-col justify-between">
               <div>
-                <h4 className="text-sm font-black uppercase tracking-tight text-white mb-2">Cloud Proxy Status</h4>
-                <p className="text-xs text-slate-400">Using public Render API instance. Dynamic rate management active.</p>
+                <h4 className="text-sm font-black uppercase tracking-tight text-white mb-2">Extraction Source</h4>
+                <p className="text-xs text-slate-400 font-mono">{formData.youtubeUrl}</p>
               </div>
               <div className="flex gap-2">
-                 <a href="https://yt-audio-api-1-wedr.onrender.com/" target="_blank" className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
-                   Endpoint Check <ExternalLink className="w-3 h-3" />
+                 <a href={formData.youtubeUrl} target="_blank" rel="noreferrer" className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
+                   Open Native <ExternalLink className="w-3 h-3" />
                  </a>
               </div>
             </div>
             <div className="bg-white/5 rounded-2xl p-6 space-y-4 border border-white/5 flex flex-col justify-between">
               <div>
-                <h4 className="text-sm font-black uppercase tracking-tight text-white mb-2">Manual Link Sync</h4>
-                <p className="text-xs text-slate-400">Direct extraction via external service portal.</p>
+                <h4 className="text-sm font-black uppercase tracking-tight text-white mb-2">Direct Portal</h4>
+                <p className="text-xs text-slate-400">Launch manual processing via external service.</p>
               </div>
               <Button 
                 className="w-full bg-red-600 hover:bg-red-700 font-black uppercase tracking-widest text-xs h-12 rounded-xl gap-2"
