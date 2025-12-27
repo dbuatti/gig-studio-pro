@@ -135,7 +135,7 @@ const SheetReaderMode: React.FC = () => {
       // Only update state if the data has actually changed
       setAllSongs(prevAllSongs => {
         if (JSON.stringify(mappedSongs) !== JSON.stringify(prevAllSongs)) {
-          console.log("[SheetReaderMode] All songs fetched and updated:", mappedSongs.length);
+          console.log("[SheetReaderMode] All songs fetched and updated:", mappedSongs.length, "songs.");
           return mappedSongs;
         }
         console.log("[SheetReaderMode] All songs fetched, but no change detected. Skipping state update.");
@@ -148,9 +148,9 @@ const SheetReaderMode: React.FC = () => {
         const initialIdx = mappedSongs.findIndex(s => s.id === targetId);
         if (initialIdx !== -1) {
           setCurrentIndex(initialIdx);
-          console.log("[SheetReaderMode] Initial song set from URL/params:", mappedSongs[initialIdx].name);
+          console.log("[SheetReaderMode] Initial song set from URL/params:", mappedSongs[initialIdx].name, "at index", initialIdx);
         } else {
-          console.log("[SheetReaderMode] Target song ID from URL/params not found in fetched songs.");
+          console.log("[SheetReaderMode] Target song ID from URL/params not found in fetched songs. ID:", targetId);
         }
       } else {
         console.log("[SheetReaderMode] No initial song ID from URL/params.");
@@ -165,28 +165,29 @@ const SheetReaderMode: React.FC = () => {
   }, [user, routeSongId, searchParams]); // Dependencies for fetchSongs useCallback
 
   useEffect(() => {
-    console.log("[SheetReaderMode] Effect: Initial fetchSongs on mount/user change.");
+    console.log("[SheetReaderMode] Effect: Initial fetchSongs on mount/user change. Dependencies: [fetchSongs]");
     fetchSongs();
   }, [fetchSongs]); // Dependency for useEffect
 
   // Filtering Logic
   useEffect(() => {
-    console.log("[SheetReaderMode] Effect: Filtering songs. allSongs count:", allSongs.length, "searchTerm:", searchTerm, "ignoreConfirmedGate:", ignoreConfirmedGate);
+    console.log("[SheetReaderMode] Effect: Filtering songs. Dependencies: [allSongs, searchTerm, ignoreConfirmedGate]");
+    console.log("[SheetReaderMode]   allSongs count:", allSongs.length, "searchTerm:", searchTerm, "ignoreConfirmedGate:", ignoreConfirmedGate);
     let result = [...allSongs];
     if (!ignoreConfirmedGate) {
       result = result.filter(s => s.isApproved);
-      console.log("[SheetReaderMode] Filtered by isApproved. Count:", result.length);
+      console.log("[SheetReaderMode]   Filtered by isApproved. Count:", result.length);
     }
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase();
       result = result.filter(s => s.name.toLowerCase().includes(q) || s.artist?.toLowerCase().includes(q));
-      console.log("[SheetReaderMode] Filtered by searchTerm. Count:", result.length);
+      console.log("[SheetReaderMode]   Filtered by searchTerm. Count:", result.length);
     }
 
     // Only update state if the filtered songs have actually changed
     setFilteredSongs(prevFilteredSongs => {
       if (JSON.stringify(result) !== JSON.stringify(prevFilteredSongs)) {
-        console.log("[SheetReaderMode] Filtered songs updated. Count:", result.length);
+        console.log("[SheetReaderMode] Filtered songs updated. Count:", result.length, "songs.");
         return result;
       }
       console.log("[SheetReaderMode] Filtered songs unchanged. Skipping state update.");
@@ -196,21 +197,24 @@ const SheetReaderMode: React.FC = () => {
 
   // Sync URL with state for persistence
   useEffect(() => {
+    console.log("[SheetReaderMode] Effect: Sync URL with current song. Dependencies: [currentSong, setSearchParams]");
     if (currentSong) {
-      console.log("[SheetReaderMode] Effect: Updating URL with current song ID:", currentSong.id);
+      console.log("[SheetReaderMode]   Updating URL with current song ID:", currentSong.id);
       setSearchParams({ id: currentSong.id }, { replace: true });
+    } else {
+      console.log("[SheetReaderMode]   No current song to update URL with.");
     }
   }, [currentSong, setSearchParams]);
 
   // Load Audio when song changes
   useEffect(() => {
-    console.log("[SheetReaderMode] Effect: currentSong changed. Loading audio...");
+    console.log("[SheetReaderMode] Effect: currentSong changed. Loading audio... Dependencies: [currentSong, loadFromUrl, resetEngine]");
     if (currentSong?.previewUrl) {
-      console.log("[SheetReaderMode] Loading audio from URL:", currentSong.previewUrl, "initial pitch:", currentSong.pitch);
+      console.log("[SheetReaderMode]   Loading audio from URL:", currentSong.previewUrl, "initial pitch:", currentSong.pitch);
       loadFromUrl(currentSong.previewUrl, currentSong.pitch || 0);
       setLocalPitch(currentSong.pitch || 0);
     } else {
-      console.log("[SheetReaderMode] No previewUrl for current song. Resetting audio engine.");
+      console.log("[SheetReaderMode]   No previewUrl for current song. Resetting audio engine.");
       resetEngine();
       setLocalPitch(0);
     }
@@ -219,12 +223,12 @@ const SheetReaderMode: React.FC = () => {
   const handleNext = useCallback(() => {
     console.log("[SheetReaderMode] handleNext called.");
     if (filteredSongs.length === 0) {
-      console.log("[SheetReaderMode] No filtered songs to navigate.");
+      console.log("[SheetReaderMode]   No filtered songs to navigate.");
       return;
     }
     setCurrentIndex((prev) => {
       const nextIdx = (prev + 1) % filteredSongs.length;
-      console.log("[SheetReaderMode] Next song index:", nextIdx);
+      console.log("[SheetReaderMode]   Next song index:", nextIdx, "Song:", filteredSongs[nextIdx]?.name);
       return nextIdx;
     });
     stopPlayback();
@@ -233,12 +237,12 @@ const SheetReaderMode: React.FC = () => {
   const handlePrev = useCallback(() => {
     console.log("[SheetReaderMode] handlePrev called.");
     if (filteredSongs.length === 0) {
-      console.log("[SheetReaderMode] No filtered songs to navigate.");
+      console.log("[SheetReaderMode]   No filtered songs to navigate.");
       return;
     }
     setCurrentIndex((prev) => {
       const prevIdx = (prev - 1 + filteredSongs.length) % filteredSongs.length;
-      console.log("[SheetReaderMode] Previous song index:", prevIdx);
+      console.log("[SheetReaderMode]   Previous song index:", prevIdx, "Song:", filteredSongs[prevIdx]?.name);
       return prevIdx;
     });
     stopPlayback();
@@ -249,49 +253,49 @@ const SheetReaderMode: React.FC = () => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch((e) => console.error("[SheetReaderMode] Fullscreen request failed:", e));
       setIsFullScreen(true);
-      console.log("[SheetReaderMode] Fullscreen activated.");
+      console.log("[SheetReaderMode]   Fullscreen activated.");
     } else {
       document.exitFullscreen();
       setIsFullScreen(false);
-      console.log("[SheetReaderMode] Fullscreen deactivated.");
+      console.log("[SheetReaderMode]   Fullscreen deactivated.");
     }
   }, []);
 
   // Keyboard Hotkeys
   useEffect(() => {
+    console.log("[SheetReaderMode] Effect: Adding global keydown listener. Dependencies: [navigate, handlePrev, handleNext, togglePlayback, toggleFullScreen]");
     const handleKeyDown = (e: KeyboardEvent) => {
       console.log("[SheetReaderMode] KeyDown event:", e.key, "target:", e.target);
       if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) return;
 
       if (e.key === 'Escape') {
-        console.log("[SheetReaderMode] Escape key pressed. Navigating to /.");
+        console.log("[SheetReaderMode]   Escape key pressed. Navigating to /.");
         navigate('/');
       }
       if (e.key === 'ArrowLeft') {
-        console.log("[SheetReaderMode] ArrowLeft key pressed.");
+        console.log("[SheetReaderMode]   ArrowLeft key pressed.");
         handlePrev();
       }
       if (e.key === 'ArrowRight') {
-        console.log("[SheetReaderMode] ArrowRight key pressed.");
+        console.log("[SheetReaderMode]   ArrowRight key pressed.");
         handleNext();
       }
       if (e.code === 'Space') { 
         e.preventDefault(); 
-        console.log("[SheetReaderMode] Spacebar pressed. Toggling playback.");
+        console.log("[SheetReaderMode]   Spacebar pressed. Toggling playback.");
         togglePlayback(); 
       }
       if (e.key.toLowerCase() === 'i') { 
         e.preventDefault(); 
-        console.log("[SheetReaderMode] 'i' key pressed. Opening Studio Modal.");
+        console.log("[SheetReaderMode]   'i' key pressed. Opening Studio Modal.");
         setIsStudioModalOpen(true); 
       }
       if (e.key.toLowerCase() === 'f') { 
         e.preventDefault(); 
-        console.log("[SheetReaderMode] 'f' key pressed. Toggling Fullscreen.");
+        console.log("[SheetReaderMode]   'f' key pressed. Toggling Fullscreen.");
         toggleFullScreen(); 
       }
     };
-    console.log("[SheetReaderMode] Adding global keydown listener.");
     window.addEventListener('keydown', handleKeyDown);
     return () => {
       console.log("[SheetReaderMode] Removing global keydown listener.");
@@ -302,20 +306,21 @@ const SheetReaderMode: React.FC = () => {
   const handleUpdateKey = useCallback(async (newTargetKey: string) => {
     console.log("[SheetReaderMode] handleUpdateKey called. New target key:", newTargetKey);
     if (!currentSong || !user) {
-      console.log("[SheetReaderMode] Cannot update key: currentSong or user missing.");
+      console.log("[SheetReaderMode]   Cannot update key: currentSong or user missing.");
       return;
     }
     const newPitch = calculateSemitones(currentSong.originalKey || "C", newTargetKey);
     setLocalPitch(newPitch);
     setAudioPitch(newPitch);
     try {
-      console.log("[SheetReaderMode] Updating Supabase with new targetKey and pitch.");
-      await supabase.from('repertoire').update({ target_key: newTargetKey, pitch: newPitch }).eq('id', currentSong.id);
+      console.log("[SheetReaderMode]   Updating Supabase 'repertoire' table for song ID:", currentSong.id, "with target_key:", newTargetKey, "and pitch:", newPitch);
+      const { error } = await supabase.from('repertoire').update({ target_key: newTargetKey, pitch: newPitch }).eq('id', currentSong.id);
+      if (error) throw error;
       setAllSongs(prev => prev.map(s => s.id === currentSong.id ? { ...s, targetKey: newTargetKey, pitch: newPitch } : s));
       showSuccess(`Stage Key set to ${newTargetKey}`);
-      console.log("[SheetReaderMode] Supabase update successful.");
+      console.log("[SheetReaderMode]   Supabase update successful.");
     } catch (err) {
-      console.error("[SheetReaderMode] Failed to update key in Supabase:", err);
+      console.error("[SheetReaderMode]   Failed to update key in Supabase:", err);
       showError("Failed to update key.");
     }
   }, [currentSong, user, setAudioPitch]);
@@ -325,37 +330,38 @@ const SheetReaderMode: React.FC = () => {
     console.log("[SheetReaderMode] Main content clicked. isOverlayOpen:", isOverlayOpen);
     if (!isOverlayOpen) {
       setIsUiVisible(prev => !prev);
-      console.log("[SheetReaderMode] Toggling isUiVisible to:", !isUiVisible);
+      console.log("[SheetReaderMode]   Toggling isUiVisible to:", !isUiVisible);
     }
   };
 
   useEffect(() => {
-    console.log("[SheetReaderMode] Effect: isUiVisible or isOverlayOpen changed. Setting UI hide timeout.");
+    console.log("[SheetReaderMode] Effect: isUiVisible or isOverlayOpen changed. Setting UI hide timeout. Dependencies: [isUiVisible, isOverlayOpen]");
     if (uiHideTimeoutRef.current) clearTimeout(uiHideTimeoutRef.current);
     if (isUiVisible && !isOverlayOpen) {
       uiHideTimeoutRef.current = setTimeout(() => {
         setIsUiVisible(false);
-        console.log("[SheetReaderMode] UI hide timeout triggered. isUiVisible set to false.");
+        console.log("[SheetReaderMode]   UI hide timeout triggered. isUiVisible set to false.");
       }, 8000);
     }
     return () => { 
       if (uiHideTimeoutRef.current) {
         clearTimeout(uiHideTimeoutRef.current); 
-        console.log("[SheetReaderMode] Clearing UI hide timeout on cleanup.");
+        console.log("[SheetReaderMode]   Clearing UI hide timeout on cleanup.");
       }
     };
   }, [isUiVisible, isOverlayOpen]);
 
   const renderChartContent = useMemo(() => {
-    console.log("[SheetReaderMode] renderChartContent memo re-evaluating. currentSong:", currentSong?.name, "forceReaderResource:", forceReaderResource);
+    console.log("[SheetReaderMode] renderChartContent memo re-evaluating. Dependencies: [currentSong, forceReaderResource, isMobile, localPitch, isPlaying, progress, duration, chordAutoScrollEnabled, chordScrollSpeed, ignoreConfirmedGate]");
+    console.log("[SheetReaderMode]   currentSong:", currentSong?.name, "forceReaderResource:", forceReaderResource);
     if (!currentSong) {
-      console.log("[SheetReaderMode] No current song, rendering placeholder.");
+      console.log("[SheetReaderMode]   No current song, rendering placeholder.");
       return <div className="h-full flex items-center justify-center text-slate-500"><Music className="w-12 h-12 mr-4" /> Select a song</div>;
     }
 
     const readiness = calculateReadiness(currentSong);
     if (readiness < 40 && forceReaderResource !== 'simulation' && !ignoreConfirmedGate) {
-      console.log("[SheetReaderMode] Song readiness is low and not in simulation/ignoreConfirmedGate mode. Rendering audit prompt.");
+      console.log("[SheetReaderMode]   Song readiness is low (", readiness, "%) and not in simulation/ignoreConfirmedGate mode. Rendering audit prompt.");
       return (
         <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-950">
           <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
@@ -371,10 +377,10 @@ const SheetReaderMode: React.FC = () => {
     // Debug Overrides
     if (forceReaderResource === 'force-pdf') {
       chartUrl = currentSong.pdfUrl;
-      console.log("[SheetReaderMode] forceReaderResource: force-pdf. Chart URL:", chartUrl);
+      console.log("[SheetReaderMode]   forceReaderResource: force-pdf. Chart URL:", chartUrl);
     }
     if (forceReaderResource === 'force-chords' && currentSong.ug_chords_text) {
-      console.log("[SheetReaderMode] forceReaderResource: force-chords. Rendering UGChordsReader.");
+      console.log("[SheetReaderMode]   forceReaderResource: force-chords. Rendering UGChordsReader.");
       return (
         <UGChordsReader
           key={currentSong.id + "-chords"} // Add key to ensure re-render on song change
@@ -393,7 +399,7 @@ const SheetReaderMode: React.FC = () => {
     }
 
     if (currentSong.ug_chords_text && !chartUrl) {
-      console.log("[SheetReaderMode] currentSong has ug_chords_text but no other chartUrl. Rendering UGChordsReader.");
+      console.log("[SheetReaderMode]   currentSong has ug_chords_text but no other chartUrl. Rendering UGChordsReader.");
       return (
         <UGChordsReader
           key={currentSong.id + "-chords-fallback"} // Add key
@@ -412,7 +418,7 @@ const SheetReaderMode: React.FC = () => {
     }
 
     if (chartUrl) {
-      console.log("[SheetReaderMode] Rendering iframe with chartUrl:", chartUrl);
+      console.log("[SheetReaderMode]   Rendering iframe with chartUrl:", chartUrl);
       return (
         <iframe 
           key={currentSong.id + "-iframe"} // Add key
@@ -423,7 +429,7 @@ const SheetReaderMode: React.FC = () => {
       );
     }
     
-    console.log("[SheetReaderMode] No chart URL or UG chords text found. Rendering null.");
+    console.log("[SheetReaderMode]   No chart URL or UG chords text found. Rendering null.");
     return null;
   }, [currentSong, forceReaderResource, isMobile, localPitch, isPlaying, progress, duration, chordAutoScrollEnabled, chordScrollSpeed, ignoreConfirmedGate]);
 
