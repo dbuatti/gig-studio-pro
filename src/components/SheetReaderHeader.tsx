@@ -47,13 +47,13 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
           <Button variant="ghost" size="icon" onClick={onPrevSong} disabled={totalSongs === 0 || isLoading} className="h-9 w-9 rounded-lg hover:bg-white/10 text-slate-400">
             <ChevronLeft className="w-4 h-4" />
           </Button>
-          <div className="text-center min-w-[100px]">
+          <div className="flex-1 text-center min-w-[100px]"> {/* Changed to flex-1 text-center */}
             {isLoading ? (
               <Loader2 className="w-5 h-5 animate-spin text-indigo-400 mx-auto" />
             ) : currentSong ? (
               <>
-                <h2 className="text-lg font-black uppercase tracking-tight text-white truncate max-w-[150px]">{currentSong.name}</h2>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 truncate max-w-[150px]">{currentSong.artist || "Unknown Artist"}</p>
+                <h2 className="text-lg font-black uppercase tracking-tight text-white truncate">{currentSong.name}</h2> {/* Removed max-w-[150px] */}
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 truncate">{currentSong.artist || "Unknown Artist"}</p> {/* Removed max-w-[150px] */}
               </>
             ) : (
               <p className="text-sm font-bold text-slate-500">No Song</p>

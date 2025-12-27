@@ -94,7 +94,8 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
       const { data, error } = await supabase
         .from('repertoire')
         .select('*')
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .eq('is_approved', true); // Filter for approved songs only
 
       if (error) throw error;
 
