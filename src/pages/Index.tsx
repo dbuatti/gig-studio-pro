@@ -11,15 +11,15 @@ import SetlistStats from "@/components/SetlistStats";
 import PreferencesModal from "@/components/PreferencesModal";
 import AdminPanel from "@/components/AdminPanel";
 import SongStudioModal from "@/components/SongStudioModal";
-import GigSessionManager from "@/components/GigSessionManager";
-import UGLinkAuditModal from "@/components/UGLinkAuditModal"; // NEW
+import SetlistSettingsModal from "@/components/SetlistSettingsModal";
+import UGLinkAuditModal from "@/components/UGLinkAuditModal";
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { showSuccess, showError } from '@/utils/toast';
 import { calculateSemitones } from '@/utils/keyUtils';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { User as UserIcon, Loader2, Play, LayoutDashboard, Search as SearchIcon, Rocket, Settings, Clock, ShieldCheck, Music, FileText, Guitar } from 'lucide-react'; 
+import { User as UserIcon, Loader2, Play, LayoutDashboard, Search as SearchIcon, Rocket, Settings, Clock, ShieldCheck, Settings2, FileText, Guitar } from 'lucide-react'; 
 import { cn } from "@/lib/utils";
 import { useSettings } from '@/hooks/use-settings';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -47,8 +47,9 @@ const Index = () => {
   const [isPerformanceMode, setIsPerformanceMode] = useState(false);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false); 
-  const [isUGAuditOpen, setIsUGAuditOpen] = useState(false); // NEW
+  const [isUGAuditOpen, setIsUGAuditOpen] = useState(false);
   const [isStudioModalOpen, setIsStudioModalOpen] = useState(false);
+  const [isSetlistSettingsOpen, setIsSetlistSettingsOpen] = useState(false);
   const [editingSongId, setEditingSongId] = useState<string | null>(null);
   const [performanceState, setPerformanceState] = useState({ progress: 0, duration: 0 });
   const [isPlayerActive, setIsPlayerActive] = useState(false);
@@ -86,7 +87,6 @@ const Index = () => {
   const currentList = setlists.find(l => l.id === currentListId);
   const songs = currentList?.songs || [];
 
-  // Centralized filtering logic for shared context
   const processedSongs = useMemo(() => {
     let base = songs;
 
@@ -166,7 +166,7 @@ const Index = () => {
   const fetchMasterRepertoire = async () => {
     if (!user) return;
     try {
-      const { data } = await supabase.from('repertoire').select('*').eq('user_id', user.id);
+      const { data } = await supabase.from('repertoire').select('*').eq('id', user.id);
       if (data) {
         const mapped = (data || []).map(d => ({
           id: d.id, master_id: d.id, name: d.title, artist: d.artist, bpm: d.bpm, lyrics: d.lyrics,
@@ -180,7 +180,7 @@ const Index = () => {
           ug_chords_config: d.ug_chords_config,
           is_pitch_linked: d.is_pitch_linked,
           extraction_status: d.extraction_status,
-          is_ug_link_verified: d.is_ug_link_verified // NEW
+          is_ug_link_verified: d.is_ug_link_verified
         }));
         setMasterRepertoire(mapped);
       }
@@ -199,7 +199,7 @@ const Index = () => {
           name: d.name, 
           songs: (d.songs as any[]).map(s => ({
             ...s,
-            is_ug_link_verified: s.is_ug_link_verified || false // Ensure field exists
+            is_ug_link_verified: s.is_ug_link_verified || false
           })), 
           time_goal: d.time_goal 
         })));
@@ -261,31 +261,20 @@ const Index = () => {
 
   const handleAutoLinkSetlist = async () => {
     if (!currentListId || !songs.length) return;
-    
-    // Filtering logic as per notes: Only pull songs with missing youtube_url and present title/artist
-    const missingSongs = songs.filter(s => 
-      (!s.youtubeUrl || s.youtubeUrl.trim() === '') && 
-      s.name && 
-      s.artist
-    );
-
+    const missingSongs = songs.filter(s => (!s.youtubeUrl || s.youtubeUrl.trim() === '') && s.name && s.artist);
     if (missingSongs.length === 0) {
       showSuccess("All songs are already optimized.");
       return;
     }
-
     try {
       const batchIds = missingSongs.map(s => s.master_id).filter(Boolean) as string[];
       if (batchIds.length === 0) {
-        // Fallback: If songs don't have master_ids, sync them first
         const synced = await syncToMasterRepertoire(user!.id, missingSongs);
         const newBatchIds = synced.map(s => s.master_id).filter(Boolean) as string[];
         await invokeAutoLink(newBatchIds);
       } else {
         await invokeAutoLink(batchIds);
       }
-      
-      // Refresh to show updates
       fetchSetlists();
       fetchMasterRepertoire();
     } catch (err: any) {
@@ -297,19 +286,13 @@ const Index = () => {
     const { data, error } = await supabase.functions.invoke('bulk-populate-youtube-links', {
       body: { songIds: ids }
     });
-
     if (error) throw error;
-    
-    if (data.successful > 0) {
-      showSuccess(`AI Engine: ${data.successful} matches bound.`);
-    } else {
-      showError("AI could not find high-confidence matches for remaining tracks.");
-    }
+    if (data.successful > 0) showSuccess(`AI Engine: ${data.successful} matches bound.`);
+    else showError("AI could not find high-confidence matches for remaining tracks.");
   };
 
   const handleAddToSetlist = async (previewUrl: string, name: string, artist: string, youtubeUrl?: string, ugUrl?: string, appleMusicUrl?: string, genre?: string, pitch: number = 0) => {
     if (!user) return;
-    
     let activeId = currentListId;
     if (!activeId) {
       const gigName = `Mobile Session ${new Date().toLocaleDateString()}`;
@@ -323,7 +306,6 @@ const Index = () => {
         return;
       }
     }
-
     const existing = masterRepertoire.find(s => s.name.toLowerCase() === name.toLowerCase() && s.artist?.toLowerCase() === artist.toLowerCase());
     const newSongId = Math.random().toString(36).substr(2, 9);
     const newSong: SetlistSong = existing 
@@ -336,10 +318,8 @@ const Index = () => {
           is_pitch_linked: true,
           is_ug_link_verified: false
         };
-    
     const list = setlists.find(l => l.id === activeId);
     if (!list) return;
-
     const updatedSongs = [...(list.songs || []), newSong];
     await saveList(activeId!, updatedSongs, {}, [newSong]);
     showSuccess(`"${name}" added to ${list.name}`);
@@ -347,10 +327,7 @@ const Index = () => {
   };
 
   const handleAddExistingSong = (song: SetlistSong) => {
-    if (!currentListId) {
-      showError("Please select a gig first");
-      return;
-    }
+    if (!currentListId) { showError("Please select a gig first"); return; }
     const newSongId = Math.random().toString(36).substr(2, 9);
     const list = setlists.find(l => l.id === currentListId);
     if (!list) return;
@@ -482,16 +459,27 @@ const Index = () => {
   };
 
   const handleEditSong = (song: SetlistSong) => {
-    if (isMobile) {
-      navigate(`/gig/${currentListId}/song/${song.id}`);
-    } else {
-      setEditingSongId(song.id);
-      setIsStudioModalOpen(true);
+    if (isMobile) navigate(`/gig/${currentListId}/song/${song.id}`);
+    else { setEditingSongId(song.id); setIsStudioModalOpen(true); }
+  };
+
+  const handleNavigateStudioSong = (songId: string) => setEditingSongId(songId);
+
+  const handleDeleteSetlist = async (id: string) => {
+    if (confirm("Delete this entire gig?")) {
+      await supabase.from('setlists').delete().eq('id', id);
+      setIsSetlistSettingsOpen(false);
+      fetchSetlists();
     }
   };
 
-  const handleNavigateStudioSong = (songId: string) => {
-    setEditingSongId(songId);
+  const handleRenameSetlist = async (id: string) => {
+    const list = setlists.find(l => l.id === id);
+    const newName = prompt("Rename Gig:", list?.name);
+    if (newName && newName !== list?.name) {
+      await supabase.from('setlists').update({ name: newName }).eq('id', id);
+      fetchSetlists();
+    }
   };
 
   return (
@@ -510,7 +498,7 @@ const Index = () => {
                 if (data) { await fetchSetlists(); setCurrentListId(data.id); }
               }
             }}
-            onDelete={async (id) => { if (confirm("Delete gig?")) { await supabase.from('setlists').delete().eq('id', id); fetchSetlists(); } }}
+            onDelete={handleDeleteSetlist}
           />
         </div>
         <div className="flex items-center gap-2 md:gap-6 shrink-0 ml-2">
@@ -519,15 +507,7 @@ const Index = () => {
             <span className="text-[11px] font-black font-mono text-slate-600 dark:text-slate-300">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
           </div>
           <div className="flex items-center gap-2 md:gap-4">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setIsUGAuditOpen(true)} 
-              className="h-9 md:h-10 gap-2 border-orange-500/30 text-orange-500 font-bold uppercase tracking-tight shadow-sm px-3 md:px-4"
-            >
-              <Guitar className="w-4 h-4" />
-              <span className="hidden md:inline">UG Audit</span>
-            </Button>
+            <Button variant="outline" size="sm" onClick={() => setIsUGAuditOpen(true)} className="h-9 md:h-10 gap-2 border-orange-500/30 text-orange-500 font-bold uppercase tracking-tight shadow-sm px-3 md:px-4"><Guitar className="w-4 h-4" /><span className="hidden md:inline">UG Audit</span></Button>
             <Button variant="default" size="sm" onClick={startPerformance} className="h-9 md:h-10 gap-2 bg-indigo-600 font-bold uppercase tracking-tight shadow-lg shadow-indigo-600/20 px-3 md:px-4"><Rocket className="w-4 h-4" /><span className="hidden md:inline">Start Show</span></Button>
             <Button variant="default" size="sm" onClick={() => navigate('/sheet-reader')} className="h-9 md:h-10 gap-2 bg-purple-600 font-bold uppercase tracking-tight shadow-lg shadow-purple-600/20 px-3 md:px-4"><FileText className="w-4 h-4" /><span className="hidden md:inline">Sheet Reader</span></Button>
             <div className="h-6 w-px bg-slate-200 hidden sm:block" />
@@ -543,51 +523,56 @@ const Index = () => {
           <div className="max-w-6xl mx-auto space-y-6 md:space-y-8">
             <ActiveSongBanner song={activeSong} isPlaying={isPlayerActive} onTogglePlayback={() => transposerRef.current?.togglePlayback()} onClear={() => { setActiveSongId(null); transposerRef.current?.stopPlayback(); }} />
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase truncate max-w-full">{currentList?.name}</h2>
-                <div className="flex items-center gap-3 md:gap-4 mt-1 overflow-x-auto no-scrollbar pb-1">
-                  <p className="text-slate-500 text-xs font-medium whitespace-nowrap">{songs.length} Tracks</p>
-                  <div className="h-1 w-1 rounded-full bg-slate-300 shrink-0" />
-                  <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full"><ShieldCheck className="w-3 h-3 text-emerald-500" /><span className="text-[9px] font-black uppercase text-emerald-600 tracking-widest">Headless Sync Active</span></div>
+              <div className="flex items-center gap-4">
+                <div>
+                  <h2 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase truncate max-w-full">{currentList?.name}</h2>
+                  <div className="flex items-center gap-3 md:gap-4 mt-1 overflow-x-auto no-scrollbar pb-1">
+                    <p className="text-slate-500 text-xs font-medium whitespace-nowrap">{songs.length} Tracks</p>
+                    <div className="h-1 w-1 rounded-full bg-slate-300 shrink-0" />
+                    <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full"><ShieldCheck className="w-3 h-3 text-emerald-500" /><span className="text-[9px] font-black uppercase text-emerald-600 tracking-widest">Headless Sync Active</span></div>
+                  </div>
                 </div>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => setIsSetlistSettingsOpen(true)}
+                  className="h-10 w-10 rounded-xl bg-white dark:bg-slate-900 border shadow-sm text-slate-400 hover:text-indigo-600 transition-all mt-1"
+                >
+                  <Settings2 className="w-5 h-5" />
+                </Button>
               </div>
               <ImportSetlist onImport={(newSongs) => { if (!currentListId) return; saveList(currentListId, [...songs, ...newSongs.map(s => ({ ...s, isSyncing: false, isApproved: false }))], {}, newSongs); }} />
             </div>
             
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-              <div className="xl:col-span-2 space-y-8">
-                <SetlistStats 
-                  songs={songs} 
-                  goalSeconds={currentList?.time_goal} 
-                  onUpdateGoal={(s) => currentListId && saveList(currentListId, songs, { time_goal: s }, undefined)} 
-                  onAutoLink={handleAutoLinkSetlist}
-                  onDownloadAllMissingAudio={handleDownloadAllMissingAudio} 
-                  isBulkDownloading={isBulkDownloading} 
-                />
-                <SetlistManager 
-                  songs={processedSongs} 
-                  onRemove={(id) => currentListId && saveList(currentListId, songs.filter(s => s.id !== id), {}, undefined)} 
-                  onSelect={handleSelectSong} 
-                  onEdit={handleEditSong}
-                  onUpdateKey={handleUpdateKey} 
-                  onTogglePlayed={handleTogglePlayed} 
-                  onLinkAudio={(n) => { setIsSearchPanelOpen(true); transposerRef.current?.triggerSearch(n); }}
-                  onUpdateSong={handleUpdateSong} 
-                  onSyncProData={() => Promise.resolve()}
-                  onReorder={(ns) => currentListId && saveList(currentListId, ns, {}, undefined)} 
-                  currentSongId={activeSongIdState || undefined} 
-                  onOpenAdmin={() => setIsAdminOpen(true)}
-                  sortMode={sortMode}
-                  setSortMode={setSortMode}
-                  activeFilters={activeFilters}
-                  setActiveFilters={setActiveFilters}
-                  searchTerm={searchTerm}
-                  setSearchTerm={setSearchTerm}
-                />
-              </div>
-              <div className="space-y-8">
-                {currentListId && <GigSessionManager setlistId={currentListId} />}
-              </div>
+            <div className="space-y-8">
+              <SetlistStats 
+                songs={songs} 
+                goalSeconds={currentList?.time_goal} 
+                onUpdateGoal={(s) => currentListId && saveList(currentListId, songs, { time_goal: s }, undefined)} 
+                onAutoLink={handleAutoLinkSetlist}
+                onDownloadAllMissingAudio={handleDownloadAllMissingAudio} 
+                isBulkDownloading={isBulkDownloading} 
+              />
+              <SetlistManager 
+                songs={processedSongs} 
+                onRemove={(id) => currentListId && saveList(currentListId, songs.filter(s => s.id !== id), {}, undefined)} 
+                onSelect={handleSelectSong} 
+                onEdit={handleEditSong}
+                onUpdateKey={handleUpdateKey} 
+                onTogglePlayed={handleTogglePlayed} 
+                onLinkAudio={(n) => { setIsSearchPanelOpen(true); transposerRef.current?.triggerSearch(n); }}
+                onUpdateSong={handleUpdateSong} 
+                onSyncProData={() => Promise.resolve()}
+                onReorder={(ns) => currentListId && saveList(currentListId, ns, {}, undefined)} 
+                currentSongId={activeSongIdState || undefined} 
+                onOpenAdmin={() => setIsAdminOpen(true)}
+                sortMode={sortMode}
+                setSortMode={setSortMode}
+                activeFilters={activeFilters}
+                setActiveFilters={setActiveFilters}
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+              />
             </div>
           </div>
           <MadeWithDyad />
@@ -609,19 +594,15 @@ const Index = () => {
       </div>
       <PreferencesModal isOpen={isPreferencesOpen} onClose={() => setIsPreferencesOpen(false)} />
       <AdminPanel isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} />
-      <UGLinkAuditModal 
-        isOpen={isUGAuditOpen} 
-        onClose={() => setIsUGAuditOpen(false)} 
-        songs={songs} 
-        onVerify={handleUpdateSong} 
-      />
-      <SongStudioModal 
-        isOpen={isStudioModalOpen} 
-        onClose={() => setIsStudioModalOpen(false)} 
-        gigId={currentListId} 
-        songId={editingSongId} 
-        visibleSongs={processedSongs}
-        onSelectSong={handleNavigateStudioSong}
+      <UGLinkAuditModal isOpen={isUGAuditOpen} onClose={() => setIsUGAuditOpen(false)} songs={songs} onVerify={handleUpdateSong} />
+      <SongStudioModal isOpen={isStudioModalOpen} onClose={() => setIsStudioModalOpen(false)} gigId={currentListId} songId={editingSongId} visibleSongs={processedSongs} onSelectSong={handleNavigateStudioSong} />
+      <SetlistSettingsModal 
+        isOpen={isSetlistSettingsOpen} 
+        onClose={() => setIsSetlistSettingsOpen(false)} 
+        setlistId={currentListId} 
+        setlistName={currentList?.name || "Active Gig"} 
+        onDelete={handleDeleteSetlist}
+        onRename={handleRenameSetlist}
       />
       {isPerformanceMode && (
         <PerformanceOverlay songs={songs.filter(isPlayableMaster)} currentIndex={songs.filter(isPlayableMaster).findIndex(s => s.id === activeSongIdState)} isPlaying={isPlayerActive} progress={performanceState.progress} duration={performanceState.duration} onTogglePlayback={() => transposerRef.current?.togglePlayback()} onNext={handleNextSong} onPrevious={handlePreviousSong} onShuffle={handleShuffle} onClose={() => { setIsPerformanceMode(false); setActiveSongId(null); transposerRef.current?.stopPlayback(); }} onUpdateKey={handleUpdateKey} onUpdateSong={handleUpdateSong} analyzer={transposerRef.current?.getAnalyzer()} onOpenAdmin={() => setIsAdminOpen(true)} gigId={currentListId} />
