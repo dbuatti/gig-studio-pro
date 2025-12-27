@@ -48,7 +48,7 @@ export interface SetlistSong {
   lyrics?: string;
   resources?: string[];
   user_tags?: string[];
-  is_pitch_linked?: boolean; // Unified: Link state
+  is_pitch_linked?: boolean; 
   duration_seconds?: number;
   key_preference?: KeyPreference;
   is_active?: boolean;
@@ -61,15 +61,15 @@ export interface SetlistSong {
   ug_chords_config?: UGChordsConfig;
   is_ug_chords_present?: boolean;
   highest_note_original?: string;
-  is_ug_link_verified?: boolean; // Added for UG Audit system
-  metadata_source?: string; // Added for Automation engine
-  sync_status?: 'IDLE' | 'SYNCING' | 'COMPLETED' | 'ERROR'; // Added for tracking
+  is_ug_link_verified?: boolean; 
+  metadata_source?: string; 
+  sync_status?: 'IDLE' | 'SYNCING' | 'COMPLETED' | 'ERROR'; 
   last_sync_log?: string;
   auto_synced?: boolean;
 }
 
 interface SetlistManagerProps {
-  songs: SetlistSong[]; // This is now already processed (filtered/sorted)
+  songs: SetlistSong[]; 
   onRemove: (id: string) => void;
   onSelect: (song: SetlistSong) => void;
   onEdit: (song: SetlistSong) => void;
@@ -212,7 +212,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
           {processedSongs.map((song, idx) => {
             const isSelected = currentSongId === song.id;
             const readinessScore = calculateReadiness(song);
-            const isReady = readinessScore >= 80;
+            const isFullyReady = readinessScore === 100;
             const hasAudio = !!song.previewUrl && !isItunesPreview(song.previewUrl);
             const currentPref = song.key_preference || globalPreference;
             const displayTargetKey = formatKey(song.targetKey || song.originalKey, currentPref);
@@ -245,8 +245,9 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       )}
                     </button>
                     <div>
-                      <h4 className={cn("text-sm font-black tracking-tight", song.isPlayed && "line-through text-slate-400")}>
+                      <h4 className={cn("text-sm font-black tracking-tight flex items-center gap-1.5", song.isPlayed && "line-through text-slate-400")}>
                         {song.name}
+                        {isFullyReady && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 fill-emerald-500/20" />}
                       </h4>
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">
                         {song.artist || "Unknown Artist"}
@@ -259,7 +260,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                     ) : (
                       <div className={cn(
                         "h-2 w-2 rounded-full",
-                        isReady ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]"
+                        isFullyReady ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]"
                       )} />
                     )}
                     <DropdownMenu>
@@ -369,7 +370,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                 {processedSongs.map((song, idx) => {
                   const isSelected = currentSongId === song.id;
                   const readinessScore = calculateReadiness(song);
-                  const isReady = readinessScore >= 80;
+                  const isFullyReady = readinessScore === 100;
                   const hasAudio = !!song.previewUrl && !isItunesPreview(song.previewUrl);
                   const currentPref = song.key_preference || globalPreference;
                   const displayOrigKey = formatKey(song.originalKey, currentPref);
@@ -408,8 +409,9 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         <div className="flex flex-col gap-1">
                           <div className="flex items-center gap-3">
                             <span className="text-[10px] font-mono font-black text-slate-300 min-w-[20px]">{(idx + 1).toString().padStart(2, '0')}</span>
-                            <h4 className={cn("text-base font-black tracking-tight leading-none", song.isPlayed && "line-through text-slate-400")}>
+                            <h4 className={cn("text-base font-black tracking-tight leading-none flex items-center gap-2", song.isPlayed && "line-through text-slate-400")}>
                               {song.name}
+                              {isFullyReady && <CheckCircle2 className="w-4 h-4 text-emerald-500 fill-emerald-500/20" />}
                             </h4>
                             {song.isMetadataConfirmed && <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />}
                             {song.isSyncing ? (
@@ -417,7 +419,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                             ) : (
                               <div className={cn(
                                 "h-1.5 w-1.5 rounded-full",
-                                isReady ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]"
+                                isFullyReady ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]"
                               )} />
                             )}
                           </div>

@@ -5,7 +5,10 @@ import { motion } from 'framer-motion';
 import { 
   ArrowLeft, Activity, Check, Sparkles, 
   Loader2, ShieldCheck, Maximize2, 
-  ChevronLeft, ChevronRight, AlertCircle 
+  ChevronLeft, ChevronRight, AlertCircle, 
+  ShieldAlert,
+  ClipboardCheck,
+  CheckCircle2
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
@@ -19,6 +22,8 @@ import StudioTabContent from '@/components/StudioTabContent';
 import SongConfigTab from '@/components/SongConfigTab';
 import ProSyncSearch from '@/components/ProSyncSearch';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useKeyboardNavigation } from '@/hooks/use-keyboard-navigation';
 
@@ -45,7 +50,6 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   const [activeTab, setActiveTab] = useState<StudioTab>('audio');
   const [loading, setLoading] = useState(true);
   const [isProSyncSearchOpen, setIsProSyncSearchOpen] = useState(false);
-  const [isProSyncing, setIsProSyncing] = useState(false);
   const [activeChartType, setActiveChartType] = useState<'pdf' | 'leadsheet' | 'web' | 'ug'>('pdf');
   
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
@@ -59,10 +63,14 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
       if (gigId === 'library') {
         const { data } = await supabase.from('repertoire').select('*').eq('id', songId).single();
         if (data) targetSong = {
-          id: data.id, name: data.title, artist: data.artist, previewUrl: data.preview_url,
+          id: data.id, master_id: data.id, name: data.title, artist: data.artist, previewUrl: data.preview_url,
           youtubeUrl: data.youtube_url, originalKey: data.original_key, targetKey: data.target_key,
           pitch: data.pitch, bpm: data.bpm, lyrics: data.lyrics, notes: data.notes, 
-          is_pitch_linked: data.is_pitch_linked, isApproved: data.is_approved
+          is_pitch_linked: data.is_pitch_linked, isApproved: data.is_approved,
+          isMetadataConfirmed: data.is_metadata_confirmed, ug_chords_text: data.ug_chords_text,
+          ug_chords_config: data.ug_chords_config, user_tags: data.user_tags, resources: data.resources,
+          pdf_url: data.pdf_url, leadsheet_url: data.leadsheet_url, apple_music_url: data.apple_music_url,
+          duration_seconds: data.duration_seconds
         } as SetlistSong;
       } else {
         const { data } = await supabase.from('setlists').select('songs').eq('id', gigId).single();
@@ -104,6 +112,17 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     });
   }, [song, gigId, user]);
 
+  const handleVerifyMetadata = () => {
+    const isNowVerified = !formData.isMetadataConfirmed;
+    handleAutoSave({ isMetadataConfirmed: isNowVerified });
+    showSuccess(isNowVerified ? "Technical Metadata Verified" : "Verification Rescinded");
+  };
+
+  const handleConfirmForSetlist = (checked: boolean) => {
+    handleAutoSave({ isApproved: checked });
+    showSuccess(checked ? "Confirmed for Active Gig" : "Removed from Confirmed Status");
+  };
+
   useKeyboardNavigation({
     onNext: () => visibleSongs.length > 1 && onSelectSong?.(visibleSongs[(visibleSongs.findIndex(s => s.id === songId) + 1) % visibleSongs.length].id),
     onPrev: () => visibleSongs.length > 1 && onSelectSong?.(visibleSongs[(visibleSongs.findIndex(s => s.id === songId) - 1 + visibleSongs.length) % visibleSongs.length].id),
@@ -128,14 +147,51 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-xl border border-white/10">
-            <ShieldCheck className={cn("w-3.5 h-3.5", readiness === 100 ? "text-emerald-500" : "text-indigo-400")} />
-            <span className="text-[10px] font-black font-mono text-white">{readiness}% READY</span>
+        <div className="flex items-center gap-6">
+          {/* Readiness HUD */}
+          <div className="hidden lg:flex items-center gap-3 px-4 py-2 bg-black/40 rounded-2xl border border-white/10">
+            <div className="flex flex-col items-end">
+              <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Readiness Level</span>
+              <span className={cn("text-xs font-mono font-black", readiness === 100 ? "text-emerald-400" : "text-indigo-400")}>{readiness}%</span>
+            </div>
+            <div className="w-12">
+               <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
+                 <div className={cn("h-full transition-all duration-1000", readiness === 100 ? "bg-emerald-500" : "bg-indigo-500")} style={{ width: `${readiness}%` }} />
+               </div>
+            </div>
           </div>
-          <Button onClick={() => setIsProSyncSearchOpen(true)} className="h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 font-black uppercase text-[9px] tracking-widest gap-2 px-4 shadow-lg">
-            <Sparkles className="w-3.5 h-3.5" /> PRO SYNC
-          </Button>
+
+          <div className="h-8 w-px bg-white/5 hidden md:block" />
+
+          <div className="flex items-center gap-4">
+            {/* Step 1: Metadata Verification */}
+            <Button 
+              onClick={handleVerifyMetadata}
+              className={cn(
+                "h-11 rounded-xl font-black uppercase text-[9px] tracking-widest gap-2 px-6 transition-all shadow-lg",
+                formData.isMetadataConfirmed 
+                  ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20" 
+                  : "bg-white/5 hover:bg-white/10 text-slate-400 border border-white/10"
+              )}
+            >
+              {formData.isMetadataConfirmed ? <ShieldCheck className="w-4 h-4" /> : <ClipboardCheck className="w-4 h-4" />}
+              {formData.isMetadataConfirmed ? "METADATA VERIFIED" : "VERIFY METADATA"}
+            </Button>
+
+            {/* Step 2: Setlist Confirmation Toggle */}
+            <div className="flex items-center gap-3 bg-white/5 px-4 h-11 rounded-xl border border-white/10">
+              <div className="flex flex-col items-end">
+                <Label htmlFor="setlist-confirm" className="text-[8px] font-black text-slate-500 uppercase tracking-widest cursor-pointer">Confirm for Setlist</Label>
+                {formData.isApproved && <span className="text-[7px] font-black text-emerald-500 uppercase">Gig Ready</span>}
+              </div>
+              <Switch 
+                id="setlist-confirm"
+                checked={formData.isApproved || false}
+                onCheckedChange={handleConfirmForSetlist}
+                className="data-[state=checked]:bg-emerald-500"
+              />
+            </div>
+          </div>
         </div>
       </header>
 
@@ -163,7 +219,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
         </div>
       </div>
 
-      <ProSyncSearch isOpen={isProSyncSearchOpen} onClose={() => setIsProSyncSearchOpen(false)} onSelect={(d) => handleAutoSave({ name: d.trackName, artist: d.artistName, isMetadataConfirmed: true })} initialQuery={`${formData.artist} ${formData.name}`} />
+      <ProSyncSearch isOpen={isProSyncSearchOpen} onClose={() => setIsProSyncSearchOpen(false)} onSelect={(d) => handleAutoSave({ name: d.trackName, artist: d.artistName })} initialQuery={`${formData.artist} ${formData.name}`} />
     </div>
   );
 };

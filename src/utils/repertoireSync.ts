@@ -4,27 +4,48 @@ import { SetlistSong } from "@/components/SetlistManager";
 import { DEFAULT_UG_CHORDS_CONFIG } from "./constants";
 
 /**
- * Calculates a readiness score (0-100) based on available assets and metadata.
- * Now includes isApproved status as a key component for reaching 100%.
+ * Calculates a readiness score (0-100) based on assets and manual verification steps.
+ * Weights:
+ * - Technical Assets: 85% (Audio, Chords, Lyrics, Keys, etc.)
+ * - Metadata Verified: 10% (Manual Step 1)
+ * - Setlist Confirmed: 5%  (Manual Step 2)
  */
 export const calculateReadiness = (song: Partial<SetlistSong>): number => {
-  let score = 0;
+  let assetScore = 0;
+  
+  // 1. Audio Assets (Max 25)
   const preview = song.previewUrl || "";
   const isItunes = preview.includes('apple.com') || preview.includes('itunes-assets');
+  if (preview && !isItunes) assetScore += 25;
+
+  // 2. Chords & Lyrics (Max 20)
+  const hasLyrics = (song.lyrics || "").length > 20;
+  const hasChordsText = (song.ug_chords_text || "").length > 10;
+  if (hasLyrics && hasChordsText) assetScore += 20;
+  else if (hasLyrics || hasChordsText) assetScore += 10;
+
+  // 3. Harmonic Data (Max 15)
+  if (song.isKeyConfirmed) assetScore += 15;
+
+  // 4. BPM & Timing (Max 10)
+  if (song.bpm) assetScore += 10;
+
+  // 5. External Assets (Max 10)
+  if (song.pdfUrl || song.leadsheetUrl) assetScore += 10;
+
+  // 6. Basic Metadata (Max 5)
+  if (song.artist && song.artist !== "Unknown Artist") assetScore += 5;
+
+  // Final Gate Steps
+  let finalScore = Math.min(85, assetScore);
   
-  if (preview && !isItunes) score += 25;
-  if (song.isKeyConfirmed) score += 15;
-  if (song.isApproved) score += 20; // Approval is a major weight
-  if ((song.lyrics || "").length > 20) score += 10;
-  if (song.pdfUrl || song.leadsheetUrl) score += 10;
-  if (song.ugUrl) score += 5;
-  if (song.bpm) score += 5;
-  if ((song.notes || "").length > 10) score += 5;
-  if (song.artist && song.artist !== "Unknown Artist") score += 5;
+  // Metadata Verification (+10)
+  if (song.isMetadataConfirmed) finalScore += 10;
   
-  if (song.ug_chords_text && song.ug_chords_text.length > 10) score += 10;
+  // Setlist Confirmation (+5)
+  if (song.isApproved) finalScore += 5;
   
-  return Math.min(100, score);
+  return finalScore;
 };
 
 /**

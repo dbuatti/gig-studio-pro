@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { Input } from './ui/input';
 import SetlistExporter from './SetlistExporter';
 import { Button } from './ui/button';
+import { calculateReadiness } from '@/utils/repertoireSync';
 
 interface SetlistStatsProps {
   songs: SetlistSong[];
@@ -34,7 +35,8 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({
 }) => {
   const [isEditingGoal, setIsEditingGoal] = useState(false);
   
-  const approvedSongs = songs.filter(song => song.isApproved);
+  // Logic: Only 100% readiness (Verified + Confirmed) tracks count towards goal
+  const approvedSongs = songs.filter(song => calculateReadiness(song) === 100);
   const totalApprovedSongs = approvedSongs.length;
 
   const totalSeconds = approvedSongs.reduce((acc, song) => {
@@ -119,10 +121,16 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({
           </div>
 
           <div className="space-y-3 relative z-10">
-            {totalApprovedSongs === 0 ? (
+            {songs.length === 0 ? (
               <div className="text-center py-4">
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                  Approve songs to track your set goal!
+                  Add tracks to library to start tracking goals!
+                </p>
+              </div>
+            ) : totalApprovedSongs === 0 ? (
+              <div className="text-center py-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400 animate-pulse">
+                  Reach 100% Readiness to Activate Target Tracking
                 </p>
               </div>
             ) : (
@@ -148,7 +156,7 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({
           </div>
           <div>
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Repertoire</p>
-            <p className="text-2xl font-black">{totalApprovedSongs} <span className="text-[10px] font-bold text-slate-400">APPROVED TRACKS</span></p>
+            <p className="text-2xl font-black">{totalApprovedSongs} <span className="text-[10px] font-bold text-slate-400">GIG READY (100%)</span></p>
           </div>
         </div>
 
@@ -178,7 +186,7 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({
                     <span className="text-[10px] font-mono font-bold text-indigo-600">{Math.round((count/Math.max(1, totalApprovedSongs))*100)}%</span>
                   </div>
                 ))}
-                {totalApprovedSongs === 0 && <span className="text-[9px] text-slate-400 font-bold uppercase">Approve songs for analysis</span>}
+                {totalApprovedSongs === 0 && <span className="text-[9px] text-slate-400 font-bold uppercase">Ready tracks analyzed here</span>}
               </div>
             </div>
           </div>
@@ -190,7 +198,7 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({
           </div>
           <div className="flex-1">
             <div className="flex justify-between items-center mb-2">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Audio Readiness</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Audio Readiness (Ready Only)</p>
               <span className="text-xs font-black text-indigo-600">{Math.round(readinessPercent)}%</span>
             </div>
             <Progress value={readinessPercent} className="h-1.5" />
