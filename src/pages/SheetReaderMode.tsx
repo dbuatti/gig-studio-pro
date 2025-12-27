@@ -26,6 +26,7 @@ import SheetReaderHeader from '@/components/SheetReaderHeader';
 import SheetReaderFooter from '@/components/SheetReaderFooter';
 import RepertoirePicker from '@/components/RepertoirePicker';
 import ResourceAuditModal from '@/components/ResourceAuditModal';
+import { AnimatePresence, motion } from 'framer-motion'; // Import motion and AnimatePresence
 
 interface FilterState {
   hasAudio: boolean;
@@ -73,9 +74,11 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
   const [isResourceAuditOpen, setIsResourceAuditOpen] = useState(false); // State for ResourceAuditModal
 
   const mainContentRef = useRef<HTMLDivElement>(null);
-  const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const longPressTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const touchStartX = useRef<number>(0);
+  const touchStartY = useRef<number>(0); // NEW: Track Y for swipe direction
+  const tapCountRef = useRef<number>(0); // NEW: For double tap detection
+  const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null); // NEW: For tap timeout
+  const longPressTimeoutRef = useRef<NodeJS.Timeout | null>(null); // NEW: For long press detection
 
   const isFramable = useCallback((url: string | null | undefined) => {
     if (!url) return true;
@@ -250,6 +253,15 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
     };
   }, [autoAdvanceEnabled, autoAdvanceInterval, filteredSongs.length, handleNext]);
 
+  // NEW: Immersive Mode Logic - Controls initial UI visibility based on playback state
+  useEffect(() => {
+    if (isPlaying) {
+      setIsUiVisible(false); // Hide UI when playback starts
+    } else {
+      setIsUiVisible(true); // Show UI when playback stops
+    }
+  }, [isPlaying]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -281,27 +293,19 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [navigate, handlePrev, handleNext, togglePlayback]);
 
-  // Gesture Handlers
-  const handleTap = useCallback(() => {
+  // NEW: Gesture Handlers
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY; // Record Y position
+    tapCountRef.current++;
+
     if (longPressTimeoutRef.current) {
       clearTimeout(longPressTimeoutRef.current);
       longPressTimeoutRef.current = null;
     }
-    if (tapTimeoutRef.current) {
-      clearTimeout(tapTimeoutRef.current);
-      tapTimeoutRef.current = null;
-      // Double tap detected, do nothing or another action
-    } else {
-      tapTimeoutRef.current = setTimeout(() => {
-        setIsUiVisible(prev => !prev); // Single tap toggles UI visibility
-        tapTimeoutRef.current = null;
-      }, 200); // Adjust tap delay as needed
-    }
-  }, []);
-
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
     longPressTimeoutRef.current = setTimeout(() => {
+      // This is a long press, prevent tap/swipe
+      tapCountRef.current = 0; // Reset tap count
       setIsRepertoirePickerOpen(true); // Long press opens song selector
       longPressTimeoutRef.current = null;
     }, 500); // Adjust long press delay
@@ -312,21 +316,54 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
       clearTimeout(longPressTimeoutRef.current);
       longPressTimeoutRef.current = null;
     }
+    // Prevent tap detection if there's significant movement
     const currentX = e.touches[0].clientX;
-    const diff = touchStartX.current - currentX;
-    if (Math.abs(diff) > 10) { // Only consider as swipe if moved more than 10px
-      if (diff > 0) handleNext(); // Swipe left
-      else handlePrev(); // Swipe right
-      touchStartX.current = currentX; // Reset start position to prevent multiple triggers
-    }
-  }, [handleNext, handlePrev]);
+    const currentY = e.touches[0].clientY;
+    const deltaX = Math.abs(touchStartX.current - currentX);
+    const deltaY = Math.abs(touchStartY.current - currentY);
 
-  const handleTouchEnd = useCallback(() => {
+    if (deltaX > 10 || deltaY > 10) { // Threshold for movement
+      tapCountRef.current = 0; // Cancel tap if moved
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
     if (longPressTimeoutRef.current) {
       clearTimeout(longPressTimeoutRef.current);
       longPressTimeoutRef.current = null;
     }
-  }, []);
+
+    if (tapCountRef.current === 1) {
+      // Single tap logic
+      if (tapTimeoutRef.current) clearTimeout(tapTimeoutRef.current);
+      tapTimeoutRef.current = setTimeout(() => {
+        setIsUiVisible(prev => !prev); // Toggle UI visibility
+        tapCountRef.current = 0;
+        tapTimeoutRef.current = null;
+      }, 250); // Single tap detection window
+    } else if (tapCountRef.current === 2) {
+      // Double tap logic
+      if (tapTimeoutRef.current) clearTimeout(tapTimeoutRef.current);
+      togglePlayback(); // Two-finger tap toggles playback
+      tapCountRef.current = 0;
+      tapTimeoutRef.current = null;
+    }
+
+    // Swipe detection (only if not a tap)
+    if (tapCountRef.current === 0) { // Only process swipe if no tap was registered
+      const endX = e.changedTouches[0].clientX;
+      const diffX = touchStartX.current - endX;
+      const swipeThreshold = 50; // Pixels for a valid swipe
+
+      if (Math.abs(diffX) > swipeThreshold) {
+        if (diffX > 0) { // Swipe left
+          handleNext();
+        } else { // Swipe right
+          handlePrev();
+        }
+      }
+    }
+  }, [handleNext, handlePrev, togglePlayback]);
 
   const renderChart = useMemo(() => {
     if (!currentSong) return (
@@ -457,35 +494,46 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
     if (!user) return;
     const target = allSongs.find(s => s.id === songId);
     if (target) {
-      await supabase.from('repertoire').update(updates).eq('id', songId).eq('user_id', user.id);
+      await supabase.from('repertoire').update(updates).eq('id', songId).eq('user.id', user.id);
       setAllSongs(prev => prev.map(s => s.id === songId ? { ...s, ...updates } : s));
       showSuccess("Song updated in repertoire.");
     }
   }, [allSongs, user]);
 
   return (
-    <div 
-      className="h-screen bg-slate-950 text-white flex flex-col overflow-hidden relative"
+    <div
+      className={cn(
+        "h-screen bg-slate-950 text-white flex flex-col overflow-hidden relative",
+        isPlaying ? "absolute inset-0" : "" // Apply inset-0 when in immersive mode
+      )}
       ref={mainContentRef}
-      onClick={handleTap}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
       {/* Floating Header */}
-      {isUiVisible && (
-        <SheetReaderHeader
-          currentSong={currentSong}
-          onClose={() => navigate('/')}
-          onSearchClick={() => setIsRepertoirePickerOpen(true)} // Search button opens RepertoirePicker
-          onPrevSong={handlePrev}
-          onNextSong={handleNext}
-          currentSongIndex={currentIndex}
-          totalSongs={filteredSongs.length}
-          isLoading={loading}
-          keyPreference={globalKeyPreference}
-        />
-      )}
+      <AnimatePresence>
+        {isUiVisible && (
+          <motion.div
+            initial={{ y: -100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -100, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <SheetReaderHeader
+              currentSong={currentSong}
+              onClose={() => navigate('/')}
+              onSearchClick={() => setIsRepertoirePickerOpen(true)} // Search button opens RepertoirePicker
+              onPrevSong={handlePrev}
+              onNextSong={handleNext}
+              currentSongIndex={currentIndex}
+              totalSongs={filteredSongs.length}
+              isLoading={loading}
+              keyPreference={globalKeyPreference}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Main Chart Canvas */}
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -493,22 +541,54 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
       </div>
 
       {/* Floating Footer */}
-      {isUiVisible && (
-        <SheetReaderFooter
-          currentSong={currentSong}
-          isPlaying={isPlaying}
-          progress={progress}
-          duration={duration}
-          onTogglePlayback={togglePlayback}
-          onStopPlayback={stopPlayback}
-          onSetProgress={setAudioProgress}
-          localPitch={localPitch}
-          setLocalPitch={setLocalPitch}
-          volume={audioEngine.volume}
-          setVolume={audioEngine.setVolume}
-          keyPreference={globalKeyPreference}
-        />
-      )}
+      <AnimatePresence>
+        {isUiVisible && (
+          <motion.div
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <SheetReaderFooter
+              currentSong={currentSong}
+              isPlaying={isPlaying}
+              progress={progress}
+              duration={duration}
+              onTogglePlayback={togglePlayback}
+              onStopPlayback={stopPlayback}
+              onSetProgress={setAudioProgress}
+              localPitch={localPitch}
+              setLocalPitch={setLocalPitch}
+              volume={audioEngine.volume}
+              setVolume={audioEngine.setVolume}
+              keyPreference={globalKeyPreference}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* NEW: Ghost Transport Button */}
+      <AnimatePresence>
+        {isPlaying && isUiVisible && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.3 }}
+            className="fixed bottom-12 left-1/2 -translate-x-1/2 z-50"
+          >
+            <Button
+              onClick={togglePlayback}
+              className={cn(
+                "h-20 w-20 rounded-full bg-white/10 backdrop-blur-xl border border-white/5 shadow-2xl transition-all hover:scale-105 active:scale-95",
+                isPlaying ? "text-red-400" : "text-indigo-400"
+              )}
+            >
+              {isPlaying ? <Pause className="w-10 h-10" /> : <Play className="w-10 h-10 ml-1" />}
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Modals */}
       <RepertoirePicker 
