@@ -6,7 +6,7 @@ import { DEFAULT_UG_CHORDS_CONFIG } from "./constants";
 /**
  * Calculates a readiness score (0-100) based on assets and manual verification steps.
  * Weights:
- * - Technical Assets: 85% (Audio, Chords, Lyrics, Keys, etc.)
+ * - Technical Assets: 85% (Audio, Chords, Lyrics, etc.)
  * - Metadata Verified: 10% (Manual Step 1)
  * - Setlist Confirmed: 5%  (Manual Step 2)
  */
@@ -75,7 +75,7 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       pdf_url: song.pdfUrl || null,
       leadsheet_url: song.leadsheetUrl || null,
       youtube_url: song.youtubeUrl || null,
-      preview_url: song.preview_url || song.previewUrl || null,
+      preview_url: song.previewUrl || null,
       apple_music_url: song.appleMusicUrl || null,
       is_metadata_confirmed: song.isMetadataConfirmed || false,
       is_key_confirmed: song.isKeyConfirmed || false,
