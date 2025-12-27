@@ -12,7 +12,7 @@ import PreferencesModal from "@/components/PreferencesModal";
 import AdminPanel from "@/components/AdminPanel";
 import SongStudioModal from "@/components/SongStudioModal";
 import SetlistSettingsModal from "@/components/SetlistSettingsModal";
-import UGLinkAuditModal from "@/components/UGLinkAuditModal";
+import ResourceAuditModal from "@/components/ResourceAuditModal";
 import RepertoirePicker from "@/components/RepertoirePicker";
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { showSuccess, showError } from '@/utils/toast';
@@ -24,7 +24,7 @@ import {
   User as UserIcon, Loader2, Play, LayoutDashboard, 
   Search as SearchIcon, Rocket, Settings, Clock, 
   ShieldCheck, Settings2, FileText, Guitar, 
-  Library, ListMusic 
+  Library, ListMusic, ClipboardCheck 
 } from 'lucide-react'; 
 import { cn } from "@/lib/utils";
 import { useSettings } from '@/hooks/use-settings';
@@ -60,7 +60,7 @@ const Index = () => {
   const [isPerformanceMode, setIsPerformanceMode] = useState(false);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false); 
-  const [isUGAuditOpen, setIsUGAuditOpen] = useState(false);
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [isStudioModalOpen, setIsStudioModalOpen] = useState(false);
   const [isSetlistSettingsOpen, setIsSetlistSettingsOpen] = useState(false);
   const [isRepertoirePickerOpen, setIsRepertoirePickerOpen] = useState(false);
@@ -148,7 +148,8 @@ const Index = () => {
           pdfUrl: d.pdf_url, isMetadataConfirmed: d.is_metadata_confirmed, isKeyConfirmed: d.is_key_confirmed,
           duration_seconds: d.duration_seconds, notes: d.notes, user_tags: d.user_tags || [], resources: d.resources || [],
           isApproved: d.is_approved, preferred_reader: d.preferred_reader, ug_chords_text: d.ug_chords_text,
-          ug_chords_config: d.ug_chords_config, is_pitch_linked: d.is_pitch_linked, is_ug_link_verified: d.is_ug_link_verified
+          ug_chords_config: d.ug_chords_config, is_pitch_linked: d.is_pitch_linked, is_ug_link_verified: d.is_ug_link_verified,
+          sheet_music_url: d.sheet_music_url, is_sheet_verified: d.is_sheet_verified
         })));
       }
     } catch (err) {}
@@ -189,7 +190,8 @@ const Index = () => {
 
   const handleUpdateSong = (songId: string, updates: Partial<SetlistSong>) => {
     if (viewMode === 'repertoire') {
-      syncToMasterRepertoire(user!.id, [{ ...masterRepertoire.find(s => s.id === songId)!, ...updates }]).then(fetchMasterRepertoire);
+      const target = masterRepertoire.find(s => s.id === songId);
+      if (target) syncToMasterRepertoire(user!.id, [{ ...target, ...updates }]).then(fetchMasterRepertoire);
       return;
     }
     if (!currentListId) return;
@@ -264,6 +266,15 @@ const Index = () => {
         </div>
 
         <div className="flex items-center gap-4 shrink-0">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setIsAuditModalOpen(true)}
+            className="hidden sm:flex h-10 px-4 rounded-xl font-black uppercase text-[10px] tracking-widest gap-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100"
+          >
+            <ClipboardCheck className="w-4 h-4" /> Resource Audit
+          </Button>
+          
           <div className="hidden lg:flex items-center gap-2 bg-slate-50 dark:bg-slate-800/50 px-4 py-1.5 rounded-full border border-slate-100 dark:border-white/5">
             <Clock className="w-3.5 h-3.5 text-indigo-500" />
             <span className="text-[11px] font-black font-mono text-slate-600">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
@@ -322,7 +333,7 @@ const Index = () => {
       <SongStudioModal isOpen={isStudioModalOpen} onClose={() => setIsStudioModalOpen(false)} gigId={viewMode === 'repertoire' ? 'library' : currentListId} songId={editingSongId} visibleSongs={processedSongs} onSelectSong={setEditingSongId} />
       <PreferencesModal isOpen={isPreferencesOpen} onClose={() => setIsPreferencesOpen(false)} />
       <AdminPanel isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} />
-      <UGLinkAuditModal isOpen={isUGAuditOpen} onClose={() => setIsUGAuditOpen(false)} songs={songs} onVerify={handleUpdateSong} />
+      <ResourceAuditModal isOpen={isAuditModalOpen} onClose={() => setIsAuditModalOpen(false)} songs={songs} onVerify={handleUpdateSong} />
       
       {isPerformanceMode && (
         <PerformanceOverlay songs={songs.filter(s => s.isApproved)} currentIndex={songs.findIndex(s => s.id === activeSongIdState)} isPlaying={false} progress={0} duration={0} onTogglePlayback={() => {}} onNext={() => {}} onPrevious={() => {}} onShuffle={() => {}} onClose={() => setIsPerformanceMode(false)} onUpdateSong={handleUpdateSong} onUpdateKey={handleUpdateKey} analyzer={null} />

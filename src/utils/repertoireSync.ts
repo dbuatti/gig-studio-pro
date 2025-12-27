@@ -30,8 +30,10 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
   // 4. BPM & Timing (Max 10)
   if (song.bpm) assetScore += 10;
 
-  // 5. External Assets (Max 10)
-  if (song.pdfUrl || song.leadsheetUrl) assetScore += 10;
+  // 5. External Assets & Sheet Verification (Max 10)
+  // If sheet is verified, full points. Otherwise, if URL exists, partial.
+  if (song.is_sheet_verified) assetScore += 10;
+  else if (song.pdfUrl || song.leadsheetUrl || (song as any).sheet_music_url) assetScore += 5;
 
   // 6. Basic Metadata (Max 5)
   if (song.artist && song.artist !== "Unknown Artist") assetScore += 5;
@@ -91,6 +93,8 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       highest_note_original: song.highest_note_original || null,
       is_approved: song.isApproved || false,
       is_ug_link_verified: song.is_ug_link_verified || false,
+      sheet_music_url: (song as any).sheet_music_url || null,
+      is_sheet_verified: (song as any).is_sheet_verified || false,
       // Sync tracking fields
       sync_status: (song as any).sync_status || 'IDLE',
       last_sync_log: (song as any).last_sync_log || null,
