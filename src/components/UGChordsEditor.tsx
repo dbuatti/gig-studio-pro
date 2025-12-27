@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -21,19 +21,42 @@ interface UGChordsEditorProps {
   formData: Partial<SetlistSong>;
   handleAutoSave: (updates: Partial<SetlistSong>) => void;
   isMobile: boolean;
+  // Harmonic Sync Props
+  pitch: number;
+  setPitch: (pitch: number) => void;
+  targetKey: string;
+  setTargetKey: (targetKey: string) => void;
+  isPitchLinked: boolean;
+  setIsPitchLinked: (linked: boolean) => void;
 }
 
-const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleAutoSave, isMobile }) => {
+const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ 
+  song, 
+  formData, 
+  handleAutoSave, 
+  isMobile,
+  // Harmonic Sync Props
+  pitch,
+  setPitch,
+  targetKey,
+  setTargetKey,
+  isPitchLinked,
+  setIsPitchLinked,
+}) => {
   const { keyPreference } = useSettings();
   const [chordsText, setChordsText] = useState(formData.ug_chords_text || "");
-  const [transposeSemitones, setTransposeSemitones] = useState(0);
+  // localTransposeSemitones is only active when isPitchLinked is false
+  const [localTransposeSemitones, setLocalTransposeSemitones] = useState(0);
   const [isFetchingUg, setIsFetchingUg] = useState(false);
   const [config, setConfig] = useState(formData.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG);
 
+  // Determine the active transposition offset
+  const activeTransposeOffset = isPitchLinked ? pitch : localTransposeSemitones;
+
   const transposedText = useMemo(() => {
-    if (!chordsText || transposeSemitones === 0) return chordsText;
-    return transposeChords(chordsText, transposeSemitones, keyPreference);
-  }, [chordsText, transposeSemitones, keyPreference]);
+    if (!chordsText || activeTransposeOffset === 0) return chordsText;
+    return transposeChords(chordsText, activeTransposeOffset, keyPreference);
+  }, [chordsText, activeTransposeOffset, keyPreference]);
 
   useEffect(() => {
     if (chordsText !== formData.ug_chords_text) {
@@ -57,35 +80,33 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
     });
   }, [config, handleAutoSave]);
 
-  // NEW: Handle key change to link with audio transposer
-  const handleKeyChange = (newTargetKey: string) => {
-    if (!formData.originalKey) {
-      showError("Original key is missing. Please verify metadata first.");
-      return;
+  // Sync localTransposeSemitones with formData.pitch if linking changes
+  useEffect(() => {
+    if (!isPitchLinked) {
+      // When unlinked, reset local transpose to 0
+      setLocalTransposeSemitones(0);
     }
-    
-    // Calculate pitch shift needed
-    const pitch = calculateSemitones(formData.originalKey, newTargetKey);
-    
-    // Update song data including targetKey and pitch
-    handleAutoSave({ 
-      targetKey: newTargetKey,
-      pitch: pitch,
-      isKeyConfirmed: true
-    });
-    
-    showSuccess(`Key updated to ${newTargetKey}. Audio pitch shifted by ${pitch > 0 ? '+' : ''}${pitch} semitones.`);
-  };
+  }, [isPitchLinked]);
 
   const handleResetTranspose = () => {
-    setTransposeSemitones(0);
+    if (isPitchLinked) {
+      setPitch(0); // Reset global pitch
+    } else {
+      setLocalTransposeSemitones(0); // Reset local transpose
+    }
     showSuccess("Transpose reset");
   };
 
   const handleApplyTranspose = () => {
+    if (isPitchLinked) {
+      // If linked, transposition is already 'applied' in real-time.
+      // This button should be disabled or hidden.
+      showError("Transpose is linked to audio. Cannot apply directly.");
+      return;
+    }
     if (transposedText && transposedText !== chordsText) {
       setChordsText(transposedText);
-      setTransposeSemitones(0);
+      setLocalTransposeSemitones(0);
       showSuccess("Transpose applied");
     }
   };
@@ -199,6 +220,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
           <Button 
             size="sm" 
             onClick={handleApplyTranspose}
+            disabled={isPitchLinked || activeTransposeOffset === 0} // Disable if linked or no offset
             className="h-10 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] uppercase gap-2 rounded-xl"
           >
             <Download className="w-3.5 h-3.5" /> Export
@@ -288,13 +310,13 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
               </Label>
               <div className="flex gap-2">
                 <span className="text-sm font-mono font-bold text-indigo-400">
-                  {transposeSemitones > 0 ? '+' : ''}{transposeSemitones} ST
+                  {activeTransposeOffset > 0 ? '+' : ''}{activeTransposeOffset} ST
                 </span>
                 <Button 
                   variant="outline" 
                   size="sm" 
                   onClick={handleApplyTranspose}
-                  disabled={transposeSemitones === 0}
+                  disabled={isPitchLinked || activeTransposeOffset === 0}
                   className="h-7 px-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase rounded-lg"
                 >
                   Apply
@@ -305,8 +327,8 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={() => setTransposeSemitones(prev => Math.max(-12, prev - 1))}
-                disabled={transposeSemitones <= -12}
+                onClick={() => isPitchLinked ? setPitch(Math.max(-12, pitch - 1)) : setLocalTransposeSemitones(prev => Math.max(-12, prev - 1))}
+                disabled={isPitchLinked ? pitch <= -12 : localTransposeSemitones <= -12}
                 className="h-9 w-9 p-0 rounded-lg border border-white/20 bg-white/10 text-slate-300 hover:bg-white/20"
               >
                 -1
@@ -314,25 +336,25 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={() => setTransposeSemitones(prev => Math.max(-12, prev - 12))}
-                disabled={transposeSemitones <= -12}
+                onClick={() => isPitchLinked ? setPitch(Math.max(-12, pitch - 12)) : setLocalTransposeSemitones(prev => Math.max(-12, prev - 12))}
+                disabled={isPitchLinked ? pitch <= -12 : localTransposeSemitones <= -12}
                 className="h-9 w-9 p-0 rounded-lg border border-white/20 bg-white/10 text-slate-300 hover:bg-white/20"
               >
                 -12
               </Button>
               <Slider 
-                value={[transposeSemitones]} 
+                value={[activeTransposeOffset]} 
                 min={-12} 
                 max={12} 
                 step={1} 
-                onValueChange={([value]) => setTransposeSemitones(value)}
+                onValueChange={([value]) => isPitchLinked ? setPitch(value) : setLocalTransposeSemitones(value)}
                 className="flex-1"
               />
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={() => setTransposeSemitones(prev => Math.min(12, prev + 12))}
-                disabled={transposeSemitones >= 12}
+                onClick={() => isPitchLinked ? setPitch(Math.min(12, pitch + 12)) : setLocalTransposeSemitones(prev => Math.min(12, prev + 12))}
+                disabled={isPitchLinked ? pitch >= 12 : localTransposeSemitones >= 12}
                 className="h-9 w-9 p-0 rounded-lg border border-white/20 bg-white/10 text-slate-300 hover:bg-white/20"
               >
                 +12
@@ -340,8 +362,8 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={() => setTransposeSemitones(prev => Math.min(12, prev + 1))}
-                disabled={transposeSemitones >= 12}
+                onClick={() => isPitchLinked ? setPitch(Math.min(12, pitch + 1)) : setLocalTransposeSemitones(prev => Math.min(12, prev + 1))}
+                disabled={isPitchLinked ? pitch >= 12 : localTransposeSemitones >= 12}
                 className="h-9 w-9 p-0 rounded-lg border border-white/20 bg-white/10 text-slate-300 hover:bg-white/20"
               >
                 +1
@@ -374,8 +396,8 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
               <div className="space-y-1.5">
                 <Label className="text-[9px] font-bold text-emerald-400 uppercase">Target (Linked)</Label>
                 <Select 
-                  value={formData.targetKey || formData.originalKey || "C"} 
-                  onValueChange={handleKeyChange}
+                  value={targetKey || formData.originalKey || "C"} // Use targetKey from hook
+                  onValueChange={setTargetKey} // Use setTargetKey from hook
                 >
                   <SelectTrigger className="h-10 bg-emerald-900/20 border-emerald-500/30 text-emerald-400 font-mono font-bold">
                     <SelectValue />

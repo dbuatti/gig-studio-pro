@@ -40,6 +40,7 @@ import { useNavigate } from 'react-router-dom';
 import { FilterState } from '@/components/SetlistFilters';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { useReaderSettings } from '@/hooks/use-reader-settings';
+import { useHarmonicSync } from '@/hooks/use-harmonic-sync'; // NEW: Import useHarmonicSync
 
 type ViewMode = 'repertoire' | 'setlist';
 

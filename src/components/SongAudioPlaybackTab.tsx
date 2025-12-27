@@ -15,6 +15,7 @@ import SongAnalysisTools from './SongAnalysisTools';
 import SongAudioControls from './SongAudioControls';
 import { SetlistSong } from './SetlistManager';
 import { AudioEngineControls } from '@/hooks/use-tone-audio';
+import { KeyPreference } from '@/hooks/use-settings'; // Import KeyPreference
 
 interface SongAudioPlaybackTabProps {
   song: SetlistSong | null;
@@ -23,8 +24,15 @@ interface SongAudioPlaybackTabProps {
   isMobile: boolean;
   onLoadAudioFromUrl: (url: string, initialPitch: number) => Promise<void>;
   onSave: (updates: Partial<SetlistSong>) => void; // Changed from (id: string, updates: Partial<SetlistSong>)
-  onUpdateKey: (id: string, targetKey: string) => void;
+  onUpdateKey: (newTargetKey: string) => void; // Changed to accept only newTargetKey
   transposeKey: (key: string, semitones: number) => string;
+  // Harmonic Sync Props
+  pitch: number;
+  setPitch: (pitch: number) => void;
+  targetKey: string;
+  setTargetKey: (targetKey: string) => void;
+  isPitchLinked: boolean;
+  setIsPitchLinked: (linked: boolean) => void;
 }
 
 const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
@@ -34,12 +42,19 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
   isMobile,
   onLoadAudioFromUrl,
   onSave, // Now expects (updates: Partial<SetlistSong>)
-  onUpdateKey,
-  transposeKey
+  onUpdateKey, // This is now setTargetKey from useHarmonicSync
+  transposeKey,
+  // Harmonic Sync Props
+  pitch,
+  setPitch,
+  targetKey,
+  setTargetKey,
+  isPitchLinked,
+  setIsPitchLinked,
 }) => {
   const {
     isPlaying, progress, duration, analyzer, currentBuffer,
-    setPitch, setTempo, setVolume, setFineTune,
+    setTempo, setVolume, setFineTune,
     setProgress, togglePlayback, stopPlayback,
   } = audioEngine;
 
@@ -66,7 +81,7 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
   // --- Handlers ---
   const handleLoadAudio = async () => {
     if (!formData.previewUrl) return showError("No audio URL available.");
-    await onLoadAudioFromUrl(formData.previewUrl, formData.pitch || 0);
+    await onLoadAudioFromUrl(formData.previewUrl, pitch || 0); // Use pitch from useHarmonicSync
   };
 
   const handleDetectBPM = async () => {
@@ -158,8 +173,13 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
           song={song}
           formData={formData}
           handleAutoSave={handleAutoSave}
-          onUpdateKey={onUpdateKey}
+          // Pass harmonic sync props
+          pitch={pitch}
           setPitch={setPitch}
+          targetKey={targetKey}
+          setTargetKey={setTargetKey}
+          isPitchLinked={isPitchLinked}
+          setIsPitchLinked={setIsPitchLinked}
           setTempo={setTempo}
           setVolume={setVolume}
           setFineTune={setFineTune}

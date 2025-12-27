@@ -28,6 +28,8 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useKeyboardNavigation } from '@/hooks/use-keyboard-navigation';
 import SetlistMultiSelector from './SetlistMultiSelector'; // Import the new component
+import { useSettings } from '@/hooks/use-settings'; // Import useSettings
+import { useHarmonicSync } from '@/hooks/use-harmonic-sync'; // NEW: Import useHarmonicSync
 
 type StudioTab = 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library';
 
@@ -51,6 +53,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
 }) => {
   const isMobile = useIsMobile();
   const { user } = useAuth();
+  const { keyPreference: globalKeyPreference } = useSettings(); // Get global key preference
   const audio = useToneAudio();
   const [song, setSong] = useState<SetlistSong | null>(null);
   const [formData, setFormData] = useState<Partial<SetlistSong>>({});
@@ -65,6 +68,35 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   const [chordScrollSpeed, setChordScrollSpeed] = useState(1.0);
 
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
+
+  // NEW: Use the harmonic sync hook
+  const {
+    pitch,
+    setPitch,
+    targetKey,
+    setTargetKey,
+    isPitchLinked,
+    setIsPitchLinked,
+  } = useHarmonicSync({ formData, handleAutoSave: useCallback(async (updates: Partial<SetlistSong>) => {
+    if (!song) return;
+    setFormData(prev => {
+      const next = { ...prev, ...updates };
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = setTimeout(async () => {
+        try {
+          const updatedSong = { ...song, ...next };
+          if (user) await syncToMasterRepertoire(user.id, [updatedSong]);
+          if (gigId !== 'library') {
+            const { data } = await supabase.from('setlists').select('songs').eq('id', gigId).single();
+            const songs = (data?.songs as SetlistSong[]) || [];
+            await supabase.from('setlists').update({ songs: songs.map(s => s.id === song.id ? updatedSong : s) }).eq('id', gigId);
+          }
+        } catch (err) {}
+      }, 1000);
+      return next;
+    });
+  }, [song, gigId, user]), globalKeyPreference });
+
 
   const fetchData = async () => {
     if (!user || !songId) {
@@ -330,7 +362,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
               song={song} 
               formData={formData} 
               handleAutoSave={handleAutoSave} 
-              onUpdateKey={(id, k) => handleAutoSave({ targetKey: k })} 
+              onUpdateKey={setTargetKey} // Use setTargetKey from useHarmonicSync
               audioEngine={audio} 
               isMobile={isMobile} 
               onLoadAudioFromUrl={audio.loadFromUrl} 
@@ -342,7 +374,12 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
               handleDownloadAll={async () => {}} 
               onSwitchTab={setActiveTab}
               // Pass all props required by SongConfigTab
-              setPitch={audio.setPitch} 
+              pitch={pitch} // Pass pitch from useHarmonicSync
+              setPitch={(p) => { setPitch(p); audio.setPitch(p); }} // Link hook's setPitch to audio engine
+              targetKey={targetKey} // Pass targetKey from useHarmonicSync
+              setTargetKey={setTargetKey} // Pass setTargetKey from useHarmonicSync
+              isPitchLinked={isPitchLinked} // Pass isPitchLinked from useHarmonicSync
+              setIsPitchLinked={(linked) => { setIsPitchLinked(linked); if (!linked) audio.setPitch(0); }} // Link hook's setIsPitchLinked
               setTempo={audio.setTempo} 
               setVolume={audio.setVolume} 
               setFineTune={audio.setFineTune} 

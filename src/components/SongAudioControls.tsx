@@ -12,8 +12,14 @@ interface SongAudioControlsProps {
   song: SetlistSong | null;
   formData: Partial<SetlistSong>;
   handleAutoSave: (updates: Partial<SetlistSong>) => void; // Changed signature
-  onUpdateKey: (id: string, targetKey: string) => void;
+  // Harmonic Sync Props
+  pitch: number;
   setPitch: (pitch: number) => void;
+  targetKey: string;
+  setTargetKey: (targetKey: string) => void;
+  isPitchLinked: boolean;
+  setIsPitchLinked: (linked: boolean) => void;
+  // Other props
   setTempo: (tempo: number) => void;
   setVolume: (volume: number) => void;
   setFineTune: (fineTune: number) => void;
@@ -24,8 +30,14 @@ const SongAudioControls: React.FC<SongAudioControlsProps> = ({
   song,
   formData,
   handleAutoSave, // Changed signature
-  onUpdateKey,
+  // Harmonic Sync Props
+  pitch,
   setPitch,
+  targetKey,
+  setTargetKey,
+  isPitchLinked,
+  setIsPitchLinked,
+  // Other props
   setTempo,
   setVolume,
   setFineTune,
@@ -37,17 +49,17 @@ const SongAudioControls: React.FC<SongAudioControlsProps> = ({
         <div className="space-y-6">
           <div className="flex justify-between items-center">
             <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Pitch Processor</Label>
-            <span className="text-sm md:text-lg font-mono font-black text-indigo-400">{(formData.pitch || 0) > 0 ? '+' : ''}{formData.pitch || 0} ST</span>
+            <span className="text-sm md:text-lg font-mono font-black text-indigo-400">{(pitch || 0) > 0 ? '+' : ''}{pitch || 0} ST</span>
           </div>
-          <Slider value={[formData.pitch || 0]} min={-24} max={24} step={1} onValueChange={(v) => {
-            const newPitch = v[0];
-            const newTargetKey = transposeKey(formData.originalKey || "C", newPitch);
-            handleAutoSave({ pitch: newPitch, targetKey: newTargetKey });
-            setPitch(newPitch);
-            if (song) {
-              onUpdateKey(song.id, newTargetKey);
-            }
-          }} />
+          <Slider 
+            value={[pitch || 0]} 
+            min={-24} 
+            max={24} 
+            step={1} 
+            onValueChange={(v) => {
+              setPitch(v[0]); // Use setPitch from useHarmonicSync
+            }} 
+          />
         </div>
         <div className="space-y-6">
           <div className="flex justify-between items-center">

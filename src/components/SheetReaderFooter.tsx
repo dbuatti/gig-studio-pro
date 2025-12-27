@@ -19,8 +19,9 @@ interface SheetReaderFooterProps {
   onTogglePlayback: () => void;
   onStopPlayback: () => void;
   onSetProgress: (value: number) => void;
-  localPitch: number;
-  setLocalPitch: (value: number) => void;
+  // Harmonic Sync Props
+  pitch: number;
+  setPitch: (pitch: number) => void;
   volume: number;
   setVolume: (value: number) => void;
   keyPreference: KeyPreference;
@@ -39,8 +40,9 @@ const SheetReaderFooter: React.FC<SheetReaderFooterProps> = ({
   onTogglePlayback,
   onStopPlayback,
   onSetProgress,
-  localPitch,
-  setLocalPitch,
+  // Harmonic Sync Props
+  pitch,
+  setPitch,
   volume,
   setVolume,
   keyPreference,
@@ -134,7 +136,7 @@ const SheetReaderFooter: React.FC<SheetReaderFooterProps> = ({
           <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1.5 font-mono">
             <Activity className="w-3 h-3" /> Pitch
           </span>
-          <span className="text-xl font-black text-white font-mono">{localPitch > 0 ? '+' : ''}{localPitch} <span className="text-[10px] text-slate-500">ST</span></span>
+          <span className="text-xl font-black text-white font-mono">{pitch > 0 ? '+' : ''}{pitch} <span className="text-[10px] text-slate-500">ST</span></span>
         </div>
 
         <div className="flex flex-col items-center">

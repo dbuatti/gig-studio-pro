@@ -19,6 +19,9 @@ import { transposeKey, calculateSemitones } from '@/utils/keyUtils';
 import { useReaderSettings } from '@/hooks/use-reader-settings';
 import PreferencesModal from '@/components/PreferencesModal';
 import SongStudioModal from '@/components/SongStudioModal';
+import SheetReaderHeader from '@/components/SheetReaderHeader';
+import SheetReaderFooter from '@/components/SheetReaderFooter';
+import { useHarmonicSync } from '@/hooks/use-harmonic-sync'; // NEW: Import useHarmonicSync
 
 const SheetReaderMode: React.FC = () => {
   const navigate = useNavigate();
@@ -35,6 +38,7 @@ const SheetReaderMode: React.FC = () => {
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [isImmersive, setIsImmersive] = useState(false);
   const [isStudioModalOpen, setIsStudioModalOpen] = useState(false);
+  const [isOverlayOpen, setIsOverlayOpen] = useState(false); // For dropdowns in header
 
   // Audio
   const audioEngine = useToneAudio(true);
@@ -51,7 +55,25 @@ const SheetReaderMode: React.FC = () => {
     setVolume,
   } = audioEngine;
 
-  const [localPitch, setLocalPitch] = useState(0);
+  // NEW: Harmonic Sync Hook
+  const [formData, setFormData] = useState<Partial<SetlistSong>>({}); // Local formData for the hook
+  const handleAutoSave = useCallback((updates: Partial<SetlistSong>) => {
+    setFormData(prev => ({ ...prev, ...updates }));
+  }, []);
+
+  const {
+    pitch,
+    setPitch,
+    targetKey,
+    setTargetKey,
+    isPitchLinked,
+    setIsPitchLinked,
+  } = useHarmonicSync({ formData, handleAutoSave, globalKeyPreference });
+
+  // Sync localPitch with pitch from useHarmonicSync
+  useEffect(() => {
+    setAudioPitch(pitch);
+  }, [pitch, setAudioPitch]);
 
   // === Data Fetching ===
   const fetchSongs = useCallback(async () => {
@@ -114,16 +136,27 @@ const SheetReaderMode: React.FC = () => {
   // === Song Selection ===
   const currentSong = allSongs[currentIndex];
 
+  // Update formData for useHarmonicSync when currentSong changes
+  useEffect(() => {
+    if (currentSong) {
+      setFormData({ 
+        originalKey: currentSong.originalKey, 
+        targetKey: currentSong.targetKey, 
+        pitch: currentSong.pitch,
+        is_pitch_linked: currentSong.is_pitch_linked,
+      });
+    }
+  }, [currentSong]);
+
   // Load audio when song changes
   useEffect(() => {
     if (currentSong?.previewUrl) {
-      loadFromUrl(currentSong.previewUrl, currentSong.pitch || 0);
-      setLocalPitch(currentSong.pitch || 0);
+      loadFromUrl(currentSong.previewUrl, pitch || 0); // Use pitch from useHarmonicSync
     } else {
       stopPlayback();
-      setLocalPitch(0);
+      setPitch(0); // Reset pitch when no audio
     }
-  }, [currentSong, loadFromUrl, stopPlayback]);
+  }, [currentSong, loadFromUrl, stopPlayback, pitch, setPitch]);
 
   // Update URL when song changes
   useEffect(() => {
@@ -150,27 +183,27 @@ const SheetReaderMode: React.FC = () => {
   // === Key Update ===
   const handleUpdateKey = useCallback(async (newTargetKey: string) => {
     if (!currentSong || !user) return;
-    const newPitch = calculateSemitones(currentSong.originalKey || 'C', newTargetKey);
-    setLocalPitch(newPitch);
-    setAudioPitch(newPitch);
+    
+    // Update the hook's targetKey, which will also update pitch if linked
+    setTargetKey(newTargetKey);
 
     try {
       const { error } = await supabase
         .from('repertoire')
-        .update({ target_key: newTargetKey, pitch: newPitch })
+        .update({ target_key: newTargetKey, pitch: pitch }) // Use pitch from hook
         .eq('id', currentSong.id);
       if (error) throw error;
 
       setAllSongs((prev) =>
         prev.map((s) =>
-          s.id === currentSong.id ? { ...s, targetKey: newTargetKey, pitch: newPitch } : s
+          s.id === currentSong.id ? { ...s, targetKey: newTargetKey, pitch: pitch } : s
         )
       );
       showSuccess(`Stage Key set to ${newTargetKey}`);
     } catch {
       showError('Failed to update key');
     }
-  }, [currentSong, user, setAudioPitch]);
+  }, [currentSong, user, setTargetKey, pitch]);
 
   // === Chart Content ===
   const chartContent = useMemo(() => {
@@ -206,7 +239,7 @@ const SheetReaderMode: React.FC = () => {
           config={currentSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
           isMobile={false}
           originalKey={currentSong.originalKey}
-          targetKey={transposeKey(currentSong.originalKey || 'C', localPitch)}
+          targetKey={targetKey} // Use targetKey from hook
           isPlaying={isPlaying}
           progress={progress}
           duration={duration}
@@ -230,7 +263,7 @@ const SheetReaderMode: React.FC = () => {
           config={currentSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
           isMobile={false}
           originalKey={currentSong.originalKey}
-          targetKey={transposeKey(currentSong.originalKey || 'C', localPitch)}
+          targetKey={targetKey} // Use targetKey from hook
           isPlaying={isPlaying}
           progress={progress}
           duration={duration}
@@ -268,7 +301,7 @@ const SheetReaderMode: React.FC = () => {
         </div>
       </div>
     );
-  }, [currentSong, forceReaderResource, ignoreConfirmedGate, localPitch, isPlaying, progress, duration, navigate]);
+  }, [currentSong, forceReaderResource, ignoreConfirmedGate, pitch, isPlaying, progress, duration, navigate, targetKey]);
 
   if (loading) {
     return (
@@ -281,7 +314,7 @@ const SheetReaderMode: React.FC = () => {
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-white">
       {/* Left Sidebar */}
-      <aside className="w-80 bg-slate-900 border-r border-white/10 flex flex-col shrink-0">
+      <aside className={cn("bg-slate-900 border-r border-white/10 flex flex-col shrink-0", isImmersive ? "w-0 opacity-0 pointer-events-none" : "w-80")}>
         <div className="p-6 border-b border-white/10 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-black uppercase tracking-tight">Reader</h1>
@@ -334,114 +367,50 @@ const SheetReaderMode: React.FC = () => {
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="h-16 bg-slate-900 border-b border-white/10 flex items-center justify-between px-6 shrink-0">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={handlePrev} className="rounded-lg hover:bg-white/10">
-              <ChevronLeft className="w-5 h-5" />
-            </Button>
-            <div className="min-w-[300px]">
-              <button 
-                onClick={() => setIsStudioModalOpen(true)}
-                className="text-xl font-bold truncate hover:text-indigo-400 transition-colors text-left"
-              >
-                {currentSong?.name || "No Song Selected"}
-              </button>
-              <p className="text-sm text-slate-400 truncate">{currentSong?.artist || ""}</p>
-            </div>
-            <Button variant="ghost" size="icon" onClick={handleNext} className="rounded-lg hover:bg-white/10">
-              <ChevronRight className="w-5 h-5" />
-            </Button>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {/* Audio Controls */}
-            {currentSong?.previewUrl && (
-              <div className="flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-lg">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={togglePlayback}
-                  className="h-8 w-8 rounded hover:bg-white/10"
-                >
-                  {isPlaying ? <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" /> : <div className="w-2 h-2 bg-white rounded-full" />}
-                </Button>
-                <span className="text-xs font-mono text-slate-400">
-                  {Math.floor((progress / 100) * duration)}s
-                </span>
-              </div>
-            )}
-
-            {/* Key Display */}
-            {currentSong && (
-              <div className="flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-lg">
-                <span className="text-xs font-bold text-slate-400">KEY</span>
-                <span className="text-sm font-mono font-bold text-indigo-400">
-                  {transposeKey(currentSong.originalKey || 'C', localPitch)}
-                </span>
-              </div>
-            )}
-
-            {/* Immersive Toggle */}
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => setIsImmersive(!isImmersive)}
-              className="rounded-lg hover:bg-white/10"
-            >
-              {isImmersive ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
-            </Button>
-          </div>
-        </div>
+        <SheetReaderHeader
+          currentSong={currentSong}
+          onClose={() => navigate('/')}
+          onSearchClick={() => setIsStudioModalOpen(true)} // Open Studio Modal for search
+          onPrevSong={handlePrev}
+          onNextSong={handleNext}
+          currentSongIndex={currentIndex}
+          totalSongs={allSongs.length}
+          isLoading={loading}
+          keyPreference={globalKeyPreference}
+          onUpdateKey={handleUpdateKey}
+          isFullScreen={isImmersive}
+          onToggleFullScreen={() => setIsImmersive(!isImmersive)}
+          setIsOverlayOpen={setIsOverlayOpen}
+          isOverrideActive={forceReaderResource !== 'default'}
+          pitch={pitch} // Pass pitch from useHarmonicSync
+          setPitch={setPitch} // Pass setPitch from useHarmonicSync
+        />
 
         {/* Chart Viewer */}
-        <div className={cn("flex-1 bg-black overflow-hidden relative", isImmersive && "mt-0")}>
+        <div className={cn("flex-1 bg-black overflow-hidden relative", isImmersive ? "mt-0" : "mt-16")}>
           {chartContent}
         </div>
 
         {/* Footer Controls */}
         {!isImmersive && currentSong && (
-          <div className="h-16 bg-slate-900 border-t border-white/10 flex items-center justify-between px-6 shrink-0">
-            <div className="flex items-center gap-4">
-              <span className="text-xs font-bold text-slate-500 uppercase">Pitch Shift</span>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => {
-                  const newPitch = localPitch - 1;
-                  setLocalPitch(newPitch);
-                  setAudioPitch(newPitch);
-                }}
-                className="h-8 w-8 rounded hover:bg-white/10"
-              >
-                -
-              </Button>
-              <span className="text-sm font-mono font-bold w-8 text-center">{localPitch > 0 ? '+' : ''}{localPitch}</span>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => {
-                  const newPitch = localPitch + 1;
-                  setLocalPitch(newPitch);
-                  setAudioPitch(newPitch);
-                }}
-                className="h-8 w-8 rounded hover:bg-white/10"
-              >
-                +
-              </Button>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <span className="text-xs font-bold text-slate-500 uppercase">Volume</span>
-              <input 
-                type="range" 
-                min={-60} 
-                max={0} 
-                value={volume} 
-                onChange={(e) => setVolume(Number(e.target.value))}
-                className="w-32 accent-indigo-500"
-              />
-            </div>
-          </div>
+          <SheetReaderFooter
+            currentSong={currentSong}
+            isPlaying={isPlaying}
+            progress={progress}
+            duration={duration}
+            onTogglePlayback={togglePlayback}
+            onStopPlayback={stopPlayback}
+            onSetProgress={setAudioProgress}
+            pitch={pitch} // Pass pitch from useHarmonicSync
+            setPitch={setPitch} // Pass setPitch from useHarmonicSync
+            volume={volume}
+            setVolume={setVolume}
+            keyPreference={globalKeyPreference}
+            chordAutoScrollEnabled={true} // Default to true for now
+            setChordAutoScrollEnabled={() => {}} // Placeholder
+            chordScrollSpeed={1.0} // Default to 1.0 for now
+            setChordScrollSpeed={() => {}} // Placeholder
+          />
         )}
       </main>
 
@@ -452,7 +421,7 @@ const SheetReaderMode: React.FC = () => {
         <SongStudioModal
           isOpen={isStudioModalOpen}
           onClose={() => setIsStudioModalOpen(false)}
-          gigId="library"
+          gigId="library" // Always open in library context for Reader
           songId={currentSong.id}
         />
       )}

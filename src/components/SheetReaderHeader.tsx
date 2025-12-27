@@ -26,11 +26,14 @@ interface SheetReaderHeaderProps {
   totalSongs: number;
   isLoading: boolean;
   keyPreference: KeyPreference;
-  onUpdateKey: (newTargetKey: string) => void;
+  onUpdateKey: (newTargetKey: string) => void; // This is now setTargetKey from useHarmonicSync
   isFullScreen: boolean;
   onToggleFullScreen: () => void;
   setIsOverlayOpen: (isOpen: boolean) => void;
   isOverrideActive: boolean;
+  // Harmonic Sync Props
+  pitch: number;
+  setPitch: (pitch: number) => void;
 }
 
 const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
@@ -41,11 +44,14 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   onNextSong,
   isLoading,
   keyPreference,
-  onUpdateKey,
+  onUpdateKey, // This is now setTargetKey from useHarmonicSync
   isFullScreen,
   onToggleFullScreen,
   setIsOverlayOpen,
   isOverrideActive,
+  // Harmonic Sync Props
+  pitch,
+  setPitch,
 }) => {
   // Prevent flicker by checking if targetKey is actually present from Supabase
   const displayKey = currentSong?.targetKey 

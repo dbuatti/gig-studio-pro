@@ -12,13 +12,14 @@ import YoutubeMediaManager from './YoutubeMediaManager';
 import { transposeKey } from '@/utils/keyUtils';
 import { cn } from '@/lib/utils';
 import { Youtube } from 'lucide-react';
+import { KeyPreference } from '@/hooks/use-settings'; // Import KeyPreference
 
 interface StudioTabContentProps {
   activeTab: 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library';
   song: SetlistSong | null;
   formData: Partial<SetlistSong>;
   handleAutoSave: (updates: Partial<SetlistSong>) => void;
-  onUpdateKey: (id: string, targetKey: string) => void;
+  onUpdateKey: (newTargetKey: string) => void; // Changed to accept only newTargetKey
   audioEngine: AudioEngineControls;
   isMobile: boolean;
   onLoadAudioFromUrl: (url: string, initialPitch: number) => Promise<void>;
@@ -30,8 +31,13 @@ interface StudioTabContentProps {
   handleUgPrint: () => void;
   handleDownloadAll: () => Promise<void>;
   onSwitchTab: (tab: 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library') => void;
-  // Props for SongConfigTab
+  // Props for SongConfigTab (now from useHarmonicSync)
+  pitch: number;
   setPitch: (pitch: number) => void;
+  targetKey: string;
+  setTargetKey: (targetKey: string) => void;
+  isPitchLinked: boolean;
+  setIsPitchLinked: (linked: boolean) => void;
   setTempo: (tempo: number) => void;
   setVolume: (volume: number) => void;
   setFineTune: (fineTune: number) => void;
@@ -51,7 +57,7 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
   song,
   formData,
   handleAutoSave,
-  onUpdateKey,
+  onUpdateKey, // This is now setTargetKey from useHarmonicSync
   audioEngine,
   isMobile,
   onLoadAudioFromUrl,
@@ -63,8 +69,13 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
   handleUgPrint,
   handleDownloadAll,
   onSwitchTab,
-  // Destructure SongConfigTab props
+  // Destructure SongConfigTab props (now from useHarmonicSync)
+  pitch,
   setPitch,
+  targetKey,
+  setTargetKey,
+  isPitchLinked,
+  setIsPitchLinked,
   setTempo,
   setVolume,
   setFineTune,
@@ -85,8 +96,13 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
           song={song}
           formData={formData}
           handleAutoSave={handleAutoSave}
-          onUpdateKey={onUpdateKey}
+          // Pass harmonic sync props directly
+          pitch={pitch}
           setPitch={setPitch}
+          targetKey={targetKey}
+          setTargetKey={setTargetKey}
+          isPitchLinked={isPitchLinked}
+          setIsPitchLinked={setIsPitchLinked}
           setTempo={setTempo}
           setVolume={setVolume}
           setFineTune={setFineTune}
@@ -108,8 +124,15 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
           isMobile={isMobile}
           onLoadAudioFromUrl={onLoadAudioFromUrl}
           onSave={handleAutoSave}
-          onUpdateKey={onUpdateKey}
+          onUpdateKey={setTargetKey} // Use setTargetKey from useHarmonicSync
           transposeKey={transposeKey}
+          // Pass harmonic sync props
+          pitch={pitch}
+          setPitch={setPitch}
+          targetKey={targetKey}
+          setTargetKey={setTargetKey}
+          isPitchLinked={isPitchLinked}
+          setIsPitchLinked={setIsPitchLinked}
         />
       );
     case 'details':
@@ -137,6 +160,13 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
           duration={duration}
           chordAutoScrollEnabled={chordAutoScrollEnabled}
           chordScrollSpeed={chordScrollSpeed}
+          // Pass harmonic sync props to UGChordsEditor via SongChartsTab
+          pitch={pitch}
+          setPitch={setPitch}
+          targetKey={targetKey}
+          setTargetKey={setTargetKey}
+          isPitchLinked={isPitchLinked}
+          setIsPitchLinked={setIsPitchLinked}
         />
       );
     case 'lyrics':

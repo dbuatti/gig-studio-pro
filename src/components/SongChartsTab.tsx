@@ -8,6 +8,7 @@ import { showError, showSuccess } from '@/utils/toast';
 import UGChordsEditor from './UGChordsEditor';
 import UGChordsReader from './UGChordsReader';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
+import { KeyPreference } from '@/hooks/use-settings'; // Import KeyPreference
 
 interface SongChartsTabProps {
   formData: Partial<SetlistSong>;
@@ -24,6 +25,13 @@ interface SongChartsTabProps {
   duration: number;
   chordAutoScrollEnabled: boolean;
   chordScrollSpeed: number;
+  // Harmonic Sync Props
+  pitch: number;
+  setPitch: (pitch: number) => void;
+  targetKey: string;
+  setTargetKey: (targetKey: string) => void;
+  isPitchLinked: boolean;
+  setIsPitchLinked: (linked: boolean) => void;
 }
 
 const SongChartsTab: React.FC<SongChartsTabProps> = ({
@@ -41,6 +49,13 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
   duration,
   chordAutoScrollEnabled,
   chordScrollSpeed,
+  // Harmonic Sync Props
+  pitch,
+  setPitch,
+  targetKey,
+  setTargetKey,
+  isPitchLinked,
+  setIsPitchLinked,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<"view" | "edit-ug">("view");
   const [isReaderExpanded, setIsReaderExpanded] = useState(false);
@@ -140,7 +155,7 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
                 config={formData.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
                 isMobile={isMobile}
                 originalKey={formData.originalKey}
-                targetKey={formData.targetKey}
+                targetKey={targetKey} // Use targetKey from hook
                 isPlaying={isPlaying}
                 progress={progress}
                 duration={duration}
@@ -202,6 +217,13 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
           formData={formData} 
           handleAutoSave={handleAutoSave} 
           isMobile={isMobile} 
+          // Pass harmonic sync props
+          pitch={pitch}
+          setPitch={setPitch}
+          targetKey={targetKey}
+          setTargetKey={setTargetKey}
+          isPitchLinked={isPitchLinked}
+          setIsPitchLinked={setIsPitchLinked}
         />
       )}
     </div>
