@@ -8,6 +8,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const INVIDIOUS_INSTANCES = [
+  'https://iv.ggtyler.dev',
+  'https://yewtu.be',
+  'https://invidious.flokinet.to',
+  'https://inv.vern.cc'
+];
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -27,7 +34,7 @@ serve(async (req) => {
       throw new Error("Invalid song list provided.");
     }
 
-    console.log(`[bulk-populate-youtube-links] Processing ${songIds.length} tracks with Safe-Match filtering...`);
+    console.log(`[bulk-populate-youtube-links] Processing ${songIds.length} tracks...`);
 
     const results = [];
     const EXCLUDED_KEYWORDS = ['live', 'cover', 'remix', 'tutorial', 'karaoke', 'instrumental'];
@@ -44,53 +51,77 @@ serve(async (req) => {
 
         await supabaseAdmin.from('repertoire').update({ sync_status: 'SYNCING' }).eq('id', id);
 
-        // 1. Get Reference Duration from iTunes (Level 1 Accuracy)
+        // 1. Get Reference Duration from iTunes
         const itunesQuery = encodeURIComponent(`${song.artist} ${song.title}`);
         const itunesRes = await fetch(`https://itunes.apple.com/search?term=${itunesQuery}&entity=song&limit=1`);
         const itunesData = await itunesRes.json();
         const topItunes = itunesData.results?.[0];
         const refDurationSec = topItunes ? Math.floor(topItunes.trackTimeMillis / 1000) : 0;
 
-        // 2. Refined Search Query (Level 1: Strict as per notes)
+        // 2. Refined Search Query
         const searchArtist = topItunes?.artistName || song.artist;
         const searchTitle = topItunes?.trackName || song.title;
-        const ytSearchQuery = `${searchArtist} - ${searchTitle} (Official Audio)`;
+        const ytSearchQuery = `${searchArtist} - ${searchTitle}`;
 
-        const instance = 'https://iv.ggtyler.dev';
-        const ytRes = await fetch(`${instance}/api/v1/search?q=${encodeURIComponent(ytSearchQuery)}`);
-        
-        if (!ytRes.ok) throw new Error(`Search engine error: ${ytRes.status}`);
-        
-        const ytData = await ytRes.json();
-        const videos = ytData?.filter?.((v: any) => v.type === "video") || [];
+        let videos: any[] = [];
+        let searchSuccess = false;
+
+        // Try multiple instances if one fails
+        for (const instance of INVIDIOUS_INSTANCES) {
+          try {
+            console.log(`[bulk-populate-youtube-links] Trying instance: ${instance}`);
+            const ytRes = await fetch(`${instance}/api/v1/search?q=${encodeURIComponent(ytSearchQuery + ' (Official Audio)')}`);
+            if (ytRes.ok) {
+              const data = await ytRes.json();
+              videos = data?.filter?.((v: any) => v.type === "video") || [];
+              if (videos.length > 0) {
+                searchSuccess = true;
+                break;
+              }
+            }
+          } catch (e) {
+            console.warn(`[bulk-populate-youtube-links] Instance ${instance} failed, moving to next...`);
+          }
+        }
+
+        // Looser search if strict failed
+        if (!searchSuccess) {
+          for (const instance of INVIDIOUS_INSTANCES) {
+            try {
+              const ytRes = await fetch(`${instance}/api/v1/search?q=${encodeURIComponent(ytSearchQuery)}`);
+              if (ytRes.ok) {
+                const data = await ytRes.json();
+                videos = data?.filter?.((v: any) => v.type === "video") || [];
+                if (videos.length > 0) {
+                  searchSuccess = true;
+                  break;
+                }
+              }
+            } catch (e) {}
+          }
+        }
 
         let matchedVideo = null;
         const songTitleLower = song.title.toLowerCase();
 
-        // 3. Safe-Match Logic (Duration +/- 15s + Keyword Filter)
+        // 3. Match Logic (Relaxed to 30s)
         for (const v of videos) {
           const vTitleLower = v.title.toLowerCase();
           
-          // A. Keyword Exclusion (skip if video title contains "live", "cover", etc unless song title has them)
           const containsForbidden = EXCLUDED_KEYWORDS.some(kw => 
             vTitleLower.includes(kw) && !songTitleLower.includes(kw)
           );
           
-          if (containsForbidden) {
-            console.log(`[bulk-populate-youtube-links] Skipping forbidden keyword match: ${v.title}`);
-            continue;
-          }
+          if (containsForbidden) continue;
 
-          // B. Duration Matching Constraint (+/- 15s as per requirements)
           if (refDurationSec > 0) {
             const diff = Math.abs(v.durationSeconds - refDurationSec);
-            if (diff <= 15) {
+            // Relaxed to 30s to account for video intros/outros
+            if (diff <= 30) {
               matchedVideo = v;
-              console.log(`[bulk-populate-youtube-links] Safe Match Found: ${v.title} (Diff: ${diff}s)`);
               break;
             }
           } else {
-            // Fallback: If no iTunes duration, at least check keywords for the first video
             matchedVideo = v;
             break;
           }
@@ -108,7 +139,7 @@ serve(async (req) => {
 
           results.push({ id, status: 'SUCCESS', title: song.title, videoId: matchedVideo.videoId });
         } else {
-          throw new Error("No high-confidence Safe-Match (±15s, no forbidden keywords) found.");
+          throw new Error("No high-confidence match found within duration constraints.");
         }
 
       } catch (err: any) {
@@ -120,8 +151,7 @@ serve(async (req) => {
         results.push({ id, status: 'ERROR', msg: err.message, song_id: id });
       }
 
-      // Small delay between tracks to avoid rate limiting
-      await new Promise(r => setTimeout(r, 1000));
+      await new Promise(r => setTimeout(r, 500));
     }
 
     return new Response(JSON.stringify({ 
