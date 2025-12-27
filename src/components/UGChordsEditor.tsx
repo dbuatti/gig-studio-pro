@@ -11,9 +11,10 @@ import { SetlistSong } from './SetlistManager';
 import { transposeChords } from '@/utils/chordUtils';
 import { useSettings } from '@/hooks/use-settings';
 import { cn } from "@/lib/utils";
-import { Play, RotateCcw, Download, Palette, Type, AlignCenter, AlignLeft, AlignRight, ExternalLink, Search, Check, Link as LinkIcon, Loader2 } from 'lucide-react';
+import { Play, RotateCcw, Download, Palette, Type, AlignCenter, AlignLeft, AlignRight, ExternalLink, Search, Check, Link as LinkIcon, Loader2, Music } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
+import { calculateSemitones, transposeKey } from '@/utils/keyUtils';
 
 interface UGChordsEditorProps {
   song: SetlistSong | null;
@@ -38,7 +39,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
     if (chordsText !== formData.ug_chords_text) {
       handleAutoSave({ 
         ug_chords_text: chordsText,
-        is_ug_chords_present: !!(chordsText && chordsText.trim().length > 0) // NEW: Update is_ug_chords_present
+        is_ug_chords_present: !!(chordsText && chordsText.trim().length > 0)
       });
     }
   }, [chordsText, formData.ug_chords_text, handleAutoSave]);
@@ -55,6 +56,26 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
       }
     });
   }, [config, handleAutoSave]);
+
+  // NEW: Handle key change to link with audio transposer
+  const handleKeyChange = (newTargetKey: string) => {
+    if (!formData.originalKey) {
+      showError("Original key is missing. Please verify metadata first.");
+      return;
+    }
+    
+    // Calculate pitch shift needed
+    const pitch = calculateSemitones(formData.originalKey, newTargetKey);
+    
+    // Update song data including targetKey and pitch
+    handleAutoSave({ 
+      targetKey: newTargetKey,
+      pitch: pitch,
+      isKeyConfirmed: true
+    });
+    
+    showSuccess(`Key updated to ${newTargetKey}. Audio pitch shifted by ${pitch > 0 ? '+' : ''}${pitch} semitones.`);
+  };
 
   const handleResetTranspose = () => {
     setTransposeSemitones(0);
@@ -84,40 +105,32 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
   const handleFetchUgChords = async () => {
     if (!formData.ugUrl?.trim()) {
       showError("Please paste an Ultimate Guitar URL.");
-      // console.error("[UGChordsEditor] Fetch failed: No Ultimate Guitar URL provided.");
       return;
     }
 
     setIsFetchingUg(true);
     let targetUrl = formData.ugUrl;
 
-    // Attempt to convert /tab/ to /chords/ if it's a tab URL
     if (targetUrl.includes('/tab/')) {
       const chordsUrl = targetUrl.replace('/tab/', '/chords/');
-      // console.log(`[UGChordsEditor] Detected tab URL. Attempting to fetch from chords URL: ${chordsUrl}`);
       targetUrl = chordsUrl;
-    } else {
-      // console.log(`[UGChordsEditor] Fetching from provided URL: ${targetUrl}`);
     }
 
     try {
       const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
       const response = await fetch(proxyUrl);
       if (!response.ok) {
-        // console.error(`[UGChordsEditor] Failed to fetch content from UG. Status: ${response.status}`);
         throw new Error(`Failed to fetch content from UG. Status: ${response.status}`);
       }
 
       const data = await response.json();
       const htmlContent = data.contents;
-      // console.log("[UGChordsEditor] HTML content fetched. Attempting to parse...");
 
       const parser = new DOMParser();
       const doc = parser.parseFromString(htmlContent, 'text/html');
       
       let extractedContent = null;
 
-      // Strategy 1: Look for window.UGAPP.store.page JSON in script tags
       const scriptTags = doc.querySelectorAll('script');
       for (const script of scriptTags) {
         if (script.textContent?.includes('window.UGAPP.store.page')) {
@@ -127,28 +140,21 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
               const ugData = JSON.parse(scriptMatch[1]);
               extractedContent = ugData?.data?.tab_view?.wiki_tab?.content;
               if (extractedContent) {
-                // console.log("[UGChordsEditor] Chords extracted from UGAPP.store.page JSON.");
                 break;
               }
             } catch (jsonError) {
-              // console.warn("[UGChordsEditor] Failed to parse UGAPP.store.page JSON:", jsonError);
             }
           }
         }
       }
 
-      // Strategy 2: Fallback to old method if JSON not found or content empty
       if (!extractedContent) {
-        // console.log("[UGChordsEditor] UGAPP.store.page JSON not found or content empty. Falling back to HTML parsing...");
         const tabContentElement = doc.querySelector('pre.js-tab-content') || 
                                  doc.querySelector('div.js-tab-content') ||
                                  doc.querySelector('pre');
 
         if (tabContentElement && tabContentElement.textContent) {
           extractedContent = tabContentElement.textContent;
-          // console.log("[UGChordsEditor] Chords extracted from HTML fallback elements.");
-        } else {
-          // console.warn("[UGChordsEditor] Chords content not found in HTML fallback elements.");
         }
       }
 
@@ -160,11 +166,9 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
       }
 
     } catch (error: any) {
-      // console.error("[UGChordsEditor] Error fetching UG chords:", error);
       showError(`Failed to fetch chords: ${error.message || "Network error"}`);
     } finally {
       setIsFetchingUg(false);
-      // console.log("[UGChordsEditor] UG chord fetch process finished.");
     }
   };
 
@@ -348,6 +352,46 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
               <span>0</span>
               <span>+12</span>
             </div>
+          </div>
+
+          {/* NEW: Key Selection for Audio Linking */}
+          <div className="bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-3xl p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Music className="w-4 h-4 text-emerald-500" />
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Audio Key Link
+              </Label>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-[9px] font-bold text-slate-400 uppercase">Original</Label>
+                <Input 
+                  value={formData.originalKey || "TBC"} 
+                  readOnly 
+                  className="h-10 bg-black/20 border-white/10 font-mono font-bold text-slate-500"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[9px] font-bold text-emerald-400 uppercase">Target (Linked)</Label>
+                <Select 
+                  value={formData.targetKey || formData.originalKey || "C"} 
+                  onValueChange={handleKeyChange}
+                >
+                  <SelectTrigger className="h-10 bg-emerald-900/20 border-emerald-500/30 text-emerald-400 font-mono font-bold">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-900 border-white/10 text-white z-[300]">
+                    {["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B", 
+                      "Cm", "C#m", "Dm", "D#m", "Em", "Fm", "F#m", "Gm", "G#m", "Am", "A#m", "Bm"].map(k => (
+                      <SelectItem key={k} value={k} className="font-mono">{k}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <p className="text-[9px] text-emerald-500/80 mt-2 font-medium uppercase tracking-tight">
+              Selecting a key here updates the audio transposer automatically.
+            </p>
           </div>
 
           {/* Styling Controls */}
