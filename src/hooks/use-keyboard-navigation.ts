@@ -7,6 +7,7 @@ interface KeyboardNavigationOptions {
   onPrev?: () => void;
   onClose?: () => void;
   onPlayPause?: () => void;
+  onFullscreen?: () => void;
   disabled?: boolean;
 }
 
@@ -15,6 +16,7 @@ export function useKeyboardNavigation({
   onPrev, 
   onClose, 
   onPlayPause,
+  onFullscreen,
   disabled = false 
 }: KeyboardNavigationOptions) {
   useEffect(() => {
@@ -48,10 +50,15 @@ export function useKeyboardNavigation({
           e.preventDefault();
           onPlayPause?.();
           break;
+        case 'f':
+        case 'F':
+          e.preventDefault();
+          onFullscreen?.();
+          break;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onNext, onPrev, onClose, onPlayPause, disabled]);
+  }, [onNext, onPrev, onClose, onPlayPause, onFullscreen, disabled]);
 }

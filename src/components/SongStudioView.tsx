@@ -107,7 +107,10 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   useKeyboardNavigation({
     onNext: () => visibleSongs.length > 1 && onSelectSong?.(visibleSongs[(visibleSongs.findIndex(s => s.id === songId) + 1) % visibleSongs.length].id),
     onPrev: () => visibleSongs.length > 1 && onSelectSong?.(visibleSongs[(visibleSongs.findIndex(s => s.id === songId) - 1 + visibleSongs.length) % visibleSongs.length].id),
-    onClose, onPlayPause: audio.togglePlayback, disabled: loading || isProSyncSearchOpen
+    onClose, 
+    onPlayPause: audio.togglePlayback, 
+    onFullscreen: onExpand,
+    disabled: loading || isProSyncSearchOpen
   });
 
   if (loading) return <div className="h-full flex flex-col items-center justify-center bg-slate-950"><Loader2 className="w-10 h-10 animate-spin text-indigo-500" /></div>;
