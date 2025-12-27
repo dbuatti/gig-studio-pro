@@ -594,7 +594,17 @@ const Index = () => {
       </div>
       <PreferencesModal isOpen={isPreferencesOpen} onClose={() => setIsPreferencesOpen(false)} />
       <AdminPanel isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} />
-      <UGLinkAuditModal isOpen={isUGAuditOpen} onClose={() => setIsUGAuditOpen(false)} songs={songs} onVerify={handleUpdateSong} />
+      <UGLinkAuditModal 
+        isOpen={isUGAuditOpen} 
+        onClose={() => setIsUGAuditOpen(false)} 
+        songs={songs} 
+        onVerify={handleUpdateSong}
+        onOpenStudio={(id) => {
+            const song = songs.find(s => s.id === id);
+            if (song) handleEditSong(song);
+            setIsUGAuditOpen(false);
+        }}
+      />
       <SongStudioModal isOpen={isStudioModalOpen} onClose={() => setIsStudioModalOpen(false)} gigId={currentListId} songId={editingSongId} visibleSongs={processedSongs} onSelectSong={handleNavigateStudioSong} />
       <SetlistSettingsModal 
         isOpen={isSetlistSettingsOpen} 
