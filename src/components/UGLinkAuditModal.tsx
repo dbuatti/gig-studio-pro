@@ -1,20 +1,22 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
 import { 
   CheckCircle2, 
   ExternalLink, 
   AlertTriangle, 
   Search, 
-  Loader2, 
   ShieldCheck,
   X,
   Music,
-  User,
-  Guitar
+  Edit2,
+  RotateCcw,
+  Check,
+  Link2
 } from 'lucide-react';
 import { SetlistSong } from './SetlistManager';
 import { cn } from '@/lib/utils';
@@ -30,6 +32,8 @@ interface UGLinkAuditModalProps {
 
 const UGLinkAuditModal: React.FC<UGLinkAuditModalProps> = ({ isOpen, onClose, songs, onVerify }) => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
 
   const unverifiedSongs = useMemo(() => {
     return songs.filter(s => 
@@ -39,12 +43,35 @@ const UGLinkAuditModal: React.FC<UGLinkAuditModalProps> = ({ isOpen, onClose, so
     );
   }, [songs, searchTerm]);
 
-  const handleVerify = (song: SetlistSong) => {
-    if (!song.ugUrl) return;
-    const cleanUrl = sanitizeUGUrl(song.ugUrl);
-    // Align with handleUpdateSong signature by passing updates object
-    onVerify(song.id, { ugUrl: cleanUrl, is_ug_link_verified: true });
+  const handleVerify = (song: SetlistSong, customUrl?: string) => {
+    const urlToVerify = customUrl || song.ugUrl;
+    if (!urlToVerify) return;
+    
+    const cleanUrl = sanitizeUGUrl(urlToVerify);
+    onVerify(song.id, { 
+      ugUrl: cleanUrl, 
+      is_ug_link_verified: true 
+    });
+    
+    if (editingId === song.id) {
+      setEditingId(null);
+    }
     showSuccess(`Verified: ${song.name}`);
+  };
+
+  const startEditing = (song: SetlistSong) => {
+    setEditingId(song.id);
+    setEditValue(song.ugUrl || "");
+  };
+
+  const handleRebind = (song: SetlistSong) => {
+    onVerify(song.id, { ugUrl: "", is_ug_link_verified: false });
+    window.open(`https://www.ultimate-guitar.com/search.php?search_type=title&value=${encodeURIComponent((song.artist || '') + ' ' + song.name)}`, '_blank');
+    setEditingId(null);
+  };
+
+  const isModified = (song: SetlistSong) => {
+    return editingId === song.id && editValue !== (song.ugUrl || "");
   };
 
   return (
@@ -61,12 +88,12 @@ const UGLinkAuditModal: React.FC<UGLinkAuditModalProps> = ({ isOpen, onClose, so
           <DialogHeader>
             <div className="flex items-center gap-3 mb-2">
               <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">
-                <Guitar className="w-6 h-6 text-white" />
+                <Link2 className="w-6 h-6 text-white" />
               </div>
               <DialogTitle className="text-2xl font-black uppercase tracking-tight text-white">UG Link Audit</DialogTitle>
             </div>
             <DialogDescription className="text-orange-100 font-medium">
-              Validate your Ultimate Guitar links to eliminate "Link Drift" during live sets.
+              Validate or modify Ultimate Guitar links to eliminate "Link Drift" during live sets.
             </DialogDescription>
           </DialogHeader>
 
@@ -86,53 +113,105 @@ const UGLinkAuditModal: React.FC<UGLinkAuditModalProps> = ({ isOpen, onClose, so
             <div className="p-6 space-y-3">
               {unverifiedSongs.length > 0 ? (
                 unverifiedSongs.map((song) => (
-                  <div key={song.id} className="p-4 bg-white/5 border border-white/5 rounded-2xl flex items-center justify-between group hover:bg-white/10 transition-all">
-                    <div className="flex items-center gap-4 min-w-0">
-                      <div className="bg-slate-800 p-2.5 rounded-xl text-slate-500">
-                        <Music className="w-5 h-5" />
-                      </div>
-                      <div className="min-w-0">
-                        <h4 className="font-black text-sm uppercase tracking-tight truncate">{song.name}</h4>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest truncate">{song.artist || "Unknown Artist"}</span>
+                  <div key={song.id} className="p-4 bg-white/5 border border-white/5 rounded-2xl flex flex-col gap-4 group hover:bg-white/10 transition-all">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4 min-w-0">
+                        <div className="bg-slate-800 p-2.5 rounded-xl text-slate-500">
+                          <Music className="w-5 h-5" />
                         </div>
-                        {song.ugUrl ? (
-                          <p className="text-[9px] font-mono text-indigo-400 mt-1 truncate max-w-[300px]">{song.ugUrl}</p>
+                        <div className="min-w-0">
+                          <h4 className="font-black text-sm uppercase tracking-tight truncate">{song.name}</h4>
+                          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest truncate">{song.artist || "Unknown Artist"}</span>
+                          
+                          {editingId === song.id ? (
+                            <div className="mt-2 flex items-center gap-2">
+                              <span className="text-[9px] font-black text-amber-500 uppercase flex items-center gap-1">
+                                <AlertTriangle className="w-2.5 h-2.5" /> Link Modified
+                              </span>
+                            </div>
+                          ) : song.ugUrl ? (
+                            <p className="text-[9px] font-mono text-indigo-400 mt-1 truncate max-w-[300px]">{song.ugUrl}</p>
+                          ) : (
+                            <p className="text-[9px] font-black text-red-500 uppercase mt-1">Missing Direct Link</p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {editingId === song.id ? (
+                          <>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => setEditingId(null)}
+                              className="h-10 px-4 text-slate-400 font-bold text-[10px] uppercase rounded-xl"
+                            >
+                              Cancel
+                            </Button>
+                            <Button 
+                              onClick={() => handleVerify(song, editValue)}
+                              className="h-10 px-6 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase text-[10px] tracking-widest gap-2 rounded-xl shadow-lg"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Save & Verify
+                            </Button>
+                          </>
                         ) : (
-                          <p className="text-[9px] font-black text-red-500 uppercase mt-1">Missing Direct Link</p>
+                          <>
+                            {song.ugUrl && (
+                              <>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  onClick={() => window.open(song.ugUrl, '_blank')}
+                                  className="h-10 px-4 bg-white/5 hover:bg-white/10 text-white font-bold text-[10px] uppercase gap-2 rounded-xl"
+                                >
+                                  <ExternalLink className="w-3.5 h-3.5" /> Test
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  onClick={() => startEditing(song)}
+                                  className="h-10 px-4 bg-white/5 hover:bg-white/10 text-indigo-400 font-bold text-[10px] uppercase gap-2 rounded-xl"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" /> Edit
+                                </Button>
+                              </>
+                            )}
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleRebind(song)}
+                              className="h-10 px-4 bg-white/5 hover:bg-white/10 text-orange-400 font-bold text-[10px] uppercase gap-2 rounded-xl"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" /> Re-bind
+                            </Button>
+                            {song.ugUrl && (
+                              <Button 
+                                onClick={() => handleVerify(song)}
+                                className="h-10 px-6 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase text-[10px] tracking-widest gap-2 rounded-xl shadow-lg"
+                              >
+                                <ShieldCheck className="w-3.5 h-3.5" /> Verify
+                              </Button>
+                            )}
+                          </>
                         )}
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      {song.ugUrl ? (
-                        <>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => window.open(song.ugUrl, '_blank')}
-                            className="h-10 px-4 bg-white/5 hover:bg-white/10 text-white font-bold text-[10px] uppercase gap-2 rounded-xl"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" /> Test Link
-                          </Button>
-                          <Button 
-                            onClick={() => handleVerify(song)}
-                            className="h-10 px-6 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase text-[10px] tracking-widest gap-2 rounded-xl shadow-lg"
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5" /> Verify Link
-                          </Button>
-                        </>
-                      ) : (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => window.open(`https://www.ultimate-guitar.com/search.php?search_type=title&value=${encodeURIComponent((song.artist || '') + ' ' + song.name)}`, '_blank')}
-                          className="h-10 px-4 border-orange-500/30 text-orange-400 hover:bg-orange-500/10 font-bold text-[10px] uppercase gap-2 rounded-xl"
-                        >
-                          <Search className="w-3.5 h-3.5" /> Find & Bind
-                        </Button>
-                      )}
-                    </div>
+                    {editingId === song.id && (
+                      <div className="flex gap-2 animate-in slide-in-from-top-2">
+                        <div className="relative flex-1">
+                          <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                          <Input 
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            placeholder="Paste verified UG URL..."
+                            className="bg-black/20 border-white/10 h-10 pl-10 text-xs font-mono text-indigo-300"
+                            autoFocus
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))
               ) : (
@@ -153,7 +232,7 @@ const UGLinkAuditModal: React.FC<UGLinkAuditModalProps> = ({ isOpen, onClose, so
               {unverifiedSongs.length} Tracks Require Validation
             </span>
           </div>
-          <p className="text-[9px] font-mono text-slate-700 uppercase">Link-Sanitize Logic: Origin/Path Only</p>
+          <p className="text-[9px] font-mono text-slate-700 uppercase">Sanitize: Origin/Path Extraction Active</p>
         </div>
       </DialogContent>
     </Dialog>

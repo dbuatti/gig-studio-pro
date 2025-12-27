@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, AlertTriangle, CheckCircle2, ShieldCheck, Link2 } from 'lucide-react';
+import { Search, AlertTriangle, CheckCircle2, ShieldCheck, Link2, RotateCcw } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -12,7 +12,6 @@ import { SetlistSong } from './SetlistManager';
 import { sanitizeUGUrl } from '@/utils/ugUtils';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
-// Memoized input component for better performance
 const StudioInput = React.memo(({ label, value, onChange, placeholder, className, isTextarea = false, type = "text" }: {
   label?: string;
   value: string | undefined;
@@ -64,13 +63,33 @@ interface SongDetailsTabProps {
 }
 
 const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSave, isMobile }) => {
+  const [localUgUrl, setLocalUgUrl] = useState(formData.ugUrl || "");
+  const [isModified, setIsModified] = useState(false);
+
+  useEffect(() => {
+    setLocalUgUrl(formData.ugUrl || "");
+    setIsModified(false);
+  }, [formData.ugUrl]);
+
   const handleUGChange = (val: string) => {
-    const cleanUrl = sanitizeUGUrl(val);
-    handleAutoSave({ ugUrl: cleanUrl, is_ug_link_verified: false });
+    setLocalUgUrl(val);
+    setIsModified(val !== (formData.ugUrl || ""));
+  };
+
+  const handleUGBlur = () => {
+    if (localUgUrl !== formData.ugUrl) {
+      const cleanUrl = sanitizeUGUrl(localUgUrl);
+      handleAutoSave({ ugUrl: cleanUrl, is_ug_link_verified: false });
+    }
   };
 
   const handleVerifyLink = () => {
     handleAutoSave({ is_ug_link_verified: true });
+  };
+
+  const handleRebind = () => {
+    handleAutoSave({ ugUrl: "", is_ug_link_verified: false });
+    window.open(`https://www.ultimate-guitar.com/search.php?search_type=title&value=${encodeURIComponent((formData.artist || '') + ' ' + (formData.name || ''))}`, '_blank');
   };
 
   return (
@@ -90,9 +109,13 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Ultimate Guitar</Label>
-            {formData.ugUrl && (
-              <div className="flex gap-2">
-                {formData.is_ug_link_verified ? (
+            <div className="flex gap-2">
+              {isModified ? (
+                <Badge variant="secondary" className="bg-amber-500/10 text-amber-500 text-[8px] font-black uppercase flex items-center gap-1">
+                  <AlertTriangle className="w-2.5 h-2.5" /> Modified
+                </Badge>
+              ) : formData.ugUrl ? (
+                formData.is_ug_link_verified ? (
                   <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-500 text-[8px] font-black uppercase flex items-center gap-1">
                     <ShieldCheck className="w-2.5 h-2.5" /> Verified
                   </Badge>
@@ -100,23 +123,28 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
                   <Badge variant="secondary" className="bg-orange-500/10 text-orange-500 text-[8px] font-black uppercase flex items-center gap-1">
                     <AlertTriangle className="w-2.5 h-2.5" /> Unverified
                   </Badge>
-                )}
-              </div>
-            )}
+                )
+              ) : null}
+            </div>
           </div>
           <div className="flex flex-col gap-3">
             <div className="flex gap-3">
               <div className="relative w-full">
                 <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                 <Input 
-                  value={formData.ugUrl || ""} 
+                  value={localUgUrl} 
                   onChange={(e) => handleUGChange(e.target.value)}
-                  onBlur={(e) => handleUGChange(e.target.value)}
+                  onBlur={handleUGBlur}
                   placeholder="Paste direct UG URL..." 
-                  className="bg-white/5 border-white/10 font-bold text-orange-400 h-12 rounded-xl w-full pl-10" 
+                  className={cn(
+                    "bg-white/5 border-white/10 font-bold h-12 rounded-xl w-full pl-10",
+                    isModified ? "text-amber-400" : "text-orange-400"
+                  )} 
                 />
               </div>
-              <Button variant="outline" className="h-12 border-white/10 text-orange-400 px-4 rounded-xl font-bold text-[10px] uppercase gap-2 shrink-0 min-w-[120px]" onClick={() => window.open(`https://www.ultimate-guitar.com/search.php?search_type=title&value=${encodeURIComponent((formData.artist || '') + ' ' + (formData.name || '') + ' chords')}`, '_blank')}><Search className="w-3.5 h-3.5" /> Find</Button>
+              <Button variant="outline" className="h-12 border-white/10 text-orange-400 px-4 rounded-xl font-bold text-[10px] uppercase gap-2 shrink-0" onClick={handleRebind}>
+                <RotateCcw className="w-3.5 h-3.5" /> Re-bind
+              </Button>
             </div>
             
             {formData.ugUrl && !formData.is_ug_link_verified && (
