@@ -24,9 +24,9 @@ interface SheetReaderHeaderProps {
   onNextSong: () => void;
   currentSongIndex: number;
   totalSongs: number;
-  isLoading: boolean;
+  isLoading: boolean; // Updated to reflect chart-specific loading
   keyPreference: KeyPreference;
-  onUpdateKey: (newTargetKey: string) => void; // This is now setTargetKey from useHarmonicSync
+  onUpdateKey: (newTargetKey: string) => void;
   isFullScreen: boolean;
   onToggleFullScreen: () => void;
   setIsOverlayOpen: (isOpen: boolean) => void;
@@ -42,9 +42,9 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   onSearchClick,
   onPrevSong,
   onNextSong,
-  isLoading,
+  isLoading, // Use the updated isLoading prop
   keyPreference,
-  onUpdateKey, // This is now setTargetKey from useHarmonicSync
+  onUpdateKey,
   isFullScreen,
   onToggleFullScreen,
   setIsOverlayOpen,

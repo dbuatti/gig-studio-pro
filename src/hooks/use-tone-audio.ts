@@ -12,6 +12,7 @@ export interface AudioEngineControls {
   fineTune: number;
   analyzer: Tone.Analyser | null;
   currentBuffer: AudioBuffer | null;
+  currentUrl: string; // Added this line
   
   setPitch: (p: number) => void;
   setTempo: (t: number) => void;
@@ -34,7 +35,8 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
   const [fineTune, setFineTuneState] = useState(0);
   const [tempo, setTempoState] = useState(1);
   const [volume, setVolumeState] = useState(-6);
-  
+  const [currentUrl, setCurrentUrl] = useState<string>(""); // State for current URL
+
   const playerRef = useRef<Tone.GrainPlayer | null>(null);
   const analyzerRef = useRef<Tone.Analyser | null>(null);
   const currentBufferRef = useRef<AudioBuffer | null>(null);
@@ -42,7 +44,7 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
   
   const playbackStartTimeRef = useRef<number>(0);
   const playbackOffsetRef = useRef<number>(0);
-  const currentUrlRef = useRef<string>(""); // Track current URL to prevent re-fetching
+  // currentUrlRef is no longer needed as currentUrl is now state
 
   const initEngine = useCallback(async () => {
     if (Tone.getContext().state !== 'running') {
@@ -68,6 +70,7 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     setDuration(0);
     playbackOffsetRef.current = 0;
     currentBufferRef.current = null;
+    setCurrentUrl(""); // Reset currentUrl state
   }, []);
 
   useEffect(() => {
@@ -77,9 +80,15 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     };
   }, [resetEngine]);
 
+  useEffect(() => {
+    if (playerRef.current) {
+      playerRef.current.volume.value = volume;
+    }
+  }, [volume]);
+
   const loadAudioBuffer = useCallback((audioBuffer: AudioBuffer, initialPitch: number = 0) => {
     initEngine().then(() => {
-      resetEngine();
+      resetEngine(); // Reset before loading new buffer
       currentBufferRef.current = audioBuffer;
       
       playerRef.current = new Tone.GrainPlayer(audioBuffer).toDestination();
@@ -108,7 +117,7 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
 
   const loadFromUrl = useCallback(async (url: string, initialPitch: number = 0) => {
     // Prevent re-fetching if the URL is the same and we already have a buffer
-    if (url === currentUrlRef.current && currentBufferRef.current) {
+    if (url === currentUrl && currentBufferRef.current) {
         console.log("[useToneAudio] Skipping load: URL is same and buffer exists.");
         return;
     }
@@ -119,7 +128,7 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     }
 
     console.log(`[useToneAudio] Loading new URL: ${url}`);
-    currentUrlRef.current = url; // Update ref immediately
+    setCurrentUrl(url); // Update currentUrl state immediately
     
     try {
       const response = await fetch(url);
@@ -130,9 +139,9 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     } catch (err) {
       console.error("Audio load failed from URL:", url, "Error:", err);
       showError("Audio load failed.");
-      currentUrlRef.current = ""; // Reset on failure
+      setCurrentUrl(""); // Reset on failure
     }
-  }, [loadAudioBuffer]);
+  }, [loadAudioBuffer, currentUrl]);
 
   const togglePlayback = useCallback(async () => {
     await initEngine();
@@ -249,6 +258,7 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     fineTune,
     analyzer: analyzerRef.current,
     currentBuffer: currentBufferRef.current,
+    currentUrl, // Exposed currentUrl state
     
     setPitch,
     setTempo,

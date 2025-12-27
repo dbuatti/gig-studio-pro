@@ -23,6 +23,16 @@ import SheetReaderHeader from '@/components/SheetReaderHeader';
 import SheetReaderFooter from '@/components/SheetReaderFooter';
 import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
 
+// Define a type for a rendered chart in the stack
+interface RenderedChart {
+  id: string;
+  content: React.ReactNode;
+  isLoaded: boolean;
+  opacity: number;
+  zIndex: number;
+  url: string | null; // The URL or identifier for the chart content
+}
+
 const SheetReaderMode: React.FC = () => {
   const navigate = useNavigate();
   const { songId: routeSongId } = useParams<{ songId?: string }>();
@@ -32,15 +42,13 @@ const SheetReaderMode: React.FC = () => {
   const { forceReaderResource, ignoreConfirmedGate } = useReaderSettings();
 
   // State
-  const [allSongs, setAllSongs] = useState<SetlistSong[]>([]);
+  const [allSongs, setAllSongs] = useState<SetlistSong[]>([]); // All readable songs
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true); // For initial data fetch
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [isImmersive, setIsImmersive] = useState(false);
   const [isStudioModalOpen, setIsStudioModalOpen] = useState(false);
   const [isOverlayOpen, setIsOverlayOpen] = useState(false); // For dropdowns in header
-  const [isIframeLoaded, setIsIframeLoaded] = useState(false); // State to track iframe loading
-  const [isChartLoading, setIsChartLoading] = useState(false); // New state for chart loading
 
   // Audio
   const audioEngine = useToneAudio(true);
@@ -81,13 +89,14 @@ const SheetReaderMode: React.FC = () => {
     setAudioPitch(pitch);
   }, [pitch, setAudioPitch]);
 
-  // Ref to store the last successfully rendered chart content
-  const lastRenderedChartContentRef = useRef<React.ReactNode>(null);
+  // === Multi-Chart Stack State ===
+  const [renderedCharts, setRenderedCharts] = useState<RenderedChart[]>([]);
+  const chartLoadTimers = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
   // === Data Fetching ===
   const fetchSongs = useCallback(async () => {
     if (!user) return;
-    setLoading(true);
+    setInitialLoading(true);
     try {
       const { data, error } = await supabase
         .from('repertoire')
@@ -121,14 +130,22 @@ const SheetReaderMode: React.FC = () => {
         is_ug_link_verified: d.is_ug_link_verified,
       }));
 
-      setAllSongs(mappedSongs);
+      // Filter for readable and approved songs for navigation
+      const readableAndApprovedSongs = mappedSongs.filter(s => {
+        const readiness = calculateReadiness(s);
+        const hasChart = s.ugUrl || s.pdfUrl || s.leadsheetUrl || s.ug_chords_text;
+        const meetsReadiness = readiness >= 40 || forceReaderResource === 'simulation' || ignoreConfirmedGate;
+        return hasChart && meetsReadiness;
+      });
+
+      setAllSongs(readableAndApprovedSongs);
 
       // Determine initial index
       let initialIndex = 0;
       const targetId = routeSongId || searchParams.get('id');
       
       if (targetId) {
-        const idx = mappedSongs.findIndex((s) => s.id === targetId);
+        const idx = readableAndApprovedSongs.findIndex((s) => s.id === targetId);
         if (idx !== -1) initialIndex = idx;
       }
       
@@ -139,9 +156,9 @@ const SheetReaderMode: React.FC = () => {
         showError('Failed to load repertoire');
       }
     } finally {
-      setLoading(false);
+      setInitialLoading(false);
     }
-  }, [user, routeSongId, searchParams]);
+  }, [user, routeSongId, searchParams, forceReaderResource, ignoreConfirmedGate]);
 
   useEffect(() => {
     fetchSongs();
@@ -153,36 +170,36 @@ const SheetReaderMode: React.FC = () => {
   // Update formData for useHarmonicSync when currentSong changes
   useEffect(() => {
     if (currentSong) {
-      console.log(`[SheetReaderMode] Current song changed to: ${currentSong.name}`);
       setFormData({ 
         originalKey: currentSong.originalKey, 
         targetKey: currentSong.targetKey, 
         pitch: currentSong.pitch,
         is_pitch_linked: currentSong.is_pitch_linked,
       });
-      setIsIframeLoaded(false); // Reset iframe loaded state when song changes
-      setIsChartLoading(true); // Start chart loading indicator
-    } else {
-      setIsChartLoading(false); // No song, no loading
     }
   }, [currentSong]);
 
   // Load audio when song changes
   useEffect(() => {
     if (currentSong?.previewUrl) {
-      console.log(`[SheetReaderMode] Loading audio from URL: ${currentSong.previewUrl}`);
-      loadFromUrl(currentSong.previewUrl, pitch || 0);
+      // Only load audio if the URL is different or no buffer is loaded
+      if (audioEngine.currentBuffer === null || audioEngine.currentBuffer.duration === 0 || audioEngine.currentUrl !== currentSong.previewUrl) {
+        loadFromUrl(currentSong.previewUrl, pitch || 0);
+      } else {
+        // If same URL and buffer exists, just update pitch and reset progress
+        setAudioPitch(pitch || 0);
+        setAudioProgress(0);
+        stopPlayback(); // Ensure it's stopped to start fresh
+      }
     } else {
-      console.log("[SheetReaderMode] No preview URL, stopping audio.");
       stopPlayback();
       setPitch(0); // Reset pitch when no audio
     }
-  }, [currentSong, loadFromUrl, stopPlayback, pitch, setPitch]);
+  }, [currentSong, loadFromUrl, stopPlayback, pitch, setPitch, setAudioPitch, setAudioProgress, audioEngine.currentBuffer, audioEngine.currentUrl]);
 
   // Update URL when song changes
   useEffect(() => {
     if (currentSong) {
-      console.log(`[SheetReaderMode] Updating URL to song ID: ${currentSong.id}`);
       setSearchParams({ id: currentSong.id }, { replace: true });
     }
   }, [currentSong, setSearchParams]);
@@ -190,7 +207,6 @@ const SheetReaderMode: React.FC = () => {
   // === Navigation ===
   const handleNext = useCallback(() => {
     if (allSongs.length === 0) return;
-    console.log("[SheetReaderMode] Navigating to next song.");
     const nextIndex = (currentIndex + 1) % allSongs.length;
     setCurrentIndex(nextIndex);
     stopPlayback();
@@ -198,7 +214,6 @@ const SheetReaderMode: React.FC = () => {
 
   const handlePrev = useCallback(() => {
     if (allSongs.length === 0) return;
-    console.log("[SheetReaderMode] Navigating to previous song.");
     const prevIndex = (currentIndex - 1 + allSongs.length) % allSongs.length;
     setCurrentIndex(prevIndex);
     stopPlayback();
@@ -208,7 +223,6 @@ const SheetReaderMode: React.FC = () => {
   const handleUpdateKey = useCallback(async (newTargetKey: string) => {
     if (!currentSong || !user) return;
     
-    console.log(`[SheetReaderMode] Updating key for ${currentSong.name} to ${newTargetKey}`);
     setTargetKey(newTargetKey);
 
     const newPitch = calculateSemitones(currentSong.originalKey || 'C', newTargetKey);
@@ -231,26 +245,11 @@ const SheetReaderMode: React.FC = () => {
     }
   }, [currentSong, user, setTargetKey]);
 
-  // === Chart Content ===
-  const chartContent = useMemo(() => {
-    if (!currentSong) {
-      // If no current song, but we have a last rendered content, show it with a loader
-      if (lastRenderedChartContentRef.current) {
-        return (
-          <div className="w-full h-full relative bg-black">
-            {lastRenderedChartContentRef.current}
-            <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm z-20">
-              <Loader2 className="w-16 h-16 animate-spin text-indigo-500" />
-            </div>
-          </div>
-        );
-      }
-      return null; // Otherwise, nothing to render
-    }
-
-    const readiness = calculateReadiness(currentSong);
+  // === Chart Content Rendering Logic ===
+  const renderChartForSong = useCallback((song: SetlistSong, isCurrent: boolean, isPreloading: boolean) => {
+    const readiness = calculateReadiness(song);
     if (readiness < 40 && forceReaderResource !== 'simulation' && !ignoreConfirmedGate) {
-      const content = (
+      return (
         <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-950">
           <AlertCircle className="w-24 h-24 text-red-500 mb-8" />
           <h2 className="text-4xl font-black uppercase text-white mb-4">Missing Resources</h2>
@@ -260,60 +259,56 @@ const SheetReaderMode: React.FC = () => {
           </Button>
         </div>
       );
-      lastRenderedChartContentRef.current = content;
-      setIsChartLoading(false);
-      return content;
     }
 
-    let contentToRender: React.ReactNode = null;
-
     // Determine which chart type to render
-    const renderUgChordsReader = (song: SetlistSong) => (
+    const renderUgChordsReader = (s: SetlistSong, onUgLoad: () => void) => (
       <UGChordsReader
-        key={song.id}
-        chordsText={song.ug_chords_text || ""}
-        config={song.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
+        key={s.id}
+        chordsText={s.ug_chords_text || ""}
+        config={s.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
         isMobile={false}
-        originalKey={song.originalKey}
+        originalKey={s.originalKey}
         targetKey={targetKey}
         isPlaying={isPlaying}
         progress={progress}
         duration={duration}
         chordAutoScrollEnabled={chordAutoScrollEnabled}
         chordScrollSpeed={chordScrollSpeed}
+        onLoad={onUgLoad} // Pass the onLoad callback
       />
     );
 
-    const chartUrl = currentSong.pdfUrl || currentSong.leadsheetUrl || currentSong.ugUrl;
+    const chartUrl = song.pdfUrl || song.leadsheetUrl || song.ugUrl;
     const googleViewer = chartUrl ? `https://docs.google.com/viewer?url=${encodeURIComponent(chartUrl)}&embedded=true` : null;
 
-    if (forceReaderResource === 'force-chords' && currentSong.ug_chords_text) {
-      contentToRender = renderUgChordsReader(currentSong);
-    } else if (currentSong.ug_chords_text && !currentSong.pdfUrl && !currentSong.leadsheetUrl && !currentSong.ugUrl) {
-      contentToRender = renderUgChordsReader(currentSong);
+    const handleIframeLoad = () => {
+      // Delay setting loaded state to allow iframe content to fully render visually
+      chartLoadTimers.current.set(song.id, setTimeout(() => {
+        setRenderedCharts(prev => prev.map(rc => rc.id === song.id ? { ...rc, isLoaded: true } : rc));
+        chartLoadTimers.current.delete(song.id);
+      }, 150)); // Small delay for smoother transition
+    };
+
+    const handleUgLoad = () => {
+      setRenderedCharts(prev => prev.map(rc => rc.id === song.id ? { ...rc, isLoaded: true } : rc));
+    };
+
+    if (forceReaderResource === 'force-chords' && song.ug_chords_text) {
+      return renderUgChordsReader(song, handleUgLoad);
+    } else if (song.ug_chords_text && !song.pdfUrl && !song.leadsheetUrl && !song.ugUrl) {
+      return renderUgChordsReader(song, handleUgLoad);
     } else if (googleViewer) {
-      contentToRender = (
+      return (
         <div className="w-full h-full relative bg-black">
-          {!isIframeLoaded && (
-            <div className="absolute inset-0 flex items-center justify-center bg-slate-900 z-10">
-              <Loader2 className="w-16 h-16 animate-spin text-indigo-500" />
-            </div>
-          )}
           <iframe
-            key={`${currentSong.id}-google`}
+            key={`${song.id}-google`}
             src={googleViewer}
             className="absolute inset-0 w-full h-full"
             title="Chart - Google Viewer"
-            style={{ border: 'none', opacity: isIframeLoaded ? 1 : 0, transition: 'opacity 0.3s ease-in-out' }}
+            style={{ border: 'none' }}
             allowFullScreen
-            onLoad={() => {
-              console.log(`[SheetReaderMode] Iframe for ${currentSong.name} loaded. Delaying visibility...`);
-              setTimeout(() => {
-                setIsIframeLoaded(true);
-                setIsChartLoading(false); // Chart is now loaded
-                console.log(`[SheetReaderMode] Iframe for ${currentSong.name} now visible.`);
-              }, 150);
-            }}
+            onLoad={handleIframeLoad}
           />
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20">
             <a
@@ -328,7 +323,7 @@ const SheetReaderMode: React.FC = () => {
         </div>
       );
     } else {
-      contentToRender = (
+      return (
         <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-950">
           <Music className="w-24 h-24 text-slate-700 mb-8" />
           <h2 className="text-4xl font-black uppercase text-white mb-4">No Chart Available</h2>
@@ -339,16 +334,124 @@ const SheetReaderMode: React.FC = () => {
         </div>
       );
     }
+  }, [forceReaderResource, ignoreConfirmedGate, navigate, targetKey, isPlaying, progress, duration, chordAutoScrollEnabled, chordScrollSpeed, pitch]);
 
-    // Update ref and set loading state
-    lastRenderedChartContentRef.current = contentToRender;
-    if (contentToRender && !googleViewer) { // If not an iframe, it's "loaded" immediately
-      setIsChartLoading(false);
+  // Effect to manage the renderedCharts stack
+  useEffect(() => {
+    if (!currentSong) {
+      setRenderedCharts([]);
+      return;
     }
-    return contentToRender;
-  }, [currentSong, forceReaderResource, ignoreConfirmedGate, pitch, isPlaying, progress, duration, navigate, targetKey, chordAutoScrollEnabled, chordScrollSpeed, isIframeLoaded]);
 
-  if (loading) {
+    setRenderedCharts(prevCharts => {
+      const newCharts: RenderedChart[] = [];
+      const currentChartId = currentSong.id;
+
+      // Add/update current song's chart
+      const existingCurrent = prevCharts.find(c => c.id === currentChartId);
+      if (existingCurrent) {
+        newCharts.push({ ...existingCurrent, opacity: 1, zIndex: 10 });
+      } else {
+        newCharts.push({
+          id: currentChartId,
+          content: renderChartForSong(currentSong, true, false),
+          isLoaded: false,
+          opacity: 0.5, // Start dimmed
+          zIndex: 10,
+          url: currentSong.pdfUrl || currentSong.leadsheetUrl || currentSong.ugUrl || null,
+        });
+      }
+
+      // Add/update next song's chart for pre-loading
+      const nextSongIndex = (currentIndex + 1) % allSongs.length;
+      const nextSong = allSongs[nextSongIndex];
+      if (nextSong && nextSong.id !== currentChartId) {
+        const existingNext = prevCharts.find(c => c.id === nextSong.id);
+        if (existingNext) {
+          newCharts.push({ ...existingNext, opacity: 0, zIndex: 0 }); // Keep hidden
+        } else {
+          newCharts.push({
+            id: nextSong.id,
+            content: renderChartForSong(nextSong, false, true),
+            isLoaded: false,
+            opacity: 0, // Hidden for pre-loading
+            zIndex: 0,
+            url: nextSong.pdfUrl || nextSong.leadsheetUrl || nextSong.ugUrl || null,
+          });
+        }
+      }
+
+      // Add/update previous song's chart for pre-loading
+      const prevSongIndex = (currentIndex - 1 + allSongs.length) % allSongs.length;
+      const prevSong = allSongs[prevSongIndex];
+      if (prevSong && prevSong.id !== currentChartId) {
+        const existingPrev = prevCharts.find(c => c.id === prevSong.id);
+        if (existingPrev) {
+          newCharts.push({ ...existingPrev, opacity: 0, zIndex: 0 }); // Keep hidden
+        } else {
+          newCharts.push({
+            id: prevSong.id,
+            content: renderChartForSong(prevSong, false, true),
+            isLoaded: false,
+            opacity: 0, // Hidden for pre-loading
+            zIndex: 0,
+            url: prevSong.pdfUrl || prevSong.leadsheetUrl || prevSong.ugUrl || null,
+          });
+        }
+      }
+
+      // Clean up old charts that are no longer current, next, or previous
+      const relevantIds = new Set(newCharts.map(c => c.id));
+      const filteredPrevCharts = prevCharts.filter(c => relevantIds.has(c.id));
+
+      // Merge and ensure uniqueness, prioritizing newCharts for updates
+      const finalChartsMap = new Map<string, RenderedChart>();
+      filteredPrevCharts.forEach(c => finalChartsMap.set(c.id, c));
+      newCharts.forEach(c => finalChartsMap.set(c.id, c));
+
+      return Array.from(finalChartsMap.values());
+    });
+
+    // Clear any pending timers for charts that are no longer relevant
+    chartLoadTimers.current.forEach((timer, id) => {
+      if (id !== currentSong.id) {
+        clearTimeout(timer);
+        chartLoadTimers.current.delete(id);
+      }
+    });
+
+  }, [currentSong, currentIndex, allSongs, renderChartForSong, targetKey, isPlaying, progress, duration, chordAutoScrollEnabled, chordScrollSpeed]);
+
+  // Effect to handle the "ghosting" transition
+  useEffect(() => {
+    if (!currentSong) return;
+
+    const currentChartInStack = renderedCharts.find(c => c.id === currentSong.id);
+
+    if (currentChartInStack && currentChartInStack.isLoaded) {
+      // Once the current chart is fully loaded, ensure it's fully opaque and on top
+      setRenderedCharts(prev => prev.map(rc => {
+        if (rc.id === currentSong.id) {
+          return { ...rc, opacity: 1, zIndex: 10 };
+        } else {
+          // Hide other charts that are not the current one
+          return { ...rc, opacity: 0, zIndex: 0 };
+        }
+      }));
+    } else if (currentChartInStack && !currentChartInStack.isLoaded) {
+      // If the current chart is not yet loaded, dim it and keep it on top
+      setRenderedCharts(prev => prev.map(rc => {
+        if (rc.id === currentSong.id) {
+          return { ...rc, opacity: 0.5, zIndex: 10 };
+        } else {
+          return { ...rc, opacity: 0, zIndex: 0 };
+        }
+      }));
+    }
+  }, [currentSong, renderedCharts]);
+
+
+  if (initialLoading) {
     return (
       <div className="h-screen bg-slate-950 flex items-center justify-center">
         <Loader2 className="w-16 h-16 animate-spin text-indigo-500" />
@@ -420,7 +523,7 @@ const SheetReaderMode: React.FC = () => {
           onNextSong={handleNext}
           currentSongIndex={currentIndex}
           totalSongs={allSongs.length}
-          isLoading={loading || isChartLoading} // Pass chart loading state
+          isLoading={!currentSong || !renderedCharts.find(c => c.id === currentSong?.id)?.isLoaded} // Use chart-specific loading
           keyPreference={globalKeyPreference}
           onUpdateKey={handleUpdateKey}
           isFullScreen={isImmersive}
@@ -433,7 +536,21 @@ const SheetReaderMode: React.FC = () => {
 
         {/* Chart Viewer */}
         <div className={cn("flex-1 bg-black overflow-hidden relative", isImmersive ? "mt-0" : "mt-16")}>
-          {chartContent}
+          {renderedCharts.map(rc => (
+            <div
+              key={rc.id}
+              className="absolute inset-0 transition-opacity duration-300"
+              style={{ opacity: rc.opacity, zIndex: rc.zIndex }}
+            >
+              {rc.content}
+            </div>
+          ))}
+          {/* Show a global loader if no chart is loaded yet for the current song */}
+          {currentSong && !renderedCharts.find(c => c.id === currentSong.id)?.isLoaded && (
+            <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm z-20">
+              <Loader2 className="w-16 h-16 animate-spin text-indigo-500" />
+            </div>
+          )}
         </div>
 
         {/* Footer Controls */}

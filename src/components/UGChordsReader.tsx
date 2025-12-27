@@ -24,6 +24,7 @@ interface UGChordsReaderProps {
   duration: number;
   chordAutoScrollEnabled: boolean;
   chordScrollSpeed: number;
+  onLoad?: () => void; // NEW: Add onLoad prop
 }
 
 const UGChordsReader: React.FC<UGChordsReaderProps> = ({ 
@@ -38,6 +39,7 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
   duration,
   chordAutoScrollEnabled,
   chordScrollSpeed,
+  onLoad, // Destructure onLoad
 }) => {
   const { keyPreference } = useSettings();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -45,6 +47,7 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
   const isUserScrolling = useRef(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout>();
   const autoScrollRaf = useRef<number | null>(null);
+  const hasLoadedRef = useRef(false); // To ensure onLoad fires only once
 
   // Unified Transposition Logic: Calculate delta (n) between Original and Stage Key
   const transposedChordsText = useMemo(() => {
@@ -136,6 +139,14 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
       if (autoScrollRaf.current) cancelAnimationFrame(autoScrollRaf.current);
     };
   }, [progress, duration, chordAutoScrollEnabled, chordScrollSpeed, isPlaying]); // isPlaying added to trigger updates
+
+  // NEW: Call onLoad once when content is rendered
+  useEffect(() => {
+    if (onLoad && !hasLoadedRef.current && chordsText) {
+      onLoad();
+      hasLoadedRef.current = true;
+    }
+  }, [onLoad, chordsText]);
 
   return (
     <div
