@@ -319,54 +319,6 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
           downloadStatus={downloadStatus}
         />
       )}
-
-      {formData.youtubeUrl && currentVideoId && (
-        <div className="bg-slate-900 border border-white/10 rounded-[2.5rem] p-8 space-y-8 animate-in fade-in duration-500">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Youtube className="w-6 h-6 text-red-500" />
-              <div>
-                <h3 className="text-xl font-black uppercase tracking-tight">Linked Reference Media</h3>
-                <p className="text-sm text-slate-400">Audio ready for extraction via Cloud Proxy.</p>
-              </div>
-            </div>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={handleClearYoutubeSelection}
-              className="h-10 w-10 rounded-full hover:bg-white/10 text-slate-400"
-            >
-              <X className="w-5 h-5" />
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white/5 rounded-2xl p-6 space-y-4 border border-white/5 flex flex-col justify-between">
-              <div>
-                <h4 className="text-sm font-black uppercase tracking-tight text-white mb-2">Extraction Source</h4>
-                <p className="text-xs text-slate-400 font-mono">{formData.youtubeUrl}</p>
-              </div>
-              <div className="flex gap-2">
-                 <a href={formData.youtubeUrl} target="_blank" rel="noreferrer" className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
-                   Open Native <ExternalLink className="w-3 h-3" />
-                 </a>
-              </div>
-            </div>
-            <div className="bg-white/5 rounded-2xl p-6 space-y-4 border border-white/5 flex flex-col justify-between">
-              <div>
-                <h4 className="text-sm font-black uppercase tracking-tight text-white mb-2">Direct Portal</h4>
-                <p className="text-xs text-slate-400">Launch manual processing via external service.</p>
-              </div>
-              <Button 
-                className="w-full bg-red-600 hover:bg-red-700 font-black uppercase tracking-widest text-xs h-12 rounded-xl gap-2"
-                onClick={() => window.open(`https://yt-audio-api-1-wedr.onrender.com/?url=${encodeURIComponent(formData.youtubeUrl || '')}`, '_blank')}
-              >
-                <ExternalLink className="w-4 h-4" /> Service Portal
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
