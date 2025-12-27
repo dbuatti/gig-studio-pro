@@ -131,12 +131,14 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
 
       if (!targetSong) throw new Error("Song not found in database or setlist.");
 
+      console.log("[SongStudioView] Fetched targetSong:", targetSong); // Log fetched song
       setSong(targetSong);
       setFormData({ ...targetSong, is_pitch_linked: targetSong.is_pitch_linked ?? true });
       if (targetSong.previewUrl) {
         await audio.loadFromUrl(targetSong.previewUrl, targetSong.pitch || 0);
       }
     } catch (err: any) {
+      console.error("[SongStudioView] Studio failed to initialize:", err.message); // Log error
       showError("Studio failed to initialize: " + err.message);
       onClose();
     } finally {
@@ -150,6 +152,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     if (!song) return;
     setFormData(prev => {
       const next = { ...prev, ...updates };
+      console.log("[SongStudioView] Auto-saving updates:", updates); // Log auto-save updates
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
       saveTimeoutRef.current = setTimeout(async () => {
         try {

@@ -179,17 +179,20 @@ const Index = () => {
       if (error) throw error;
 
       if (data) {
-        const mappedRepertoire = data.map(d => ({
-          id: d.id, master_id: d.id, name: d.title, artist: d.artist, bpm: d.bpm, lyrics: d.lyrics,
-          originalKey: d.original_key, targetKey: d.target_key, pitch: d.pitch, ugUrl: d.ug_url,
-          previewUrl: d.preview_url, youtubeUrl: d.youtube_url, appleMusicUrl: d.apple_music_url,
-          pdfUrl: d.pdf_url, isMetadataConfirmed: d.is_metadata_confirmed, isKeyConfirmed: d.is_key_confirmed,
-          duration_seconds: d.duration_seconds, notes: d.notes, user_tags: d.user_tags || [], resources: d.resources || [],
-          isApproved: d.is_approved, preferred_reader: d.preferred_reader, ug_chords_text: d.ug_chords_text,
-          ug_chords_config: d.ug_chords_config, is_pitch_linked: d.is_pitch_link_verified, is_ug_link_verified: d.is_ug_link_verified,
-          sheet_music_url: d.sheet_music_url, is_sheet_verified: d.is_sheet_verified,
-          is_ug_chords_present: d.is_ug_chords_present, highest_note_original: d.highest_note_original
-        }));
+        const mappedRepertoire = data.map(d => {
+          console.log(`[Index] Master Repertoire Song: ${d.title}, ug_url: ${d.ug_url}`); // Log ug_url
+          return {
+            id: d.id, master_id: d.id, name: d.title, artist: d.artist, bpm: d.bpm, lyrics: d.lyrics,
+            originalKey: d.original_key, targetKey: d.target_key, pitch: d.pitch, ugUrl: d.ug_url,
+            previewUrl: d.preview_url, youtubeUrl: d.youtube_url, appleMusicUrl: d.apple_music_url,
+            pdfUrl: d.pdf_url, isMetadataConfirmed: d.is_metadata_confirmed, isKeyConfirmed: d.is_key_confirmed,
+            duration_seconds: d.duration_seconds, notes: d.notes, user_tags: d.user_tags || [], resources: d.resources || [],
+            isApproved: d.is_approved, preferred_reader: d.preferred_reader, ug_chords_text: d.ug_chords_text,
+            ug_chords_config: d.ug_chords_config, is_pitch_linked: d.is_pitch_link_verified, is_ug_link_verified: d.is_ug_link_verified,
+            sheet_music_url: d.sheet_music_url, is_sheet_verified: d.is_sheet_verified,
+            is_ug_chords_present: d.is_ug_chords_present, highest_note_original: d.highest_note_original
+          };
+        });
         setMasterRepertoire(prevMasterRepertoire => {
           if (JSON.stringify(mappedRepertoire) !== JSON.stringify(prevMasterRepertoire)) {
             return mappedRepertoire;
