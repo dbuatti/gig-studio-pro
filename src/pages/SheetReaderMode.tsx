@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { useSettings } from '@/hooks/use-settings';
 import { calculateReadiness } from '@/utils/repertoireSync';
-import { showSuccess, showError } from '@/utils/toast';
+import { showSuccess, showError, showInfo } from '@/utils/toast';
 import UGChordsReader from '@/components/UGChordsReader';
 import { useToneAudio } from '@/hooks/use-tone-audio';
 import { transposeKey, calculateSemitones } from '@/utils/keyUtils';
@@ -183,7 +183,7 @@ const SheetReaderMode: React.FC = () => {
   useEffect(() => {
     if (currentSong?.previewUrl) {
       // Only load audio if the URL is different or no buffer is loaded
-      if (audioEngine.currentBuffer === null || audioEngine.currentBuffer.duration === 0 || audioEngine.currentUrl !== currentSong.previewUrl) {
+      if (audioEngine.currentUrl !== currentSong.previewUrl) {
         loadFromUrl(currentSong.previewUrl, pitch || 0);
       } else {
         // If same URL and buffer exists, just update pitch and reset progress
@@ -195,7 +195,7 @@ const SheetReaderMode: React.FC = () => {
       stopPlayback();
       setPitch(0); // Reset pitch when no audio
     }
-  }, [currentSong, loadFromUrl, stopPlayback, pitch, setPitch, setAudioPitch, setAudioProgress, audioEngine.currentBuffer, audioEngine.currentUrl]);
+  }, [currentSong, loadFromUrl, stopPlayback, pitch, setPitch, setAudioPitch, setAudioProgress, audioEngine.currentUrl]);
 
   // Update URL when song changes
   useEffect(() => {
