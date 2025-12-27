@@ -28,7 +28,6 @@ import { AnimatePresence, motion } from 'framer-motion';
 import FloatingCommandDock from '@/components/FloatingCommandDock';
 import { useReaderSettings } from '@/hooks/use-reader-settings';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useDebouncedCallback } from 'use-debounce';
 
 interface FilterState {
   hasAudio: boolean;
