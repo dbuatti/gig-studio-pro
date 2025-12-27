@@ -39,7 +39,7 @@ type AuditFilter = 'all' | 'missing-content' | 'missing-link' | 'unverified';
 
 const UGLinkAuditModal: React.FC<UGLinkAuditModalProps> = ({ isOpen, onClose, songs, onVerify, onOpenStudio }) => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeFilter, setActiveFilter] = useState<AuditFilter>('all');
+  const [activeFilter, setActiveFilter] = useState<AuditFilter>('unverified');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [openedLinks, setOpenedLinks] = useState<Set<string>>(new Set());
@@ -59,8 +59,9 @@ const UGLinkAuditModal: React.FC<UGLinkAuditModalProps> = ({ isOpen, onClose, so
           return hasLink && !hasChords;
         case 'missing-link':
           return !hasLink;
+        case 'all':
+          return true;
         case 'unverified':
-          return !s.is_ug_link_verified;
         default:
           return !s.is_ug_link_verified;
       }
@@ -133,7 +134,7 @@ const UGLinkAuditModal: React.FC<UGLinkAuditModalProps> = ({ isOpen, onClose, so
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] bg-slate-950 border-white/10 text-white rounded-[2rem] p-0 overflow-hidden flex flex-col shadow-2xl">
+      <DialogContent className="max-w-4xl w-[95vw] h-[90vh] bg-slate-950 border-white/10 text-white rounded-[2rem] p-0 overflow-hidden flex flex-col shadow-2xl">
         <div className="p-6 sm:p-8 bg-orange-600 shrink-0 relative">
           <button 
             onClick={onClose}
@@ -189,12 +190,20 @@ const UGLinkAuditModal: React.FC<UGLinkAuditModalProps> = ({ isOpen, onClose, so
               >
                 No Links
               </Button>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setActiveFilter('all')}
+                className={cn("text-[9px] font-black uppercase tracking-widest h-9 sm:h-10 px-3 sm:px-4 rounded-lg whitespace-nowrap", activeFilter === 'all' ? "bg-white text-orange-600 shadow-lg" : "text-white/60")}
+              >
+                All Songs
+              </Button>
             </div>
           </div>
         </div>
 
-        <div className="flex-1 overflow-hidden bg-slate-900/50">
-          <ScrollArea className="h-full">
+        <div className="flex-1 min-h-0 overflow-hidden bg-slate-900/50">
+          <ScrollArea className="h-full w-full">
             <div className="p-4 sm:p-6 space-y-3">
               {auditList.length > 0 ? (
                 auditList.map((song) => {
