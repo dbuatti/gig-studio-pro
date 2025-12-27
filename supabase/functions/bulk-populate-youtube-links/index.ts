@@ -33,7 +33,6 @@ serve(async (req) => {
 
     for (const id of songIds) {
       try {
-        // 1. Fetch current song data
         const { data: song, error: fetchErr } = await supabaseAdmin
           .from('repertoire')
           .select('id, title, artist')
@@ -44,28 +43,25 @@ serve(async (req) => {
 
         await supabaseAdmin.from('repertoire').update({ sync_status: 'SYNCING' }).eq('id', id);
 
-        // 2. Smart-Search (YouTube)
-        const ytSearchQuery = `${song.artist} ${song.title} official audio`;
+        // Refined Search Query (Level 1: Strict)
+        const ytSearchQuery = `${song.artist} - ${song.title} (Official Audio)`;
 
-        // Using Invidious proxy logic
         const instance = 'https://iv.ggtyler.dev';
         const ytRes = await fetch(`${instance}/api/v1/search?q=${encodeURIComponent(ytSearchQuery)}`);
         
         if (!ytRes.ok) throw new Error(`Search engine error: ${ytRes.status}`);
         
         const ytData = await ytRes.json();
-        // Strictly select Result Index [0] and verify it's a video
         const topVideo = ytData?.filter?.((v: any) => v.type === "video")[0];
 
         if (topVideo) {
           const youtubeUrl = `https://www.youtube.com/watch?v=${topVideo.videoId}`;
           
-          // 4. Update Song Record
           await supabaseAdmin.from('repertoire').update({
             youtube_url: youtubeUrl,
             metadata_source: 'auto_populated',
             sync_status: 'COMPLETED',
-            last_sync_log: `Auto-populated top hit: ${topVideo.videoId}`
+            last_sync_log: `Auto-populated: ${topVideo.videoId} (Strict Query)`
           }).eq('id', id);
 
           results.push({ id, status: 'SUCCESS', title: song.title, videoId: topVideo.videoId });
@@ -82,7 +78,6 @@ serve(async (req) => {
         results.push({ id, status: 'ERROR', msg: err.message });
       }
 
-      // Throttling: 1.5s delay to prevent rate-limiting
       await new Promise(r => setTimeout(r, 1500));
     }
 

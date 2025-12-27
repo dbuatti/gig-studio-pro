@@ -33,7 +33,6 @@ serve(async (req) => {
 
     for (const id of songIds) {
       try {
-        // 1. Fetch current song data
         const { data: song, error: fetchErr } = await supabaseAdmin
           .from('repertoire')
           .select('*')
@@ -42,7 +41,6 @@ serve(async (req) => {
 
         if (fetchErr || !song) throw new Error(`Fetch failed for ID ${id}`);
 
-        // Skip if already synced and overwrite is false
         if (song.metadata_source === 'itunes_autosync' && !overwrite) {
           results.push({ id, status: 'SKIPPED', msg: 'Already synced.' });
           continue;
@@ -50,14 +48,17 @@ serve(async (req) => {
 
         await supabaseAdmin.from('repertoire').update({ sync_status: 'SYNCING' }).eq('id', id);
 
-        // 2. Metadata Enrichment (iTunes)
+        // 1. Metadata Enrichment (iTunes)
         const itunesQuery = encodeURIComponent(`${song.artist} ${song.title}`);
         const itunesRes = await fetch(`https://itunes.apple.com/search?term=${itunesQuery}&entity=song&limit=1`);
         const itunesData = await itunesRes.json();
         const topResult = itunesData.results?.[0];
 
-        let enrichedMetadata = {};
+        let enrichedMetadata: any = {};
+        let itunesDurationSec = 0;
+
         if (topResult) {
+          itunesDurationSec = Math.floor(topResult.trackTimeMillis / 1000);
           enrichedMetadata = {
             title: topResult.trackName,
             artist: topResult.artistName,
@@ -66,35 +67,48 @@ serve(async (req) => {
             metadata_source: 'itunes_autosync',
             auto_synced: true
           };
-          console.log(`[global-auto-sync] Enriched: ${topResult.trackName}`);
+          console.log(`[global-auto-sync] iTunes Ref: ${topResult.trackName} (${itunesDurationSec}s)`);
         }
 
-        // 3. Smart-Search (YouTube)
-        // We use the enriched title/artist for a better search query
-        const ytSearchQuery = topResult 
-          ? `${topResult.artistName} ${topResult.trackName} official audio`
-          : `${song.artist} ${song.title} official audio`;
+        // 2. Refined Search Query (Level 1: Strict)
+        const searchArtist = topResult?.artistName || song.artist;
+        const searchTitle = topResult?.trackName || song.title;
+        const ytSearchQuery = `${searchArtist} - ${searchTitle} (Official Audio)`;
 
-        // Using the Invidious proxy logic for search (simplified for automation)
         const instance = 'https://iv.ggtyler.dev';
         const ytRes = await fetch(`${instance}/api/v1/search?q=${encodeURIComponent(ytSearchQuery)}`);
         const ytData = await ytRes.json();
-        const topVideo = ytData?.filter?.((v: any) => v.type === "video")[0];
+        const videos = ytData?.filter?.((v: any) => v.type === "video") || [];
 
-        if (topVideo) {
-          const youtubeUrl = `https://www.youtube.com/watch?v=${topVideo.videoId}`;
+        let matchedVideo = null;
+
+        // 3. Duration Matching (Constraint: +/- 30s)
+        if (itunesDurationSec > 0) {
+          for (const v of videos) {
+            const diff = Math.abs(v.durationSeconds - itunesDurationSec);
+            if (diff <= 30) {
+              matchedVideo = v;
+              console.log(`[global-auto-sync] Match Found: ${v.title} (Diff: ${diff}s)`);
+              break;
+            }
+          }
+        } else {
+          matchedVideo = videos[0]; // Fallback to top hit if no duration to compare
+        }
+
+        if (matchedVideo) {
+          const youtubeUrl = `https://www.youtube.com/watch?v=${matchedVideo.videoId}`;
           
-          // 4. Update Song Record with Metadata & YT URL
           await supabaseAdmin.from('repertoire').update({
             ...enrichedMetadata,
             youtube_url: youtubeUrl,
             sync_status: 'COMPLETED',
-            last_sync_log: `Successfully matched with iTunes & YouTube (${topVideo.videoId})`
+            last_sync_log: `Matched: ${matchedVideo.title} (Duration OK)`
           }).eq('id', id);
 
-          results.push({ id, status: 'SUCCESS', title: topVideo.title });
+          results.push({ id, status: 'SUCCESS', title: matchedVideo.title });
         } else {
-          throw new Error("No YouTube match found.");
+          throw new Error("No YouTube match meeting duration constraints found.");
         }
 
       } catch (err) {
@@ -106,7 +120,6 @@ serve(async (req) => {
         results.push({ id, status: 'ERROR', msg: err.message });
       }
 
-      // Small staggered delay to respect rate limits
       await new Promise(r => setTimeout(r, 1500));
     }
 
