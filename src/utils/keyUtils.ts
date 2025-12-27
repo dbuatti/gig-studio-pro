@@ -14,6 +14,10 @@ const MAPPING_TO_FLAT: Record<string, string> = {
 export const ALL_KEYS_SHARP = [...SHARP_KEYS, ...SHARP_KEYS.map(k => k + "m")];
 export const ALL_KEYS_FLAT = [...FLAT_KEYS, ...FLAT_KEYS.map(k => k + "m")];
 
+// Pure note arrays (no minors) for high note selection
+export const PURE_NOTES_SHARP = SHARP_KEYS;
+export const PURE_NOTES_FLAT = FLAT_KEYS;
+
 /**
  * Normalizes any key string to its standard shorthand (e.g., "D Major" -> "D", "C Minor" -> "Cm").
  */
@@ -101,3 +105,53 @@ export const transposeKey = (key: string | undefined, semitones: number): string
   const newRoot = SHARP_KEYS[newIdx];
   return isMinor ? `${newRoot}m` : newRoot;
 };
+
+/**
+ * Transposes a specific note (e.g. "G5") by a number of semitones.
+ */
+export function transposeNote(noteStr: string, semitones: number, pref: 'sharps' | 'flats' = 'sharps'): string {
+  const notes = pref === 'sharps' ? SHARP_KEYS : FLAT_KEYS;
+  const match = noteStr.match(/^([A-G][#b]?)([0-8])$/);
+  if (!match) return noteStr;
+  
+  const note = match[1];
+  const octave = parseInt(match[2]);
+  
+  // Normalize the input note to handle mismatching sharp/flat input vs array
+  const normalizedInputNote = (pref === 'sharps' ? (MAPPING_TO_SHARP[note] || note) : (MAPPING_TO_FLAT[note] || note));
+  
+  let index = notes.indexOf(normalizedInputNote);
+  if (index === -1) return noteStr;
+  
+  let totalSemitones = index + semitones;
+  let newIndex = totalSemitones % 12;
+  if (newIndex < 0) newIndex += 12;
+  
+  let newOctave = octave + Math.floor(totalSemitones / 12);
+  
+  // Constrain to MIDI range roughly
+  newOctave = Math.max(0, Math.min(8, newOctave));
+  
+  return `${notes[newIndex]}${newOctave}`;
+}
+
+/**
+ * Compares two notes. Returns 1 if note1 > note2, -1 if <, 0 if =.
+ */
+export function compareNotes(note1: string, note2: string): number {
+  const [n1, o1] = parseNote(note1);
+  const [n2, o2] = parseNote(note2);
+  
+  if (o1 !== o2) return o1 - o2;
+  
+  // Use sharp keys as reference for index comparison
+  const ref1 = MAPPING_TO_SHARP[n1] || n1;
+  const ref2 = MAPPING_TO_SHARP[n2] || n2;
+  
+  return SHARP_KEYS.indexOf(ref1) - SHARP_KEYS.indexOf(ref2);
+}
+
+function parseNote(note: string): [string, number] {
+  const match = note.match(/^([A-G][#b]?)([0-8])$/);
+  return match ? [match[1], parseInt(match[2])] : ['C', 4];
+}

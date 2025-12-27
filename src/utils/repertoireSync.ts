@@ -67,7 +67,8 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       ug_chords_text: song.ug_chords_text || null,
       ug_chords_config: song.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
       is_ug_chords_present: !!(song.ug_chords_text && song.ug_chords_text.trim().length > 0),
-      is_pitch_linked: song.is_pitch_linked ?? true // Map to the new DB column
+      is_pitch_linked: song.is_pitch_linked ?? true,
+      highest_note_original: song.highest_note_original || null
     }));
     
     const { data, error } = await supabase

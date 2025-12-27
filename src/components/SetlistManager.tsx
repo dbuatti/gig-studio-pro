@@ -60,6 +60,7 @@ export interface SetlistSong {
   ug_chords_text?: string;
   ug_chords_config?: UGChordsConfig;
   is_ug_chords_present?: boolean;
+  highest_note_original?: string; // New field
 }
 
 interface SetlistManagerProps {

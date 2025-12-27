@@ -7,12 +7,14 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { useSettings } from '@/hooks/use-settings';
-import { Settings2, Hash, Music2, LogOut, ShieldCheck, Zap, Coffee, Heart, Globe, User, Youtube, Key } from 'lucide-react';
+import { Settings2, Hash, Music2, LogOut, ShieldCheck, Zap, Coffee, Heart, Globe, User, Youtube, Key, ShieldAlert } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { cn } from "@/lib/utils";
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PURE_NOTES_SHARP, PURE_NOTES_FLAT } from '@/utils/keyUtils';
 
 interface PreferencesModalProps {
   isOpen: boolean;
@@ -24,6 +26,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [ytKey, setYtKey] = useState("");
+  const [safePitchMaxNote, setSafePitchMaxNote] = useState("G3");
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -33,23 +36,29 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
   }, [isOpen, user]);
 
   const fetchProfile = async () => {
-    const { data } = await supabase.from('profiles').select('youtube_api_key').eq('id', user?.id).single();
+    const { data } = await supabase.from('profiles').select('youtube_api_key, safe_pitch_max_note').eq('id', user?.id).single();
     if (data?.youtube_api_key) setYtKey(data.youtube_api_key);
+    if (data?.safe_pitch_max_note) setSafePitchMaxNote(data.safe_pitch_max_note);
   };
 
-  const handleSaveYtKey = async () => {
+  const handleSaveSettings = async () => {
     if (!user) return;
     setIsSaving(true);
     try {
-      const { error } = await supabase.from('profiles').update({ youtube_api_key: ytKey }).eq('id', user.id);
+      const { error } = await supabase.from('profiles').update({ 
+        youtube_api_key: ytKey,
+        safe_pitch_max_note: safePitchMaxNote
+      }).eq('id', user.id);
       if (error) throw error;
-      showSuccess("YouTube Integration Updated");
+      showSuccess("Preferences Updated");
     } catch (err) {
-      showError("Failed to save API key");
+      showError("Failed to save settings");
     } finally {
       setIsSaving(false);
     }
   };
+
+  const pureNotes = keyPreference === 'sharps' ? PURE_NOTES_SHARP : PURE_NOTES_FLAT;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -66,7 +75,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
           </DialogDescription>
         </DialogHeader>
 
-        <div className="py-6 space-y-6">
+        <div className="py-6 space-y-6 overflow-y-auto max-h-[60vh] custom-scrollbar px-1">
           <div className="space-y-4">
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Integrations</h4>
             <div className="p-4 bg-white/5 rounded-2xl border border-white/5 space-y-3">
@@ -92,13 +101,55 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
                 </div>
                 <Button 
                   size="sm" 
-                  onClick={handleSaveYtKey}
+                  onClick={handleSaveSettings}
                   disabled={isSaving}
                   className="bg-indigo-600 hover:bg-indigo-700 h-10 px-4 font-black uppercase text-[9px] rounded-xl"
                 >
                   {isSaving ? "..." : "Save"}
                 </Button>
               </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Stage Safety</h4>
+            <div className="p-4 bg-indigo-600/5 rounded-2xl border border-indigo-600/20 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-600/10 rounded-lg">
+                  <ShieldAlert className="w-4 h-4 text-indigo-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold">Safe Pitch Mode Target</p>
+                  <p className="text-[9px] text-slate-500 uppercase font-black">Max Allowable Ceiling Note</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Select 
+                  value={safePitchMaxNote.slice(0, -1)} 
+                  onValueChange={(note) => setSafePitchMaxNote(`${note}${safePitchMaxNote.slice(-1) || '3'}`)}
+                >
+                  <SelectTrigger className="bg-black/20 border-white/5 text-xs font-mono font-bold h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-900 border-white/10 text-white z-[300]">
+                    {pureNotes.map(n => <SelectItem key={n} value={n} className="font-mono">{n}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Select 
+                  value={safePitchMaxNote.slice(-1)} 
+                  onValueChange={(oct) => setSafePitchMaxNote(`${safePitchMaxNote.slice(0, -1) || 'G'}${oct}`)}
+                >
+                  <SelectTrigger className="w-24 bg-black/20 border-white/5 text-xs font-mono font-bold h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-900 border-white/10 text-white z-[300]">
+                    {[...Array(9)].map((_, i) => <SelectItem key={i} value={`${i}`}>{i}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <p className="text-[9px] text-slate-500 leading-relaxed font-medium uppercase tracking-tight">
+                This target will be used to calculate temporary transpositions when Safe Pitch Mode is activated on the stage.
+              </p>
             </div>
           </div>
 
@@ -167,7 +218,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
         </div>
 
         <DialogFooter>
-          <Button onClick={onClose} className="w-full bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] h-12 rounded-2xl">
+          <Button onClick={() => { handleSaveSettings(); onClose(); }} className="w-full bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] h-12 rounded-2xl">
             Apply Settings
           </Button>
         </DialogFooter>

@@ -5,11 +5,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { SetlistSong } from './SetlistManager';
-import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, calculateSemitones, formatKey, transposeKey } from '@/utils/keyUtils';
+import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, calculateSemitones, formatKey, transposeKey, transposeNote, PURE_NOTES_SHARP, PURE_NOTES_FLAT } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
 import { showSuccess, showError } from '@/utils/toast';
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
-import { Check, Hash, Music2, Link as LinkIcon, ChevronUp, ChevronDown, Sparkles, Play, Pause, RotateCcw, Activity } from 'lucide-react';
+import { Check, Hash, Music2, Link as LinkIcon, ChevronUp, ChevronDown, Sparkles, Play, Pause, RotateCcw, Activity, Music } from 'lucide-react';
 import SongAssetMatrix from './SongAssetMatrix';
 import SongTagManager from './SongTagManager';
 import SheetMusicRecommender from './SheetMusicRecommender';
@@ -54,6 +54,7 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
   const { keyPreference: globalPreference } = useSettings();
   const currentKeyPreference = formData.key_preference || globalPreference;
   const keysToUse = currentKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
+  const pureNotes = currentKeyPreference === 'sharps' ? PURE_NOTES_SHARP : PURE_NOTES_FLAT;
 
   // Logic: When Stage Key changes, if Linked is ON, update pitch to match semitone delta
   const updateHarmonics = useCallback((updates: Partial<SetlistSong>) => {
@@ -116,7 +117,7 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
       )}
 
       {/* Harmonic Engine Section */}
-      <div className="space-y-4">
+      <div className="space-y-6">
         <div className="flex items-center justify-between">
           <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Harmonic Engine</Label>
           <TooltipProvider>
@@ -218,6 +219,47 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
                 {keysToUse.map(k => <SelectItem key={k} value={k} className="font-mono">{k}</SelectItem>)}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Highest Note Original Tracking */}
+          <div className="space-y-2 pt-2 border-t border-white/5">
+            <Label className="text-[9px] font-bold text-indigo-400 uppercase">Highest Note (Original)</Label>
+            <div className="flex gap-2">
+              <Select 
+                value={formData.highest_note_original?.slice(0, -1) || "C"} 
+                onValueChange={(note) => 
+                  handleAutoSave({ highest_note_original: `${note}${formData.highest_note_original?.slice(-1) || '4'}` })
+                }
+              >
+                <SelectTrigger className="w-full bg-white/5 border-white/10 text-white font-bold font-mono h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-900 border-white/10 text-white z-[300]">
+                  {pureNotes.map(n => <SelectItem key={n} value={n} className="font-mono">{n}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select 
+                value={formData.highest_note_original?.slice(-1) || "4"} 
+                onValueChange={(oct) => 
+                  handleAutoSave({ highest_note_original: `${formData.highest_note_original?.slice(0, -1) || 'C'}${oct}` })
+                }
+              >
+                <SelectTrigger className="w-24 bg-white/5 border-white/10 text-white font-bold font-mono h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-900 border-white/10 text-white z-[300]">
+                  {[...Array(9)].map((_, i) => <SelectItem key={i} value={`${i}`}>{i}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            {formData.highest_note_original && (
+              <div className="flex items-center gap-2 mt-2 px-1">
+                <Music className="w-3 h-3 text-emerald-400" />
+                <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">
+                  Stage Max: <span className="text-white font-mono">{transposeNote(formData.highest_note_original, formData.pitch || 0, currentKeyPreference)}</span>
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -111,7 +111,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({ gigId, songId, onClose,
       
       saveTimeoutRef.current = setTimeout(async () => {
         try {
-          const masterFields = ['name', 'artist', 'previewUrl', 'youtubeUrl', 'originalKey', 'targetKey', 'pitch', 'bpm', 'lyrics', 'pdfUrl', 'ugUrl', 'isMetadataConfirmed', 'isKeyConfirmed', 'isApproved', 'duration_seconds', 'preferred_reader', 'ug_chords_text', 'ug_chords_config', 'is_pitch_linked'];
+          const masterFields = ['name', 'artist', 'previewUrl', 'youtubeUrl', 'originalKey', 'targetKey', 'pitch', 'bpm', 'lyrics', 'pdfUrl', 'ugUrl', 'isMetadataConfirmed', 'isKeyConfirmed', 'isApproved', 'duration_seconds', 'preferred_reader', 'ug_chords_text', 'ug_chords_config', 'is_pitch_linked', 'highest_note_original'];
           const needsMasterSync = Object.keys(updates).some(key => masterFields.includes(key));
           
           let updatedSong = { ...song, ...next };
