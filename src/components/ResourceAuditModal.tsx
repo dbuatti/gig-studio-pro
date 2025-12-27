@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -30,6 +30,9 @@ import { SetlistSong } from './SetlistManager';
 import { cn } from '@/lib/utils';
 import { sanitizeUGUrl } from '@/utils/ugUtils';
 import { showSuccess, showError } from '@/utils/toast';
+import { isChordLine, transposeChords } from '@/utils/chordUtils'; // Import chord utilities
+import { calculateSemitones, formatKey } from '@/utils/keyUtils'; // Import key utilities
+import { useSettings } from '@/hooks/use-settings'; // Import useSettings
 
 interface ResourceAuditModalProps {
   isOpen: boolean;
@@ -43,11 +46,13 @@ type AuditTab = 'ug' | 'sheets';
 type AuditFilter = 'all' | 'missing-content' | 'missing-link' | 'unverified';
 
 const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose, songs, onVerify }) => {
+  const { keyPreference } = useSettings(); // Get global key preference
   const [activeTab, setActiveTab] = useState<AuditTab>('ug');
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState<AuditFilter>('unverified');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [hoveredSongId, setHoveredSongId] = useState<string | null>(null); // State for hotkey support
 
   const auditList = useMemo(() => {
     return songs.filter(s => {
@@ -106,13 +111,70 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
     setEditValue(currentUrl || "");
     
     const query = encodeURIComponent(`${song.artist || ''} ${song.name} ${activeTab === 'ug' ? 'chords' : 'sheet music pdf'}`);
-    // Corrected: Navigate to Ultimate Guitar search for UG tabs, Google for other sheets
     if (activeTab === 'ug') {
       window.open(`https://www.ultimate-guitar.com/search.php?search_type=title&value=${query}`, '_blank');
     } else {
       window.open(`https://www.google.com/search?q=${query}`, '_blank');
     }
   };
+
+  const handlePasteToAudit = useCallback(async (song: SetlistSong) => {
+    try {
+      const clipboardText = await navigator.clipboard.readText();
+      if (!clipboardText.trim()) {
+        showError("Clipboard is empty.");
+        return;
+      }
+
+      // 1. Chord Detection
+      if (!isChordLine(clipboardText) && !clipboardText.includes('[Verse]') && !clipboardText.includes('[Chorus]')) {
+        showError("Clipboard content does not appear to be chord data.");
+        return;
+      }
+
+      // 2. Real-Time Transposition & Notation Formatting
+      let processedChords = clipboardText;
+      const originalKey = song.originalKey || 'C'; // Default to C if not set
+      const targetKey = song.targetKey || originalKey; // Default to original if not set
+      const semitones = calculateSemitones(originalKey, targetKey);
+
+      if (semitones !== 0) {
+        processedChords = transposeChords(processedChords, semitones, keyPreference);
+      }
+      // The transposeChords function already handles the keyPreference for sharps/flats.
+
+      // 3. Data Injection & UI Refresh
+      onVerify(song.id, {
+        ug_chords_text: processedChords,
+        is_ug_chords_present: true,
+        is_ug_link_verified: true, // Assume verified if manually pasted
+        isMetadataConfirmed: true, // Update readiness level
+      });
+      showSuccess(`Chords for "${song.name}" pasted & verified!`);
+
+    } catch (err) {
+      console.error("Failed to paste chords:", err);
+      showError("Failed to paste chords. Ensure clipboard access is granted.");
+    }
+  }, [onVerify, keyPreference]); // Added onVerify and keyPreference to dependencies
+
+  // Hotkey support for Cmd/Ctrl + V
+  useEffect(() => {
+    const handleKeyDown = async (event: KeyboardEvent) => {
+      if (isOpen && (event.metaKey || event.ctrlKey) && event.key === 'v') {
+        event.preventDefault();
+        if (hoveredSongId && activeTab === 'ug' && activeFilter === 'missing-content') {
+          const songToPaste = songs.find(s => s.id === hoveredSongId);
+          if (songToPaste) {
+            await handlePasteToAudit(songToPaste);
+          }
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, hoveredSongId, activeTab, activeFilter, handlePasteToAudit, songs]);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -204,9 +266,15 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
                 const sheetUrl = (song as any).sheet_music_url || song.pdfUrl || song.leadsheetUrl;
                 const hasLink = activeTab === 'ug' ? !!song.ugUrl : !!sheetUrl;
                 const isVerified = activeTab === 'ug' ? song.is_ug_link_verified : (song as any).is_sheet_verified;
+                const hasChords = !!song.ug_chords_text && song.ug_chords_text.trim() !== "";
 
                 return (
-                  <div key={song.id} className="p-4 bg-white/5 border border-white/5 rounded-2xl flex flex-col gap-4 group hover:bg-white/10 transition-all">
+                  <div 
+                    key={song.id} 
+                    className="p-4 bg-white/5 border border-white/5 rounded-2xl flex flex-col gap-4 group hover:bg-white/10 transition-all"
+                    onMouseEnter={() => setHoveredSongId(song.id)}
+                    onMouseLeave={() => setHoveredSongId(null)}
+                  >
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div className="flex items-start gap-4 min-w-0 flex-1">
                         <div className="bg-slate-800 p-2.5 rounded-xl text-slate-500">
@@ -226,6 +294,14 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
                           </div>
                         ) : (
                           <>
+                            {activeTab === 'ug' && activeFilter === 'missing-content' && !hasChords && (
+                              <Button 
+                                onClick={() => handlePasteToAudit(song)}
+                                className="h-10 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] rounded-xl gap-2 shadow-lg shadow-indigo-600/20"
+                              >
+                                <ClipboardPaste className="w-4 h-4" /> Paste Chords
+                              </Button>
+                            )}
                             {hasLink && (
                               <Button variant="ghost" size="sm" onClick={() => window.open(activeTab === 'ug' ? song.ugUrl : sheetUrl, '_blank')} className="h-9 px-3 bg-white/5 text-white font-bold text-[9px] uppercase rounded-xl gap-2">
                                 <ExternalLink className="w-3.5 h-3.5" /> Test
