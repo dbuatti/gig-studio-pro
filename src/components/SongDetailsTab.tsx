@@ -80,11 +80,7 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
   const handleUgBlur = () => {
     if (localUgUrl !== formData.ugUrl) {
       const cleanUrl = sanitizeUGUrl(localUgUrl);
-      // Presence-based verification: Set verified flag based on URL presence
-      handleAutoSave({ 
-        ugUrl: cleanUrl, 
-        is_ug_link_verified: !!cleanUrl 
-      });
+      handleAutoSave({ ugUrl: cleanUrl });
       showSuccess("UG Link Saved");
     }
     setIsUgModified(false);
@@ -105,7 +101,6 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
   const handleSheetBlur = () => {
     const currentSheetUrl = formData.sheet_music_url || formData.pdfUrl || formData.leadsheetUrl || "";
     if (localSheetUrl !== currentSheetUrl) {
-      // Presence-based verification: Set verified flag based on URL presence
       handleAutoSave({ 
         sheet_music_url: localSheetUrl,
         is_sheet_verified: !!localSheetUrl 
@@ -154,7 +149,7 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
             <div className="flex gap-2">
               {isUgVerified ? (
                 <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-500 text-[8px] font-black uppercase flex items-center gap-1">
-                  <Check className="w-2.5 h-2.5" /> Verified
+                  <Check className="w-2.5 h-2.5" /> Linked
                 </Badge>
               ) : isUgModified ? (
                 <Badge variant="secondary" className="bg-amber-500/10 text-amber-500 text-[8px] font-black uppercase flex items-center gap-1">
@@ -198,7 +193,7 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
             <div className="flex gap-2">
               {isSheetVerified ? (
                 <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-500 text-[8px] font-black uppercase flex items-center gap-1">
-                  <Check className="w-2.5 h-2.5" /> Verified
+                  <Check className="w-2.5 h-2.5" /> Linked
                 </Badge>
               ) : isSheetModified ? (
                 <Badge variant="secondary" className="bg-amber-500/10 text-amber-500 text-[8px] font-black uppercase flex items-center gap-1">

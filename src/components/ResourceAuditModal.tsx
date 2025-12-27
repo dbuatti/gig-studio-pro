@@ -74,7 +74,7 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
         
         switch (activeFilter) {
           case 'missing-content': 
-            // NEW LOGIC: Has link but missing chords text
+            // Has link but missing chords text
             return hasLink && !hasChords;
           case 'missing-link': 
             return !hasLink;
@@ -82,7 +82,6 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
             return true;
           case 'unverified':
           default: 
-            // Deprecated: Treat as 'all' since verification is presence-based
             return true;
         }
       } else {
@@ -100,18 +99,14 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
     });
   }, [songs, searchTerm, activeFilter, activeTab]);
 
-  // Deprecated: Verification is now presence-based. 
-  // This function now just handles the "Paste Chords" workflow or re-binding links.
   const handleVerify = (song: SetlistSong, customUrl?: string) => {
     if (activeTab === 'ug') {
       const urlToVerify = customUrl || song.ugUrl;
       if (!urlToVerify) return;
-      // Presence-based: Just save the URL, verification flag is set automatically by sync logic
       onVerify(song.id, { ugUrl: sanitizeUGUrl(urlToVerify) }); 
     } else {
       const urlToVerify = customUrl || (song as any).sheet_music_url || song.pdfUrl || song.leadsheetUrl;
       if (!urlToVerify) return;
-      // Presence-based: Just save the URL
       onVerify(song.id, { sheet_music_url: urlToVerify } as any);
     }
     

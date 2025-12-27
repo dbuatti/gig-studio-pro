@@ -101,7 +101,6 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       highest_note_original: song.highest_note_original || null,
       is_approved: song.isApproved || false,
       // Presence-based verification: Set to true if URL exists
-      is_ug_link_verified: (song.ugUrl && song.ugUrl.length > 0) || false,
       sheet_music_url: song.sheet_music_url || null,
       // Presence-based verification: Set to true if URL exists
       is_sheet_verified: ((song.sheet_music_url || song.pdfUrl || song.leadsheetUrl || "").length > 0) || false,
