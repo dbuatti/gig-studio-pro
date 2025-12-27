@@ -27,9 +27,10 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useKeyboardNavigation } from '@/hooks/use-keyboard-navigation';
-import SetlistMultiSelector from './SetlistMultiSelector'; // Import the new component
+import SetlistMultiSelector from '@/components/SetlistMultiSelector'; // FIX: Corrected import path
 import { useSettings } from '@/hooks/use-settings'; // Import useSettings
 import { useHarmonicSync } from '@/hooks/use-harmonic-sync'; // NEW: Import useHarmonicSync
+import { useParams, useNavigate } from 'react-router-dom'; // ADDED: Required for routing fix
 
 type StudioTab = 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library';
 
@@ -402,4 +403,31 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   );
 };
 
-export default SongStudioView;
+// FIX TS2739: Create a wrapper component that extracts props from the route
+const SongStudio = () => {
+  const { gigId, songId } = useParams<{ gigId: string; songId: string }>();
+  const navigate = useNavigate();
+
+  const handleClose = useCallback(() => {
+    navigate(-1);
+  }, [navigate]);
+
+  if (!gigId || !songId) {
+    return <div className="h-full flex items-center justify-center text-white">Loading or Invalid Route...</div>;
+  }
+
+  // Pass required props, using defaults for optional props not available in route context
+  return (
+    <SongStudioView 
+      gigId={gigId} 
+      songId={songId} 
+      onClose={handleClose} 
+      visibleSongs={[]}
+      allSetlists={[]}
+      masterRepertoire={[]}
+      onUpdateSetlistSongs={async () => {}}
+    />
+  );
+};
+
+export default SongStudio;
