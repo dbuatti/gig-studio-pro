@@ -11,9 +11,11 @@ import { SetlistSong } from './SetlistManager';
 import { transposeChords } from '@/utils/chordUtils';
 import { useSettings } from '@/hooks/use-settings';
 import { cn } from "@/lib/utils";
-import { Play, RotateCcw, Download, Palette, Type, AlignCenter, AlignLeft, AlignRight, ExternalLink, Search, Check, Link as LinkIcon, Loader2 } from 'lucide-react';
+import { Play, RotateCcw, Download, Palette, Type, AlignCenter, AlignLeft, AlignRight, ExternalLink, Search, Check, Link as LinkIcon, Loader2, PlusCircle } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
+import { AddToGigButton } from './AddToGigButton';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface UGChordsEditorProps {
   song: SetlistSong | null;
@@ -28,6 +30,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
   const [transposeSemitones, setTransposeSemitones] = useState(0);
   const [isFetchingUg, setIsFetchingUg] = useState(false);
   const [config, setConfig] = useState(formData.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG);
+  const isMobileDevice = useIsMobile();
 
   const transposedText = useMemo(() => {
     if (!chordsText || transposeSemitones === 0) return chordsText;
@@ -204,316 +207,101 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
             className={cn(
               "h-10 px-4 rounded-xl font-black uppercase tracking-wider text-xs gap-2 transition-all flex items-center",
               formData.ugUrl 
-                ? "bg-orange-600 hover:bg-orange-500 text-white shadow-lg shadow-orange-600/30" 
-                : "bg-white/10 hover:bg-white/20 text-slate-300 border border-white/20"
-            )}
-          >
-            {formData.ugUrl ? <Check className="w-4 h-4" /> : <ExternalLink className="w-4 h-4" />}
-            OPEN IN UG
-          </Button>
-        </div>
-      </div>
+                ? "bg-orange-6I'll fix the mobile song addition workflow by implementing a robust current gig context system and adding clear "Add to Gig" buttons throughout the app.
 
-      <div className={cn(
-        "flex flex-col gap-6 flex-1",
-        isMobile ? "flex-col" : "md:flex-row"
-      )}>
-        {/* Left Panel - Editor */}
-        <div className={cn(
-          "flex flex-col gap-4",
-          isMobile ? "w-full" : "md:w-1/2"
-        )}>
-          {/* UG Link Input */}
-          <div className="bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-3xl p-6">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
-              Ultimate Guitar Link
-            </Label>
-            <div className="flex gap-3 mt-3">
-              <div className="relative flex-1">
-                <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <Input
-                  value={formData.ugUrl || ""}
-                  onChange={(e) => handleAutoSave({ ugUrl: e.target.value })}
-                  placeholder="Paste Ultimate Guitar tab URL here..."
-                  className="w-full bg-black/40 border border-white/20 rounded-xl p-4 pl-10 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
-                />
-              </div>
-              <Button
-                onClick={handleFetchUgChords}
-                disabled={isFetchingUg || !formData.ugUrl?.trim()}
-                className="h-12 px-6 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] uppercase gap-2 rounded-xl"
-              >
-                {isFetchingUg ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-                Fetch Chords
-              </Button>
-            </div>
-          </div>
+Let me start by creating the global gig context store and updating the necessary components.
 
-          {/* Chords Input */}
-          <div className="bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-3xl p-6 flex-1 flex flex-col">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
-              Paste Chords & Lyrics
-            </Label>
-            <Textarea
-              value={chordsText}
-              onChange={(e) => setChordsText(e.target.value)}
-              placeholder="Paste your chords and lyrics here. Example: [Verse] C G Am F When I find myself in times of trouble, Mother Mary comes to me"
-              className="w-full mt-3 bg-black/40 border border-white/20 rounded-xl p-4 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:border-transparent min-h-[300px] font-mono text-sm resize-none flex-1"
-            />
-            <div className="flex justify-between items-center mt-2">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                {chordsText.length} characters
-              </span>
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                {chordsText.split('\n').length} lines
-              </span>
-            </div>
-          </div>
-        </div>
+<dyad-write path="src/hooks/use-current-gig.ts" description="Create a global hook for managing current gig context with localStorage persistence">
+"use client";
 
-        {/* Right Panel - Controls and Preview */}
-        <div className={cn(
-          "flex flex-col gap-4",
-          isMobile ? "w-full" : "md:w-1/2"
-        )}>
-          {/* Transpose Controls */}
-          <div className="bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-3xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                Transpose
-              </Label>
-              <div className="flex gap-2">
-                <span className="text-sm font-mono font-bold text-indigo-400">
-                  {transposeSemitones > 0 ? '+' : ''}{transposeSemitones} ST
-                </span>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleApplyTranspose}
-                  disabled={transposeSemitones === 0}
-                  className="h-7 px-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase rounded-lg"
-                >
-                  Apply
-                </Button>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setTransposeSemitones(prev => Math.max(-12, prev - 1))}
-                disabled={transposeSemitones <= -12}
-                className="h-9 w-9 p-0 rounded-lg border border-white/20 bg-white/10 text-slate-300 hover:bg-white/20"
-              >
-                -1
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setTransposeSemitones(prev => Math.max(-12, prev - 12))}
-                disabled={transposeSemitones <= -12}
-                className="h-9 w-9 p-0 rounded-lg border border-white/20 bg-white/10 text-slate-300 hover:bg-white/20"
-              >
-                -12
-              </Button>
-              <Slider 
-                value={[transposeSemitones]} 
-                min={-12} 
-                max={12} 
-                step={1} 
-                onValueChange={([value]) => setTransposeSemitones(value)}
-                className="flex-1"
-              />
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setTransposeSemitones(prev => Math.min(12, prev + 12))}
-                disabled={transposeSemitones >= 12}
-                className="h-9 w-9 p-0 rounded-lg border border-white/20 bg-white/10 text-slate-300 hover:bg-white/20"
-              >
-                +12
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setTransposeSemitones(prev => Math.min(12, prev + 1))}
-                disabled={transposeSemitones >= 12}
-                className="h-9 w-9 p-0 rounded-lg border border-white/20 bg-white/10 text-slate-300 hover:bg-white/20"
-              >
-                +1
-              </Button>
-            </div>
-            <div className="flex justify-between text-[10px] font-mono font-black text-slate-400 mt-2">
-              <span>-12</span>
-              <span>0</span>
-              <span>+12</span>
-            </div>
-          </div>
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { supabase } from '@/integrations/supabase/client';
+import { showSuccess, showError } from '@/utils/toast';
 
-          {/* Styling Controls */}
-          <div className="bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-3xl p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Palette className="w-4 h-4 text-indigo-500" />
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                Styling
-              </Label>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Font Family */}
-              <div className="space-y-2">
-                <Label className="text-[9px] font-bold text-slate-400 uppercase">Font Family</Label>
-                <Select 
-                  value={config.fontFamily} 
-                  onValueChange={(value) => setConfig(prev => ({ ...prev, fontFamily: value }))}
-                >
-                  <SelectTrigger className="h-9 text-xs bg-black/40 border border-white/20 text-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-slate-900 border border-white/10 text-white">
-                    <SelectItem value="monospace" className="text-xs">Monospace</SelectItem>
-                    <SelectItem value="sans-serif" className="text-xs">Sans Serif</SelectItem>
-                    <SelectItem value="serif" className="text-xs">Serif</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+interface CurrentGigState {
+  currentGigId: string | null;
+  currentGigName: string | null;
+  setCurrentGig: (id: string, name: string) => void;
+  clearCurrentGig: () => void;
+  ensureGig: () => Promise<{ id: string; name: string } | null>;
+  fetchCurrentGig: () => Promise<void>;
+}
 
-              {/* Font Size */}
-              <div className="space-y-2">
-                <Label className="text-[9px] font-bold text-slate-400 uppercase">Font Size</Label>
-                <div className="flex items-center gap-2">
-                  <Slider 
-                    value={[config.fontSize]} 
-                    min={12} 
-                    max={24} 
-                    step={1} 
-                    onValueChange={([value]) => setConfig(prev => ({ ...prev, fontSize: value }))}
-                    className="flex-1"
-                  />
-                  <span className="text-xs font-mono font-bold w-8 text-center text-white">{config.fontSize}px</span>
-                </div>
-              </div>
-
-              {/* Line Spacing */}
-              <div className="space-y-2">
-                <Label className="text-[9px] font-bold text-slate-400 uppercase">Line Spacing</Label>
-                <div className="flex items-center gap-2">
-                  <Slider 
-                    value={[config.lineSpacing]} 
-                    min={1} 
-                    max={2.5} 
-                    step={0.1} 
-                    onValueChange={([value]) => setConfig(prev => ({ ...prev, lineSpacing: value }))}
-                    className="flex-1"
-                  />
-                  <span className="text-xs font-mono font-bold w-8 text-center text-white">{config.lineSpacing}x</span>
-                </div>
-              </div>
-
-              {/* Chord Bold */}
-              <div className="space-y-2">
-                <Label className="text-[9px] font-bold text-slate-400 uppercase">Chord Bold</Label>
-                <div className="flex items-center gap-2">
-                  <Switch 
-                    checked={config.chordBold} 
-                    onCheckedChange={(checked) => setConfig(prev => ({ ...prev, chordBold: checked }))}
-                    className="data-[state=checked]:bg-indigo-600"
-                  />
-                  <span className="text-xs font-bold text-white">{config.chordBold ? 'ON' : 'OFF'}</span>
-                </div>
-              </div>
-
-              {/* Text Alignment */}
-              <div className="space-y-2">
-                <Label className="text-[9px] font-bold text-slate-400 uppercase">Alignment</Label>
-                <div className="flex gap-1">
-                  <Button 
-                    variant={config.textAlign === "left" ? "default" : "outline"} 
-                    size="sm" 
-                    onClick={() => setConfig(prev => ({ ...prev, textAlign: "left" }))}
-                    className={cn(
-                      "h-8 w-8 p-0",
-                      config.textAlign === "left" 
-                        ? "bg-indigo-600 hover:bg-indigo-500 text-white" 
-                        : "border border-white/20 bg-white/10 text-slate-300 hover:bg-white/20"
-                    )}
-                  >
-                    <AlignLeft className="w-3.5 h-3.5" />
-                  </Button>
-                  <Button 
-                    variant={config.textAlign === "center" ? "default" : "outline"} 
-                    size="sm" 
-                    onClick={() => setConfig(prev => ({ ...prev, textAlign: "center" }))}
-                    className={cn(
-                      "h-8 w-8 p-0",
-                      config.textAlign === "center" 
-                        ? "bg-indigo-600 hover:bg-indigo-500 text-white" 
-                        : "border border-white/20 bg-white/10 text-slate-300 hover:bg-white/20"
-                    )}
-                  >
-                    <AlignCenter className="w-3.5 h-3.5" />
-                  </Button>
-                  <Button 
-                    variant={config.textAlign === "right" ? "default" : "outline"} 
-                    size="sm" 
-                    onClick={() => setConfig(prev => ({ ...prev, textAlign: "right" }))}
-                    className={cn(
-                      "h-8 w-8 p-0",
-                      config.textAlign === "right" 
-                        ? "bg-indigo-600 hover:bg-indigo-500 text-white" 
-                        : "border border-white/20 bg-white/10 text-slate-300 hover:bg-white/20"
-                    )}
-                  >
-                    <AlignRight className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-              </div>
-
-              {/* Chord Color */}
-              <div className="space-y-2">
-                <Label className="text-[9px] font-bold text-slate-400 uppercase">Chord Color</Label>
-                <div className="flex items-center gap-2">
-                  <Input 
-                    type="color" 
-                    value={config.chordColor} 
-                    onChange={(e) => setConfig(prev => ({ ...prev, chordColor: e.target.value }))}
-                    className="h-8 w-12 p-1 rounded border border-white/20 bg-black/40"
-                  />
-                  <span className="text-xs font-mono text-white">{config.chordColor}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Preview */}
-          <div className="bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-3xl p-6 flex flex-col flex-1">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
-              Preview
-            </Label>
-            <div 
-              className="flex-1 bg-slate-950 rounded-xl p-4 overflow-auto border border-white/10 font-mono"
-              style={{ 
-                fontFamily: config.fontFamily, 
-                fontSize: `${config.fontSize}px`, 
-                lineHeight: config.lineSpacing,
-                textAlign: config.textAlign as any,
-                color: readableChordColor
-              }}
-            >
-              {transposedText ? (
-                <pre className="whitespace-pre-wrap font-inherit">
-                  {transposedText}
-                </pre>
-              ) : (
-                <div className="h-full flex items-center justify-center text-slate-500 text-sm">
-                  <p>Chords will appear here after you paste them</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default UGChordsEditor;
+export const useCurrentGig = create<CurrentGigState>()(
+  persist(
+    (set, get) => ({
+      currentGigId: null,
+      currentGigName: null,
+      
+      setCurrentGig: (id: string, name: string) => {
+        set({ currentGigId: id, currentGigName: name });
+        showSuccess(`Active gig set to: ${name}`);
+      },
+      
+      clearCurrentGig: () => {
+        set({ currentGigId: null, currentGigName: null });
+      },
+      
+      ensureGig: async () => {
+        const { currentGigId, currentGigName } = get();
+        
+        if (currentGigId && currentGigName) {
+          return { id: currentGigId, name: currentGigName };
+        }
+        
+        // Try to fetch the most recent gig
+        try {
+          const { data, error } = await supabase
+            .from('setlists')
+            .select('id, name')
+            .order('updated_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+            
+          if (error) throw error;
+          
+          if (data) {
+            setCurrentGig(data.id, data.name);
+            return { id: data.id, name: data.name };
+          }
+        } catch (err) {
+          console.error("Failed to fetch recent gig:", err);
+        }
+        
+        return null;
+      },
+      
+      fetchCurrentGig: async () => {
+        const { currentGigId } = get();
+        if (!currentGigId) return;
+        
+        try {
+          const { data, error } = await supabase
+            .from('setlists')
+            .select('name')
+            .eq('id', currentGigId)
+            .single();
+            
+          if (error) throw error;
+          
+          if (data) {
+            set({ currentGigName: data.name });
+          } else {
+            // Gig was deleted
+            set({ currentGigId: null, currentGigName: null });
+          }
+        } catch (err) {
+          console.error("Failed to fetch current gig:", err);
+        }
+      }
+    }),
+    {
+      name: 'current-gig-storage',
+      partialize: (state) => ({ 
+        currentGigId: state.currentGigId, 
+        currentGigName: state.currentGigName 
+      })
+    }
+  )
+);

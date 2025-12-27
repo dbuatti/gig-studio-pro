@@ -10,6 +10,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { cn } from "@/lib/utils";
 import { formatKey } from '@/utils/keyUtils';
 import { useSettings } from '@/hooks/use-settings';
+import { AddToGigButton } from './AddToGigButton';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface GlobalLibraryProps {
   onImport: (song: Partial<SetlistSong>) => void;
@@ -20,6 +22,7 @@ const GlobalLibrary: React.FC<GlobalLibraryProps> = ({ onImport }) => {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const isMobileDevice = useIsMobile();
 
   const searchGlobal = async (searchTerm: string) => {
     if (!searchTerm.trim()) {
@@ -115,28 +118,52 @@ const GlobalLibrary: React.FC<GlobalLibraryProps> = ({ onImport }) => {
                       <span className="text-[10px] font-mono font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
                         {displayKey}
                       </span>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => onImport({
-                          name: song.title,
-                          artist: song.artist,
-                          originalKey: song.original_key,
-                          targetKey: song.target_key,
-                          bpm: song.bpm,
-                          lyrics: song.lyrics,
-                          previewUrl: song.preview_url,
-                          youtubeUrl: song.youtube_url,
-                          ugUrl: song.ug_url,
-                          pdfUrl: song.pdf_url,
-                          user_tags: song.user_tags,
-                          duration_seconds: song.duration_seconds,
-                          isMetadataConfirmed: true
-                        })}
-                        className="h-8 px-3 text-[9px] font-black uppercase bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-xl gap-1.5 transition-all"
-                      >
-                        <Plus className="w-3 h-3" /> Clone Track
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => onImport({
+                            name: song.title,
+                            artist: song.artist,
+                            originalKey: song.original_key,
+                            targetKey: song.target_key,
+                            bpm: song.bpm,
+                            lyrics: song.lyrics,
+                            previewUrl: song.preview_url,
+                            youtubeUrl: song.youtube_url,
+                            ugUrl: song.ug_url,
+                            pdfUrl: song.pdf_url,
+                            user_tags: song.user_tags,
+                            duration_seconds: song.duration_seconds,
+                            isMetadataConfirmed: true
+                          })}
+                          className="h-8 px-3 text-[9px] font-black uppercase bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-xl gap-1.5 transition-all"
+                        >
+                          <Plus className="w-3 h-3" /> Clone
+                        </Button>
+                        {/* NEW: Add to Gig Button */}
+                        <AddToGigButton
+                          songData={{
+                            name: song.title,
+                            artist: song.artist,
+                            originalKey: song.original_key,
+                            targetKey: song.target_key,
+                            bpm: song.bpm,
+                            lyrics: song.lyrics,
+                            previewUrl: song.preview_url,
+                            youtubeUrl: song.youtube_url,
+                            ugUrl: song.ug_url,
+                            pdfUrl: song.pdf_url,
+                            user_tags: song.user_tags,
+                            duration_seconds: song.duration_seconds,
+                            isMetadataConfirmed: true
+                          }}
+                          onAdded={() => {}}
+                          className="h-8 px-3 text-[9px] font-black uppercase bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-xl gap-1.5 transition-all"
+                          size="sm"
+                          variant="ghost"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -164,6 +191,33 @@ const GlobalLibrary: React.FC<GlobalLibraryProps> = ({ onImport }) => {
           )}
         </div>
       </ScrollArea>
+
+      {/* NEW: Add to Gig Button for Mobile */}
+      {isMobileDevice && results.length > 0 && (
+        <div className="sticky bottom-0 bg-slate-950/95 backdrop-blur-xl border-t border-white/10 p-4 pb-safe -mx-4">
+          <AddToGigButton
+            songData={{
+              name: results[0]?.title || '',
+              artist: results[0]?.artist || '',
+              originalKey: results[0]?.original_key,
+              targetKey: results[0]?.target_key,
+              bpm: results[0]?.bpm,
+              lyrics: results[0]?.lyrics,
+              previewUrl: results[0]?.preview_url,
+              youtubeUrl: results[0]?.youtube_url,
+              ugUrl: results[0]?.ug_url,
+              pdfUrl: results[0]?.pdf_url,
+              user_tags: results[0]?.user_tags,
+              duration_seconds: results[0]?.duration_seconds,
+              isMetadataConfirmed: true
+            }}
+            onAdded={() => {}}
+            className="w-full h-14 text-base font-black uppercase tracking-widest gap-3"
+            size="lg"
+            variant="default"
+          />
+        </div>
+      )}
     </div>
   );
 };

@@ -8,6 +8,8 @@ import { Search } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SetlistSong } from './SetlistManager';
+import { AddToGigButton } from './AddToGigButton';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 // Memoized input component for better performance
 const StudioInput = React.memo(({ label, value, onChange, placeholder, className, isTextarea = false, type = "text" }: {
@@ -61,6 +63,8 @@ interface SongDetailsTabProps {
 }
 
 const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSave, isMobile }) => {
+  const isMobileDevice = useIsMobile();
+
   return (
     <div className="space-y-10 animate-in fade-in duration-500">
       <div className={cn("grid gap-10", isMobile ? "grid-cols-1" : "grid-cols-2")}>
@@ -84,6 +88,19 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
         </div>
       </div>
       <StudioInput label="Stage Notes" isTextarea value={formData.notes} onChange={(val: string) => handleAutoSave({ notes: val })} placeholder="Cues..." className={cn("bg-white/5 border-white/10 text-lg leading-relaxed p-8", isMobile ? "min-h-[200px] rounded-2xl" : "min-h-[350px] rounded-[2.5rem]")} />
+      
+      {/* NEW: Add to Gig Button for Mobile */}
+      {isMobileDevice && (
+        <div className="sticky bottom-0 bg-slate-950/95 backdrop-blur-xl border-t border-white/10 p-4 pb-safe -mx-4">
+          <AddToGigButton
+            songData={formData}
+            onAdded={() => {}}
+            className="w-full h-14 text-base font-black uppercase tracking-widest gap-3"
+            size="lg"
+            variant="default"
+          />
+        </div>
+      )}
     </div>
   );
 };

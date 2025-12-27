@@ -7,6 +7,8 @@ import { Music, FileText, Guitar, Sparkles, Check, ChevronDown, ExternalLink } f
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { SetlistSong } from './SetlistManager';
+import { AddToGigButton } from './AddToGigButton';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface SheetMusicRecommenderProps {
   song: SetlistSong | null;
@@ -25,6 +27,7 @@ const SheetMusicRecommender: React.FC<SheetMusicRecommenderProps> = ({
 }) => {
   const [recommendedReader, setRecommendedReader] = useState<ReaderType>(null);
   const [isManualOverride, setIsManualOverride] = useState(false);
+  const isMobileDevice = useIsMobile();
 
   // Determine recommendation based on song metadata
   useEffect(() => {
@@ -186,6 +189,19 @@ const SheetMusicRecommender: React.FC<SheetMusicRecommenderProps> = ({
           }
         </p>
       </div>
+
+      {/* NEW: Add to Gig Button for Mobile */}
+      {isMobileDevice && (
+        <div className="sticky bottom-0 bg-slate-950/95 backdrop-blur-xl border-t border-white/10 p-4 pb-safe -mx-4">
+          <AddToGigButton
+            songData={formData}
+            onAdded={() => {}}
+            className="w-full h-14 text-base font-black uppercase tracking-widest gap-3"
+            size="lg"
+            variant="default"
+          />
+        </div>
+      )}
     </div>
   );
 };

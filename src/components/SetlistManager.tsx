@@ -1,10 +1,10 @@
 "use client";
 import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, CircleDashed, CheckCircle2, Volume2, ChevronUp, ChevronDown, Search, LayoutList, SortAsc, SortDesc, ClipboardList, Clock, ShieldCheck, Check, MoreVertical, Settings2, FileText, Filter, AlertTriangle, Loader2, Guitar } from 'lucide-react';
+import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, CircleDashed, CheckCircle2, Volume2, ChevronUp, ChevronDown, Search, LayoutList, SortAsc, SortDesc, ClipboardList, Clock, ShieldCheck, Check, MoreVertical, Settings2, FileText, Filter, AlertTriangle, Loader2, Guitar, Plus, PlusCircle } from 'lucide-react';
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, formatKey, transposeKey, calculateSemitones } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
-import { showSuccess } from '@/utils/toast';
+import { showSuccess, showError } from '@/utils/toast';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
@@ -14,6 +14,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import SetlistFilters, { FilterState } from './SetlistFilters';
 import { calculateReadiness } from '@/utils/repertoireSync';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useCurrentGig } from '@/hooks/use-current-gig';
+import { useAuth } from './AuthProvider';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface UGChordsConfig {
   fontFamily: string;
@@ -93,7 +96,9 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   onOpenAdmin
 }) => {
   const isMobile = useIsMobile();
+  const { user } = useAuth();
   const { keyPreference: globalPreference } = useSettings();
+  const { currentGigId, currentGigName, setCurrentGig, ensureGig } = useCurrentGig();
   const [sortMode, setSortMode] = useState<SortMode>(() => {
     const saved = localStorage.getItem('gig_sort_mode');
     return (saved as SortMode) || 'none';
@@ -115,11 +120,80 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [showGigSelector, setShowGigSelector] = useState(false);
+  const [recentGigs, setRecentGigs] = useState<{ id: string; name: string }[]>([]);
+  const [newGigName, setNewGigName] = useState("");
+  const [isCreatingGig, setIsCreatingGig] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('gig_sort_mode', sortMode);
     localStorage.setItem('gig_active_filters', JSON.stringify(activeFilters));
   }, [sortMode, activeFilters]);
+
+  useEffect(() => {
+    if (showGigSelector && user) {
+      fetchRecentGigs();
+    }
+  }, [showGigSelector, user]);
+
+  const fetchRecentGigs = async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('setlists')
+        .select('id, name')
+        .eq('user_id', user.id)
+        .order('updated_at', { ascending: false })
+        .limit(10);
+      
+      if (error) throw error;
+      setRecentGigs(data || []);
+    } catch (err) {
+      console.error("Failed to fetch recent gigs:", err);
+    }
+  };
+
+  const handleCreateGig = async () => {
+    if (!newGigName.trim()) {
+      showError("Please enter a gig name");
+      return;
+    }
+    if (!user) {
+      showError("You must be logged in");
+      return;
+    }
+
+    setIsCreatingGig(true);
+    try {
+      const { data, error } = await supabase
+        .from('setlists')
+        .insert({
+          user_id: user.id,
+          name: newGigName.trim(),
+          songs: [],
+          time_goal: 7200
+        })
+        .select('id, name')
+        .single();
+
+      if (error) throw error;
+
+      setCurrentGig(data.id, data.name);
+      setNewGigName("");
+      setShowGigSelector(false);
+      showSuccess(`Created and set active: ${data.name}`);
+    } catch (err) {
+      showError("Failed to create gig");
+    } finally {
+      setIsCreatingGig(false);
+    }
+  };
+
+  const handleSelectGig = async (gigId: string, gigName: string) => {
+    setCurrentGig(gigId, gigName);
+    setShowGigSelector(false);
+    showSuccess(`Active gig set to: ${gigName}`);
+  };
 
   const isItunesPreview = (url: string) => url && (url.includes('apple.com') || url.includes('itunes-assets'));
 
@@ -198,10 +272,50 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
   const isReorderingEnabled = sortMode === 'none' && !searchTerm;
 
+  // NEW: Check if we need to prompt for gig selection
+  const needsGigContext = !currentGigId && songs.length === 0;
+
   return (
     <div className="space-y-4 md:space-y-6">
+      {/* NEW: Gig Context Banner */}
+      {needsGigContext && (
+        <div className="bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800 rounded-2xl p-4 flex items-center justify-between animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-3">
+            <div className="bg-indigo-600 p-2 rounded-xl text-white">
+              <ListMusic className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-indigo-900 dark:text-indigo-100">No Active Gig</p>
+              <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold uppercase">Create or select one to start adding songs</p>
+            </div>
+          </div>
+          <Button 
+            onClick={() => setShowGigSelector(true)}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] h-10 px-4 rounded-xl gap-2"
+          >
+            <Plus className="w-4 h-4" /> Create Gig
+          </Button>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-2">
         <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
+          {/* NEW: Gig Selector Button */}
+          <Button 
+            variant="outline"
+            onClick={() => setShowGigSelector(true)}
+            className={cn(
+              "h-9 px-3 rounded-xl gap-2 border-indigo-200 dark:border-slate-800 bg-white dark:bg-slate-900",
+              currentGigId ? "text-indigo-600" : "text-slate-500"
+            )}
+          >
+            <ListMusic className="w-4 h-4" />
+            <span className="text-[10px] font-black uppercase tracking-widest">
+              {currentGigName || "Select Gig"}
+            </span>
+            <ChevronDown className="w-3 h-3" />
+          </Button>
+
           <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-full sm:w-auto overflow-x-auto no-scrollbar">
             <Button 
               variant="ghost" 
@@ -272,6 +386,99 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
           onFilterChange={setActiveFilters} 
         />
       )}
+
+      {/* NEW: Gig Selector Dialog */}
+      <Dialog open={showGigSelector} onOpenChange={setShowGigSelector}>
+        <DialogContent className="sm:max-w-md bg-slate-950 text-white border-white/10">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black uppercase tracking-tight">
+              Manage Active Gig
+            </DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Select which gig is currently active. Songs added from Studio will go to this gig.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Current Gig */}
+            {currentGigId && (
+              <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="bg-emerald-600 p-1.5 rounded-lg">
+                    <Check className="w-3 h-3 text-white" />
+                  </div>
+                  <span className="font-bold text-emerald-400">{currentGigName}</span>
+                </div>
+                <span className="text-[9px] font-black uppercase text-emerald-500">Active</span>
+              </div>
+            )}
+
+            {/* Recent Gigs List */}
+            {recentGigs.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Recent Gigs</Label>
+                <ScrollArea className="max-h-[200px] pr-2">
+                  {recentGigs.map((gig) => (
+                    <Button
+                      key={gig.id}
+                      variant="ghost"
+                      className={cn(
+                        "w-full justify-start mb-1 h-12 rounded-xl transition-all",
+                        currentGigId === gig.id 
+                          ? "bg-indigo-600/20 text-indigo-400 border border-indigo-500/30" 
+                          : "hover:bg-white/10"
+                      )}
+                      onClick={() => handleSelectGig(gig.id, gig.name)}
+                      disabled={currentGigId === gig.id}
+                    >
+                      <ListPlus className="w-4 h-4 mr-3 text-indigo-400" />
+                      <div className="flex flex-col items-start">
+                        <span className="font-bold text-sm">{gig.name}</span>
+                        <span className="text-[9px] text-slate-500 uppercase">
+                          {currentGigId === gig.id ? "Currently Active" : "Click to activate"}
+                        </span>
+                      </div>
+                    </Button>
+                  ))}
+                </ScrollArea>
+              </div>
+            )}
+
+            {/* Create New Gig */}
+            <div className="space-y-2 pt-2 border-t border-white/10">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Create New Gig</Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Gig name (e.g., Friday Night)"
+                  value={newGigName}
+                  onChange={(e) => setNewGigName(e.target.value)}
+                  className="flex-1 bg-white/5 border-white/10 h-11"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleCreateGig();
+                  }}
+                />
+                <Button
+                  onClick={handleCreateGig}
+                  disabled={!newGigName.trim() || isCreatingGig}
+                  className="h-11 px-4 bg-indigo-600 hover:bg-indigo-700"
+                >
+                  {isCreatingGig ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button 
+              variant="ghost" 
+              onClick={() => setShowGigSelector(false)}
+              className="w-full sm:w-auto"
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {isMobile ? (
         <div className="space-y-3 px-1 pb-4">

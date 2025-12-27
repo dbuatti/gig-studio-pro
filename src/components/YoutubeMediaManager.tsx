@@ -14,8 +14,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { SetlistSong } from './SetlistManager';
 import { CustomProgress } from '@/components/CustomProgress'; // Import CustomProgress component
-import * as Tone from 'tone'; // Import Tone.js
+import * as Tone from 'tone';
 import { cleanYoutubeUrl } from '@/utils/youtubeUtils'; // Import the utility function
+import { AddToGigButton } from './AddToGigButton';
 
 interface YoutubeMediaManagerProps {
   song: SetlistSong | null;
@@ -23,7 +24,7 @@ interface YoutubeMediaManagerProps {
   handleAutoSave: (updates: Partial<SetlistSong>) => void;
   onOpenAdmin?: () => void;
   onLoadAudioFromUrl: (url: string, initialPitch?: number) => Promise<void>;
-  onSwitchTab: (tab: 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library') => void; // New prop
+  onSwitchTab: (tab: 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library') => void;
 }
 
 const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
@@ -32,7 +33,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
   handleAutoSave,
   onOpenAdmin,
   onLoadAudioFromUrl,
-  onSwitchTab, // Destructure new prop
+  onSwitchTab,
 }) => {
   const { user } = useAuth();
   const [ytApiKey, setYtApiKey] = useState("");

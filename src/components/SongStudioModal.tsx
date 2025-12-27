@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { SetlistSong } from './SetlistManager';
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, calculateSemitones, formatKey, transposeKey } from '@/utils/keyUtils';
-import { Music, FileText, Youtube, Settings2, Sparkles, Waves, Activity, Play, Pause, Volume2, Gauge, ExternalLink, Library, Upload, Link2, X, Plus, Tag, Check, Loader2, FileDown, Headphones, Wand2, Download, Globe, Eye, Link as LinkIcon, RotateCcw, Zap, Disc, VolumeX, Smartphone, Printer, Search, ClipboardPaste, AlignLeft, Apple, Hash, Music2, FileSearch, ChevronRight, Layers, LayoutGrid, ListPlus, Globe2, ShieldCheck, Timer, FileMusic, Copy, SearchCode, Cloud, AlertTriangle, Wrench } from 'lucide-react';
+import { Music, FileText, Youtube, Settings2, Sparkles, Waves, Activity, Play, Pause, Volume2, Gauge, ExternalLink, Library, Upload, Link2, X, Plus, Tag, Check, Loader2, FileDown, Headphones, Wand2, Download, Globe, Eye, Link as LinkIcon, RotateCcw, Zap, Disc, VolumeX, Smartphone, Printer, Search, ClipboardPaste, AlignLeft, Apple, Hash, Music2, FileSearch, ChevronRight, Layers, LayoutGrid, ListPlus, Globe2, ShieldCheck, Timer, FileMusic, Copy, SearchCode, Cloud, AlertTriangle, Wrench, PlusCircle } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import AudioVisualizer from './AudioVisualizer';
 import * as Tone from 'tone';
@@ -36,6 +36,8 @@ import LibraryEngine from './LibraryEngine';
 import SongConfigTab from './SongConfigTab';
 import SongAudioPlaybackTab from './SongAudioPlaybackTab';
 import StudioTabContent from './StudioTabContent';
+import { AddToGigButton } from './AddToGigButton';
+import { useCurrentGig } from '@/hooks/use-current-gig';
 
 // Helper to parse ISO 8601 duration (e.g., PT4M13S -> 4:13)
 const parseISO8601Duration = (duration: string): string => {
@@ -76,6 +78,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   const isMobile = useIsMobile();
   const { user } = useAuth();
   const { keyPreference: globalPreference } = useSettings();
+  const { currentGigId, currentGigName, ensureGig } = useCurrentGig();
   const audio = useToneAudio();
   const [formData, setFormData] = useState<Partial<SetlistSong>>({});
   const [activeTab, setActiveTab] = useState<StudioTab>('audio');
@@ -483,6 +486,9 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
     return !blockedSites.some(site => url.includes(site));
   };
 
+  // NEW: Check if we have minimum data for adding to gig
+  const hasMinimumData = !!formData.name && !!formData.artist;
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent 
@@ -731,6 +737,34 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
             </div>
           </div>
         </div>
+
+        {/* NEW: Mobile Sticky Add to Gig Button */}
+        {isMobile && (
+          <div className="absolute bottom-0 left-0 right-0 bg-slate-950/95 backdrop-blur-xl border-t border-white/10 p-4 pb-safe z-[200]">
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
+                <span className="uppercase tracking-widest">
+                  {currentGigId ? `Active: ${currentGigName}` : "No Active Gig"}
+                </span>
+                <span className={cn(
+                  "uppercase font-black",
+                  hasMinimumData ? "text-emerald-400" : "text-red-400"
+                )}>
+                  {hasMinimumData ? "Ready" : "Incomplete"}
+                </span>
+              </div>
+              <AddToGigButton
+                songData={formData}
+                onAdded={() => {
+                  showSuccess("Song added! You can add another or close.");
+                }}
+                className="w-full h-14 text-base font-black uppercase tracking-widest gap-3"
+                size="lg"
+                variant="default"
+              />
+            </div>
+          </div>
+        )}
       </DialogContent>
       
       <ProSyncSearch 

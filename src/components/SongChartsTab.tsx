@@ -3,10 +3,12 @@ import React, { useMemo, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SetlistSong } from './SetlistManager';
-import { ExternalLink, ShieldCheck, Printer, FileText, Music, Guitar, Search, Maximize, Minimize } from 'lucide-react';
+import { ExternalLink, ShieldCheck, Printer, FileText, Music, Guitar, Search, Maximize, Minimize, PlusCircle } from 'lucide-react';
 import { showError, showSuccess } from '@/utils/toast';
 import UGChordsEditor from './UGChordsEditor';
 import UGChordsReader from './UGChordsReader';
+import { AddToGigButton } from './AddToGigButton';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface SongChartsTabProps {
   formData: Partial<SetlistSong>;
@@ -16,7 +18,7 @@ interface SongChartsTabProps {
   isFramable: (url: string | null) => boolean;
   activeChartType: 'pdf' | 'leadsheet' | 'web' | 'ug';
   setActiveChartType: (type: 'pdf' | 'leadsheet' | 'web' | 'ug') => void;
-  handleUgPrint: () => void; // Keep this prop for now, but its internal logic will change
+  handleUgPrint: () => void;
 }
 
 const defaultUgChordsConfig = {
@@ -36,10 +38,11 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
   isFramable,
   activeChartType,
   setActiveChartType,
-  handleUgPrint, // Use the prop directly
+  handleUgPrint,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<"view" | "edit-ug">("view");
   const [isReaderExpanded, setIsReaderExpanded] = useState(false);
+  const isMobileDevice = useIsMobile();
   
   const currentChartUrl = useMemo(() => {
     switch(activeChartType) {
@@ -192,6 +195,19 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
           handleAutoSave={handleAutoSave} 
           isMobile={isMobile} 
         />
+      )}
+
+      {/* NEW: Add to Gig Button for Mobile */}
+      {isMobileDevice && (
+        <div className="sticky bottom-0 bg-slate-950/95 backdrop-blur-xl border-t border-white/10 p-4 pb-safe -mx-4">
+          <AddToGigButton
+            songData={formData}
+            onAdded={() => {}}
+            className="w-full h-14 text-base font-black uppercase tracking-widest gap-3"
+            size="lg"
+            variant="default"
+          />
+        </div>
       )}
     </div>
   );

@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 import { formatKey } from '@/utils/keyUtils';
 import { useSettings } from '@/hooks/use-settings';
 import SearchHighlight from './SearchHighlight';
+import { AddToGigButton } from './AddToGigButton';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface MyLibraryProps {
   repertoire: SetlistSong[];
@@ -18,6 +20,7 @@ interface MyLibraryProps {
 const MyLibrary: React.FC<MyLibraryProps> = ({ repertoire, onAddSong }) => {
   const { keyPreference } = useSettings();
   const [query, setQuery] = useState("");
+  const isMobileDevice = useIsMobile();
 
   const filteredRepertoire = useMemo(() => {
     if (!query.trim()) return repertoire.slice(0, 30);
@@ -57,9 +60,8 @@ const MyLibrary: React.FC<MyLibraryProps> = ({ repertoire, onAddSong }) => {
             {uniqueSongs.map((song) => {
               const displayKey = formatKey(song.targetKey || song.originalKey, keyPreference);
               return (
-                <button 
+                <div 
                   key={song.id} 
-                  onClick={() => onAddSong(song)}
                   className="w-full flex items-center justify-between p-3 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors text-left group"
                 >
                   <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -79,14 +81,31 @@ const MyLibrary: React.FC<MyLibraryProps> = ({ repertoire, onAddSong }) => {
                     </div>
                   </div>
                   
-                  {displayKey !== "TBC" && (
-                    <div className="ml-3 shrink-0">
+                  <div className="flex items-center gap-3 ml-3 shrink-0">
+                    {displayKey !== "TBC" && (
                       <span className="text-[9px] font-mono font-black bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full border border-indigo-100 dark:border-indigo-900/50">
                         {displayKey}
                       </span>
+                    )}
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm"
+                        className="h-8 px-3 text-[9px] font-black uppercase bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl gap-1.5 transition-all"
+                        onClick={() => onAddSong(song)}
+                      >
+                        Add
+                      </Button>
+                      {/* NEW: Add to Gig Button */}
+                      <AddToGigButton
+                        songData={song}
+                        onAdded={() => {}}
+                        className="h-8 px-3 text-[9px] font-black uppercase bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl gap-1.5 transition-all"
+                        size="sm"
+                        variant="ghost"
+                      />
                     </div>
-                  )}
-                </button>
+                  </div>
+                </div>
               );
             })}
           </div>
@@ -95,6 +114,19 @@ const MyLibrary: React.FC<MyLibraryProps> = ({ repertoire, onAddSong }) => {
         <div className="flex flex-col items-center justify-center py-20 text-center opacity-30">
           <Library className="w-10 h-10 mb-2" />
           <p className="text-[10px] font-black uppercase tracking-[0.2em]">No Matches</p>
+        </div>
+      )}
+
+      {/* NEW: Add to Gig Button for Mobile */}
+      {isMobileDevice && uniqueSongs.length > 0 && (
+        <div className="sticky bottom-0 bg-slate-950/95 backdrop-blur-xl border-t border-white/10 p-4 pb-safe -mx-4">
+          <AddToGigButton
+            songData={uniqueSongs[0]}
+            onAdded={() => {}}
+            className="w-full h-14 text-base font-black uppercase tracking-widest gap-3"
+            size="lg"
+            variant="default"
+          />
         </div>
       )}
     </div>

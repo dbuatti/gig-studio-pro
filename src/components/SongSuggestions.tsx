@@ -9,6 +9,8 @@ import { SetlistSong } from './SetlistManager';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from '@/lib/utils';
 import { Label } from './ui/label';
+import { AddToGigButton } from './AddToGigButton';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface SongSuggestionsProps {
   repertoire: SetlistSong[];
@@ -23,6 +25,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
   const [suggestions, setSuggestions] = useState<any[]>(sessionSuggestionsCache || []);
   const [isLoading, setIsLoading] = useState(false);
   const [seedSongId, setSeedSongId] = useState<string | null>(null);
+  const isMobileDevice = useIsMobile();
 
   const seedSong = useMemo(() => 
     repertoire.find(s => s.id === seedSongId), 
@@ -89,7 +92,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
             disabled={isLoading}
             className="h-7 text-[9px] font-black uppercase hover:bg-indigo-50 text-indigo-600"
           >
-            {isLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : "Refresh Suggestions"}
+            {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : "Refresh Suggestions"}
           </Button>
         </div>
 
@@ -149,14 +152,28 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
                         </p>
                       )}
                     </div>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={() => onSelectSuggestion(`${song.artist} ${song.name}`)}
-                      className="h-10 w-10 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white shrink-0"
-                    >
-                      <Search className="w-4 h-4" />
-                    </Button>
+                    <div className="flex flex-col gap-2">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => onSelectSuggestion(`${song.artist} ${song.name}`)}
+                        className="h-10 w-10 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white shrink-0"
+                      >
+                        <Search className="w-4 h-4" />
+                      </Button>
+                      {/* NEW: Add to Gig Button */}
+                      <AddToGigButton
+                        songData={{
+                          name: song.name,
+                          artist: song.artist,
+                          user_tags: ['suggestion']
+                        }}
+                        onAdded={() => {}}
+                        className="h-10 w-10 rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white shrink-0 p-0"
+                        size="icon"
+                        variant="ghost"
+                      />
+                    </div>
                   </div>
                 </div>
               ))
@@ -169,6 +186,23 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
           )}
         </div>
       </ScrollArea>
+
+      {/* NEW: Add to Gig Button for Mobile */}
+      {isMobileDevice && suggestions.length > 0 && (
+        <div className="sticky bottom-0 bg-slate-950/95 backdrop-blur-xl border-t border-white/10 p-4 pb-safe -mx-4">
+          <AddToGigButton
+            songData={{
+              name: suggestions[0]?.name || '',
+              artist: suggestions[0]?.artist || '',
+              user_tags: ['suggestion']
+            }}
+            onAdded={() => {}}
+            className="w-full h-14 text-base font-black uppercase tracking-widest gap-3"
+            size="lg"
+            variant="default"
+          />
+        </div>
+      )}
     </div>
   );
 };
