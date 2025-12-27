@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -17,7 +18,6 @@ import {
 import { SetlistSong } from './SetlistManager';
 import AudioVisualizer from './AudioVisualizer';
 import Metronome from './Metronome';
-import SongStudioModal from './SongStudioModal';
 import ShortcutLegend from './ShortcutLegend';
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, formatKey, calculateSemitones, transposeKey } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
@@ -39,6 +39,7 @@ interface PerformanceOverlayProps {
   onUpdateKey: (id: string, targetKey: string) => void;
   analyzer: any;
   onOpenAdmin?: () => void;
+  gigId?: string | null;
 }
 
 type ViewMode = 'visualizer' | 'pdf' | 'lyrics';
@@ -57,8 +58,10 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
   onUpdateSong,
   onUpdateKey,
   analyzer,
-  onOpenAdmin
+  onOpenAdmin,
+  gigId
 }) => {
+  const navigate = useNavigate();
   const { keyPreference: globalPreference } = useSettings();
   const currentSong = songs[currentIndex];
   const nextSong = songs[currentIndex + 1];
@@ -67,7 +70,6 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
   const [viewMode, setViewMode] = useState<ViewMode>('visualizer');
   const [scrollSpeed, setScrollSpeed] = useState(1.0);
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
-  const [isStudioOpen, setIsStudioOpen] = useState(false);
   const [isShortcutLegendOpen, setIsShortcutLegendOpen] = useState(false);
   
   // Performance HUD State
@@ -93,10 +95,9 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
       if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) return;
 
       if (e.key === 'Escape') {
-        if (!isStudioOpen && !isShortcutLegendOpen) {
+        if (!isShortcutLegendOpen) {
           onClose();
         } else {
-          setIsStudioOpen(false);
           setIsShortcutLegendOpen(false);
         }
       }
@@ -107,14 +108,14 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
       if (e.key === 'ArrowLeft') {
         onPrevious();
       }
-      if (e.key === 'ArrowRight') { // Changed back to only ArrowRight
+      if (e.key === 'ArrowRight') {
         onNext();
       }
       if (e.key.toLowerCase() === 's') {
         setAutoScrollEnabled(prev => !prev);
       }
-      if (e.key.toLowerCase() === 'e') {
-        setIsStudioOpen(true);
+      if (e.key.toLowerCase() === 'e' && gigId && currentSong) {
+        navigate(`/gig/${gigId}/song/${currentSong.id}`);
       }
       if (e.key.toLowerCase() === 'k') {
         setIsShortcutLegendOpen(prev => !prev);
@@ -122,32 +123,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose, onTogglePlayback, onPrevious, onNext, isStudioOpen, isShortcutLegendOpen]);
-
-  // Mobile Swipe Gesture logic
-  useEffect(() => {
-    const handleTouchStart = (e: TouchEvent) => {
-      touchStartX.current = e.touches[0].clientX;
-    };
-
-    const handleTouchEnd = (e: TouchEvent) => {
-      if (isStudioOpen || isShortcutLegendOpen) return;
-      
-      const touchEndX = e.changedTouches[0].clientX;
-      const distance = touchEndX - touchStartX.current;
-      
-      if (distance > 150) {
-        onClose();
-      }
-    };
-
-    window.addEventListener('touchstart', handleTouchStart);
-    window.addEventListener('touchend', handleTouchEnd);
-    return () => {
-      window.removeEventListener('touchstart', handleTouchStart);
-      window.removeEventListener('touchend', handleTouchEnd);
-    };
-  }, [onClose, isStudioOpen, isShortcutLegendOpen]);
+  }, [onClose, onTogglePlayback, onPrevious, onNext, isShortcutLegendOpen, gigId, currentSong, navigate]);
 
   // Wall Clock and Set Timer logic
   useEffect(() => {
@@ -308,6 +284,12 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
   const displayCurrentKey = formatKey(currentSong?.targetKey || currentSong?.originalKey, currentPref);
   const displayNextKey = formatKey(nextSong?.targetKey || nextSong?.originalKey, nextPref);
 
+  const handleEditClick = () => {
+    if (gigId && currentSong) {
+      navigate(`/gig/${gigId}/song/${currentSong.id}`);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[100] bg-slate-950 text-white flex flex-col font-sans selection:bg-indigo-500/30 overflow-hidden h-screen w-screen">
       {/* Top HUD Header */}
@@ -395,7 +377,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
             <Button 
               variant="ghost" 
               size="icon" 
-              onClick={() => setIsStudioOpen(true)}
+              onClick={handleEditClick}
               className="rounded-full bg-white/5 hover:bg-indigo-600 hover:text-white h-10 w-10 md:h-12 md:w-12 transition-all group"
               title="Edit Song (E)"
             >
@@ -694,15 +676,6 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
           </div>
         </div>
       </div>
-
-      <SongStudioModal 
-        song={currentSong} 
-        isOpen={isStudioOpen} 
-        onClose={() => setIsStudioOpen(false)} 
-        onSave={onUpdateSong} 
-        onUpdateKey={onUpdateKey}
-        onOpenAdmin={onOpenAdmin}
-      />
 
       {isShortcutLegendOpen && (
         <ShortcutLegend onClose={() => setIsShortcutLegendOpen(false)} />

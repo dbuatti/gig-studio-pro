@@ -428,7 +428,7 @@ const Index = () => {
       <PreferencesModal isOpen={isPreferencesOpen} onClose={() => setIsPreferencesOpen(false)} />
       <AdminPanel isOpen={isAdminOpen} onClose={() => setIsAdminOpen(true)} />
       {isPerformanceMode && (
-        <PerformanceOverlay songs={songs.filter(isPlayableMaster)} currentIndex={songs.filter(isPlayableMaster).findIndex(s => s.id === activeSongIdState)} isPlaying={isPlayerActive} progress={performanceState.progress} duration={performanceState.duration} onTogglePlayback={() => transposerRef.current?.togglePlayback()} onNext={handleNextSong} onPrevious={handlePreviousSong} onShuffle={handleShuffle} onClose={() => { setIsPerformanceMode(false); setActiveSongId(null); transposerRef.current?.stopPlayback(); }} onUpdateKey={handleUpdateKey} onUpdateSong={handleUpdateSong} analyzer={transposerRef.current?.getAnalyzer()} onOpenAdmin={() => setIsAdminOpen(true)} />
+        <PerformanceOverlay songs={songs.filter(isPlayableMaster)} currentIndex={songs.filter(isPlayableMaster).findIndex(s => s.id === activeSongIdState)} isPlaying={isPlayerActive} progress={performanceState.progress} duration={performanceState.duration} onTogglePlayback={() => transposerRef.current?.togglePlayback()} onNext={handleNextSong} onPrevious={handlePreviousSong} onShuffle={handleShuffle} onClose={() => { setIsPerformanceMode(false); setActiveSongId(null); transposerRef.current?.stopPlayback(); }} onUpdateKey={handleUpdateKey} onUpdateSong={handleUpdateSong} analyzer={transposerRef.current?.getAnalyzer()} onOpenAdmin={() => setIsAdminOpen(true)} gigId={currentListId} />
       )}
     </div>
   );
