@@ -142,10 +142,14 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           isMetadataConfirmed: true
         };
 
-        // Only update BPM if it's not already set
-        if (!formData.bpm && track.trackTimeMillis) {
-          // Simple heuristic: if duration is available, we could calculate BPM, but iTunes doesn't provide BPM
-          // So we'll leave BPM as is
+        // Calculate BPM from duration if available
+        if (durationSeconds > 0) {
+          // Simple heuristic: assume 4/4 time signature and count beats
+          // This is a rough estimate based on common song structures
+          const estimatedBPM = Math.round((durationSeconds / 60) * 2); // Rough estimate
+          if (!formData.bpm) {
+            updates.bpm = estimatedBPM.toString();
+          }
         }
 
         // Apply updates
