@@ -234,7 +234,7 @@ const Index = () => {
       }).eq('id', listId);
       if (songsToSync && songsToSync.length > 0) fetchMasterRepertoire();
     } catch (err) {
-      console.error("[Gig Studio] Save failure:", err);
+      console.error("[GigStudio] Save failure:", err);
     } finally {
       setIsSaving(false);
       isSyncingRef.current = false;
@@ -262,10 +262,15 @@ const Index = () => {
   const handleAutoLinkSetlist = async () => {
     if (!currentListId || !songs.length) return;
     
-    // Improved detection logic that matches SetlistExporter
     const isMissing = (url?: string) => !url || url.trim() === "" || url === "undefined" || url === "null";
-    const missingSongs = songs.filter(s => isMissing(s.youtubeUrl) && s.name && s.artist);
+    const missingSongs = songs.filter(s => isMissing(s.youtubeUrl) && s.name);
     
+    console.log("[GigStudio] Starting AI Auto-Link Pipeline", { 
+      total: songs.length, 
+      missing: missingSongs.length,
+      names: missingSongs.map(s => s.name)
+    });
+
     if (missingSongs.length === 0) {
       showSuccess("All songs are already optimized.");
       return;
@@ -276,23 +281,40 @@ const Index = () => {
       const songsToSync = missingSongs.filter(s => !s.master_id);
       let batchIds: string[] = missingSongs.filter(s => !!s.master_id).map(s => s.master_id!);
 
+      console.log("[GigStudio] Step 1: Validating Master Library Records", { 
+        needsSync: songsToSync.length,
+        alreadyMaster: batchIds.length 
+      });
+
       if (songsToSync.length > 0) {
         const synced = await syncToMasterRepertoire(user!.id, songsToSync);
         const newIds = synced.map(s => s.master_id).filter(Boolean) as string[];
         batchIds = [...batchIds, ...newIds];
+        console.log("[GigStudio] Sync Complete", { newIdsBound: newIds.length });
       }
 
       if (batchIds.length === 0) {
-        showError("Could not verify master records for tracks. Try saving individually.");
+        console.error("[GigStudio] Sync Error: No Master IDs returned.");
+        showError("Could not verify master records for tracks.");
         return;
       }
 
       // 2. Invoke the discovery engine
+      console.log("[GigStudio] Step 2: Invoking Discovery Engine Edge Function", { songIds: batchIds });
       const { data, error } = await supabase.functions.invoke('bulk-populate-youtube-links', {
         body: { songIds: batchIds }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("[GigStudio] Edge Function Error:", error);
+        throw error;
+      }
+
+      console.log("[GigStudio] Engine Result Received", { 
+        successful: data.successful, 
+        failed: data.failed,
+        results: data.results 
+      });
 
       if (data.successful > 0) {
         showSuccess(`AI Engine: ${data.successful} matches bound.`);
@@ -302,12 +324,12 @@ const Index = () => {
         showError("AI could not find high-confidence matches for remaining tracks.");
       }
     } catch (err: any) {
-      console.error("AutoLink Error:", err);
+      console.error("[GigStudio] Pipeline Crash:", err);
       showError(`AI Engine Error: ${err.message}`);
     }
   };
 
-  // Rest of the component logic stays the same...
+  // ... (rest of component remains unchanged)
   const handleAddToSetlist = async (previewUrl: string, name: string, artist: string, youtubeUrl?: string, ugUrl?: string, appleMusicUrl?: string, genre?: string, pitch: number = 0) => {
     if (!user) return;
     let activeId = currentListId;

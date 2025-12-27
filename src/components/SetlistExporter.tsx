@@ -32,7 +32,6 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({ songs, onAutoLink, on
     setIsLinking(true);
     try {
       await onAutoLink();
-      // Note: Success message is also handled in the parent, but we add reinforcement here
       showSuccess("AI Discovery Pipeline Complete");
     } catch (err) {
       showError("AI Auto-link engine failed to initialize");
@@ -62,10 +61,12 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({ songs, onAutoLink, on
     }
   };
 
-  // Improved calculation logic for missing metadata
-  const missingMetadataCount = useMemo(() => 
-    songs.filter(s => isMissingLink(s.youtubeUrl) && s.name && s.artist).length,
-  [songs]);
+  // Improved calculation logic for missing metadata - relaxed artist requirement
+  const missingMetadataCount = useMemo(() => {
+    const missing = songs.filter(s => isMissingLink(s.youtubeUrl) && s.name);
+    console.log("[GigStudio] Recalculating Missing Links", { count: missing.length, songs: missing.map(s => s.name) });
+    return missing.length;
+  }, [songs]);
 
   return (
     <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border shadow-sm flex flex-col justify-center gap-4 transition-transform hover:scale-[1.02]">
