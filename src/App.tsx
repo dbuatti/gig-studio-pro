@@ -49,7 +49,7 @@ const App = () => (
                 <Profile />
               </ProtectedRoute>
             } />
-            <Route path="/sheet-reader" element={
+            <Route path="/sheet-reader/:songId?" element={
               <ProtectedRoute>
                 <SheetReaderMode />
               </ProtectedRoute>

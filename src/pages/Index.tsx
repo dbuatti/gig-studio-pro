@@ -17,7 +17,7 @@ import RepertoirePicker from "@/components/RepertoirePicker";
 import SetlistExporter from "@/components/SetlistExporter";
 import FloatingCommandDock from "@/components/FloatingCommandDock";
 import UserGuideModal from "@/components/UserGuideModal";
-import SheetReaderMode from './SheetReaderMode';
+import SheetReaderMode from './SheetReaderMode'; // Removed direct import
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { showSuccess, showError, showInfo } from '@/utils/toast';
 import { calculateSemitones, transposeKey } from '@/utils/keyUtils';
@@ -216,7 +216,7 @@ const Index = () => {
   const fetchMasterRepertoire = async () => {
     if (!user) return;
     try {
-      const { data } = await supabase.from('repertoire').select('*').eq('user.id', user.id).order('title');
+      const { data } = await supabase.from('repertoire').select('*').eq('user_id', user.id).order('title');
       if (data) {
         setMasterRepertoire(data.map(d => ({
           id: d.id, master_id: d.id, name: d.title, artist: d.artist, bpm: d.bpm, lyrics: d.lyrics,
@@ -434,10 +434,11 @@ const Index = () => {
     handleSelectSong(playable[0]);
   };
 
-  const startSheetReader = () => {
+  const startSheetReader = (initialSongId?: string) => {
     const readable = songs.filter(s => s.ugUrl || s.pdfUrl || s.leadsheetUrl || s.ug_chords_text);
     if (!readable.length) { showError("No readable charts found."); return; }
     setIsSheetReaderMode(true);
+    navigate(initialSongId ? `/sheet-reader/${initialSongId}` : '/sheet-reader');
   };
 
   const handleSelectSong = async (song: SetlistSong) => {
@@ -654,7 +655,7 @@ const Index = () => {
       }
       if (e.key.toLowerCase() === 'r') {
         e.preventDefault();
-        startSheetReader();
+        startSheetReader(activeSongIdState || undefined); // Pass activeSongIdState
       }
       if (e.key.toLowerCase() === 'h') {
         e.preventDefault();
@@ -681,7 +682,7 @@ const Index = () => {
     handleTogglePlayback, startSheetReader, isPerformanceMode, isSheetReaderMode,
     isSearchPanelOpen, isPreferencesOpen, isAdminOpen, isAuditModalOpen,
     isStudioModalOpen, isSetlistSettingsOpen, isRepertoirePickerOpen, isCommandHubOpen,
-    isUserGuideOpen
+    isUserGuideOpen, activeSongIdState // Added activeSongIdState to dependencies
   ]);
 
   if (isPerformanceMode) {
@@ -915,7 +916,7 @@ const Index = () => {
           });
         }}
         onOpenPractice={startPerformance}
-        onOpenReader={startSheetReader}
+        onOpenReader={startSheetReader} // Pass activeSongIdState to startSheetReader
         onOpenAdmin={() => setIsAdminOpen(true)}
         onOpenPreferences={() => setIsPreferencesOpen(true)}
         onToggleHeatmap={() => setShowHeatmap(prev => !prev)}
@@ -930,6 +931,8 @@ const Index = () => {
         currentSongHighestNote={currentSongForSafePitch?.highest_note_original}
         currentSongPitch={currentSongForSafePitch?.pitch}
         onSafePitchToggle={handleSafePitchToggle}
+        isReaderMode={isSheetReaderMode} // Indicate if in SheetReaderMode
+        activeSongId={activeSongIdState} // Pass active song ID
       />
     </div>
   );

@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { 
   LayoutDashboard, Search, Sparkles, ShieldCheck, X, 
   Settings, Play, FileText, Pause, BookOpen, 
-  AlertTriangle, Volume2, ShieldAlert
+  AlertTriangle, Volume2, ShieldAlert, Music
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { motion, AnimatePresence } from 'framer-motion';
@@ -17,7 +17,7 @@ import { showSuccess, showError } from '@/utils/toast';
 interface FloatingCommandDockProps {
   onOpenSearch: () => void;
   onOpenPractice: () => void;
-  onOpenReader: () => void;
+  onOpenReader: (initialSongId?: string) => void; // Updated to accept initialSongId
   onOpenAdmin: () => void;
   onOpenPreferences: () => void;
   onToggleHeatmap: () => void;
@@ -32,6 +32,8 @@ interface FloatingCommandDockProps {
   currentSongHighestNote?: string;
   currentSongPitch?: number;
   onSafePitchToggle?: (active: boolean, safePitch: number) => void;
+  isReaderMode?: boolean; // New prop to indicate if in SheetReaderMode
+  activeSongId?: string | null; // New prop to pass active song ID
 }
 
 /**
@@ -55,6 +57,8 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   currentSongHighestNote,
   currentSongPitch,
   onSafePitchToggle,
+  isReaderMode = false, // Default to false
+  activeSongId, // Use activeSongId
 }) => {
   const [isCommandHubOpen, setIsCommandHubOpen] = useState(false);
   const [isSafePitchActive, setIsSafePitchActive] = useState(false);
@@ -110,7 +114,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
       id: 'reader',
       icon: <FileText className="w-6 h-6" />,
       label: "Reader Mode",
-      onClick: onOpenReader,
+      onClick: () => onOpenReader(activeSongId || undefined), // Pass activeSongId
       disabled: !hasReadableChart,
       className: cn(
         "bg-slate-900/80 backdrop-blur-md text-slate-400 border border-white/10 hover:text-white",
@@ -186,6 +190,78 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
       tooltip: isSafePitchActive ? "Safe Pitch Mode: ON" : "Safe Pitch Mode: OFF",
     },
   ];
+
+  // Render a minimized version if in reader mode
+  if (isReaderMode) {
+    return (
+      <TooltipProvider>
+        <div className="fixed bottom-8 right-8 z-[250]">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleCommandHub}
+            className={cn(
+              "h-14 w-14 rounded-full transition-all duration-500 bg-black/40 backdrop-blur-xl border border-white/5 shadow-2xl",
+              isCommandHubOpen ? "text-white rotate-90" : "text-slate-400 hover:text-white"
+            )}
+          >
+            {isCommandHubOpen ? <X className="w-6 h-6" /> : <Music className="w-6 h-6" />}
+          </Button>
+
+          <AnimatePresence>
+            {isCommandHubOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 20, scale: 0.8 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 20, scale: 0.8 }}
+                className="absolute bottom-16 right-0 flex flex-col gap-3 mb-2"
+              >
+                {secondaryButtons.map((btn) => (
+                  <Tooltip key={btn.id}>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => { btn.onClick(); setIsCommandHubOpen(false); }}
+                        className={cn("h-12 w-12 rounded-full border shadow-xl", btn.className)}
+                      >
+                        {btn.icon}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="left" className="text-[10px] font-black uppercase tracking-widest">
+                      {btn.tooltip}
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={onTogglePlayback}
+                      disabled={!hasPlayableSong}
+                      className={cn(
+                        "h-12 w-12 rounded-full border shadow-xl transition-all duration-300",
+                        isPlaying 
+                          ? "bg-red-600 text-white shadow-[0_0_20px_rgba(220,38,38,0.4)]" 
+                          : "bg-indigo-600 text-white shadow-[0_0_20px_rgba(79,70,229,0.4)]",
+                        !hasPlayableSong && "opacity-20 cursor-not-allowed"
+                      )}
+                    >
+                      {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" className="text-[10px] font-black uppercase tracking-widest">
+                    {isPlaying ? "Pause (Space)" : "Play (Space)"}
+                  </TooltipContent>
+                </Tooltip>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </TooltipProvider>
+    );
+  }
 
   return (
     <TooltipProvider>

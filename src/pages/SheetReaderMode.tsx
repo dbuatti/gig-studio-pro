@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { SetlistSong } from '@/components/SetlistManager';
@@ -12,16 +12,20 @@ import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
 import {
-  FileText, ArrowLeft, ChevronLeft, ChevronRight, Play, Pause, Shuffle, Timer, Filter, Music, Check, X, Loader2, Guitar, AlignLeft, ExternalLink, ShieldCheck, ListMusic, SortAsc, SortDesc, Search, Volume2, RotateCcw, Plus, Minus
+  FileText, ArrowLeft, ChevronLeft, ChevronRight, Play, Pause, Shuffle, Timer, Filter, Music, Check, X, Loader2, Guitar, AlignLeft, ExternalLink, ShieldCheck, ListMusic, SortAsc, SortDesc, Search, Volume2, RotateCcw, Plus, Minus, AlertCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import UGChordsReader from '@/components/UGChordsReader';
 import { formatKey, calculateSemitones, transposeKey } from '@/utils/keyUtils';
 import { useSettings } from '@/hooks/use-settings';
 import { calculateReadiness } from '@/utils/repertoireSync';
-import { showSuccess, showError } from '@/utils/toast';
+import { showSuccess, showError, showInfo } from '@/utils/toast';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
-import { useToneAudio } from '@/hooks/use-tone-audio'; // Import useToneAudio
+import { useToneAudio } from '@/hooks/use-tone-audio';
+import SheetReaderHeader from '@/components/SheetReaderHeader';
+import SheetReaderFooter from '@/components/SheetReaderFooter';
+import RepertoirePicker from '@/components/RepertoirePicker';
+import ResourceAuditModal from '@/components/ResourceAuditModal';
 
 interface FilterState {
   hasAudio: boolean;
@@ -32,13 +36,13 @@ interface FilterState {
 
 type SortOption = 'alphabetical' | 'readiness_asc' | 'readiness_desc';
 
-// Removed onUpdateSong prop from interface
 interface SheetReaderModeProps {
-  // onUpdateSong: (songId: string, updates: Partial<SetlistSong>) => void; 
+  // No props needed here, as it will get initialSongId from URL params
 }
 
-const SheetReaderMode: React.FC<SheetReaderModeProps> = ({ }) => { // Removed onUpdateSong from props
+const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
   const navigate = useNavigate();
+  const { songId: initialSongId } = useParams<{ songId?: string }>(); // Get songId from URL params
   const { user } = useAuth();
   const { keyPreference: globalKeyPreference } = useSettings();
   const [allSongs, setAllSongs] = useState<SetlistSong[]>([]);
@@ -57,14 +61,21 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = ({ }) => { // Removed on
   const [autoAdvanceInterval, setAutoAdvanceInterval] = useState(30); // seconds
   const autoAdvanceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const audioEngine = useToneAudio(); // Initialize audio engine
+  const audioEngine = useToneAudio();
   const { isPlaying, progress, duration, analyzer, loadFromUrl, togglePlayback, stopPlayback, setPitch: setAudioPitch, setVolume, setProgress: setAudioProgress, resetEngine } = audioEngine;
 
   const currentSong = filteredSongs[currentIndex];
   const currentSongKeyPreference = currentSong?.key_preference || globalKeyPreference;
 
-  // Local state for transposition in reader mode
   const [localPitch, setLocalPitch] = useState(0);
+  const [isUiVisible, setIsUiVisible] = useState(true); // State for UI visibility
+  const [isRepertoirePickerOpen, setIsRepertoirePickerOpen] = useState(false); // State for RepertoirePicker
+  const [isResourceAuditOpen, setIsResourceAuditOpen] = useState(false); // State for ResourceAuditModal
+
+  const mainContentRef = useRef<HTMLDivElement>(null);
+  const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const longPressTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const touchStartX = useRef<number>(0);
 
   const isFramable = useCallback((url: string | null | undefined) => {
     if (!url) return true;
@@ -109,16 +120,28 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = ({ }) => { // Removed on
         preferred_reader: d.preferred_reader,
         ug_chords_text: d.ug_chords_text,
         ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
-        is_ug_chords_present: d.is_ug_chords_present
+        is_ug_chords_present: d.is_ug_chords_present,
+        highest_note_original: d.highest_note_original,
+        is_sheet_verified: d.is_sheet_verified,
+        sheet_music_url: d.sheet_music_url,
       }));
       setAllSongs(mappedSongs);
+
+      // Set initial song if provided in URL
+      if (initialSongId) {
+        const initialIdx = mappedSongs.findIndex(s => s.id === initialSongId);
+        if (initialIdx !== -1) {
+          setCurrentIndex(initialIdx);
+        }
+      }
+
     } catch (err) {
       console.error("Failed to fetch repertoire:", err);
       showError("Failed to load your repertoire.");
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, initialSongId]);
 
   useEffect(() => {
     fetchSongs();
@@ -188,7 +211,6 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = ({ }) => { // Removed on
           
           // Optimistically update local state
           setAllSongs(prev => prev.map(s => s.id === currentSong.id ? { ...s, pitch: localPitch, targetKey: newTargetKey } : s));
-          // showSuccess("Song pitch updated."); // Optional: show a toast
         } catch (error) {
           console.error("Failed to update song pitch in DB:", error);
           showError("Failed to save pitch changes.");
@@ -259,6 +281,53 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = ({ }) => { // Removed on
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [navigate, handlePrev, handleNext, togglePlayback]);
 
+  // Gesture Handlers
+  const handleTap = useCallback(() => {
+    if (longPressTimeoutRef.current) {
+      clearTimeout(longPressTimeoutRef.current);
+      longPressTimeoutRef.current = null;
+    }
+    if (tapTimeoutRef.current) {
+      clearTimeout(tapTimeoutRef.current);
+      tapTimeoutRef.current = null;
+      // Double tap detected, do nothing or another action
+    } else {
+      tapTimeoutRef.current = setTimeout(() => {
+        setIsUiVisible(prev => !prev); // Single tap toggles UI visibility
+        tapTimeoutRef.current = null;
+      }, 200); // Adjust tap delay as needed
+    }
+  }, []);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    longPressTimeoutRef.current = setTimeout(() => {
+      setIsRepertoirePickerOpen(true); // Long press opens song selector
+      longPressTimeoutRef.current = null;
+    }, 500); // Adjust long press delay
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (longPressTimeoutRef.current) {
+      clearTimeout(longPressTimeoutRef.current);
+      longPressTimeoutRef.current = null;
+    }
+    const currentX = e.touches[0].clientX;
+    const diff = touchStartX.current - currentX;
+    if (Math.abs(diff) > 10) { // Only consider as swipe if moved more than 10px
+      if (diff > 0) handleNext(); // Swipe left
+      else handlePrev(); // Swipe right
+      touchStartX.current = currentX; // Reset start position to prevent multiple triggers
+    }
+  }, [handleNext, handlePrev]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (longPressTimeoutRef.current) {
+      clearTimeout(longPressTimeoutRef.current);
+      longPressTimeoutRef.current = null;
+    }
+  }, []);
+
   const renderChart = useMemo(() => {
     if (!currentSong) return (
       <div className="h-full flex flex-col items-center justify-center text-slate-500 text-center p-8">
@@ -267,6 +336,30 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = ({ }) => { // Removed on
         <p className="text-sm mt-2">Select a song from the list or add new tracks to your repertoire.</p>
       </div>
     );
+
+    const readiness = calculateReadiness(currentSong);
+    const hasChartLink = currentSong.pdfUrl || currentSong.leadsheetUrl || currentSong.ugUrl || currentSong.ug_chords_text;
+
+    if (readiness < 40 || !hasChartLink) {
+      return (
+        <div className="h-full flex flex-col items-center justify-center bg-slate-950 text-white p-8 text-center">
+          <div className="bg-red-500/10 w-20 h-20 rounded-[2rem] flex items-center justify-center text-red-500 mx-auto mb-6">
+            <AlertCircle className="w-10 h-10" />
+          </div>
+          <h1 className="text-3xl font-black uppercase tracking-tight mb-4">Missing Resources</h1>
+          <p className="text-slate-500 max-w-md font-medium">
+            This song has a readiness score of {readiness}% or is missing a linked chart.
+            Please audit its resources to ensure it's ready for performance.
+          </p>
+          <Button 
+            onClick={() => setIsResourceAuditOpen(true)} 
+            className="mt-8 bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest px-8 h-14 rounded-2xl shadow-lg shadow-indigo-600/30"
+          >
+            <ShieldCheck className="w-5 h-5 mr-3" /> Open Resource Audit
+          </Button>
+        </div>
+      );
+    }
 
     const preferredReader = currentSong.preferred_reader;
     const ugChordsConfig = currentSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG;
@@ -345,224 +438,92 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = ({ }) => { // Removed on
 
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-8 py-4 bg-slate-900/50 border-b border-white/5 shrink-0">
-          <h3 className="text-xl font-black uppercase tracking-tight text-white truncate max-w-[70%]">{currentSong.name}</h3>
-          <div className="flex items-center gap-4">
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{chartType}</span>
-            <span className="text-sm font-mono font-bold text-indigo-400">{formatKey(transposeKey(currentSong.originalKey || currentSong.targetKey || "C", localPitch), currentSongKeyPreference)}</span>
-          </div>
-        </div>
         <div className="flex-1 overflow-hidden bg-white rounded-b-[3rem] md:rounded-b-[4rem] shadow-2xl relative">
           {chartContent}
         </div>
       </div>
     );
-  }, [currentSong, filteredSongs, isFramable, currentSongKeyPreference, localPitch, loadFromUrl]);
+  }, [currentSong, filteredSongs, isFramable, currentSongKeyPreference, localPitch]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
-      </div>
-    );
-  }
+  const handleSelectSongFromPicker = useCallback((song: SetlistSong) => {
+    const newIndex = allSongs.findIndex(s => s.id === song.id);
+    if (newIndex !== -1) {
+      setCurrentIndex(newIndex);
+      setIsRepertoirePickerOpen(false);
+    }
+  }, [allSongs]);
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
+  const handleUpdateSongInRepertoire = useCallback(async (songId: string, updates: Partial<SetlistSong>) => {
+    if (!user) return;
+    const target = allSongs.find(s => s.id === songId);
+    if (target) {
+      await supabase.from('repertoire').update(updates).eq('id', songId).eq('user_id', user.id);
+      setAllSongs(prev => prev.map(s => s.id === songId ? { ...s, ...updates } : s));
+      showSuccess("Song updated in repertoire.");
+    }
+  }, [allSongs, user]);
 
   return (
-    <div className="h-screen bg-slate-950 text-white flex flex-col md:flex-row overflow-hidden">
-      {/* Left Sidebar: Song List & Filters */}
-      <div className="w-full md:w-96 bg-slate-900/50 border-r border-white/10 flex flex-col shrink-0">
-        <div className="p-6 border-b border-white/10 bg-black/20 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="rounded-full hover:bg-white/10">
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <div>
-              <h1 className="text-xl font-black uppercase tracking-tight">Sheet Reader</h1>
-              <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Rehearsal Mode</p>
-            </div>
-          </div>
-        </div>
+    <div 
+      className="h-screen bg-slate-950 text-white flex flex-col overflow-hidden relative"
+      ref={mainContentRef}
+      onClick={handleTap}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Floating Header */}
+      {isUiVisible && (
+        <SheetReaderHeader
+          currentSong={currentSong}
+          onClose={() => navigate('/')}
+          onSearchClick={() => setIsRepertoirePickerOpen(true)} // Search button opens RepertoirePicker
+          onPrevSong={handlePrev}
+          onNextSong={handleNext}
+          currentSongIndex={currentIndex}
+          totalSongs={filteredSongs.length}
+          isLoading={loading}
+          keyPreference={globalKeyPreference}
+        />
+      )}
 
-        <div className="p-6 space-y-6 flex-1 overflow-y-auto custom-scrollbar">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-            <Input
-              placeholder="Search songs..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-10 pl-9 text-xs bg-white/5 border-white/10 rounded-xl focus-visible:ring-indigo-500"
-            />
-          </div>
-
-          {/* Filters */}
-          <div className="space-y-3">
-            <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Filters</Label>
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setFilters(prev => ({ ...prev, hasAudio: !prev.hasAudio }))}
-                className={cn("h-9 text-[10px] font-black uppercase tracking-widest rounded-xl gap-2", filters.hasAudio ? "bg-indigo-600 text-white" : "bg-white/5 border-white/10 text-slate-400")}
-              >
-                <Music className="w-3.5 h-3.5" /> Master Audio
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setFilters(prev => ({ ...prev, isApproved: !prev.isApproved }))}
-                className={cn("h-9 text-[10px] font-black uppercase tracking-widest rounded-xl gap-2", filters.isApproved ? "bg-emerald-600 text-white" : "bg-white/5 border-white/10 text-slate-400")}
-              >
-                <Check className="w-3.5 h-3.5" /> Approved
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setFilters(prev => ({ ...prev, hasCharts: !prev.hasCharts }))}
-                className={cn("h-9 text-[10px] font-black uppercase tracking-widest rounded-xl gap-2", filters.hasCharts ? "bg-purple-600 text-white" : "bg-white/5 border-white/10 text-slate-400")}
-              >
-                <FileText className="w-3.5 h-3.5" /> Has Charts
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setFilters(prev => ({ ...prev, hasUgChords: !prev.hasUgChords }))}
-                className={cn("h-9 text-[10px] font-black uppercase tracking-widest rounded-xl gap-2", filters.hasUgChords ? "bg-orange-600 text-white" : "bg-white/5 border-white/10 text-slate-400")}
-              >
-                <Guitar className="w-3.5 h-3.5" /> UG Chords
-              </Button>
-            </div>
-          </div>
-
-          {/* Sort Options */}
-          <div className="space-y-3">
-            <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Sort By</Label>
-            <div className="grid grid-cols-3 gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setSortOption('alphabetical')}
-                className={cn("h-9 text-[10px] font-black uppercase tracking-widest rounded-xl gap-2", sortOption === 'alphabetical' ? "bg-indigo-600 text-white" : "bg-white/5 border-white/10 text-slate-400")}
-              >
-                <AlignLeft className="w-3.5 h-3.5" /> A-Z
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setSortOption('readiness_desc')}
-                className={cn("h-9 text-[10px] font-black uppercase tracking-widest rounded-xl gap-2", sortOption === 'readiness_desc' ? "bg-indigo-600 text-white" : "bg-white/5 border-white/10 text-slate-400")}
-              >
-                <SortAsc className="w-3.5 h-3.5" /> Ready
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setSortOption('readiness_asc')}
-                className={cn("h-9 text-[10px] font-black uppercase tracking-widest rounded-xl gap-2", sortOption === 'readiness_asc' ? "bg-indigo-600 text-white" : "bg-white/5 border-white/10 text-slate-400")}
-              >
-                <SortDesc className="w-3.5 h-3.5" /> Work
-              </Button>
-            </div>
-          </div>
-
-          {/* Song List */}
-          <div className="space-y-2">
-            <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Songs ({filteredSongs.length})</Label>
-            {filteredSongs.length === 0 ? (
-              <div className="py-10 text-center opacity-30">
-                <ListMusic className="w-10 h-10 mx-auto mb-2" />
-                <p className="text-[10px] font-black uppercase tracking-widest">No Matches</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-white/5">
-                {filteredSongs.map((song, idx) => (
-                  <button
-                    key={song.id}
-                    onClick={() => setCurrentIndex(idx)}
-                    className={cn(
-                      "w-full text-left p-3 rounded-xl transition-colors",
-                      idx === currentIndex ? "bg-indigo-600/20 text-indigo-400" : "hover:bg-white/5 text-slate-300"
-                    )}
-                  >
-                    <p className="text-sm font-bold truncate">{song.name}</p>
-                    <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-0.5">{song.artist || "Unknown Artist"}</p>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content: Chart Preview & Controls */}
-      <div className="flex-1 flex flex-col bg-slate-950 rounded-t-[3rem] md:rounded-t-[4rem] overflow-hidden">
+      {/* Main Chart Canvas */}
+      <div className="flex-1 flex flex-col overflow-hidden">
         {renderChart}
-
-        {/* Bottom Controls */}
-        <div className="bg-slate-900/80 backdrop-blur-2xl border-t border-white/10 px-6 md:px-12 py-4 md:py-6 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-4 md:gap-8">
-            <Button variant="ghost" size="icon" onClick={handlePrev} className="h-12 w-12 md:h-16 md:w-16 rounded-full hover:bg-white/5 text-slate-400">
-              <ChevronLeft className="w-6 h-6 md:w-8 md:h-8" />
-            </Button>
-            <Button
-              onClick={togglePlayback}
-              className={cn(
-                "h-16 w-16 md:h-20 md:w-20 rounded-full shadow-2xl transition-all hover:scale-105 active:scale-95",
-                isPlaying ? "bg-red-600 hover:bg-red-700 shadow-red-600/30" : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/30"
-              )}
-            >
-              {isPlaying ? <Pause className="w-8 h-8 md:w-10 md:h-10 text-white" /> : <Play className="w-8 h-8 md:w-10 md:h-10 ml-1 text-white" />}
-            </Button>
-            <Button variant="ghost" size="icon" onClick={handleNext} className="h-12 w-12 md:h-16 md:w-16 rounded-full hover:bg-white/5 text-slate-400">
-              <ChevronRight className="w-6 h-6 md:w-8 md:h-8" />
-            </Button>
-          </div>
-
-          {/* Audio Progress Bar */}
-          <div className="flex-1 mx-4 md:mx-8 space-y-2 max-w-md">
-            <Slider
-              value={[duration > 0 ? (progress / 100) * duration : 0]}
-              max={duration}
-              step={1}
-              onValueChange={([v]) => setAudioProgress((v / duration) * 100)}
-              className="w-full"
-              disabled={!currentSong?.previewUrl}
-            />
-            <div className="flex justify-between text-[10px] font-mono font-black text-slate-500 uppercase">
-              <span>{formatTime((progress / 100) * duration)}</span>
-              <span>{formatTime(duration)}</span>
-            </div>
-          </div>
-
-          {/* Transpose Controls */}
-          <div className="flex items-center gap-4">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => setLocalPitch(prev => Math.max(prev - 1, -24))}
-              className="h-10 w-10 bg-white/5 rounded-xl text-slate-400 hover:text-white" 
-              disabled={!currentSong}
-            >
-              <Minus className="w-4 h-4" />
-            </Button>
-            <span className="text-xl font-black font-mono text-indigo-400">
-              {localPitch > 0 ? '+' : ''}{localPitch} ST
-            </span>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => setLocalPitch(prev => Math.min(prev + 1, 24))}
-              className="h-10 w-10 bg-white/5 rounded-xl text-slate-400 hover:text-white" 
-              disabled={!currentSong}
-            >
-              <Plus className="w-4 h-4" />
-            </Button>
-          </div>
-
-          <Button variant="ghost" onClick={() => navigate('/')} className="text-slate-400 hover:text-white font-black uppercase tracking-widest text-[10px] md:text-xs">
-            Close Reader
-          </Button>
-        </div>
       </div>
+
+      {/* Floating Footer */}
+      {isUiVisible && (
+        <SheetReaderFooter
+          currentSong={currentSong}
+          isPlaying={isPlaying}
+          progress={progress}
+          duration={duration}
+          onTogglePlayback={togglePlayback}
+          onStopPlayback={stopPlayback}
+          onSetProgress={setAudioProgress}
+          localPitch={localPitch}
+          setLocalPitch={setLocalPitch}
+          volume={audioEngine.volume}
+          setVolume={audioEngine.setVolume}
+          keyPreference={globalKeyPreference}
+        />
+      )}
+
+      {/* Modals */}
+      <RepertoirePicker 
+        isOpen={isRepertoirePickerOpen} 
+        onClose={() => setIsRepertoirePickerOpen(false)} 
+        repertoire={allSongs} 
+        currentSetlistSongs={[]} // Not in a setlist context here
+        onAdd={handleSelectSongFromPicker} // Use onAdd to select a song
+      />
+      <ResourceAuditModal 
+        isOpen={isResourceAuditOpen} 
+        onClose={() => setIsResourceAuditOpen(false)} 
+        songs={allSongs} 
+        onVerify={handleUpdateSongInRepertoire} 
+      />
     </div>
   );
 };
