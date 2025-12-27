@@ -27,6 +27,7 @@ import SheetReaderFooter from '@/components/SheetReaderFooter';
 import RepertoirePicker from '@/components/RepertoirePicker';
 import ResourceAuditModal from '@/components/ResourceAuditModal';
 import { AnimatePresence, motion } from 'framer-motion'; // Import motion and AnimatePresence
+import FloatingCommandDock from '@/components/FloatingCommandDock'; // Import FloatingCommandDock
 
 interface FilterState {
   hasAudio: boolean;
@@ -365,6 +366,29 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
     }
   }, [handleNext, handlePrev, togglePlayback]);
 
+  const handleUpdateKey = useCallback(async (newTargetKey: string) => {
+    if (!currentSong || !user) return;
+
+    const newPitch = calculateSemitones(currentSong.originalKey || "C", newTargetKey);
+    setLocalPitch(newPitch); // Update local pitch immediately
+    setAudioPitch(newPitch); // Update audio engine pitch
+
+    try {
+      await supabase
+        .from('repertoire')
+        .update({ target_key: newTargetKey, pitch: newPitch })
+        .eq('id', currentSong.id)
+        .eq('user_id', user.id);
+      
+      // Optimistically update local state
+      setAllSongs(prev => prev.map(s => s.id === currentSong.id ? { ...s, targetKey: newTargetKey, pitch: newPitch } : s));
+      showSuccess(`Stage Key set to ${newTargetKey}`);
+    } catch (error) {
+      console.error("Failed to update song key in DB:", error);
+      showError("Failed to save key changes.");
+    }
+  }, [currentSong, user, setAudioPitch]);
+
   const renderChart = useMemo(() => {
     if (!currentSong) return (
       <div className="h-full flex flex-col items-center justify-center text-slate-500 text-center p-8">
@@ -475,12 +499,12 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
 
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-hidden bg-white rounded-b-[3rem] md:rounded-b-[4rem] shadow-2xl relative">
+        <div className="flex-1 overflow-hidden bg-black rounded-b-[3rem] md:rounded-b-[4rem] shadow-2xl relative"> {/* Set background to black */}
           {chartContent}
         </div>
       </div>
     );
-  }, [currentSong, filteredSongs, isFramable, currentSongKeyPreference, localPitch]);
+  }, [currentSong, filteredSongs, isFramable, currentSongKeyPreference, localPitch, handleUpdateKey]);
 
   const handleSelectSongFromPicker = useCallback((song: SetlistSong) => {
     const newIndex = allSongs.findIndex(s => s.id === song.id);
@@ -494,7 +518,7 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
     if (!user) return;
     const target = allSongs.find(s => s.id === songId);
     if (target) {
-      await supabase.from('repertoire').update(updates).eq('id', songId).eq('user.id', user.id);
+      await supabase.from('repertoire').update(updates).eq('id', songId).eq('user_id', user.id); // Corrected user_id filter
       setAllSongs(prev => prev.map(s => s.id === songId ? { ...s, ...updates } : s));
       showSuccess("Song updated in repertoire.");
     }
@@ -503,7 +527,7 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
   return (
     <div
       className={cn(
-        "h-screen bg-slate-950 text-white flex flex-col overflow-hidden relative",
+        "h-screen w-screen bg-slate-950 text-white flex flex-col overflow-hidden relative", // Full viewport width/height
         isPlaying ? "absolute inset-0" : "" // Apply inset-0 when in immersive mode
       )}
       ref={mainContentRef}
@@ -530,6 +554,7 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
               totalSongs={filteredSongs.length}
               isLoading={loading}
               keyPreference={globalKeyPreference}
+              onUpdateKey={handleUpdateKey} // Pass the new handler
             />
           </motion.div>
         )}
@@ -567,28 +592,23 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
         )}
       </AnimatePresence>
 
-      {/* NEW: Ghost Transport Button */}
-      <AnimatePresence>
-        {isPlaying && isUiVisible && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ duration: 0.3 }}
-            className="fixed bottom-12 left-1/2 -translate-x-1/2 z-50"
-          >
-            <Button
-              onClick={togglePlayback}
-              className={cn(
-                "h-20 w-20 rounded-full bg-white/10 backdrop-blur-xl border border-white/5 shadow-2xl transition-all hover:scale-105 active:scale-95",
-                isPlaying ? "text-red-400" : "text-indigo-400"
-              )}
-            >
-              {isPlaying ? <Pause className="w-10 h-10" /> : <Play className="w-10 h-10 ml-1" />}
-            </Button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* NEW: Ghost Transport Button (FloatingCommandDock) */}
+      <FloatingCommandDock
+        onOpenSearch={() => {}} // Not used in reader mode
+        onOpenPractice={() => {}} // Not used in reader mode
+        onOpenReader={() => {}} // Not used in reader mode
+        onOpenAdmin={() => {}} // Not used in reader mode
+        onOpenPreferences={() => {}} // Not used in reader mode
+        onToggleHeatmap={() => {}} // Not used in reader mode
+        onOpenUserGuide={() => {}} // Not used in reader mode
+        showHeatmap={false} // Always false in reader mode
+        viewMode="repertoire" // Irrelevant in reader mode
+        hasPlayableSong={!!currentSong?.previewUrl}
+        hasReadableChart={true} // Always true in reader mode
+        isPlaying={isPlaying}
+        onTogglePlayback={togglePlayback}
+        isReaderMode={true} // Indicate that we are in reader mode
+      />
 
       {/* Modals */}
       <RepertoirePicker 

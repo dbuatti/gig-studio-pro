@@ -31,7 +31,7 @@ const App = () => (
     <AuthProvider>
       <TooltipProvider>
         <Toaster />
-        <Sonner />
+        <Sonner position="top-center" /> {/* Changed position to top-center */}
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <Routes>
             <Route path="/" element={<Landing />} />
