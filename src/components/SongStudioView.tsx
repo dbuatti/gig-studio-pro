@@ -153,15 +153,10 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           isMetadataConfirmed: true
         };
 
-        // Calculate BPM from duration if available
-        if (durationSeconds > 0) {
-          // Simple heuristic: assume 4/4 time signature and count beats
-          // This is a rough estimate based on common song structures
-          const estimatedBPM = Math.round((durationSeconds / 60) * 2); // Rough estimate
-          if (!formData.bpm) {
-            updates.bpm = estimatedBPM.toString();
-            console.log(`[handleVerifyMetadata] Estimated BPM: ${estimatedBPM}`);
-          }
+        // Fix: Set a reasonable default BPM if not already present, instead of incorrect calculation
+        if (durationSeconds > 0 && !formData.bpm) {
+          updates.bpm = "120"; // Set a reasonable default BPM
+          console.log(`[handleVerifyMetadata] Default BPM set to: 120`);
         }
 
         // Apply updates
@@ -232,7 +227,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
             {/* Step 1: Metadata Verification */}
             <Button 
               onClick={handleVerifyMetadata}
-              disabled={isVerifying}
+              disabled={isVerifying || formData.isMetadataConfirmed}
               className={cn(
                 "h-11 rounded-xl font-black uppercase text-[9px] tracking-widest gap-2 px-6 transition-all shadow-lg",
                 formData.isMetadataConfirmed 
@@ -240,8 +235,10 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
                   : "bg-white/5 hover:bg-white/10 text-slate-400 border border-white/10"
               )}
             >
-              {isVerifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Music className="w-4 h-4" />}
-              {isVerifying ? "VERIFYING..." : "VERIFY METADATA"}
+              {isVerifying ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                formData.isMetadataConfirmed ? <Check className="w-4 h-4" /> : <Music className="w-4 h-4" />
+              )}
+              {isVerifying ? "VERIFYING..." : (formData.isMetadataConfirmed ? "METADATA VERIFIED" : "VERIFY METADATA")}
             </Button>
 
             {/* Step 2: Setlist Confirmation Toggle */}

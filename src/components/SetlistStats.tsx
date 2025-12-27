@@ -39,6 +39,9 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({
   const approvedSongs = songs.filter(song => calculateReadiness(song) === 100);
   const totalApprovedSongs = approvedSongs.length;
 
+  // New: Count songs with confirmed metadata
+  const totalMetadataVerifiedSongs = songs.filter(song => song.isMetadataConfirmed).length;
+
   const totalSeconds = approvedSongs.reduce((acc, song) => {
     const isItunes = song.previewUrl?.includes('apple.com') || song.previewUrl?.includes('itunes-assets');
     const hasFullAudio = !!song.previewUrl && !isItunes;
@@ -156,7 +159,7 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({
           </div>
           <div>
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Repertoire</p>
-            <p className="text-2xl font-black">{totalApprovedSongs} <span className="text-[10px] font-bold text-slate-400">GIG READY (100%)</span></p>
+            <p className="text-2xl font-black">{totalMetadataVerifiedSongs} <span className="text-[10px] font-bold text-slate-400">METADATA VERIFIED</span></p>
           </div>
         </div>
 
