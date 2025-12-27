@@ -23,6 +23,7 @@ interface FloatingCommandDockProps {
   hasPlayableSong: boolean;
   hasReadableChart: boolean;
   isPlaying: boolean;
+  onTogglePlayback: () => void; // Added missing prop
 }
 
 /**
@@ -42,6 +43,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   hasPlayableSong,
   hasReadableChart,
   isPlaying,
+  onTogglePlayback, // Added missing prop
 }) => {
   const [isCommandHubOpen, setIsCommandHubOpen] = useState(false);
 

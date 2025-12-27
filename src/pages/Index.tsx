@@ -16,7 +16,7 @@ import ResourceAuditModal from "@/components/ResourceAuditModal";
 import RepertoirePicker from "@/components/RepertoirePicker";
 import SetlistExporter from "@/components/SetlistExporter";
 import FloatingCommandDock from "@/components/FloatingCommandDock";
-import UserGuideModal from "@/components/UserGuideModal"; // Import the new UserGuideModal
+import UserGuideModal from "@/components/UserGuideModal";
 import SheetReaderMode from './SheetReaderMode';
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { showSuccess, showError, showInfo } from '@/utils/toast';
@@ -527,7 +527,7 @@ const Index = () => {
           .upload(fileName, audioArrayBuffer, { contentType: 'audio/mpeg', upsert: true });
         if (uploadError) throw uploadError;
 
-        const { data: { publicUrl } } = supabase.storage.from('public_audio').getPublicUrl(fileName);
+        const { data: { publicUrl } } = await supabase.storage.from('public_audio').getPublicUrl(fileName);
 
         await supabase.from('repertoire').update({ 
           preview_url: publicUrl, 
@@ -731,7 +731,6 @@ const Index = () => {
             <Clock className="w-3.5 h-3.5 text-indigo-500" />
             <span className="text-[11px] font-black font-mono text-slate-600">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
-          <Button variant="default" size="sm" onClick={startPerformance} className="h-10 gap-2 bg-indigo-600 font-bold uppercase tracking-tight shadow-lg shadow-indigo-600/20 px-4"><Rocket className="w-4 h-4" /> Start Show</Button>
           <button onClick={() => setIsPreferencesOpen(true)} className="flex items-center gap-2 px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full">
             <UserIcon className="w-3 h-3 text-slate-500" /><span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest hidden sm:inline">{user?.email?.split('@')[0]}</span>{isSaving && <Loader2 className="w-3 h-3 animate-spin text-indigo-500" />}<Settings className="w-3 h-3 text-slate-400" />
           </button>
@@ -877,8 +876,8 @@ const Index = () => {
         viewMode={viewMode}
         hasPlayableSong={hasPlayableSong}
         hasReadableChart={hasReadableChart}
-        onTogglePlayback={handleTogglePlayback}
         isPlaying={isPlaying}
+        onTogglePlayback={handleTogglePlayback}
       />
     </div>
   );
