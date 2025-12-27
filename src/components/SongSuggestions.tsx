@@ -62,7 +62,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
       sessionSuggestionsCache = data || [];
       sessionInitialLoadAttempted = true;
     } catch (err) {
-      console.error("Failed to fetch suggestions", err);
+      // console.error("Failed to fetch suggestions", err);
     } finally {
       setIsLoading(false);
     }

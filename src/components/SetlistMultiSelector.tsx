@@ -45,7 +45,7 @@ const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
       const currentAssignments = new Set(data.map(item => item.setlist_id));
       setAssignedSetlistIds(currentAssignments);
     } catch (err) {
-      console.error("Failed to fetch setlist assignments:", err);
+      // console.error("Failed to fetch setlist assignments:", err);
       showError("Failed to load setlist assignments.");
     } finally {
       setLoading(false);
@@ -87,7 +87,7 @@ const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
         await onUpdateSetlistSongs(setlistId, songToAssign, 'remove'); // Update the setlist's songs array
       }
     } catch (err: any) {
-      console.error("Failed to update setlist assignment:", err);
+      // console.error("Failed to update setlist assignment:", err);
       showError(`Failed to update assignment: ${err.message}`);
     } finally {
       setLoading(false);

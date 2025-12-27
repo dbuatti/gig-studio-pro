@@ -66,7 +66,7 @@ const Profile = () => {
       if (sError) throw sError;
       setSongs(songData || []);
     } catch (err) {
-      console.error("Profile Fetch Error:", err);
+      // console.error("Profile Fetch Error:", err);
       showError("Connection lost. Please refresh.");
     } finally {
       setLoading(false);

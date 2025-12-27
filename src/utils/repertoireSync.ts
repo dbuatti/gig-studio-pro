@@ -121,7 +121,7 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       return dbMatch ? { ...song, master_id: dbMatch.id } : song;
     });
   } catch (err) {
-    console.error("[SYNC ENGINE] Batch sync failed:", err);
+    // console.error("[SYNC ENGINE] Batch sync failed:", err);
     return songsArray;
   }
 };

@@ -51,7 +51,7 @@ const PublicGigView = () => {
         setPerformer(profileData);
 
       } catch (err) {
-        console.error("Gig Fetch Error:", err);
+        // console.error("Gig Fetch Error:", err);
       } finally {
         setLoading(false);
       }

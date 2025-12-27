@@ -84,7 +84,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
   const handleFetchUgChords = async () => {
     if (!formData.ugUrl?.trim()) {
       showError("Please paste an Ultimate Guitar URL.");
-      console.error("[UGChordsEditor] Fetch failed: No Ultimate Guitar URL provided.");
+      // console.error("[UGChordsEditor] Fetch failed: No Ultimate Guitar URL provided.");
       return;
     }
 
@@ -94,23 +94,23 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
     // Attempt to convert /tab/ to /chords/ if it's a tab URL
     if (targetUrl.includes('/tab/')) {
       const chordsUrl = targetUrl.replace('/tab/', '/chords/');
-      console.log(`[UGChordsEditor] Detected tab URL. Attempting to fetch from chords URL: ${chordsUrl}`);
+      // console.log(`[UGChordsEditor] Detected tab URL. Attempting to fetch from chords URL: ${chordsUrl}`);
       targetUrl = chordsUrl;
     } else {
-      console.log(`[UGChordsEditor] Fetching from provided URL: ${targetUrl}`);
+      // console.log(`[UGChordsEditor] Fetching from provided URL: ${targetUrl}`);
     }
 
     try {
       const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
       const response = await fetch(proxyUrl);
       if (!response.ok) {
-        console.error(`[UGChordsEditor] Failed to fetch content from UG. Status: ${response.status}`);
+        // console.error(`[UGChordsEditor] Failed to fetch content from UG. Status: ${response.status}`);
         throw new Error(`Failed to fetch content from UG. Status: ${response.status}`);
       }
 
       const data = await response.json();
       const htmlContent = data.contents;
-      console.log("[UGChordsEditor] HTML content fetched. Attempting to parse...");
+      // console.log("[UGChordsEditor] HTML content fetched. Attempting to parse...");
 
       const parser = new DOMParser();
       const doc = parser.parseFromString(htmlContent, 'text/html');
@@ -127,11 +127,11 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
               const ugData = JSON.parse(scriptMatch[1]);
               extractedContent = ugData?.data?.tab_view?.wiki_tab?.content;
               if (extractedContent) {
-                console.log("[UGChordsEditor] Chords extracted from UGAPP.store.page JSON.");
+                // console.log("[UGChordsEditor] Chords extracted from UGAPP.store.page JSON.");
                 break;
               }
             } catch (jsonError) {
-              console.warn("[UGChordsEditor] Failed to parse UGAPP.store.page JSON:", jsonError);
+              // console.warn("[UGChordsEditor] Failed to parse UGAPP.store.page JSON:", jsonError);
             }
           }
         }
@@ -139,16 +139,16 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
 
       // Strategy 2: Fallback to old method if JSON not found or content empty
       if (!extractedContent) {
-        console.log("[UGChordsEditor] UGAPP.store.page JSON not found or content empty. Falling back to HTML parsing...");
+        // console.log("[UGChordsEditor] UGAPP.store.page JSON not found or content empty. Falling back to HTML parsing...");
         const tabContentElement = doc.querySelector('pre.js-tab-content') || 
                                  doc.querySelector('div.js-tab-content') ||
                                  doc.querySelector('pre');
 
         if (tabContentElement && tabContentElement.textContent) {
           extractedContent = tabContentElement.textContent;
-          console.log("[UGChordsEditor] Chords extracted from HTML fallback elements.");
+          // console.log("[UGChordsEditor] Chords extracted from HTML fallback elements.");
         } else {
-          console.warn("[UGChordsEditor] Chords content not found in HTML fallback elements.");
+          // console.warn("[UGChordsEditor] Chords content not found in HTML fallback elements.");
         }
       }
 
@@ -160,11 +160,11 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({ song, formData, handleA
       }
 
     } catch (error: any) {
-      console.error("[UGChordsEditor] Error fetching UG chords:", error);
+      // console.error("[UGChordsEditor] Error fetching UG chords:", error);
       showError(`Failed to fetch chords: ${error.message || "Network error"}`);
     } finally {
       setIsFetchingUg(false);
-      console.log("[UGChordsEditor] UG chord fetch process finished.");
+      // console.log("[UGChordsEditor] UG chord fetch process finished.");
     }
   };
 
