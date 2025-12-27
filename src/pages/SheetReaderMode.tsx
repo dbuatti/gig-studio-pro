@@ -301,9 +301,12 @@ const SheetReaderMode: React.FC = () => {
       setRenderedCharts(prev => prev.map(rc => rc.id === song.id ? { ...rc, isLoaded: true } : rc));
     };
 
-    if (forceReaderResource === 'force-chords' && song.ug_chords_text) {
+    // NEW LOGIC: Prioritize ug_chords_text if available
+    if (song.ug_chords_text && song.ug_chords_text.trim().length > 0) {
       return renderUgChordsReader(song, handleUgLoad);
-    } else if (song.ug_chords_text && !song.pdfUrl && !song.leadsheetUrl && !song.ugUrl) {
+    }
+    // Fallback to other chart types if ug_chords_text is not present
+    else if (forceReaderResource === 'force-chords' && song.ug_chords_text) {
       return renderUgChordsReader(song, handleUgLoad);
     } else if (chartUrl && isFramable(chartUrl)) { // Check if the URL is framable
       return (
