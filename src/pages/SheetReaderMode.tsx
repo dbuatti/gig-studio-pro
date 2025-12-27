@@ -7,25 +7,17 @@ import { useAuth } from '@/components/AuthProvider';
 import { SetlistSong } from '@/components/SetlistManager';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Music, Loader2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Music, Loader2, AlertCircle, ChevronLeft, ChevronRight, X, Settings, Maximize2, Minimize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import UGChordsReader from '@/components/UGChordsReader';
-import { transposeKey, calculateSemitones } from '@/utils/keyUtils';
+import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { useSettings } from '@/hooks/use-settings';
 import { calculateReadiness } from '@/utils/repertoireSync';
 import { showSuccess, showError } from '@/utils/toast';
-import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
+import UGChordsReader from '@/components/UGChordsReader';
 import { useToneAudio } from '@/hooks/use-tone-audio';
-import SheetReaderHeader from '@/components/SheetReaderHeader';
-import SheetReaderFooter from '@/components/SheetReaderFooter';
-import RepertoirePicker from '@/components/RepertoirePicker';
-import ResourceAuditModal from '@/components/ResourceAuditModal';
-import SongStudioModal from '@/components/SongStudioModal';
-import PreferencesModal from '@/components/PreferencesModal';
-import { AnimatePresence, motion } from 'framer-motion';
-import FloatingCommandDock from '@/components/FloatingCommandDock';
+import { transposeKey, calculateSemitones } from '@/utils/keyUtils';
 import { useReaderSettings } from '@/hooks/use-reader-settings';
-import { useIsMobile } from '@/hooks/use-mobile';
+import PreferencesModal from '@/components/PreferencesModal';
 
 const SheetReaderMode: React.FC = () => {
   const navigate = useNavigate();
@@ -33,40 +25,14 @@ const SheetReaderMode: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { keyPreference: globalKeyPreference } = useSettings();
-  const { forceReaderResource, ignoreConfirmedGate, forceDesktopView } = useReaderSettings();
-
-  const isMobileHook = useIsMobile();
-  const isTabletOrLarger = !isMobileHook || window.innerWidth >= 768;
-  const isMobile = forceDesktopView ? false : isMobileHook;
-  const showSidebar = isTabletOrLarger;
+  const { forceReaderResource, ignoreConfirmedGate } = useReaderSettings();
 
   // State
   const [allSongs, setAllSongs] = useState<SetlistSong[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
-
-  // Immersive states
-  const [isImmersiveMode, setIsImmersiveMode] = useState(false);
-  const [isUiVisible, setIsUiVisible] = useState(true);
-  const [isDockVisible, setIsDockVisible] = useState(true);
-  const [isOverlayOpen, setIsOverlayOpen] = useState(false);
-
-  // Modals
-  const [isRepertoirePickerOpen, setIsRepertoirePickerOpen] = useState(false);
-  const [isResourceAuditOpen, setIsResourceAuditOpen] = useState(false);
-  const [isStudioModalOpen, setIsStudioModalOpen] = useState(false);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
-
-  // Chord scroll
-  const [chordAutoScrollEnabled, setChordAutoScrollEnabled] = useState(true);
-  const [chordScrollSpeed, setChordScrollSpeed] = useState(1.0);
-
-  // Refs
-  const touchStartX = useRef<number | null>(null);
-  const dockTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const mainRef = useRef<HTMLDivElement>(null);
-  const isNavigatingRef = useRef(false);
-  const currentSongIdRef = useRef<string | null>(null); // NEW: Stable ref for current song ID
+  const [isImmersive, setIsImmersive] = useState(false);
 
   // Audio
   const audioEngine = useToneAudio(true);
@@ -130,9 +96,6 @@ const SheetReaderMode: React.FC = () => {
         if (idx !== -1) initialIndex = idx;
       }
       
-      // Safety check: if index is out of bounds (e.g. song deleted), reset to 0
-      if (initialIndex >= mappedSongs.length) initialIndex = 0;
-      
       setCurrentIndex(initialIndex);
 
     } catch (err) {
@@ -146,305 +109,164 @@ const SheetReaderMode: React.FC = () => {
     fetchSongs();
   }, [fetchSongs]);
 
-  // === Filtering ===
-  // In Reader Mode, we ignore the Dashboard filters to ensure we can navigate ALL songs
-  const filteredSongs = useMemo(() => {
-    // We only filter by "Approved" unless the user has explicitly disabled the gate in settings
-    let result = allSongs.filter((s) => ignoreConfirmedGate || s.isApproved);
-    return result.sort((a, b) => a.name.localeCompare(b.name));
-  }, [allSongs, ignoreConfirmedGate]);
+  // === Song Selection ===
+  const currentSong = allSongs[currentIndex];
 
-  // Index safety - ensure we never have an invalid index
+  // Load audio when song changes
   useEffect(() => {
-    if (filteredSongs.length === 0) return;
-    if (currentIndex >= filteredSongs.length) {
-      setCurrentIndex(Math.max(0, filteredSongs.length - 1));
-    }
-  }, [filteredSongs, currentIndex]);
-
-  // URL sync - update URL when song changes
-  useEffect(() => {
-    const song = filteredSongs[currentIndex];
-    if (song) {
-      // Use replace to avoid filling history stack
-      setSearchParams({ id: song.id }, { replace: true });
-    }
-  }, [currentIndex, filteredSongs, setSearchParams]);
-
-  const currentSong = filteredSongs[currentIndex];
-
-  // === Audio ===
-  useEffect(() => {
-    // Only load audio if we have a valid song and the ID has actually changed
-    if (currentSong?.previewUrl && currentSong.id !== currentSongIdRef.current) {
-      console.log(`[SheetReaderMode] Audio ID changed from ${currentSongIdRef.current} to ${currentSong.id}. Loading new audio.`);
-      currentSongIdRef.current = currentSong.id; // Update ref immediately
+    if (currentSong?.previewUrl) {
       loadFromUrl(currentSong.previewUrl, currentSong.pitch || 0);
       setLocalPitch(currentSong.pitch || 0);
-    } else if (!currentSong) {
-      // No song selected, stop audio
+    } else {
       stopPlayback();
       setLocalPitch(0);
-      currentSongIdRef.current = null;
     }
   }, [currentSong, loadFromUrl, stopPlayback]);
 
-  // === UI Visibility ===
-  const showTemporaryUI = useCallback(() => {
-    setIsUiVisible(true);
-    setIsDockVisible(true);
-    setIsImmersiveMode(false);
-
-    if (dockTimeoutRef.current) clearTimeout(dockTimeoutRef.current);
-    dockTimeoutRef.current = setTimeout(() => {
-      if (!isOverlayOpen) {
-        setIsUiVisible(false);
-        setIsDockVisible(false);
-      }
-    }, 5000);
-  }, [isOverlayOpen]);
+  // Update URL when song changes
+  useEffect(() => {
+    if (currentSong) {
+      setSearchParams({ id: currentSong.id }, { replace: true });
+    }
+  }, [currentSong, setSearchParams]);
 
   // === Navigation ===
-  const goToSong = useCallback(
-    (index: number) => {
-      // Prevent rapid clicks and ensure we stay within bounds
-      if (isNavigatingRef.current) return;
-      if (index < 0 || index >= filteredSongs.length) return;
-      if (index === currentIndex) return;
-
-      isNavigatingRef.current = true;
-
-      setCurrentIndex(index);
-      stopPlayback();
-      setIsImmersiveMode(false);
-      showTemporaryUI();
-
-      // Reset the navigation lock after a short delay
-      setTimeout(() => {
-        isNavigatingRef.current = false;
-      }, 500);
-    },
-    [currentIndex, filteredSongs.length, stopPlayback, showTemporaryUI]
-  );
-
   const handleNext = useCallback(() => {
-    if (filteredSongs.length === 0) return;
-    const nextIndex = (currentIndex + 1) % filteredSongs.length;
-    goToSong(nextIndex);
-  }, [currentIndex, filteredSongs.length, goToSong]);
+    if (allSongs.length === 0) return;
+    const nextIndex = (currentIndex + 1) % allSongs.length;
+    setCurrentIndex(nextIndex);
+    stopPlayback();
+  }, [currentIndex, allSongs.length, stopPlayback]);
 
   const handlePrev = useCallback(() => {
-    if (filteredSongs.length === 0) return;
-    const prevIndex = (currentIndex - 1 + filteredSongs.length) % filteredSongs.length;
-    goToSong(prevIndex);
-  }, [currentIndex, filteredSongs.length, goToSong]);
-
-  // === Swipe Navigation ===
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (!touchStartX.current) return;
-    const touchEndX = e.changedTouches[0].clientX;
-    const diff = touchStartX.current - touchEndX;
-
-    if (Math.abs(diff) > 80) {
-      if (diff > 0) handleNext();
-      else handlePrev();
-    }
-    touchStartX.current = null;
-  };
-
-  const toggleImmersive = useCallback(() => {
-    setIsImmersiveMode((prev) => !prev);
-    if (!isImmersiveMode) {
-      setIsUiVisible(false);
-      setIsDockVisible(false);
-    } else {
-      showTemporaryUI();
-    }
-  }, [isImmersiveMode, showTemporaryUI]);
-
-  useEffect(() => {
-    if (!isImmersiveMode) showTemporaryUI();
-  }, [isImmersiveMode, showTemporaryUI]);
-
-  // Cleanup timeout
-  useEffect(() => {
-    return () => {
-      if (dockTimeoutRef.current) clearTimeout(dockTimeoutRef.current);
-    };
-  }, []);
+    if (allSongs.length === 0) return;
+    const prevIndex = (currentIndex - 1 + allSongs.length) % allSongs.length;
+    setCurrentIndex(prevIndex);
+    stopPlayback();
+  }, [currentIndex, allSongs.length, stopPlayback]);
 
   // === Key Update ===
-  const handleUpdateKey = useCallback(
-    async (newTargetKey: string) => {
-      if (!currentSong || !user) return;
-      const newPitch = calculateSemitones(currentSong.originalKey || 'C', newTargetKey);
-      setLocalPitch(newPitch);
-      setAudioPitch(newPitch);
+  const handleUpdateKey = useCallback(async (newTargetKey: string) => {
+    if (!currentSong || !user) return;
+    const newPitch = calculateSemitones(currentSong.originalKey || 'C', newTargetKey);
+    setLocalPitch(newPitch);
+    setAudioPitch(newPitch);
 
-      try {
-        const { error } = await supabase
-          .from('repertoire')
-          .update({ target_key: newTargetKey, pitch: newPitch })
-          .eq('id', currentSong.id);
-        if (error) throw error;
+    try {
+      const { error } = await supabase
+        .from('repertoire')
+        .update({ target_key: newTargetKey, pitch: newPitch })
+        .eq('id', currentSong.id);
+      if (error) throw error;
 
-        setAllSongs((prev) =>
-          prev.map((s) =>
-            s.id === currentSong.id ? { ...s, targetKey: newTargetKey, pitch: newPitch } : s
-          )
-        );
-        showSuccess(`Stage Key set to ${newTargetKey}`);
-      } catch {
-        showError('Failed to update key');
-      }
-    },
-    [currentSong, user, setAudioPitch]
-  );
+      setAllSongs((prev) =>
+        prev.map((s) =>
+          s.id === currentSong.id ? { ...s, targetKey: newTargetKey, pitch: newPitch } : s
+        )
+      );
+      showSuccess(`Stage Key set to ${newTargetKey}`);
+    } catch {
+      showError('Failed to update key');
+    }
+  }, [currentSong, user, setAudioPitch]);
 
-// === Chart Content (FINAL FIX - No More Mixing/Blank on iPad) ===
-const prevSongRef = useRef<SetlistSong | null>(null);
+  // === Chart Content ===
+  const chartContent = useMemo(() => {
+    if (!currentSong) {
+      return (
+        <div className="h-full flex items-center justify-center text-slate-500">
+          <Loader2 className="w-16 h-16 animate-spin" />
+          <span className="text-2xl ml-6">Loading song...</span>
+        </div>
+      );
+    }
 
-const chartContent = useMemo(() => {
-  // Hold previous song during transition to prevent flicker/mixing
-  const displaySong = currentSong || prevSongRef.current;
+    const readiness = calculateReadiness(currentSong);
+    if (readiness < 40 && forceReaderResource !== 'simulation' && !ignoreConfirmedGate) {
+      return (
+        <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-950">
+          <AlertCircle className="w-24 h-24 text-red-500 mb-8" />
+          <h2 className="text-4xl font-black uppercase text-white mb-4">Missing Resources</h2>
+          <p className="text-xl text-slate-400 mb-8">Audit this track to link charts or audio.</p>
+          <Button onClick={() => navigate('/')} className="text-lg px-10 py-6 bg-indigo-600 rounded-2xl">
+            Go to Dashboard
+          </Button>
+        </div>
+      );
+    }
 
-  if (!displaySong) {
+    // Force chords
+    if (forceReaderResource === 'force-chords' && currentSong.ug_chords_text) {
+      return (
+        <UGChordsReader
+          key={currentSong.id}
+          chordsText={currentSong.ug_chords_text}
+          config={currentSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
+          isMobile={false}
+          originalKey={currentSong.originalKey}
+          targetKey={transposeKey(currentSong.originalKey || 'C', localPitch)}
+          isPlaying={isPlaying}
+          progress={progress}
+          duration={duration}
+          chordAutoScrollEnabled={true}
+          chordScrollSpeed={1.0}
+        />
+      );
+    }
+
+    // Chords fallback
+    if (
+      currentSong.ug_chords_text &&
+      !currentSong.pdfUrl &&
+      !currentSong.leadsheetUrl &&
+      !currentSong.ugUrl
+    ) {
+      return (
+        <UGChordsReader
+          key={currentSong.id}
+          chordsText={currentSong.ug_chords_text}
+          config={currentSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
+          isMobile={false}
+          originalKey={currentSong.originalKey}
+          targetKey={transposeKey(currentSong.originalKey || 'C', localPitch)}
+          isPlaying={isPlaying}
+          progress={progress}
+          duration={duration}
+          chordAutoScrollEnabled={true}
+          chordScrollSpeed={1.0}
+        />
+      );
+    }
+
+    const chartUrl = currentSong.pdfUrl || currentSong.leadsheetUrl || currentSong.ugUrl;
+    if (!chartUrl) return null;
+
+    // Google Viewer - Primary method for PDFs
+    const googleViewer = `https://docs.google.com/viewer?url=${encodeURIComponent(chartUrl)}&embedded=true`;
+
     return (
-      <div className="h-full flex items-center justify-center text-slate-500">
-        <Loader2 className="w-16 h-16 animate-spin" />
-        <span className="text-2xl ml-6">Loading song...</span>
+      <div className="w-full h-full relative bg-black">
+        <iframe
+          key={`${currentSong.id}-google`}
+          src={googleViewer}
+          className="absolute inset-0 w-full h-full"
+          title="Chart - Google Viewer"
+          style={{ border: 'none' }}
+          allowFullScreen
+        />
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10">
+          <a
+            href={chartUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-indigo-600 hover:bg-indigo-700 px-8 py-4 rounded-2xl text-lg font-bold shadow-2xl"
+          >
+            Open Chart Externally →
+          </a>
+        </div>
       </div>
     );
-  }
-
-  // Update ref for next transition
-  if (currentSong) {
-    prevSongRef.current = currentSong;
-  }
-
-  const readiness = calculateReadiness(displaySong);
-  if (readiness < 40 && forceReaderResource !== 'simulation' && !ignoreConfirmedGate) {
-    return (
-      <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-950">
-        <AlertCircle className="w-24 h-24 text-red-500 mb-8" />
-        <h2 className="text-4xl font-black uppercase text-white mb-4">Missing Resources</h2>
-        <p className="text-xl text-slate-400 mb-8">Audit this track to link charts or audio.</p>
-        <Button onClick={() => setIsResourceAuditOpen(true)} className="text-lg px-10 py-6 bg-indigo-600 rounded-2xl">
-          Audit Resources
-        </Button>
-      </div>
-    );
-  }
-
-  // Force chords
-  if (forceReaderResource === 'force-chords' && displaySong.ug_chords_text) {
-    return (
-      <UGChordsReader
-        key={displaySong.id}
-        chordsText={displaySong.ug_chords_text}
-        config={displaySong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
-        isMobile={isMobile}
-        originalKey={displaySong.originalKey}
-        targetKey={transposeKey(displaySong.originalKey || 'C', localPitch)}
-        isPlaying={isPlaying}
-        progress={progress}
-        duration={duration}
-        chordAutoScrollEnabled={chordAutoScrollEnabled}
-        chordScrollSpeed={chordScrollSpeed}
-      />
-    );
-  }
-
-  // Chords fallback
-  if (
-    displaySong.ug_chords_text &&
-    !displaySong.pdfUrl &&
-    !displaySong.leadsheetUrl &&
-    !displaySong.ugUrl
-  ) {
-    return (
-      <UGChordsReader
-        key={displaySong.id}
-        chordsText={displaySong.ug_chords_text}
-        config={displaySong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
-        isMobile={isMobile}
-        originalKey={displaySong.originalKey}
-        targetKey={transposeKey(displaySong.originalKey || 'C', localPitch)}
-        isPlaying={isPlaying}
-        progress={progress}
-        duration={duration}
-        chordAutoScrollEnabled={chordAutoScrollEnabled}
-        chordScrollSpeed={chordScrollSpeed}
-      />
-    );
-  }
-
-  const chartUrl = displaySong.pdfUrl || displaySong.leadsheetUrl || displaySong.ugUrl;
-  if (!chartUrl) return null;
-
-  // Google Viewer - WORKS PERFECTLY on iPad Safari (recommended primary)
-  const googleViewer = `https://docs.google.com/viewer?url=${encodeURIComponent(chartUrl)}&embedded=true`;
-
-  return (
-    <div className="w-full h-full relative bg-black">
-      {/* Primary: Google Viewer (reliable on iOS) */}
-      <iframe
-        key={`${displaySong.id}-google`}
-        src={googleViewer}
-        className="absolute inset-0 w-full h-full"
-        title="Chart - Google Viewer"
-        style={{ border: 'none', touchAction: 'pan-x pan-y pinch-zoom' }}
-        allowFullScreen
-      />
-
-      {/* Optional: Direct fallback (sometimes works on desktop) */}
-      <iframe
-        key={`${displaySong.id}-direct`}
-        src={`${chartUrl}#toolbar=0&view=FitH`}
-        className="absolute inset-0 w-full h-full opacity-0"
-        title="Direct Chart"
-        onLoad={(e) => {
-          // Show direct if it loads successfully
-          const iframe = e.currentTarget;
-          setTimeout(() => {
-            if (iframe.contentWindow?.document?.body?.children.length > 0) {
-              iframe.style.opacity = '1';
-            }
-          }, 2000);
-        }}
-      />
-
-      {/* Safety Net Button */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10">
-        <a
-          href={chartUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="bg-indigo-600 hover:bg-indigo-700 px-8 py-4 rounded-2xl text-lg font-bold shadow-2xl"
-        >
-          Open Chart Externally →
-        </a>
-      </div>
-    </div>
-  );
-}, [
-  currentSong?.id, // Only recompute when song truly changes
-  currentSong,
-  prevSongRef.current?.id,
-  forceReaderResource,
-  ignoreConfirmedGate,
-  isMobile,
-  localPitch,
-  isPlaying,
-  progress,
-  duration,
-  chordAutoScrollEnabled,
-  chordScrollSpeed,
-]);
+  }, [currentSong, forceReaderResource, ignoreConfirmedGate, localPitch, isPlaying, progress, duration, navigate]);
 
   if (loading) {
     return (
@@ -455,202 +277,168 @@ const chartContent = useMemo(() => {
   }
 
   return (
-    <div className="relative flex h-screen w-screen overflow-hidden bg-slate-950 text-white">
-      {/* Swipe Indicators */}
-      {isImmersiveMode && (
-        <>
-          <div className="absolute left-4 top-1/2 -translate-y-1/2 z-50 pointer-events-none opacity-30">
-            <ChevronLeft className="w-16 h-16" />
+    <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-white">
+      {/* Left Sidebar */}
+      <aside className="w-80 bg-slate-900 border-r border-white/10 flex flex-col shrink-0">
+        <div className="p-6 border-b border-white/10 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-black uppercase tracking-tight">Reader</h1>
+            <p className="text-indigo-400 text-sm font-bold mt-1">{allSongs.length} Songs</p>
           </div>
-          <div className="absolute right-4 top-1/2 -translate-y-1/2 z-50 pointer-events-none opacity-30">
-            <ChevronRight className="w-16 h-16" />
-          </div>
-        </>
-      )}
-
-      {/* UI Panels */}
-      <AnimatePresence>
-        {isUiVisible && !isImmersiveMode && (
-          <>
-            <motion.div
-              initial={{ y: -100 }}
-              animate={{ y: 0 }}
-              exit={{ y: -100 }}
-              className="fixed top-0 left-0 right-0 z-50"
-            >
-              <SheetReaderHeader
-                currentSong={currentSong}
-                onClose={() => {
-                  navigate('/');
-                }}
-                onSearchClick={() => setIsRepertoirePickerOpen(true)}
-                onPrevSong={handlePrev}
-                onNextSong={handleNext}
-                currentSongIndex={currentIndex}
-                totalSongs={filteredSongs.length}
-                isLoading={loading}
-                keyPreference={globalKeyPreference}
-                onUpdateKey={handleUpdateKey}
-                isFullScreen={false}
-                onToggleFullScreen={() => {}}
-                setIsOverlayOpen={setIsOverlayOpen}
-                isOverrideActive={forceReaderResource !== 'default' || ignoreConfirmedGate}
-              />
-            </motion.div>
-
-            <motion.div
-              initial={{ y: 100 }}
-              animate={{ y: 0 }}
-              exit={{ y: 100 }}
-              className="fixed bottom-0 left-0 right-0 z-50"
-            >
-              <SheetReaderFooter
-                currentSong={currentSong}
-                isPlaying={isPlaying}
-                progress={progress}
-                duration={duration}
-                onTogglePlayback={togglePlayback}
-                onStopPlayback={stopPlayback}
-                onSetProgress={setAudioProgress}
-                localPitch={localPitch}
-                setLocalPitch={setLocalPitch}
-                volume={volume}
-                setVolume={setVolume}
-                keyPreference={globalKeyPreference}
-                chordAutoScrollEnabled={chordAutoScrollEnabled}
-                setChordAutoScrollEnabled={setChordAutoScrollEnabled}
-                chordScrollSpeed={chordScrollSpeed}
-                setChordScrollSpeed={setChordScrollSpeed}
-              />
-            </motion.div>
-
-            {showSidebar && (
-              <motion.aside
-                initial={{ x: -320 }}
-                animate={{ x: 0 }}
-                exit={{ x: -320 }}
-                className="fixed left-0 top-0 bottom-0 w-96 bg-slate-900/95 backdrop-blur-md border-r border-white/10 z-40 pt-24 pb-32"
-              >
-                <div className="p-6 border-b border-white/10">
-                  <h2 className="text-2xl font-black uppercase tracking-wider">Setlist</h2>
-                  <p className="text-indigo-400 text-lg mt-1">{filteredSongs.length} songs</p>
-                </div>
-                <ScrollArea className="h-full">
-                  <div className="p-4 space-y-3">
-                    {filteredSongs.map((song, index) => (
-                      <button
-                        key={song.id}
-                        onClick={() => goToSong(index)}
-                        className={cn(
-                          'w-full text-left p-5 rounded-3xl transition-all',
-                          index === currentIndex
-                            ? 'bg-indigo-600 text-white shadow-2xl scale-105'
-                            : 'hover:bg-white/10 text-slate-300'
-                        )}
-                      >
-                        <div className="font-bold text-xl truncate">{song.name}</div>
-                        {song.artist && <div className="text-sm opacity-75 mt-1 truncate">{song.artist}</div>}
-                        <div className="text-xs opacity-50 mt-2">{(index + 1).toString().padStart(2, '0')}</div>
-                      </button>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </motion.aside>
-            )}
-          </>
-        )}
-      </AnimatePresence>
-
-      {/* Main Chart Area */}
-      <main
-        ref={mainRef}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        onClick={toggleImmersive}
-        className={cn(
-          'flex-1 bg-black transition-all duration-500',
-          showSidebar && isUiVisible && !isImmersiveMode ? 'ml-96' : 'ml-0'
-        )}
-      >
-        <div className="h-full w-full relative">
-          {chartContent}
-
-          {/* Immersive Hint */}
-          {isImmersiveMode && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-              <div className="bg-black/60 backdrop-blur-md px-10 py-5 rounded-full text-xl">
-                Tap screen to show controls
-              </div>
-            </div>
-          )}
+          <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="rounded-full hover:bg-white/10">
+            <X className="w-5 h-5" />
+          </Button>
         </div>
+
+        <ScrollArea className="flex-1">
+          <div className="p-4 space-y-3">
+            {allSongs.map((song, index) => (
+              <button
+                key={song.id}
+                onClick={() => {
+                  setCurrentIndex(index);
+                  stopPlayback();
+                }}
+                className={cn(
+                  'w-full text-left p-4 rounded-xl transition-all border',
+                  index === currentIndex
+                    ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg'
+                    : 'bg-slate-800 text-slate-300 border-transparent hover:bg-slate-700'
+                )}
+              >
+                <div className="font-bold text-lg truncate">{song.name}</div>
+                {song.artist && <div className="text-sm opacity-75 mt-1 truncate">{song.artist}</div>}
+                <div className="text-xs opacity-50 mt-2 flex items-center gap-2">
+                  <span>{(index + 1).toString().padStart(2, '0')}</span>
+                  {song.pdfUrl && <span className="bg-white/10 px-1.5 rounded">PDF</span>}
+                  {song.ug_chords_text && <span className="bg-white/10 px-1.5 rounded">CH</span>}
+                </div>
+              </button>
+            ))}
+          </div>
+        </ScrollArea>
+
+        <div className="p-4 border-t border-white/10">
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start gap-2 text-slate-400 hover:text-white hover:bg-white/10"
+            onClick={() => setIsPreferencesOpen(true)}
+          >
+            <Settings className="w-4 h-4" /> Reader Settings
+          </Button>
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="h-16 bg-slate-900 border-b border-white/10 flex items-center justify-between px-6 shrink-0">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={handlePrev} className="rounded-lg hover:bg-white/10">
+              <ChevronLeft className="w-5 h-5" />
+            </Button>
+            <div className="min-w-[300px]">
+              <h2 className="text-xl font-bold truncate">{currentSong?.name || "No Song Selected"}</h2>
+              <p className="text-sm text-slate-400 truncate">{currentSong?.artist || ""}</p>
+            </div>
+            <Button variant="ghost" size="icon" onClick={handleNext} className="rounded-lg hover:bg-white/10">
+              <ChevronRight className="w-5 h-5" />
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* Audio Controls */}
+            {currentSong?.previewUrl && (
+              <div className="flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-lg">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={togglePlayback}
+                  className="h-8 w-8 rounded hover:bg-white/10"
+                >
+                  {isPlaying ? <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" /> : <div className="w-2 h-2 bg-white rounded-full" />}
+                </Button>
+                <span className="text-xs font-mono text-slate-400">
+                  {Math.floor((progress / 100) * duration)}s
+                </span>
+              </div>
+            )}
+
+            {/* Key Display */}
+            {currentSong && (
+              <div className="flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-lg">
+                <span className="text-xs font-bold text-slate-400">KEY</span>
+                <span className="text-sm font-mono font-bold text-indigo-400">
+                  {transposeKey(currentSong.originalKey || 'C', localPitch)}
+                </span>
+              </div>
+            )}
+
+            {/* Immersive Toggle */}
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => setIsImmersive(!isImmersive)}
+              className="rounded-lg hover:bg-white/10"
+            >
+              {isImmersive ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+            </Button>
+          </div>
+        </div>
+
+        {/* Chart Viewer */}
+        <div className={cn("flex-1 bg-black overflow-hidden relative", isImmersive && "mt-0")}>
+          {chartContent}
+        </div>
+
+        {/* Footer Controls */}
+        {!isImmersive && currentSong && (
+          <div className="h-16 bg-slate-900 border-t border-white/10 flex items-center justify-between px-6 shrink-0">
+            <div className="flex items-center gap-4">
+              <span className="text-xs font-bold text-slate-500 uppercase">Pitch Shift</span>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => {
+                  const newPitch = localPitch - 1;
+                  setLocalPitch(newPitch);
+                  setAudioPitch(newPitch);
+                }}
+                className="h-8 w-8 rounded hover:bg-white/10"
+              >
+                -
+              </Button>
+              <span className="text-sm font-mono font-bold w-8 text-center">{localPitch > 0 ? '+' : ''}{localPitch}</span>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => {
+                  const newPitch = localPitch + 1;
+                  setLocalPitch(newPitch);
+                  setAudioPitch(newPitch);
+                }}
+                className="h-8 w-8 rounded hover:bg-white/10"
+              >
+                +
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <span className="text-xs font-bold text-slate-500 uppercase">Volume</span>
+              <input 
+                type="range" 
+                min={-60} 
+                max={0} 
+                value={volume} 
+                onChange={(e) => setVolume(Number(e.target.value))}
+                className="w-32 accent-indigo-500"
+              />
+            </div>
+          </div>
+        )}
       </main>
 
-      {/* Floating Dock */}
-      <AnimatePresence>
-        {isDockVisible && (
-          <motion.div
-            initial={{ opacity: 0, y: 100 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 100 }}
-            className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50"
-          >
-            <FloatingCommandDock
-              onOpenSearch={() => setIsRepertoirePickerOpen(true)}
-              onOpenPractice={togglePlayback}
-              onOpenReader={() => {}}
-              onOpenAdmin={() => setIsResourceAuditOpen(true)}
-              onOpenPreferences={() => setIsPreferencesOpen(true)}
-              onToggleHeatmap={() => {}}
-              onOpenUserGuide={() => {}}
-              showHeatmap={false}
-              viewMode="repertoire"
-              hasPlayableSong={!!currentSong?.previewUrl}
-              hasReadableChart={true}
-              isPlaying={isPlaying}
-              onTogglePlayback={togglePlayback}
-              isReaderMode={true}
-              onSetMenuOpen={setIsOverlayOpen}
-              onSetUiVisible={setIsUiVisible}
-              isMenuOpen={isOverlayOpen}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Modals */}
-      <RepertoirePicker
-        isOpen={isRepertoirePickerOpen}
-        onClose={() => setIsRepertoirePickerOpen(false)}
-        repertoire={allSongs}
-        currentSetlistSongs={[]}
-        onAdd={(selectedSong: SetlistSong) => {
-          const filteredIndex = filteredSongs.findIndex((s) => s.id === selectedSong.id);
-          if (filteredIndex !== -1) goToSong(filteredIndex);
-          setIsRepertoirePickerOpen(false);
-        }}
-      />
-
-      <ResourceAuditModal
-        isOpen={isResourceAuditOpen}
-        onClose={() => setIsResourceAuditOpen(false)}
-        songs={allSongs}
-        onVerify={(id, updates) => {
-          setAllSongs((prev) => prev.map((s) => (s.id === id ? { ...s, ...updates } : s)));
-        }}
-      />
-
-      <SongStudioModal
-        isOpen={isStudioModalOpen}
-        onClose={() => setIsStudioModalOpen(false)}
-        gigId="library"
-        songId={currentSong?.id || null}
-      />
-
-      <PreferencesModal
-        isOpen={isPreferencesOpen}
-        onClose={() => setIsPreferencesOpen(false)}
-      />
+      <PreferencesModal isOpen={isPreferencesOpen} onClose={() => setIsPreferencesOpen(false)} />
     </div>
   );
 };
