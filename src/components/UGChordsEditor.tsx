@@ -8,13 +8,13 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SetlistSong } from './SetlistManager';
-import { transposeChords } from '@/utils/chordUtils';
+import { transposeChords, extractKeyFromChords } from '@/utils/chordUtils';
 import { useSettings } from '@/hooks/use-settings';
 import { cn } from "@/lib/utils";
-import { Play, RotateCcw, Download, Palette, Type, AlignCenter, AlignLeft, AlignRight, ExternalLink, Search, Check, Link as LinkIcon, Loader2, Music, Eye } from 'lucide-react';
+import { Play, RotateCcw, Download, Palette, Type, AlignCenter, AlignLeft, AlignRight, ExternalLink, Search, Check, Link as LinkIcon, Loader2, Music, Eye, Sparkles } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
-import { calculateSemitones, transposeKey } from '@/utils/keyUtils';
+import { calculateSemitones, transposeKey, formatKey } from '@/utils/keyUtils';
 
 interface UGChordsEditorProps {
   song: SetlistSong | null;
@@ -193,6 +193,26 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
     }
   };
 
+  const handlePullKey = () => {
+    if (!chordsText.trim()) {
+      showError("Paste chords first to pull key.");
+      return;
+    }
+    const rawExtractedKey = extractKeyFromChords(chordsText); // Get raw key
+    if (rawExtractedKey) {
+      const formattedKey = formatKey(rawExtractedKey, keyPreference); // Format based on preference
+      handleAutoSave({ 
+        originalKey: formattedKey, 
+        targetKey: formattedKey, // Set targetKey to be the same as originalKey
+        pitch: 0, // Reset pitch to 0
+        isKeyConfirmed: true 
+      });
+      showSuccess(`Pulled key: ${formattedKey}`);
+    } else {
+      showError("Could not extract key from chords.");
+    }
+  };
+
   const readableChordColor = config.chordColor === "#000000" ? "#ffffff" : config.chordColor;
 
   return (
@@ -284,7 +304,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
               value={chordsText}
               onChange={(e) => setChordsText(e.target.value)}
               placeholder="Paste your chords and lyrics here. Example: [Verse] C G Am F When I find myself in times of trouble, Mother Mary comes to me"
-              className="w-full mt-3 bg-black/40 border border-white/20 rounded-xl p-4 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:border-transparent min-h-[300px] font-mono text-sm resize-none flex-1"
+              className="w-full mt-3 bg-black/40 border border-white/20 rounded-xl p-4 pl-10 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:border-transparent min-h-[300px] font-mono text-sm resize-none flex-1"
             />
             <div className="flex justify-between items-center mt-2">
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -387,11 +407,25 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-[9px] font-bold text-slate-400 uppercase">Original</Label>
-                <Input 
-                  value={formData.originalKey || "TBC"} 
-                  readOnly 
-                  className="h-10 bg-black/20 border-white/10 font-mono font-bold text-slate-500"
-                />
+                <div className="flex items-center gap-2"> {/* Added flex container */}
+                  <Input 
+                    value={formData.originalKey || "TBC"} 
+                    readOnly 
+                    className="h-10 bg-black/20 border-white/10 font-mono font-bold text-slate-500 flex-1"
+                  />
+                  {(!formData.originalKey || formData.originalKey === "TBC") && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={handlePullKey} 
+                      disabled={!chordsText.trim()}
+                      className="h-10 w-10 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20"
+                      title="Pull Key from Chords"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
               <div className="space-y-1.5">
                 <Label className="text-[9px] font-bold text-emerald-400 uppercase">Target (Linked)</Label>

@@ -29,8 +29,8 @@ import {
 import { SetlistSong } from './SetlistManager';
 import { cn } from '@/lib/utils';
 import { sanitizeUGUrl } from '@/utils/ugUtils';
-import { showSuccess, showError } from '@/utils/toast';
-import { isChordLine, transposeChords } from '@/utils/chordUtils';
+import { showSuccess, showError, showInfo } from '@/utils/toast';
+import { isChordLine, transposeChords, extractKeyFromChords } from '@/utils/chordUtils';
 import { calculateSemitones, formatKey } from '@/utils/keyUtils';
 import { useSettings } from '@/hooks/use-settings';
 
@@ -140,11 +140,31 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
         processedChords = transposeChords(processedChords, semitones, keyPreference);
       }
 
+      let extractedOriginalKey = song.originalKey;
+      let newTargetKey = song.targetKey;
+      let newPitch = song.pitch;
+      let isKeyConfirmed = song.isKeyConfirmed;
+
+      if (!extractedOriginalKey || extractedOriginalKey === "TBC") {
+        const rawPulledKey = extractKeyFromChords(clipboardText);
+        if (rawPulledKey) {
+          extractedOriginalKey = formatKey(rawPulledKey, keyPreference);
+          newTargetKey = extractedOriginalKey; // Set targetKey to be the same
+          newPitch = 0; // Reset pitch to 0
+          isKeyConfirmed = true; // Mark as confirmed
+          showInfo(`Automatically pulled key "${extractedOriginalKey}" from pasted chords.`);
+        }
+      }
+
       onVerify(song.id, {
         ug_chords_text: processedChords,
         is_ug_chords_present: true,
         is_ug_link_verified: true,
         isMetadataConfirmed: true,
+        originalKey: extractedOriginalKey,
+        targetKey: newTargetKey,
+        pitch: newPitch,
+        isKeyConfirmed: isKeyConfirmed,
       });
       showSuccess(`Chords for "${song.name}" pasted & verified!`);
 

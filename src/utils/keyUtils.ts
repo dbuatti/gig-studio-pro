@@ -3,11 +3,11 @@
 const SHARP_KEYS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const FLAT_KEYS = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
 
-const MAPPING_TO_SHARP: Record<string, string> = {
+export const MAPPING_TO_SHARP: Record<string, string> = {
   "Db": "C#", "Eb": "D#", "Gb": "F#", "Ab": "G#", "Bb": "A#"
 };
 
-const MAPPING_TO_FLAT: Record<string, string> = {
+export const MAPPING_TO_FLAT: Record<string, string> = {
   "C#": "Db", "D#": "Eb", "F#": "Gb", "G#": "Ab", "A#": "Bb"
 };
 

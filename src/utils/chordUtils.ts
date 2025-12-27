@@ -1,11 +1,11 @@
 "use client";
 
 import { KeyPreference } from '@/hooks/use-settings';
-import { transposeKey, formatKey } from './keyUtils';
+import { transposeKey, formatKey, MAPPING_TO_SHARP } from './keyUtils';
 
 // Regular expression to match musical chords
 // Matches major, minor, diminished, augmented, suspended, and various seventh chords
-const CHORD_REGEX = /([A-G](?:#|b)?)(m|dim|aug|sus\d?|add\d?|\d+)?(\/[A-G](?:#|b)?)?/g;
+const CHORD_REGEX = /([A-G](?:#|b)?)(m|maj|dim|aug|sus\d?|add\d?|\d+)?(\/[A-G](?:#|b)?)?/g;
 
 /**
  * Determines if a line contains chords
@@ -93,4 +93,42 @@ export const formatChordText = (text: string, config?: {
     
     return formattedLine;
   }).join('\n');
+};
+
+/**
+ * Extracts the first valid musical chord from a text, ignoring bracketed sections.
+ * @param text The text containing chords.
+ * @returns The first detected chord root (e.g., "C", "G#m") in its most common notation (sharps preferred), or null if none found.
+ */
+export const extractKeyFromChords = (text: string): string | null => {
+  if (!text) return null;
+
+  const lines = text.split('\n');
+
+  for (const line of lines) {
+    // Ignore lines that are likely section headers (e.g., [Intro], [Verse])
+    if (line.trim().startsWith('[') && line.trim().endsWith(']')) {
+      continue;
+    }
+
+    // Find the first chord in the line
+    const match = line.match(CHORD_REGEX);
+    if (match && match[0]) {
+      const fullChord = match[0];
+      const rootMatch = fullChord.match(/([A-G][#b]?)(m|maj|dim|aug|sus\d?|add\d?|\d+)?/);
+      if (rootMatch && rootMatch[1]) {
+        let key = rootMatch[1];
+        const chordType = rootMatch[2];
+
+        // Determine if it's a minor key
+        const isMinor = chordType && (chordType.startsWith('m') || chordType === 'dim');
+        
+        // Normalize the root note to a standard sharp format for consistency
+        const normalizedRoot = MAPPING_TO_SHARP[key] || key;
+        
+        return normalizedRoot + (isMinor ? 'm' : '');
+      }
+    }
+  }
+  return null;
 };
