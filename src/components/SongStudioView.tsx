@@ -60,6 +60,10 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   const [activeChartType, setActiveChartType] = useState<'pdf' | 'leadsheet' | 'web' | 'ug'>('pdf');
   const [isVerifying, setIsVerifying] = useState(false);
   
+  // NEW: State for chord auto-scroll in Studio
+  const [chordAutoScrollEnabled, setChordAutoScrollEnabled] = useState(true);
+  const [chordScrollSpeed, setChordScrollSpeed] = useState(1.0);
+
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
 
   const fetchData = async () => {
@@ -348,6 +352,9 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
               duration={audio.duration} 
               togglePlayback={audio.togglePlayback} 
               stopPlayback={audio.stopPlayback} 
+              // NEW: Pass chord auto-scroll props
+              chordAutoScrollEnabled={chordAutoScrollEnabled}
+              chordScrollSpeed={chordScrollSpeed}
             />
           </div>
         </div>

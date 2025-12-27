@@ -41,6 +41,9 @@ interface StudioTabContentProps {
   duration: number;
   togglePlayback: () => void;
   stopPlayback: () => void;
+  // NEW: Chord auto-scroll props
+  chordAutoScrollEnabled: boolean;
+  chordScrollSpeed: number;
 }
 
 const StudioTabContent: React.FC<StudioTabContentProps> = ({
@@ -71,6 +74,9 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
   duration,
   togglePlayback,
   stopPlayback,
+  // NEW: Chord auto-scroll props
+  chordAutoScrollEnabled,
+  chordScrollSpeed,
 }) => {
   switch (activeTab) {
     case 'config':
@@ -125,6 +131,12 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
           activeChartType={activeChartType}
           setActiveChartType={setActiveChartType}
           handleUgPrint={handleUgPrint}
+          // NEW: Pass auto-scroll props
+          isPlaying={isPlaying}
+          progress={progress}
+          duration={duration}
+          chordAutoScrollEnabled={chordAutoScrollEnabled}
+          chordScrollSpeed={chordScrollSpeed}
         />
       );
     case 'lyrics':

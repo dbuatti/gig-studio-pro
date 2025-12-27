@@ -63,6 +63,10 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
   const [autoAdvanceInterval, setAutoAdvanceInterval] = useState(30); // seconds
   const autoAdvanceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // NEW: Chord auto-scroll states
+  const [chordAutoScrollEnabled, setChordAutoScrollEnabled] = useState(true);
+  const [chordScrollSpeed, setChordScrollSpeed] = useState(1.0); // Multiplier for scroll speed
+
   const audioEngine = useToneAudio();
   const { isPlaying, progress, duration, analyzer, loadFromUrl, togglePlayback, stopPlayback, setPitch: setAudioPitch, setVolume, setProgress: setAudioProgress, resetEngine } = audioEngine;
 
@@ -255,15 +259,6 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
     };
   }, [autoAdvanceEnabled, autoAdvanceInterval, filteredSongs.length, handleNext]);
 
-  // Removed: Immersive Mode Logic - Controls initial UI visibility based on playback state
-  // useEffect(() => {
-  //   if (isPlaying) {
-  //     setIsUiVisible(false); // Hide UI when playback starts
-  //   } else {
-  //     setIsUiVisible(true); // Show UI when playback stops
-  //   }
-  // }, [isPlaying]);
-
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -439,6 +434,12 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
           isMobile={false}
           originalKey={currentSong.originalKey}
           targetKey={transposeKey(currentSong.originalKey || "C", localPitch)} // Use localPitch for transposition
+          // NEW: Pass auto-scroll props
+          autoScrollEnabled={chordAutoScrollEnabled}
+          scrollSpeed={chordScrollSpeed}
+          isPlaying={isPlaying}
+          progress={progress}
+          duration={duration}
         />
       );
       chartType = "UG Chords";
@@ -458,6 +459,12 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
             isMobile={false}
             originalKey={currentSong.originalKey}
             targetKey={transposeKey(currentSong.originalKey || "C", localPitch)} // Use localPitch for transposition
+            // NEW: Pass auto-scroll props
+            autoScrollEnabled={chordAutoScrollEnabled}
+            scrollSpeed={chordScrollSpeed}
+            isPlaying={isPlaying}
+            progress={progress}
+            duration={duration}
           />
         );
         chartType = "UG Chords (Fallback)";
@@ -505,7 +512,7 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
         </div>
       </div>
     );
-  }, [currentSong, filteredSongs, isFramable, currentSongKeyPreference, localPitch, handleUpdateKey]);
+  }, [currentSong, filteredSongs, isFramable, currentSongKeyPreference, localPitch, handleUpdateKey, chordAutoScrollEnabled, chordScrollSpeed, isPlaying, progress, duration]);
 
   const handleSelectSongFromPicker = useCallback((song: SetlistSong) => {
     const newIndex = allSongs.findIndex(s => s.id === song.id);
@@ -588,6 +595,11 @@ const SheetReaderMode: React.FC<SheetReaderModeProps> = () => {
               volume={audioEngine.volume}
               setVolume={audioEngine.setVolume}
               keyPreference={globalKeyPreference}
+              // NEW: Pass chord auto-scroll props
+              chordAutoScrollEnabled={chordAutoScrollEnabled}
+              setChordAutoScrollEnabled={setChordAutoScrollEnabled}
+              chordScrollSpeed={chordScrollSpeed}
+              setChordScrollSpeed={setChordScrollSpeed}
             />
           </motion.div>
         )}

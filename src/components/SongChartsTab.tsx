@@ -7,6 +7,7 @@ import { ExternalLink, ShieldCheck, Printer, FileText, Music, Guitar, Search, Ma
 import { showError, showSuccess } from '@/utils/toast';
 import UGChordsEditor from './UGChordsEditor';
 import UGChordsReader from './UGChordsReader';
+import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 
 interface SongChartsTabProps {
   formData: Partial<SetlistSong>;
@@ -17,16 +18,13 @@ interface SongChartsTabProps {
   activeChartType: 'pdf' | 'leadsheet' | 'web' | 'ug';
   setActiveChartType: (type: 'pdf' | 'leadsheet' | 'web' | 'ug') => void;
   handleUgPrint: () => void;
+  // NEW: Auto-scroll props
+  isPlaying: boolean;
+  progress: number;
+  duration: number;
+  chordAutoScrollEnabled: boolean;
+  chordScrollSpeed: number;
 }
-
-const defaultUgChordsConfig = {
-  fontFamily: "monospace",
-  fontSize: 16,
-  chordBold: true,
-  lineSpacing: 1.5,
-  chordColor: "#ffffff",
-  textAlign: "left" as "left" | "center" | "right"
-};
 
 const SongChartsTab: React.FC<SongChartsTabProps> = ({
   formData,
@@ -37,6 +35,12 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
   activeChartType,
   setActiveChartType,
   handleUgPrint,
+  // NEW: Auto-scroll props
+  isPlaying,
+  progress,
+  duration,
+  chordAutoScrollEnabled,
+  chordScrollSpeed,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<"view" | "edit-ug">("view");
   const [isReaderExpanded, setIsReaderExpanded] = useState(false);
@@ -137,6 +141,12 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
                 isMobile={isMobile}
                 originalKey={formData.originalKey}
                 targetKey={formData.targetKey}
+                // NEW: Pass auto-scroll props
+                autoScrollEnabled={chordAutoScrollEnabled}
+                scrollSpeed={chordScrollSpeed}
+                isPlaying={isPlaying}
+                progress={progress}
+                duration={duration}
               />
             ) : currentChartUrl ? (
               canEmbedUg ? (

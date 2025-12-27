@@ -3,11 +3,13 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Play, Pause, RotateCcw, Gauge, Volume2, Activity, Check } from 'lucide-react';
+import { Play, Pause, RotateCcw, Gauge, Volume2, Activity, Check, Guitar, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SetlistSong } from './SetlistManager';
 import { formatKey } from '@/utils/keyUtils';
 import { KeyPreference } from '@/hooks/use-settings';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 interface SheetReaderFooterProps {
   currentSong: SetlistSong | null;
@@ -22,6 +24,11 @@ interface SheetReaderFooterProps {
   volume: number;
   setVolume: (value: number) => void;
   keyPreference: KeyPreference;
+  // NEW: Chord auto-scroll props
+  chordAutoScrollEnabled: boolean;
+  setChordAutoScrollEnabled: (enabled: boolean) => void;
+  chordScrollSpeed: number;
+  setChordScrollSpeed: (speed: number) => void;
 }
 
 const SheetReaderFooter: React.FC<SheetReaderFooterProps> = ({
@@ -37,6 +44,11 @@ const SheetReaderFooter: React.FC<SheetReaderFooterProps> = ({
   volume,
   setVolume,
   keyPreference,
+  // NEW: Chord auto-scroll props
+  chordAutoScrollEnabled,
+  setChordAutoScrollEnabled,
+  chordScrollSpeed,
+  setChordScrollSpeed,
 }) => {
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -79,6 +91,31 @@ const SheetReaderFooter: React.FC<SheetReaderFooterProps> = ({
       </div>
 
       <div className="flex items-center gap-6">
+        {/* NEW: Chord Auto-Scroll Controls */}
+        <div className="flex flex-col items-center gap-2">
+          <div className="flex items-center gap-2">
+            <Guitar className="w-4 h-4 text-indigo-400" />
+            <Label htmlFor="chord-scroll-toggle" className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Auto-Scroll</Label>
+            <Switch
+              id="chord-scroll-toggle"
+              checked={chordAutoScrollEnabled}
+              onCheckedChange={setChordAutoScrollEnabled}
+              className="data-[state=checked]:bg-indigo-600"
+            />
+          </div>
+          <div className="w-24">
+            <Slider
+              value={[chordScrollSpeed]}
+              min={0.5}
+              max={2.0}
+              step={0.1}
+              onValueChange={([v]) => setChordScrollSpeed(v)}
+              disabled={!chordAutoScrollEnabled}
+            />
+            <p className="text-[9px] font-mono font-bold text-slate-500 text-center mt-1">{chordScrollSpeed.toFixed(1)}x</p>
+          </div>
+        </div>
+
         <div className="flex flex-col items-center">
           <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1.5 font-mono">
             <Gauge className="w-3 h-3" /> Tempo
