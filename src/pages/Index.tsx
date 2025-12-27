@@ -15,8 +15,9 @@ import SetlistSettingsModal from "@/components/SetlistSettingsModal";
 import ResourceAuditModal from "@/components/ResourceAuditModal";
 import RepertoirePicker from "@/components/RepertoirePicker";
 import SetlistExporter from "@/components/SetlistExporter";
-import FloatingCommandDock from "@/components/FloatingCommandDock"; // Import the new dock component
-import SheetReaderMode from './SheetReaderMode'; // Import SheetReaderMode
+import FloatingCommandDock from "@/components/FloatingCommandDock";
+import UserGuideModal from "@/components/UserGuideModal"; // Import the new UserGuideModal
+import SheetReaderMode from './SheetReaderMode';
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { showSuccess, showError, showInfo } from '@/utils/toast';
 import { calculateSemitones } from '@/utils/keyUtils';
@@ -75,7 +76,7 @@ const Index = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isSearchPanelOpen, setIsSearchPanelOpen] = useState(false); 
   const [isPerformanceMode, setIsPerformanceMode] = useState(false);
-  const [isSheetReaderMode, setIsSheetReaderMode] = useState(false); // NEW: Sheet Reader Mode
+  const [isSheetReaderMode, setIsSheetReaderMode] = useState(false);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false); 
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
@@ -84,8 +85,9 @@ const Index = () => {
   const [isRepertoirePickerOpen, setIsRepertoirePickerOpen] = useState(false);
   const [editingSongId, setEditingSongId] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [showHeatmap, setShowHeatmap] = useState(false); // New state for heatmap
-  const [isCommandHubOpen, setIsCommandHubOpen] = useState(false); // NEW: Command Hub state
+  const [showHeatmap, setShowHeatmap] = useState(false);
+  const [isCommandHubOpen, setIsCommandHubOpen] = useState(false);
+  const [isUserGuideOpen, setIsUserGuideOpen] = useState(false); // NEW: State for User Guide Modal
   
   const [sortMode, setSortMode] = useState<'none' | 'ready' | 'work'>(() => {
     return (localStorage.getItem('gig_sort_mode') as any) || 'none';
@@ -103,8 +105,8 @@ const Index = () => {
   const isSyncingRef = useRef(false);
   const saveQueueRef = useRef<any[]>([]);
   const transposerRef = useRef<AudioTransposerRef>(null);
-  const searchPanelRef = useRef<HTMLElement>(null); // Ref for the search panel
-  const searchButtonRef = useRef<HTMLButtonElement>(null); // Ref for the search button
+  const searchPanelRef = useRef<HTMLElement>(null);
+  const searchButtonRef = useRef<HTMLButtonElement>(null);
 
   const currentList = setlists.find(l => l.id === currentListId);
   
@@ -219,7 +221,7 @@ const Index = () => {
           isApproved: d.is_approved, preferred_reader: d.preferred_reader, ug_chords_text: d.ug_chords_text,
           ug_chords_config: d.ug_chords_config, is_pitch_linked: d.is_pitch_linked, is_ug_link_verified: d.is_ug_link_verified,
           sheet_music_url: d.sheet_music_url, is_sheet_verified: d.is_sheet_verified,
-          is_ug_chords_present: d.is_ug_chords_present // Ensure this is mapped
+          is_ug_chords_present: d.is_ug_chords_present
         })));
       }
     } catch (err) {
@@ -624,6 +626,7 @@ const Index = () => {
         else if (isSetlistSettingsOpen) setIsSetlistSettingsOpen(false);
         else if (isRepertoirePickerOpen) setIsRepertoirePickerOpen(false);
         else if (isCommandHubOpen) setIsCommandHubOpen(false);
+        else if (isUserGuideOpen) setIsUserGuideOpen(false); // NEW: Close User Guide
       }
     };
 
@@ -632,7 +635,8 @@ const Index = () => {
   }, [
     handleTogglePlayback, startSheetReader, isPerformanceMode, isSheetReaderMode,
     isSearchPanelOpen, isPreferencesOpen, isAdminOpen, isAuditModalOpen,
-    isStudioModalOpen, isSetlistSettingsOpen, isRepertoirePickerOpen, isCommandHubOpen
+    isStudioModalOpen, isSetlistSettingsOpen, isRepertoirePickerOpen, isCommandHubOpen,
+    isUserGuideOpen // Add to dependencies
   ]);
 
   if (isPerformanceMode) {
@@ -796,7 +800,7 @@ const Index = () => {
             currentSongId={activeSongIdState || undefined}
             onSelect={handleSelectSong}
             onEdit={(s) => { 
-              console.log("[Index] Editing song with ID:", s.id, "and master_id:", s.master_id); // Add this log
+              console.log("[Index] Editing song with ID:", s.id, "and master_id:", s.master_id);
               setEditingSongId(s.id); 
               setIsStudioModalOpen(true); 
             }}
@@ -810,7 +814,7 @@ const Index = () => {
             activeFilters={activeFilters} setActiveFilters={setActiveFilters}
             searchTerm={searchTerm} setSearchTerm={setSearchTerm}
             onLinkAudio={(n) => { setIsSearchPanelOpen(true); transposerRef.current?.triggerSearch(n); }}
-            showHeatmap={showHeatmap} // Pass showHeatmap prop
+            showHeatmap={showHeatmap}
           />
         </div>
         <MadeWithDyad />
@@ -823,18 +827,19 @@ const Index = () => {
         gigId={viewMode === 'repertoire' ? 'library' : currentListId} 
         songId={editingSongId} 
         visibleSongs={processedSongs} 
-        onSelectSong={handleSelectSongById} // Fix: Pass handleSelectSongById here
-        allSetlists={setlists} // Pass all setlists
-        masterRepertoire={masterRepertoire} // Pass master repertoire
-        onUpdateSetlistSongs={handleUpdateSetlistSongs} // Pass the new callback
+        onSelectSong={handleSelectSongById}
+        allSetlists={setlists}
+        masterRepertoire={masterRepertoire}
+        onUpdateSetlistSongs={handleUpdateSetlistSongs}
       />
       <PreferencesModal isOpen={isPreferencesOpen} onClose={() => setIsPreferencesOpen(false)} />
       <AdminPanel 
         isOpen={isAdminOpen} 
         onClose={() => setIsAdminOpen(false)} 
-        onRefreshRepertoire={fetchMasterRepertoire} // Pass refresh function
+        onRefreshRepertoire={fetchMasterRepertoire}
       />
       <ResourceAuditModal isOpen={isAuditModalOpen} onClose={() => setIsAuditModalOpen(false)} songs={songs} onVerify={handleUpdateSong} />
+      <UserGuideModal isOpen={isUserGuideOpen} onClose={() => setIsUserGuideOpen(false)} /> {/* NEW: Render UserGuideModal */}
       
       <aside ref={searchPanelRef} className={cn("w-full md:w-[450px] bg-white dark:bg-slate-900 border-l absolute right-0 top-20 bottom-0 z-40 transition-transform duration-500", isSearchPanelOpen ? "translate-x-0" : "translate-x-full")}>
         <AudioTransposer 
@@ -867,6 +872,7 @@ const Index = () => {
         onOpenAdmin={() => setIsAdminOpen(true)}
         onOpenPreferences={() => setIsPreferencesOpen(true)}
         onToggleHeatmap={() => setShowHeatmap(prev => !prev)}
+        onOpenUserGuide={() => setIsUserGuideOpen(true)} // NEW: Pass handler for User Guide
         showHeatmap={showHeatmap}
         viewMode={viewMode}
         hasPlayableSong={hasPlayableSong}

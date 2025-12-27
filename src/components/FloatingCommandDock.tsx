@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { 
   LayoutDashboard, Search, Waves, ShieldCheck, X, Sparkles, ListMusic, Settings, 
-  Play, FileText, Guitar, Pause, Keyboard
+  Play, FileText, Guitar, Pause, Keyboard, BookOpen // Import BookOpen icon
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { motion, AnimatePresence } from 'framer-motion';
@@ -17,6 +17,7 @@ interface FloatingCommandDockProps {
   onOpenAdmin: () => void;
   onOpenPreferences: () => void;
   onToggleHeatmap: () => void;
+  onOpenUserGuide: () => void; // New prop for User Guide
   showHeatmap: boolean;
   viewMode: 'repertoire' | 'setlist';
   hasPlayableSong: boolean;
@@ -32,6 +33,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   onOpenAdmin,
   onOpenPreferences,
   onToggleHeatmap,
+  onOpenUserGuide, // Destructure new prop
   showHeatmap,
   viewMode,
   hasPlayableSong,
@@ -113,6 +115,14 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
       className: "bg-white/5 hover:bg-white/10 text-slate-400 border border-white/10",
       tooltip: "Open Preferences",
     },
+    {
+      id: 'user-guide', // New button for User Guide
+      icon: <BookOpen className="w-6 h-6" />,
+      label: "Open User Guide",
+      onClick: onOpenUserGuide,
+      className: "bg-white/5 hover:bg-white/10 text-slate-400 border border-white/10",
+      tooltip: "Open User Guide",
+    },
   ];
 
   // Animation variants for radial expansion
@@ -138,7 +148,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
         type: "spring",
         stiffness: 200,
         damping: 15,
-      } as const, // Added 'as const' here to fix the TypeScript error
+      } as const,
     }),
   };
 
