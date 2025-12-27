@@ -41,7 +41,7 @@ interface SongStudioViewProps {
   onSelectSong?: (id: string) => void;
   allSetlists?: { id: string; name: string; songs: SetlistSong[] }[]; // New prop
   masterRepertoire?: SetlistSong[]; // New prop
-  onUpdateSetlistSongs: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>; // New prop
+  onUpdateSetlistSongs?: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>; // New prop
 }
 
 const SongStudioView: React.FC<SongStudioViewProps> = ({ 

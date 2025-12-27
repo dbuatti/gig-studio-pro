@@ -89,6 +89,7 @@ interface SetlistManagerProps {
   setActiveFilters: (filters: FilterState) => void;
   searchTerm: string;
   setSearchTerm: (term: string) => void;
+  showHeatmap: boolean; // New prop for heatmap
 }
 
 const SetlistManager: React.FC<SetlistManagerProps> = ({
@@ -108,7 +109,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   activeFilters,
   setActiveFilters,
   searchTerm,
-  setSearchTerm
+  setSearchTerm,
+  showHeatmap // Destructure new prop
 }) => {
   const isMobile = useIsMobile();
   const { keyPreference: globalPreference } = useSettings();
@@ -133,6 +135,38 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   };
 
   const isReorderingEnabled = sortMode === 'none' && !searchTerm;
+
+  const getHeatmapClass = (song: SetlistSong) => {
+    if (!showHeatmap) return "";
+
+    const readiness = calculateReadiness(song);
+    const hasAudio = !!song.previewUrl && !isItunesPreview(song.previewUrl);
+    const hasYoutubeLink = !!song.youtubeUrl && song.youtubeUrl.trim() !== "";
+    const hasUgChordsText = !!song.ug_chords_text && song.ug_chords_text.trim().length > 0;
+    const hasUgLink = !!song.ugUrl && song.ugUrl.trim() !== "";
+    const hasSheetLink = !!(song.pdfUrl || song.leadsheetUrl || song.sheet_music_url);
+
+    // Red (Critical Attention)
+    if (
+      !hasAudio || // Missing master audio
+      !hasYoutubeLink || // Missing YouTube link
+      (hasUgLink && !hasUgChordsText) || // Has UG link but no chords content
+      readiness < 40 // Low readiness score
+    ) {
+      return "bg-red-500/10 border-red-500/20";
+    }
+
+    // Orange (Needs Review/Unverified)
+    if (
+      (hasUgLink && !song.is_ug_link_verified) || // Unverified UG link
+      (hasSheetLink && !song.is_sheet_verified) || // Unverified sheet music link
+      !song.isMetadataConfirmed // Metadata not confirmed
+    ) {
+      return "bg-orange-500/10 border-orange-500/20";
+    }
+
+    return ""; // No heatmap color
+  };
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -218,7 +252,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                 className={cn(
                   "bg-white dark:bg-slate-950 rounded-2xl border-2 transition-all p-4 flex flex-col gap-3 shadow-sm",
                   isSelected ? "border-indigo-500 shadow-md ring-1 ring-indigo-500/20" : "border-slate-100 dark:border-slate-900",
-                  song.isPlayed && "opacity-50 grayscale-[0.2]"
+                  song.isPlayed && "opacity-50 grayscale-[0.2]",
+                  getHeatmapClass(song) // Apply heatmap class
                 )}
               >
                 <div className="flex items-start justify-between">
@@ -377,7 +412,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       className={cn(
                         "transition-all group relative cursor-pointer h-[80px]",
                         isSelected ? "bg-indigo-50/50 dark:bg-indigo-900/10" : "hover:bg-slate-50/30 dark:hover:bg-slate-800/50",
-                        song.isPlayed && "opacity-40 grayscale-[0.5]"
+                        song.isPlayed && "opacity-40 grayscale-[0.5]",
+                        getHeatmapClass(song) // Apply heatmap class
                       )}
                     >
                       <td className="px-6 text-center">

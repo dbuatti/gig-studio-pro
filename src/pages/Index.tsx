@@ -14,7 +14,8 @@ import SongStudioModal from "@/components/SongStudioModal";
 import SetlistSettingsModal from "@/components/SetlistSettingsModal";
 import ResourceAuditModal from "@/components/ResourceAuditModal";
 import RepertoirePicker from "@/components/RepertoirePicker";
-import SetlistExporter from "@/components/SetlistExporter"; // Import SetlistExporter
+import SetlistExporter from "@/components/SetlistExporter";
+import FloatingActionDock from "@/components/FloatingActionDock"; // Import the new dock component
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { showSuccess, showError, showInfo } from '@/utils/toast';
 import { calculateSemitones } from '@/utils/keyUtils';
@@ -81,6 +82,7 @@ const Index = () => {
   const [isRepertoirePickerOpen, setIsRepertoirePickerOpen] = useState(false);
   const [editingSongId, setEditingSongId] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [showHeatmap, setShowHeatmap] = useState(false); // New state for heatmap
   
   const [sortMode, setSortMode] = useState<'none' | 'ready' | 'work'>(() => {
     return (localStorage.getItem('gig_sort_mode') as any) || 'none';
@@ -407,6 +409,14 @@ const Index = () => {
     }
   };
 
+  // New wrapper function for onSelectSong prop
+  const handleSelectSongById = useCallback((songId: string) => {
+    const song = processedSongs.find(s => s.id === songId);
+    if (song) {
+      handleSelectSong(song);
+    }
+  }, [processedSongs, handleSelectSong]);
+
   const missingAudioTracks = useMemo(() => {
     return masterRepertoire.filter(song => 
       song.youtubeUrl && (!song.previewUrl || (song.previewUrl.includes('apple.com') || song.previewUrl.includes('itunes-assets')))
@@ -701,6 +711,7 @@ const Index = () => {
             activeFilters={activeFilters} setActiveFilters={setActiveFilters}
             searchTerm={searchTerm} setSearchTerm={setSearchTerm}
             onLinkAudio={(n) => { setIsSearchPanelOpen(true); transposerRef.current?.triggerSearch(n); }}
+            showHeatmap={showHeatmap} // Pass showHeatmap prop
           />
         </div>
         <MadeWithDyad />
@@ -713,7 +724,7 @@ const Index = () => {
         gigId={viewMode === 'repertoire' ? 'library' : currentListId} 
         songId={editingSongId} 
         visibleSongs={processedSongs} 
-        onSelectSong={setEditingSongId} 
+        onSelectSong={handleSelectSongById} // Fix: Pass handleSelectSongById here
         allSetlists={setlists} // Pass all setlists
         masterRepertoire={masterRepertoire} // Pass master repertoire
         onUpdateSetlistSongs={handleUpdateSetlistSongs} // Pass the new callback
@@ -744,6 +755,15 @@ const Index = () => {
           currentList={currentList}
         />
       </aside>
+
+      <FloatingActionDock
+        onOpenSearch={() => setIsSearchPanelOpen(true)}
+        onOpenAdmin={() => setIsAdminOpen(true)}
+        onOpenPreferences={() => setIsPreferencesOpen(true)}
+        onToggleHeatmap={() => setShowHeatmap(prev => !prev)}
+        showHeatmap={showHeatmap}
+        viewMode={viewMode}
+      />
     </div>
   );
 };
