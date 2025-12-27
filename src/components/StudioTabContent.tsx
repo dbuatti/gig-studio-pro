@@ -123,7 +123,7 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
           audioEngine={audioEngine}
           isMobile={isMobile}
           onLoadAudioFromUrl={onLoadAudioFromUrl}
-          onSave={handleAutoSave}
+          onSave={handleAutoSave} // Pass handleAutoSave directly
           onUpdateKey={setTargetKey} // Use setTargetKey from useHarmonicSync
           transposeKey={transposeKey}
           // Pass harmonic sync props
@@ -139,7 +139,7 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
       return (
         <SongDetailsTab 
           formData={formData} 
-          handleAutoSave={handleAutoSave} 
+          handleAutoSave={handleAutoSave} // Pass handleAutoSave directly
           isMobile={isMobile} 
         />
       );
