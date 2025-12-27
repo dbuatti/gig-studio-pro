@@ -92,10 +92,11 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
   const handleUgBlur = () => {
     if (localUgUrl !== formData.ugUrl) {
       const cleanUrl = sanitizeUGUrl(localUgUrl);
-      // Explicitly save to the database
+      // Explicitly save to the database and mark as unverified if the URL has changed
       handleAutoSave({ ugUrl: cleanUrl, is_ug_link_verified: false });
       showSuccess("UG Link Saved");
     }
+    // If the URL hasn't changed, do nothing to is_ug_link_verified
   };
 
   const handleVerifyUgLink = () => {
@@ -118,13 +119,14 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
   const handleSheetBlur = () => {
     const currentSheetUrl = formData.sheet_music_url || formData.pdfUrl || formData.leadsheetUrl || "";
     if (localSheetUrl !== currentSheetUrl) {
-      // Save to the unified 'sheet_music_url' field
+      // Save to the unified 'sheet_music_url' field and mark as unverified if the URL has changed
       handleAutoSave({ 
         sheet_music_url: localSheetUrl,
         is_sheet_verified: false 
       });
       showSuccess("Sheet Music Link Saved");
     }
+    // If the URL hasn't changed, do nothing to is_sheet_verified
   };
 
   const handleVerifySheetLink = () => {
