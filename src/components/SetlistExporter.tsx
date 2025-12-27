@@ -22,7 +22,7 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({ songs, onAutoLink, on
   // Helper to determine if a URL is actually present and valid
   const isMissingLink = (url?: string) => {
     if (!url) return true;
-    const clean = url.trim();
+    const clean = String(url).trim();
     return clean === "" || clean === "undefined" || clean === "null";
   };
 
@@ -61,11 +61,8 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({ songs, onAutoLink, on
     }
   };
 
-  // Improved calculation logic for missing metadata - relaxed artist requirement
   const missingMetadataCount = useMemo(() => {
-    const missing = songs.filter(s => isMissingLink(s.youtubeUrl) && s.name);
-    console.log("[GigStudio] Recalculating Missing Links", { count: missing.length, songs: missing.map(s => s.name) });
-    return missing.length;
+    return songs.filter(s => isMissingLink(s.youtubeUrl) && s.name).length;
   }, [songs]);
 
   return (

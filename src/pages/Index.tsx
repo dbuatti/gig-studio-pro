@@ -277,7 +277,7 @@ const Index = () => {
   const handleAutoLinkSetlist = async () => {
     if (!currentListId || !songs.length) return;
     
-    const isMissing = (url?: string) => !url || url.trim() === "" || url === "undefined" || url === "null";
+    const isMissing = (url?: string) => !url || String(url).trim() === "" || url === "undefined" || url === "null";
     const missingSongs = songs.filter(s => isMissing(s.youtubeUrl) && s.name);
     
     if (missingSongs.length === 0) {
@@ -292,7 +292,6 @@ const Index = () => {
 
       if (songsToSync.length > 0) {
         const synced = await syncToMasterRepertoire(user!.id, songsToSync);
-        // Map master_ids back to our working list
         workingSongs = workingSongs.map(s => {
           const match = synced.find(sync => sync.id === s.id);
           return match ? { ...s, master_id: match.master_id } : s;
@@ -316,12 +315,18 @@ const Index = () => {
 
       if (error) throw error;
 
-      // 3. Merge results back into local setlist state using the synced workingSongs
+      // 3. Multi-Strategy Binding: Match by ID, then by Name+Artist fallback
       if (data.successful > 0) {
-        const resultsMap = new Map(data.results.filter((r: any) => r.status === 'SUCCESS').map((r: any) => [r.id, r.videoId]));
+        const resultsById = new Map(data.results.filter((r: any) => r.status === 'SUCCESS').map((r: any) => [r.id, r.videoId]));
+        const resultsByNameArtist = new Map(data.results.filter((r: any) => r.status === 'SUCCESS').map((r: any) => [
+          `${String(r.title).toLowerCase().trim()}-${String(r.artist || "").toLowerCase().trim()}`, 
+          r.videoId
+        ]));
         
         const finalUpdatedSongs = workingSongs.map(s => {
-          const matchedVideoId = resultsMap.get(s.master_id);
+          const matchedVideoId = resultsById.get(s.master_id!) || 
+                                 resultsByNameArtist.get(`${s.name.toLowerCase().trim()}-${(s.artist || "").toLowerCase().trim()}`);
+          
           if (matchedVideoId) {
             return {
               ...s,
@@ -332,7 +337,7 @@ const Index = () => {
           return s;
         });
 
-        // Update local state and trigger DB save
+        // Atomic update of state and DB
         await saveList(currentListId, finalUpdatedSongs);
         showSuccess(`AI Engine: ${data.successful} matches bound.`);
         await fetchMasterRepertoire();
