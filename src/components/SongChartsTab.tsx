@@ -1,7 +1,7 @@
 "use client";
 import React, { useMemo, useState } from 'react';
 import { Button } from "@/components/ui/button";
-import { cn } "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { SetlistSong } from './SetlistManager';
 import { ExternalLink, ShieldCheck, Printer, FileText, Music, Guitar, Search, Maximize, Minimize, Eye } from 'lucide-react';
 import { showError, showSuccess } from '@/utils/toast';
