@@ -65,7 +65,8 @@ const SheetReaderMode: React.FC = () => {
   const touchStartX = useRef<number | null>(null);
   const dockTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const mainRef = useRef<HTMLDivElement>(null);
-  const isNavigatingRef = useRef(false); // NEW: Prevent rapid navigation
+  const isNavigatingRef = useRef(false);
+  const currentSongIdRef = useRef<string | null>(null); // NEW: Stable ref for current song ID
 
   // Audio
   const audioEngine = useToneAudio(true);
@@ -160,13 +161,17 @@ const SheetReaderMode: React.FC = () => {
 
   // === Audio ===
   useEffect(() => {
-    // Only load audio if we have a valid song and we aren't in the middle of a navigation operation
-    if (currentSong?.previewUrl && !isNavigatingRef.current) {
+    // Only load audio if we have a valid song and the ID has actually changed
+    if (currentSong?.previewUrl && currentSong.id !== currentSongIdRef.current) {
+      console.log(`[SheetReaderMode] Audio ID changed from ${currentSongIdRef.current} to ${currentSong.id}. Loading new audio.`);
+      currentSongIdRef.current = currentSong.id; // Update ref immediately
       loadFromUrl(currentSong.previewUrl, currentSong.pitch || 0);
       setLocalPitch(currentSong.pitch || 0);
-    } else {
+    } else if (!currentSong) {
+      // No song selected, stop audio
       stopPlayback();
       setLocalPitch(0);
+      currentSongIdRef.current = null;
     }
   }, [currentSong, loadFromUrl, stopPlayback]);
 

@@ -42,51 +42,42 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
   
   const playbackStartTimeRef = useRef<number>(0);
   const playbackOffsetRef = useRef<number>(0);
+  const currentUrlRef = useRef<string>(""); // Track current URL to prevent re-fetching
 
   const initEngine = useCallback(async () => {
-    console.log("[useToneAudio] initEngine called. Tone.getContext().state:", Tone.getContext().state);
     if (Tone.getContext().state !== 'running') {
       await Tone.start();
-      console.log("[useToneAudio] Tone.js audio context started.");
     }
     if (!analyzerRef.current) {
       analyzerRef.current = new Tone.Analyser("fft", 256);
-      console.log("[useToneAudio] Tone.Analyser initialized.");
     }
     return true;
   }, []);
 
   const resetEngine = useCallback(() => {
-    console.log("[useToneAudio] resetEngine called.");
     if (playerRef.current) {
       playerRef.current.stop();
       playerRef.current.dispose();
       playerRef.current = null;
-      console.log("[useToneAudio]   Player stopped and disposed.");
     }
     if (requestRef.current) {
       cancelAnimationFrame(requestRef.current);
-      console.log("[useToneAudio]   Animation frame cancelled.");
     }
     setIsPlaying(false);
     setProgress(0);
     setDuration(0);
     playbackOffsetRef.current = 0;
     currentBufferRef.current = null;
-    console.log("[useToneAudio]   Engine state reset.");
   }, []);
 
   useEffect(() => {
-    console.log("[useToneAudio] Effect: Component unmount cleanup. Dependencies: [resetEngine]");
     return () => {
       resetEngine();
       analyzerRef.current?.dispose();
-      console.log("[useToneAudio]   Analyzer disposed on cleanup.");
     };
   }, [resetEngine]);
 
   const loadAudioBuffer = useCallback((audioBuffer: AudioBuffer, initialPitch: number = 0) => {
-    console.log("[useToneAudio] loadAudioBuffer called. Buffer duration:", audioBuffer.duration, "initialPitch:", initialPitch);
     initEngine().then(() => {
       resetEngine();
       currentBufferRef.current = audioBuffer;
@@ -95,7 +86,6 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
       playerRef.current.connect(analyzerRef.current!);
       playerRef.current.grainSize = 0.18;
       playerRef.current.overlap = 0.1;
-      console.log("[useToneAudio]   New GrainPlayer created and connected to analyzer.");
       
       setDuration(audioBuffer.duration);
       setPitchState(initialPitch);
@@ -106,72 +96,68 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
       playerRef.current.detune = (initialPitch * 100) + 0;
       playerRef.current.playbackRate = 1;
       playerRef.current.volume.value = -6;
-      console.log("[useToneAudio]   Player parameters initialized.");
       
       if (!suppressToasts) {
         showSuccess("Audio Loaded");
       }
     }).catch((err) => {
-      console.error("[useToneAudio] Failed to initialize audio engine or load buffer:", err);
+      console.error("Failed to initialize audio engine or load buffer:", err);
       showError("Failed to initialize audio engine.");
     });
   }, [initEngine, resetEngine, suppressToasts]);
 
   const loadFromUrl = useCallback(async (url: string, initialPitch: number = 0) => {
-    console.log("[useToneAudio] loadFromUrl called. URL:", url, "initialPitch:", initialPitch);
+    // Prevent re-fetching if the URL is the same and we already have a buffer
+    if (url === currentUrlRef.current && currentBufferRef.current) {
+        console.log("[useToneAudio] Skipping load: URL is same and buffer exists.");
+        return;
+    }
+
     if (!url) {
-      console.warn("[useToneAudio]   No URL provided to loadFromUrl. Skipping.");
+      console.warn("[useToneAudio] No URL provided to loadFromUrl. Skipping.");
       return;
     }
+
+    console.log(`[useToneAudio] Loading new URL: ${url}`);
+    currentUrlRef.current = url; // Update ref immediately
+    
     try {
-      console.log("[useToneAudio]   Fetching audio from URL...");
       const response = await fetch(url);
       if (!response.ok) throw new Error(`Fetch error: ${response.status} ${response.statusText}`);
       const arrayBuffer = await response.arrayBuffer();
-      console.log("[useToneAudio]   Audio fetched. Decoding audio data...");
       const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
-      console.log("[useToneAudio]   Audio decoded. Calling loadAudioBuffer.");
       loadAudioBuffer(audioBuffer, initialPitch);
     } catch (err) {
-      console.error("[useToneAudio] Audio load failed from URL:", url, "Error:", err);
+      console.error("Audio load failed from URL:", url, "Error:", err);
       showError("Audio load failed.");
+      currentUrlRef.current = ""; // Reset on failure
     }
   }, [loadAudioBuffer]);
 
   const togglePlayback = useCallback(async () => {
-    console.log("[useToneAudio] togglePlayback called. Current isPlaying:", isPlaying);
     await initEngine();
-    if (!playerRef.current) {
-      console.warn("[useToneAudio]   No playerRef.current available. Cannot toggle playback.");
-      return;
-    }
+    if (!playerRef.current) return;
 
     if (isPlaying) {
       playerRef.current.stop();
       const elapsed = (Tone.now() - playbackStartTimeRef.current) * tempo;
       playbackOffsetRef.current += elapsed;
       setIsPlaying(false);
-      console.log("[useToneAudio]   Playback stopped. Elapsed:", elapsed, "New offset:", playbackOffsetRef.current);
     } else {
       const startTime = (progress / 100) * duration;
       playbackOffsetRef.current = startTime;
       playbackStartTimeRef.current = Tone.now();
       playerRef.current.start(0, startTime);
       setIsPlaying(true);
-      console.log("[useToneAudio]   Playback started from time:", startTime);
     }
   }, [isPlaying, progress, duration, tempo, initEngine]);
 
   const stopPlayback = useCallback(() => {
-    console.log("[useToneAudio] stopPlayback called.");
     if (playerRef.current) {
       playerRef.current.stop();
       setIsPlaying(false);
       setProgress(0);
       playbackOffsetRef.current = 0;
-      console.log("[useToneAudio]   Playback forcefully stopped and reset to 0.");
-    } else {
-      console.warn("[useToneAudio]   No playerRef.current to stop playback.");
     }
   }, []);
 
@@ -183,7 +169,6 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
       const newProgress = (currentSeconds / duration) * 100;
       
       if (currentSeconds >= duration) {
-        console.log("[useToneAudio]   Playback reached end of duration. Stopping.");
         stopPlayback();
         return;
       }
@@ -194,68 +179,54 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
   }, [isPlaying, duration, tempo, stopPlayback]);
 
   useEffect(() => {
-    console.log("[useToneAudio] Effect: Playback animation loop setup. Dependencies: [isPlaying, animateProgress]");
     if (isPlaying) {
       requestRef.current = requestAnimationFrame(animateProgress);
-      console.log("[useToneAudio]   Animation frame requested.");
     }
     else if (requestRef.current) {
       cancelAnimationFrame(requestRef.current);
-      console.log("[useToneAudio]   Animation frame cancelled.");
     }
     return () => { if (requestRef.current) cancelAnimationFrame(requestRef.current); };
   }, [isPlaying, animateProgress]);
 
   useEffect(() => {
-    console.log("[useToneAudio] Effect: Pitch/FineTune changed. Dependencies: [pitch, fineTune]");
     if (playerRef.current) {
       playerRef.current.detune = (pitch * 100) + fineTune;
-      console.log("[useToneAudio]   Player detune set to:", playerRef.current.detune);
     }
   }, [pitch, fineTune]);
 
   useEffect(() => {
-    console.log("[useToneAudio] Effect: Tempo changed. Dependencies: [tempo]");
     if (playerRef.current) {
       playerRef.current.playbackRate = tempo;
-      console.log("[useToneAudio]   Player playbackRate set to:", tempo);
     }
   }, [tempo]);
 
   useEffect(() => {
-    console.log("[useToneAudio] Effect: Volume changed. Dependencies: [volume]");
     if (playerRef.current) {
       playerRef.current.volume.value = volume;
-      console.log("[useToneAudio]   Player volume set to:", volume);
     }
   }, [volume]);
 
   const setPitch = useCallback((p: number) => {
-    console.log("[useToneAudio] setPitch called. New pitch:", p);
     setPitchState(p);
     if (playerRef.current) playerRef.current.detune = (p * 100) + fineTune;
   }, [fineTune]);
 
   const setTempo = useCallback((t: number) => {
-    console.log("[useToneAudio] setTempo called. New tempo:", t);
     setTempoState(t);
     if (playerRef.current) playerRef.current.playbackRate = t;
   }, []);
 
   const setVolume = useCallback((v: number) => {
-    console.log("[useToneAudio] setVolume called. New volume:", v);
     setVolumeState(v);
     if (playerRef.current) playerRef.current.volume.value = v;
   }, []);
 
   const setFineTune = useCallback((f: number) => {
-    console.log("[useToneAudio] setFineTune called. New fineTune:", f);
     setFineTuneState(f);
     if (playerRef.current) playerRef.current.detune = (pitch * 100) + f;
   }, [pitch]);
 
   const setProgressHandler = useCallback((p: number) => {
-    console.log("[useToneAudio] setProgressHandler called. New progress:", p);
     setProgress(p);
     if (playerRef.current && duration > 0) {
       const offset = (p / 100) * duration;
@@ -264,9 +235,6 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
         playerRef.current.stop();
         playbackStartTimeRef.current = Tone.now();
         playerRef.current.start(0, offset);
-        console.log("[useToneAudio]   Player restarted from offset:", offset);
-      } else {
-        console.log("[useToneAudio]   Player not playing, just updating offset to:", offset);
       }
     }
   }, [duration, isPlaying]);
