@@ -24,7 +24,7 @@ interface SheetReaderHeaderProps {
   onNextSong: () => void;
   currentSongIndex: number;
   totalSongs: number;
-  isLoading: boolean; // Updated to reflect chart-specific loading
+  isLoading: boolean;
   keyPreference: KeyPreference;
   onUpdateKey: (newTargetKey: string) => void;
   isFullScreen: boolean;
@@ -42,23 +42,21 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   onSearchClick,
   onPrevSong,
   onNextSong,
-  isLoading, // Use the updated isLoading prop
+  isLoading,
   keyPreference,
   onUpdateKey,
   isFullScreen,
   onToggleFullScreen,
   setIsOverlayOpen,
   isOverrideActive,
-  // Harmonic Sync Props
+  // Destructure new props
   pitch,
   setPitch,
 }) => {
-  // Prevent flicker by checking if targetKey is actually present from Supabase
-  const displayKey = currentSong?.targetKey 
-    ? formatKey(currentSong.targetKey, keyPreference)
-    : currentSong?.originalKey 
-      ? formatKey(currentSong.originalKey, keyPreference)
-      : null;
+  // Use the currentSong's targetKey directly if available, otherwise fallback to originalKey
+  // This ensures we display the correct stage key even if the hook hasn't fully propagated
+  const rawTargetKey = currentSong?.targetKey || currentSong?.originalKey;
+  const displayKey = rawTargetKey ? formatKey(rawTargetKey, keyPreference) : null;
 
   const keysToUse = keyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
 
