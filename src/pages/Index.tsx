@@ -34,6 +34,7 @@ import * as Tone from 'tone';
 import { cleanYoutubeUrl } from '@/utils/youtubeUtils';
 import { useNavigate } from 'react-router-dom';
 import { FilterState } from '@/components/SetlistFilters';
+import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 
 type ViewMode = 'repertoire' | 'setlist';
 
@@ -213,6 +214,52 @@ const Index = () => {
     showSuccess(`Added "${song.name}" to gig`);
   };
 
+  const handleAddNewSongToCurrentSetlist = async (previewUrl: string, name: string, artist: string, youtubeUrl?: string, ugUrl?: string, appleMusicUrl?: string, genre?: string, pitch?: number) => {
+    if (!currentListId) {
+      showError("No active setlist selected.");
+      return;
+    }
+    const newSong: SetlistSong = {
+      id: Math.random().toString(36).substr(2, 9), // Generate a unique ID for the new song
+      name,
+      artist,
+      previewUrl,
+      youtubeUrl,
+      ugUrl,
+      appleMusicUrl,
+      genre,
+      pitch: pitch || 0,
+      originalKey: "C", // Default key
+      targetKey: "C", // Default key
+      isPlayed: false,
+      isSyncing: true, // Mark as syncing for initial metadata fetch
+      isMetadataConfirmed: false,
+      isKeyConfirmed: false,
+      duration_seconds: 0,
+      notes: "",
+      lyrics: "",
+      resources: [],
+      user_tags: [],
+      is_pitch_linked: true,
+      isApproved: false,
+      preferred_reader: null,
+      ug_chords_config: DEFAULT_UG_CHORDS_CONFIG,
+      is_ug_chords_present: false,
+      highest_note_original: null,
+      is_ug_link_verified: false,
+      metadata_source: null,
+      sync_status: 'IDLE',
+      last_sync_log: null,
+      auto_synced: false,
+      is_sheet_verified: false,
+      sheet_music_url: null,
+    };
+    await saveList(currentListId, [...currentList!.songs, newSong], {}, [newSong]);
+    showSuccess(`Added "${name}" to gig`);
+    setActiveSongId(newSong.id); // Make the newly added song active
+    setIsSearchPanelOpen(false); // Close the search panel after adding
+  };
+
   const startPerformance = () => {
     const playable = songs.filter(s => s.isApproved && s.previewUrl && !s.previewUrl.includes('apple.com'));
     if (!playable.length) { showError("No approved tracks found."); return; }
@@ -269,6 +316,23 @@ const Index = () => {
         </div>
 
         <div className="flex items-center gap-4 shrink-0">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => {
+              setIsSearchPanelOpen(prev => {
+                if (!prev) { // If opening
+                  setActiveSongId(null); // Clear active song
+                  transposerRef.current?.resetEngine(); // Reset audio engine
+                  transposerRef.current?.triggerSearch(""); // Clear search query
+                }
+                return !prev;
+              });
+            }}
+            className="hidden sm:flex h-10 px-4 rounded-xl font-black uppercase text-[10px] tracking-widest gap-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100"
+          >
+            <SearchIcon className="w-4 h-4" /> Search
+          </Button>
           <Button 
             variant="ghost" 
             size="sm" 
@@ -344,7 +408,18 @@ const Index = () => {
       )}
 
       <aside className={cn("w-full md:w-[450px] bg-white dark:bg-slate-900 border-l absolute right-0 top-20 bottom-0 z-40 transition-transform duration-500", isSearchPanelOpen ? "translate-x-0" : "translate-x-full")}>
-        <AudioTransposer ref={transposerRef} onAddToSetlist={(u, n, a, yt, ug) => handleUpdateSong(activeSongIdState!, { previewUrl: u, youtubeUrl: yt, ugUrl: ug })} repertoire={masterRepertoire} />
+        <AudioTransposer 
+          ref={transposerRef} 
+          onAddToSetlist={handleAddNewSongToCurrentSetlist} 
+          onAddExistingSong={handleAddToGig}
+          repertoire={masterRepertoire} 
+          currentSong={processedSongs.find(s => s.id === activeSongIdState) || null}
+          onUpdateSongKey={handleUpdateKey}
+          onSongEnded={() => { /* handle song ended */ }}
+          onPlaybackChange={(isPlaying) => { /* handle playback change */ }}
+          onOpenAdmin={() => setIsAdminOpen(true)}
+          currentList={currentList}
+        />
       </aside>
     </div>
   );

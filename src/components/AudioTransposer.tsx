@@ -28,6 +28,7 @@ export interface AudioTransposerRef {
   triggerSearch: (query: string) => void;
   togglePlayback: () => Promise<void>;
   stopPlayback: () => void;
+  resetEngine: () => void; // Added resetEngine to the interface
   getProgress: () => { progress: number; duration: number };
   getAnalyzer: () => Tone.Analyser | null;
   getIsPlaying: () => boolean;
@@ -196,6 +197,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
     },
     togglePlayback,
     stopPlayback,
+    resetEngine, // Exposed resetEngine
     getProgress: () => ({ progress, duration }),
     getAnalyzer: () => analyzer,
     getIsPlaying: () => isPlaying
