@@ -67,6 +67,12 @@ const Index = () => {
   });
   const [setlists, setSetlists] = useState<{ id: string; name: string; songs: SetlistSong[]; time_goal?: number }[]>([]);
   const [currentListId, setCurrentListId] = useState<string | null>(() => {
+    // 1. Check URL parameter first (for direct navigation)
+    const pathParts = window.location.pathname.split('/');
+    if (pathParts[1] === 'dashboard' && pathParts[2]) {
+      return pathParts[2];
+    }
+    // 2. Fallback to localStorage
     return localStorage.getItem('active_gig_id');
   });
   const [masterRepertoire, setMasterRepertoire] = useState<SetlistSong[]>([]);
@@ -242,7 +248,29 @@ const Index = () => {
           }
           return prevSetlists;
         });
-        if (!currentListId) setCurrentListId(data[0].id);
+        
+        // 3. Determine the active gig ID
+        let activeId = currentListId;
+        
+        // If we have a current ID, verify it exists in the new data
+        if (activeId && !data.find(d => d.id === activeId)) {
+          activeId = null; // Reset if the ID no longer exists
+        }
+        
+        // If no active ID, default to the first one in the list
+        if (!activeId && data.length > 0) {
+          activeId = data[0].id;
+        }
+        
+        // Update state and localStorage
+        if (activeId) {
+          setCurrentListId(activeId);
+          localStorage.setItem('active_gig_id', activeId);
+        }
+      } else {
+        // No setlists exist
+        setCurrentListId(null);
+        localStorage.removeItem('active_gig_id');
       }
     } catch (err) {
       console.error("Error fetching setlists:", err);
@@ -729,7 +757,10 @@ const Index = () => {
           </div>
 
           {viewMode === 'setlist' && (
-            <SetlistSelector setlists={setlists} currentId={currentListId || ''} onSelect={setCurrentListId}
+            <SetlistSelector setlists={setlists} currentId={currentListId || ''} onSelect={(id) => {
+              setCurrentListId(id);
+              localStorage.setItem('active_gig_id', id);
+            }}
               onCreate={async () => {
                 const name = prompt("Gig Name:");
                 if (name) {
