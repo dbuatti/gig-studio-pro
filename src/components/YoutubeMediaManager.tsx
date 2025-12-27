@@ -199,6 +199,10 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
       return;
     }
 
+    // NEW: Save the YouTube URL to the song's data before downloading
+    handleAutoSave({ youtubeUrl: targetVideoUrl });
+    showSuccess("YouTube URL linked. Starting audio extraction...");
+
     setDownloadStatus('processing');
     setIsDownloading(true);
     setDownloadProgress(0);
