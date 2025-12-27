@@ -124,7 +124,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
           <div className="flex items-center gap-4 bg-white dark:bg-slate-900 px-4 py-1.5 rounded-xl border border-slate-100 dark:border-slate-800 flex-1 min-w-[300px]">
             <div className="flex items-center gap-2 shrink-0">
                <AlertCircle className="w-3.5 h-3.5 text-orange-500" />
-               <span className="text-[10px] font-black uppercase text-slate-400 whitespace-nowrap">Readiness: <span className="text-indigo-600 font-mono">≤{activeFilters.readiness}%</span></span>
+               <span className="text-[10px] font-black uppercase text-slate-400 whitespace-nowrap">Readiness: <span className="text-indigo-600 font-mono">≥{activeFilters.readiness}%</span></span>
             </div>
             <Slider 
               value={[activeFilters.readiness]} 
@@ -358,7 +358,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                 className="bg-orange-50 text-orange-600 border-orange-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-red-50 hover:text-red-600 transition-all group"
                 onClick={() => onFilterChange({ ...activeFilters, readiness: 0 })} // Changed reset to 0
               >
-                Readiness: ≤{activeFilters.readiness}% <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
+                Readiness: ≥{activeFilters.readiness}% <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
               </Badge>
             )}
             {activeFilters.isConfirmed !== 'all' && (
