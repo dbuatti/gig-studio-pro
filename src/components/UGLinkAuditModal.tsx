@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { 
   CheckCircle2, 
   ExternalLink, 
-  AlertTriangle, 
   Search, 
   ShieldCheck,
   X,
@@ -20,7 +19,8 @@ import {
   FileX2,
   FileCheck2,
   Link2Off,
-  Copy
+  Copy,
+  AlertTriangle
 } from 'lucide-react';
 import { SetlistSong } from './SetlistManager';
 import { cn } from '@/lib/utils';
@@ -113,11 +113,11 @@ const UGLinkAuditModal: React.FC<UGLinkAuditModalProps> = ({ isOpen, onClose, so
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl w-[90vw] max-h-[85vh] bg-slate-950 border-white/10 text-white rounded-[2rem] p-0 overflow-hidden flex flex-col shadow-2xl">
-        <div className="p-8 bg-orange-600 shrink-0 relative">
+      <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] bg-slate-950 border-white/10 text-white rounded-[2rem] p-0 overflow-hidden flex flex-col shadow-2xl">
+        <div className="p-6 sm:p-8 bg-orange-600 shrink-0 relative">
           <button 
             onClick={onClose}
-            className="absolute top-6 right-6 p-2 rounded-full hover:bg-white/10 text-white/70 hover:text-white transition-colors"
+            className="absolute top-4 right-4 sm:top-6 sm:right-6 p-2 rounded-full hover:bg-white/10 text-white/70 hover:text-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -127,9 +127,9 @@ const UGLinkAuditModal: React.FC<UGLinkAuditModalProps> = ({ isOpen, onClose, so
               <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">
                 <Link2 className="w-6 h-6 text-white" />
               </div>
-              <DialogTitle className="text-2xl font-black uppercase tracking-tight text-white">UG Link Audit</DialogTitle>
+              <DialogTitle className="text-xl sm:text-2xl font-black uppercase tracking-tight text-white">UG Link Audit</DialogTitle>
             </div>
-            <DialogDescription className="text-orange-100 font-medium">
+            <DialogDescription className="text-orange-100 font-medium text-xs sm:text-sm">
               Eliminate "Link Drift" and ensure all charts are synced for live performance.
             </DialogDescription>
           </DialogHeader>
@@ -139,17 +139,17 @@ const UGLinkAuditModal: React.FC<UGLinkAuditModalProps> = ({ isOpen, onClose, so
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-orange-300" />
               <input 
                 placeholder="Search tracks..." 
-                className="w-full bg-white/10 border border-white/20 rounded-xl h-12 pl-12 pr-4 text-white placeholder-orange-200 focus:ring-2 focus:ring-white/30 outline-none"
+                className="w-full bg-white/10 border border-white/20 rounded-xl h-11 sm:h-12 pl-12 pr-4 text-white placeholder-orange-200 focus:ring-2 focus:ring-white/30 outline-none text-sm"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <div className="flex bg-black/20 p-1 rounded-xl shrink-0">
+            <div className="flex bg-black/20 p-1 rounded-xl shrink-0 overflow-x-auto no-scrollbar">
               <Button 
                 variant="ghost" 
                 size="sm" 
                 onClick={() => setActiveFilter('unverified')}
-                className={cn("text-[9px] font-black uppercase tracking-widest h-10 px-4 rounded-lg", activeFilter === 'unverified' ? "bg-white text-orange-600 shadow-lg" : "text-white/60")}
+                className={cn("text-[9px] font-black uppercase tracking-widest h-9 sm:h-10 px-3 sm:px-4 rounded-lg whitespace-nowrap", activeFilter === 'unverified' ? "bg-white text-orange-600 shadow-lg" : "text-white/60")}
               >
                 Needs Audit
               </Button>
@@ -157,7 +157,7 @@ const UGLinkAuditModal: React.FC<UGLinkAuditModalProps> = ({ isOpen, onClose, so
                 variant="ghost" 
                 size="sm" 
                 onClick={() => setActiveFilter('missing-content')}
-                className={cn("text-[9px] font-black uppercase tracking-widest h-10 px-4 rounded-lg", activeFilter === 'missing-content' ? "bg-white text-orange-600 shadow-lg" : "text-white/60")}
+                className={cn("text-[9px] font-black uppercase tracking-widest h-9 sm:h-10 px-3 sm:px-4 rounded-lg whitespace-nowrap", activeFilter === 'missing-content' ? "bg-white text-orange-600 shadow-lg" : "text-white/60")}
               >
                 Empty Sheets
               </Button>
@@ -165,7 +165,7 @@ const UGLinkAuditModal: React.FC<UGLinkAuditModalProps> = ({ isOpen, onClose, so
                 variant="ghost" 
                 size="sm" 
                 onClick={() => setActiveFilter('missing-link')}
-                className={cn("text-[9px] font-black uppercase tracking-widest h-10 px-4 rounded-lg", activeFilter === 'missing-link' ? "bg-white text-orange-600 shadow-lg" : "text-white/60")}
+                className={cn("text-[9px] font-black uppercase tracking-widest h-9 sm:h-10 px-3 sm:px-4 rounded-lg whitespace-nowrap", activeFilter === 'missing-link' ? "bg-white text-orange-600 shadow-lg" : "text-white/60")}
               >
                 No Links
               </Button>
@@ -175,7 +175,7 @@ const UGLinkAuditModal: React.FC<UGLinkAuditModalProps> = ({ isOpen, onClose, so
 
         <div className="flex-1 overflow-hidden bg-slate-900/50">
           <ScrollArea className="h-full">
-            <div className="p-6 space-y-3">
+            <div className="p-4 sm:p-6 space-y-3">
               {auditList.length > 0 ? (
                 auditList.map((song) => {
                   const isEditing = editingId === song.id;
@@ -184,28 +184,30 @@ const UGLinkAuditModal: React.FC<UGLinkAuditModalProps> = ({ isOpen, onClose, so
                   
                   return (
                     <div key={song.id} className="p-4 bg-white/5 border border-white/5 rounded-2xl flex flex-col gap-4 group hover:bg-white/10 transition-all">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4 min-w-0">
-                          <div className="bg-slate-800 p-2.5 rounded-xl text-slate-500">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-start gap-4 min-w-0 flex-1">
+                          <div className="bg-slate-800 p-2.5 rounded-xl text-slate-500 shrink-0">
                             <Music className="w-5 h-5" />
                           </div>
-                          <div className="min-w-0">
-                            <h4 className="font-black text-sm uppercase tracking-tight truncate">{song.name}</h4>
-                            <div className="flex items-center gap-3 mt-1">
-                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest truncate">{song.artist || "Unknown Artist"}</span>
-                                <div className="h-1 w-1 rounded-full bg-slate-700" />
+                          <div className="min-w-0 flex-1">
+                            <h4 className="font-black text-sm uppercase tracking-tight break-words line-clamp-1">{song.name}</h4>
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
+                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest truncate max-w-[120px]">
+                                  {song.artist || "Unknown Artist"}
+                                </span>
+                                <div className="hidden sm:block h-1 w-1 rounded-full bg-slate-700" />
                                 {hasLink ? (
                                     hasChords ? (
-                                        <span className="text-[9px] font-black text-emerald-500 uppercase flex items-center gap-1">
+                                        <span className="text-[9px] font-black text-emerald-500 uppercase flex items-center gap-1 whitespace-nowrap">
                                             <FileCheck2 className="w-3 h-3" /> CONTENT SYNCED
                                         </span>
                                     ) : (
-                                        <span className="text-[9px] font-black text-amber-500 uppercase flex items-center gap-1">
+                                        <span className="text-[9px] font-black text-amber-500 uppercase flex items-center gap-1 whitespace-nowrap">
                                             <FileX2 className="w-3 h-3" /> EMPTY SHEET
                                         </span>
                                     )
                                 ) : (
-                                    <span className="text-[9px] font-black text-red-500 uppercase flex items-center gap-1">
+                                    <span className="text-[9px] font-black text-red-500 uppercase flex items-center gap-1 whitespace-nowrap">
                                         <Link2Off className="w-3 h-3" /> MISSING LINK
                                     </span>
                                 )}
@@ -213,7 +215,7 @@ const UGLinkAuditModal: React.FC<UGLinkAuditModalProps> = ({ isOpen, onClose, so
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2 justify-end shrink-0 sm:ml-4">
                           {isEditing ? (
                             <>
                               <Button 
@@ -223,26 +225,26 @@ const UGLinkAuditModal: React.FC<UGLinkAuditModalProps> = ({ isOpen, onClose, so
                                   setEditingId(null);
                                   setEditValue("");
                                 }}
-                                className="h-10 px-4 text-slate-400 font-bold text-[10px] uppercase rounded-xl"
+                                className="h-9 px-3 text-slate-400 font-bold text-[9px] uppercase rounded-xl"
                               >
                                 Cancel
                               </Button>
                               <Button 
                                 onClick={() => handleVerify(song, editValue)}
                                 disabled={!isValidUrl(editValue)}
-                                className="h-10 px-6 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-20 text-white font-black uppercase text-[10px] tracking-widest gap-2 rounded-xl shadow-lg transition-all"
+                                className="h-9 px-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-20 text-white font-black uppercase text-[9px] tracking-widest gap-2 rounded-xl shadow-lg transition-all"
                               >
                                 <CheckCircle2 className="w-3.5 h-3.5" /> Verify Link
                               </Button>
                             </>
                           ) : (
-                            <>
+                            <div className="flex flex-wrap justify-end gap-2">
                               {hasLink && !hasChords && (
                                 <Button 
                                   onClick={() => handleJumpToStudio(song)}
-                                  className="h-10 px-6 bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase text-[10px] tracking-widest gap-2 rounded-xl shadow-lg animate-pulse"
+                                  className="h-9 px-3 sm:px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase text-[9px] tracking-widest gap-2 rounded-xl shadow-lg animate-pulse"
                                 >
-                                  <Copy className="w-3.5 h-3.5" /> COPY FROM UG
+                                  <Copy className="w-3.5 h-3.5" /> <span className="hidden min-[450px]:inline">COPY FROM UG</span>
                                 </Button>
                               )}
 
@@ -252,17 +254,17 @@ const UGLinkAuditModal: React.FC<UGLinkAuditModalProps> = ({ isOpen, onClose, so
                                     variant="ghost" 
                                     size="sm" 
                                     onClick={() => window.open(song.ugUrl, '_blank')}
-                                    className="h-10 px-4 bg-white/5 hover:bg-white/10 text-white font-bold text-[10px] uppercase gap-2 rounded-xl"
+                                    className="h-9 px-3 bg-white/5 hover:bg-white/10 text-white font-bold text-[9px] uppercase gap-2 rounded-xl"
                                   >
-                                    <ExternalLink className="w-3.5 h-3.5" /> Test
+                                    <ExternalLink className="w-3.5 h-3.5" /> <span className="hidden md:inline">Test</span>
                                   </Button>
                                   <Button 
                                     variant="ghost" 
                                     size="sm" 
                                     onClick={() => startEditing(song)}
-                                    className="h-10 px-4 bg-white/5 hover:bg-white/10 text-indigo-400 font-bold text-[10px] uppercase gap-2 rounded-xl"
+                                    className="h-9 px-3 bg-white/5 hover:bg-white/10 text-indigo-400 font-bold text-[9px] uppercase gap-2 rounded-xl"
                                   >
-                                    <Edit2 className="w-3.5 h-3.5" /> Edit
+                                    <Edit2 className="w-3.5 h-3.5" /> <span className="hidden md:inline">Edit</span>
                                   </Button>
                                 </>
                               )}
@@ -272,26 +274,26 @@ const UGLinkAuditModal: React.FC<UGLinkAuditModalProps> = ({ isOpen, onClose, so
                                 size="sm" 
                                 onClick={() => handleRebind(song)}
                                 className={cn(
-                                  "h-10 px-4 font-bold text-[10px] uppercase gap-2 rounded-xl",
+                                  "h-9 px-3 font-bold text-[9px] uppercase gap-2 rounded-xl",
                                   !hasLink ? "bg-orange-600/10 text-orange-500 hover:bg-orange-600/20" : "bg-white/5 hover:bg-white/10 text-orange-400"
                                 )}
                               >
                                 {!hasLink ? (
                                   <><SearchCode className="w-3.5 h-3.5" /> Find & Bind</>
                                 ) : (
-                                  <><RotateCcw className="w-3.5 h-3.5" /> Re-bind</>
+                                  <><RotateCcw className="w-3.5 h-3.5" /> <span className="hidden md:inline">Re-bind</span></>
                                 )}
                               </Button>
 
                               {hasLink && (
                                 <Button 
                                   onClick={() => handleVerify(song)}
-                                  className="h-10 px-6 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase text-[10px] tracking-widest gap-2 rounded-xl shadow-lg"
+                                  className="h-9 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-[9px] tracking-widest gap-2 rounded-xl shadow-lg"
                                 >
-                                  <ShieldCheck className="w-3.5 h-3.5" /> Verify
+                                  <ShieldCheck className="w-3.5 h-3.5" /> <span className="hidden min-[450px]:inline">Verify</span>
                                 </Button>
                               )}
-                            </>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -304,7 +306,7 @@ const UGLinkAuditModal: React.FC<UGLinkAuditModalProps> = ({ isOpen, onClose, so
                               value={editValue}
                               onChange={(e) => setEditValue(e.target.value)}
                               placeholder="Paste the official Ultimate Guitar URL here..."
-                              className="bg-black/40 border-white/10 h-12 pl-10 text-sm font-mono text-indigo-300 rounded-xl focus:ring-indigo-500/20"
+                              className="bg-black/40 border-white/10 h-11 pl-10 text-xs sm:text-sm font-mono text-indigo-300 rounded-xl focus:ring-indigo-500/20"
                               autoFocus
                             />
                           </div>
@@ -324,22 +326,22 @@ const UGLinkAuditModal: React.FC<UGLinkAuditModalProps> = ({ isOpen, onClose, so
           </ScrollArea>
         </div>
 
-        <div className="p-6 border-t border-white/5 bg-slate-950 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-6">
+        <div className="p-4 sm:p-6 border-t border-white/5 bg-slate-950 flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0">
+          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 sm:gap-6">
             <div className="flex items-center gap-2">
                 <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                {stats.missingChords} Songs require chord import
+                <span className="text-[9px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                {stats.missingChords} Songs require import
                 </span>
             </div>
-            <div className="flex items-center gap-2 border-l border-white/5 pl-6">
+            <div className="flex items-center gap-2 border-l border-white/5 pl-4 sm:pl-6">
                 <Link2Off className="w-3.5 h-3.5 text-red-500" />
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                {stats.missingLinks} Songs missing links
+                <span className="text-[9px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                {stats.missingLinks} Missing links
                 </span>
             </div>
           </div>
-          <p className="text-[9px] font-mono text-slate-700 uppercase">Engine: Combined Link & Content Audit v5.0</p>
+          <p className="text-[8px] sm:text-[9px] font-mono text-slate-700 uppercase">Engine: combined Link & Content Audit v5.1</p>
         </div>
       </DialogContent>
     </Dialog>
