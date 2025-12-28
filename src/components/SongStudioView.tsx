@@ -159,8 +159,8 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
             ug_chords_config: data.ug_chords_config,
             user_tags: data.user_tags,
             resources: data.resources,
-            pdf_url: data.pdf_url,
-            leadsheet_url: data.leadsheet_url,
+            pdfUrl: data.pdf_url,
+            leadsheetUrl: data.leadsheet_url,
             apple_music_url: data.apple_music_url,
             duration_seconds: data.duration_seconds,
             genre: data.genre,
@@ -453,6 +453,16 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           </div>
         </div>
       </header>
+      
+      {/* NEW: Warning if Original Key is Missing */}
+      {!formData.originalKey || formData.originalKey === 'TBC' ? (
+        <div className="bg-red-950/30 border-b border-red-900/50 p-3 flex items-center justify-center gap-3 shrink-0">
+          <AlertCircle className="w-4 h-4 text-red-400" />
+          <p className="text-xs font-bold uppercase tracking-widest text-red-400">
+            CRITICAL: Original Key is missing. Transposition is currently relative to 'C'. Set the Original Key in the Configuration tab.
+          </p>
+        </div>
+      ) : null}
       
       <div className="flex-1 flex overflow-hidden">
         <div className="flex-1 flex flex-col min-w-0 bg-slate-950">
