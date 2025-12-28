@@ -139,7 +139,17 @@ const SheetReaderMode: React.FC = () => {
         .eq('user_id', user.id)
         .order('title');
 
-      if (error) throw error;
+      // Add robust error logging for Supabase fetches
+      if (error) {
+        console.error("Supabase Fetch Error:", error);
+        // Check for RLS specific error message
+        if (error.message.includes("new row violates row-level-security")) {
+          showError("Database Security Error: You don't have permission to read this data. Check RLS policies.");
+        } else {
+          showError(`Failed to load repertoire: ${error.message}`);
+        }
+        throw error;
+      }
 
       const mappedSongs: SetlistSong[] = (data || []).map((d) => ({
         id: d.id,
@@ -189,7 +199,7 @@ const SheetReaderMode: React.FC = () => {
 
       setCurrentIndex(initialIndex);
     } catch (err) {
-      showError('Failed to load repertoire');
+      // Error already handled above
     } finally {
       setInitialLoading(false);
     }
@@ -252,11 +262,11 @@ const SheetReaderMode: React.FC = () => {
 
       if (error) throw error;
 
-setAllSongs(prev => prev.map(s =>
-  s.id === currentSong.id 
-    ? { ...s, targetKey: newTargetKey, pitch: newPitch } 
-    : s
-));
+      setAllSongs(prev => prev.map(s =>
+        s.id === currentSong.id 
+          ? { ...s, targetKey: newTargetKey, pitch: newPitch } 
+          : s
+      ));
 
       // Immediately reflect in UI
       setTargetKey(newTargetKey);
@@ -270,46 +280,46 @@ setAllSongs(prev => prev.map(s =>
 
   // Pull Key Feature
   const handlePullKey = useCallback(async () => {
-  if (!currentSong || !user || !currentSong.ug_chords_text) {
-    showError("No UG Chords text found to extract key.");
-    return;
-  }
-
-  const extractedKey = extractKeyFromChords(currentSong.ug_chords_text);
-
-  if (extractedKey) {
-    try {
-      const { error } = await supabase
-        .from('repertoire')
-        .update({ 
-          original_key: extractedKey,
-          target_key: extractedKey,
-          pitch: 0,
-          is_key_confirmed: true 
-        })
-        .eq('id', currentSong.id);
-      
-      if (error) throw error;
-
-      // FIX: Correctly update the state array with the new properties
-      setAllSongs(prev => prev.map(s => 
-        s.id === currentSong.id 
-          ? { ...s, originalKey: extractedKey, targetKey: extractedKey, pitch: 0, isKeyConfirmed: true } 
-          : s
-      ));
-
-      // Force immediate UI update
-      setTargetKey(extractedKey);
-      setPitch(0);
-
-      showSuccess(`Key extracted and set to: ${extractedKey}`);
-    } catch {
-      showError("Failed to update key in database.");
+    if (!currentSong || !user || !currentSong.ug_chords_text) {
+      showError("No UG Chords text found to extract key.");
+      return;
     }
-  } else {
-    showError("Could not find a valid chord in the UG text.");
-  }
-}, [currentSong, user, setTargetKey, setPitch]);
+
+    const extractedKey = extractKeyFromChords(currentSong.ug_chords_text);
+
+    if (extractedKey) {
+      try {
+        const { error } = await supabase
+          .from('repertoire')
+          .update({ 
+            original_key: extractedKey,
+            target_key: extractedKey,
+            pitch: 0,
+            is_key_confirmed: true 
+          })
+          .eq('id', currentSong.id);
+        
+        if (error) throw error;
+
+        // FIX: Correctly update the state array with the new properties
+        setAllSongs(prev => prev.map(s => 
+          s.id === currentSong.id 
+            ? { ...s, originalKey: extractedKey, targetKey: extractedKey, pitch: 0, isKeyConfirmed: true } 
+            : s
+        ));
+
+        // Force immediate UI update
+        setTargetKey(extractedKey);
+        setPitch(0);
+
+        showSuccess(`Key extracted and set to: ${extractedKey}`);
+      } catch {
+        showError("Failed to update key in database.");
+      }
+    } else {
+      showError("Could not find a valid chord in the UG text.");
+    }
+  }, [currentSong, user, setTargetKey, setPitch]);
 
   const isFramable = useCallback((url: string | null | undefined) => {
     if (!url) return true;
