@@ -48,6 +48,7 @@ const SheetReaderMode: React.FC = () => {
   const { forceReaderResource, ignoreConfirmedGate } = useReaderSettings();
 
   const [allSongs, setAllSongs] = useState<SetlistSong[]>([]);
+  const [allSetlists, setAllSetlists] = useState<{ id: string; name: string; songs: SetlistSong[] }[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [initialLoading, setInitialLoading] = useState(true);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
@@ -106,31 +107,32 @@ const SheetReaderMode: React.FC = () => {
       if (updates.appleMusicUrl !== undefined) dbUpdates.apple_music_url = updates.appleMusicUrl;
       if (updates.pdfUrl !== undefined) dbUpdates.pdf_url = updates.pdfUrl;
       if (updates.leadsheetUrl !== undefined) dbUpdates.leadsheet_url = updates.leadsheetUrl;
-      if (updates.originalKey !== undefined) dbUpdates.original_key = updates.originalKey;
-      if (updates.targetKey !== undefined) dbUpdates.target_key = updates.targetKey;
-      if (updates.pitch !== undefined) dbUpdates.pitch = updates.pitch;
-      if (updates.bpm !== undefined) dbUpdates.bpm = updates.bpm;
-      if (updates.genre !== undefined) dbUpdates.genre = updates.genre;
-      if (updates.isMetadataConfirmed !== undefined) dbUpdates.is_metadata_confirmed = updates.isMetadataConfirmed;
-      if (updates.isKeyConfirmed !== undefined) dbUpdates.is_key_confirmed = updates.isKeyConfirmed;
-      if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
-      if (updates.lyrics !== undefined) dbUpdates.lyrics = updates.lyrics;
-      if (updates.resources !== undefined) dbUpdates.resources = updates.resources;
-      if (updates.user_tags !== undefined) dbUpdates.user_tags = updates.user_tags;
-      if (updates.is_pitch_linked !== undefined) dbUpdates.is_pitch_linked = updates.is_pitch_linked;
-      if (updates.duration_seconds !== undefined) dbUpdates.duration_seconds = updates.duration_seconds;
-      if (updates.is_active !== undefined) dbUpdates.is_active = updates.is_active;
-      if (updates.isApproved !== undefined) dbUpdates.is_approved = updates.isApproved;
-      if (updates.preferred_reader !== undefined) dbUpdates.preferred_reader = updates.preferred_reader;
-      if (updates.ug_chords_text !== undefined) dbUpdates.ug_chords_text = updates.ug_chords_text;
-      if (updates.ug_chords_config !== undefined) dbUpdates.ug_chords_config = updates.ug_chords_config;
-      if (updates.is_ug_chords_present !== undefined) dbUpdates.is_ug_chords_present = updates.is_ug_chords_present;
-      if (updates.highest_note_original !== undefined) dbUpdates.highest_note_original = updates.highest_note_original;
-      if (updates.metadata_source !== undefined) dbUpdates.metadata_source = updates.metadata_source;
-      if (updates.sync_status !== undefined) dbUpdates.sync_status = updates.sync_status;
-      if (updates.last_sync_log !== undefined) dbUpdates.last_sync_log = updates.last_sync_log;
-      if (updates.auto_synced !== undefined) dbUpdates.auto_synced = updates.auto_synced;
-      if (updates.sheet_music_url !== undefined) dbUpdates.sheet_music_url = updates.sheet_music_url;
+      if (updates.originalKey !== undefined) dbUpdates.original_key = updates.originalKey; else dbUpdates.original_key = null;
+      if (updates.targetKey !== undefined) dbUpdates.target_key = updates.targetKey; else dbUpdates.target_key = null;
+      if (updates.pitch !== undefined) dbUpdates.pitch = updates.pitch; else dbUpdates.pitch = 0; // pitch is NOT NULL with default 0
+      if (updates.bpm !== undefined) dbUpdates.bpm = updates.bpm; else dbUpdates.bpm = null;
+      if (updates.genre !== undefined) dbUpdates.genre = updates.genre; else dbUpdates.genre = null;
+      if (updates.isMetadataConfirmed !== undefined) dbUpdates.is_metadata_confirmed = updates.isMetadataConfirmed; else dbUpdates.is_metadata_confirmed = false;
+      if (updates.isKeyConfirmed !== undefined) dbUpdates.is_key_confirmed = updates.isKeyConfirmed; else dbUpdates.is_key_confirmed = false;
+      if (updates.notes !== undefined) dbUpdates.notes = updates.notes; else dbUpdates.notes = null;
+      if (updates.lyrics !== undefined) dbUpdates.lyrics = updates.lyrics; else dbUpdates.lyrics = null;
+      if (updates.resources !== undefined) dbUpdates.resources = updates.resources; else dbUpdates.resources = [];
+      if (updates.user_tags !== undefined) dbUpdates.user_tags = updates.user_tags; else dbUpdates.user_tags = [];
+      if (updates.is_pitch_linked !== undefined) dbUpdates.is_pitch_linked = updates.is_pitch_linked; else dbUpdates.is_pitch_linked = true;
+      if (updates.duration_seconds !== undefined) dbUpdates.duration_seconds = Math.round(updates.duration_seconds || 0); else dbUpdates.duration_seconds = 0;
+      if (updates.is_active !== undefined) dbUpdates.is_active = updates.is_active; else dbUpdates.is_active = true;
+      if (updates.isApproved !== undefined) dbUpdates.is_approved = updates.isApproved; else dbUpdates.is_approved = false;
+      if (updates.preferred_reader !== undefined) dbUpdates.preferred_reader = updates.preferred_reader; else dbUpdates.preferred_reader = null;
+      if (updates.ug_chords_text !== undefined) dbUpdates.ug_chords_text = updates.ug_chords_text; else dbUpdates.ug_chords_text = null;
+      if (updates.ug_chords_config !== undefined) dbUpdates.ug_chords_config = updates.ug_chords_config; else dbUpdates.ug_chords_config = null; // Send null if not explicitly set
+      if (updates.is_ug_chords_present !== undefined) dbUpdates.is_ug_chords_present = updates.is_ug_chords_present; else dbUpdates.is_ug_chords_present = false;
+      if (updates.highest_note_original !== undefined) dbUpdates.highest_note_original = updates.highest_note_original; else dbUpdates.highest_note_original = null;
+      if (updates.metadata_source !== undefined) dbUpdates.metadata_source = updates.metadata_source; else dbUpdates.metadata_source = null;
+      if (updates.sync_status !== undefined) dbUpdates.sync_status = updates.sync_status; else dbUpdates.sync_status = 'IDLE';
+      if (updates.last_sync_log !== undefined) dbUpdates.last_sync_log = updates.last_sync_log; else dbUpdates.last_sync_log = null;
+      if (updates.auto_synced !== undefined) dbUpdates.auto_synced = updates.auto_synced; else dbUpdates.auto_synced = false;
+      if (updates.sheet_music_url !== undefined) dbUpdates.sheet_music_url = updates.sheet_music_url; else dbUpdates.sheet_music_url = null;
+      if (updates.is_sheet_verified !== undefined) dbUpdates.is_sheet_verified = updates.is_sheet_verified; else dbUpdates.is_sheet_verified = false;
       
       // Always update `updated_at`
       dbUpdates.updated_at = new Date().toISOString();
@@ -254,9 +256,36 @@ const SheetReaderMode: React.FC = () => {
     }
   }, [user, routeSongId, searchParams, forceReaderResource, ignoreConfirmedGate]);
 
+  // NEW: Fetch all setlists
+  const fetchAllSetlists = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('setlists')
+        .select('*')
+        .order('updated_at', { ascending: false });
+
+      if (error) throw error;
+
+      if (data) {
+        const mappedSetlists = data.map(d => ({
+          id: d.id,
+          name: d.name,
+          songs: (d.songs as any[]) || [],
+          time_goal: d.time_goal // Assuming time_goal might be present
+        }));
+        setAllSetlists(mappedSetlists);
+      }
+    } catch (err: any) {
+      console.error("[SheetReaderMode] Error fetching all setlists:", err);
+      showError("Failed to load all setlists.");
+    }
+  }, [user]);
+
   useEffect(() => {
     fetchSongs();
-  }, [fetchSongs]);
+    fetchAllSetlists();
+  }, [fetchSongs, fetchAllSetlists]);
 
   // Load audio
   useEffect(() => {
@@ -381,6 +410,61 @@ const SheetReaderMode: React.FC = () => {
       showError("Could not find a valid chord in the UG text.");
     }
   }, [currentSong, user, setTargetKey, setPitch]);
+
+  // NEW: Callback to update setlist songs (for SetlistMultiSelector)
+  const handleUpdateSetlistSongs = useCallback(async (
+    setlistId: string,
+    songToUpdate: SetlistSong,
+    action: 'add' | 'remove'
+  ) => {
+    const targetSetlist = allSetlists.find(l => l.id === setlistId);
+    if (!targetSetlist) {
+      console.error(`[SheetReaderMode] Setlist with ID ${setlistId} not found for update.`);
+      return;
+    }
+
+    let updatedSongsArray = [...targetSetlist.songs];
+
+    if (action === 'add') {
+      const isAlreadyInList = updatedSongsArray.some(s =>
+        (s.master_id && s.master_id === songToUpdate.master_id) ||
+        s.id === songToUpdate.id
+      );
+      if (!isAlreadyInList) {
+        const newSetlistSong: SetlistSong = {
+          ...songToUpdate,
+          id: Math.random().toString(36).substr(2, 9), // Generate new ID for setlist entry
+          master_id: songToUpdate.master_id || songToUpdate.id,
+          isPlayed: false,
+          isApproved: false,
+        };
+        updatedSongsArray.push(newSetlistSong);
+      }
+    } else if (action === 'remove') {
+      updatedSongsArray = updatedSongsArray.filter(s =>
+        (s.master_id && s.master_id !== songToUpdate.master_id) || // Filter by master_id if present
+        (!s.master_id && s.id !== songToUpdate.id) // Fallback to local ID if no master_id
+      );
+    }
+
+    try {
+      const { error } = await supabase
+        .from('setlists')
+        .update({ songs: updatedSongsArray, updated_at: new Date().toISOString() })
+        .eq('id', setlistId);
+
+      if (error) throw error;
+
+      // Update local state
+      setAllSetlists(prev => prev.map(l =>
+        l.id === setlistId ? { ...l, songs: updatedSongsArray } : l
+      ));
+      showSuccess(`Setlist "${targetSetlist.name}" updated.`);
+    } catch (err: any) {
+      console.error("[SheetReaderMode] Failed to update setlist songs:", err);
+      showError(`Failed to update setlist: ${err.message}`);
+    }
+  }, [allSetlists]);
 
   const isFramable = useCallback((url: string | null | undefined) => {
     if (!url) return true;
@@ -571,6 +655,28 @@ const SheetReaderMode: React.FC = () => {
     [currentSong]
   );
 
+  // NEW: Keyboard shortcut for 'i' to open Song Studio
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if user is typing in an input or textarea
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target as HTMLElement).isContentEditable
+      ) {
+        return;
+      }
+
+      if (e.key.toLowerCase() === 'i' && currentSong) {
+        e.preventDefault();
+        setIsStudioModalOpen(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentSong]);
+
   if (initialLoading) {
     return (
       <div className="h-screen bg-slate-950 flex items-center justify-center">
@@ -583,9 +689,6 @@ const SheetReaderMode: React.FC = () => {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-white">
-      {/* Sidebar and rest of UI unchanged */}
-      {/* ... (keeping the rest identical for brevity) */}
-      
       <main className="flex-1 flex flex-col overflow-hidden">
         <SheetReaderHeader
           currentSong={currentSong}
@@ -707,6 +810,9 @@ const SheetReaderMode: React.FC = () => {
           onClose={() => setIsStudioModalOpen(false)}
           gigId="library"
           songId={currentSong.id}
+          allSetlists={allSetlists}
+          masterRepertoire={allSongs}
+          onUpdateSetlistSongs={handleUpdateSetlistSongs}
         />
       )}
     </div>
