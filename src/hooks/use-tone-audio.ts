@@ -48,7 +48,9 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
   const playbackOffsetRef = useRef<number>(0);
 
   const initEngine = useCallback(async () => {
+    console.log('[useToneAudio] initEngine called');
     if (Tone.getContext().state !== 'running') {
+      console.log('[useToneAudio] Starting Tone Context');
       await Tone.start();
     }
     if (!analyzerRef.current) {
@@ -58,6 +60,7 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
   }, []);
 
   const resetEngine = useCallback(() => {
+    console.log('[useToneAudio] resetEngine called');
     if (playerRef.current) {
       playerRef.current.stop();
       playerRef.current.dispose();
@@ -89,6 +92,7 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
   }, [volume]);
 
   const loadAudioBuffer = useCallback((audioBuffer: AudioBuffer, initialPitch: number = 0) => {
+    console.log('[useToneAudio] loadAudioBuffer called', { initialPitch, duration: audioBuffer.duration });
     initEngine().then(() => {
       resetEngine();
       currentBufferRef.current = audioBuffer;
@@ -111,13 +115,16 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
       if (!suppressToasts) {
         showSuccess("Audio Loaded");
       }
+      console.log('[useToneAudio] loadAudioBuffer SUCCESS');
     }).catch((err) => {
-      console.error("Failed to initialize audio engine or load buffer:", err);
+      console.error("[useToneAudio] Failed to initialize audio engine or load buffer:", err);
       showError("Failed to initialize audio engine.");
     });
   }, [initEngine, resetEngine, suppressToasts]);
 
   const loadFromUrl = useCallback(async (url: string, initialPitch: number = 0, force: boolean = false) => {
+    console.log(`[useToneAudio] loadFromUrl called. URL: ${url}, Force: ${force}, CurrentUrl: ${currentUrl}, IsLoading: ${isLoadingAudio}, BufferExists: ${!!currentBufferRef.current}`);
+    
     if (!url) {
       console.warn("[useToneAudio] No URL provided to loadFromUrl. Skipping.");
       return;
@@ -136,7 +143,7 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
       }
     }
 
-    console.log(`[useToneAudio] Loading new URL: ${url}`);
+    console.log(`[useToneAudio] Proceeding with fetch for: ${url}`);
     setCurrentUrl(url);
     setIsLoadingAudio(true);
     
@@ -156,24 +163,31 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
   }, [loadAudioBuffer, currentUrl, isLoadingAudio]);
 
   const togglePlayback = useCallback(async () => {
+    console.log('[useToneAudio] togglePlayback called');
     await initEngine();
-    if (!playerRef.current) return;
+    if (!playerRef.current) {
+      console.warn('[useToneAudio] togglePlayback: No playerRef');
+      return;
+    }
 
     if (isPlaying) {
       playerRef.current.stop();
       const elapsed = (Tone.now() - playbackStartTimeRef.current) * tempo;
       playbackOffsetRef.current += elapsed;
       setIsPlaying(false);
+      console.log('[useToneAudio] Paused');
     } else {
       const startTime = (progress / 100) * duration;
       playbackOffsetRef.current = startTime;
       playbackStartTimeRef.current = Tone.now();
       playerRef.current.start(0, startTime);
       setIsPlaying(true);
+      console.log('[useToneAudio] Playing');
     }
   }, [isPlaying, progress, duration, tempo, initEngine]);
 
   const stopPlayback = useCallback(() => {
+    console.log('[useToneAudio] stopPlayback called');
     if (playerRef.current) {
       playerRef.current.stop();
       setIsPlaying(false);
@@ -222,26 +236,31 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
   }, [tempo]);
 
   const setPitch = useCallback((p: number) => {
+    console.log(`[useToneAudio] setPitch called: ${p}`);
     setPitchState(p);
     if (playerRef.current) playerRef.current.detune = (p * 100) + fineTune;
   }, [fineTune]);
 
   const setTempo = useCallback((t: number) => {
+    console.log(`[useToneAudio] setTempo called: ${t}`);
     setTempoState(t);
     if (playerRef.current) playerRef.current.playbackRate = t;
   }, []);
 
   const setVolume = useCallback((v: number) => {
+    console.log(`[useToneAudio] setVolume called: ${v}`);
     setVolumeState(v);
     if (playerRef.current) playerRef.current.volume.value = v;
   }, []);
 
   const setFineTune = useCallback((f: number) => {
+    console.log(`[useToneAudio] setFineTune called: ${f}`);
     setFineTuneState(f);
     if (playerRef.current) playerRef.current.detune = (pitch * 100) + f;
   }, [pitch]);
 
   const setProgressHandler = useCallback((p: number) => {
+    console.log(`[useToneAudio] setProgress called: ${p}`);
     setProgress(p);
     if (playerRef.current && duration > 0) {
       const offset = (p / 100) * duration;
