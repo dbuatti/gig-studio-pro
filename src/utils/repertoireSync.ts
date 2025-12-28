@@ -70,57 +70,67 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
  * Synchronizes local setlist songs with the master repertoire table.
  */
 export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong | SetlistSong[]): Promise<SetlistSong[]> => {
-  if (!userId) return Array.isArray(songs) ? songs : [songs];
+  if (!userId) {
+    console.warn("[syncToMasterRepertoire] userId is missing. Skipping sync.");
+    return Array.isArray(songs) ? songs : [songs];
+  }
   
   const songsArray = Array.isArray(songs) ? songs : [songs];
-  if (songsArray.length === 0) return [];
+  if (songsArray.length === 0) {
+    console.warn("[syncToMasterRepertoire] No songs provided for sync. Skipping.");
+    return [];
+  }
   
   try {
     const payloads = songsArray.map(song => {
-      const payload: any = {
+      const payload: { [key: string]: any } = {
         user_id: userId,
-        title: song.name.trim() || 'Untitled Track', // Ensure title is not empty
-        artist: song.artist?.trim() || 'Unknown Artist', // Ensure artist is not empty
-        original_key: song.originalKey || null,
-        target_key: song.targetKey || null,
-        bpm: song.bpm || null,
-        lyrics: song.lyrics || null,
-        notes: song.notes || null,
-        pitch: song.pitch || 0,
-        ug_url: song.ugUrl || null,
-        pdf_url: song.pdfUrl || null,
-        leadsheet_url: song.leadsheetUrl || null,
-        youtube_url: song.youtubeUrl || null,
-        preview_url: song.previewUrl || null,
-        apple_music_url: song.appleMusicUrl || null,
-        is_metadata_confirmed: song.isMetadataConfirmed || false,
-        is_key_confirmed: song.isKeyConfirmed || false,
-        duration_seconds: Math.round(song.duration_seconds || 0),
-        genre: song.genre || (song.user_tags?.[0] ? String(song.user_tags[0]) : null), // Explicitly cast to string
-        user_tags: song.user_tags || [],
-        resources: song.resources || [],
-        readiness_score: calculateReadiness(song),
-        is_active: true,
+        title: song.name.trim() || 'Untitled Track',
+        artist: song.artist?.trim() || 'Unknown Artist',
         updated_at: new Date().toISOString(),
-        ug_chords_text: song.ug_chords_text || null,
-        ug_chords_config: song.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
-        is_ug_chords_present: !!(song.ug_chords_text && song.ug_chords_text.trim().length > 0),
-        is_pitch_linked: song.is_pitch_linked ?? true,
-        highest_note_original: song.highest_note_original || null,
-        is_approved: song.isApproved || false,
-        sheet_music_url: song.sheet_music_url || null,
-        is_sheet_verified: ((song.sheet_music_url || song.pdfUrl || song.leadsheetUrl || "").length > 0) || false,
-        sync_status: (song as any).sync_status || 'IDLE',
-        last_sync_log: (song as any).last_sync_log || null,
-        auto_synced: (song as any).auto_synced || false,
-        metadata_source: (song as any).metadata_source || null,
-        extraction_status: (song as any).extraction_status || 'PENDING',
-        source_type: (song as any).source_type || 'YOUTUBE'
+        readiness_score: calculateReadiness(song),
+        is_active: true, // Default to true, can be overridden if needed
       };
+
+      // Conditionally add fields only if they are defined in the song object
+      // This prevents sending 'undefined' or default objects for nullable fields if not explicitly set
+      if (song.originalKey !== undefined) payload.original_key = song.originalKey; else payload.original_key = null;
+      if (song.targetKey !== undefined) payload.target_key = song.targetKey; else payload.target_key = null;
+      if (song.bpm !== undefined) payload.bpm = song.bpm; else payload.bpm = null;
+      if (song.lyrics !== undefined) payload.lyrics = song.lyrics; else payload.lyrics = null;
+      if (song.notes !== undefined) payload.notes = song.notes; else payload.notes = null;
+      if (song.pitch !== undefined) payload.pitch = song.pitch; else payload.pitch = 0; // pitch is NOT NULL with default 0
+      if (song.ugUrl !== undefined) payload.ug_url = song.ugUrl; else payload.ug_url = null;
+      if (song.pdfUrl !== undefined) payload.pdf_url = song.pdfUrl; else payload.pdf_url = null;
+      if (song.leadsheetUrl !== undefined) payload.leadsheet_url = song.leadsheetUrl; else payload.leadsheet_url = null;
+      if (song.youtubeUrl !== undefined) payload.youtube_url = song.youtubeUrl; else payload.youtube_url = null;
+      if (song.previewUrl !== undefined) payload.preview_url = song.previewUrl; else payload.preview_url = null;
+      if (song.appleMusicUrl !== undefined) payload.apple_music_url = song.appleMusicUrl; else payload.apple_music_url = null;
+      if (song.isMetadataConfirmed !== undefined) payload.is_metadata_confirmed = song.isMetadataConfirmed; else payload.is_metadata_confirmed = false;
+      if (song.isKeyConfirmed !== undefined) payload.is_key_confirmed = song.isKeyConfirmed; else payload.is_key_confirmed = false;
+      if (song.duration_seconds !== undefined) payload.duration_seconds = Math.round(song.duration_seconds || 0); else payload.duration_seconds = 0;
+      if (song.genre !== undefined) payload.genre = song.genre; else payload.genre = null;
+      if (song.user_tags !== undefined) payload.user_tags = song.user_tags; else payload.user_tags = [];
+      if (song.resources !== undefined) payload.resources = song.resources; else payload.resources = [];
+      if (song.preferred_reader !== undefined) payload.preferred_reader = song.preferred_reader; else payload.preferred_reader = null;
+      if (song.ug_chords_text !== undefined) payload.ug_chords_text = song.ug_chords_text; else payload.ug_chords_text = null;
+      if (song.ug_chords_config !== undefined) payload.ug_chords_config = song.ug_chords_config; else payload.ug_chords_config = null; // Send null if not explicitly set
+      if (song.is_ug_chords_present !== undefined) payload.is_ug_chords_present = song.is_ug_chords_present; else payload.is_ug_chords_present = false;
+      if (song.is_pitch_linked !== undefined) payload.is_pitch_linked = song.is_pitch_linked; else payload.is_pitch_linked = true;
+      if (song.highest_note_original !== undefined) payload.highest_note_original = song.highest_note_original; else payload.highest_note_original = null;
+      if (song.isApproved !== undefined) payload.is_approved = song.isApproved; else payload.is_approved = false;
+      if (song.sheet_music_url !== undefined) payload.sheet_music_url = song.sheet_music_url; else payload.sheet_music_url = null;
+      if (song.is_sheet_verified !== undefined) payload.is_sheet_verified = song.is_sheet_verified; else payload.is_sheet_verified = false;
       
+      // These are internal sync statuses, ensure they are passed if present
+      if ((song as any).sync_status !== undefined) payload.sync_status = (song as any).sync_status; else payload.sync_status = 'IDLE';
+      if ((song as any).last_sync_log !== undefined) payload.last_sync_log = (song as any).last_sync_log; else payload.last_sync_log = null;
+      if ((song as any).auto_synced !== undefined) payload.auto_synced = (song as any).auto_synced; else payload.auto_synced = false;
+      if ((song as any).metadata_source !== undefined) payload.metadata_source = (song as any).metadata_source; else payload.metadata_source = null;
+      if ((song as any).extraction_status !== undefined) payload.extraction_status = (song as any).extraction_status; else payload.extraction_status = 'PENDING';
+      if ((song as any).source_type !== undefined) payload.source_type = (song as any).source_type; else payload.source_type = 'YOUTUBE';
+
       // Only include 'id' in the payload if it's an existing master_id (a valid UUID)
-      // If song.master_id is not a valid UUID (e.g., client-generated string or null),
-      // 'id' will be omitted from the payload, and Supabase will generate a new UUID on insert.
       if (isValidUuid(song.master_id)) {
         payload.id = song.master_id;
       }
@@ -128,20 +138,23 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       return payload;
     });
     
+    console.log("[syncToMasterRepertoire] Sending payloads to Supabase:", JSON.stringify(payloads, null, 2));
+    
     const { data, error } = await supabase
       .from('repertoire')
       .upsert(payloads, { onConflict: 'id' })
-      .select('id, title, artist'); // Select generated ID for new inserts
+      .select('id, title, artist');
       
-    if (error) throw error;
+    if (error) {
+      console.error("[syncToMasterRepertoire] Supabase upsert error:", error);
+      throw error;
+    }
     
-    // Map the returned data back to the original songsArray to update master_id for new inserts
+    console.log("[syncToMasterRepertoire] Supabase upsert successful. Data:", data);
+    
     return songsArray.map(originalSong => {
       const matchedDbSong = data.find(dbSong => {
-        // If originalSong already had a master_id, match by that
         if (originalSong.master_id && dbSong.id === originalSong.master_id) return true;
-        // For newly inserted songs (no master_id), match by title and artist
-        // This is a fallback heuristic for new inserts if we can't rely on a temporary client_id
         if (!originalSong.master_id && dbSong.title === originalSong.name.trim() && dbSong.artist === (originalSong.artist?.trim() || 'Unknown Artist')) return true;
         return false;
       });
@@ -149,6 +162,7 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       return matchedDbSong ? { ...originalSong, master_id: matchedDbSong.id } : originalSong;
     });
   } catch (err) {
-    throw err; // Re-throw to propagate the error to the caller
+    console.error("[syncToMasterRepertoire] Caught error:", err);
+    throw err;
   }
 };
