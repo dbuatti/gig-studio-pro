@@ -94,7 +94,7 @@ const SheetReaderMode: React.FC = () => {
   const {
     pitch,
     setPitch,
-    targetKey,
+    targetKey: harmonicTargetKey, // Renamed to avoid potential conflict
     setTargetKey,
   } = useHarmonicSync({ formData, handleAutoSave, globalKeyPreference });
 
@@ -373,7 +373,7 @@ const SheetReaderMode: React.FC = () => {
                       config={song.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
                       isMobile={false}
                       originalKey={song.originalKey}
-                      targetKey={targetKey}
+                      targetKey={harmonicTargetKey} // Use renamed variable
                       isPlaying={isPlaying}
                       progress={progress}
                       duration={duration}
@@ -454,7 +454,7 @@ const SheetReaderMode: React.FC = () => {
               </Button>
           </div>
       );
-  }, [forceReaderResource, ignoreConfirmedGate, navigate, targetKey, isPlaying, progress, duration, chordAutoScrollEnabled, chordScrollSpeed, readerKeyPreference, isFramable, handleChartLoad, setIsStudioModalOpen]);
+  }, [forceReaderResource, ignoreConfirmedGate, navigate, harmonicTargetKey, isPlaying, progress, duration, chordAutoScrollEnabled, chordScrollSpeed, readerKeyPreference, isFramable, handleChartLoad, setIsStudioModalOpen]);
 
   // Update the preload cache logic
   useEffect(() => {
