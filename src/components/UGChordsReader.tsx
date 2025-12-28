@@ -159,7 +159,7 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
     <div 
       ref={scrollContainerRef}
       className={cn(
-        "flex-1 bg-slate-950 rounded-xl p-4 overflow-auto border border-white/10 font-mono custom-scrollbar flex flex-col",
+        "flex-1 bg-slate-950 rounded-xl p-4 overflow-y-auto border border-white/10 font-mono custom-scrollbar flex flex-col",
         isMobile ? "text-sm" : "text-base"
       )}
       style={{ 

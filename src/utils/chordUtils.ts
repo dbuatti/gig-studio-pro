@@ -1,7 +1,7 @@
 "use client";
 
 import { KeyPreference } from '@/hooks/use-settings';
-import { transposeKey, formatKey, MAPPING_TO_SHARP } from './keyUtils';
+import { transposeKey, formatKey, MAPPING_TO_SHARP, MAPPING_TO_FLAT } from './keyUtils';
 
 // Updated Regex:
 // (?<=^| ) : Lookbehind - Ensures the chord starts at the beginning of the line or after a space.

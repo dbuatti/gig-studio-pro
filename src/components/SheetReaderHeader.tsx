@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Search, Music, ChevronLeft, ChevronRight, Loader2, ChevronDown, Maximize2, Minimize2, Bug, Hash } from 'lucide-react';
+import { ArrowLeft, Search, Music, ChevronLeft, ChevronRight, Loader2, ChevronDown, Maximize2, Minimize2, Bug, Hash, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatKey, ALL_KEYS_SHARP, ALL_KEYS_FLAT } from '@/utils/keyUtils';
 import { SetlistSong } from './SetlistManager';
@@ -31,6 +31,8 @@ interface SheetReaderHeaderProps {
   // NEW: Props for override readerKeyPreference
   readerKeyPreference: 'sharps' | 'flats';
   setReaderKeyPreference: (pref: 'sharps' | 'flats') => void;
+  // NEW: Pull Key Handler
+  onPullKey: () => void;
 }
 
 const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
@@ -48,9 +50,9 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   isOverrideActive,
   pitch,
   setPitch,
-  // NEW
   readerKeyPreference,
   setReaderKeyPreference,
+  onPullKey,
 }) => {
   // Use the reader specific preference for display
   const rawTargetKey = currentSong?.targetKey || currentSong?.originalKey;
@@ -110,6 +112,17 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
         
         {currentSong && (
           <div className="flex items-center gap-2">
+            {/* NEW: Pull Key Button */}
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={onPullKey}
+              className="bg-emerald-600/10 text-emerald-500 hover:bg-emerald-600 hover:text-white border border-emerald-600/20 h-10 px-3 rounded-xl font-black text-[10px] uppercase tracking-widest gap-2"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              Pull Key
+            </Button>
+
             {/* NEW: Key Preference Override Toggle */}
             <DropdownMenu onOpenChange={setIsOverlayOpen}>
               <DropdownMenuTrigger asChild>

@@ -21,6 +21,7 @@ import { useKeyboardNavigation } from '@/hooks/use-keyboard-navigation';
 import SetlistMultiSelector from './SetlistMultiSelector';
 import { useSettings } from '@/hooks/use-settings';
 import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
+import { extractKeyFromChords } from '@/utils/chordUtils'; // Import the utility
 
 type StudioTab = 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library';
 
@@ -312,6 +313,28 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     }
   };
 
+  // NEW: Pull Key Handler
+  const handlePullKey = async () => {
+    if (!formData.ug_chords_text) {
+      showError("No UG Chords text found to extract key.");
+      return;
+    }
+
+    const extractedKey = extractKeyFromChords(formData.ug_chords_text);
+
+    if (extractedKey) {
+      handleAutoSave({ 
+        originalKey: extractedKey, 
+        targetKey: extractedKey, // Reset target to match original
+        pitch: 0, // Reset pitch
+        isKeyConfirmed: true 
+      });
+      showSuccess(`Key extracted and set to: ${extractedKey}`);
+    } else {
+      showError("Could not find a valid chord in the UG text.");
+    }
+  };
+
   const handleConfirmForSetlist = (checked: boolean) => {
     handleAutoSave({ isApproved: checked });
     showSuccess(checked ? "Confirmed for Active Gig" : "Removed from Confirmed Status");
@@ -385,6 +408,19 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
               {isVerifying ? "VERIFYING..." : (
                 formData.isMetadataConfirmed ? "METADATA VERIFIED" : "VERIFY METADATA"
               )}
+            </Button>
+
+            {/* NEW: Pull Key Button */}
+            <Button 
+              onClick={handlePullKey}
+              disabled={!formData.ug_chords_text}
+              className={cn(
+                "h-11 rounded-xl font-black uppercase text-[9px] tracking-widest gap-2 px-6 transition-all shadow-lg",
+                "bg-purple-600 hover:bg-purple-700 text-white shadow-purple-600/20"
+              )}
+            >
+              <Sparkles className="w-4 h-4" />
+              PULL KEY
             </Button>
             
             {/* Conditional Rendering for Setlist Assignment */}

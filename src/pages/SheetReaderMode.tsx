@@ -7,7 +7,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { SetlistSong } from '@/components/SetlistManager';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Music, Loader2, AlertCircle, ChevronLeft, ChevronRight, X, Settings, Maximize2, Minimize2, ExternalLink, ShieldCheck, FileText, Layout, Guitar } from 'lucide-react';
+import { Music, Loader2, AlertCircle, ChevronLeft, ChevronRight, X, Settings, Maximize2, Minimize2, ExternalLink, ShieldCheck, FileText, Layout, Guitar, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { useSettings } from '@/hooks/use-settings';
@@ -15,7 +15,7 @@ import { calculateReadiness } from '@/utils/repertoireSync';
 import { showError, showSuccess } from '@/utils/toast';
 import UGChordsReader from '@/components/UGChordsReader';
 import { useToneAudio } from '@/hooks/use-tone-audio';
-import { transposeKey, calculateSemitones } from '@/utils/keyUtils';
+import { calculateSemitones } from '@/utils/keyUtils';
 import { useReaderSettings } from '@/hooks/use-reader-settings';
 import PreferencesModal from '@/components/PreferencesModal';
 import SongStudioModal from '@/components/SongStudioModal';
@@ -98,11 +98,6 @@ const SheetReaderMode: React.FC = () => {
     setIsPitchLinked,
   } = useHarmonicSync({ formData, handleAutoSave, globalKeyPreference });
 
-  // Sync localPitch with pitch from useHarmonicSync
-  useEffect(() => {
-    setAudioPitch(pitch);
-  }, [pitch, setAudioPitch]);
-
   // === Data Fetching ===
   const fetchSongs = useCallback(async () => {
     if (!user) return;
@@ -184,21 +179,25 @@ const SheetReaderMode: React.FC = () => {
   // === Song Selection ===
   const currentSong = allSongs[currentIndex];
 
-  // FIX: State Firewall (Reset Transposition on Song Change)
+  // === STATE FIREWALL: Reset Transposition on Song Change ===
   useEffect(() => {
     if (currentSong) {
-      // Reset formData to the new song's specific data
+      // 1. Reset Audio Engine Pitch to 0 immediately
+      setAudioPitch(0);
+      
+      // 2. Reset Harmonic Sync State to new song's data
       setFormData({ 
         originalKey: currentSong.originalKey, 
         targetKey: currentSong.targetKey, 
-        pitch: currentSong.pitch,
+        pitch: 0, // Force 0 on load
         is_pitch_linked: currentSong.is_pitch_linked,
       });
       
-      // Reset the Audio Engine's pitch to match the new song's saved pitch
-      if (typeof currentSong.pitch === 'number') {
-        setAudioPitch(currentSong.pitch);
-      }
+      // 3. Reset Audio Engine Pitch to new song's saved pitch (after reset)
+      const initialPitch = typeof currentSong.pitch === 'number' ? currentSong.pitch : 0;
+      setTimeout(() => {
+        setAudioPitch(initialPitch);
+      }, 50);
     }
   }, [currentSong, setAudioPitch]);
 
@@ -292,6 +291,52 @@ const SheetReaderMode: React.FC = () => {
     }
   }, [currentSong, user, setTargetKey]);
 
+  // === Pull Key Feature ===
+  const handlePullKey = useCallback(async () => {
+    if (!currentSong || !user) return;
+    
+    // Regex to find the first standalone chord (e.g., "E", "Gm", "F#m7")
+    // Matches start of line or space, followed by chord, followed by end of line or space
+    const chordRegex = /(?:^|\s)([A-G][#b]?(m|maj|7|sus|add|dim|aug)?\d?)(?=\s|$)/;
+    
+    const match = currentSong.ug_chords_text?.match(chordRegex);
+    
+    if (match && match[1]) {
+      const extractedKey = match[1];
+      
+      // Update Database
+      try {
+        const { error } = await supabase
+          .from('repertoire')
+          .update({ 
+            original_key: extractedKey,
+            target_key: extractedKey, // Reset target to match original
+            pitch: 0, // Reset pitch
+            is_key_confirmed: true 
+          })
+          .eq('id', currentSong.id);
+        
+        if (error) throw error;
+
+        // Update Local State
+        setAllSongs(prev => prev.map(s => 
+          s.id === currentSong.id 
+            ? { ...s, originalKey: extractedKey, targetKey: extractedKey, pitch: 0, isKeyConfirmed: true } 
+            : s
+        ));
+        
+        // Trigger the State Firewall to reset the UI
+        setCurrentIndex(prev => prev); 
+
+        showSuccess(`Key extracted and set to: ${extractedKey}`);
+      } catch (err) {
+        showError("Failed to update key in database.");
+      }
+    } else {
+      showError("No valid chord found in UG text to extract key.");
+    }
+  }, [currentSong, user]);
+
   // Helper to check if a URL can be embedded
   const isFramable = useCallback((url: string | null | undefined) => {
     if (!url) return true;
@@ -320,7 +365,7 @@ const SheetReaderMode: React.FC = () => {
       if (song.ug_chords_text && song.ug_chords_text.trim().length > 0) {
         return (
           <UGChordsReader
-            key={`${song.id}-chords`} // Key ensures re-render on song change
+            key={`${song.id}-chords`}
             chordsText={song.ug_chords_text || ""}
             config={song.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
             isMobile={false}
@@ -595,6 +640,8 @@ const SheetReaderMode: React.FC = () => {
           setPitch={setPitch}
           readerKeyPreference={readerKeyPreference}
           setReaderKeyPreference={setReaderKeyPreference}
+          // FIX 1: Pass Pull Key Handler
+          onPullKey={handlePullKey}
         />
 
         {/* Chart Viewer */}
@@ -667,7 +714,8 @@ const SheetReaderMode: React.FC = () => {
             setChordAutoScrollEnabled={setChordAutoScrollEnabled}
             chordScrollSpeed={chordScrollSpeed}
             setChordScrollSpeed={setChordScrollSpeed}
-            isLoadingAudio={isLoadingAudio} // Added missing prop
+            // FIX 2: Pass isLoadingAudio
+            isLoadingAudio={isLoadingAudio}
           />
         )}
       </main>
