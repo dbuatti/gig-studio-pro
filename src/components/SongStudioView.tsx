@@ -12,16 +12,15 @@ import { syncToMasterRepertoire, calculateReadiness } from '@/utils/repertoireSy
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { showSuccess, showError, showInfo } from '@/utils/toast';
 import StudioTabContent from '@/components/StudioTabContent';
-import SongConfigTab from '@/components/SongConfigTab';
 import ProSyncSearch from '@/components/ProSyncSearch';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useKeyboardNavigation } from '@/hooks/use-keyboard-navigation';
-import SetlistMultiSelector from './SetlistMultiSelector'; // Import the new component
-import { useSettings } from '@/hooks/use-settings'; // Import useSettings
-import { useHarmonicSync } from '@/hooks/use-harmonic-sync'; // NEW: Import useHarmonicSync
+import SetlistMultiSelector from './SetlistMultiSelector';
+import { useSettings } from '@/hooks/use-settings';
+import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
 
 type StudioTab = 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library';
 
@@ -33,9 +32,9 @@ interface SongStudioViewProps {
   onExpand?: () => void;
   visibleSongs?: SetlistSong[];
   onSelectSong?: (id: string) => void;
-  allSetlists?: { id: string; name: string; songs: SetlistSong[] }[]; // New prop
-  masterRepertoire?: SetlistSong[]; // New prop
-  onUpdateSetlistSongs?: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>; // New prop
+  allSetlists?: { id: string; name: string; songs: SetlistSong[] }[];
+  masterRepertoire?: SetlistSong[];
+  onUpdateSetlistSongs?: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>;
 }
 
 const SongStudioView: React.FC<SongStudioViewProps> = ({
@@ -46,13 +45,13 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   onExpand,
   visibleSongs = [],
   onSelectSong,
-  allSetlists = [], // Default to empty arrays
-  masterRepertoire = [], // Default to empty arrays
-  onUpdateSetlistSongs // Destructure new prop
+  allSetlists = [],
+  masterRepertoire = [],
+  onUpdateSetlistSongs
 }) => {
   const isMobile = useIsMobile();
   const { user } = useAuth();
-  const { keyPreference: globalKeyPreference } = useSettings(); // Get global key preference
+  const { keyPreference: globalKeyPreference } = useSettings();
   const audio = useToneAudio();
   
   const [song, setSong] = useState<SetlistSong | null>(null);
@@ -63,11 +62,11 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   const [activeChartType, setActiveChartType] = useState<'pdf' | 'leadsheet' | 'web' | 'ug'>('pdf');
   const [isVerifying, setIsVerifying] = useState(false);
   
-  // NEW: State for chord auto-scroll in Studio
   const [chordAutoScrollEnabled, setChordAutoScrollEnabled] = useState(true);
   const [chordScrollSpeed, setChordScrollSpeed] = useState(1.0);
   
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
+  const hasLoadedAudioRef = useRef(false); // Ref to track if audio has been loaded for this song
 
   // NEW: Use the harmonic sync hook
   const {
@@ -124,6 +123,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     }
     
     setLoading(true);
+    hasLoadedAudioRef.current = false; // Reset audio flag on new fetch
     
     try {
       let targetSong: SetlistSong | undefined;
@@ -167,7 +167,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
             is_ug_link_verified: data.is_ug_link_verified,
             sheet_music_url: data.sheet_music_url,
             is_sheet_verified: data.is_sheet_verified,
-            ugUrl: data.ug_url, // ADDED THIS LINE
+            ugUrl: data.ug_url,
           } as SetlistSong;
         }
       } else {
@@ -190,12 +190,19 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
         is_pitch_linked: targetSong.is_pitch_linked ?? true 
       });
       
+      // Load audio if available
       if (targetSong.previewUrl) {
-        await audio.loadFromUrl(targetSong.previewUrl, targetSong.pitch || 0);
+        // Use the pitch from the song data
+        const initialPitch = typeof targetSong.pitch === 'number' ? targetSong.pitch : 0;
+        await audio.loadFromUrl(targetSong.previewUrl, initialPitch, true);
+        hasLoadedAudioRef.current = true;
+      } else {
+        // Ensure audio is stopped if no preview URL
+        audio.stopPlayback();
       }
+      
     } catch (err: any) {
       console.error("[SongStudioView] Studio failed to initialize:", err.message);
-      // Log error
       showError("Studio failed to initialize: " + err.message);
       onClose();
     } finally {
@@ -205,8 +212,13 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
 
   useEffect(() => {
     fetchData();
-    return () => audio.stopPlayback();
-  }, [songId, gigId]);
+    
+    // Cleanup on unmount
+    return () => {
+      audio.stopPlayback();
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, [songId, gigId]); // Only re-run if songId or gigId changes
 
   const handleAutoSave = useCallback(async (updates: Partial<SetlistSong>) => {
     if (!song) return;
@@ -266,10 +278,8 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
       if (data.results && data.results.length > 0) {
         const track = data.results[0];
         
-        // Extract duration in seconds
         const durationSeconds = track.trackTimeMillis ? Math.floor(track.trackTimeMillis / 1000) : 0;
         
-        // Prepare updates
         const updates: Partial<SetlistSong> = {
           name: track.trackName,
           artist: track.artistName,
@@ -279,16 +289,13 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           isMetadataConfirmed: true
         };
         
-        // Fix: Set a reasonable default BPM if not already present, instead of incorrect calculation
         if (durationSeconds > 0 && !formData.bpm) {
-          updates.bpm = "120"; // Set a reasonable default BPM
+          updates.bpm = "120";
         }
         
-        // Apply updates
         handleAutoSave(updates);
         showSuccess(`Imported metadata: ${track.trackName} - ${track.artistName}`);
         
-        // New: Show info toast if metadata is confirmed but not yet approved
         const currentFormData = { ...formData, ...updates };
         if (currentFormData.isMetadataConfirmed && !currentFormData.isApproved) {
           showInfo("Metadata verified! Now, toggle 'Confirm for Setlist' in the header to make it gig-ready.");
@@ -385,8 +392,8 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
               <SetlistMultiSelector
                 songMasterId={songId}
                 allSetlists={allSetlists}
-                songToAssign={song!} // Pass the full song object
-                onUpdateSetlistSongs={onUpdateSetlistSongs} // Pass the new callback
+                songToAssign={song!}
+                onUpdateSetlistSongs={onUpdateSetlistSongs}
               />
             ) : (
               <div className="flex items-center gap-3 bg-white/5 px-4 h-11 rounded-xl border border-white/10">
@@ -416,7 +423,6 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           <nav className="h-16 bg-black/20 border-b border-white/5 flex items-center px-6 overflow-x-auto no-scrollbar shrink-0">
             <div className="flex gap-8">
               {['config', 'audio', 'details', 'charts', 'lyrics', 'visual', 'library'].map(tab => (
-                // Added 'config' tab
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab as any)}
@@ -439,7 +445,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
               song={song}
               formData={formData}
               handleAutoSave={handleAutoSave}
-              onUpdateKey={setTargetKey} // Use setTargetKey from useHarmonicSync
+              onUpdateKey={setTargetKey}
               audioEngine={audio}
               isMobile={isMobile}
               onLoadAudioFromUrl={audio.loadFromUrl}
@@ -450,16 +456,15 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
               handleUgPrint={() => {}}
               handleDownloadAll={async () => {}}
               onSwitchTab={setActiveTab}
-              // Pass all props required by SongConfigTab
-              pitch={pitch} // Pass pitch from useHarmonicSync
-              setPitch={(p) => { setPitch(p); audio.setPitch(p); }} // Link hook's setPitch to audio engine
-              targetKey={targetKey} // Pass targetKey from useHarmonicSync
-              setTargetKey={setTargetKey} // Pass setTargetKey from useHarmonicSync
-              isPitchLinked={isPitchLinked} // Pass isPitchLinked from useHarmonicSync
+              pitch={pitch}
+              setPitch={(p) => { setPitch(p); audio.setPitch(p); }}
+              targetKey={targetKey}
+              setTargetKey={setTargetKey}
+              isPitchLinked={isPitchLinked}
               setIsPitchLinked={(linked) => { 
                 setIsPitchLinked(linked); 
                 if (!linked) audio.setPitch(0); 
-              }} // Link hook's setIsPitchLinked
+              }}
               setTempo={audio.setTempo}
               setVolume={audio.setVolume}
               setFineTune={audio.setFineTune}
@@ -469,7 +474,6 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
               duration={audio.duration}
               togglePlayback={audio.togglePlayback}
               stopPlayback={audio.stopPlayback}
-              // NEW: Pass chord auto-scroll props
               chordAutoScrollEnabled={chordAutoScrollEnabled}
               chordScrollSpeed={chordScrollSpeed}
             />
