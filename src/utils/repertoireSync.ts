@@ -4,6 +4,14 @@ import { SetlistSong } from "@/components/SetlistManager";
 import { DEFAULT_UG_CHORDS_CONFIG } from "./constants";
 
 /**
+ * Checks if a given string is a valid UUID.
+ */
+const isValidUuid = (uuid: string | undefined | null): boolean => {
+  if (!uuid) return false;
+  return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(uuid);
+};
+
+/**
  * Calculates a readiness score (0-100) based on asset presence.
  * Weights:
  * - Technical Assets: 85% (Audio, Chords, Lyrics, etc.)
@@ -110,8 +118,10 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
         source_type: (song as any).source_type || 'YOUTUBE'
       };
       
-      // Only include 'id' if it's a known master_id (UUID) to prevent inserting local string IDs
-      if (song.master_id) {
+      // Only include 'id' in the payload if it's an existing master_id (a valid UUID)
+      // If song.master_id is not a valid UUID (e.g., client-generated string or null),
+      // 'id' will be omitted from the payload, and Supabase will generate a new UUID on insert.
+      if (isValidUuid(song.master_id)) {
         payload.id = song.master_id;
       }
       
@@ -121,17 +131,22 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
     const { data, error } = await supabase
       .from('repertoire')
       .upsert(payloads, { onConflict: 'id' })
-      .select('id, title, artist');
+      .select('id, title, artist'); // Select generated ID for new inserts
       
     if (error) throw error;
     
-    return songsArray.map(song => {
-      const dbMatch = data.find(d => 
-        (song.master_id && d.id === song.master_id) || 
-        (d.title === song.name && d.artist === (song.artist?.trim() || 'Unknown Artist')) // Use trimmed artist for comparison
-      );
+    // Map the returned data back to the original songsArray to update master_id for new inserts
+    return songsArray.map(originalSong => {
+      const matchedDbSong = data.find(dbSong => {
+        // If originalSong already had a master_id, match by that
+        if (originalSong.master_id && dbSong.id === originalSong.master_id) return true;
+        // For newly inserted songs (no master_id), match by title and artist
+        // This is a fallback heuristic for new inserts if we can't rely on a temporary client_id
+        if (!originalSong.master_id && dbSong.title === originalSong.name.trim() && dbSong.artist === (originalSong.artist?.trim() || 'Unknown Artist')) return true;
+        return false;
+      });
       
-      return dbMatch ? { ...song, master_id: dbMatch.id } : song;
+      return matchedDbSong ? { ...originalSong, master_id: matchedDbSong.id } : originalSong;
     });
   } catch (err) {
     throw err; // Re-throw to propagate the error to the caller
