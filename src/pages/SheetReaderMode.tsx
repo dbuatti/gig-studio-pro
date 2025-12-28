@@ -72,7 +72,7 @@ const SheetReaderMode: React.FC = () => {
     setProgress: setAudioProgress,
     volume,
     setVolume,
-    resetEngine, // Get resetEngine
+    resetEngine,
   } = audioEngine;
 
   // Auto-scroll state
@@ -206,8 +206,9 @@ const SheetReaderMode: React.FC = () => {
         resetEngine();
     }
 
+    // Use force=true to bypass the "Already loading" check if we are in a stuck state
     if (audioEngine.currentUrl !== currentSong.previewUrl || !audioEngine.currentBuffer) {
-      loadFromUrl(currentSong.previewUrl, pitch || 0);
+      loadFromUrl(currentSong.previewUrl, pitch || 0, true);
     } else {
       setAudioProgress(0);
     }
