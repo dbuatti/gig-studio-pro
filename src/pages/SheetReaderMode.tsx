@@ -73,11 +73,15 @@ const SheetReaderMode: React.FC = () => {
     volume,
     setVolume,
     resetEngine,
+    isLoadingAudio
   } = audioEngine;
 
   // Auto-scroll state
   const [chordAutoScrollEnabled, setChordAutoScrollEnabled] = useState(true);
   const [chordScrollSpeed, setChordScrollSpeed] = useState(1.0);
+
+  // NEW: Load Lock Ref to prevent infinite loops
+  const loadingSongIdRef = useRef<string | null>(null);
 
   // Harmonic Sync Hook
   const [formData, setFormData] = useState<Partial<SetlistSong>>({});
@@ -151,7 +155,6 @@ const SheetReaderMode: React.FC = () => {
       let initialIndex = 0;
       const targetId = routeSongId || searchParams.get('id');
       
-      // NEW: Check localStorage for persistence if no specific ID provided
       if (!targetId) {
         const savedIndex = localStorage.getItem('reader_last_index');
         if (savedIndex) {
@@ -193,32 +196,66 @@ const SheetReaderMode: React.FC = () => {
     }
   }, [currentSong]);
 
-  // Load audio when song changes
+  // NEW: Stabilized Audio Loading Logic
   useEffect(() => {
-    if (!currentSong?.previewUrl) {
+    // 1. Safety checks
+    if (!currentSong || !currentSong.previewUrl) {
       stopPlayback();
+      loadingSongIdRef.current = null; // Reset lock if no song
       return;
     }
 
-    // FIX: Reset engine state to ensure loading wheel logic works correctly
-    // This forces the "Already loading" check to pass if we are switching songs
-    if (audioEngine.currentUrl !== currentSong.previewUrl) {
-        resetEngine();
+    // 2. Check if we are already loading this specific song
+    // If the ref matches the current song ID, we are already in the process.
+    // If the engine reports it's currently loading, we wait.
+    if (loadingSongIdRef.current === currentSong.id || isLoadingAudio) {
+      return;
     }
 
-    // Use force=true to bypass the "Already loading" check if we are in a stuck state
-    if (audioEngine.currentUrl !== currentSong.previewUrl || !audioEngine.currentBuffer) {
-      loadFromUrl(currentSong.previewUrl, pitch || 0, true);
-    } else {
+    // 3. Check if the engine already has the correct buffer
+    // We compare the URL to ensure we aren't reloading the same file
+    if (audioEngine.currentUrl === currentSong.previewUrl && audioEngine.currentBuffer) {
+      // Reset progress to 0 when switching songs, but don't reload audio
       setAudioProgress(0);
+      return;
     }
-  }, [currentSong, loadFromUrl, stopPlayback, pitch, setAudioProgress, audioEngine.currentUrl, audioEngine.currentBuffer, resetEngine]);
+
+    // 4. Execute Load
+    const performLoad = async () => {
+      // Set the lock immediately
+      loadingSongIdRef.current = currentSong.id;
+      
+      // Reset engine to clear previous state
+      resetEngine();
+      
+      // Wait a tick for reset to clear state, then load
+      setTimeout(async () => {
+        try {
+          const initialPitch = typeof currentSong.pitch === 'number' ? currentSong.pitch : 0;
+          await loadFromUrl(currentSong.previewUrl, initialPitch, true);
+        } catch (error) {
+          console.error("Audio load failed:", error);
+          showError("Failed to load audio for this song.");
+          loadingSongIdRef.current = null; // Release lock on error
+        }
+      }, 100);
+    };
+
+    performLoad();
+
+    // Cleanup function to release lock if component unmounts
+    return () => {
+      // We do NOT reset the ref here on unmount, 
+      // because we want to persist the lock if the user is just navigating quickly.
+      // However, if the song changes, the effect will run again and update the ref.
+    };
+
+  }, [currentSong, loadFromUrl, stopPlayback, resetEngine, audioEngine.currentUrl, audioEngine.currentBuffer, isLoadingAudio, setAudioProgress]);
 
   // Update URL and Persistence when song changes
   useEffect(() => {
     if (currentSong) {
       setSearchParams({ id: currentSong.id }, { replace: true });
-      // NEW: Save index to localStorage
       localStorage.setItem('reader_last_index', currentIndex.toString());
     }
   }, [currentSong, currentIndex, setSearchParams]);
@@ -303,7 +340,6 @@ const SheetReaderMode: React.FC = () => {
             duration={duration}
             chordAutoScrollEnabled={chordAutoScrollEnabled}
             chordScrollSpeed={chordScrollSpeed}
-            // Pass the reader override
             readerKeyPreference={readerKeyPreference}
           />
         );
@@ -567,7 +603,6 @@ const SheetReaderMode: React.FC = () => {
           isOverrideActive={forceReaderResource !== 'default'}
           pitch={pitch}
           setPitch={setPitch}
-          // Pass new props
           readerKeyPreference={readerKeyPreference}
           setReaderKeyPreference={setReaderKeyPreference}
         />
