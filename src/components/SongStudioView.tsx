@@ -21,9 +21,19 @@ import { useKeyboardNavigation } from '@/hooks/use-keyboard-navigation';
 import SetlistMultiSelector from './SetlistMultiSelector';
 import { useSettings } from '@/hooks/use-settings';
 import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
-import { extractKeyFromChords } from '@/utils/chordUtils'; // Import the utility
+import { extractKeyFromChords } from '@/utils/chordUtils';
 
 type StudioTab = 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library';
+
+const StudioTabConfig = {
+  config: { label: 'Config', icon: 'Settings2' },
+  audio: { label: 'Audio', icon: 'Volume2' },
+  details: { label: 'Details', icon: 'FileText' },
+  charts: { label: 'Charts', icon: 'Guitar' },
+  lyrics: { label: 'Lyrics', icon: 'AlignLeft' },
+  visual: { label: 'Visual', icon: 'Youtube' },
+  library: { label: 'Library', icon: 'Library' },
+};
 
 interface SongStudioViewProps {
   gigId: string | 'library';
@@ -37,16 +47,6 @@ interface SongStudioViewProps {
   masterRepertoire?: SetlistSong[];
   onUpdateSetlistSongs?: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>;
 }
-
-const StudioTabConfig = {
-  config: { label: 'Config', icon: 'Settings2' },
-  audio: { label: 'Audio', icon: 'Volume2' },
-  details: { label: 'Details', icon: 'FileText' },
-  charts: { label: 'Charts', icon: 'Guitar' },
-  lyrics: { label: 'Lyrics', icon: 'AlignLeft' },
-  visual: { label: 'Visual', icon: 'Youtube' },
-  library: { label: 'Library', icon: 'Library' },
-};
 
 const SongStudioView: React.FC<SongStudioViewProps> = ({
   gigId,
@@ -77,9 +77,97 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   const [chordScrollSpeed, setChordScrollSpeed] = useState(1.0);
   
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
-  const hasLoadedAudioRef = useRef(false); // Ref to track if audio has been loaded for this song
+  const hasLoadedAudioRef = useRef(false);
 
-  // NEW: Use the harmonic sync hook
+  // NEW: Custom handleAutoSave for SongStudioView that handles Supabase mapping and logging
+  const handleAutoSave = useCallback(async (updates: Partial<SetlistSong>) => {
+    if (!song) return;
+    
+    setFormData(prev => {
+      const next = { ...prev, ...updates };
+      
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      
+      saveTimeoutRef.current = setTimeout(async () => {
+        try {
+          const updatedSong = { ...song, ...next };
+          
+          // Map client-side keys to Supabase columns
+          const dbUpdates: { [key: string]: any } = {};
+          if (updates.name !== undefined) dbUpdates.title = updates.name;
+          if (updates.artist !== undefined) dbUpdates.artist = updates.artist;
+          if (updates.previewUrl !== undefined) dbUpdates.preview_url = updates.previewUrl;
+          if (updates.youtubeUrl !== undefined) dbUpdates.youtube_url = updates.youtubeUrl;
+          if (updates.ugUrl !== undefined) dbUpdates.ug_url = updates.ugUrl;
+          if (updates.appleMusicUrl !== undefined) dbUpdates.apple_music_url = updates.appleMusicUrl;
+          if (updates.pdfUrl !== undefined) dbUpdates.pdf_url = updates.pdfUrl;
+          if (updates.leadsheetUrl !== undefined) dbUpdates.leadsheet_url = updates.leadsheetUrl;
+          if (updates.originalKey !== undefined) dbUpdates.original_key = updates.originalKey; // MAPPING FIX
+          if (updates.targetKey !== undefined) dbUpdates.target_key = updates.targetKey;
+          if (updates.pitch !== undefined) dbUpdates.pitch = updates.pitch;
+          if (updates.bpm !== undefined) dbUpdates.bpm = updates.bpm;
+          if (updates.genre !== undefined) dbUpdates.genre = updates.genre;
+          if (updates.isMetadataConfirmed !== undefined) dbUpdates.is_metadata_confirmed = updates.isMetadataConfirmed;
+          if (updates.isKeyConfirmed !== undefined) dbUpdates.is_key_confirmed = updates.isKeyConfirmed;
+          if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+          if (updates.lyrics !== undefined) dbUpdates.lyrics = updates.lyrics;
+          if (updates.resources !== undefined) dbUpdates.resources = updates.resources;
+          if (updates.user_tags !== undefined) dbUpdates.user_tags = updates.user_tags;
+          if (updates.is_pitch_linked !== undefined) dbUpdates.is_pitch_linked = updates.is_pitch_linked;
+          if (updates.duration_seconds !== undefined) dbUpdates.duration_seconds = Math.round(updates.duration_seconds || 0);
+          if (updates.isApproved !== undefined) dbUpdates.is_approved = updates.isApproved;
+          if (updates.preferred_reader !== undefined) dbUpdates.preferred_reader = updates.preferred_reader;
+          if (updates.ug_chords_text !== undefined) dbUpdates.ug_chords_text = updates.ug_chords_text;
+          if (updates.ug_chords_config !== undefined) dbUpdates.ug_chords_config = updates.ug_chords_config;
+          if (updates.is_ug_chords_present !== undefined) dbUpdates.is_ug_chords_present = updates.is_ug_chords_present;
+          if (updates.highest_note_original !== undefined) dbUpdates.highest_note_original = updates.highest_note_original;
+          if (updates.metadata_source !== undefined) dbUpdates.metadata_source = updates.metadata_source;
+          if (updates.sync_status !== undefined) dbUpdates.sync_status = updates.sync_status;
+          if (updates.last_sync_log !== undefined) dbUpdates.last_sync_log = updates.last_sync_log;
+          if (updates.auto_synced !== undefined) dbUpdates.auto_synced = updates.auto_synced;
+          if (updates.sheet_music_url !== undefined) dbUpdates.sheet_music_url = updates.sheet_music_url;
+          if (updates.is_sheet_verified !== undefined) dbUpdates.is_sheet_verified = updates.is_sheet_verified;
+          
+          dbUpdates.updated_at = new Date().toISOString();
+
+          // LOG: Key saving via Song Studio Modal
+          if (updates.originalKey !== undefined || updates.targetKey !== undefined) {
+            console.log(`[SongStudioView] Saving key data: originalKey=${dbUpdates.original_key}, targetKey=${dbUpdates.target_key}`);
+          }
+
+          // Sync to Master Repertoire (Library)
+          if (user) {
+            await syncToMasterRepertoire(user.id, [updatedSong]);
+          }
+          
+          // Sync to Setlist (Gig)
+          if (gigId !== 'library') {
+            const { data } = await supabase
+              .from('setlists')
+              .select('songs')
+              .eq('id', gigId)
+              .single();
+            
+            const songs = (data?.songs as SetlistSong[]) || [];
+            
+            await supabase
+              .from('setlists')
+              .update({
+                songs: songs.map(s => s.id === song.id ? updatedSong : s)
+              })
+              .eq('id', gigId);
+          }
+        } catch (err: any) {
+          console.error("[SongStudioView] Auto-save failed:", err);
+          showError("Auto-save failed: " + (err.message || "Unknown error"));
+        }
+      }, 1000);
+      
+      return next;
+    });
+  }, [song, gigId, user]);
+
+  // NEW: Use the harmonic sync hook with the new handleAutoSave
   const {
     pitch,
     setPitch,
@@ -89,47 +177,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     setIsPitchLinked,
   } = useHarmonicSync({
     formData,
-    handleAutoSave: useCallback(async (updates: Partial<SetlistSong>) => {
-      if (!song) return;
-      
-      setFormData(prev => {
-        const next = { ...prev, ...updates };
-        
-        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-        
-        saveTimeoutRef.current = setTimeout(async () => {
-          try {
-            const updatedSong = { ...song, ...next };
-            
-            if (user) await syncToMasterRepertoire(user.id, [updatedSong]);
-            
-            if (gigId !== 'library') {
-              const { data } = await supabase
-                .from('setlists')
-                .select('songs')
-                .eq('id', gigId)
-                .single();
-              
-              const songs = (data?.songs as SetlistSong[]) || [];
-              
-              await supabase
-                .from('setlists')
-                .update({
-                  songs: songs.map(s => s.id === song.id ? updatedSong : s)
-                })
-                .eq('id', gigId);
-            }
-          } catch (err: any) { // Catch the error propagated from syncToMasterRepertoire
-            console.error("[SongStudioView] Auto-save failed:", err);
-            if (err.message) console.error("Supabase Error Message:", err.message);
-            if (err.details) console.error("Supabase Error Details:", err.details);
-            showError("Auto-save failed: " + (err.message || "Unknown error")); // Show error to user
-          }
-        }, 1000);
-        
-        return next;
-      });
-    }, [song, gigId, user]),
+    handleAutoSave,
     globalKeyPreference
   });
 
@@ -139,7 +187,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     }
     
     setLoading(true);
-    hasLoadedAudioRef.current = false; // Reset audio flag on new fetch
+    hasLoadedAudioRef.current = false;
     
     try {
       let targetSong: SetlistSong | undefined;
@@ -206,14 +254,11 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
         is_pitch_linked: targetSong.is_pitch_linked ?? true 
       });
       
-      // Load audio if available
       if (targetSong.previewUrl) {
-        // Use the pitch from the song data
         const initialPitch = typeof targetSong.pitch === 'number' ? targetSong.pitch : 0;
         await audio.loadFromUrl(targetSong.previewUrl, initialPitch, true);
         hasLoadedAudioRef.current = true;
       } else {
-        // Ensure audio is stopped if no preview URL
         audio.stopPlayback();
       }
       
@@ -229,54 +274,11 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   useEffect(() => {
     fetchData();
     
-    // Cleanup on unmount
     return () => {
       audio.stopPlayback();
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
-  }, [songId, gigId]); // Only re-run if songId or gigId changes
-
-  const handleAutoSaveCallback = useCallback(async (updates: Partial<SetlistSong>) => {
-    if (!song) return;
-    
-    setFormData(prev => {
-      const next = { ...prev, ...updates };
-      
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-      
-      saveTimeoutRef.current = setTimeout(async () => {
-        try {
-          const updatedSong = { ...song, ...next };
-          
-          if (user) await syncToMasterRepertoire(user.id, [updatedSong]);
-          
-          if (gigId !== 'library') {
-            const { data } = await supabase
-              .from('setlists')
-              .select('songs')
-              .eq('id', gigId)
-              .single();
-            
-            const songs = (data?.songs as SetlistSong[]) || [];
-            
-            await supabase
-              .from('setlists')
-              .update({
-                songs: songs.map(s => s.id === song.id ? updatedSong : s)
-              })
-              .eq('id', gigId);
-          }
-        } catch (err: any) { // Catch the error propagated from syncToMasterRepertoire
-          console.error("[SongStudioView] Auto-save failed:", err);
-          if (err.message) console.error("Supabase Error Message:", err.message);
-          if (err.details) console.error("Supabase Error Details:", err.details);
-          showError("Auto-save failed: " + (err.message || "Unknown error")); // Show error to user
-        }
-      }, 1000);
-      
-      return next;
-    });
-  }, [song, gigId, user]);
+  }, [songId, gigId]);
 
   const handleVerifyMetadata = async () => {
     if (!formData.name || !formData.artist) {
@@ -314,7 +316,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           updates.bpm = "120";
         }
         
-        handleAutoSaveCallback(updates);
+        handleAutoSave(updates);
         showSuccess(`Imported metadata: ${track.trackName} - ${track.artistName}`);
         
         const currentFormData = { ...formData, ...updates };
@@ -333,7 +335,6 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     }
   };
 
-  // NEW: Pull Key Button
   const handlePullKey = async () => {
     if (!formData.ug_chords_text) {
       showError("No UG Chords text found to extract key.");
@@ -343,10 +344,10 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     const extractedKey = extractKeyFromChords(formData.ug_chords_text);
 
     if (extractedKey) {
-      handleAutoSaveCallback({ 
+      handleAutoSave({ 
         originalKey: extractedKey, 
-        targetKey: extractedKey, // Reset target to match original
-        pitch: 0, // Reset pitch
+        targetKey: extractedKey, 
+        pitch: 0, 
         isKeyConfirmed: true 
       });
       showSuccess(`Key extracted and set to: ${extractedKey}`);
@@ -356,7 +357,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   };
 
   const handleConfirmForSetlist = (checked: boolean) => {
-    handleAutoSaveCallback({ isApproved: checked });
+    handleAutoSave({ isApproved: checked });
     showSuccess(checked ? "Confirmed for Active Gig" : "Removed from Confirmed Status");
   };
 
@@ -510,7 +511,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
               activeTab={activeTab}
               song={song}
               formData={formData}
-              handleAutoSave={handleAutoSaveCallback}
+              handleAutoSave={handleAutoSave}
               onUpdateKey={setTargetKey}
               audioEngine={audio}
               isMobile={isMobile}
@@ -550,7 +551,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
       <ProSyncSearch
         isOpen={isProSyncSearchOpen}
         onClose={() => setIsProSyncSearchOpen(false)}
-        onSelect={(d) => handleAutoSaveCallback({ name: d.trackName, artist: d.artistName })}
+        onSelect={(d) => handleAutoSave({ name: d.trackName, artist: d.artistName })}
         initialQuery={`${formData.artist} ${formData.name}`}
       />
     </div>

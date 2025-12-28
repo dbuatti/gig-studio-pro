@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useCallback } from 'react';
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -7,9 +7,8 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { SetlistSong } from './SetlistManager';
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, calculateSemitones, formatKey, transposeKey, transposeNote, PURE_NOTES_SHARP, PURE_NOTES_FLAT } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
-import { showSuccess, showError } from '@/utils/toast';
-import { useSettings, KeyPreference } from '@/hooks/use-settings';
-import { Check, Hash, Music2, Link as LinkIcon, ChevronUp, ChevronDown, Sparkles, Play, Pause, RotateCcw, Activity, Music } from 'lucide-react';
+import { useSettings } from '@/hooks/use-settings';
+import { Check, Hash, Music2, Link as LinkIcon, Play, Pause, RotateCcw, Music } from 'lucide-react';
 import SongAssetMatrix from './SongAssetMatrix';
 import SongTagManager from './SongTagManager';
 import SheetMusicRecommender from './SheetMusicRecommender';
@@ -20,9 +19,9 @@ interface SongConfigTabProps {
   handleAutoSave: (updates: Partial<SetlistSong>) => void;
   // Harmonic Sync Props
   pitch: number;
-  setPitch: (pitch: number, currentOriginalKey?: string) => void;
+  setPitch: (pitch: number) => void;
   targetKey: string;
-  setTargetKey: (targetKey: string, currentOriginalKey?: string) => void;
+  setTargetKey: (targetKey: string) => void;
   isPitchLinked: boolean;
   setIsPitchLinked: (linked: boolean) => void;
   // Other props
@@ -68,20 +67,21 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
   const keysToUse = currentKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
   const pureNotes = currentKeyPreference === 'sharps' ? PURE_NOTES_SHARP : PURE_NOTES_FLAT;
 
-  // Logic: When Stage Key changes, if Linked is ON, update pitch to match semitone delta
-  // This logic is now primarily handled by useHarmonicSync, but we still need to call handleAutoSave for other updates
+  // Logic: When Original Key changes, update formData and handle linked logic
   const handleOriginalKeyChange = useCallback((val: string) => {
-    handleAutoSave({ originalKey: val });
-    // If linked, updating original key should recalculate pitch and target key
+    const updates: Partial<SetlistSong> = { originalKey: val };
     if (isPitchLinked) {
       const newPitch = calculateSemitones(val, targetKey);
-      setPitch(newPitch, val); // Pass 'val' as currentOriginalKey
+      updates.pitch = newPitch;
+      const newTarget = transposeKey(val, newPitch);
+      updates.targetKey = newTarget;
     }
-  }, [handleAutoSave, isPitchLinked, targetKey, setPitch]);
+    handleAutoSave(updates);
+  }, [handleAutoSave, isPitchLinked, targetKey]);
 
   const handleTargetKeyChange = useCallback((val: string) => {
-    setTargetKey(val, formData.originalKey); // Pass formData.originalKey as currentOriginalKey
-  }, [setTargetKey, formData.originalKey]);
+    setTargetKey(val);
+  }, [setTargetKey]);
 
   const handleTogglePitchLinked = useCallback(() => {
     setIsPitchLinked(!isPitchLinked);
@@ -144,9 +144,7 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
                         updates.originalKey = formatKey(formData.originalKey, nextPref);
                       }
                       if (formData.targetKey) {
-                        const newTarget = formatKey(formData.targetKey, nextPref);
-                        updates.targetKey = newTarget;
-                        // No need to call onUpdateKey here, as setTargetKey will handle it
+                        updates.targetKey = formatKey(formData.targetKey, nextPref);
                       }
                       handleAutoSave(updates);
                     }}
@@ -178,7 +176,7 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button 
-                    onClick={handleTogglePitchLinked} // Use the new handler
+                    onClick={handleTogglePitchLinked}
                     className={cn(
                       "p-1.5 rounded-lg border transition-all",
                       isPitchLinked ? "bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/20" : "bg-white/5 border-white/10 text-slate-500"
@@ -197,7 +195,7 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
             <Label className="text-[9px] font-bold text-slate-400 uppercase">Original Key (K_orig)</Label>
             <Select 
               value={formatKey(formData.originalKey || "C", currentKeyPreference)} 
-              onValueChange={handleOriginalKeyChange} // Use new handler
+              onValueChange={handleOriginalKeyChange}
             >
               <SelectTrigger className="bg-white/5 border-white/10 text-white font-bold font-mono h-12 text-lg">
                 <SelectValue />
@@ -213,8 +211,8 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
               <span className="text-[9px] font-mono text-slate-500">Offset: {calculateSemitones(formData.originalKey || "C", targetKey)} ST</span>
             </div>
             <Select 
-              value={formatKey(targetKey, currentKeyPreference)} // Use targetKey from hook
-              onValueChange={handleTargetKeyChange} // Use new handler
+              value={formatKey(targetKey, currentKeyPreference)}
+              onValueChange={handleTargetKeyChange}
             >
               <SelectTrigger className={cn(
                 "border-none text-white font-bold font-mono h-12 shadow-xl text-lg transition-colors",

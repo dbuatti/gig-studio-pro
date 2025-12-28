@@ -120,7 +120,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
         "bg-slate-900/80 backdrop-blur-md text-slate-400 border border-white/10 hover:text-white",
         viewMode === 'setlist' && "scale-110 border-indigo-500/50"
       ),
-      tooltip: "Open Reader (R)",
+      tooltip: "Open Reader",
     },
     {
       id: 'practice',
@@ -143,7 +143,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
       label: "Global Search",
       onClick: onOpenSearch,
       className: "bg-slate-900/80 backdrop-blur-md text-slate-400 border border-white/10 hover:text-white",
-      tooltip: "Global Search (K)",
+      tooltip: "Global Search",
     },
   ];
 

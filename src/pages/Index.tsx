@@ -35,7 +35,7 @@ import { useNavigate } from 'react-router-dom';
 import { FilterState } from '@/components/SetlistFilters';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { useReaderSettings } from '@/hooks/use-reader-settings';
-import { useHarmonicSync } from '@/hooks/use-harmonic-sync'; // NEW: Import useHarmonicSync
+import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
 
 type ViewMode = 'repertoire' | 'setlist';
 
@@ -819,10 +819,7 @@ const Index = () => {
         handleTogglePlayback();
       }
       
-      if (e.key.toLowerCase() === 'r') {
-        e.preventDefault();
-        startSheetReader(activeSongIdState || undefined);
-      }
+      // REMOVED: R shortcut logic
       
       if (e.key.toLowerCase() === 'h') {
         e.preventDefault();
@@ -858,7 +855,6 @@ const Index = () => {
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, [
     handleTogglePlayback,
-    startSheetReader,
     isPerformanceMode,
     isSearchPanelOpen,
     isPreferencesOpen,
@@ -868,8 +864,7 @@ const Index = () => {
     isSetlistSettingsOpen,
     isRepertoirePickerOpen,
     isCommandHubOpen,
-    isUserGuideOpen,
-    activeSongIdState
+    isUserGuideOpen
   ]);
 
   if (isPerformanceMode) {
@@ -1164,7 +1159,7 @@ const Index = () => {
         onClose={() => { setIsAuditModalOpen(false); }}
         songs={songs}
         onVerify={handleUpdateSong}
-        onRefreshRepertoire={fetchMasterRepertoire} // Pass the refresh function
+        onRefreshRepertoire={fetchMasterRepertoire}
       />
       
       <UserGuideModal
@@ -1219,7 +1214,7 @@ const Index = () => {
         currentSongHighestNote={currentSongForSafePitch?.highest_note_original}
         currentSongPitch={currentSongForSafePitch?.pitch}
         onSafePitchToggle={handleSafePitchToggle}
-        isReaderMode={false} // Always false now that it's a separate page
+        isReaderMode={false}
         activeSongId={activeSongIdState}
       />
     </div>
