@@ -228,22 +228,8 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
     }
   };
 
-  useEffect(() => {
-    const handleKeyDown = async (event: KeyboardEvent) => {
-      if (isOpen && (event.metaKey || event.ctrlKey) && event.key === 'v') {
-        event.preventDefault();
-        if (hoveredSongId && activeTab === 'ug' && activeFilter === 'missing-content') {
-          const songToPaste = songs.find(s => s.id === hoveredSongId);
-          if (songToPaste) {
-            await handlePasteToAudit(songToPaste);
-          }
-        }
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, hoveredSongId, activeTab, activeFilter, handlePasteToAudit, songs]);
+  // Removed the problematic useEffect that intercepted Cmd+V/Ctrl+V
+  // The browser's native paste functionality will now work for input fields.
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
