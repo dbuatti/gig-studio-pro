@@ -106,7 +106,7 @@ const SheetReaderMode: React.FC = () => {
       if (updates.ugUrl !== undefined) dbUpdates.ug_url = updates.ugUrl;
       if (updates.appleMusicUrl !== undefined) dbUpdates.apple_music_url = updates.appleMusicUrl;
       if (updates.pdfUrl !== undefined) dbUpdates.pdf_url = updates.pdfUrl;
-      if (updates.leadsheetUrl !== undefined) dbUpdates.leadsheet_url = updates.leadsheetUrl; // Corrected here
+      if (updates.leadsheetUrl !== undefined) dbUpdates.leadsheet_url = updates.leadsheetUrl;
       if (updates.originalKey !== undefined) dbUpdates.original_key = updates.originalKey; else dbUpdates.original_key = null;
       if (updates.targetKey !== undefined) dbUpdates.target_key = updates.targetKey; else dbUpdates.target_key = null;
       if (updates.pitch !== undefined) dbUpdates.pitch = updates.pitch; else dbUpdates.pitch = 0; // pitch is NOT NULL with default 0
@@ -285,9 +285,19 @@ const SheetReaderMode: React.FC = () => {
   }, [user]);
 
   useEffect(() => {
+    // Check for the flag on mount
+    const fromDashboard = sessionStorage.getItem('from_dashboard');
+    if (!fromDashboard) {
+      console.log("[SheetReaderMode] Not navigated from dashboard, redirecting to /");
+      navigate('/', { replace: true });
+      return; // Stop further execution of this effect
+    }
+    // Clear the flag regardless, so subsequent direct access (e.g., refresh) won't be fooled
+    sessionStorage.removeItem('from_dashboard');
+
     fetchSongs();
     fetchAllSetlists();
-  }, [fetchSongs, fetchAllSetlists]);
+  }, [fetchSongs, fetchAllSetlists, navigate]); // Added navigate to dependencies
 
   // Load audio
   useEffect(() => {

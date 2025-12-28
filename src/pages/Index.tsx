@@ -493,7 +493,7 @@ const Index = () => {
           id: Math.random().toString(36).substr(2, 9),
           master_id: songToUpdate.master_id || songToUpdate.id,
           isPlayed: false,
-          isApproved: false,
+          isApproved: false
         };
         updatedSongsArray.push(newSetlistSong);
       }
@@ -543,6 +543,9 @@ const Index = () => {
       return;
     }
     
+    // Set flag before navigating
+    sessionStorage.setItem('from_dashboard', 'true');
+
     // If we have an active song, pass it to the reader
     if (activeSongIdState) {
       navigate(`/sheet-reader/${activeSongIdState}`);
