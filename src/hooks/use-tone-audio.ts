@@ -47,11 +47,13 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
   const playbackStartTimeRef = useRef<number>(0);
   const playbackOffsetRef = useRef<number>(0);
 
+  // initEngine: Now only responsible for setting up analyzer and ensuring context is running.
+  // It will be called by togglePlayback.
   const initEngine = useCallback(async () => {
     console.log('[useToneAudio] initEngine called');
     if (Tone.getContext().state !== 'running') {
       console.log('[useToneAudio] Starting Tone Context');
-      await Tone.start();
+      await Tone.start(); // This is the critical line that needs user gesture
     }
     if (!analyzerRef.current) {
       analyzerRef.current = new Tone.Analyser("fft", 256);
@@ -75,13 +77,14 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     playbackOffsetRef.current = 0;
     currentBufferRef.current = null;
     setCurrentUrl("");
-    setIsLoadingAudio(false); // Ensure loading state is cleared
+    setIsLoadingAudio(false);
+    // Do NOT dispose analyzer here, it's reused.
   }, []);
 
   useEffect(() => {
     return () => {
       resetEngine();
-      analyzerRef.current?.dispose();
+      // analyzerRef.current?.dispose(); // Keep analyzer for potential reuse
     };
   }, [resetEngine]);
 
@@ -91,36 +94,37 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     }
   }, [volume]);
 
+  // loadAudioBuffer: Loads the audio data, but does NOT start the Tone context.
   const loadAudioBuffer = useCallback((audioBuffer: AudioBuffer, initialPitch: number = 0) => {
     console.log('[useToneAudio] loadAudioBuffer called', { initialPitch, duration: audioBuffer.duration });
-    initEngine().then(() => {
-      resetEngine();
-      currentBufferRef.current = audioBuffer;
-      
-      playerRef.current = new Tone.GrainPlayer(audioBuffer).toDestination();
-      playerRef.current.connect(analyzerRef.current!);
-      playerRef.current.grainSize = 0.18;
-      playerRef.current.overlap = 0.1;
-      
-      setDuration(audioBuffer.duration);
-      setPitchState(initialPitch);
-      setTempoState(1);
-      setVolumeState(-6);
-      setFineTuneState(0);
-      
-      playerRef.current.detune = (initialPitch * 100) + 0;
-      playerRef.current.playbackRate = 1;
-      playerRef.current.volume.value = -6;
-      
-      if (!suppressToasts) {
-        showSuccess("Audio Loaded");
-      }
-      console.log('[useToneAudio] loadAudioBuffer SUCCESS');
-    }).catch((err) => {
-      console.error("[useToneAudio] Failed to initialize audio engine or load buffer:", err);
-      showError("Failed to initialize audio engine.");
-    });
-  }, [initEngine, resetEngine, suppressToasts]);
+    resetEngine(); // Reset any previous state
+    currentBufferRef.current = audioBuffer;
+    
+    playerRef.current = new Tone.GrainPlayer(audioBuffer).toDestination();
+    // Ensure analyzer is initialized before connecting
+    if (!analyzerRef.current) { // Defensive check, should be initialized by initEngine on first play
+      analyzerRef.current = new Tone.Analyser("fft", 256);
+    }
+    playerRef.current.connect(analyzerRef.current!);
+    playerRef.current.grainSize = 0.18;
+    playerRef.current.overlap = 0.1;
+    
+    setDuration(audioBuffer.duration);
+    setPitchState(initialPitch);
+    setTempoState(1);
+    setVolumeState(-6);
+    setFineTuneState(0);
+    
+    playerRef.current.detune = (initialPitch * 100) + 0;
+    playerRef.current.playbackRate = 1;
+    playerRef.current.volume.value = -6;
+    
+    if (!suppressToasts) {
+      showSuccess("Audio Loaded");
+    }
+    console.log('[useToneAudio] loadAudioBuffer SUCCESS');
+    setIsLoadingAudio(false); // Loading is complete once buffer is loaded
+  }, [resetEngine, suppressToasts]); // Removed initEngine from dependencies
 
   const loadFromUrl = useCallback(async (url: string, initialPitch: number = 0, force: boolean = false) => {
     console.log(`[useToneAudio] loadFromUrl called. URL: ${url}, Force: ${force}, CurrentUrl: ${currentUrl}, IsLoading: ${isLoadingAudio}, BufferExists: ${!!currentBufferRef.current}`);
@@ -130,13 +134,11 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
       return;
     }
 
-    // If forcing, we ignore the loading check and current URL check
     if (!force) {
       if (isLoadingAudio) {
         console.warn("[useToneAudio] Already loading audio. Skipping new request.");
         return;
       }
-      // Prevent re-fetching if the URL is the same and we already have a buffer
       if (url === currentUrl && currentBufferRef.current) {
           console.log("[useToneAudio] Skipping load: URL is same and buffer exists.");
           return;
@@ -145,29 +147,38 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
 
     console.log(`[useToneAudio] Proceeding with fetch for: ${url}`);
     setCurrentUrl(url);
-    setIsLoadingAudio(true);
+    setIsLoadingAudio(true); // Set loading state
     
     try {
       const response = await fetch(url);
       if (!response.ok) throw new Error(`Fetch error: ${response.status} ${response.statusText}`);
       const arrayBuffer = await response.arrayBuffer();
       const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
-      loadAudioBuffer(audioBuffer, initialPitch);
+      loadAudioBuffer(audioBuffer, initialPitch); // This will set isLoadingAudio to false
     } catch (err) {
       console.error("Audio load failed from URL:", url, "Error:", err);
       showError("Audio load failed.");
       setCurrentUrl("");
-      setIsLoadingAudio(false); // Reset on error
+      setIsLoadingAudio(false); // Reset loading state on error
     } 
-    // Note: We don't reset isLoadingAudio here because loadAudioBuffer calls resetEngine which handles it
   }, [loadAudioBuffer, currentUrl, isLoadingAudio]);
 
   const togglePlayback = useCallback(async () => {
     console.log('[useToneAudio] togglePlayback called');
-    await initEngine();
+    await initEngine(); // Ensure engine is initialized and context is running/resumed
     if (!playerRef.current) {
-      console.warn('[useToneAudio] togglePlayback: No playerRef');
-      return;
+      console.warn('[useToneAudio] togglePlayback: No playerRef. Attempting to load audio if URL exists.');
+      // If no player, but a URL is set, try to load it first.
+      if (currentUrl && !isLoadingAudio) {
+        await loadFromUrl(currentUrl, pitch, true); // Force reload if needed
+        if (!playerRef.current) { // Still no player after attempting to load
+          showError("No audio loaded to play.");
+          return;
+        }
+      } else {
+        showError("No audio loaded to play.");
+        return;
+      }
     }
 
     if (isPlaying) {
@@ -184,7 +195,7 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
       setIsPlaying(true);
       console.log('[useToneAudio] Playing');
     }
-  }, [isPlaying, progress, duration, tempo, initEngine]);
+  }, [isPlaying, progress, duration, tempo, initEngine, currentUrl, isLoadingAudio, loadFromUrl, pitch]); // Added currentUrl, isLoadingAudio, loadFromUrl, pitch to dependencies
 
   const stopPlayback = useCallback(() => {
     console.log('[useToneAudio] stopPlayback called');

@@ -88,7 +88,7 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
         is_metadata_confirmed: song.isMetadataConfirmed || false,
         is_key_confirmed: song.isKeyConfirmed || false,
         duration_seconds: Math.round(song.duration_seconds || 0),
-        genre: song.genre || (song.user_tags?.[0]) || null,
+        genre: song.genre || (song.user_tags?.[0] ? String(song.user_tags[0]) : null), // Explicitly cast to string
         user_tags: song.user_tags || [],
         resources: song.resources || [],
         readiness_score: calculateReadiness(song),
