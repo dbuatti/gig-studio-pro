@@ -106,13 +106,7 @@ const SheetReaderMode: React.FC = () => {
   // === Song Selection ===
   const currentSong = allSongs[currentIndex];
 
-  // NEW: Check for missing original key
-  const isOriginalKeyMissing = useMemo(() => 
-    !currentSong?.originalKey || currentSong.originalKey === 'TBC', 
-    [currentSong]
-  );
-
-  // Update harmonic sync form data
+  // Update harmonic sync form data (Input to useHarmonicSync)
   useEffect(() => {
     if (currentSong) {
       setFormData({
@@ -124,6 +118,32 @@ const SheetReaderMode: React.FC = () => {
       });
     }
   }, [currentSong]);
+
+  // NEW: Force sync harmonic hook state when currentSong changes (The fix)
+  useEffect(() => {
+    if (currentSong) {
+      // Force sync the harmonic hook with DB values
+      // This ensures the internal state of useHarmonicSync is immediately correct upon song switch
+      setTargetKey(currentSong.targetKey || currentSong.originalKey || 'C');
+      setPitch(currentSong.pitch ?? 0);
+      
+      // DEBUG LOGGING (as requested by user for diagnosis)
+      console.log('Current song keys:', {
+        original: currentSong.originalKey,
+        target: currentSong.targetKey,
+        pitch: currentSong.pitch,
+        harmonicSyncTarget: currentSong.targetKey || currentSong.originalKey || 'C',
+        harmonicSyncPitch: currentSong.pitch ?? 0
+      });
+    }
+  }, [currentSong, setTargetKey, setPitch]);
+  // END NEW BLOCK
+
+  // NEW: Check for missing original key
+  const isOriginalKeyMissing = useMemo(() => 
+    !currentSong?.originalKey || currentSong.originalKey === 'TBC', 
+    [currentSong]
+  );
 
   // === Data Fetching ===
   const fetchSongs = useCallback(async () => {
