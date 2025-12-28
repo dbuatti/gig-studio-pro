@@ -24,7 +24,6 @@ interface UGChordsReaderProps {
   duration: number;
   chordAutoScrollEnabled: boolean;
   chordScrollSpeed: number;
-  onLoad?: () => void;
   readerKeyPreference?: 'sharps' | 'flats';
 }
 
@@ -39,7 +38,6 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
   duration,
   chordAutoScrollEnabled,
   chordScrollSpeed,
-  onLoad,
   readerKeyPreference,
 }) => {
   const { keyPreference: globalKeyPreference } = useSettings();
@@ -50,7 +48,6 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
   const isUserScrolling = useRef(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout>();
   const autoScrollRaf = useRef<number | null>(null);
-  const hasLoadedRef = useRef(false);
 
   const transposedChordsText = useMemo(() => {
     if (!chordsText || !originalKey || !targetKey || originalKey === "TBC") {
@@ -147,13 +144,6 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
       if (autoScrollRaf.current) cancelAnimationFrame(autoScrollRaf.current);
     };
   }, [progress, duration, chordAutoScrollEnabled, chordScrollSpeed, isPlaying]);
-
-  useEffect(() => {
-    if (onLoad && !hasLoadedRef.current && chordsText) {
-      onLoad();
-      hasLoadedRef.current = true;
-    }
-  }, [onLoad, chordsText]);
 
   return (
     <div 
