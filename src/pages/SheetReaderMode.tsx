@@ -94,7 +94,7 @@ const SheetReaderMode: React.FC = () => {
   const {
     pitch,
     setPitch,
-    targetKey: harmonicTargetKey, // Renamed to avoid potential conflict
+    targetKey: harmonicTargetKey, // Renamed here
     setTargetKey,
   } = useHarmonicSync({ formData, handleAutoSave, globalKeyPreference });
 
@@ -132,11 +132,11 @@ const SheetReaderMode: React.FC = () => {
         original: currentSong.originalKey,
         target: currentSong.targetKey,
         pitch: currentSong.pitch,
-        harmonicSyncTarget: currentSong.targetKey || currentSong.originalKey || 'C',
-        harmonicSyncPitch: currentSong.pitch ?? 0
+        harmonicSyncTarget: harmonicTargetKey, // Use live hook variable
+        harmonicSyncPitch: pitch // Use live hook variable
       });
     }
-  }, [currentSong, setTargetKey, setPitch]);
+  }, [currentSong, setTargetKey, setPitch, harmonicTargetKey, pitch]);
   // END NEW BLOCK
 
   // NEW: Check for missing original key
@@ -175,7 +175,6 @@ const SheetReaderMode: React.FC = () => {
         ugUrl: d.ug_url,
         bpm: d.bpm,
         is_ug_chords_present: d.is_ug_chords_present,
-        is_sheet_verified: d.is_sheet_verified,
         is_ug_link_verified: d.is_ug_link_verified,
         is_pitch_linked: d.is_pitch_linked ?? true,
       }));
@@ -373,7 +372,7 @@ const SheetReaderMode: React.FC = () => {
                       config={song.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
                       isMobile={false}
                       originalKey={song.originalKey}
-                      targetKey={harmonicTargetKey} // Use renamed variable
+                      targetKey={harmonicTargetKey} // Correct usage
                       isPlaying={isPlaying}
                       progress={progress}
                       duration={duration}
