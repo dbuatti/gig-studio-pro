@@ -1,4 +1,591 @@
-{!isImmersive && currentSong && (
+"use client";
+
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/components/AuthProvider';
+import { SetlistSong } from '@/components/SetlistManager';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Music, Loader2, AlertCircle, X, Settings, ExternalLink, ShieldCheck, FileText, Layout, Guitar } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
+import { useSettings } from '@/hooks/use-settings';
+import { calculateReadiness } from '@/utils/repertoireSync';
+import { showError, showSuccess } from '@/utils/toast';
+import UGChordsReader from '@/components/UGChordsReader';
+import { useToneAudio } from '@/hooks/use-tone-audio';
+import { calculateSemitones } from '@/utils/keyUtils';
+import { useReaderSettings } from '@/hooks/use-reader-settings';
+import PreferencesModal from '@/components/PreferencesModal';
+import SongStudioModal from '@/components/SongStudioModal';
+import SheetReaderHeader from '@/components/SheetReaderHeader';
+import SheetReaderFooter from '@/components/SheetReaderFooter';
+import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
+import { motion } from 'framer-motion';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+
+type ChartType = 'pdf' | 'leadsheet' | 'chords';
+
+interface RenderedChart {
+  id: string;
+  content: React.ReactNode;
+  isLoaded: boolean;
+  opacity: number;
+  zIndex: number;
+  type: ChartType;
+}
+
+const SheetReaderMode: React.FC = () => {
+  const navigate = useNavigate();
+  const { songId: routeSongId } = useParams<{ songId?: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { user } = useAuth();
+  const { keyPreference: globalKeyPreference } = useSettings();
+  const { forceReaderResource, ignoreConfirmedGate } = useReaderSettings();
+
+  // State
+  const [allSongs, setAllSongs] = useState<SetlistSong[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
+  const [isImmersive, setIsImmersive] = useState(false);
+  const [isStudioModalOpen, setIsStudioModalOpen] = useState(false);
+  const [isOverlayOpen, setIsOverlayOpen] = useState(false);
+
+  // Reader-specific key preference override
+  const [readerKeyPreference, setReaderKeyPreference] = useState<'sharps' | 'flats'>(globalKeyPreference);
+
+  // Chart selection
+  const [selectedChartType, setSelectedChartType] = useState<ChartType>('pdf');
+
+  // Audio engine
+  const audioEngine = useToneAudio(true);
+  const {
+    isPlaying,
+    progress,
+    duration,
+    loadFromUrl,
+    togglePlayback,
+    stopPlayback,
+    setPitch: setAudioPitch,
+    setProgress: setAudioProgress,
+    volume,
+    setVolume,
+    resetEngine,
+    currentUrl,
+    currentBuffer,
+  } = audioEngine;
+
+  // === Song Selection ===
+  const currentSong = allSongs[currentIndex];
+
+  // Derive audio loading state (since hook doesn't expose isLoading)
+  const isAudioLoading = !!currentSong?.previewUrl && progress === 0 && !duration && currentUrl === currentSong.previewUrl;
+
+  // Auto-scroll
+  const [chordAutoScrollEnabled, setChordAutoScrollEnabled] = useState(true);
+  const [chordScrollSpeed, setChordScrollSpeed] = useState(1.0);
+
+  // Harmonic sync
+  const [formData, setFormData] = useState<Partial<SetlistSong>>({});
+  const handleAutoSave = useCallback((updates: Partial<SetlistSong>) => {
+    setFormData(prev => ({ ...prev, ...updates }));
+  }, []);
+
+  const {
+    pitch,
+    setPitch,
+    targetKey,
+    setTargetKey,
+  } = useHarmonicSync({ formData, handleAutoSave, globalKeyPreference });
+
+  // Sync pitch to audio engine
+  useEffect(() => {
+    setAudioPitch(pitch);
+  }, [pitch, setAudioPitch]);
+
+  // === Data Fetching ===
+  const fetchSongs = useCallback(async () => {
+    if (!user) return;
+    setInitialLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('repertoire')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('title');
+
+      if (error) throw error;
+
+      const mappedSongs: SetlistSong[] = (data || []).map((d) => ({
+        id: d.id,
+        master_id: d.id,
+        name: d.title,
+        artist: d.artist,
+        originalKey: d.original_key,
+        targetKey: d.target_key,
+        pitch: d.pitch ?? 0,
+        previewUrl: d.preview_url,
+        ug_chords_text: d.ug_chords_text,
+        ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
+        isApproved: d.is_approved,
+        pdfUrl: d.pdf_url,
+        leadsheetUrl: d.leadsheet_url,
+        ugUrl: d.ug_url,
+        bpm: d.bpm,
+        is_ug_chords_present: d.is_ug_chords_present,
+        is_sheet_verified: d.is_sheet_verified,
+        is_ug_link_verified: d.is_ug_link_verified,
+        is_pitch_linked: d.is_pitch_linked ?? true,
+      }));
+
+      const readableAndApprovedSongs = mappedSongs.filter(s => {
+        const readiness = calculateReadiness(s);
+        const hasChart = s.ugUrl || s.pdfUrl || s.leadsheetUrl || s.ug_chords_text;
+        const meetsReadiness = readiness >= 40 || forceReaderResource === 'simulation' || ignoreConfirmedGate;
+        return hasChart && meetsReadiness;
+      });
+
+      setAllSongs(readableAndApprovedSongs);
+
+      let initialIndex = 0;
+      const targetId = routeSongId || searchParams.get('id');
+
+      if (!targetId) {
+        const saved = localStorage.getItem('reader_last_index');
+        if (saved) {
+          const parsed = parseInt(saved, 10);
+          if (!isNaN(parsed) && parsed >= 0 && parsed < readableAndApprovedSongs.length) {
+            initialIndex = parsed;
+          }
+        }
+      } else {
+        const idx = readableAndApprovedSongs.findIndex(s => s.id === targetId);
+        if (idx !== -1) initialIndex = idx;
+      }
+
+      setCurrentIndex(initialIndex);
+    } catch (err) {
+      showError('Failed to load repertoire');
+    } finally {
+      setInitialLoading(false);
+    }
+  }, [user, routeSongId, searchParams, forceReaderResource, ignoreConfirmedGate]);
+
+  useEffect(() => {
+    fetchSongs();
+  }, [fetchSongs]);
+
+  // Update harmonic sync form data
+  useEffect(() => {
+    if (currentSong) {
+      setFormData({
+        originalKey: currentSong.originalKey,
+        targetKey: currentSong.targetKey,
+        pitch: currentSong.pitch,
+        is_pitch_linked: currentSong.is_pitch_linked,
+      });
+    }
+  }, [currentSong]);
+
+  // Load audio
+  useEffect(() => {
+    if (!currentSong?.previewUrl) {
+      stopPlayback();
+      return;
+    }
+
+    if (currentUrl !== currentSong.previewUrl) {
+      resetEngine();
+    }
+
+    if (currentUrl !== currentSong.previewUrl || !currentBuffer) {
+      loadFromUrl(currentSong.previewUrl, pitch || 0, true);
+    } else {
+      setAudioProgress(0);
+    }
+  }, [currentSong, pitch, currentUrl, currentBuffer, loadFromUrl, stopPlayback, resetEngine, setAudioProgress]);
+
+  // Persist song
+  useEffect(() => {
+    if (currentSong) {
+      setSearchParams({ id: currentSong.id }, { replace: true });
+      localStorage.setItem('reader_last_index', currentIndex.toString());
+    }
+  }, [currentSong, currentIndex, setSearchParams]);
+
+  // Navigation
+  const handleNext = useCallback(() => {
+    if (allSongs.length === 0) return;
+    setCurrentIndex(prev => (prev + 1) % allSongs.length);
+    stopPlayback();
+  }, [allSongs.length, stopPlayback]);
+
+  const handlePrev = useCallback(() => {
+    if (allSongs.length === 0) return;
+    setCurrentIndex(prev => (prev - 1 + allSongs.length) % allSongs.length);
+    stopPlayback();
+  }, [allSongs.length, stopPlayback]);
+
+  // Key update
+  const handleUpdateKey = useCallback(async (newTargetKey: string) => {
+    if (!currentSong || !user) return;
+
+    setTargetKey(newTargetKey);
+    const newPitch = calculateSemitones(currentSong.originalKey || 'C', newTargetKey);
+
+    try {
+      const { error } = await supabase
+        .from('repertoire')
+        .update({ target_key: newTargetKey, pitch: newPitch })
+        .eq('id', currentSong.id);
+
+      if (error) throw error;
+
+      setAllSongs(prev => prev.map(s =>
+        s.id === currentSong.id ? { ...s, targetKey: newTargetKey, pitch: newPitch } : s
+      ));
+      showSuccess(`Stage Key set to ${newTargetKey}`);
+    } catch {
+      showError('Failed to update key');
+    }
+  }, [currentSong, user, setTargetKey]);
+
+  // Dummy pull key (replace with real logic if needed)
+  const onPullKey = useCallback(() => {
+    console.log('Pull key from source');
+  }, []);
+
+  // Embed check
+  const isFramable = useCallback((url: string | null | undefined) => {
+    if (!url) return true;
+    const blocked = ['ultimate-guitar.com', 'musicnotes.com', 'sheetmusicplus.com'];
+    return !blocked.some(site => url.includes(site));
+  }, []);
+
+  // Chart rendering
+  const renderChartForSong = useCallback((song: SetlistSong, chartType: ChartType) => {
+    const readiness = calculateReadiness(song);
+    if (readiness < 40 && forceReaderResource !== 'simulation' && !ignoreConfirmedGate) {
+      return (
+        <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-950">
+          <AlertCircle className="w-24 h-24 text-red-500 mb-8" />
+          <h2 className="text-4xl font-black uppercase text-white mb-4">Missing Resources</h2>
+          <p className="text-xl text-slate-400 mb-8">Audit this track to link charts or audio.</p>
+          <Button onClick={() => navigate('/')} className="text-lg px-10 py-6 bg-indigo-600 rounded-2xl">
+            Go to Dashboard
+          </Button>
+        </div>
+      );
+    }
+
+    if (chartType === 'chords') {
+      if (song.ug_chords_text?.trim()) {
+        return (
+          <UGChordsReader
+            key={`${song.id}-chords`}
+            chordsText={song.ug_chords_text}
+            config={song.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
+            isMobile={false}
+            originalKey={song.originalKey}
+            targetKey={targetKey}
+            isPlaying={isPlaying}
+            progress={progress}
+            duration={duration}
+            chordAutoScrollEnabled={chordAutoScrollEnabled}
+            chordScrollSpeed={chordScrollSpeed}
+            readerKeyPreference={readerKeyPreference}
+          />
+        );
+      }
+      return renderChartForSong(song, 'pdf');
+    }
+
+    const chartUrl = chartType === 'pdf' ? song.pdfUrl : song.leadsheetUrl;
+    if (!chartUrl) {
+      return (
+        <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-950">
+          <Music className="w-24 h-24 text-slate-700 mb-8" />
+          <h2 className="text-4xl font-black uppercase text-white mb-4">
+            No {chartType === 'pdf' ? 'Full Score' : 'Leadsheet'} Available
+          </h2>
+          <p className="text-xl text-slate-400 mb-8">Upload one in the Studio.</p>
+          <Button onClick={() => setIsStudioModalOpen(true)} className="text-lg px-10 py-6 bg-indigo-600 rounded-2xl">
+            Open Studio
+          </Button>
+        </div>
+      );
+    }
+
+    const googleViewer = `https://docs.google.com/viewer?url=${encodeURIComponent(chartUrl)}&embedded=true`;
+
+    if (isFramable(chartUrl)) {
+      return (
+        <div className="w-full h-full relative bg-black">
+          <iframe
+            key={`${song.id}-${chartType}`}
+            src={googleViewer}
+            className="absolute inset-0 w-full h-full"
+            title="Chart Viewer"
+            style={{ border: 'none' }}
+            allowFullScreen
+          />
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20">
+            <a
+              href={chartUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-indigo-600 hover:bg-indigo-700 px-8 py-4 rounded-2xl text-lg font-bold shadow-2xl"
+            >
+              Open Chart Externally →
+            </a>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="h-full flex flex-col items-center justify-center bg-slate-950 p-6 md:p-12 text-center">
+        <ShieldCheck className="w-12 h-12 md:w-16 md:h-16 text-indigo-400 mb-6 md:mb-10" />
+        <h4 className="3xl md:text-5xl font-black uppercase tracking-tight mb-4 md:mb-6 text-white">Asset Protected</h4>
+        <p className="text-slate-500 mb-8 md:mb-16 text-lg md:text-xl font-medium leading-relaxed">
+          External security prevents in-app display.
+        </p>
+        <Button 
+          onClick={() => window.open(chartUrl, '_blank')} 
+          className="bg-indigo-600 hover:bg-indigo-700 h-16 md:h-20 px-10 md:px-16 font-black uppercase tracking-[0.2em] text-xs md:text-sm rounded-2xl md:rounded-3xl shadow-2xl gap-4 md:gap-6"
+        >
+          <ExternalLink className="w-6 h-6 md:w-8 md:h-8" /> Launch Chart Window
+        </Button>
+      </div>
+    );
+  }, [forceReaderResource, ignoreConfirmedGate, navigate, targetKey, isPlaying, progress, duration, chordAutoScrollEnabled, chordScrollSpeed, readerKeyPreference, isFramable]);
+
+  // Preload cache
+  const [renderedCharts, setRenderedCharts] = useState<RenderedChart[]>([]);
+
+  useEffect(() => {
+    if (!currentSong) {
+      setRenderedCharts([]);
+      return;
+    }
+
+    setRenderedCharts(prev => {
+      const newCharts: RenderedChart[] = [];
+      const currentId = currentSong.id;
+
+      let current = prev.find(c => c.id === currentId && c.type === selectedChartType);
+      if (!current) {
+        current = {
+          id: currentId,
+          content: renderChartForSong(currentSong, selectedChartType),
+          isLoaded: false,
+          opacity: 1,
+          zIndex: 10,
+          type: selectedChartType,
+        };
+      } else {
+        current.opacity = 1;
+        current.zIndex = 10;
+      }
+      newCharts.push(current);
+
+      // Preload next/prev (simplified)
+      [-1, 1].forEach(dir => {
+        const idx = (currentIndex + dir + allSongs.length) % allSongs.length;
+        const song = allSongs[idx];
+        if (song && song.id !== currentId) {
+          const type = song.pdfUrl ? 'pdf' : (song.leadsheetUrl ? 'leadsheet' : 'chords');
+          if (!prev.some(c => c.id === song.id && c.type === type)) {
+            newCharts.push({
+              id: song.id,
+              content: renderChartForSong(song, type),
+              isLoaded: false,
+              opacity: 0,
+              zIndex: 0,
+              type,
+            });
+          }
+        }
+      });
+
+      return newCharts;
+    });
+  }, [currentSong, currentIndex, allSongs, selectedChartType, renderChartForSong]);
+
+  // Keyboard shortcut
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 'i' && currentSong && !isStudioModalOpen) {
+        e.preventDefault();
+        setIsStudioModalOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [currentSong, isStudioModalOpen]);
+
+  const availableChartTypes = useMemo((): ChartType[] => {
+    if (!currentSong) return [];
+    const types: ChartType[] = [];
+    if (currentSong.pdfUrl) types.push('pdf');
+    if (currentSong.leadsheetUrl) types.push('leadsheet');
+    if (currentSong.ug_chords_text?.trim()) types.push('chords');
+    return types;
+  }, [currentSong]);
+
+  useEffect(() => {
+    if (currentSong && availableChartTypes.length > 0 && !availableChartTypes.includes(selectedChartType)) {
+      setSelectedChartType(availableChartTypes[0]);
+    }
+  }, [currentSong, availableChartTypes, selectedChartType]);
+
+  if (initialLoading) {
+    return (
+      <div className="h-screen bg-slate-950 flex items-center justify-center">
+        <Loader2 className="w-16 h-16 animate-spin text-indigo-500" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-white">
+      {/* Sidebar */}
+      <aside className={cn(
+        "bg-slate-900 border-r border-white/10 flex flex-col shrink-0 transition-all duration-300",
+        isImmersive ? "w-0 opacity-0 pointer-events-none" : "w-80"
+      )}>
+        <div className="p-6 border-b border-white/10 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-black uppercase tracking-tight">Reader</h1>
+            <p className="text-indigo-400 text-sm font-bold mt-1">{allSongs.length} Songs</p>
+          </div>
+          <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="rounded-full hover:bg-white/10">
+            <X className="w-5 h-5" />
+          </Button>
+        </div>
+
+        <ScrollArea className="flex-1">
+          <div className="p-4 space-y-3">
+            {allSongs.map((song, index) => (
+              <button
+                key={song.id}
+                onClick={() => {
+                  setCurrentIndex(index);
+                  stopPlayback();
+                }}
+                className={cn(
+                  'w-full text-left p-4 rounded-xl transition-all border',
+                  index === currentIndex
+                    ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg'
+                    : 'bg-slate-800 text-slate-300 border-transparent hover:bg-slate-700'
+                )}
+              >
+                <div className="font-bold text-lg truncate">{song.name}</div>
+                {song.artist && <div className="text-sm opacity-75 mt-1 truncate">{song.artist}</div>}
+                <div className="text-xs opacity-50 mt-2 flex items-center gap-2">
+                  <span>{(index + 1).toString().padStart(2, '0')}</span>
+                  {song.pdfUrl && <span className="bg-white/10 px-1.5 rounded">PDF</span>}
+                  {song.leadsheetUrl && <span className="bg-white/10 px-1.5 rounded">LS</span>}
+                  {song.ug_chords_text && <span className="bg-white/10 px-1.5 rounded">CH</span>}
+                </div>
+              </button>
+            ))}
+          </div>
+        </ScrollArea>
+
+        <div className="p-4 border-t border-white/10">
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start gap-2 text-slate-400 hover:text-white hover:bg-white/10"
+            onClick={() => setIsPreferencesOpen(true)}
+          >
+            <Settings className="w-4 h-4" /> Reader Settings
+          </Button>
+        </div>
+      </aside>
+
+      {/* Main */}
+      <main className="flex-1 flex flex-col overflow-hidden">
+        <SheetReaderHeader
+          currentSong={currentSong}
+          onClose={() => navigate('/')}
+          onSearchClick={() => setIsStudioModalOpen(true)}
+          onPrevSong={handlePrev}
+          onNextSong={handleNext}
+          currentSongIndex={currentIndex}
+          totalSongs={allSongs.length}
+          isLoading={!currentSong}
+          keyPreference={globalKeyPreference}
+          onUpdateKey={handleUpdateKey}
+          isFullScreen={isImmersive}
+          onToggleFullScreen={() => setIsImmersive(!isImmersive)}
+          setIsOverlayOpen={setIsOverlayOpen}
+          isOverrideActive={forceReaderResource !== 'default'}
+          pitch={pitch}
+          setPitch={setPitch}
+          readerKeyPreference={readerKeyPreference}
+          setReaderKeyPreference={setReaderKeyPreference}
+          onPullKey={onPullKey}
+        />
+
+        <div className={cn("flex-1 bg-black overflow-hidden relative", isImmersive ? "mt-0" : "mt-16")}>
+          {renderedCharts.map(rc => (
+            <motion.div
+              key={`${rc.id}-${rc.type}`}
+              className="absolute inset-0"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: rc.opacity }}
+              transition={{ duration: 0.3 }}
+              style={{ zIndex: rc.zIndex }}
+            >
+              {rc.content}
+            </motion.div>
+          ))}
+
+          {currentSong && !renderedCharts.find(c => c.id === currentSong.id && c.type === selectedChartType)?.isLoaded && (
+            <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm z-20">
+              <Loader2 className="w-16 h-16 animate-spin text-indigo-500" />
+            </div>
+          )}
+
+          {currentSong && availableChartTypes.length > 1 && !isImmersive && (
+            <div className="absolute top-4 right-4 z-30">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button className="bg-slate-900/80 backdrop-blur border border-white/10 text-white hover:bg-slate-800 shadow-2xl h-12 px-4 gap-2">
+                    {selectedChartType === 'pdf' && <Layout className="w-4 h-4" />}
+                    {selectedChartType === 'leadsheet' && <FileText className="w-4 h-4" />}
+                    {selectedChartType === 'chords' && <Guitar className="w-4 h-4" />}
+                    <span className="font-bold uppercase text-xs tracking-widest">
+                      {selectedChartType === 'pdf' ? 'Full Score' : selectedChartType === 'leadsheet' ? 'Leadsheet' : 'Chords'}
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-slate-900 border-white/10 text-white min-w-[180px]">
+                  {availableChartTypes.includes('pdf') && (
+                    <DropdownMenuItem onClick={() => setSelectedChartType('pdf')} className="cursor-pointer font-bold">
+                      <Layout className="w-4 h-4 mr-2" /> Full Score
+                    </DropdownMenuItem>
+                  )}
+                  {availableChartTypes.includes('leadsheet') && (
+                    <DropdownMenuItem onClick={() => setSelectedChartType('leadsheet')} className="cursor-pointer font-bold">
+                      <FileText className="w-4 h-4 mr-2" /> Leadsheet
+                    </DropdownMenuItem>
+                  )}
+                  {availableChartTypes.includes('chords') && (
+                    <DropdownMenuItem onClick={() => setSelectedChartType('chords')} className="cursor-pointer font-bold">
+                      <Guitar className="w-4 h-4 mr-2" /> Chords
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
+        </div>
+
+        {!isImmersive && currentSong && (
           <SheetReaderFooter
             currentSong={currentSong}
             isPlaying={isPlaying}
@@ -16,6 +603,23 @@
             setChordAutoScrollEnabled={setChordAutoScrollEnabled}
             chordScrollSpeed={chordScrollSpeed}
             setChordScrollSpeed={setChordScrollSpeed}
-            isLoadingAudio={isLoadingAudio} // Added missing prop
+            isLoadingAudio={isAudioLoading}
           />
         )}
+      </main>
+
+      <PreferencesModal isOpen={isPreferencesOpen} onClose={() => setIsPreferencesOpen(false)} />
+      
+      {currentSong && (
+        <SongStudioModal
+          isOpen={isStudioModalOpen}
+          onClose={() => setIsStudioModalOpen(false)}
+          gigId="library"
+          songId={currentSong.id}
+        />
+      )}
+    </div>
+  );
+};
+
+export default SheetReaderMode;
