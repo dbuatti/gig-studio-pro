@@ -3,13 +3,8 @@
 import { KeyPreference } from '@/hooks/use-settings';
 import { transposeKey, formatKey, MAPPING_TO_SHARP, MAPPING_TO_FLAT } from './keyUtils';
 
-// Updated Regex:
-// (?<=^| ) : Lookbehind - Ensures the chord starts at the beginning of the line or after a space.
-// ([A-G](?:#|b)?) : Root note.
-// (m|maj|dim|aug|sus\d?|add\d?|\d+)? : Chord type.
-// (\/[A-G](?:#|b)?)? : Bass note.
-// (?=\s|$|\(|\)|\[|\]|\{|\}) : Lookahead - Ensures the chord is followed by whitespace or punctuation.
-const CHORD_REGEX = /(?<=^| )([A-G](?:#|b)?)(m|maj|dim|aug|sus\d?|add\d?|\d+)?(\/[A-G](?:#|b)?)?(?=\s|$|\(|\)|\[|\]|\{|\})/g;
+// Updated Regex: Using \b for word boundaries for better performance.
+const CHORD_REGEX = /\b([A-G](?:#|b)?)(m|maj|dim|aug|sus\d?|add\d?|\d+)?(\/[A-G](?:#|b)?)?\b/g;
 
 /**
  * Determines if a line contains chords

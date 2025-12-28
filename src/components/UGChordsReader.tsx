@@ -27,7 +27,7 @@ interface UGChordsReaderProps {
   readerKeyPreference?: 'sharps' | 'flats';
 }
 
-const UGChordsReader: React.FC<UGChordsReaderProps> = ({
+const UGChordsReader = React.memo(({
   chordsText,
   config,
   isMobile,
@@ -39,7 +39,7 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
   chordAutoScrollEnabled,
   chordScrollSpeed,
   readerKeyPreference,
-}) => {
+}: UGChordsReaderProps) => {
   const { keyPreference: globalKeyPreference } = useSettings();
   const activeKeyPreference = readerKeyPreference || globalKeyPreference;
   
@@ -183,6 +183,6 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
       )}
     </div>
   );
-};
+});
 
 export default UGChordsReader;
