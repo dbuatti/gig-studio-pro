@@ -7,12 +7,12 @@ import { useAuth } from '@/components/AuthProvider';
 import { SetlistSong } from '@/components/SetlistManager';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Music, Loader2, AlertCircle, ChevronLeft, ChevronRight, X, Settings, Maximize2, Minimize2, ExternalLink, ShieldCheck } from 'lucide-react';
+import { Music, Loader2, AlertCircle, ChevronLeft, ChevronRight, X, Settings, Maximize2, Minimize2, ExternalLink, ShieldCheck, FileText, Layout, Guitar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { useSettings } from '@/hooks/use-settings';
 import { calculateReadiness } from '@/utils/repertoireSync';
-import { showSuccess, showError, showInfo } from '@/utils/toast';
+import { showError, showSuccess } from '@/utils/toast'; // Added showSuccess
 import UGChordsReader from '@/components/UGChordsReader';
 import { useToneAudio } from '@/hooks/use-tone-audio';
 import { transposeKey, calculateSemitones } from '@/utils/keyUtils';
@@ -23,6 +23,10 @@ import SheetReaderHeader from '@/components/SheetReaderHeader';
 import SheetReaderFooter from '@/components/SheetReaderFooter';
 import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
 import { motion } from 'framer-motion';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuPortal } from '@/components/ui/dropdown-menu';
+
+// Define chart types
+type ChartType = 'pdf' | 'leadsheet' | 'chords';
 
 interface RenderedChart {
   id: string;
@@ -30,7 +34,7 @@ interface RenderedChart {
   isLoaded: boolean;
   opacity: number;
   zIndex: number;
-  url: string | null;
+  type: ChartType;
 }
 
 const SheetReaderMode: React.FC = () => {
@@ -49,6 +53,9 @@ const SheetReaderMode: React.FC = () => {
   const [isImmersive, setIsImmersive] = useState(false);
   const [isStudioModalOpen, setIsStudioModalOpen] = useState(false);
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
+  
+  // Chart Selection State
+  const [selectedChartType, setSelectedChartType] = useState<ChartType>('pdf');
 
   // Audio
   const audioEngine = useToneAudio(true);
@@ -112,7 +119,7 @@ const SheetReaderMode: React.FC = () => {
         artist: d.artist,
         originalKey: d.original_key,
         targetKey: d.target_key,
-        pitch: d.pitch ?? 0, // Ensure pitch is a number
+        pitch: d.pitch ?? 0,
         previewUrl: d.preview_url,
         ug_chords_text: d.ug_chords_text,
         ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
@@ -124,11 +131,10 @@ const SheetReaderMode: React.FC = () => {
         is_ug_chords_present: d.is_ug_chords_present,
         is_sheet_verified: d.is_sheet_verified,
         is_ug_link_verified: d.is_ug_link_verified,
-        // Ensure is_pitch_linked is mapped correctly
         is_pitch_linked: d.is_pitch_linked ?? true,
       }));
 
-      // Filter for readable and approved songs for navigation
+      // Filter for readable and approved songs
       const readableAndApprovedSongs = mappedSongs.filter(s => {
         const readiness = calculateReadiness(s);
         const hasChart = s.ugUrl || s.pdfUrl || s.leadsheetUrl || s.ug_chords_text;
@@ -150,9 +156,7 @@ const SheetReaderMode: React.FC = () => {
       setCurrentIndex(initialIndex);
 
     } catch (err) {
-      if (!(err instanceof Error && err.message.includes('Supabase fetch error'))) {
-        showError('Failed to load repertoire');
-      }
+      showError('Failed to load repertoire');
     } finally {
       setInitialLoading(false);
     }
@@ -248,7 +252,8 @@ const SheetReaderMode: React.FC = () => {
   }, []);
 
   // === Chart Content Rendering Logic ===
-  const renderChartForSong = useCallback((song: SetlistSong, isCurrent: boolean, isPreloading: boolean) => {
+  // This function now accepts a specific chart type to render
+  const renderChartForSong = useCallback((song: SetlistSong, chartType: ChartType) => {
     const readiness = calculateReadiness(song);
     if (readiness < 40 && forceReaderResource !== 'simulation' && !ignoreConfirmedGate) {
       return (
@@ -263,54 +268,65 @@ const SheetReaderMode: React.FC = () => {
       );
     }
 
-    const renderUgChordsReader = (s: SetlistSong, onUgLoad: () => void) => (
-      <UGChordsReader
-        key={s.id}
-        chordsText={s.ug_chords_text || ""}
-        config={s.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
-        isMobile={false}
-        originalKey={s.originalKey}
-        targetKey={targetKey}
-        isPlaying={isPlaying}
-        progress={progress}
-        duration={duration}
-        chordAutoScrollEnabled={chordAutoScrollEnabled}
-        chordScrollSpeed={chordScrollSpeed}
-        onLoad={onUgLoad}
-      />
-    );
-
-    const chartUrl = song.pdfUrl || song.leadsheetUrl || song.ugUrl;
-    const googleViewer = chartUrl ? `https://docs.google.com/viewer?url=${encodeURIComponent(chartUrl)}&embedded=true` : null;
-
-    const handleIframeLoad = () => {
-      chartLoadTimers.current.set(song.id, setTimeout(() => {
-        setRenderedCharts(prev => prev.map(rc => rc.id === song.id ? { ...rc, isLoaded: true } : rc));
-        chartLoadTimers.current.delete(song.id);
-      }, 150));
-    };
-
-    const handleUgLoad = () => {
-      setRenderedCharts(prev => prev.map(rc => rc.id === song.id ? { ...rc, isLoaded: true } : rc));
-    };
-
-    // NEW LOGIC: Prioritize ug_chords_text if available
-    if (song.ug_chords_text && song.ug_chords_text.trim().length > 0) {
-      return renderUgChordsReader(song, handleUgLoad);
+    // Determine content based on requested type
+    if (chartType === 'chords') {
+      if (song.ug_chords_text && song.ug_chords_text.trim().length > 0) {
+        return (
+          <UGChordsReader
+            key={`${song.id}-chords`}
+            chordsText={song.ug_chords_text || ""}
+            config={song.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
+            isMobile={false}
+            originalKey={song.originalKey}
+            targetKey={targetKey}
+            isPlaying={isPlaying}
+            progress={progress}
+            duration={duration}
+            chordAutoScrollEnabled={chordAutoScrollEnabled}
+            chordScrollSpeed={chordScrollSpeed}
+          />
+        );
+      } else {
+        return renderChartForSong(song, 'pdf'); // Fallback to PDF if chords requested but missing
+      }
     }
-    else if (forceReaderResource === 'force-chords' && song.ug_chords_text) {
-      return renderUgChordsReader(song, handleUgLoad);
-    } else if (chartUrl && isFramable(chartUrl)) {
+
+    // PDF/Leadsheet Logic
+    const chartUrl = chartType === 'pdf' ? song.pdfUrl : song.leadsheetUrl;
+    
+    if (!chartUrl) {
+       return (
+        <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-950">
+          <Music className="w-24 h-24 text-slate-700 mb-8" />
+          <h2 className="text-4xl font-black uppercase text-white mb-4">No {chartType === 'pdf' ? 'Full Score' : 'Leadsheet'} Available</h2>
+          <p className="text-xl text-slate-400 mb-8">Upload one in the Studio.</p>
+          <Button onClick={() => setIsStudioModalOpen(true)} className="text-lg px-10 py-6 bg-indigo-600 rounded-2xl">
+            Open Studio
+          </Button>
+        </div>
+      );
+    }
+
+    const googleViewer = `https://docs.google.com/viewer?url=${encodeURIComponent(chartUrl)}&embedded=true`;
+
+    if (isFramable(chartUrl)) {
       return (
         <div className="w-full h-full relative bg-black">
           <iframe
-            key={`${song.id}-google`}
+            key={`${song.id}-${chartType}`}
             src={googleViewer}
             className="absolute inset-0 w-full h-full"
-            title="Chart - Google Viewer"
+            title="Chart Viewer"
             style={{ border: 'none' }}
             allowFullScreen
-            onLoad={handleIframeLoad}
+            onLoad={() => {
+              // Mark as loaded after a slight delay to ensure render
+              setTimeout(() => {
+                setRenderedCharts(prev => prev.map(rc => 
+                  rc.id === song.id && rc.type === chartType ? { ...rc, isLoaded: true } : rc
+                ));
+              }, 300);
+            }}
           />
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20">
             <a
@@ -324,7 +340,7 @@ const SheetReaderMode: React.FC = () => {
           </div>
         </div>
       );
-    } else if (chartUrl && !isFramable(chartUrl)) {
+    } else {
       return (
         <div className="h-full flex flex-col items-center justify-center bg-slate-950 p-6 md:p-12 text-center">
           <ShieldCheck className="w-12 h-12 md:w-16 md:h-16 text-indigo-400 mb-6 md:mb-10" />
@@ -340,22 +356,11 @@ const SheetReaderMode: React.FC = () => {
           </Button>
         </div>
       );
-    } else {
-      return (
-        <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-950">
-          <Music className="w-24 h-24 text-slate-700 mb-8" />
-          <h2 className="text-4xl font-black uppercase text-white mb-4">No Chart Available</h2>
-          <p className="text-xl text-slate-400 mb-8">Link a PDF or Ultimate Guitar tab in the Studio to view it here.</p>
-          <Button onClick={() => setIsStudioModalOpen(true)} className="text-lg px-10 py-6 bg-indigo-600 rounded-2xl">
-            Open Studio
-          </Button>
-        </div>
-      );
     }
   }, [forceReaderResource, ignoreConfirmedGate, navigate, targetKey, isPlaying, progress, duration, chordAutoScrollEnabled, chordScrollSpeed, pitch, isFramable]);
 
-  // Effect to manage the renderedCharts stack
-  const chartLoadTimers = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  // === Chart Cache Management ===
+  // This effect manages the cache of rendered charts to prevent flashing
   const [renderedCharts, setRenderedCharts] = useState<RenderedChart[]>([]);
 
   useEffect(() => {
@@ -368,79 +373,67 @@ const SheetReaderMode: React.FC = () => {
       const newCharts: RenderedChart[] = [];
       const currentChartId = currentSong.id;
 
-      // Add/update current song's chart
-      const existingCurrent = prevCharts.find(c => c.id === currentChartId);
+      // 1. Ensure Current Song's Selected Chart is in Cache
+      const existingCurrent = prevCharts.find(c => c.id === currentChartId && c.type === selectedChartType);
       if (existingCurrent) {
         newCharts.push({ ...existingCurrent, opacity: 1, zIndex: 10 });
       } else {
         newCharts.push({
           id: currentChartId,
-          content: renderChartForSong(currentSong, true, false),
+          content: renderChartForSong(currentSong, selectedChartType),
           isLoaded: false,
-          opacity: 0.5,
+          opacity: 0.5, // Start slightly transparent while loading
           zIndex: 10,
-          url: currentSong.pdfUrl || currentSong.leadsheetUrl || currentSong.ugUrl || null,
+          type: selectedChartType,
         });
       }
 
-      // Add/update next song's chart for pre-loading
+      // 2. Pre-load Next Song's Primary Chart (PDF -> Leadsheet -> Chords)
       const nextSongIndex = (currentIndex + 1) % allSongs.length;
       const nextSong = allSongs[nextSongIndex];
       if (nextSong && nextSong.id !== currentChartId) {
-        const existingNext = prevCharts.find(c => c.id === nextSong.id);
-        if (existingNext) {
-          newCharts.push({ ...existingNext, opacity: 0, zIndex: 0 });
-        } else {
+        const nextType = nextSong.pdfUrl ? 'pdf' : (nextSong.leadsheetUrl ? 'leadsheet' : 'chords');
+        const existingNext = prevCharts.find(c => c.id === nextSong.id && c.type === nextType);
+        
+        if (!existingNext) {
           newCharts.push({
             id: nextSong.id,
-            content: renderChartForSong(nextSong, false, true),
+            content: renderChartForSong(nextSong, nextType),
             isLoaded: false,
             opacity: 0,
             zIndex: 0,
-            url: nextSong.pdfUrl || nextSong.leadsheetUrl || nextSong.ugUrl || null,
+            type: nextType,
           });
         }
       }
 
-      // Add/update previous song's chart for pre-loading
+      // 3. Pre-load Previous Song's Primary Chart
       const prevSongIndex = (currentIndex - 1 + allSongs.length) % allSongs.length;
       const prevSong = allSongs[prevSongIndex];
       if (prevSong && prevSong.id !== currentChartId) {
-        const existingPrev = prevCharts.find(c => c.id === prevSong.id);
-        if (existingPrev) {
-          newCharts.push({ ...existingPrev, opacity: 0, zIndex: 0 });
-        } else {
+        const prevType = prevSong.pdfUrl ? 'pdf' : (prevSong.leadsheetUrl ? 'leadsheet' : 'chords');
+        const existingPrev = prevCharts.find(c => c.id === prevSong.id && c.type === prevType);
+        
+        if (!existingPrev) {
           newCharts.push({
             id: prevSong.id,
-            content: renderChartForSong(prevSong, false, true),
+            content: renderChartForSong(prevSong, prevType),
             isLoaded: false,
             opacity: 0,
             zIndex: 0,
-            url: prevSong.pdfUrl || prevSong.leadsheetUrl || prevSong.ugUrl || null,
+            type: prevType,
           });
         }
       }
 
-      // Clean up old charts
-      const relevantIds = new Set(newCharts.map(c => c.id));
-      const filteredPrevCharts = prevCharts.filter(c => relevantIds.has(c.id));
+      // Merge with existing charts that aren't being replaced
+      const relevantIds = new Set(newCharts.map(c => `${c.id}-${c.type}`));
+      const filteredPrevCharts = prevCharts.filter(c => !relevantIds.has(`${c.id}-${c.type}`));
 
-      const finalChartsMap = new Map<string, RenderedChart>();
-      filteredPrevCharts.forEach(c => finalChartsMap.set(c.id, c));
-      newCharts.forEach(c => finalChartsMap.set(c.id, c));
-
-      return Array.from(finalChartsMap.values());
+      return [...filteredPrevCharts, ...newCharts];
     });
 
-    // Clear any pending timers for charts that are no longer relevant
-    chartLoadTimers.current.forEach((timer, id) => {
-      if (id !== currentSong.id) {
-        clearTimeout(timer);
-        chartLoadTimers.current.delete(id);
-      }
-    });
-
-  }, [currentSong, currentIndex, allSongs, renderChartForSong, targetKey, isPlaying, progress, duration, chordAutoScrollEnabled, chordScrollSpeed]);
+  }, [currentSong, currentIndex, allSongs, selectedChartType, renderChartForSong]);
 
   // Keyboard shortcut for 'I' to open Song Studio Modal
   useEffect(() => {
@@ -455,6 +448,23 @@ const SheetReaderMode: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentSong, isStudioModalOpen]);
 
+  // Determine available chart types for the current song
+  const availableChartTypes = useMemo(() => {
+    if (!currentSong) return [];
+    const types: ChartType[] = [];
+    if (currentSong.pdfUrl) types.push('pdf');
+    if (currentSong.leadsheetUrl) types.push('leadsheet');
+    if (currentSong.ug_chords_text) types.push('chords');
+    return types;
+  }, [currentSong]);
+
+  // Auto-select chart type if current selection is unavailable
+  useEffect(() => {
+    if (currentSong && availableChartTypes.length > 0 && !availableChartTypes.includes(selectedChartType)) {
+      setSelectedChartType(availableChartTypes[0]);
+    }
+  }, [currentSong, availableChartTypes, selectedChartType]);
+
   if (initialLoading) {
     return (
       <div className="h-screen bg-slate-950 flex items-center justify-center">
@@ -466,7 +476,7 @@ const SheetReaderMode: React.FC = () => {
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-white">
       {/* Left Sidebar */}
-      <aside className={cn("bg-slate-900 border-r border-white/10 flex flex-col shrink-0", isImmersive ? "w-0 opacity-0 pointer-events-none" : "w-80")}>
+      <aside className={cn("bg-slate-900 border-r border-white/10 flex flex-col shrink-0 transition-all duration-300", isImmersive ? "w-0 opacity-0 pointer-events-none" : "w-80")}>
         <div className="p-6 border-b border-white/10 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-black uppercase tracking-tight">Reader</h1>
@@ -498,6 +508,7 @@ const SheetReaderMode: React.FC = () => {
                 <div className="text-xs opacity-50 mt-2 flex items-center gap-2">
                   <span>{(index + 1).toString().padStart(2, '0')}</span>
                   {song.pdfUrl && <span className="bg-white/10 px-1.5 rounded">PDF</span>}
+                  {song.leadsheetUrl && <span className="bg-white/10 px-1.5 rounded">LS</span>}
                   {song.ug_chords_text && <span className="bg-white/10 px-1.5 rounded">CH</span>}
                 </div>
               </button>
@@ -527,7 +538,7 @@ const SheetReaderMode: React.FC = () => {
           onNextSong={handleNext}
           currentSongIndex={currentIndex}
           totalSongs={allSongs.length}
-          isLoading={!currentSong || !renderedCharts.find(c => c.id === currentSong?.id)?.isLoaded}
+          isLoading={!currentSong}
           keyPreference={globalKeyPreference}
           onUpdateKey={handleUpdateKey}
           isFullScreen={isImmersive}
@@ -542,7 +553,7 @@ const SheetReaderMode: React.FC = () => {
         <div className={cn("flex-1 bg-black overflow-hidden relative", isImmersive ? "mt-0" : "mt-16")}>
           {renderedCharts.map(rc => (
             <motion.div
-              key={rc.id}
+              key={`${rc.id}-${rc.type}`}
               className="absolute inset-0"
               initial={{ opacity: 0 }}
               animate={{ opacity: rc.opacity }}
@@ -552,9 +563,46 @@ const SheetReaderMode: React.FC = () => {
               {rc.content}
             </motion.div>
           ))}
-          {currentSong && !renderedCharts.find(c => c.id === currentSong.id)?.isLoaded && (
+          
+          {/* Loading Overlay */}
+          {currentSong && !renderedCharts.find(c => c.id === currentSong.id && c.type === selectedChartType)?.isLoaded && (
             <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm z-20">
               <Loader2 className="w-16 h-16 animate-spin text-indigo-500" />
+            </div>
+          )}
+
+          {/* Floating Chart Type Toggle (Only if multiple types exist) */}
+          {currentSong && availableChartTypes.length > 1 && !isImmersive && (
+            <div className="absolute top-4 right-4 z-30">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button className="bg-slate-900/80 backdrop-blur border border-white/10 text-white hover:bg-slate-800 shadow-2xl h-12 px-4 gap-2">
+                    {selectedChartType === 'pdf' && <Layout className="w-4 h-4" />}
+                    {selectedChartType === 'leadsheet' && <FileText className="w-4 h-4" />}
+                    {selectedChartType === 'chords' && <Guitar className="w-4 h-4" />}
+                    <span className="font-bold uppercase text-xs tracking-widest">
+                      {selectedChartType === 'pdf' ? 'Full Score' : selectedChartType === 'leadsheet' ? 'Leadsheet' : 'Chords'}
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-slate-900 border-white/10 text-white min-w-[180px]">
+                  {availableChartTypes.includes('pdf') && (
+                    <DropdownMenuItem onClick={() => setSelectedChartType('pdf')} className="cursor-pointer font-bold">
+                      <Layout className="w-4 h-4 mr-2" /> Full Score
+                    </DropdownMenuItem>
+                  )}
+                  {availableChartTypes.includes('leadsheet') && (
+                    <DropdownMenuItem onClick={() => setSelectedChartType('leadsheet')} className="cursor-pointer font-bold">
+                      <FileText className="w-4 h-4 mr-2" /> Leadsheet
+                    </DropdownMenuItem>
+                  )}
+                  {availableChartTypes.includes('chords') && (
+                    <DropdownMenuItem onClick={() => setSelectedChartType('chords')} className="cursor-pointer font-bold">
+                      <Guitar className="w-4 h-4 mr-2" /> Chords
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           )}
         </div>
