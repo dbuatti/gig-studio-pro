@@ -119,7 +119,10 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
                 })
                 .eq('id', gigId);
             }
-          } catch (err) {}
+          } catch (err: any) { // Catch the error propagated from syncToMasterRepertoire
+            console.error("[SongStudioView] Auto-save failed:", err);
+            showError("Auto-save failed: " + err.message); // Show error to user
+          }
         }, 1000);
         
         return next;
@@ -261,7 +264,10 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
               })
               .eq('id', gigId);
           }
-        } catch (err) {}
+        } catch (err: any) { // Catch the error propagated from syncToMasterRepertoire
+          console.error("[SongStudioView] Auto-save failed:", err);
+          showError("Auto-save failed: " + err.message); // Show error to user
+        }
       }, 1000);
       
       return next;
@@ -323,7 +329,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     }
   };
 
-  // NEW: Pull Key Handler
+  // NEW: Pull Key Button
   const handlePullKey = async () => {
     if (!formData.ug_chords_text) {
       showError("No UG Chords text found to extract key.");

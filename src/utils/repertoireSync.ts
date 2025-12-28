@@ -71,8 +71,8 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
     const payloads = songsArray.map(song => {
       const payload: any = {
         user_id: userId,
-        title: song.name,
-        artist: song.artist || 'Unknown Artist',
+        title: song.name.trim() || 'Untitled Track', // Ensure title is not empty
+        artist: song.artist?.trim() || 'Unknown Artist', // Ensure artist is not empty
         original_key: song.originalKey || null,
         target_key: song.targetKey || null,
         bpm: song.bpm || null,
@@ -128,13 +128,12 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
     return songsArray.map(song => {
       const dbMatch = data.find(d => 
         (song.master_id && d.id === song.master_id) || 
-        (d.title === song.name && d.artist === (song.artist || 'Unknown Artist'))
+        (d.title === song.name && d.artist === (song.artist?.trim() || 'Unknown Artist')) // Use trimmed artist for comparison
       );
       
       return dbMatch ? { ...song, master_id: dbMatch.id } : song;
     });
   } catch (err) {
-    // console.error("[SYNC ENGINE] Batch sync failed:", err);
-    return songsArray;
+    throw err; // Re-throw to propagate the error to the caller
   }
 };
