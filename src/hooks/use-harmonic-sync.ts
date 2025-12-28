@@ -13,6 +13,7 @@ interface UseHarmonicSyncProps {
 
 export function useHarmonicSync({ formData, handleAutoSave, globalKeyPreference }: UseHarmonicSyncProps) {
   // Internal state for pitch, targetKey, and linking, derived from formData
+  // FIX: Ensure initial state uses formData, which is passed from the parent component.
   const [isPitchLinked, setIsPitchLinkedState] = useState(formData.is_pitch_linked ?? true);
   const [pitch, setPitchState] = useState(formData.pitch ?? 0);
   const [targetKeyState, setTargetKeyState] = useState(formData.targetKey || formData.originalKey || 'C');

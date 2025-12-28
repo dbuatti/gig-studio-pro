@@ -119,26 +119,6 @@ const SheetReaderMode: React.FC = () => {
     }
   }, [currentSong]);
 
-  // NEW: Force sync harmonic hook state when currentSong changes (The fix)
-  useEffect(() => {
-    if (currentSong) {
-      // Force sync the harmonic hook with DB values
-      // This ensures the internal state of useHarmonicSync is immediately correct upon song switch
-      setTargetKey(currentSong.targetKey || currentSong.originalKey || 'C');
-      setPitch(currentSong.pitch ?? 0);
-      
-      // DEBUG LOGGING (as requested by user for diagnosis)
-      console.log('Current song keys:', {
-        original: currentSong.originalKey,
-        target: currentSong.targetKey,
-        pitch: currentSong.pitch,
-        harmonicSyncTarget: harmonicTargetKey, // Use live hook variable
-        harmonicSyncPitch: pitch // Use live hook variable
-      });
-    }
-  }, [currentSong, setTargetKey, setPitch, harmonicTargetKey, pitch]);
-  // END NEW BLOCK
-
   // NEW: Check for missing original key
   const isOriginalKeyMissing = useMemo(() => 
     !currentSong?.originalKey || currentSong.originalKey === 'TBC', 
@@ -443,7 +423,7 @@ const SheetReaderMode: React.FC = () => {
               <ShieldCheck className="w-12 h-12 md:w-16 md:h-16 text-indigo-400 mb-6 md:mb-10" />
               <h4 className="text-3xl md:text-5xl font-black uppercase tracking-tight mb-4 md:mb-6 text-white">Asset Protected</h4>
               <p className="text-slate-500 mb-8 md:mb-16 text-lg md:text-xl font-medium leading-relaxed">
-                  External security prevents in-app display.
+                  External security prevents in-app display. Use the button below to launch in a secure dedicated performance window.
               </p>
               <Button 
                   onClick={() => window.open(chartUrl, '_blank')} 
