@@ -291,10 +291,10 @@ setAllSongs(prev => prev.map(s =>
       
       if (error) throw error;
 
-      // ← THIS IS THE CRITICAL PART – FIX THE SPREAD SYNTAX
+      // FIX: Correctly update the state array with the new properties
       setAllSongs(prev => prev.map(s => 
         s.id === currentSong.id 
-          ? { ...s, originalKey: extractedKey, targetKey: extractedKey, pitch: 0 } 
+          ? { ...s, originalKey: extractedKey, targetKey: extractedKey, pitch: 0, isKeyConfirmed: true } 
           : s
       ));
 
@@ -348,7 +348,8 @@ setAllSongs(prev => prev.map(s =>
         setTimeout(() => onChartLoad(song.id, chartType), 50);
         return (
           <UGChordsReader
-            key={`${song.id}-chords-${harmonicTargetKey}`} {/* Key includes targetKey to force re-render on change */}
+            // Key includes targetKey to force re-render on change
+            key={`${song.id}-chords-${harmonicTargetKey}`}
             chordsText={song.ug_chords_text}
             config={song.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
             isMobile={false}
