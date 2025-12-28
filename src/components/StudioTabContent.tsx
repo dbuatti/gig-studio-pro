@@ -174,6 +174,8 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
           // NEW: Pass PDF scroll props
           pdfScrollSpeed={pdfScrollSpeed}
           setPdfScrollSpeed={setPdfScrollSpeed}
+          setChordAutoScrollEnabled={setChordAutoScrollEnabled}
+          setChordScrollSpeed={setChordScrollSpeed}
         />
       );
     case 'lyrics':

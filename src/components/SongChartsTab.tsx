@@ -25,6 +25,8 @@ interface SongChartsTabProps {
   duration: number;
   chordAutoScrollEnabled: boolean;
   chordScrollSpeed: number;
+  setChordAutoScrollEnabled: (enabled: boolean) => void;
+  setChordScrollSpeed: (speed: number) => void;
   // Harmonic Sync Props
   pitch: number;
   setPitch: (pitch: number) => void;
@@ -51,6 +53,8 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
   duration,
   chordAutoScrollEnabled,
   chordScrollSpeed,
+  setChordAutoScrollEnabled,
+  setChordScrollSpeed,
   pitch,
   setPitch,
   targetKey,

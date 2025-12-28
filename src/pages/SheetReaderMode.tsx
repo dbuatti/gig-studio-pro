@@ -11,7 +11,7 @@ import {
   Music, Loader2, AlertCircle, Settings, ExternalLink, ShieldCheck, 
   FileText, Layout, Guitar, Sparkles, ChevronLeft, ChevronRight, 
   List, X, Play, Pause, Volume2, Activity, Gauge, Maximize2, Minimize2,
-  ArrowLeft, Search, Hash, ChevronDown
+  ArrowLeft, Search, Hash, ChevronDown, RotateCcw
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
@@ -41,6 +41,8 @@ import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import SheetReaderHeader from '@/components/SheetReaderHeader';
+import SheetReaderFooter from '@/components/SheetReaderFooter';
 
 type ChartType = 'pdf' | 'leadsheet' | 'chords';
 
@@ -326,106 +328,94 @@ const SheetReaderMode: React.FC = () => {
 
   const handleUpdateKey = useCallback(async (newTargetKey: string) => {
     if (!currentSong || !user) return;
+
     const newPitch = calculateSemitones(currentSong.originalKey || 'C', newTargetKey);
+
     try {
       const { error } = await supabase
         .from('repertoire')
         .update({ target_key: newTargetKey, pitch: newPitch })
         .eq('id', currentSong.id);
-      if (error) throw error;
-      setAllSongs(prev => prev.map(s => s.id === currentSong.id ? { ...s, targetKey: newTargetKey, pitch: newPitch } : s));
+
+      if (error) {
+        console.error("[SheetReaderMode] Supabase update key error:", error);
+        if (error.message.includes("new row violates row-level-security")) {
+          showError("Database Security Error: You don't have permission to update this data. Check RLS policies.");
+        } else {
+          showError(`Failed to update key: ${error.message}`);
+        }
+        throw error;
+      }
+
+      setAllSongs(prev => prev.map(s =>
+        s.id === currentSong.id 
+          ? { ...s, targetKey: newTargetKey, pitch: newPitch } 
+          : s
+      ));
+
       setTargetKey(newTargetKey);
       setPitch(newPitch);
-      showSuccess(`Stage Key: ${newTargetKey}`);
-    } catch (err: any) {
-      showError(`Update failed: ${err.message}`);
+
+      showSuccess(`Stage Key set to ${newTargetKey}`);
+    } catch (err) {
+      // Error already logged and shown
     }
   }, [currentSong, user, setTargetKey, setPitch]);
 
   const handlePullKey = useCallback(async () => {
     if (!currentSong || !user || !currentSong.ug_chords_text) {
-      showError("No UG Chords text found.");
+      showError("No UG Chords text found to extract key.");
       return;
     }
+
     const extractedKey = extractKeyFromChords(currentSong.ug_chords_text);
+
     if (extractedKey) {
       try {
         const { error } = await supabase
           .from('repertoire')
-          .update({ original_key: extractedKey, target_key: extractedKey, pitch: 0, is_key_confirmed: true })
+          .update({ 
+            original_key: extractedKey,
+            target_key: extractedKey,
+            pitch: 0,
+            is_key_confirmed: true 
+          })
           .eq('id', currentSong.id);
-        if (error) throw error;
-        setAllSongs(prev => prev.map(s => s.id === currentSong.id ? { ...s, originalKey: extractedKey, targetKey: extractedKey, pitch: 0, isKeyConfirmed: true } : s));
+        
+        if (error) {
+          console.error("[SheetReaderMode] Supabase pull key error:", error);
+          if (error.message.includes("new row violates row-level-security")) {
+            showError("Database Security Error: You don't have permission to update this data. Check RLS policies.");
+          } else {
+            showError(`Failed to update key: ${error.message}`);
+          }
+          throw error;
+        }
+
+        setAllSongs(prev => prev.map(s => 
+          s.id === currentSong.id 
+            ? { ...s, originalKey: extractedKey, targetKey: extractedKey, pitch: 0, isKeyConfirmed: true } 
+            : s
+        ));
+
         setTargetKey(extractedKey);
         setPitch(0);
-        showSuccess(`Key extracted: ${extractedKey}`);
-      } catch (err: any) {
-        showError(`Pull failed: ${err.message}`);
+
+        showSuccess(`Key extracted and set to: ${extractedKey}`);
+      } catch (err) {
+        // Error already logged and shown
       }
     } else {
-      showError("Could not find a valid chord.");
+      showError("Could not find a valid chord in the UG text.");
     }
   }, [currentSong, user, setTargetKey, setPitch]);
 
-  // --- Keyboard Shortcuts ---
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || (e.target as HTMLElement).isContentEditable) return;
-
-      switch (e.key.toLowerCase()) {
-        case ' ':
-          e.preventDefault();
-          togglePlayback();
-          break;
-        case 'arrowright':
-          handleNext();
-          break;
-        case 'arrowleft':
-          handlePrev();
-          break;
-        case 'escape':
-          if (isSidebarOpen) setIsSidebarOpen(false);
-          else if (isStudioModalOpen) setIsStudioModalOpen(false);
-          else if (isPreferencesOpen) setIsPreferencesOpen(false);
-          else if (!isImmersive) navigate('/');
-          break;
-        case 'i':
-          if (!isSidebarOpen && !isStudioModalOpen && !isPreferencesOpen) {
-            setIsStudioModalOpen(true);
-          }
-          break;
-        case 's':
-          setChordAutoScrollEnabled(prev => !prev);
-          showInfo(`Auto-scroll ${!chordAutoScrollEnabled ? 'Enabled' : 'Disabled'}`);
-          break;
-        case 'm':
-          setIsImmersive(prev => !prev);
-          break;
-        case 'l':
-          setIsSidebarOpen(prev => !prev);
-          break;
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [togglePlayback, handleNext, handlePrev, isSidebarOpen, isStudioModalOpen, isPreferencesOpen, isImmersive, navigate, chordAutoScrollEnabled]);
-
-  // --- Chart Rendering Logic ---
-
-  const getBestChartType = useCallback((song: SetlistSong): ChartType => {
-    if (song.ug_chords_text?.trim()) return 'chords';
-    if (song.pdfUrl) return 'pdf';
-    if (song.leadsheetUrl) return 'leadsheet';
-    return 'pdf'; // Fallback
+  // NEW: isFramable check
+  const isFramable = useCallback((url: string | null | undefined) => {
+    if (!url) return true;
+    const blocked = ['ultimate-guitar.com', 'musicnotes.com', 'sheetmusicplus.com'];
+    return !blocked.some(site => url.includes(site));
   }, []);
-
-  // Auto-select best chart type when song changes
-  useEffect(() => {
-    if (currentSong) {
-      const best = getBestChartType(currentSong);
-      setSelectedChartType(best);
-    }
-  }, [currentSong, getBestChartType]);
 
   const [renderedCharts, setRenderedCharts] = useState<RenderedChart[]>([]);
 
@@ -473,7 +463,6 @@ const SheetReaderMode: React.FC = () => {
           />
         );
       }
-      // Fallback if chords type selected but no text
       return renderChartForSong(song, 'pdf');
     }
 
@@ -494,9 +483,8 @@ const SheetReaderMode: React.FC = () => {
 
     // PDF/Leadsheet Viewer Logic
     const googleViewer = `https://docs.google.com/viewer?url=${encodeURIComponent(chartUrl)}&embedded=true`;
-    const isFramable = !['ultimate-guitar.com', 'musicnotes.com', 'sheetmusicplus.com'].some(site => chartUrl.includes(site));
-
-    if (isFramable) {
+    
+    if (isFramable(chartUrl)) {
       // We use a custom iframe wrapper that handles scroll simulation
       return (
         <div className="w-full h-full relative bg-black overflow-hidden group">
@@ -611,6 +599,50 @@ const SheetReaderMode: React.FC = () => {
     return allSongs.filter(s => s.name.toLowerCase().includes(q) || s.artist?.toLowerCase().includes(q));
   }, [allSongs, sidebarSearch]);
 
+  // --- Keyboard Shortcuts ---
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || (e.target as HTMLElement).isContentEditable) return;
+
+      switch (e.key.toLowerCase()) {
+        case ' ':
+          e.preventDefault();
+          togglePlayback();
+          break;
+        case 'arrowright':
+          handleNext();
+          break;
+        case 'arrowleft':
+          handlePrev();
+          break;
+        case 'escape':
+          if (isSidebarOpen) setIsSidebarOpen(false);
+          else if (isStudioModalOpen) setIsStudioModalOpen(false);
+          else if (isPreferencesOpen) setIsPreferencesOpen(false);
+          else if (!isImmersive) navigate('/');
+          break;
+        case 'i':
+          if (!isSidebarOpen && !isStudioModalOpen && !isPreferencesOpen && currentSong) {
+            e.preventDefault();
+            setIsStudioModalOpen(true);
+          }
+          break;
+        case 's':
+          setChordAutoScrollEnabled(prev => !prev);
+          showInfo(`Auto-scroll ${!chordAutoScrollEnabled ? 'Enabled' : 'Disabled'}`);
+          break;
+        case 'm':
+          setIsImmersive(prev => !prev);
+          break;
+        case 'l':
+          setIsSidebarOpen(prev => !prev);
+          break;
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [togglePlayback, handleNext, handlePrev, isSidebarOpen, isStudioModalOpen, isPreferencesOpen, isImmersive, navigate, chordAutoScrollEnabled, currentSong]);
+
   // --- Render ---
   if (initialLoading) {
     return (
@@ -680,122 +712,28 @@ const SheetReaderMode: React.FC = () => {
       {/* Main Content */}
       <main className={cn("flex-1 flex flex-col overflow-hidden transition-all duration-300", isSidebarOpen && "ml-80")}>
         {/* Header */}
-        <header className="h-16 bg-slate-900/80 backdrop-blur-xl border-b border-white/10 px-6 flex items-center justify-between shrink-0 z-40">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="h-10 w-10 rounded-xl hover:bg-white/10">
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" onClick={handlePrev} className="h-9 w-9 rounded-lg hover:bg-white/10">
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              
-              <div className="flex-1 text-center min-w-[140px]">
-                {currentSong ? (
-                  <>
-                    <h2 className="text-sm font-black uppercase tracking-tight text-white line-clamp-1 leading-tight">
-                      {currentSong.name}
-                    </h2>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 line-clamp-1">
-                      {currentSong.artist || "Unknown Artist"}
-                    </p>
-                  </>
-                ) : (
-                  <p className="text-sm font-bold text-slate-500">No Song</p>
-                )}
-              </div>
-              
-              <Button variant="ghost" size="icon" onClick={handleNext} className="h-9 w-9 rounded-lg hover:bg-white/10">
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {/* Key & Pitch Controls */}
-            {currentSong && (
-              <div className="flex items-center gap-2 bg-white/5 p-1 rounded-xl border border-white/10">
-                {/* Pull Key */}
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={handlePullKey}
-                  className="h-8 px-2 bg-emerald-600/10 text-emerald-500 hover:bg-emerald-600 hover:text-white border border-emerald-600/20 rounded-lg font-black text-[9px] uppercase gap-1"
-                >
-                  <Sparkles className="w-3 h-3" /> Pull
-                </Button>
-
-                {/* Key Dropdown */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="h-8 px-2 text-xs font-mono font-bold text-indigo-300 hover:bg-white/10 rounded-lg">
-                      {formatKey(currentSong.targetKey || currentSong.originalKey, readerKeyPreference)} <ChevronDown className="w-3 h-3 opacity-50" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="bg-slate-900 border-white/10 text-white min-w-[100px]">
-                    {['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B', 'Cm', 'C#m', 'Dm', 'D#m', 'Em', 'Fm', 'F#m', 'Gm', 'G#m', 'Am', 'A#m', 'Bm'].map(k => (
-                      <DropdownMenuItem key={k} onSelect={() => handleUpdateKey(k)} className="font-mono font-bold text-xs">
-                        {k}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-
-                {/* Pitch Display */}
-                <div className="px-2 h-6 flex items-center justify-center bg-black/30 rounded-md border border-white/5">
-                  <span className="text-[9px] font-mono font-bold text-slate-400">
-                    {pitch > 0 ? '+' : ''}{pitch} ST
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Chart Type Selector */}
-            {currentSong && availableChartTypes.length > 1 && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="h-9 px-3 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 text-xs font-bold uppercase gap-2">
-                    {selectedChartType === 'pdf' && <Layout className="w-3.5 h-3.5" />}
-                    {selectedChartType === 'leadsheet' && <FileText className="w-3.5 h-3.5" />}
-                    {selectedChartType === 'chords' && <Guitar className="w-3.5 h-3.5" />}
-                    {selectedChartType === 'pdf' ? 'Score' : selectedChartType === 'leadsheet' ? 'Lead' : 'Chords'}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-slate-900 border-white/10 text-white">
-                  {availableChartTypes.includes('pdf') && (
-                    <DropdownMenuItem onSelect={() => setSelectedChartType('pdf')} className="text-xs font-bold">
-                      <Layout className="w-3.5 h-3.5 mr-2" /> Full Score
-                    </DropdownMenuItem>
-                  )}
-                  {availableChartTypes.includes('leadsheet') && (
-                    <DropdownMenuItem onSelect={() => setSelectedChartType('leadsheet')} className="text-xs font-bold">
-                      <FileText className="w-3.5 h-3.5 mr-2" /> Leadsheet
-                    </DropdownMenuItem>
-                  )}
-                  {availableChartTypes.includes('chords') && (
-                    <DropdownMenuItem onSelect={() => setSelectedChartType('chords')} className="text-xs font-bold">
-                      <Guitar className="w-3.5 h-3.5 mr-2" /> Chords
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-
-            {/* Utility Buttons */}
-            <div className="flex items-center gap-2 ml-2 border-l border-white/10 pl-3">
-              <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="h-9 w-9 rounded-xl hover:bg-white/10">
-                <List className="w-5 h-5" />
-              </Button>
-              <Button variant="ghost" size="icon" onClick={() => setIsImmersive(!isImmersive)} className="h-9 w-9 rounded-xl hover:bg-white/10">
-                {isImmersive ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
-              </Button>
-              <Button variant="ghost" size="icon" onClick={() => setIsPreferencesOpen(true)} className="h-9 w-9 rounded-xl hover:bg-white/10">
-                <Settings className="w-5 h-5" />
-              </Button>
-            </div>
-          </div>
-        </header>
+        <SheetReaderHeader
+          currentSong={currentSong}
+          onClose={() => navigate('/')}
+          onSearchClick={() => setIsStudioModalOpen(true)}
+          onPrevSong={handlePrev}
+          onNextSong={handleNext}
+          currentSongIndex={currentIndex}
+          totalSongs={allSongs.length}
+          isLoading={!currentSong}
+          keyPreference={globalKeyPreference}
+          onUpdateKey={handleUpdateKey}
+          isFullScreen={isImmersive}
+          onToggleFullScreen={() => setIsImmersive(!isImmersive)}
+          setIsOverlayOpen={setIsStudioModalOpen}
+          isOverrideActive={forceReaderResource !== 'default'}
+          pitch={pitch}
+          setPitch={setPitch}
+          readerKeyPreference={readerKeyPreference}
+          setReaderKeyPreference={setReaderKeyPreference}
+          onPullKey={handlePullKey}
+          onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
+        />
 
         {/* Missing Key Warning */}
         {isOriginalKeyMissing && (
@@ -831,100 +769,28 @@ const SheetReaderMode: React.FC = () => {
 
         {/* Footer Controls */}
         {!isImmersive && currentSong && (
-          <div className="h-20 bg-slate-900/80 backdrop-blur-xl border-t border-white/10 px-6 flex items-center justify-between shrink-0 z-40">
-            {/* Playback Controls */}
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" onClick={stopPlayback} className="h-10 w-10 rounded-xl hover:bg-white/10">
-                <RotateCcw className="w-5 h-5" />
-              </Button>
-              <Button 
-                onClick={togglePlayback} 
-                disabled={isLoadingAudio}
-                className={cn(
-                  "h-14 w-14 rounded-full shadow-2xl transition-all hover:scale-105 active:scale-95 flex items-center justify-center",
-                  isPlaying ? "bg-red-600 hover:bg-red-700 shadow-red-600/30" : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/30",
-                  isLoadingAudio && "opacity-50 cursor-not-allowed"
-                )}
-              >
-                {isLoadingAudio ? (
-                  <Loader2 className="w-7 h-7 animate-spin text-white" />
-                ) : (
-                  isPlaying ? <Pause className="w-7 h-7 text-white" /> : <Play className="w-7 h-7 ml-1 text-white" />
-                )}
-              </Button>
-            </div>
-
-            {/* Progress Bar */}
-            <div className="flex-1 mx-8 space-y-2 max-w-md">
-              <Slider 
-                value={[duration > 0 ? (progress / 100) * duration : 0]} 
-                max={duration} 
-                step={1} 
-                onValueChange={([v]) => setAudioProgress((v / duration) * 100)} 
-                className="w-full"
-                disabled={!currentSong?.previewUrl}
-              />
-              <div className="flex justify-between text-[10px] font-mono font-black text-slate-500 uppercase">
-                <span>{new Date((progress / 100) * duration * 1000).toISOString().substr(14, 5)}</span>
-                <span>{new Date(duration * 1000).toISOString().substr(14, 5)}</span>
-              </div>
-            </div>
-
-            {/* Contextual Controls (Change based on chart type) */}
-            <div className="flex items-center gap-6">
-              {selectedChartType === 'chords' && (
-                <div className="flex items-center gap-3 bg-white/5 p-2 rounded-xl border border-white/10">
-                  <div className="flex flex-col items-center">
-                    <Label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Auto-Scroll</Label>
-                    <Switch 
-                      checked={chordAutoScrollEnabled} 
-                      onCheckedChange={setChordAutoScrollEnabled}
-                      className="data-[state=checked]:bg-indigo-600"
-                    />
-                  </div>
-                  <div className="flex flex-col items-center">
-                    <Label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Speed</Label>
-                    <Slider 
-                      value={[chordScrollSpeed]} 
-                      min={0.5} max={2.0} step={0.05} 
-                      onValueChange={([v]) => setChordScrollSpeed(v)} 
-                      className="w-16 h-2"
-                      disabled={!chordAutoScrollEnabled}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {selectedChartType === 'pdf' && (
-                <div className="flex items-center gap-3 bg-white/5 p-2 rounded-xl border border-white/10">
-                  <div className="flex flex-col items-center">
-                    <Label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Simulated Scroll</Label>
-                    <Slider 
-                      value={[pdfScrollSpeed]} 
-                      min={1.0} max={3.0} step={0.1} 
-                      onValueChange={([v]) => setPdfScrollSpeed(v)} 
-                      className="w-20 h-2"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div className="flex items-center gap-4 pl-6 border-l border-white/10">
-                <div className="flex flex-col items-center">
-                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">BPM</span>
-                  <span className="text-sm font-black text-white font-mono">{currentSong?.bpm || "--"}</span>
-                </div>
-                <div className="flex flex-col items-center">
-                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Pitch</span>
-                  <span className="text-sm font-black text-white font-mono">{pitch > 0 ? '+' : ''}{pitch}</span>
-                </div>
-                <div className="flex flex-col items-center">
-                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Gain</span>
-                  <span className="text-sm font-black text-white font-mono">{Math.round(((volume || -6) + 60) * 1.66)}%</span>
-                </div>
-              </div>
-            </div>
-          </div>
+          <SheetReaderFooter
+            currentSong={currentSong}
+            isPlaying={isPlaying}
+            progress={progress}
+            duration={duration}
+            onTogglePlayback={togglePlayback}
+            onStopPlayback={stopPlayback}
+            onSetProgress={setAudioProgress}
+            pitch={pitch}
+            setPitch={setPitch}
+            volume={volume}
+            setVolume={setVolume}
+            keyPreference={globalKeyPreference}
+            chordAutoScrollEnabled={chordAutoScrollEnabled}
+            setChordAutoScrollEnabled={setChordAutoScrollEnabled}
+            chordScrollSpeed={chordScrollSpeed}
+            setChordScrollSpeed={setChordScrollSpeed}
+            isLoadingAudio={isLoadingAudio}
+            pdfScrollSpeed={pdfScrollSpeed}
+            setPdfScrollSpeed={setPdfScrollSpeed}
+            selectedChartType={selectedChartType}
+          />
         )}
       </main>
 
