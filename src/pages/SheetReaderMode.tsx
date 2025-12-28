@@ -91,16 +91,61 @@ const SheetReaderMode: React.FC = () => {
       is_pitch_linked: currentSong?.is_pitch_linked ?? true,
       ug_chords_text: currentSong?.ug_chords_text,
     },
-    handleAutoSave: useCallback((updates: Partial<SetlistSong>) => {
+    handleAutoSave: useCallback(async (updates: Partial<SetlistSong>) => {
       if (!currentSong || !user) return;
 
-      // Auto-save logic here if needed
+      // Filter out client-side-only properties before sending to Supabase
+      const dbUpdates: { [key: string]: any } = {};
+      
+      // Explicitly map SetlistSong properties to repertoire table columns
+      if (updates.name !== undefined) dbUpdates.title = updates.name;
+      if (updates.artist !== undefined) dbUpdates.artist = updates.artist;
+      if (updates.previewUrl !== undefined) dbUpdates.preview_url = updates.previewUrl;
+      if (updates.youtubeUrl !== undefined) dbUpdates.youtube_url = updates.youtubeUrl;
+      if (updates.ugUrl !== undefined) dbUpdates.ug_url = updates.ugUrl;
+      if (updates.appleMusicUrl !== undefined) dbUpdates.apple_music_url = updates.appleMusicUrl;
+      if (updates.pdfUrl !== undefined) dbUpdates.pdf_url = updates.pdfUrl;
+      if (updates.leadsheetUrl !== undefined) dbUpdates.leadsheet_url = updates.leadsheetUrl;
+      if (updates.originalKey !== undefined) dbUpdates.original_key = updates.originalKey;
+      if (updates.targetKey !== undefined) dbUpdates.target_key = updates.targetKey;
+      if (updates.pitch !== undefined) dbUpdates.pitch = updates.pitch;
+      if (updates.bpm !== undefined) dbUpdates.bpm = updates.bpm;
+      if (updates.genre !== undefined) dbUpdates.genre = updates.genre;
+      if (updates.isMetadataConfirmed !== undefined) dbUpdates.is_metadata_confirmed = updates.isMetadataConfirmed;
+      if (updates.isKeyConfirmed !== undefined) dbUpdates.is_key_confirmed = updates.isKeyConfirmed;
+      if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+      if (updates.lyrics !== undefined) dbUpdates.lyrics = updates.lyrics;
+      if (updates.resources !== undefined) dbUpdates.resources = updates.resources;
+      if (updates.user_tags !== undefined) dbUpdates.user_tags = updates.user_tags;
+      if (updates.is_pitch_linked !== undefined) dbUpdates.is_pitch_linked = updates.is_pitch_linked;
+      if (updates.duration_seconds !== undefined) dbUpdates.duration_seconds = updates.duration_seconds;
+      if (updates.is_active !== undefined) dbUpdates.is_active = updates.is_active;
+      if (updates.isApproved !== undefined) dbUpdates.is_approved = updates.isApproved;
+      if (updates.preferred_reader !== undefined) dbUpdates.preferred_reader = updates.preferred_reader;
+      if (updates.ug_chords_text !== undefined) dbUpdates.ug_chords_text = updates.ug_chords_text;
+      if (updates.ug_chords_config !== undefined) dbUpdates.ug_chords_config = updates.ug_chords_config;
+      if (updates.is_ug_chords_present !== undefined) dbUpdates.is_ug_chords_present = updates.is_ug_chords_present;
+      if (updates.highest_note_original !== undefined) dbUpdates.highest_note_original = updates.highest_note_original;
+      if (updates.metadata_source !== undefined) dbUpdates.metadata_source = updates.metadata_source;
+      if (updates.sync_status !== undefined) dbUpdates.sync_status = updates.sync_status;
+      if (updates.last_sync_log !== undefined) dbUpdates.last_sync_log = updates.last_sync_log;
+      if (updates.auto_synced !== undefined) dbUpdates.auto_synced = updates.auto_synced;
+      if (updates.sheet_music_url !== undefined) dbUpdates.sheet_music_url = updates.sheet_music_url;
+      
+      // Always update `updated_at`
+      dbUpdates.updated_at = new Date().toISOString();
+
+      console.log("[SheetReaderMode] Sending update to Supabase:", { id: currentSong.id, payload: dbUpdates });
+
       supabase
         .from('repertoire')
-        .update(updates)
+        .update(dbUpdates)
         .eq('id', currentSong.id)
         .then(({ error }) => {
-          if (error) showError('Auto-save failed');
+          if (error) {
+            console.error("Supabase Auto-save failed:", error);
+            showError('Auto-save failed');
+          }
           else {
             setAllSongs(prev => prev.map(s =>
               s.id === currentSong.id ? { ...s, ...updates } : s
@@ -170,6 +215,8 @@ const SheetReaderMode: React.FC = () => {
         is_ug_chords_present: d.is_ug_chords_present,
         is_ug_link_verified: d.is_ug_link_verified,
         is_pitch_linked: d.is_pitch_linked ?? true,
+        sheet_music_url: d.sheet_music_url,
+        is_sheet_verified: d.is_sheet_verified,
       }));
 
       const readableAndApprovedSongs = mappedSongs.filter(s => {
