@@ -80,8 +80,9 @@ const SheetReaderMode: React.FC = () => {
   const [chordAutoScrollEnabled, setChordAutoScrollEnabled] = useState(true);
   const [chordScrollSpeed, setChordScrollSpeed] = useState(1.0);
 
-  // NEW: Load Lock Ref to prevent infinite loops
-  const loadingSongIdRef = useRef<string | null>(null);
+  // NEW: Ref to track the ID of the song currently loaded in the engine
+  // This prevents the "State Collision Loop" where multiple songs fight for the engine.
+  const loadedSongIdRef = useRef<string | null>(null);
 
   // Harmonic Sync Hook
   const [formData, setFormData] = useState<Partial<SetlistSong>>({});
@@ -196,34 +197,32 @@ const SheetReaderMode: React.FC = () => {
     }
   }, [currentSong]);
 
-  // NEW: Stabilized Audio Loading Logic
+  // NEW: Stabilized Audio Loading Logic (The Fix)
   useEffect(() => {
-    // 1. Safety checks
+    // 1. Safety checks: Must have a valid song and URL
     if (!currentSong || !currentSong.previewUrl) {
       stopPlayback();
-      loadingSongIdRef.current = null; // Reset lock if no song
+      loadedSongIdRef.current = null; // Reset lock if no song
       return;
     }
 
-    // 2. Check if we are already loading this specific song
-    // If the ref matches the current song ID, we are already in the process.
-    // If the engine reports it's currently loading, we wait.
-    if (loadingSongIdRef.current === currentSong.id || isLoadingAudio) {
+    // 2. THE LOCK: Check if we are already processing this specific song ID
+    // If the engine is currently loading, or if the ref matches the current ID, do nothing.
+    if (loadedSongIdRef.current === currentSong.id || isLoadingAudio) {
       return;
     }
 
-    // 3. Check if the engine already has the correct buffer
-    // We compare the URL to ensure we aren't reloading the same file
+    // 3. Check if the engine already has the correct buffer (Cache Hit)
     if (audioEngine.currentUrl === currentSong.previewUrl && audioEngine.currentBuffer) {
       // Reset progress to 0 when switching songs, but don't reload audio
       setAudioProgress(0);
       return;
     }
 
-    // 4. Execute Load
+    // 4. Execute Load (The "Lock" is set here)
     const performLoad = async () => {
-      // Set the lock immediately
-      loadingSongIdRef.current = currentSong.id;
+      // Set the lock immediately to prevent other songs from entering this block
+      loadedSongIdRef.current = currentSong.id;
       
       // Reset engine to clear previous state
       resetEngine();
@@ -232,23 +231,20 @@ const SheetReaderMode: React.FC = () => {
       setTimeout(async () => {
         try {
           const initialPitch = typeof currentSong.pitch === 'number' ? currentSong.pitch : 0;
-          await loadFromUrl(currentSong.previewUrl, initialPitch, true);
+          
+          // CRITICAL: Removed `force: true`. 
+          // This allows the engine to use its cache if the user navigates back/forth quickly.
+          await loadFromUrl(currentSong.previewUrl, initialPitch); 
         } catch (error) {
           console.error("Audio load failed:", error);
           showError("Failed to load audio for this song.");
-          loadingSongIdRef.current = null; // Release lock on error
+          // Release lock on error so we can retry
+          loadedSongIdRef.current = null; 
         }
       }, 100);
     };
 
     performLoad();
-
-    // Cleanup function to release lock if component unmounts
-    return () => {
-      // We do NOT reset the ref here on unmount, 
-      // because we want to persist the lock if the user is just navigating quickly.
-      // However, if the song changes, the effect will run again and update the ref.
-    };
 
   }, [currentSong, loadFromUrl, stopPlayback, resetEngine, audioEngine.currentUrl, audioEngine.currentBuffer, isLoadingAudio, setAudioProgress]);
 
