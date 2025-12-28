@@ -67,6 +67,11 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
     return transposeChords(chordsText, n, activeKeyPreference);
   }, [chordsText, originalKey, targetKey, activeKeyPreference]);
 
+  // Diagnostic useEffect to confirm reactivity
+  useEffect(() => {
+    console.log('UGChordsReader re-calculating due to targetKey change:', targetKey);
+  }, [targetKey]);
+
   const readableChordColor = config.chordColor === "#000000" ? "#ffffff" : config.chordColor;
 
   const formattedHtml = useMemo(() => 
