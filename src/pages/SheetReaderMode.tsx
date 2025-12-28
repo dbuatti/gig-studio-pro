@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { useSettings } from '@/hooks/use-settings';
 import { calculateReadiness } from '@/utils/repertoireSync';
-import { showError, showSuccess } from '@/utils/toast';
+import { showError, showSuccess, showInfo } from '@/utils/toast';
 import UGChordsReader from '@/components/UGChordsReader';
 import { useToneAudio } from '@/hooks/use-tone-audio';
 import { calculateSemitones } from '@/utils/keyUtils';
@@ -36,6 +36,8 @@ interface RenderedChart {
   zIndex: number;
   type: ChartType;
 }
+
+const CHART_LOAD_TIMEOUT_MS = 5000; // 5 seconds timeout
 
 const SheetReaderMode: React.FC = () => {
   const navigate = useNavigate();
@@ -395,7 +397,7 @@ const SheetReaderMode: React.FC = () => {
                       title="Chart Viewer"
                       style={{ border: 'none' }}
                       allowFullScreen
-                      // Robust loading detection: Use onLoad + a fallback timeout
+                      // Use a timeout to force load completion if the iframe is blocked
                       onLoad={() => {
                           // Immediate attempt to mark loaded
                           onChartLoad(song.id, chartType);
@@ -473,6 +475,33 @@ const SheetReaderMode: React.FC = () => {
       });
   }, [currentSong, selectedChartType, renderChartForSong, handleChartLoad]);
 
+  // FIX 2: Define currentChartState before the useEffect that uses it
+  const currentChartState = useMemo(() => 
+    renderedCharts.find(c => c.id === currentSong?.id && c.type === selectedChartType),
+    [renderedCharts, currentSong?.id, selectedChartType]
+  );
+
+  // NEW: Chart Loading Timeout Effect
+  useEffect(() => {
+    if (currentChartState && !currentChartState.isLoaded && currentSong) {
+        const timeoutId = setTimeout(() => {
+            if (!currentChartState.isLoaded) {
+                console.warn(`[SheetReaderMode] Chart load timeout reached for ${currentSong.name} (${currentChartState.type}). Forcing loaded state.`);
+                // Force the chart to be marked as loaded to remove the spinner
+                setRenderedCharts(prev => prev.map(rc => 
+                    rc.id === currentSong.id && rc.type === selectedChartType ? { ...rc, isLoaded: true } : rc
+                ));
+                if (!ignoreConfirmedGate) {
+                    showInfo("Chart loading timed out. It may be blocked by security headers. Try opening externally.", { duration: 8000 });
+                }
+            }
+        }, CHART_LOAD_TIMEOUT_MS);
+
+        return () => clearTimeout(timeoutId);
+    }
+  }, [currentChartState, currentSong, selectedChartType, ignoreConfirmedGate]);
+
+
   // Chart selection logic
   const availableChartTypes = useMemo((): ChartType[] => {
     if (!currentSong) return [];
@@ -497,7 +526,6 @@ const SheetReaderMode: React.FC = () => {
     );
   }
   
-  const currentChartState = renderedCharts.find(c => c.id === currentSong?.id && c.type === selectedChartType);
   const isChartLoading = !currentChartState?.isLoaded;
 
   return (

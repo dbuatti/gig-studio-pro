@@ -38,6 +38,16 @@ interface SongStudioViewProps {
   onUpdateSetlistSongs?: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>;
 }
 
+const StudioTabConfig = {
+  config: { label: 'Config', icon: 'Settings2' },
+  audio: { label: 'Audio', icon: 'Volume2' },
+  details: { label: 'Details', icon: 'FileText' },
+  charts: { label: 'Charts', icon: 'Guitar' },
+  lyrics: { label: 'Lyrics', icon: 'AlignLeft' },
+  visual: { label: 'Visual', icon: 'Youtube' },
+  library: { label: 'Library', icon: 'Library' },
+};
+
 const SongStudioView: React.FC<SongStudioViewProps> = ({
   gigId,
   songId,
@@ -221,7 +231,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     };
   }, [songId, gigId]); // Only re-run if songId or gigId changes
 
-  const handleAutoSave = useCallback(async (updates: Partial<SetlistSong>) => {
+  const handleAutoSaveCallback = useCallback(async (updates: Partial<SetlistSong>) => {
     if (!song) return;
     
     setFormData(prev => {
@@ -294,7 +304,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           updates.bpm = "120";
         }
         
-        handleAutoSave(updates);
+        handleAutoSaveCallback(updates);
         showSuccess(`Imported metadata: ${track.trackName} - ${track.artistName}`);
         
         const currentFormData = { ...formData, ...updates };
@@ -323,7 +333,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     const extractedKey = extractKeyFromChords(formData.ug_chords_text);
 
     if (extractedKey) {
-      handleAutoSave({ 
+      handleAutoSaveCallback({ 
         originalKey: extractedKey, 
         targetKey: extractedKey, // Reset target to match original
         pitch: 0, // Reset pitch
@@ -336,7 +346,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   };
 
   const handleConfirmForSetlist = (checked: boolean) => {
-    handleAutoSave({ isApproved: checked });
+    handleAutoSaveCallback({ isApproved: checked });
     showSuccess(checked ? "Confirmed for Active Gig" : "Removed from Confirmed Status");
   };
 
@@ -490,7 +500,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
               activeTab={activeTab}
               song={song}
               formData={formData}
-              handleAutoSave={handleAutoSave}
+              handleAutoSave={handleAutoSaveCallback}
               onUpdateKey={setTargetKey}
               audioEngine={audio}
               isMobile={isMobile}
@@ -530,7 +540,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
       <ProSyncSearch
         isOpen={isProSyncSearchOpen}
         onClose={() => setIsProSyncSearchOpen(false)}
-        onSelect={(d) => handleAutoSave({ name: d.trackName, artist: d.artistName })}
+        onSelect={(d) => handleAutoSaveCallback({ name: d.trackName, artist: d.artistName })}
         initialQuery={`${formData.artist} ${formData.name}`}
       />
     </div>
