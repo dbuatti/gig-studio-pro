@@ -8,7 +8,7 @@ import { showError, showSuccess } from '@/utils/toast';
 import UGChordsEditor from './UGChordsEditor';
 import UGChordsReader from './UGChordsReader';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
-import { KeyPreference } from '@/hooks/use-settings';
+import { KeyPreference } from '@/hooks/use-settings'; // Import KeyPreference
 
 interface SongChartsTabProps {
   formData: Partial<SetlistSong>;
@@ -19,14 +19,12 @@ interface SongChartsTabProps {
   activeChartType: 'pdf' | 'leadsheet' | 'web' | 'ug';
   setActiveChartType: (type: 'pdf' | 'leadsheet' | 'web' | 'ug') => void;
   handleUgPrint: () => void;
-  // Auto-scroll props
+  // Auto-scroll props are no longer passed to UGChordsReader, but kept here if needed elsewhere in SongChartsTab
   isPlaying: boolean;
   progress: number;
   duration: number;
   chordAutoScrollEnabled: boolean;
   chordScrollSpeed: number;
-  setChordAutoScrollEnabled: (enabled: boolean) => void;
-  setChordScrollSpeed: (speed: number) => void;
   // Harmonic Sync Props
   pitch: number;
   setPitch: (pitch: number) => void;
@@ -34,9 +32,6 @@ interface SongChartsTabProps {
   setTargetKey: (targetKey: string) => void;
   isPitchLinked: boolean;
   setIsPitchLinked: (linked: boolean) => void;
-  // NEW: PDF Scroll Props
-  pdfScrollSpeed: number;
-  setPdfScrollSpeed: (speed: number) => void;
 }
 
 const SongChartsTab: React.FC<SongChartsTabProps> = ({
@@ -48,21 +43,19 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
   activeChartType,
   setActiveChartType,
   handleUgPrint,
+  // Auto-scroll props are no longer passed to UGChordsReader, but kept here if needed elsewhere in SongChartsTab
   isPlaying,
   progress,
   duration,
   chordAutoScrollEnabled,
   chordScrollSpeed,
-  setChordAutoScrollEnabled,
-  setChordScrollSpeed,
+  // Harmonic Sync Props
   pitch,
   setPitch,
   targetKey,
   setTargetKey,
   isPitchLinked,
   setIsPitchLinked,
-  pdfScrollSpeed,
-  setPdfScrollSpeed,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<"view" | "edit-ug">("view");
   const [isReaderExpanded, setIsReaderExpanded] = useState(false);
@@ -89,7 +82,7 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
     return isFramable(currentChartUrl);
   }, [activeChartType, formData.ugUrl, currentChartUrl, isFramable]);
 
-  // Auto-switch logic
+  // Auto-switch to UG tab if UG URL is saved and no PDF is present
   React.useEffect(() => {
     if (formData.ugUrl && !formData.pdfUrl && activeChartType !== 'ug') {
       setActiveChartType('ug');
@@ -169,7 +162,7 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
                 config={formData.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
                 isMobile={isMobile}
                 originalKey={formData.originalKey}
-                targetKey={targetKey}
+                targetKey={targetKey} // Use targetKey from hook
                 isPlaying={isPlaying}
                 progress={progress}
                 duration={duration}
@@ -192,7 +185,7 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
                   </p>
                   <Button 
                     onClick={() => window.open(currentChartUrl, '_blank')} 
-                    className="bg-indigo-600 hover:bg-indigo-700 h-16 md:h-20 px-10 md:px-16 font-black uppercase tracking-[0.2em] text-xs md:text-sm rounded-2xl md:rounded-3xl shadow-2xl gap-4 md:gap-6"
+                    className="bg-indigo-600 hover:bg-indigo-700 h-16 md:h-20 px-10 md:px-16 font-black uppercase tracking-[0.2em] text-xs md:text-sm rounded-2xl md:rounded-3xl shadow-2xl shadow-indigo-600/30 gap-4 md:gap-6"
                   >
                     <ExternalLink className="w-6 h-6 md:w-8 md:h-8" /> Launch Chart Window
                   </Button>
@@ -231,6 +224,7 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
           formData={formData} 
           handleAutoSave={handleAutoSave} 
           isMobile={isMobile} 
+          // Pass harmonic sync props
           pitch={pitch}
           setPitch={setPitch}
           targetKey={targetKey}

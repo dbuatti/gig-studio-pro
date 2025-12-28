@@ -36,7 +36,7 @@ export interface FilterState {
   hasUgChords: 'all' | 'yes' | 'no'; // NEW: Added hasUgChords filter
 }
 
-export const DEFAULT_FILTERS: FilterState = {
+const DEFAULT_FILTERS: FilterState = {
   hasAudio: 'all',
   hasVideo: 'all',
   hasChart: 'all',

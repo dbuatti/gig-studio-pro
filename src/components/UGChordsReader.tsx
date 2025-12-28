@@ -55,10 +55,22 @@ const UGChordsReader = React.memo(({
     }
     
     const n = calculateSemitones(originalKey, targetKey);
-    if (n === 0) return chordsText;
     
+    // DIAGNOSTIC LOGGING
+    console.log('UGChordsReader props:', { originalKey, targetKey, calculatedSemitones: n });
+    
+    if (n === 0) {
+      return chordsText;
+    }
+    
+    // Pass the stricter regex logic via the transposeChords utility
     return transposeChords(chordsText, n, activeKeyPreference);
   }, [chordsText, originalKey, targetKey, activeKeyPreference]);
+
+  // Diagnostic useEffect to confirm reactivity
+  useEffect(() => {
+    console.log('UGChordsReader re-calculating due to targetKey change:', targetKey);
+  }, [targetKey]);
 
   const readableChordColor = config.chordColor === "#000000" ? "#ffffff" : config.chordColor;
 
@@ -73,7 +85,6 @@ const UGChordsReader = React.memo(({
     [transposedChordsText, config, readableChordColor]
   );
 
-  // User interaction detection
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
@@ -106,7 +117,6 @@ const UGChordsReader = React.memo(({
     };
   }, []);
 
-  // Auto-scroll logic
   useEffect(() => {
     if (!chordAutoScrollEnabled || !scrollContainerRef.current || duration === 0 || isUserScrolling.current) {
       if (autoScrollRaf.current) cancelAnimationFrame(autoScrollRaf.current);
@@ -124,40 +134,20 @@ const UGChordsReader = React.memo(({
         return;
       }
 
-      // Calculate target scroll position based on progress and speed
-      // We map the progress (0-100) to the scrollable height
-      // Adjusted to start scrolling slightly after 0% and finish slightly before 100%
-      const normalizedProgress = Math.min(100, Math.max(0, progress));
-      const scrollFactor = (normalizedProgress / 100) * chordScrollSpeed;
-      
-      // Calculate target position: (progress * speed) * totalHeight
-      // We want to keep the current line centered-ish
-      let targetScroll = scrollFactor * scrollHeight;
-      
-      // Clamp target scroll
+      const adjustedProgress = (progress / 100) * chordScrollSpeed;
+      let targetScroll = (adjustedProgress * scrollHeight) - (container.clientHeight * 0.35);
       targetScroll = Math.max(0, Math.min(scrollHeight, targetScroll));
 
       const diff = targetScroll - container.scrollTop;
-      
-      // Smoothly interpolate scroll position
       if (Math.abs(diff) > 1) {
-        container.scrollTop += diff * 0.1; // 10% of the difference per frame
+        container.scrollTop += diff * 0.1;
         autoScrollRaf.current = requestAnimationFrame(performScroll);
       } else {
-        // If we are very close, just set it and wait for next progress update
         container.scrollTop = targetScroll;
-        // We don't request another frame here, we wait for the progress to change
-        // However, to keep it smooth, we can keep requesting if playing
-        if (isPlaying) {
-            autoScrollRaf.current = requestAnimationFrame(performScroll);
-        }
       }
     };
 
-    // Start the loop
-    if (isPlaying) {
-        autoScrollRaf.current = requestAnimationFrame(performScroll);
-    }
+    autoScrollRaf.current = requestAnimationFrame(performScroll);
 
     return () => {
       if (autoScrollRaf.current) cancelAnimationFrame(autoScrollRaf.current);

@@ -12,14 +12,14 @@ import YoutubeMediaManager from './YoutubeMediaManager';
 import { transposeKey } from '@/utils/keyUtils';
 import { cn } from '@/lib/utils';
 import { Youtube } from 'lucide-react';
-import { KeyPreference } from '@/hooks/use-settings';
+import { KeyPreference } from '@/hooks/use-settings'; // Import KeyPreference
 
 interface StudioTabContentProps {
   activeTab: 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library';
   song: SetlistSong | null;
   formData: Partial<SetlistSong>;
   handleAutoSave: (updates: Partial<SetlistSong>) => void;
-  onUpdateKey: (newTargetKey: string) => void;
+  onUpdateKey: (newTargetKey: string) => void; // Changed to accept only newTargetKey
   audioEngine: AudioEngineControls;
   isMobile: boolean;
   onLoadAudioFromUrl: (url: string, initialPitch: number) => Promise<void>;
@@ -47,13 +47,9 @@ interface StudioTabContentProps {
   duration: number;
   togglePlayback: () => void;
   stopPlayback: () => void;
-  // NEW: Props for SongChartsTab (Auto-scroll)
-  pdfScrollSpeed: number;
-  setPdfScrollSpeed: (speed: number) => void;
+  // NEW: Chord auto-scroll props
   chordAutoScrollEnabled: boolean;
   chordScrollSpeed: number;
-  setChordAutoScrollEnabled: (enabled: boolean) => void;
-  setChordScrollSpeed: (speed: number) => void;
 }
 
 const StudioTabContent: React.FC<StudioTabContentProps> = ({
@@ -61,7 +57,7 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
   song,
   formData,
   handleAutoSave,
-  onUpdateKey,
+  onUpdateKey, // This is now setTargetKey from useHarmonicSync
   audioEngine,
   isMobile,
   onLoadAudioFromUrl,
@@ -73,7 +69,7 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
   handleUgPrint,
   handleDownloadAll,
   onSwitchTab,
-  // Destructure SongConfigTab props
+  // Destructure SongConfigTab props (now from useHarmonicSync)
   pitch,
   setPitch,
   targetKey,
@@ -89,13 +85,9 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
   duration,
   togglePlayback,
   stopPlayback,
-  // NEW: Destructure auto-scroll props
-  pdfScrollSpeed,
-  setPdfScrollSpeed,
+  // NEW: Chord auto-scroll props
   chordAutoScrollEnabled,
   chordScrollSpeed,
-  setChordAutoScrollEnabled,
-  setChordScrollSpeed,
 }) => {
   switch (activeTab) {
     case 'config':
@@ -104,6 +96,7 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
           song={song}
           formData={formData}
           handleAutoSave={handleAutoSave}
+          // Pass harmonic sync props directly
           pitch={pitch}
           setPitch={setPitch}
           targetKey={targetKey}
@@ -130,9 +123,10 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
           audioEngine={audioEngine}
           isMobile={isMobile}
           onLoadAudioFromUrl={onLoadAudioFromUrl}
-          onSave={handleAutoSave}
-          onUpdateKey={setTargetKey}
+          onSave={handleAutoSave} // Pass handleAutoSave directly
+          onUpdateKey={setTargetKey} // Use setTargetKey from useHarmonicSync
           transposeKey={transposeKey}
+          // Pass harmonic sync props
           pitch={pitch}
           setPitch={setPitch}
           targetKey={targetKey}
@@ -145,7 +139,7 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
       return (
         <SongDetailsTab 
           formData={formData} 
-          handleAutoSave={handleAutoSave}
+          handleAutoSave={handleAutoSave} // Pass handleAutoSave directly
           isMobile={isMobile} 
         />
       );
@@ -160,22 +154,19 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
           activeChartType={activeChartType}
           setActiveChartType={setActiveChartType}
           handleUgPrint={handleUgPrint}
+          // NEW: Pass auto-scroll props
           isPlaying={isPlaying}
           progress={progress}
           duration={duration}
           chordAutoScrollEnabled={chordAutoScrollEnabled}
           chordScrollSpeed={chordScrollSpeed}
+          // Pass harmonic sync props to UGChordsEditor via SongChartsTab
           pitch={pitch}
           setPitch={setPitch}
           targetKey={targetKey}
           setTargetKey={setTargetKey}
           isPitchLinked={isPitchLinked}
           setIsPitchLinked={setIsPitchLinked}
-          // NEW: Pass PDF scroll props
-          pdfScrollSpeed={pdfScrollSpeed}
-          setPdfScrollSpeed={setPdfScrollSpeed}
-          setChordAutoScrollEnabled={setChordAutoScrollEnabled}
-          setChordScrollSpeed={setChordScrollSpeed}
         />
       );
     case 'lyrics':

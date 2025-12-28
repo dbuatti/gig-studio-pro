@@ -3,7 +3,7 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Play, Pause, RotateCcw, Gauge, Volume2, Activity, Guitar, ChevronDown, Loader2, Layout } from 'lucide-react';
+import { Play, Pause, RotateCcw, Gauge, Volume2, Activity, Check, Guitar, ChevronDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SetlistSong } from './SetlistManager';
 import { formatKey } from '@/utils/keyUtils';
@@ -19,20 +19,18 @@ interface SheetReaderFooterProps {
   onTogglePlayback: () => void;
   onStopPlayback: () => void;
   onSetProgress: (value: number) => void;
+  // Harmonic Sync Props
   pitch: number;
   setPitch: (pitch: number) => void;
   volume: number;
   setVolume: (value: number) => void;
   keyPreference: KeyPreference;
+  // NEW: Auto-scroll props
   chordAutoScrollEnabled: boolean;
   setChordAutoScrollEnabled: (enabled: boolean) => void;
   chordScrollSpeed: number;
   setChordScrollSpeed: (speed: number) => void;
-  isLoadingAudio: boolean;
-  // NEW: Props for PDF scroll
-  pdfScrollSpeed: number;
-  setPdfScrollSpeed: (speed: number) => void;
-  selectedChartType: 'pdf' | 'leadsheet' | 'chords';
+  isLoadingAudio: boolean; // NEW PROP
 }
 
 const SheetReaderFooter: React.FC<SheetReaderFooterProps> = ({
@@ -43,25 +41,26 @@ const SheetReaderFooter: React.FC<SheetReaderFooterProps> = ({
   onTogglePlayback,
   onStopPlayback,
   onSetProgress,
+  // Harmonic Sync Props
   pitch,
   setPitch,
   volume,
   setVolume,
   keyPreference,
+  // NEW: Auto-scroll props
   chordAutoScrollEnabled,
   setChordAutoScrollEnabled,
   chordScrollSpeed,
   setChordScrollSpeed,
-  isLoadingAudio,
-  pdfScrollSpeed,
-  setPdfScrollSpeed,
-  selectedChartType,
+  isLoadingAudio, // Destructure new prop
 }) => {
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
+
+  const displayKey = formatKey(currentSong?.targetKey || currentSong?.originalKey, keyPreference);
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 bg-slate-900/80 backdrop-blur-xl border-t border-white/10 px-6 py-3 flex items-center justify-between shadow-lg animate-in slide-in-from-bottom duration-300">
@@ -72,16 +71,16 @@ const SheetReaderFooter: React.FC<SheetReaderFooterProps> = ({
         
         <Button 
           onClick={onTogglePlayback} 
-          disabled={isLoadingAudio}
+          disabled={isLoadingAudio} // Disable button when loading
           className={cn(
-            "h-14 w-14 rounded-full shadow-2xl transition-all hover:scale-105 active:scale-95 flex items-center justify-center",
+            "h-14 w-14 rounded-full shadow-2xl transition-all hover:scale-105 active:scale-95",
             isPlaying 
               ? "bg-red-600 hover:bg-red-700 shadow-red-600/30" 
               : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/30",
-            isLoadingAudio && "opacity-50 cursor-not-allowed"
+            isLoadingAudio && "opacity-50 cursor-not-allowed" // Style when loading
           )}
         >
-          {isLoadingAudio ? (
+          {isLoadingAudio ? ( // Show spinner when loading
             <Loader2 className="w-7 h-7 animate-spin text-white" />
           ) : (
             isPlaying ? <Pause className="w-7 h-7 text-white" /> : <Play className="w-7 h-7 ml-1 text-white" />
@@ -105,14 +104,15 @@ const SheetReaderFooter: React.FC<SheetReaderFooterProps> = ({
       </div>
 
       <div className="flex items-center gap-6">
-        {/* Contextual Auto-Scroll Controls */}
-        {currentSong && selectedChartType === 'chords' && currentSong.ug_chords_text && (
+        {/* NEW: Chord Auto-Scroll Controls */}
+        {currentSong?.ug_chords_text && (
           <div className="flex items-center gap-4 bg-white/5 p-2 rounded-xl border border-white/10">
             <div className="flex flex-col items-center">
-              <Label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1.5 font-mono">
+              <Label htmlFor="chord-autoscroll" className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1.5 font-mono">
                 <Guitar className="w-3 h-3" /> Auto-Scroll
               </Label>
               <Switch 
+                id="chord-autoscroll" 
                 checked={chordAutoScrollEnabled} 
                 onCheckedChange={setChordAutoScrollEnabled}
                 className="data-[state=checked]:bg-indigo-600"
@@ -135,25 +135,6 @@ const SheetReaderFooter: React.FC<SheetReaderFooterProps> = ({
               <span className="text-[10px] font-mono font-bold text-slate-500 mt-1">{chordScrollSpeed.toFixed(2)}x</span>
             </div>
           </div>
-        )}
-
-        {currentSong && (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') && (
-           <div className="flex items-center gap-4 bg-white/5 p-2 rounded-xl border border-white/10">
-             <div className="flex flex-col items-center">
-               <Label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1.5 font-mono">
-                 <Layout className="w-3 h-3" /> Simulated Scroll
-               </Label>
-               <Slider 
-                 value={[pdfScrollSpeed]} 
-                 min={1.0} 
-                 max={3.0} 
-                 step={0.1} 
-                 onValueChange={([v]) => setPdfScrollSpeed(v)} 
-                 className="w-20"
-               />
-               <span className="text-[10px] font-mono font-bold text-slate-500 mt-1">{pdfScrollSpeed.toFixed(1)}x</span>
-             </div>
-           </div>
         )}
         
         <div className="flex flex-col items-center">

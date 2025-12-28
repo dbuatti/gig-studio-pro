@@ -10,7 +10,7 @@ import Landing from "./pages/Landing";
 import NotFound from "./pages/NotFound";
 import Profile from "./pages/Profile";
 import PublicRepertoire from "./pages/PublicRepertoire";
-import SheetReaderMode from "./pages/SheetReaderMode"; // Ensure this import is correct
+import SheetReaderMode from "./pages/SheetReaderMode";
 import SongStudio from "./pages/SongStudio";
 import GigEntry from "./pages/GigEntry";
 import PublicGigView from "./pages/PublicGigView";
@@ -19,7 +19,7 @@ const queryClient = new QueryClient();
 
 const RootRoute = () => {
   const { session, loading } = useAuth();
-  if (loading) return null; 
+  if (loading) return null; // Authenticated users go to Dashboard (Index), guests see Landing
   return session ? <Index /> : <Landing />;
 };
 
@@ -38,19 +38,21 @@ const App = () => (
         <Sonner position="top-center" />
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <Routes>
+            {/* Professional Root Routing */}
             <Route path="/" element={<RootRoute />} />
             <Route path="/login" element={<Login />} />
             <Route path="/repertoire/:slug" element={<PublicRepertoire />} />
             <Route path="/gig" element={<GigEntry />} />
             <Route path="/gig/:code" element={<PublicGigView />} />
+            {/* Specific Setlist Public View */}
             <Route path="/setlist/:id" element={<PublicGigView />} />
+            {/* Legacy dashboard redirect for backward compatibility */}
             <Route path="/dashboard" element={<Navigate to="/" replace />} />
             <Route path="/profile" element={
               <ProtectedRoute>
                 <Profile />
               </ProtectedRoute>
             } />
-            {/* Updated Route for Sheet Reader */}
             <Route path="/sheet-reader/:songId?" element={
               <ProtectedRoute>
                 <SheetReaderMode />
