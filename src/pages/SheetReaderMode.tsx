@@ -268,45 +268,46 @@ const SheetReaderMode: React.FC = () => {
 
   // Pull Key Feature
   const handlePullKey = useCallback(async () => {
-    if (!currentSong || !user || !currentSong.ug_chords_text) {
-      showError("No UG Chords text found to extract key.");
-      return;
+  if (!currentSong || !user || !currentSong.ug_chords_text) {
+    showError("No UG Chords text found to extract key.");
+    return;
+  }
+
+  const extractedKey = extractKeyFromChords(currentSong.ug_chords_text);
+
+  if (extractedKey) {
+    try {
+      const { error } = await supabase
+        .from('repertoire')
+        .update({ 
+          original_key: extractedKey,
+          target_key: extractedKey,
+          pitch: 0,
+          is_key_confirmed: true 
+        })
+        .eq('id', currentSong.id);
+      
+      if (error) throw error;
+
+      // ← THIS IS THE CRITICAL PART – FIX THE SPREAD SYNTAX
+      setAllSongs(prev => prev.map(s => 
+        s.id === currentSong.id 
+          ? { ...s, originalKey: extractedKey, targetKey: extractedKey, pitch: 0 } 
+          : s
+      ));
+
+      // Force immediate UI update
+      setTargetKey(extractedKey);
+      setPitch(0);
+
+      showSuccess(`Key extracted and set to: ${extractedKey}`);
+    } catch {
+      showError("Failed to update key in database.");
     }
-
-    const extractedKey = extractKeyFromChords(currentSong.ug_chords_text);
-
-    if (extractedKey) {
-      try {
-        const { error } = await supabase
-          .from('repertoire')
-          .update({ 
-            original_key: extractedKey,
-            target_key: extractedKey,
-            pitch: 0,
-            is_key_confirmed: true 
-          })
-          .eq('id', currentSong.id);
-        
-        if (error) throw error;
-
-        setAllSongs(prev => prev.map(s => 
-          s.id === currentSong.id 
-            ? { ...s, originalKey: extractedKey, targetKey: extractedKey, pitch: 0 } 
-            : s
-        ));
-
-        // Force immediate UI update
-        setTargetKey(extractedKey);
-        setPitch(0);
-
-        showSuccess(`Key extracted and set to: ${extractedKey}`);
-      } catch {
-        showError("Failed to update key in database.");
-      }
-    } else {
-      showError("Could not find a valid chord in the UG text.");
-    }
-  }, [currentSong, user, setTargetKey, setPitch]);
+  } else {
+    showError("Could not find a valid chord in the UG text.");
+  }
+}, [currentSong, user, setTargetKey, setPitch]);
 
   const isFramable = useCallback((url: string | null | undefined) => {
     if (!url) return true;
