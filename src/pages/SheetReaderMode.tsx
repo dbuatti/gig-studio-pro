@@ -556,6 +556,11 @@ const SheetReaderMode: React.FC = () => {
     }
   }, [currentSong, availableChartTypes, selectedChartType]);
 
+  // Sync internal pitch state with audio engine pitch
+  useEffect(() => {
+    setAudioPitch(pitch);
+  }, [pitch, setAudioPitch]);
+
   if (initialLoading) {
     return (
       <div className="h-screen bg-slate-950 flex items-center justify-center">
