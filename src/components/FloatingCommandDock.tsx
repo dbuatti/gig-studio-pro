@@ -3,11 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { 
-  LayoutDashboard, Search, Sparkles, ShieldCheck, X, 
-  Settings, Play, FileText, Pause, BookOpen, 
-  AlertTriangle, Volume2, ShieldAlert, Music, ListMusic
-} from 'lucide-react';
+import { LayoutDashboard, Search, Sparkles, ShieldCheck, X, Settings, Play, FileText, Pause, BookOpen, AlertTriangle, Volume2, ShieldAlert, Music, ListMusic } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSettings } from '@/hooks/use-settings';
@@ -33,10 +29,14 @@ interface FloatingCommandDockProps {
   currentSongPitch?: number;
   onSafePitchToggle?: (active: boolean, safePitch: number) => void;
   isReaderMode?: boolean; // New prop to indicate if in SheetReaderMode
-  activeSongId?: string | null; // New prop to pass active song ID
-  onSetMenuOpen?: (open: boolean) => void; // NEW: Callback to set menu open state in SheetReaderMode
-  onSetUiVisible?: (visible: boolean) => void; // NEW: Callback to set UI visible state in SheetReaderMode
-  isMenuOpen?: boolean; // NEW: Current menu open state from SheetReaderMode
+  // New prop to pass active song ID
+  activeSongId?: string | null;
+  // NEW: Callback to set menu open state in SheetReaderMode
+  onSetMenuOpen?: (open: boolean) => void;
+  // NEW: Callback to set UI visible state in SheetReaderMode
+  onSetUiVisible?: (visible: boolean) => void;
+  // NEW: Current menu open state from SheetReaderMode
+  isMenuOpen?: boolean;
 }
 
 /**
@@ -87,7 +87,6 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
         showError("Current pitch exceeds safe limit. Resetting.");
         return;
       }
-      
       onSafePitchToggle?.(true, safePitchLimit);
       showSuccess(`Safe Pitch Mode Active: Max shift ${safePitchLimit} semitones`);
     } else if (!isSafePitchActive) {
@@ -176,7 +175,9 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
       onClick: onToggleHeatmap,
       className: cn(
         "transition-colors",
-        showHeatmap ? "bg-amber-500 text-black" : "bg-slate-800 text-slate-400"
+        showHeatmap 
+          ? "bg-amber-500 text-black" 
+          : "bg-slate-800 text-slate-400"
       ),
       tooltip: "Heatmap Overlay (H)",
     },
@@ -186,7 +187,9 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
       onClick: toggleSafePitch,
       className: cn(
         "transition-colors",
-        isSafePitchActive ? "bg-emerald-600 text-white shadow-[0_0_10px_rgba(16,185,129,0.4)]" : "bg-slate-800 text-slate-400"
+        isSafePitchActive 
+          ? "bg-emerald-600 text-white shadow-[0_0_10px_rgba(16,185,129,0.4)]" 
+          : "bg-slate-800 text-slate-400"
       ),
       tooltip: isSafePitchActive ? "Safe Pitch Mode: ON" : "Safe Pitch Mode: OFF",
     },
@@ -197,21 +200,23 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     return (
       <TooltipProvider>
         <div className="fixed bottom-8 right-8 z-[250]">
-          <Button
-            variant="ghost"
-            size="icon"
+          <Button 
+            variant="ghost" 
+            size="icon" 
             onClick={() => {
               onSetUiVisible?.(true); // Ensure UI is visible
               onSetMenuOpen?.(!isMenuOpen); // Toggle the menu (isOverlayOpen in SheetReaderMode)
             }}
             className={cn(
               "h-14 w-14 rounded-full transition-all duration-500 bg-black/40 backdrop-blur-xl border border-white/5 shadow-2xl",
-              isMenuOpen ? "text-white rotate-90" : "text-slate-400 hover:text-white" // Use isMenuOpen prop here
+              isMenuOpen 
+                ? "text-white rotate-90" 
+                : "text-slate-400 hover:text-white" // Use isMenuOpen prop here
             )}
           >
-            {isMenuOpen ? <X className="w-6 h-6" /> : <ListMusic className="w-6 h-6" />} {/* Use isMenuOpen prop here */}
+            {isMenuOpen ? <X className="w-6 h-6" /> : <ListMusic className="w-6 h-6" />} {/* Use isMenuOpen prop here to control visibility of secondary buttons */}
           </Button>
-
+          
           <AnimatePresence>
             {isMenuOpen && ( // Use isMenuOpen prop here to control visibility of secondary buttons
               <motion.div
@@ -223,11 +228,11 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                 {secondaryButtons.map((btn) => (
                   <Tooltip key={btn.id}>
                     <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => { 
-                          btn.onClick(); 
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => {
+                          btn.onClick();
                           onSetMenuOpen?.(false); // Close the menu after clicking a secondary button
                           onSetUiVisible?.(true); // Ensure UI is visible on secondary button click
                         }}
@@ -241,11 +246,12 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                     </TooltipContent>
                   </Tooltip>
                 ))}
+                
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
                       onClick={() => {
                         onTogglePlayback();
                         onSetUiVisible?.(true); // Ensure UI is visible on play/pause
@@ -277,7 +283,6 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   return (
     <TooltipProvider>
       <div className="fixed bottom-8 right-8 z-[250] flex flex-col items-center gap-4">
-        
         {/* Secondary Radial Hub (Vertical Fan) */}
         <AnimatePresence>
           {isCommandHubOpen && (
@@ -290,10 +295,13 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
               {secondaryButtons.map((btn) => (
                 <Tooltip key={btn.id}>
                   <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => { btn.onClick(); setIsCommandHubOpen(false); }}
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => {
+                        btn.onClick();
+                        setIsCommandHubOpen(false);
+                      }}
                       className={cn("h-12 w-12 rounded-full border shadow-xl", btn.className)}
                     >
                       {btn.icon}
@@ -311,27 +319,29 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
         {/* Horizontal Primary Dock */}
         <div className="flex items-center gap-3 bg-black/40 backdrop-blur-xl p-2 rounded-full border border-white/5 shadow-2xl">
           {/* Hub Trigger */}
-          <Button
-            variant="ghost"
-            size="icon"
+          <Button 
+            variant="ghost" 
+            size="icon" 
             onClick={toggleCommandHub}
             className={cn(
               "h-14 w-14 rounded-full transition-all duration-500",
-              isCommandHubOpen ? "bg-slate-200 text-black rotate-90" : "bg-white/5 text-slate-400 hover:text-white"
+              isCommandHubOpen 
+                ? "bg-slate-200 text-black rotate-90" 
+                : "bg-white/5 text-slate-400 hover:text-white"
             )}
           >
             {isCommandHubOpen ? <X className="w-6 h-6" /> : <LayoutDashboard className="w-6 h-6" />}
           </Button>
-
+          
           <div className="h-8 w-px bg-white/10 mx-1" />
-
+          
           {/* Core Performance Tools */}
           {primaryButtons.map((btn) => (
             <Tooltip key={btn.id}>
               <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
                   disabled={btn.disabled}
                   onClick={btn.onClick}
                   className={cn("h-14 w-14 rounded-full transition-all active:scale-90 disabled:opacity-20", btn.className)}
@@ -351,4 +361,5 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
 });
 
 FloatingCommandDock.displayName = 'FloatingCommandDock';
+
 export default FloatingCommandDock;

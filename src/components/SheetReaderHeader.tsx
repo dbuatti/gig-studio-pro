@@ -7,14 +7,7 @@ import { cn } from '@/lib/utils';
 import { formatKey, ALL_KEYS_SHARP, ALL_KEYS_FLAT } from '@/utils/keyUtils';
 import { SetlistSong } from './SetlistManager';
 import { KeyPreference } from '@/hooks/use-settings';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger,
-  DropdownMenuPortal,
-  DropdownMenuSeparator
-} from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuPortal, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface SheetReaderHeaderProps {
@@ -35,7 +28,7 @@ interface SheetReaderHeaderProps {
   // Harmonic Sync Props
   pitch: number;
   setPitch: (pitch: number) => void;
-  // NEW: Props for override
+  // NEW: Props for override readerKeyPreference
   readerKeyPreference: 'sharps' | 'flats';
   setReaderKeyPreference: (pref: 'sharps' | 'flats') => void;
 }
@@ -62,7 +55,6 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   // Use the reader specific preference for display
   const rawTargetKey = currentSong?.targetKey || currentSong?.originalKey;
   const displayKey = rawTargetKey ? formatKey(rawTargetKey, readerKeyPreference) : null;
-
   const keysToUse = readerKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
 
   return (
@@ -71,10 +63,18 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
         <Button variant="ghost" size="icon" onClick={onClose} className="h-10 w-10 rounded-xl hover:bg-white/10 text-slate-400">
           <ArrowLeft className="w-5 h-5" />
         </Button>
+        
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={onPrevSong} disabled={isLoading} className="h-9 w-9 rounded-lg hover:bg-white/10 text-slate-400">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={onPrevSong} 
+            disabled={isLoading}
+            className="h-9 w-9 rounded-lg hover:bg-white/10 text-slate-400"
+          >
             <ChevronLeft className="w-4 h-4" />
           </Button>
+          
           <div className="flex-1 text-center min-w-[120px]">
             {isLoading ? (
               <Loader2 className="w-5 h-5 animate-spin text-indigo-400 mx-auto" />
@@ -87,7 +87,14 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
               <p className="text-sm font-bold text-slate-500">No Song</p>
             )}
           </div>
-          <Button variant="ghost" size="icon" onClick={onNextSong} disabled={isLoading} className="h-9 w-9 rounded-lg hover:bg-white/10 text-slate-400">
+          
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={onNextSong} 
+            disabled={isLoading}
+            className="h-9 w-9 rounded-lg hover:bg-white/10 text-slate-400"
+          >
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
@@ -100,7 +107,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
             <span className="text-[9px] font-black uppercase tracking-widest text-red-400">DEBUG ACTIVE</span>
           </div>
         )}
-
+        
         {currentSong && (
           <div className="flex items-center gap-2">
             {/* NEW: Key Preference Override Toggle */}
@@ -119,21 +126,17 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="bg-slate-900 border-white/10 text-white z-[300]">
-                <DropdownMenuItem 
-                  onClick={() => setReaderKeyPreference('sharps')} 
-                  className="font-bold cursor-pointer flex items-center justify-between"
-                >
-                  <span>Sharps</span> {readerKeyPreference === 'sharps' && <span className="text-emerald-500">✓</span>}
+                <DropdownMenuItem onClick={() => setReaderKeyPreference('sharps')} className="font-bold cursor-pointer flex items-center justify-between">
+                  <span>Sharps</span>
+                  {readerKeyPreference === 'sharps' && <span className="text-emerald-500">✓</span>}
                 </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => setReaderKeyPreference('flats')} 
-                  className="font-bold cursor-pointer flex items-center justify-between"
-                >
-                  <span>Flats</span> {readerKeyPreference === 'flats' && <span className="text-emerald-500">✓</span>}
+                <DropdownMenuItem onClick={() => setReaderKeyPreference('flats')} className="font-bold cursor-pointer flex items-center justify-between">
+                  <span>Flats</span>
+                  {readerKeyPreference === 'flats' && <span className="text-emerald-500">✓</span>}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-
+            
             {/* Existing Key Signature Dropdown */}
             <DropdownMenu onOpenChange={setIsOverlayOpen}>
               <DropdownMenuTrigger asChild>
@@ -162,11 +165,22 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
             </DropdownMenu>
           </div>
         )}
-
-        <Button variant="ghost" size="icon" onClick={onSearchClick} className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400">
+        
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={onSearchClick}
+          className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
+        >
           <Search className="w-5 h-5" />
         </Button>
-        <Button variant="ghost" size="icon" onClick={onToggleFullScreen} className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400">
+        
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={onToggleFullScreen}
+          className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
+        >
           {isFullScreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
         </Button>
       </div>

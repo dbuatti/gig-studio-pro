@@ -73,7 +73,6 @@ const SheetReaderMode: React.FC = () => {
     volume,
     setVolume,
     resetEngine,
-    isLoadingAudio, // Destructure this
   } = audioEngine;
 
   // Auto-scroll state
@@ -104,7 +103,6 @@ const SheetReaderMode: React.FC = () => {
   const fetchSongs = useCallback(async () => {
     if (!user) return;
     setInitialLoading(true);
-    console.log('[SheetReaderMode] fetchSongs: Starting fetch');
     try {
       const { data, error } = await supabase
         .from('repertoire')
@@ -147,7 +145,6 @@ const SheetReaderMode: React.FC = () => {
         return hasChart && meetsReadiness;
       });
 
-      console.log(`[SheetReaderMode] fetchSongs: Found ${readableAndApprovedSongs.length} readable songs`);
       setAllSongs(readableAndApprovedSongs);
 
       // Determine initial index
@@ -161,23 +158,19 @@ const SheetReaderMode: React.FC = () => {
           const parsed = parseInt(savedIndex, 10);
           if (!isNaN(parsed) && parsed >= 0 && parsed < readableAndApprovedSongs.length) {
             initialIndex = parsed;
-            console.log(`[SheetReaderMode] fetchSongs: Using saved index ${initialIndex}`);
           }
         }
       } else {
         const idx = readableAndApprovedSongs.findIndex((s) => s.id === targetId);
         if (idx !== -1) initialIndex = idx;
-        console.log(`[SheetReaderMode] fetchSongs: Using route index ${initialIndex}`);
       }
       
       setCurrentIndex(initialIndex);
 
     } catch (err) {
-      console.error('[SheetReaderMode] fetchSongs error:', err);
       showError('Failed to load repertoire');
     } finally {
       setInitialLoading(false);
-      console.log('[SheetReaderMode] fetchSongs: Finished');
     }
   }, [user, routeSongId, searchParams, forceReaderResource, ignoreConfirmedGate]);
 
@@ -191,7 +184,6 @@ const SheetReaderMode: React.FC = () => {
   // Update formData for useHarmonicSync when currentSong changes
   useEffect(() => {
     if (currentSong) {
-      console.log(`[SheetReaderMode] currentSong changed to: ${currentSong.name}`);
       setFormData({ 
         originalKey: currentSong.originalKey, 
         targetKey: currentSong.targetKey, 
@@ -203,51 +195,30 @@ const SheetReaderMode: React.FC = () => {
 
   // Load audio when song changes
   useEffect(() => {
-    if (!currentSong) {
-      console.log('[SheetReaderMode] No currentSong, stopping playback');
+    if (!currentSong?.previewUrl) {
       stopPlayback();
       return;
     }
 
-    if (!currentSong.previewUrl) {
-      console.log(`[SheetReaderMode] Song "${currentSong.name}" has no previewUrl, stopping playback`);
-      stopPlayback();
-      return;
-    }
-
-    console.log(`[SheetReaderMode] Audio Effect Triggered for: ${currentSong.name}`);
-    console.log(`[SheetReaderMode] Current Engine State -> URL: ${audioEngine.currentUrl}, Buffer: ${!!audioEngine.currentBuffer}, IsLoading: ${isLoadingAudio}`);
-
-    // FIX: Check if we are already loading THIS specific URL
-    if (isLoadingAudio && audioEngine.currentUrl === currentSong.previewUrl) {
-      console.log('[SheetReaderMode] Already loading this exact URL. Waiting...');
-      return;
-    }
-
-    // FIX: Check if we already have this URL loaded
-    if (audioEngine.currentUrl === currentSong.previewUrl && audioEngine.currentBuffer) {
-      console.log('[SheetReaderMode] Audio already loaded for this URL. Resetting progress.');
-      setAudioProgress(0);
-      return;
-    }
-
-    // If we are switching to a NEW URL, we must reset the engine first to clear the "isLoading" flag
+    // FIX: Reset engine state to ensure loading wheel logic works correctly
+    // This forces the "Already loading" check to pass if we are switching songs
     if (audioEngine.currentUrl !== currentSong.previewUrl) {
-      console.log('[SheetReaderMode] URL changed. Resetting engine before loading new URL.');
-      resetEngine();
+        resetEngine();
     }
 
-    // Trigger the load
-    console.log(`[SheetReaderMode] Calling loadFromUrl for: ${currentSong.previewUrl} with pitch: ${pitch || 0}`);
-    loadFromUrl(currentSong.previewUrl, pitch || 0, true);
-
-  }, [currentSong, loadFromUrl, stopPlayback, pitch, setAudioProgress, audioEngine.currentUrl, audioEngine.currentBuffer, resetEngine, isLoadingAudio]);
+    // Use force=true to bypass the "Already loading" check if we are in a stuck state
+    if (audioEngine.currentUrl !== currentSong.previewUrl || !audioEngine.currentBuffer) {
+      loadFromUrl(currentSong.previewUrl, pitch || 0, true);
+    } else {
+      setAudioProgress(0);
+    }
+  }, [currentSong, loadFromUrl, stopPlayback, pitch, setAudioProgress, audioEngine.currentUrl, audioEngine.currentBuffer, resetEngine]);
 
   // Update URL and Persistence when song changes
   useEffect(() => {
     if (currentSong) {
-      console.log(`[SheetReaderMode] Updating URL params and localStorage for index ${currentIndex}`);
       setSearchParams({ id: currentSong.id }, { replace: true });
+      // NEW: Save index to localStorage
       localStorage.setItem('reader_last_index', currentIndex.toString());
     }
   }, [currentSong, currentIndex, setSearchParams]);
@@ -256,7 +227,6 @@ const SheetReaderMode: React.FC = () => {
   const handleNext = useCallback(() => {
     if (allSongs.length === 0) return;
     const nextIndex = (currentIndex + 1) % allSongs.length;
-    console.log(`[SheetReaderMode] handleNext: Moving to index ${nextIndex}`);
     setCurrentIndex(nextIndex);
     stopPlayback();
   }, [currentIndex, allSongs.length, stopPlayback]);
@@ -264,7 +234,6 @@ const SheetReaderMode: React.FC = () => {
   const handlePrev = useCallback(() => {
     if (allSongs.length === 0) return;
     const prevIndex = (currentIndex - 1 + allSongs.length) % allSongs.length;
-    console.log(`[SheetReaderMode] handlePrev: Moving to index ${prevIndex}`);
     setCurrentIndex(prevIndex);
     stopPlayback();
   }, [currentIndex, allSongs.length, stopPlayback]);
@@ -272,7 +241,6 @@ const SheetReaderMode: React.FC = () => {
   // === Key Update ===
   const handleUpdateKey = useCallback(async (newTargetKey: string) => {
     if (!currentSong || !user) return;
-    console.log(`[SheetReaderMode] handleUpdateKey: ${newTargetKey}`);
     
     setTargetKey(newTargetKey);
 
@@ -335,6 +303,7 @@ const SheetReaderMode: React.FC = () => {
             duration={duration}
             chordAutoScrollEnabled={chordAutoScrollEnabled}
             chordScrollSpeed={chordScrollSpeed}
+            // Pass the reader override
             readerKeyPreference={readerKeyPreference}
           />
         );

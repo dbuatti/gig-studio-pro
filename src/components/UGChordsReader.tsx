@@ -1,4 +1,5 @@
 "use client";
+
 import React, { useMemo, useRef, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { formatChordText, transposeChords } from '@/utils/chordUtils';
@@ -29,9 +30,9 @@ interface UGChordsReaderProps {
   readerKeyPreference?: 'sharps' | 'flats';
 }
 
-const UGChordsReader: React.FC<UGChordsReaderProps> = ({ 
-  chordsText, 
-  config, 
+const UGChordsReader: React.FC<UGChordsReaderProps> = ({
+  chordsText,
+  config,
   isMobile,
   originalKey,
   targetKey,
@@ -46,7 +47,7 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
   // Use reader override if provided, otherwise fall back to global
   const { keyPreference: globalKeyPreference } = useSettings();
   const activeKeyPreference = readerKeyPreference || globalKeyPreference;
-
+  
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLPreElement>(null);
   const isUserScrolling = useRef(false);
@@ -61,7 +62,6 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
     }
     
     const n = calculateSemitones(originalKey, targetKey);
-    
     if (n === 0) {
       return chordsText;
     }
@@ -73,13 +73,16 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
   // Ensure chords are readable on dark background if color is set to black
   const readableChordColor = config.chordColor === "#000000" ? "#ffffff" : config.chordColor;
 
-  const formattedHtml = useMemo(() => formatChordText(transposedChordsText, {
-    fontFamily: config.fontFamily,
-    fontSize: config.fontSize,
-    chordBold: config.chordBold,
-    chordColor: readableChordColor,
-    lineSpacing: config.lineSpacing
-  }), [transposedChordsText, config, readableChordColor]);
+  const formattedHtml = useMemo(() => 
+    formatChordText(transposedChordsText, {
+      fontFamily: config.fontFamily,
+      fontSize: config.fontSize,
+      chordBold: config.chordBold,
+      chordColor: readableChordColor,
+      lineSpacing: config.lineSpacing
+    }), 
+    [transposedChordsText, config, readableChordColor]
+  );
 
   // Auto-scroll logic
   useEffect(() => {
@@ -95,7 +98,7 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
       if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
       scrollTimeoutRef.current = setTimeout(() => {
         isUserScrolling.current = false;
-      }, 3000); 
+      }, 3000);
     };
 
     container.addEventListener('wheel', handleUserInteractionStart, { passive: true });
@@ -159,13 +162,13 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
   }, [onLoad, chordsText]);
 
   return (
-    <div
+    <div 
       ref={scrollContainerRef}
       className={cn(
         "flex-1 bg-slate-950 rounded-xl p-4 overflow-auto border border-white/10 font-mono custom-scrollbar flex flex-col",
         isMobile ? "text-sm" : "text-base"
       )}
-      style={{
+      style={{ 
         fontFamily: config.fontFamily,
         fontSize: `${config.fontSize}px`,
         lineHeight: config.lineSpacing,
@@ -178,8 +181,8 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
         <pre 
           ref={contentRef}
           // FIX: Use whitespace-pre to prevent wrapping, preserving exact formatting
-          className="whitespace-pre font-inherit h-full" 
-          dangerouslySetInnerHTML={{ __html: formattedHtml }} 
+          className="whitespace-pre font-inherit h-full"
+          dangerouslySetInnerHTML={{ __html: formattedHtml }}
         />
       ) : (
         <div className="h-full flex items-center justify-center text-slate-500 text-sm">

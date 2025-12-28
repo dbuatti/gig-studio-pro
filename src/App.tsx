@@ -19,19 +19,14 @@ const queryClient = new QueryClient();
 
 const RootRoute = () => {
   const { session, loading } = useAuth();
-  
-  if (loading) return null;
-  
-  // Authenticated users go to Dashboard (Index), guests see Landing
+  if (loading) return null; // Authenticated users go to Dashboard (Index), guests see Landing
   return session ? <Index /> : <Landing />;
 };
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, loading } = useAuth();
-  
   if (loading) return null;
   if (!session) return <Navigate to="/login" />;
-  
   return <>{children}</>;
 };
 
@@ -45,18 +40,14 @@ const App = () => (
           <Routes>
             {/* Professional Root Routing */}
             <Route path="/" element={<RootRoute />} />
-            
             <Route path="/login" element={<Login />} />
             <Route path="/repertoire/:slug" element={<PublicRepertoire />} />
             <Route path="/gig" element={<GigEntry />} />
             <Route path="/gig/:code" element={<PublicGigView />} />
-            
             {/* Specific Setlist Public View */}
             <Route path="/setlist/:id" element={<PublicGigView />} />
-
             {/* Legacy dashboard redirect for backward compatibility */}
             <Route path="/dashboard" element={<Navigate to="/" replace />} />
-
             <Route path="/profile" element={
               <ProtectedRoute>
                 <Profile />
