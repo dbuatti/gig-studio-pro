@@ -252,9 +252,11 @@ const SheetReaderMode: React.FC = () => {
 
       if (error) throw error;
 
-      setAllSongs(prev => prev.map(s =>
-        s.id === currentSong.id ? { ...s, targetKey: newTargetKey, pitch: newPitch } : s
-      ));
+setAllSongs(prev => prev.map(s =>
+  s.id === currentSong.id 
+    ? { ...s, targetKey: newTargetKey, pitch: newPitch } 
+    : s
+));
 
       // Immediately reflect in UI
       setTargetKey(newTargetKey);
