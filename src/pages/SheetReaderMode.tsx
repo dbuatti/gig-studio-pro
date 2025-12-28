@@ -143,7 +143,9 @@ const SheetReaderMode: React.FC = () => {
         .eq('id', currentSong.id)
         .then(({ error }) => {
           if (error) {
-            console.error("Supabase Auto-save failed:", error);
+            console.error("[SheetReaderMode] Supabase Auto-save failed:", error);
+            if (error.message) console.error("Supabase Error Message:", error.message);
+            if (error.details) console.error("Supabase Error Details:", error.details);
             showError('Auto-save failed');
           }
           else {
@@ -307,7 +309,13 @@ const SheetReaderMode: React.FC = () => {
         .update({ target_key: newTargetKey, pitch: newPitch })
         .eq('id', currentSong.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error("[SheetReaderMode] Supabase update key error:", error);
+        if (error.message) console.error("Supabase Error Message:", error.message);
+        if (error.details) console.error("Supabase Error Details:", error.details);
+        showError(`Failed to update key: ${error.message}`);
+        throw error; // Re-throw to stop further processing
+      }
 
       setAllSongs(prev => prev.map(s =>
         s.id === currentSong.id 
@@ -320,8 +328,8 @@ const SheetReaderMode: React.FC = () => {
       setPitch(newPitch);
 
       showSuccess(`Stage Key set to ${newTargetKey}`);
-    } catch {
-      showError('Failed to update key');
+    } catch (err) {
+      // Error already logged and shown by the `if (error)` block
     }
   }, [currentSong, user, setTargetKey, setPitch]);
 
@@ -346,7 +354,13 @@ const SheetReaderMode: React.FC = () => {
           })
           .eq('id', currentSong.id);
         
-        if (error) throw error;
+        if (error) {
+          console.error("[SheetReaderMode] Supabase pull key error:", error);
+          if (error.message) console.error("Supabase Error Message:", error.message);
+          if (error.details) console.error("Supabase Error Details:", error.details);
+          showError(`Failed to update key: ${error.message}`);
+          throw error; // Re-throw to stop further processing
+        }
 
         // FIX: Correctly update the state array with the new properties
         setAllSongs(prev => prev.map(s => 
@@ -360,8 +374,8 @@ const SheetReaderMode: React.FC = () => {
         setPitch(0);
 
         showSuccess(`Key extracted and set to: ${extractedKey}`);
-      } catch {
-        showError("Failed to update key in database.");
+      } catch (err) {
+        // Error already logged and shown by the `if (error)` block
       }
     } else {
       showError("Could not find a valid chord in the UG text.");

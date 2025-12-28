@@ -121,7 +121,9 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
             }
           } catch (err: any) { // Catch the error propagated from syncToMasterRepertoire
             console.error("[SongStudioView] Auto-save failed:", err);
-            showError("Auto-save failed: " + err.message); // Show error to user
+            if (err.message) console.error("Supabase Error Message:", err.message);
+            if (err.details) console.error("Supabase Error Details:", err.details);
+            showError("Auto-save failed: " + (err.message || "Unknown error")); // Show error to user
           }
         }, 1000);
         
@@ -266,7 +268,9 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           }
         } catch (err: any) { // Catch the error propagated from syncToMasterRepertoire
           console.error("[SongStudioView] Auto-save failed:", err);
-          showError("Auto-save failed: " + err.message); // Show error to user
+          if (err.message) console.error("Supabase Error Message:", err.message);
+          if (err.details) console.error("Supabase Error Details:", err.details);
+          showError("Auto-save failed: " + (err.message || "Unknown error")); // Show error to user
         }
       }, 1000);
       
