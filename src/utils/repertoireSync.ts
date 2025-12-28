@@ -68,51 +68,55 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
   if (songsArray.length === 0) return [];
   
   try {
-    const payloads = songsArray.map(song => ({
-      ...(song.master_id ? { id: song.master_id } : {}),
-      user_id: userId,
-      title: song.name,
-      artist: song.artist || 'Unknown Artist',
-      original_key: song.originalKey || null,
-      target_key: song.targetKey || null,
-      bpm: song.bpm || null,
-      lyrics: song.lyrics || null,
-      notes: song.notes || null,
-      pitch: song.pitch || 0,
-      ug_url: song.ugUrl || null,
-      pdf_url: song.pdfUrl || null,
-      leadsheet_url: song.leadsheetUrl || null,
-      youtube_url: song.youtubeUrl || null,
-      preview_url: song.previewUrl || null,
-      apple_music_url: song.appleMusicUrl || null,
-      is_metadata_confirmed: song.isMetadataConfirmed || false,
-      is_key_confirmed: song.isKeyConfirmed || false,
-      duration_seconds: Math.round(song.duration_seconds || 0),
-      genre: song.genre || (song.user_tags?.[0]) || null,
-      user_tags: song.user_tags || [],
-      resources: song.resources || [],
-      readiness_score: calculateReadiness(song),
-      is_active: true,
-      updated_at: new Date().toISOString(),
-      ug_chords_text: song.ug_chords_text || null,
-      ug_chords_config: song.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
-      is_ug_chords_present: !!(song.ug_chords_text && song.ug_chords_text.trim().length > 0),
-      is_pitch_linked: song.is_pitch_linked ?? true,
-      highest_note_original: song.highest_note_original || null,
-      is_approved: song.isApproved || false,
-      // Presence-based verification: Set to true if URL exists
-      sheet_music_url: song.sheet_music_url || null,
-      // Presence-based verification: Set to true if URL exists
-      is_sheet_verified: ((song.sheet_music_url || song.pdfUrl || song.leadsheetUrl || "").length > 0) || false,
-      // Sync tracking fields
-      sync_status: (song as any).sync_status || 'IDLE',
-      last_sync_log: (song as any).last_sync_log || null,
-      auto_synced: (song as any).auto_synced || false,
-      metadata_source: (song as any).metadata_source || null,
-      // Maintenance fields
-      extraction_status: (song as any).extraction_status || 'PENDING',
-      source_type: (song as any).source_type || 'YOUTUBE'
-    }));
+    const payloads = songsArray.map(song => {
+      const payload: any = {
+        user_id: userId,
+        title: song.name,
+        artist: song.artist || 'Unknown Artist',
+        original_key: song.originalKey || null,
+        target_key: song.targetKey || null,
+        bpm: song.bpm || null,
+        lyrics: song.lyrics || null,
+        notes: song.notes || null,
+        pitch: song.pitch || 0,
+        ug_url: song.ugUrl || null,
+        pdf_url: song.pdfUrl || null,
+        leadsheet_url: song.leadsheetUrl || null,
+        youtube_url: song.youtubeUrl || null,
+        preview_url: song.previewUrl || null,
+        apple_music_url: song.appleMusicUrl || null,
+        is_metadata_confirmed: song.isMetadataConfirmed || false,
+        is_key_confirmed: song.isKeyConfirmed || false,
+        duration_seconds: Math.round(song.duration_seconds || 0),
+        genre: song.genre || (song.user_tags?.[0]) || null,
+        user_tags: song.user_tags || [],
+        resources: song.resources || [],
+        readiness_score: calculateReadiness(song),
+        is_active: true,
+        updated_at: new Date().toISOString(),
+        ug_chords_text: song.ug_chords_text || null,
+        ug_chords_config: song.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
+        is_ug_chords_present: !!(song.ug_chords_text && song.ug_chords_text.trim().length > 0),
+        is_pitch_linked: song.is_pitch_linked ?? true,
+        highest_note_original: song.highest_note_original || null,
+        is_approved: song.isApproved || false,
+        sheet_music_url: song.sheet_music_url || null,
+        is_sheet_verified: ((song.sheet_music_url || song.pdfUrl || song.leadsheetUrl || "").length > 0) || false,
+        sync_status: (song as any).sync_status || 'IDLE',
+        last_sync_log: (song as any).last_sync_log || null,
+        auto_synced: (song as any).auto_synced || false,
+        metadata_source: (song as any).metadata_source || null,
+        extraction_status: (song as any).extraction_status || 'PENDING',
+        source_type: (song as any).source_type || 'YOUTUBE'
+      };
+      
+      // Only include 'id' if it's a known master_id (UUID) to prevent inserting local string IDs
+      if (song.master_id) {
+        payload.id = song.master_id;
+      }
+      
+      return payload;
+    });
     
     const { data, error } = await supabase
       .from('repertoire')
