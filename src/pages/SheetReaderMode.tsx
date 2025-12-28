@@ -80,8 +80,7 @@ const SheetReaderMode: React.FC = () => {
   const [chordAutoScrollEnabled, setChordAutoScrollEnabled] = useState(true);
   const [chordScrollSpeed, setChordScrollSpeed] = useState(1.0);
 
-  // NEW: Ref to track the ID of the song currently loaded in the engine.
-  // This prevents the "State Collision Loop" where multiple songs fight for the engine.
+  // NEW: Ref to track the ID of the song currently loaded in the engine
   const loadedSongIdRef = useRef<string | null>(null);
 
   // Harmonic Sync Hook
@@ -185,17 +184,24 @@ const SheetReaderMode: React.FC = () => {
   // === Song Selection ===
   const currentSong = allSongs[currentIndex];
 
-  // Update formData for useHarmonicSync when currentSong changes
+  // FIX: Reset Transposition State on Song Change (Prevents Key Leakage)
   useEffect(() => {
     if (currentSong) {
+      // Reset formData to the new song's specific data
       setFormData({ 
         originalKey: currentSong.originalKey, 
         targetKey: currentSong.targetKey, 
         pitch: currentSong.pitch,
         is_pitch_linked: currentSong.is_pitch_linked,
       });
+      
+      // Reset the Audio Engine's pitch to match the new song's saved pitch
+      // This ensures "Angels" starts at 0, not the previous song's offset
+      if (typeof currentSong.pitch === 'number') {
+        setAudioPitch(currentSong.pitch);
+      }
     }
-  }, [currentSong]);
+  }, [currentSong, setAudioPitch]);
 
   // NEW: Stabilized Audio Loading Logic (The Fix)
   useEffect(() => {
@@ -207,38 +213,28 @@ const SheetReaderMode: React.FC = () => {
     }
 
     // 2. THE LOCK: Check if we are already processing this specific song ID
-    // If the engine is currently loading, or if the ref matches the current ID, do nothing.
     if (loadedSongIdRef.current === currentSong.id || isLoadingAudio) {
       return;
     }
 
     // 3. Check if the engine already has the correct buffer (Cache Hit)
     if (audioEngine.currentUrl === currentSong.previewUrl && audioEngine.currentBuffer) {
-      // Reset progress to 0 when switching songs, but don't reload audio
       setAudioProgress(0);
       return;
     }
 
     // 4. Execute Load (The "Lock" is set here)
     const performLoad = async () => {
-      // Set the lock immediately to prevent other songs from entering this block
       loadedSongIdRef.current = currentSong.id;
-      
-      // Reset engine to clear previous state
       resetEngine();
       
-      // Wait a tick for reset to clear state, then load
       setTimeout(async () => {
         try {
           const initialPitch = typeof currentSong.pitch === 'number' ? currentSong.pitch : 0;
-          
-          // CRITICAL: Removed `force: true`. 
-          // This allows the engine to use its cache if the user navigates back/forth quickly.
           await loadFromUrl(currentSong.previewUrl, initialPitch); 
         } catch (error) {
           console.error("Audio load failed:", error);
           showError("Failed to load audio for this song.");
-          // Release lock on error so we can retry
           loadedSongIdRef.current = null; 
         }
       }, 100);
@@ -325,7 +321,7 @@ const SheetReaderMode: React.FC = () => {
       if (song.ug_chords_text && song.ug_chords_text.trim().length > 0) {
         return (
           <UGChordsReader
-            key={`${song.id}-chords`}
+            key={`${song.id}-chords`} // Key ensures re-render on song change
             chordsText={song.ug_chords_text || ""}
             config={song.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
             isMobile={false}
@@ -373,7 +369,6 @@ const SheetReaderMode: React.FC = () => {
             style={{ border: 'none' }}
             allowFullScreen
             onLoad={() => {
-              // Mark as loaded after a slight delay to ensure render
               setTimeout(() => {
                 setRenderedCharts(prev => prev.map(rc => 
                   rc.id === song.id && rc.type === chartType ? { ...rc, isLoaded: true } : rc
@@ -618,8 +613,6 @@ const SheetReaderMode: React.FC = () => {
             </motion.div>
           ))}
           
-          {/* Removed the loading overlay block to prevent visual blocking */}
-
           {/* Floating Chart Type Toggle (Only if multiple types exist) */}
           {currentSong && availableChartTypes.length > 1 && !isImmersive && (
             <div className="absolute top-4 right-4 z-30">

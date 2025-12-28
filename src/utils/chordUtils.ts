@@ -3,13 +3,13 @@
 import { KeyPreference } from '@/hooks/use-settings';
 import { transposeKey, formatKey, MAPPING_TO_SHARP } from './keyUtils';
 
-// REGEX FIX: 
-// 1. \b ensures a word boundary at the start (prevents matching 'A' in 'A long time').
-// 2. ([A-G](?:#|b)?) matches the root note.
-// 3. (m|maj|dim|aug|sus\d?|add\d?|\d+)? matches chord types.
-// 4. (\/[A-G](?:#|b)?)? matches bass notes (e.g., /G).
-// 5. (?=\s|$|\(|\)|\[|\]|\{|\}) ensures the chord is followed by whitespace or punctuation.
-const CHORD_REGEX = /\b([A-G](?:#|b)?)(m|maj|dim|aug|sus\d?|add\d?|\d+)?(\/[A-G](?:#|b)?)?(?=\s|$|\(|\)|\[|\]|\{|\})/g;
+// Updated Regex:
+// (?<=^| ) : Lookbehind - Ensures the chord starts at the beginning of the line or after a space.
+// ([A-G](?:#|b)?) : Root note.
+// (m|maj|dim|aug|sus\d?|add\d?|\d+)? : Chord type.
+// (\/[A-G](?:#|b)?)? : Bass note.
+// (?=\s|$|\(|\)|\[|\]|\{|\}) : Lookahead - Ensures the chord is followed by whitespace or punctuation.
+const CHORD_REGEX = /(?<=^| )([A-G](?:#|b)?)(m|maj|dim|aug|sus\d?|add\d?|\d+)?(\/[A-G](?:#|b)?)?(?=\s|$|\(|\)|\[|\]|\{|\})/g;
 
 /**
  * Determines if a line contains chords
@@ -100,22 +100,27 @@ export const extractKeyFromChords = (text: string): string | null => {
   const lines = text.split('\n');
 
   for (const line of lines) {
+    // Ignore lines that are likely section headers (e.g., [Intro], [Verse])
     if (line.trim().startsWith('[') && line.trim().endsWith(']')) {
       continue;
     }
 
     CHORD_REGEX.lastIndex = 0;
     
+    // Find the first chord in the line
     const match = line.match(CHORD_REGEX);
     if (match && match[0]) {
       const fullChord = match[0];
+      // Use a more specific regex to parse the root and type from the matched chord string
       const rootMatch = fullChord.match(/^([A-G][#b]?)(m|maj|dim|aug|sus\d?|add\d?|\d+)?/);
       if (rootMatch && rootMatch[1]) {
         let key = rootMatch[1];
         const chordType = rootMatch[2];
 
+        // Determine if it's a minor key
         const isMinor = chordType && (chordType.startsWith('m') || chordType === 'dim');
         
+        // Normalize the root note to a standard sharp format for consistency
         const normalizedRoot = MAPPING_TO_SHARP[key] || key;
         
         return normalizedRoot + (isMinor ? 'm' : '');
