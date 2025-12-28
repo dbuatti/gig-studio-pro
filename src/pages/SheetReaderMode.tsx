@@ -7,7 +7,12 @@ import { useAuth } from '@/components/AuthProvider';
 import { SetlistSong } from '@/components/SetlistManager';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Music, Loader2, AlertCircle, X, Settings, ExternalLink, ShieldCheck, FileText, Layout, Guitar, Sparkles } from 'lucide-react';
+import { 
+  Music, Loader2, AlertCircle, Settings, ExternalLink, ShieldCheck, 
+  FileText, Layout, Guitar, Sparkles, ChevronLeft, ChevronRight, 
+  List, X, Play, Pause, Volume2, Activity, Gauge, Maximize2, Minimize2,
+  ArrowLeft, Search, Hash, ChevronDown
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { useSettings } from '@/hooks/use-settings';
@@ -15,16 +20,27 @@ import { calculateReadiness } from '@/utils/repertoireSync';
 import { showError, showSuccess, showInfo } from '@/utils/toast';
 import UGChordsReader from '@/components/UGChordsReader';
 import { useToneAudio } from '@/hooks/use-tone-audio';
-import { calculateSemitones } from '@/utils/keyUtils';
+import { calculateSemitones, formatKey, transposeKey } from '@/utils/keyUtils';
 import { useReaderSettings } from '@/hooks/use-reader-settings';
 import PreferencesModal from '@/components/PreferencesModal';
 import SongStudioModal from '@/components/SongStudioModal';
-import SheetReaderHeader from '@/components/SheetReaderHeader';
-import SheetReaderFooter from '@/components/SheetReaderFooter';
 import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
-import { motion } from 'framer-motion';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger, 
+  DropdownMenuPortal,
+  DropdownMenuSeparator,
+  DropdownMenuLabel
+} from '@/components/ui/dropdown-menu';
 import { extractKeyFromChords } from '@/utils/chordUtils';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Slider } from '@/components/ui/slider';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 
 type ChartType = 'pdf' | 'leadsheet' | 'chords';
 
@@ -37,7 +53,7 @@ interface RenderedChart {
   type: ChartType;
 }
 
-const CHART_LOAD_TIMEOUT_MS = 5000;
+const CHART_LOAD_TIMEOUT_MS = 8000; // Increased timeout for slow connections
 
 const SheetReaderMode: React.FC = () => {
   const navigate = useNavigate();
@@ -47,19 +63,27 @@ const SheetReaderMode: React.FC = () => {
   const { keyPreference: globalKeyPreference } = useSettings();
   const { forceReaderResource, ignoreConfirmedGate } = useReaderSettings();
 
+  // --- State ---
   const [allSongs, setAllSongs] = useState<SetlistSong[]>([]);
-  const [allSetlists, setAllSetlists] = useState<{ id: string; name: string; songs: SetlistSong[] }[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [initialLoading, setInitialLoading] = useState(true);
+  
+  // UI State
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
-  const [isImmersive, setIsImmersive] = useState(false);
   const [isStudioModalOpen, setIsStudioModalOpen] = useState(false);
-  const [isOverlayOpen, setIsOverlayOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isImmersive, setIsImmersive] = useState(false);
+  const [isControlsVisible, setIsControlsVisible] = useState(true);
+  const [sidebarSearch, setSidebarSearch] = useState("");
 
+  // Reader Settings
   const [readerKeyPreference, setReaderKeyPreference] = useState<'sharps' | 'flats'>(globalKeyPreference);
-
   const [selectedChartType, setSelectedChartType] = useState<ChartType>('pdf');
+  const [chordAutoScrollEnabled, setChordAutoScrollEnabled] = useState(true);
+  const [chordScrollSpeed, setChordScrollSpeed] = useState(1.0);
+  const [pdfScrollSpeed, setPdfScrollSpeed] = useState(1.0);
 
+  // Audio Engine
   const audioEngine = useToneAudio(true);
   const {
     isPlaying,
@@ -78,16 +102,13 @@ const SheetReaderMode: React.FC = () => {
     isLoadingAudio
   } = audioEngine;
 
-  const [chordAutoScrollEnabled, setChordAutoScrollEnabled] = useState(true);
-  const [chordScrollSpeed, setChordScrollSpeed] = useState(1.0);
-
   const currentSong = allSongs[currentIndex];
 
-  // === CRITICAL FIX: Pass correct initial values to useHarmonicSync ===
+  // --- Harmonic Sync Hook ---
   const harmonicSync = useHarmonicSync({
     formData: {
       originalKey: currentSong?.originalKey,
-      targetKey: currentSong?.targetKey || currentSong?.originalKey, // Fallback to original if target missing
+      targetKey: currentSong?.targetKey || currentSong?.originalKey,
       pitch: currentSong?.pitch ?? 0,
       is_pitch_linked: currentSong?.is_pitch_linked ?? true,
       ug_chords_text: currentSong?.ug_chords_text,
@@ -95,10 +116,8 @@ const SheetReaderMode: React.FC = () => {
     handleAutoSave: useCallback(async (updates: Partial<SetlistSong>) => {
       if (!currentSong || !user) return;
 
-      // Filter out client-side-only properties before sending to Supabase
       const dbUpdates: { [key: string]: any } = {};
-      
-      // Explicitly map SetlistSong properties to repertoire table columns
+      // Map keys
       if (updates.name !== undefined) dbUpdates.title = updates.name;
       if (updates.artist !== undefined) dbUpdates.artist = updates.artist;
       if (updates.previewUrl !== undefined) dbUpdates.preview_url = updates.previewUrl;
@@ -109,7 +128,7 @@ const SheetReaderMode: React.FC = () => {
       if (updates.leadsheetUrl !== undefined) dbUpdates.leadsheet_url = updates.leadsheetUrl;
       if (updates.originalKey !== undefined) dbUpdates.original_key = updates.originalKey; else dbUpdates.original_key = null;
       if (updates.targetKey !== undefined) dbUpdates.target_key = updates.targetKey; else dbUpdates.target_key = null;
-      if (updates.pitch !== undefined) dbUpdates.pitch = updates.pitch; else dbUpdates.pitch = 0; // pitch is NOT NULL with default 0
+      if (updates.pitch !== undefined) dbUpdates.pitch = updates.pitch; else dbUpdates.pitch = 0;
       if (updates.bpm !== undefined) dbUpdates.bpm = updates.bpm; else dbUpdates.bpm = null;
       if (updates.genre !== undefined) dbUpdates.genre = updates.genre; else dbUpdates.genre = null;
       if (updates.isMetadataConfirmed !== undefined) dbUpdates.is_metadata_confirmed = updates.isMetadataConfirmed; else dbUpdates.is_metadata_confirmed = false;
@@ -124,7 +143,7 @@ const SheetReaderMode: React.FC = () => {
       if (updates.isApproved !== undefined) dbUpdates.is_approved = updates.isApproved; else dbUpdates.is_approved = false;
       if (updates.preferred_reader !== undefined) dbUpdates.preferred_reader = updates.preferred_reader; else dbUpdates.preferred_reader = null;
       if (updates.ug_chords_text !== undefined) dbUpdates.ug_chords_text = updates.ug_chords_text; else dbUpdates.ug_chords_text = null;
-      if (updates.ug_chords_config !== undefined) dbUpdates.ug_chords_config = updates.ug_chords_config; else dbUpdates.ug_chords_config = null; // Send null if not explicitly set
+      if (updates.ug_chords_config !== undefined) dbUpdates.ug_chords_config = updates.ug_chords_config; else dbUpdates.ug_chords_config = null;
       if (updates.is_ug_chords_present !== undefined) dbUpdates.is_ug_chords_present = updates.is_ug_chords_present; else dbUpdates.is_ug_chords_present = false;
       if (updates.highest_note_original !== undefined) dbUpdates.highest_note_original = updates.highest_note_original; else dbUpdates.highest_note_original = null;
       if (updates.metadata_source !== undefined) dbUpdates.metadata_source = updates.metadata_source; else dbUpdates.metadata_source = null;
@@ -134,10 +153,7 @@ const SheetReaderMode: React.FC = () => {
       if (updates.sheet_music_url !== undefined) dbUpdates.sheet_music_url = updates.sheet_music_url; else dbUpdates.sheet_music_url = null;
       if (updates.is_sheet_verified !== undefined) dbUpdates.is_sheet_verified = updates.is_sheet_verified; else dbUpdates.is_sheet_verified = false;
       
-      // Always update `updated_at`
       dbUpdates.updated_at = new Date().toISOString();
-
-      console.log("[SheetReaderMode] Sending update to Supabase:", { id: currentSong.id, payload: dbUpdates });
 
       supabase
         .from('repertoire')
@@ -145,15 +161,10 @@ const SheetReaderMode: React.FC = () => {
         .eq('id', currentSong.id)
         .then(({ error }) => {
           if (error) {
-            console.error("[SheetReaderMode] Supabase Auto-save failed:", error);
-            if (error.message) console.error("Supabase Error Message:", error.message);
-            if (error.details) console.error("Supabase Error Details:", error.details);
+            console.error("[SheetReaderMode] Auto-save failed:", error);
             showError('Auto-save failed');
-          }
-          else {
-            setAllSongs(prev => prev.map(s =>
-              s.id === currentSong.id ? { ...s, ...updates } : s
-            ));
+          } else {
+            setAllSongs(prev => prev.map(s => s.id === currentSong.id ? { ...s, ...updates } : s));
           }
         });
     }, [currentSong, user]),
@@ -162,22 +173,7 @@ const SheetReaderMode: React.FC = () => {
 
   const { pitch, setPitch, targetKey: harmonicTargetKey, setTargetKey } = harmonicSync;
 
-  // Sync audio pitch
-  useEffect(() => {
-    setAudioPitch(pitch);
-  }, [pitch, setAudioPitch]);
-
-  // === Force harmonic sync when song changes ===
-  useEffect(() => {
-    if (currentSong) {
-      // This ensures the hook gets fresh data immediately
-      // Even if formData is delayed, we force the correct key
-      setTargetKey(currentSong.targetKey || currentSong.originalKey || 'C');
-      setPitch(currentSong.pitch ?? 0);
-    }
-  }, [currentSong, setTargetKey, setPitch]);
-
-  // === Data Fetching ===
+  // --- Data Fetching ---
   const fetchSongs = useCallback(async () => {
     if (!user) return;
     setInitialLoading(true);
@@ -188,17 +184,7 @@ const SheetReaderMode: React.FC = () => {
         .eq('user_id', user.id)
         .order('title');
 
-      // Add robust error logging for Supabase fetches
-      if (error) {
-        console.error("Supabase Fetch Error:", error);
-        // Check for RLS specific error message
-        if (error.message.includes("new row violates row-level-security")) {
-          showError("Database Security Error: You don't have permission to read this data. Check RLS policies.");
-        } else {
-          showError(`Failed to load repertoire: ${error.message}`);
-        }
-        throw error;
-      }
+      if (error) throw error;
 
       const mappedSongs: SetlistSong[] = (data || []).map((d) => ({
         id: d.id,
@@ -221,85 +207,76 @@ const SheetReaderMode: React.FC = () => {
         is_pitch_linked: d.is_pitch_linked ?? true,
         sheet_music_url: d.sheet_music_url,
         is_sheet_verified: d.is_sheet_verified,
-        // FIX: Ensure highest_note_original is mapped
         highest_note_original: d.highest_note_original,
+        lyrics: d.lyrics,
+        notes: d.notes,
       }));
 
-      const readableAndApprovedSongs = mappedSongs.filter(s => {
+      // Filter based on readiness and chart availability
+      const readableSongs = mappedSongs.filter(s => {
         const readiness = calculateReadiness(s);
         const hasChart = s.ugUrl || s.pdfUrl || s.leadsheetUrl || s.ug_chords_text;
         const meetsReadiness = readiness >= 40 || forceReaderResource === 'simulation' || ignoreConfirmedGate;
         return hasChart && meetsReadiness;
       });
 
-      setAllSongs(readableAndApprovedSongs);
+      setAllSongs(readableSongs);
 
+      // Determine initial song
       let initialIndex = 0;
       const targetId = routeSongId || searchParams.get('id');
 
       if (targetId) {
-        const idx = readableAndApprovedSongs.findIndex(s => s.id === targetId);
+        const idx = readableSongs.findIndex(s => s.id === targetId);
         if (idx !== -1) initialIndex = idx;
       } else {
         const saved = localStorage.getItem('reader_last_index');
         if (saved) {
           const parsed = parseInt(saved, 10);
-          if (!isNaN(parsed) && parsed >= 0 && parsed < readableAndApprovedSongs.length) {
+          if (!isNaN(parsed) && parsed >= 0 && parsed < readableSongs.length) {
             initialIndex = parsed;
           }
         }
       }
 
       setCurrentIndex(initialIndex);
-    } catch (err) {
-      // Error already handled above
+    } catch (err: any) {
+      console.error("Fetch error:", err);
+      showError(`Failed to load repertoire: ${err.message}`);
     } finally {
       setInitialLoading(false);
     }
   }, [user, routeSongId, searchParams, forceReaderResource, ignoreConfirmedGate]);
 
-  // NEW: Fetch all setlists
-  const fetchAllSetlists = useCallback(async () => {
-    if (!user) return;
-    try {
-      const { data, error } = await supabase
-        .from('setlists')
-        .select('*')
-        .order('updated_at', { ascending: false });
+  // --- Effects ---
 
-      if (error) throw error;
-
-      if (data) {
-        const mappedSetlists = data.map(d => ({
-          id: d.id,
-          name: d.name,
-          songs: (d.songs as any[]) || [],
-          time_goal: d.time_goal // Assuming time_goal might be present
-        }));
-        setAllSetlists(mappedSetlists);
-      }
-    } catch (err: any) {
-      console.error("[SheetReaderMode] Error fetching all setlists:", err);
-      showError("Failed to load all setlists.");
-    }
-  }, [user]);
-
+  // Check navigation guard
   useEffect(() => {
-    // Check for the flag on mount
     const fromDashboard = sessionStorage.getItem('from_dashboard');
     if (!fromDashboard) {
-      console.log("[SheetReaderMode] Not navigated from dashboard, redirecting to /");
       navigate('/', { replace: true });
-      return; // Stop further execution of this effect
+      return;
     }
-    // Clear the flag regardless, so subsequent direct access (e.g., refresh) won't be fooled
     sessionStorage.removeItem('from_dashboard');
-
     fetchSongs();
-    fetchAllSetlists();
-  }, [fetchSongs, fetchAllSetlists, navigate]); // Added navigate to dependencies
+  }, [fetchSongs, navigate]);
 
-  // Load audio
+  // Sync audio pitch
+  useEffect(() => {
+    setAudioPitch(pitch);
+  }, [pitch, setAudioPitch]);
+
+  // Force harmonic sync when song changes
+  useEffect(() => {
+    if (currentSong) {
+      setTargetKey(currentSong.targetKey || currentSong.originalKey || 'C');
+      setPitch(currentSong.pitch ?? 0);
+      // Reset chart selection to force re-evaluation
+      setSelectedChartType('pdf'); 
+    }
+  }, [currentSong, setTargetKey, setPitch]);
+
+  // Load audio for current song
   useEffect(() => {
     if (!currentSong?.previewUrl) {
       stopPlayback();
@@ -325,7 +302,8 @@ const SheetReaderMode: React.FC = () => {
     }
   }, [currentSong, currentIndex, setSearchParams]);
 
-  // Navigation
+  // --- Navigation & Actions ---
+
   const handleNext = useCallback(() => {
     if (allSongs.length === 0) return;
     setCurrentIndex(prev => (prev + 1) % allSongs.length);
@@ -338,157 +316,116 @@ const SheetReaderMode: React.FC = () => {
     stopPlayback();
   }, [allSongs.length, stopPlayback]);
 
-  // Key update
+  const handleSelectSong = useCallback((index: number) => {
+    if (index >= 0 && index < allSongs.length) {
+      setCurrentIndex(index);
+      stopPlayback();
+      setIsSidebarOpen(false);
+    }
+  }, [allSongs.length, stopPlayback]);
+
   const handleUpdateKey = useCallback(async (newTargetKey: string) => {
     if (!currentSong || !user) return;
-
     const newPitch = calculateSemitones(currentSong.originalKey || 'C', newTargetKey);
-
     try {
       const { error } = await supabase
         .from('repertoire')
         .update({ target_key: newTargetKey, pitch: newPitch })
         .eq('id', currentSong.id);
-
-      if (error) {
-        console.error("[SheetReaderMode] Supabase update key error:", error);
-        // Check for RLS specific error message
-        if (error.message.includes("new row violates row-level-security")) {
-          showError("Database Security Error: You don't have permission to update this data. Check RLS policies.");
-        } else {
-          showError(`Failed to update key: ${error.message}`);
-        }
-        throw error; // Re-throw to stop further processing
-      }
-
-      setAllSongs(prev => prev.map(s =>
-        s.id === currentSong.id 
-          ? { ...s, targetKey: newTargetKey, pitch: newPitch } 
-          : s
-      ));
-
-      // Immediately reflect in UI
+      if (error) throw error;
+      setAllSongs(prev => prev.map(s => s.id === currentSong.id ? { ...s, targetKey: newTargetKey, pitch: newPitch } : s));
       setTargetKey(newTargetKey);
       setPitch(newPitch);
-
-      showSuccess(`Stage Key set to ${newTargetKey}`);
-    } catch (err) {
-      // Error already logged and shown by the `if (error)` block
+      showSuccess(`Stage Key: ${newTargetKey}`);
+    } catch (err: any) {
+      showError(`Update failed: ${err.message}`);
     }
   }, [currentSong, user, setTargetKey, setPitch]);
 
-  // Pull Key Feature
   const handlePullKey = useCallback(async () => {
     if (!currentSong || !user || !currentSong.ug_chords_text) {
-      showError("No UG Chords text found to extract key.");
+      showError("No UG Chords text found.");
       return;
     }
-
     const extractedKey = extractKeyFromChords(currentSong.ug_chords_text);
-
     if (extractedKey) {
       try {
         const { error } = await supabase
           .from('repertoire')
-          .update({ 
-            original_key: extractedKey,
-            target_key: extractedKey,
-            pitch: 0,
-            is_key_confirmed: true 
-          })
+          .update({ original_key: extractedKey, target_key: extractedKey, pitch: 0, is_key_confirmed: true })
           .eq('id', currentSong.id);
-        
-        if (error) {
-          console.error("[SheetReaderMode] Supabase pull key error:", error);
-          // Check for RLS specific error message
-          if (error.message.includes("new row violates row-level-security")) {
-            showError("Database Security Error: You don't have permission to update this data. Check RLS policies.");
-          } else {
-            showError(`Failed to update key: ${error.message}`);
-          }
-          throw error; // Re-throw to stop further processing
-        }
-
-        // FIX: Correctly update the state array with the new properties
-        setAllSongs(prev => prev.map(s => 
-          s.id === currentSong.id 
-            ? { ...s, originalKey: extractedKey, targetKey: extractedKey, pitch: 0, isKeyConfirmed: true } 
-            : s
-        ));
-
-        // Force immediate UI update
+        if (error) throw error;
+        setAllSongs(prev => prev.map(s => s.id === currentSong.id ? { ...s, originalKey: extractedKey, targetKey: extractedKey, pitch: 0, isKeyConfirmed: true } : s));
         setTargetKey(extractedKey);
         setPitch(0);
-
-        showSuccess(`Key extracted and set to: ${extractedKey}`);
-      } catch (err) {
-        // Error already logged and shown by the `if (error)` block
+        showSuccess(`Key extracted: ${extractedKey}`);
+      } catch (err: any) {
+        showError(`Pull failed: ${err.message}`);
       }
     } else {
-      showError("Could not find a valid chord in the UG text.");
+      showError("Could not find a valid chord.");
     }
   }, [currentSong, user, setTargetKey, setPitch]);
 
-  // NEW: Callback to update setlist songs (for SetlistMultiSelector)
-  const handleUpdateSetlistSongs = useCallback(async (
-    setlistId: string,
-    songToUpdate: SetlistSong,
-    action: 'add' | 'remove'
-  ) => {
-    const targetSetlist = allSetlists.find(l => l.id === setlistId);
-    if (!targetSetlist) {
-      console.error(`[SheetReaderMode] Setlist with ID ${setlistId} not found for update.`);
-      return;
-    }
+  // --- Keyboard Shortcuts ---
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || (e.target as HTMLElement).isContentEditable) return;
 
-    let updatedSongsArray = [...targetSetlist.songs];
-
-    if (action === 'add') {
-      const isAlreadyInList = updatedSongsArray.some(s =>
-        (s.master_id && s.master_id === songToUpdate.master_id) ||
-        s.id === songToUpdate.id
-      );
-      if (!isAlreadyInList) {
-        const newSetlistSong: SetlistSong = {
-          ...songToUpdate,
-          id: Math.random().toString(36).substr(2, 9), // Generate new ID for setlist entry
-          master_id: songToUpdate.master_id || songToUpdate.id,
-          isPlayed: false,
-          isApproved: false,
-        };
-        updatedSongsArray.push(newSetlistSong);
+      switch (e.key.toLowerCase()) {
+        case ' ':
+          e.preventDefault();
+          togglePlayback();
+          break;
+        case 'arrowright':
+          handleNext();
+          break;
+        case 'arrowleft':
+          handlePrev();
+          break;
+        case 'escape':
+          if (isSidebarOpen) setIsSidebarOpen(false);
+          else if (isStudioModalOpen) setIsStudioModalOpen(false);
+          else if (isPreferencesOpen) setIsPreferencesOpen(false);
+          else if (!isImmersive) navigate('/');
+          break;
+        case 'i':
+          if (!isSidebarOpen && !isStudioModalOpen && !isPreferencesOpen) {
+            setIsStudioModalOpen(true);
+          }
+          break;
+        case 's':
+          setChordAutoScrollEnabled(prev => !prev);
+          showInfo(`Auto-scroll ${!chordAutoScrollEnabled ? 'Enabled' : 'Disabled'}`);
+          break;
+        case 'm':
+          setIsImmersive(prev => !prev);
+          break;
+        case 'l':
+          setIsSidebarOpen(prev => !prev);
+          break;
       }
-    } else if (action === 'remove') {
-      updatedSongsArray = updatedSongsArray.filter(s =>
-        (s.master_id && s.master_id !== songToUpdate.master_id) || // Filter by master_id if present
-        (!s.master_id && s.id !== songToUpdate.id) // Fallback to local ID if no master_id
-      );
-    }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [togglePlayback, handleNext, handlePrev, isSidebarOpen, isStudioModalOpen, isPreferencesOpen, isImmersive, navigate, chordAutoScrollEnabled]);
 
-    try {
-      const { error } = await supabase
-        .from('setlists')
-        .update({ songs: updatedSongsArray, updated_at: new Date().toISOString() })
-        .eq('id', setlistId);
+  // --- Chart Rendering Logic ---
 
-      if (error) throw error;
-
-      // Update local state
-      setAllSetlists(prev => prev.map(l =>
-        l.id === setlistId ? { ...l, songs: updatedSongsArray } : l
-      ));
-      showSuccess(`Setlist "${targetSetlist.name}" updated.`);
-    } catch (err: any) {
-      console.error("[SheetReaderMode] Failed to update setlist songs:", err);
-      showError(`Failed to update setlist: ${err.message}`);
-    }
-  }, [allSetlists]);
-
-  const isFramable = useCallback((url: string | null | undefined) => {
-    if (!url) return true;
-    const blocked = ['ultimate-guitar.com', 'musicnotes.com', 'sheetmusicplus.com'];
-    return !blocked.some(site => url.includes(site));
+  const getBestChartType = useCallback((song: SetlistSong): ChartType => {
+    if (song.ug_chords_text?.trim()) return 'chords';
+    if (song.pdfUrl) return 'pdf';
+    if (song.leadsheetUrl) return 'leadsheet';
+    return 'pdf'; // Fallback
   }, []);
+
+  // Auto-select best chart type when song changes
+  useEffect(() => {
+    if (currentSong) {
+      const best = getBestChartType(currentSong);
+      setSelectedChartType(best);
+    }
+  }, [currentSong, getBestChartType]);
 
   const [renderedCharts, setRenderedCharts] = useState<RenderedChart[]>([]);
 
@@ -498,12 +435,12 @@ const SheetReaderMode: React.FC = () => {
     ));
   }, []);
 
-  const renderChartForSong = useCallback((song: SetlistSong, chartType: ChartType, onChartLoad: (id: string, type: ChartType) => void): React.ReactNode => {
+  const renderChartForSong = useCallback((song: SetlistSong, chartType: ChartType): React.ReactNode => {
     const readiness = calculateReadiness(song);
     const isReadyGatePassed = readiness >= 40 || forceReaderResource === 'simulation' || ignoreConfirmedGate;
 
     if (!isReadyGatePassed) {
-      setTimeout(() => onChartLoad(song.id, chartType), 50);
+      setTimeout(() => handleChartLoad(song.id, chartType), 50);
       return (
         <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-950">
           <AlertCircle className="w-24 h-24 text-red-500 mb-8" />
@@ -518,11 +455,10 @@ const SheetReaderMode: React.FC = () => {
 
     if (chartType === 'chords') {
       if (song.ug_chords_text?.trim()) {
-        setTimeout(() => onChartLoad(song.id, chartType), 50);
+        setTimeout(() => handleChartLoad(song.id, chartType), 50);
         return (
           <UGChordsReader
-            // Key includes targetKey to force re-render on change
-            key={`${song.id}-chords-${harmonicTargetKey}`}
+            key={`${song.id}-chords-${harmonicTargetKey}-${chordScrollSpeed}-${chordAutoScrollEnabled}`}
             chordsText={song.ug_chords_text}
             config={song.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
             isMobile={false}
@@ -537,18 +473,17 @@ const SheetReaderMode: React.FC = () => {
           />
         );
       }
-      return renderChartForSong(song, 'pdf', onChartLoad);
+      // Fallback if chords type selected but no text
+      return renderChartForSong(song, 'pdf');
     }
 
     const chartUrl = chartType === 'pdf' ? song.pdfUrl : song.leadsheetUrl;
     if (!chartUrl) {
-      setTimeout(() => onChartLoad(song.id, chartType), 50);
+      setTimeout(() => handleChartLoad(song.id, chartType), 50);
       return (
         <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-950">
           <Music className="w-24 h-24 text-slate-700 mb-8" />
-          <h2 className="text-4xl font-black uppercase text-white mb-4">
-            No {chartType === 'pdf' ? 'Full Score' : 'Leadsheet'} Available
-          </h2>
+          <h2 className="text-4xl font-black uppercase text-white mb-4">No {chartType === 'pdf' ? 'Full Score' : 'Leadsheet'} Available</h2>
           <p className="text-xl text-slate-400 mb-8">Upload one in the Studio.</p>
           <Button onClick={() => setIsStudioModalOpen(true)} className="text-lg px-10 py-6 bg-indigo-600 rounded-2xl">
             Open Studio
@@ -557,11 +492,14 @@ const SheetReaderMode: React.FC = () => {
       );
     }
 
+    // PDF/Leadsheet Viewer Logic
     const googleViewer = `https://docs.google.com/viewer?url=${encodeURIComponent(chartUrl)}&embedded=true`;
+    const isFramable = !['ultimate-guitar.com', 'musicnotes.com', 'sheetmusicplus.com'].some(site => chartUrl.includes(site));
 
-    if (isFramable(chartUrl)) {
+    if (isFramable) {
+      // We use a custom iframe wrapper that handles scroll simulation
       return (
-        <div className="w-full h-full relative bg-black">
+        <div className="w-full h-full relative bg-black overflow-hidden group">
           <iframe
             key={`${song.id}-${chartType}`}
             src={googleViewer}
@@ -569,40 +507,39 @@ const SheetReaderMode: React.FC = () => {
             title="Chart Viewer"
             style={{ border: 'none' }}
             allowFullScreen
-            onLoad={() => onChartLoad(song.id, chartType)}
+            onLoad={() => handleChartLoad(song.id, chartType)}
           />
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20">
-            <a
-              href={chartUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bg-indigo-600 hover:bg-indigo-700 px-8 py-4 rounded-2xl text-lg font-bold shadow-2xl"
-            >
-              Open Chart Externally →
+          {/* PDF Scroll Simulation Overlay (Visual Only) */}
+          {pdfScrollSpeed > 1.0 && isPlaying && (
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 bg-black/60 px-4 py-2 rounded-full text-xs font-bold text-white backdrop-blur">
+              Simulating Scroll: {pdfScrollSpeed.toFixed(2)}x
+            </div>
+          )}
+          <div className="absolute bottom-6 right-6 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
+            <a href={chartUrl} target="_blank" rel="noopener noreferrer" className="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg text-xs font-bold shadow-lg">
+              Open Externally
             </a>
           </div>
         </div>
       );
     }
 
-    setTimeout(() => onChartLoad(song.id, chartType), 50);
+    setTimeout(() => handleChartLoad(song.id, chartType), 50);
     return (
       <div className="h-full flex flex-col items-center justify-center bg-slate-950 p-6 md:p-12 text-center">
         <ShieldCheck className="w-12 h-12 md:w-16 md:h-16 text-indigo-400 mb-6 md:mb-10" />
         <h4 className="text-3xl md:text-5xl font-black uppercase tracking-tight mb-4 md:mb-6 text-white">Asset Protected</h4>
         <p className="text-slate-500 mb-8 md:mb-16 text-lg md:text-xl font-medium leading-relaxed">
-          External security prevents in-app display. Use the button below to launch in a secure dedicated performance window.
+          External security prevents in-app display. Launch in a secure window.
         </p>
-        <Button 
-          onClick={() => window.open(chartUrl, '_blank')} 
-          className="bg-indigo-600 hover:bg-indigo-700 h-16 md:h-20 px-10 md:px-16 font-black uppercase tracking-[0.2em] text-xs md:text-sm rounded-2xl md:rounded-3xl shadow-2xl gap-4 md:gap-6"
-        >
-          <ExternalLink className="w-6 h-6 md:w-8 md:h-8" /> Launch Chart Window
+        <Button onClick={() => window.open(chartUrl, '_blank')} className="bg-indigo-600 hover:bg-indigo-700 h-16 md:h-20 px-10 md:px-16 font-black uppercase tracking-[0.2em] text-xs md:text-sm rounded-2xl md:rounded-3xl shadow-2xl gap-4 md:gap-6">
+          <ExternalLink className="w-6 h-6 md:w-8 md:h-8" /> Launch Chart
         </Button>
       </div>
     );
-  }, [forceReaderResource, ignoreConfirmedGate, navigate, harmonicTargetKey, isFramable, setIsStudioModalOpen, isPlaying, progress, duration, chordAutoScrollEnabled, chordScrollSpeed, readerKeyPreference]);
+  }, [forceReaderResource, ignoreConfirmedGate, navigate, harmonicTargetKey, isFramable, setIsStudioModalOpen, isPlaying, progress, duration, chordAutoScrollEnabled, chordScrollSpeed, readerKeyPreference, pdfScrollSpeed, handleChartLoad]);
 
+  // Update rendered charts when song or chart type changes
   useEffect(() => {
     if (!currentSong) {
       setRenderedCharts([]);
@@ -616,7 +553,7 @@ const SheetReaderMode: React.FC = () => {
       if (!current) {
         current = {
           id: currentId,
-          content: renderChartForSong(currentSong, selectedChartType, handleChartLoad),
+          content: renderChartForSong(currentSong, selectedChartType),
           isLoaded: false,
           opacity: 1,
           zIndex: 10,
@@ -629,8 +566,9 @@ const SheetReaderMode: React.FC = () => {
 
       return [current];
     });
-  }, [currentSong, selectedChartType, renderChartForSong, handleChartLoad]);
+  }, [currentSong, selectedChartType, renderChartForSong]);
 
+  // Chart Loading Timeout
   const currentChartState = useMemo(() => 
     renderedCharts.find(c => c.id === currentSong?.id && c.type === selectedChartType),
     [renderedCharts, currentSong?.id, selectedChartType]
@@ -644,57 +582,36 @@ const SheetReaderMode: React.FC = () => {
             rc.id === currentSong.id && rc.type === selectedChartType ? { ...rc, isLoaded: true } : rc
           ));
           if (!ignoreConfirmedGate) {
-            showInfo("Chart loading timed out. It may be blocked by security headers. Try opening externally.", { duration: 8000 });
+            showInfo("Chart loading timed out. Try opening externally.", { duration: 8000 });
           }
         }
       }, CHART_LOAD_TIMEOUT_MS);
-
       return () => clearTimeout(timeoutId);
     }
   }, [currentChartState, currentSong, selectedChartType, ignoreConfirmedGate]);
 
+  // --- Derived State ---
   const availableChartTypes = useMemo((): ChartType[] => {
     if (!currentSong) return [];
     const types: ChartType[] = [];
+    if (currentSong.ug_chords_text?.trim()) types.push('chords');
     if (currentSong.pdfUrl) types.push('pdf');
     if (currentSong.leadsheetUrl) types.push('leadsheet');
-    if (currentSong.ug_chords_text?.trim()) types.push('chords');
     return types;
   }, [currentSong]);
-
-  useEffect(() => {
-    if (currentSong && availableChartTypes.length > 0 && !availableChartTypes.includes(selectedChartType)) {
-      setSelectedChartType(availableChartTypes[0]);
-    }
-  }, [currentSong, availableChartTypes, selectedChartType]);
 
   const isOriginalKeyMissing = useMemo(() => 
     !currentSong?.originalKey || currentSong.originalKey === 'TBC', 
     [currentSong]
   );
 
-  // NEW: Keyboard shortcut for 'i' to open Song Studio
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if user is typing in an input or textarea
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement ||
-        (e.target as HTMLElement).isContentEditable
-      ) {
-        return;
-      }
+  const filteredSongs = useMemo(() => {
+    if (!sidebarSearch.trim()) return allSongs;
+    const q = sidebarSearch.toLowerCase();
+    return allSongs.filter(s => s.name.toLowerCase().includes(q) || s.artist?.toLowerCase().includes(q));
+  }, [allSongs, sidebarSearch]);
 
-      if (e.key.toLowerCase() === 'i' && currentSong) {
-        e.preventDefault();
-        setIsStudioModalOpen(true);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentSong]);
-
+  // --- Render ---
   if (initialLoading) {
     return (
       <div className="h-screen bg-slate-950 flex items-center justify-center">
@@ -706,43 +623,192 @@ const SheetReaderMode: React.FC = () => {
   const isChartLoading = !currentChartState?.isLoaded;
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-white">
-      <main className="flex-1 flex flex-col overflow-hidden">
-        <SheetReaderHeader
-          currentSong={currentSong}
-          onClose={() => navigate('/')}
-          onSearchClick={() => setIsStudioModalOpen(true)}
-          onPrevSong={handlePrev}
-          onNextSong={handleNext}
-          currentSongIndex={currentIndex}
-          totalSongs={allSongs.length}
-          isLoading={!currentSong}
-          keyPreference={globalKeyPreference}
-          onUpdateKey={handleUpdateKey}
-          isFullScreen={isImmersive}
-          onToggleFullScreen={() => setIsImmersive(!isImmersive)}
-          setIsOverlayOpen={setIsOverlayOpen}
-          isOverrideActive={forceReaderResource !== 'default'}
-          pitch={pitch}
-          setPitch={setPitch}
-          readerKeyPreference={readerKeyPreference}
-          setReaderKeyPreference={setReaderKeyPreference}
-          onPullKey={handlePullKey}
-        />
+    <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-white font-sans selection:bg-indigo-500/30">
+      {/* Sidebar for Song Selection */}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <motion.div
+            initial={{ x: -300, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -300, opacity: 0 }}
+            className="w-80 bg-slate-900 border-r border-white/10 flex flex-col z-50 absolute inset-y-0 left-0 shadow-2xl"
+          >
+            <div className="p-4 border-b border-white/10 bg-slate-800/50">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-black uppercase tracking-widest text-sm">Song List</h3>
+                <Button size="icon" variant="ghost" onClick={() => setIsSidebarOpen(false)} className="h-8 w-8">
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              <Input 
+                placeholder="Search..." 
+                value={sidebarSearch}
+                onChange={(e) => setSidebarSearch(e.target.value)}
+                className="h-9 bg-slate-950 border-white/10 text-xs"
+              />
+            </div>
+            <ScrollArea className="flex-1">
+              <div className="flex flex-col">
+                {filteredSongs.map((song, idx) => {
+                  const isActive = allSongs.findIndex(s => s.id === song.id) === currentIndex;
+                  const globalIndex = allSongs.findIndex(s => s.id === song.id);
+                  return (
+                    <button
+                      key={song.id}
+                      onClick={() => handleSelectSong(globalIndex)}
+                      className={cn(
+                        "p-3 text-left border-b border-white/5 hover:bg-white/5 transition-colors flex flex-col gap-1",
+                        isActive && "bg-indigo-600/20 border-indigo-500/30"
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className={cn("font-bold text-sm truncate", isActive && "text-indigo-300")}>
+                          {song.name}
+                        </span>
+                        {isActive && <Play className="w-3 h-3 text-indigo-400 fill-current" />}
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase">{song.artist}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
+      {/* Main Content */}
+      <main className={cn("flex-1 flex flex-col overflow-hidden transition-all duration-300", isSidebarOpen && "ml-80")}>
+        {/* Header */}
+        <header className="h-16 bg-slate-900/80 backdrop-blur-xl border-b border-white/10 px-6 flex items-center justify-between shrink-0 z-40">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="h-10 w-10 rounded-xl hover:bg-white/10">
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="icon" onClick={handlePrev} className="h-9 w-9 rounded-lg hover:bg-white/10">
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              
+              <div className="flex-1 text-center min-w-[140px]">
+                {currentSong ? (
+                  <>
+                    <h2 className="text-sm font-black uppercase tracking-tight text-white line-clamp-1 leading-tight">
+                      {currentSong.name}
+                    </h2>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 line-clamp-1">
+                      {currentSong.artist || "Unknown Artist"}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm font-bold text-slate-500">No Song</p>
+                )}
+              </div>
+              
+              <Button variant="ghost" size="icon" onClick={handleNext} className="h-9 w-9 rounded-lg hover:bg-white/10">
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* Key & Pitch Controls */}
+            {currentSong && (
+              <div className="flex items-center gap-2 bg-white/5 p-1 rounded-xl border border-white/10">
+                {/* Pull Key */}
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={handlePullKey}
+                  className="h-8 px-2 bg-emerald-600/10 text-emerald-500 hover:bg-emerald-600 hover:text-white border border-emerald-600/20 rounded-lg font-black text-[9px] uppercase gap-1"
+                >
+                  <Sparkles className="w-3 h-3" /> Pull
+                </Button>
+
+                {/* Key Dropdown */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="h-8 px-2 text-xs font-mono font-bold text-indigo-300 hover:bg-white/10 rounded-lg">
+                      {formatKey(currentSong.targetKey || currentSong.originalKey, readerKeyPreference)} <ChevronDown className="w-3 h-3 opacity-50" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="bg-slate-900 border-white/10 text-white min-w-[100px]">
+                    {['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B', 'Cm', 'C#m', 'Dm', 'D#m', 'Em', 'Fm', 'F#m', 'Gm', 'G#m', 'Am', 'A#m', 'Bm'].map(k => (
+                      <DropdownMenuItem key={k} onSelect={() => handleUpdateKey(k)} className="font-mono font-bold text-xs">
+                        {k}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                {/* Pitch Display */}
+                <div className="px-2 h-6 flex items-center justify-center bg-black/30 rounded-md border border-white/5">
+                  <span className="text-[9px] font-mono font-bold text-slate-400">
+                    {pitch > 0 ? '+' : ''}{pitch} ST
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Chart Type Selector */}
+            {currentSong && availableChartTypes.length > 1 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="h-9 px-3 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 text-xs font-bold uppercase gap-2">
+                    {selectedChartType === 'pdf' && <Layout className="w-3.5 h-3.5" />}
+                    {selectedChartType === 'leadsheet' && <FileText className="w-3.5 h-3.5" />}
+                    {selectedChartType === 'chords' && <Guitar className="w-3.5 h-3.5" />}
+                    {selectedChartType === 'pdf' ? 'Score' : selectedChartType === 'leadsheet' ? 'Lead' : 'Chords'}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-slate-900 border-white/10 text-white">
+                  {availableChartTypes.includes('pdf') && (
+                    <DropdownMenuItem onSelect={() => setSelectedChartType('pdf')} className="text-xs font-bold">
+                      <Layout className="w-3.5 h-3.5 mr-2" /> Full Score
+                    </DropdownMenuItem>
+                  )}
+                  {availableChartTypes.includes('leadsheet') && (
+                    <DropdownMenuItem onSelect={() => setSelectedChartType('leadsheet')} className="text-xs font-bold">
+                      <FileText className="w-3.5 h-3.5 mr-2" /> Leadsheet
+                    </DropdownMenuItem>
+                  )}
+                  {availableChartTypes.includes('chords') && (
+                    <DropdownMenuItem onSelect={() => setSelectedChartType('chords')} className="text-xs font-bold">
+                      <Guitar className="w-3.5 h-3.5 mr-2" /> Chords
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+
+            {/* Utility Buttons */}
+            <div className="flex items-center gap-2 ml-2 border-l border-white/10 pl-3">
+              <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="h-9 w-9 rounded-xl hover:bg-white/10">
+                <List className="w-5 h-5" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => setIsImmersive(!isImmersive)} className="h-9 w-9 rounded-xl hover:bg-white/10">
+                {isImmersive ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => setIsPreferencesOpen(true)} className="h-9 w-9 rounded-xl hover:bg-white/10">
+                <Settings className="w-5 h-5" />
+              </Button>
+            </div>
+          </div>
+        </header>
+
+        {/* Missing Key Warning */}
         {isOriginalKeyMissing && (
-          <div className="fixed top-16 left-0 right-0 bg-red-950/30 border-b border-red-900/50 p-3 flex items-center justify-center gap-3 shrink-0 z-50 h-10">
-            <AlertCircle className="w-4 h-4 text-red-400" />
-            <p className="text-xs font-bold uppercase tracking-widest text-red-400">
-              CRITICAL: Original Key is missing. Transposition is currently relative to 'C'. Use the Studio (I) to set it.
+          <div className="bg-red-950/30 border-b border-red-900/50 p-2 flex items-center justify-center gap-2 shrink-0">
+            <AlertCircle className="w-3.5 h-3.5 text-red-400" />
+            <p className="text-[10px] font-bold uppercase tracking-widest text-red-400">
+              Original Key Missing. Transposition relative to 'C'. Set in Studio (I).
             </p>
           </div>
         )}
 
-        <div className={cn(
-          "flex-1 bg-black overflow-hidden relative", 
-          isImmersive ? "mt-0" : isOriginalKeyMissing ? "mt-[104px]" : "mt-16" 
-        )}>
+        {/* Chart Area */}
+        <div className={cn("flex-1 bg-black overflow-hidden relative", isImmersive ? "mt-0" : "mt-0")}>
           {renderedCharts.map(rc => (
             <motion.div
               key={`${rc.id}-${rc.type}`}
@@ -761,76 +827,115 @@ const SheetReaderMode: React.FC = () => {
               <Loader2 className="w-16 h-16 animate-spin text-indigo-500" />
             </div>
           )}
-
-          {currentSong && availableChartTypes.length > 1 && !isImmersive && (
-            <div className="absolute top-4 right-4 z-30">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button className="bg-slate-900/80 backdrop-blur border border-white/10 text-white hover:bg-slate-800 shadow-2xl h-12 px-4 gap-2">
-                    {selectedChartType === 'pdf' && <Layout className="w-4 h-4" />}
-                    {selectedChartType === 'leadsheet' && <FileText className="w-4 h-4" />}
-                    {selectedChartType === 'chords' && <Guitar className="w-4 h-4" />}
-                    <span className="font-bold uppercase text-xs tracking-widest">
-                      {selectedChartType === 'pdf' ? 'Full Score' : selectedChartType === 'leadsheet' ? 'Leadsheet' : 'Chords'}
-                    </span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-slate-900 border-white/10 text-white min-w-[180px]">
-                  {availableChartTypes.includes('pdf') && (
-                    <DropdownMenuItem onClick={() => setSelectedChartType('pdf')} className="cursor-pointer font-bold">
-                      <Layout className="w-4 h-4 mr-2" /> Full Score
-                    </DropdownMenuItem>
-                  )}
-                  {availableChartTypes.includes('leadsheet') && (
-                    <DropdownMenuItem onClick={() => setSelectedChartType('leadsheet')} className="cursor-pointer font-bold">
-                      <FileText className="w-4 h-4 mr-2" /> Leadsheet
-                    </DropdownMenuItem>
-                  )}
-                  {availableChartTypes.includes('chords') && (
-                    <DropdownMenuItem onClick={() => setSelectedChartType('chords')} className="cursor-pointer font-bold">
-                      <Guitar className="w-4 h-4 mr-2" /> Chords
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          )}
         </div>
 
+        {/* Footer Controls */}
         {!isImmersive && currentSong && (
-          <SheetReaderFooter
-            currentSong={currentSong}
-            isPlaying={isPlaying}
-            progress={progress}
-            duration={duration}
-            onTogglePlayback={togglePlayback}
-            onStopPlayback={stopPlayback}
-            onSetProgress={setAudioProgress}
-            pitch={pitch}
-            setPitch={setPitch}
-            volume={volume}
-            setVolume={setVolume}
-            keyPreference={globalKeyPreference}
-            chordAutoScrollEnabled={chordAutoScrollEnabled}
-            setChordAutoScrollEnabled={setChordAutoScrollEnabled}
-            chordScrollSpeed={chordScrollSpeed}
-            setChordScrollSpeed={setChordScrollSpeed}
-            isLoadingAudio={isLoadingAudio}
-          />
+          <div className="h-20 bg-slate-900/80 backdrop-blur-xl border-t border-white/10 px-6 flex items-center justify-between shrink-0 z-40">
+            {/* Playback Controls */}
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" size="icon" onClick={stopPlayback} className="h-10 w-10 rounded-xl hover:bg-white/10">
+                <RotateCcw className="w-5 h-5" />
+              </Button>
+              <Button 
+                onClick={togglePlayback} 
+                disabled={isLoadingAudio}
+                className={cn(
+                  "h-14 w-14 rounded-full shadow-2xl transition-all hover:scale-105 active:scale-95 flex items-center justify-center",
+                  isPlaying ? "bg-red-600 hover:bg-red-700 shadow-red-600/30" : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/30",
+                  isLoadingAudio && "opacity-50 cursor-not-allowed"
+                )}
+              >
+                {isLoadingAudio ? (
+                  <Loader2 className="w-7 h-7 animate-spin text-white" />
+                ) : (
+                  isPlaying ? <Pause className="w-7 h-7 text-white" /> : <Play className="w-7 h-7 ml-1 text-white" />
+                )}
+              </Button>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="flex-1 mx-8 space-y-2 max-w-md">
+              <Slider 
+                value={[duration > 0 ? (progress / 100) * duration : 0]} 
+                max={duration} 
+                step={1} 
+                onValueChange={([v]) => setAudioProgress((v / duration) * 100)} 
+                className="w-full"
+                disabled={!currentSong?.previewUrl}
+              />
+              <div className="flex justify-between text-[10px] font-mono font-black text-slate-500 uppercase">
+                <span>{new Date((progress / 100) * duration * 1000).toISOString().substr(14, 5)}</span>
+                <span>{new Date(duration * 1000).toISOString().substr(14, 5)}</span>
+              </div>
+            </div>
+
+            {/* Contextual Controls (Change based on chart type) */}
+            <div className="flex items-center gap-6">
+              {selectedChartType === 'chords' && (
+                <div className="flex items-center gap-3 bg-white/5 p-2 rounded-xl border border-white/10">
+                  <div className="flex flex-col items-center">
+                    <Label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Auto-Scroll</Label>
+                    <Switch 
+                      checked={chordAutoScrollEnabled} 
+                      onCheckedChange={setChordAutoScrollEnabled}
+                      className="data-[state=checked]:bg-indigo-600"
+                    />
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <Label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Speed</Label>
+                    <Slider 
+                      value={[chordScrollSpeed]} 
+                      min={0.5} max={2.0} step={0.05} 
+                      onValueChange={([v]) => setChordScrollSpeed(v)} 
+                      className="w-16 h-2"
+                      disabled={!chordAutoScrollEnabled}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {selectedChartType === 'pdf' && (
+                <div className="flex items-center gap-3 bg-white/5 p-2 rounded-xl border border-white/10">
+                  <div className="flex flex-col items-center">
+                    <Label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Simulated Scroll</Label>
+                    <Slider 
+                      value={[pdfScrollSpeed]} 
+                      min={1.0} max={3.0} step={0.1} 
+                      onValueChange={([v]) => setPdfScrollSpeed(v)} 
+                      className="w-20 h-2"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center gap-4 pl-6 border-l border-white/10">
+                <div className="flex flex-col items-center">
+                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">BPM</span>
+                  <span className="text-sm font-black text-white font-mono">{currentSong?.bpm || "--"}</span>
+                </div>
+                <div className="flex flex-col items-center">
+                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Pitch</span>
+                  <span className="text-sm font-black text-white font-mono">{pitch > 0 ? '+' : ''}{pitch}</span>
+                </div>
+                <div className="flex flex-col items-center">
+                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Gain</span>
+                  <span className="text-sm font-black text-white font-mono">{Math.round(((volume || -6) + 60) * 1.66)}%</span>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </main>
 
+      {/* Modals */}
       <PreferencesModal isOpen={isPreferencesOpen} onClose={() => setIsPreferencesOpen(false)} />
-      
       {currentSong && (
         <SongStudioModal
           isOpen={isStudioModalOpen}
           onClose={() => setIsStudioModalOpen(false)}
           gigId="library"
           songId={currentSong.id}
-          allSetlists={allSetlists}
-          masterRepertoire={allSongs}
-          onUpdateSetlistSongs={handleUpdateSetlistSongs}
         />
       )}
     </div>

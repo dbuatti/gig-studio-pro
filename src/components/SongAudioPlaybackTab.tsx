@@ -15,7 +15,7 @@ import SongAnalysisTools from './SongAnalysisTools';
 import SongAudioControls from './SongAudioControls';
 import { SetlistSong } from './SetlistManager';
 import { AudioEngineControls } from '@/hooks/use-tone-audio';
-import { KeyPreference } from '@/hooks/use-settings'; // Import KeyPreference
+import { KeyPreference } from '@/hooks/use-settings';
 
 interface SongAudioPlaybackTabProps {
   song: SetlistSong | null;
@@ -23,8 +23,8 @@ interface SongAudioPlaybackTabProps {
   audioEngine: AudioEngineControls;
   isMobile: boolean;
   onLoadAudioFromUrl: (url: string, initialPitch: number) => Promise<void>;
-  onSave: (updates: Partial<SetlistSong>) => void; // Changed from (id: string, updates: Partial<SetlistSong>)
-  onUpdateKey: (newTargetKey: string) => void; // Changed to accept only newTargetKey
+  onSave: (updates: Partial<SetlistSong>) => void;
+  onUpdateKey: (newTargetKey: string) => void;
   transposeKey: (key: string, semitones: number) => string;
   // Harmonic Sync Props
   pitch: number;
@@ -41,8 +41,8 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
   audioEngine,
   isMobile,
   onLoadAudioFromUrl,
-  onSave, // Now expects (updates: Partial<SetlistSong>)
-  onUpdateKey, // This is now setTargetKey from useHarmonicSync
+  onSave,
+  onUpdateKey,
   transposeKey,
   // Harmonic Sync Props
   pitch,
@@ -58,12 +58,10 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
     setProgress, togglePlayback, stopPlayback,
   } = audioEngine;
 
-  // --- State & Refs ---
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const metronomeSynth = useRef<Tone.MembraneSynth | null>(null);
   const metronomeLoop = useRef<Tone.Loop | null>(null);
 
-  // --- Helpers ---
   const formatTime = (seconds: number) => 
     new Date(seconds * 1000).toISOString().substr(14, 5);
 
@@ -73,15 +71,12 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
   );
 
   const handleAutoSave = (updates: Partial<SetlistSong>) => {
-    // This component's handleAutoSave should call the onSave prop
-    // The parent (StudioTabContent/SongStudioModal) will handle the song.id
     onSave(updates); 
   };
 
-  // --- Handlers ---
   const handleLoadAudio = async () => {
     if (!formData.previewUrl) return showError("No audio URL available.");
-    await onLoadAudioFromUrl(formData.previewUrl, pitch || 0); // Use pitch from useHarmonicSync
+    await onLoadAudioFromUrl(formData.previewUrl, pitch || 0);
   };
 
   const handleDetectBPM = async () => {

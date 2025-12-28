@@ -11,7 +11,7 @@ import { transposeKey } from '@/utils/keyUtils';
 interface SongAudioControlsProps {
   song: SetlistSong | null;
   formData: Partial<SetlistSong>;
-  handleAutoSave: (updates: Partial<SetlistSong>) => void; // Changed signature
+  handleAutoSave: (updates: Partial<SetlistSong>) => void;
   // Harmonic Sync Props
   pitch: number;
   setPitch: (pitch: number) => void;
@@ -29,7 +29,7 @@ interface SongAudioControlsProps {
 const SongAudioControls: React.FC<SongAudioControlsProps> = ({
   song,
   formData,
-  handleAutoSave, // Changed signature
+  handleAutoSave,
   // Harmonic Sync Props
   pitch,
   setPitch,

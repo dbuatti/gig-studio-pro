@@ -2,12 +2,12 @@
 
 import React from 'react';
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Search, Music, ChevronLeft, ChevronRight, Loader2, ChevronDown, Maximize2, Minimize2, Bug, Hash, Sparkles } from 'lucide-react';
+import { ArrowLeft, Search, Music, ChevronLeft, ChevronRight, Loader2, ChevronDown, Maximize2, Minimize2, Bug, Hash, Sparkles, List } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatKey, ALL_KEYS_SHARP, ALL_KEYS_FLAT } from '@/utils/keyUtils';
 import { SetlistSong } from './SetlistManager';
 import { KeyPreference } from '@/hooks/use-settings';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuPortal, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuPortal } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface SheetReaderHeaderProps {
@@ -25,14 +25,12 @@ interface SheetReaderHeaderProps {
   onToggleFullScreen: () => void;
   setIsOverlayOpen: (isOpen: boolean) => void;
   isOverrideActive: boolean;
-  // Harmonic Sync Props
   pitch: number;
   setPitch: (pitch: number) => void;
-  // NEW: Props for override readerKeyPreference
   readerKeyPreference: 'sharps' | 'flats';
   setReaderKeyPreference: (pref: 'sharps' | 'flats') => void;
-  // NEW: Pull Key Handler
   onPullKey: () => void;
+  onToggleSidebar: () => void;
 }
 
 const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
@@ -53,8 +51,8 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   readerKeyPreference,
   setReaderKeyPreference,
   onPullKey,
+  onToggleSidebar,
 }) => {
-  // Use the reader specific preference for display
   const rawTargetKey = currentSong?.targetKey || currentSong?.originalKey;
   const displayKey = rawTargetKey ? formatKey(rawTargetKey, readerKeyPreference) : null;
   const keysToUse = readerKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
@@ -112,7 +110,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
         
         {currentSong && (
           <div className="flex items-center gap-2">
-            {/* NEW: Pull Key Button */}
+            {/* Pull Key Button */}
             <Button 
               variant="ghost" 
               size="sm"
@@ -123,7 +121,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
               Pull Key
             </Button>
 
-            {/* NEW: Key Preference Override Toggle */}
+            {/* Key Preference Override */}
             <DropdownMenu onOpenChange={setIsOverlayOpen}>
               <DropdownMenuTrigger asChild>
                 <Button 
@@ -150,7 +148,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
               </DropdownMenuContent>
             </DropdownMenu>
             
-            {/* Existing Key Signature Dropdown */}
+            {/* Key Signature Dropdown */}
             <DropdownMenu onOpenChange={setIsOverlayOpen}>
               <DropdownMenuTrigger asChild>
                 <Button 
@@ -179,6 +177,15 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
           </div>
         )}
         
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={onToggleSidebar}
+          className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
+        >
+          <List className="w-5 h-5" />
+        </Button>
+
         <Button 
           variant="ghost" 
           size="icon" 

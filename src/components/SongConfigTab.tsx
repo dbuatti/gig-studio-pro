@@ -282,4 +282,4 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
   );
 };
 
-export default SongConfigTab;
+export default SongAudioPlaybackTab;

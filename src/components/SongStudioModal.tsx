@@ -13,9 +13,9 @@ interface SongStudioModalProps {
   songId: string | null;
   visibleSongs?: SetlistSong[];
   onSelectSong?: (id: string) => void;
-  allSetlists?: { id: string; name: string; songs: SetlistSong[] }[]; // New prop
-  masterRepertoire?: SetlistSong[]; // New prop
-  onUpdateSetlistSongs?: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>; // New prop
+  allSetlists?: { id: string; name: string; songs: SetlistSong[] }[];
+  masterRepertoire?: SetlistSong[];
+  onUpdateSetlistSongs?: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>;
 }
 
 const SongStudioModal: React.FC<SongStudioModalProps> = ({ 
@@ -25,9 +25,9 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   songId,
   visibleSongs = [],
   onSelectSong,
-  allSetlists, // Destructure new prop
-  masterRepertoire, // Destructure new prop
-  onUpdateSetlistSongs // Destructure new prop
+  allSetlists,
+  masterRepertoire,
+  onUpdateSetlistSongs
 }) => {
   const navigate = useNavigate();
 
@@ -57,9 +57,9 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
           onExpand={handleExpand}
           visibleSongs={visibleSongs}
           onSelectSong={onSelectSong}
-          allSetlists={allSetlists} // Pass new prop
-          masterRepertoire={masterRepertoire} // Pass new prop
-          onUpdateSetlistSongs={onUpdateSetlistSongs} // Pass the new callback
+          allSetlists={allSetlists}
+          masterRepertoire={masterRepertoire}
+          onUpdateSetlistSongs={onUpdateSetlistSongs}
         />
       </DialogContent>
     </Dialog>
