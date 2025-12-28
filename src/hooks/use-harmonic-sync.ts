@@ -40,23 +40,25 @@ export function useHarmonicSync({ formData, handleAutoSave, globalKeyPreference 
 
   // --- Setters that interact with handleAutoSave ---
 
-  const setPitch = useCallback((newPitch: number) => {
+  const setPitch = useCallback((newPitch: number, currentOriginalKey?: string) => {
     const updates: Partial<SetlistSong> = { pitch: newPitch };
+    const effectiveOriginalKey = currentOriginalKey || formData.originalKey || 'C'; // Use provided key or formData
     if (isPitchLinked) {
-      const newTarget = transposeKey(formData.originalKey || 'C', newPitch);
+      const newTarget = transposeKey(effectiveOriginalKey, newPitch);
       updates.targetKey = newTarget;
     }
     handleAutoSave(updates);
-  }, [isPitchLinked, formData.originalKey, handleAutoSave]);
+  }, [isPitchLinked, formData.originalKey, handleAutoSave]); // formData.originalKey is still a dependency for fallback
 
-  const setTargetKey = useCallback((newTargetKey: string) => {
+  const setTargetKey = useCallback((newTargetKey: string, currentOriginalKey?: string) => {
     const updates: Partial<SetlistSong> = { targetKey: newTargetKey };
+    const effectiveOriginalKey = currentOriginalKey || formData.originalKey || 'C'; // Use provided key or formData
     if (isPitchLinked) {
-      const newPitch = calculateSemitones(formData.originalKey || 'C', newTargetKey);
+      const newPitch = calculateSemitones(effectiveOriginalKey, newTargetKey);
       updates.pitch = newPitch;
     }
     handleAutoSave(updates);
-  }, [isPitchLinked, formData.originalKey, handleAutoSave]);
+  }, [isPitchLinked, formData.originalKey, handleAutoSave]); // formData.originalKey is still a dependency for fallback
 
   const setIsPitchLinked = useCallback((linked: boolean) => {
     const updates: Partial<SetlistSong> = { is_pitch_linked: linked };

@@ -20,9 +20,9 @@ interface SongConfigTabProps {
   handleAutoSave: (updates: Partial<SetlistSong>) => void;
   // Harmonic Sync Props
   pitch: number;
-  setPitch: (pitch: number) => void;
+  setPitch: (pitch: number, currentOriginalKey?: string) => void;
   targetKey: string;
-  setTargetKey: (targetKey: string) => void;
+  setTargetKey: (targetKey: string, currentOriginalKey?: string) => void;
   isPitchLinked: boolean;
   setIsPitchLinked: (linked: boolean) => void;
   // Other props
@@ -75,13 +75,13 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
     // If linked, updating original key should recalculate pitch and target key
     if (isPitchLinked) {
       const newPitch = calculateSemitones(val, targetKey);
-      setPitch(newPitch); // This will also update targetKey via the hook
+      setPitch(newPitch, val); // Pass 'val' as currentOriginalKey
     }
   }, [handleAutoSave, isPitchLinked, targetKey, setPitch]);
 
   const handleTargetKeyChange = useCallback((val: string) => {
-    setTargetKey(val); // This will update pitch via the hook if linked
-  }, [setTargetKey]);
+    setTargetKey(val, formData.originalKey); // Pass formData.originalKey as currentOriginalKey
+  }, [setTargetKey, formData.originalKey]);
 
   const handleTogglePitchLinked = useCallback(() => {
     setIsPitchLinked(!isPitchLinked);
