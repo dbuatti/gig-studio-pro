@@ -640,7 +640,6 @@ const SheetReaderMode: React.FC = () => {
           setPitch={setPitch}
           readerKeyPreference={readerKeyPreference}
           setReaderKeyPreference={setReaderKeyPreference}
-          // FIX 1: Pass Pull Key Handler
           onPullKey={handlePullKey}
         />
 
@@ -714,7 +713,6 @@ const SheetReaderMode: React.FC = () => {
             setChordAutoScrollEnabled={setChordAutoScrollEnabled}
             chordScrollSpeed={chordScrollSpeed}
             setChordScrollSpeed={setChordScrollSpeed}
-            // FIX 2: Pass isLoadingAudio
             isLoadingAudio={isLoadingAudio}
           />
         )}
