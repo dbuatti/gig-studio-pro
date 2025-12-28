@@ -106,7 +106,7 @@ const SheetReaderMode: React.FC = () => {
       if (updates.ugUrl !== undefined) dbUpdates.ug_url = updates.ugUrl;
       if (updates.appleMusicUrl !== undefined) dbUpdates.apple_music_url = updates.appleMusicUrl;
       if (updates.pdfUrl !== undefined) dbUpdates.pdf_url = updates.pdfUrl;
-      if (updates.leadsheetUrl !== undefined) dbUpdates.leadsheet_url = updates.leadsheetUrl;
+      if (updates.leadsheetUrl !== undefined) dbUpdates.leadsheet_url = updates.leadsheetUrl; // Corrected here
       if (updates.originalKey !== undefined) dbUpdates.original_key = updates.originalKey; else dbUpdates.original_key = null;
       if (updates.targetKey !== undefined) dbUpdates.target_key = updates.targetKey; else dbUpdates.target_key = null;
       if (updates.pitch !== undefined) dbUpdates.pitch = updates.pitch; else dbUpdates.pitch = 0; // pitch is NOT NULL with default 0
@@ -221,6 +221,8 @@ const SheetReaderMode: React.FC = () => {
         is_pitch_linked: d.is_pitch_linked ?? true,
         sheet_music_url: d.sheet_music_url,
         is_sheet_verified: d.is_sheet_verified,
+        // FIX: Ensure highest_note_original is mapped
+        highest_note_original: d.highest_note_original,
       }));
 
       const readableAndApprovedSongs = mappedSongs.filter(s => {
@@ -340,9 +342,12 @@ const SheetReaderMode: React.FC = () => {
 
       if (error) {
         console.error("[SheetReaderMode] Supabase update key error:", error);
-        if (error.message) console.error("Supabase Error Message:", error.message);
-        if (error.details) console.error("Supabase Error Details:", error.details);
-        showError(`Failed to update key: ${error.message}`);
+        // Check for RLS specific error message
+        if (error.message.includes("new row violates row-level-security")) {
+          showError("Database Security Error: You don't have permission to update this data. Check RLS policies.");
+        } else {
+          showError(`Failed to update key: ${error.message}`);
+        }
         throw error; // Re-throw to stop further processing
       }
 
@@ -385,9 +390,12 @@ const SheetReaderMode: React.FC = () => {
         
         if (error) {
           console.error("[SheetReaderMode] Supabase pull key error:", error);
-          if (error.message) console.error("Supabase Error Message:", error.message);
-          if (error.details) console.error("Supabase Error Details:", error.details);
-          showError(`Failed to update key: ${error.message}`);
+          // Check for RLS specific error message
+          if (error.message.includes("new row violates row-level-security")) {
+            showError("Database Security Error: You don't have permission to update this data. Check RLS policies.");
+          } else {
+            showError(`Failed to update key: ${error.message}`);
+          }
           throw error; // Re-throw to stop further processing
         }
 
@@ -583,7 +591,7 @@ const SheetReaderMode: React.FC = () => {
         </Button>
       </div>
     );
-  }, [forceReaderResource, ignoreConfirmedGate, navigate, harmonicTargetKey, isPlaying, progress, duration, chordAutoScrollEnabled, chordScrollSpeed, readerKeyPreference, isFramable, setIsStudioModalOpen]);
+  }, [forceReaderResource, ignoreConfirmedGate, navigate, harmonicTargetKey, isFramable, setIsStudioModalOpen, isPlaying, progress, duration, chordAutoScrollEnabled, chordScrollSpeed, readerKeyPreference]);
 
   useEffect(() => {
     if (!currentSong) {
