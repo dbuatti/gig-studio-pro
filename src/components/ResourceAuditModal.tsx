@@ -55,7 +55,7 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
   const { keyPreference } = useSettings();
   const [activeTab, setActiveTab] = useState<AuditTab>('ug');
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeFilter, setActiveFilter] = useState<AuditFilter>('missing-content'); // Default to missing content
+  const [activeFilter, setActiveFilter] = useState<AuditFilter>('missing-content');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [hoveredSongId, setHoveredSongId] = useState<string | null>(null);
@@ -370,9 +370,19 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
 
                       <div className="flex items-center gap-2 shrink-0">
                         {isEditing ? (
-                          <div className="flex gap-2">
-                            <Input value={editValue} onChange={(e) => setEditValue(e.target.value)} placeholder="Paste URL..." className="h-9 w-48 bg-black/40 text-[10px]" />
-                            <Button onClick={() => handleVerify(song, editValue)} className="h-9 px-3 bg-emerald-600 text-white text-[9px] font-black uppercase rounded-lg">Save</Button>
+                          <div className="flex gap-2 w-full md:w-auto">
+                            <Input 
+                              value={editValue} 
+                              onChange={(e) => setEditValue(e.target.value)} 
+                              placeholder="Paste URL..." 
+                              className="h-9 w-full md:w-48 bg-black/40 text-[10px]" 
+                            />
+                            <Button 
+                              onClick={() => handleVerify(song, editValue)} 
+                              className="h-9 px-3 bg-emerald-600 text-white text-[9px] font-black uppercase rounded-lg"
+                            >
+                              Save
+                            </Button>
                           </div>
                         ) : (
                           <>
