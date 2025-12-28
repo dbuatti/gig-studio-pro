@@ -3,7 +3,7 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Play, Pause, RotateCcw, Gauge, Volume2, Activity, Check, Guitar, ChevronDown } from 'lucide-react';
+import { Play, Pause, RotateCcw, Gauge, Volume2, Activity, Check, Guitar, ChevronDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SetlistSong } from './SetlistManager';
 import { formatKey } from '@/utils/keyUtils';
@@ -30,6 +30,7 @@ interface SheetReaderFooterProps {
   setChordAutoScrollEnabled: (enabled: boolean) => void;
   chordScrollSpeed: number;
   setChordScrollSpeed: (speed: number) => void;
+  isLoadingAudio: boolean; // NEW PROP
 }
 
 const SheetReaderFooter: React.FC<SheetReaderFooterProps> = ({
@@ -51,6 +52,7 @@ const SheetReaderFooter: React.FC<SheetReaderFooterProps> = ({
   setChordAutoScrollEnabled,
   chordScrollSpeed,
   setChordScrollSpeed,
+  isLoadingAudio, // Destructure new prop
 }) => {
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -69,14 +71,20 @@ const SheetReaderFooter: React.FC<SheetReaderFooterProps> = ({
         
         <Button 
           onClick={onTogglePlayback} 
+          disabled={isLoadingAudio} // Disable button when loading
           className={cn(
             "h-14 w-14 rounded-full shadow-2xl transition-all hover:scale-105 active:scale-95",
             isPlaying 
               ? "bg-red-600 hover:bg-red-700 shadow-red-600/30" 
-              : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/30"
+              : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/30",
+            isLoadingAudio && "opacity-50 cursor-not-allowed" // Style when loading
           )}
         >
-          {isPlaying ? <Pause className="w-7 h-7 text-white" /> : <Play className="w-7 h-7 ml-1 text-white" />}
+          {isLoadingAudio ? ( // Show spinner when loading
+            <Loader2 className="w-7 h-7 animate-spin text-white" />
+          ) : (
+            isPlaying ? <Pause className="w-7 h-7 text-white" /> : <Play className="w-7 h-7 ml-1 text-white" />
+          )}
         </Button>
       </div>
 

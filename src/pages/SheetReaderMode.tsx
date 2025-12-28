@@ -618,12 +618,7 @@ const SheetReaderMode: React.FC = () => {
             </motion.div>
           ))}
           
-          {/* Loading Overlay */}
-          {currentSong && !renderedCharts.find(c => c.id === currentSong.id && c.type === selectedChartType)?.isLoaded && (
-            <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm z-20">
-              <Loader2 className="w-16 h-16 animate-spin text-indigo-500" />
-            </div>
-          )}
+          {/* Removed the loading overlay block */}
 
           {/* Floating Chart Type Toggle (Only if multiple types exist) */}
           {currentSong && availableChartTypes.length > 1 && !isImmersive && (
@@ -680,6 +675,7 @@ const SheetReaderMode: React.FC = () => {
             setChordAutoScrollEnabled={setChordAutoScrollEnabled}
             chordScrollSpeed={chordScrollSpeed}
             setChordScrollSpeed={setChordScrollSpeed}
+            isLoadingAudio={isLoadingAudio}
           />
         )}
       </main>
