@@ -24,7 +24,9 @@ interface UGChordsReaderProps {
   duration: number;
   chordAutoScrollEnabled: boolean;
   chordScrollSpeed: number;
-  onLoad?: () => void; // NEW: Add onLoad prop
+  onLoad?: () => void;
+  // NEW: Override for key preference
+  readerKeyPreference?: 'sharps' | 'flats';
 }
 
 const UGChordsReader: React.FC<UGChordsReaderProps> = ({ 
@@ -33,43 +35,40 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
   isMobile,
   originalKey,
   targetKey,
-  // NEW: Auto-scroll props
   isPlaying,
   progress,
   duration,
   chordAutoScrollEnabled,
   chordScrollSpeed,
-  onLoad, // Destructure onLoad
+  onLoad,
+  readerKeyPreference, // New prop
 }) => {
-  const { keyPreference } = useSettings();
+  // Use reader override if provided, otherwise fall back to global
+  const { keyPreference: globalKeyPreference } = useSettings();
+  const activeKeyPreference = readerKeyPreference || globalKeyPreference;
+
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLPreElement>(null);
   const isUserScrolling = useRef(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout>();
   const autoScrollRaf = useRef<number | null>(null);
-  const hasLoadedRef = useRef(false); // To ensure onLoad fires only once
+  const hasLoadedRef = useRef(false);
 
-  // Unified Transposition Logic: Calculate delta (n) between Original and Stage Key
+  // Unified Transposition Logic
   const transposedChordsText = useMemo(() => {
-    console.log(`[UGChordsReader:transposedChordsText] Props received: originalKey=${originalKey}, targetKey=${targetKey}, chordsText length=${chordsText.length}`);
     if (!chordsText || !originalKey || !targetKey || originalKey === "TBC") {
-      console.log("[UGChordsReader] Skipping transposition: Missing chordsText, originalKey, or targetKey, or originalKey is TBC.");
       return chordsText;
     }
     
     const n = calculateSemitones(originalKey, targetKey);
-    console.log(`[UGChordsReader] Calculating transposition for "${originalKey}" to "${targetKey}". Semitones: ${n}. Key Preference: ${keyPreference}`);
     
-    // FIX: Ensure transposition is only applied if n is not 0
     if (n === 0) {
-      console.log("[UGChordsReader] Semitones is 0. Returning original chordsText.");
       return chordsText;
     }
     
-    const transposed = transposeChords(chordsText, n, keyPreference); // Pass keyPreference
-    console.log("[UGChordsReader] Transposed chordsText generated.");
-    return transposed;
-  }, [chordsText, originalKey, targetKey, keyPreference]);
+    // Pass the active preference (reader override or global)
+    return transposeChords(chordsText, n, activeKeyPreference);
+  }, [chordsText, originalKey, targetKey, activeKeyPreference]);
 
   // Ensure chords are readable on dark background if color is set to black
   const readableChordColor = config.chordColor === "#000000" ? "#ffffff" : config.chordColor;
@@ -82,7 +81,7 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
     lineSpacing: config.lineSpacing
   }), [transposedChordsText, config, readableChordColor]);
 
-  // NEW: Auto-scroll logic
+  // Auto-scroll logic
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
@@ -127,18 +126,18 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
 
     const performScroll = () => {
       const scrollHeight = content.scrollHeight - container.clientHeight;
-      if (scrollHeight <= 0) { // No need to scroll if content fits
+      if (scrollHeight <= 0) {
         if (autoScrollRaf.current) cancelAnimationFrame(autoScrollRaf.current);
         return;
       }
 
       const adjustedProgress = (progress / 100) * chordScrollSpeed;
-      let targetScroll = (adjustedProgress * scrollHeight) - (container.clientHeight * 0.35); // Center the current line
+      let targetScroll = (adjustedProgress * scrollHeight) - (container.clientHeight * 0.35);
       targetScroll = Math.max(0, Math.min(scrollHeight, targetScroll));
 
       const diff = targetScroll - container.scrollTop;
       if (Math.abs(diff) > 1) {
-        container.scrollTop += diff * 0.1; // Smooth scroll
+        container.scrollTop += diff * 0.1;
         autoScrollRaf.current = requestAnimationFrame(performScroll);
       } else {
         container.scrollTop = targetScroll;
@@ -150,20 +149,18 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
     return () => {
       if (autoScrollRaf.current) cancelAnimationFrame(autoScrollRaf.current);
     };
-  }, [progress, duration, chordAutoScrollEnabled, chordScrollSpeed, isPlaying]); // isPlaying added to trigger updates
+  }, [progress, duration, chordAutoScrollEnabled, chordScrollSpeed, isPlaying]);
 
-  // NEW: Call onLoad once when content is rendered
   useEffect(() => {
     if (onLoad && !hasLoadedRef.current && chordsText) {
       onLoad();
       hasLoadedRef.current = true;
-      console.log("[UGChordsReader] onLoad callback fired.");
     }
   }, [onLoad, chordsText]);
 
   return (
     <div
-      ref={scrollContainerRef} // Attach ref to the scrollable div
+      ref={scrollContainerRef}
       className={cn(
         "flex-1 bg-slate-950 rounded-xl p-4 overflow-auto border border-white/10 font-mono custom-scrollbar flex flex-col",
         isMobile ? "text-sm" : "text-base"
@@ -174,14 +171,14 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
         lineHeight: config.lineSpacing,
         textAlign: config.textAlign as any,
         color: readableChordColor || "#ffffff",
-        touchAction: 'pan-y' // FIX: Add touch-action for smooth scrolling on touch devices
+        touchAction: 'pan-y'
       }}
     >
       {chordsText ? (
-        // FIX: Ensure pre tag takes full height
         <pre 
-          ref={contentRef} // Attach ref to the content for scrollHeight
-          className="whitespace-pre-wrap font-inherit flex-1 h-full" 
+          ref={contentRef}
+          // FIX: Use whitespace-pre to prevent wrapping, preserving exact formatting
+          className="whitespace-pre font-inherit h-full" 
           dangerouslySetInnerHTML={{ __html: formattedHtml }} 
         />
       ) : (

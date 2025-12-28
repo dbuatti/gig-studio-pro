@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Search, Music, ChevronLeft, ChevronRight, Loader2, ChevronDown, Maximize2, Minimize2, Bug } from 'lucide-react';
+import { ArrowLeft, Search, Music, ChevronLeft, ChevronRight, Loader2, ChevronDown, Maximize2, Minimize2, Bug, Hash } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatKey, ALL_KEYS_SHARP, ALL_KEYS_FLAT } from '@/utils/keyUtils';
 import { SetlistSong } from './SetlistManager';
@@ -12,7 +12,8 @@ import {
   DropdownMenuContent, 
   DropdownMenuItem, 
   DropdownMenuTrigger,
-  DropdownMenuPortal
+  DropdownMenuPortal,
+  DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -34,6 +35,9 @@ interface SheetReaderHeaderProps {
   // Harmonic Sync Props
   pitch: number;
   setPitch: (pitch: number) => void;
+  // NEW: Props for override
+  readerKeyPreference: 'sharps' | 'flats';
+  setReaderKeyPreference: (pref: 'sharps' | 'flats') => void;
 }
 
 const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
@@ -49,26 +53,25 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   onToggleFullScreen,
   setIsOverlayOpen,
   isOverrideActive,
-  // Destructure new props
   pitch,
   setPitch,
+  // NEW
+  readerKeyPreference,
+  setReaderKeyPreference,
 }) => {
-  // Use the currentSong's targetKey directly if available, otherwise fallback to originalKey
-  // This ensures we display the correct stage key even if the hook hasn't fully propagated
+  // Use the reader specific preference for display
   const rawTargetKey = currentSong?.targetKey || currentSong?.originalKey;
-  const displayKey = rawTargetKey ? formatKey(rawTargetKey, keyPreference) : null;
+  const displayKey = rawTargetKey ? formatKey(rawTargetKey, readerKeyPreference) : null;
 
-  const keysToUse = keyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
+  const keysToUse = readerKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
 
   return (
     <div className="fixed top-0 left-0 right-0 z-60 bg-slate-900/80 backdrop-blur-xl border-b border-white/10 px-6 py-3 flex items-center justify-between shadow-lg animate-in slide-in-from-top duration-300">
       <div className="flex items-center gap-4">
-        {/* 1. Close Button */}
         <Button variant="ghost" size="icon" onClick={onClose} className="h-10 w-10 rounded-xl hover:bg-white/10 text-slate-400">
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div className="flex items-center gap-2">
-          {/* 2. Previous Song Button */}
           <Button variant="ghost" size="icon" onClick={onPrevSong} disabled={isLoading} className="h-9 w-9 rounded-lg hover:bg-white/10 text-slate-400">
             <ChevronLeft className="w-4 h-4" />
           </Button>
@@ -84,7 +87,6 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
               <p className="text-sm font-bold text-slate-500">No Song</p>
             )}
           </div>
-          {/* 3. Next Song Button */}
           <Button variant="ghost" size="icon" onClick={onNextSong} disabled={isLoading} className="h-9 w-9 rounded-lg hover:bg-white/10 text-slate-400">
             <ChevronRight className="w-4 h-4" />
           </Button>
@@ -100,41 +102,70 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
         )}
 
         {currentSong && (
-          <DropdownMenu onOpenChange={setIsOverlayOpen}>
-            <DropdownMenuTrigger asChild>
-              {/* 4. Key Signature Dropdown Trigger */}
-              <Button 
-                variant="ghost" 
-                // Stop propagation to prevent iPad "Tap-to-Hide" UI logic from firing
-                onPointerDown={(e) => e.stopPropagation()}
-                className="bg-white/5 border-white/10 text-xs font-black font-mono h-10 px-4 rounded-xl text-indigo-400 gap-2 min-w-[80px]"
-                disabled={isLoading}
-              >
-                <span className="flex items-center gap-2">
-                  <Music className="w-3.5 h-3.5" />
-                  {displayKey || <Skeleton className="h-4 w-6 bg-white/10" />}
-                  <ChevronDown className="w-3 h-3 opacity-50" />
-                </span>
-              </Button>
-            </DropdownMenuTrigger>
-            {/* Portal ensures dropdown is not hidden by Reader's overflow containers */}
-            <DropdownMenuPortal>
-              <DropdownMenuContent align="end" className="bg-slate-900 border-white/10 text-white z-[300] max-h-60 overflow-y-auto custom-scrollbar">
-                {keysToUse.map(k => (
-                  <DropdownMenuItem key={k} onSelect={() => onUpdateKey(k)} className="font-mono font-bold cursor-pointer">
-                    {k}
-                  </DropdownMenuItem>
-                ))}
+          <div className="flex items-center gap-2">
+            {/* NEW: Key Preference Override Toggle */}
+            <DropdownMenu onOpenChange={setIsOverlayOpen}>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  onPointerDown={(e) => e.stopPropagation()}
+                  className="bg-white/5 border-white/10 text-xs font-black font-mono h-10 px-3 rounded-xl text-indigo-400 gap-2 min-w-[60px]"
+                  disabled={isLoading}
+                >
+                  <span className="flex items-center gap-1.5">
+                    {readerKeyPreference === 'sharps' ? <Hash className="w-3 h-3" /> : <Music className="w-3 h-3" />}
+                    {readerKeyPreference === 'sharps' ? '#' : 'b'}
+                  </span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-slate-900 border-white/10 text-white z-[300]">
+                <DropdownMenuItem 
+                  onClick={() => setReaderKeyPreference('sharps')} 
+                  className="font-bold cursor-pointer flex items-center justify-between"
+                >
+                  <span>Sharps</span> {readerKeyPreference === 'sharps' && <span className="text-emerald-500">✓</span>}
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => setReaderKeyPreference('flats')} 
+                  className="font-bold cursor-pointer flex items-center justify-between"
+                >
+                  <span>Flats</span> {readerKeyPreference === 'flats' && <span className="text-emerald-500">✓</span>}
+                </DropdownMenuItem>
               </DropdownMenuContent>
-            </DropdownMenuPortal>
-          </DropdownMenu>
+            </DropdownMenu>
+
+            {/* Existing Key Signature Dropdown */}
+            <DropdownMenu onOpenChange={setIsOverlayOpen}>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  onPointerDown={(e) => e.stopPropagation()}
+                  className="bg-white/5 border-white/10 text-xs font-black font-mono h-10 px-4 rounded-xl text-indigo-400 gap-2 min-w-[80px]"
+                  disabled={isLoading}
+                >
+                  <span className="flex items-center gap-2">
+                    <Music className="w-3.5 h-3.5" />
+                    {displayKey || <Skeleton className="h-4 w-6 bg-white/10" />}
+                    <ChevronDown className="w-3 h-3 opacity-50" />
+                  </span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuPortal>
+                <DropdownMenuContent align="end" className="bg-slate-900 border-white/10 text-white z-[300] max-h-60 overflow-y-auto custom-scrollbar">
+                  {keysToUse.map(k => (
+                    <DropdownMenuItem key={k} onSelect={() => onUpdateKey(k)} className="font-mono font-bold cursor-pointer">
+                      {k}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenuPortal>
+            </DropdownMenu>
+          </div>
         )}
 
-        {/* 5. Search Button */}
         <Button variant="ghost" size="icon" onClick={onSearchClick} className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400">
           <Search className="w-5 h-5" />
         </Button>
-        {/* 6. Fullscreen Toggle Button */}
         <Button variant="ghost" size="icon" onClick={onToggleFullScreen} className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400">
           {isFullScreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
         </Button>

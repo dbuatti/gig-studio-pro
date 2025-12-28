@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { useSettings } from '@/hooks/use-settings';
 import { calculateReadiness } from '@/utils/repertoireSync';
-import { showError, showSuccess } from '@/utils/toast'; // Added showSuccess
+import { showError, showSuccess } from '@/utils/toast';
 import UGChordsReader from '@/components/UGChordsReader';
 import { useToneAudio } from '@/hooks/use-tone-audio';
 import { transposeKey, calculateSemitones } from '@/utils/keyUtils';
@@ -25,7 +25,6 @@ import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
 import { motion } from 'framer-motion';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuPortal } from '@/components/ui/dropdown-menu';
 
-// Define chart types
 type ChartType = 'pdf' | 'leadsheet' | 'chords';
 
 interface RenderedChart {
@@ -54,6 +53,9 @@ const SheetReaderMode: React.FC = () => {
   const [isStudioModalOpen, setIsStudioModalOpen] = useState(false);
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
   
+  // NEW: Reader-specific Key Preference Override
+  const [readerKeyPreference, setReaderKeyPreference] = useState<'sharps' | 'flats'>(globalKeyPreference);
+
   // Chart Selection State
   const [selectedChartType, setSelectedChartType] = useState<ChartType>('pdf');
 
@@ -70,6 +72,7 @@ const SheetReaderMode: React.FC = () => {
     setProgress: setAudioProgress,
     volume,
     setVolume,
+    resetEngine, // Get resetEngine
   } = audioEngine;
 
   // Auto-scroll state
@@ -148,7 +151,16 @@ const SheetReaderMode: React.FC = () => {
       let initialIndex = 0;
       const targetId = routeSongId || searchParams.get('id');
       
-      if (targetId) {
+      // NEW: Check localStorage for persistence if no specific ID provided
+      if (!targetId) {
+        const savedIndex = localStorage.getItem('reader_last_index');
+        if (savedIndex) {
+          const parsed = parseInt(savedIndex, 10);
+          if (!isNaN(parsed) && parsed >= 0 && parsed < readableAndApprovedSongs.length) {
+            initialIndex = parsed;
+          }
+        }
+      } else {
         const idx = readableAndApprovedSongs.findIndex((s) => s.id === targetId);
         if (idx !== -1) initialIndex = idx;
       }
@@ -183,10 +195,15 @@ const SheetReaderMode: React.FC = () => {
 
   // Load audio when song changes
   useEffect(() => {
-    stopPlayback(); 
-
     if (!currentSong?.previewUrl) {
+      stopPlayback();
       return;
+    }
+
+    // FIX: Reset engine state to ensure loading wheel logic works correctly
+    // This forces the "Already loading" check to pass if we are switching songs
+    if (audioEngine.currentUrl !== currentSong.previewUrl) {
+        resetEngine();
     }
 
     if (audioEngine.currentUrl !== currentSong.previewUrl || !audioEngine.currentBuffer) {
@@ -194,14 +211,16 @@ const SheetReaderMode: React.FC = () => {
     } else {
       setAudioProgress(0);
     }
-  }, [currentSong, loadFromUrl, stopPlayback, pitch, setAudioProgress, audioEngine.currentUrl, audioEngine.currentBuffer]);
+  }, [currentSong, loadFromUrl, stopPlayback, pitch, setAudioProgress, audioEngine.currentUrl, audioEngine.currentBuffer, resetEngine]);
 
-  // Update URL when song changes
+  // Update URL and Persistence when song changes
   useEffect(() => {
     if (currentSong) {
       setSearchParams({ id: currentSong.id }, { replace: true });
+      // NEW: Save index to localStorage
+      localStorage.setItem('reader_last_index', currentIndex.toString());
     }
-  }, [currentSong, setSearchParams]);
+  }, [currentSong, currentIndex, setSearchParams]);
 
   // === Navigation ===
   const handleNext = useCallback(() => {
@@ -252,7 +271,6 @@ const SheetReaderMode: React.FC = () => {
   }, []);
 
   // === Chart Content Rendering Logic ===
-  // This function now accepts a specific chart type to render
   const renderChartForSong = useCallback((song: SetlistSong, chartType: ChartType) => {
     const readiness = calculateReadiness(song);
     if (readiness < 40 && forceReaderResource !== 'simulation' && !ignoreConfirmedGate) {
@@ -284,6 +302,8 @@ const SheetReaderMode: React.FC = () => {
             duration={duration}
             chordAutoScrollEnabled={chordAutoScrollEnabled}
             chordScrollSpeed={chordScrollSpeed}
+            // Pass the reader override
+            readerKeyPreference={readerKeyPreference}
           />
         );
       } else {
@@ -357,10 +377,9 @@ const SheetReaderMode: React.FC = () => {
         </div>
       );
     }
-  }, [forceReaderResource, ignoreConfirmedGate, navigate, targetKey, isPlaying, progress, duration, chordAutoScrollEnabled, chordScrollSpeed, pitch, isFramable]);
+  }, [forceReaderResource, ignoreConfirmedGate, navigate, targetKey, isPlaying, progress, duration, chordAutoScrollEnabled, chordScrollSpeed, pitch, isFramable, readerKeyPreference]);
 
   // === Chart Cache Management ===
-  // This effect manages the cache of rendered charts to prevent flashing
   const [renderedCharts, setRenderedCharts] = useState<RenderedChart[]>([]);
 
   useEffect(() => {
@@ -382,13 +401,13 @@ const SheetReaderMode: React.FC = () => {
           id: currentChartId,
           content: renderChartForSong(currentSong, selectedChartType),
           isLoaded: false,
-          opacity: 0.5, // Start slightly transparent while loading
+          opacity: 0.5,
           zIndex: 10,
           type: selectedChartType,
         });
       }
 
-      // 2. Pre-load Next Song's Primary Chart (PDF -> Leadsheet -> Chords)
+      // 2. Pre-load Next Song's Primary Chart
       const nextSongIndex = (currentIndex + 1) % allSongs.length;
       const nextSong = allSongs[nextSongIndex];
       if (nextSong && nextSong.id !== currentChartId) {
@@ -547,6 +566,9 @@ const SheetReaderMode: React.FC = () => {
           isOverrideActive={forceReaderResource !== 'default'}
           pitch={pitch}
           setPitch={setPitch}
+          // Pass new props
+          readerKeyPreference={readerKeyPreference}
+          setReaderKeyPreference={setReaderKeyPreference}
         />
 
         {/* Chart Viewer */}
