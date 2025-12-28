@@ -55,6 +55,10 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
     }
     
     const n = calculateSemitones(originalKey, targetKey);
+    
+    // DIAGNOSTIC LOGGING
+    console.log('UGChordsReader props:', { originalKey, targetKey, calculatedSemitones: n });
+    
     if (n === 0) {
       return chordsText;
     }
