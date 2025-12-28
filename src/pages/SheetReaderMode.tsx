@@ -80,7 +80,7 @@ const SheetReaderMode: React.FC = () => {
   const [chordAutoScrollEnabled, setChordAutoScrollEnabled] = useState(true);
   const [chordScrollSpeed, setChordScrollSpeed] = useState(1.0);
 
-  // NEW: Ref to track the ID of the song currently loaded in the engine
+  // NEW: Ref to track the ID of the song currently loaded in the engine.
   // This prevents the "State Collision Loop" where multiple songs fight for the engine.
   const loadedSongIdRef = useRef<string | null>(null);
 
@@ -618,7 +618,7 @@ const SheetReaderMode: React.FC = () => {
             </motion.div>
           ))}
           
-          {/* Removed the loading overlay block */}
+          {/* Removed the loading overlay block to prevent visual blocking */}
 
           {/* Floating Chart Type Toggle (Only if multiple types exist) */}
           {currentSong && availableChartTypes.length > 1 && !isImmersive && (

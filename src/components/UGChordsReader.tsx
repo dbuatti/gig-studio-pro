@@ -62,6 +62,7 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
       return chordsText;
     }
     
+    // Pass the stricter regex logic via the transposeChords utility
     return transposeChords(chordsText, n, activeKeyPreference);
   }, [chordsText, originalKey, targetKey, activeKeyPreference]);
 
