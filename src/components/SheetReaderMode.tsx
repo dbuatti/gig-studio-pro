@@ -19,11 +19,11 @@ import { transposeKey, calculateSemitones } from '@/utils/keyUtils';
 import { useReaderSettings } from '@/hooks/use-reader-settings';
 import PreferencesModal from '@/components/PreferencesModal';
 import SongStudioModal from '@/components/SongStudioModal';
-import SheetReaderHeader from '@/components/SheetReaderHeader'; // Added import
-import SheetReaderFooter from '@/components/SheetReaderFooter'; // Added import
+import SheetReaderHeader from '@/components/SheetReaderHeader';
+import SheetReaderFooter from '@/components/SheetReaderFooter';
 import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
 import { motion } from 'framer-motion';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuPortal } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 type ChartType = 'pdf' | 'leadsheet' | 'chords';
 
@@ -53,13 +53,13 @@ const SheetReaderMode: React.FC = () => {
   const [isStudioModalOpen, setIsStudioModalOpen] = useState(false);
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
   
-  // NEW: Reader-specific Key Preference Override
+  // Reader-specific key preference override (independent of global)
   const [readerKeyPreference, setReaderKeyPreference] = useState<'sharps' | 'flats'>(globalKeyPreference);
 
-  // Chart Selection State
+  // Chart selection
   const [selectedChartType, setSelectedChartType] = useState<ChartType>('pdf');
 
-  // Audio
+  // Audio engine
   const audioEngine = useToneAudio(true);
   const {
     isPlaying,
@@ -73,13 +73,14 @@ const SheetReaderMode: React.FC = () => {
     volume,
     setVolume,
     resetEngine,
+    isLoading: isLoadingAudio, // Exposed from hook
   } = audioEngine;
 
-  // Auto-scroll state
+  // Auto-scroll
   const [chordAutoScrollEnabled, setChordAutoScrollEnabled] = useState(true);
   const [chordScrollSpeed, setChordScrollSpeed] = useState(1.0);
 
-  // Harmonic Sync Hook
+  // Harmonic sync (key/pitch linking)
   const [formData, setFormData] = useState<Partial<SetlistSong>>({});
   const handleAutoSave = useCallback((updates: Partial<SetlistSong>) => {
     setFormData(prev => ({ ...prev, ...updates }));
@@ -94,7 +95,7 @@ const SheetReaderMode: React.FC = () => {
     setIsPitchLinked,
   } = useHarmonicSync({ formData, handleAutoSave, globalKeyPreference });
 
-  // Sync localPitch with pitch from useHarmonicSync
+  // Sync audio pitch
   useEffect(() => {
     setAudioPitch(pitch);
   }, [pitch, setAudioPitch]);
@@ -110,10 +111,7 @@ const SheetReaderMode: React.FC = () => {
         .eq('user_id', user.id)
         .order('title');
 
-      if (error) {
-        showError('Failed to load repertoire data.');
-        throw error;
-      }
+      if (error) throw error;
 
       const mappedSongs: SetlistSong[] = (data || []).map((d) => ({
         id: d.id,
@@ -137,7 +135,6 @@ const SheetReaderMode: React.FC = () => {
         is_pitch_linked: d.is_pitch_linked ?? true,
       }));
 
-      // Filter for readable and approved songs
       const readableAndApprovedSongs = mappedSongs.filter(s => {
         const readiness = calculateReadiness(s);
         const hasChart = s.ugUrl || s.pdfUrl || s.leadsheetUrl || s.ug_chords_text;
@@ -147,26 +144,23 @@ const SheetReaderMode: React.FC = () => {
 
       setAllSongs(readableAndApprovedSongs);
 
-      // Determine initial index
       let initialIndex = 0;
       const targetId = routeSongId || searchParams.get('id');
-      
-      // NEW: Check localStorage for persistence if no specific ID provided
+
       if (!targetId) {
-        const savedIndex = localStorage.getItem('reader_last_index');
-        if (savedIndex) {
-          const parsed = parseInt(savedIndex, 10);
+        const saved = localStorage.getItem('reader_last_index');
+        if (saved) {
+          const parsed = parseInt(saved, 10);
           if (!isNaN(parsed) && parsed >= 0 && parsed < readableAndApprovedSongs.length) {
             initialIndex = parsed;
           }
         }
       } else {
-        const idx = readableAndApprovedSongs.findIndex((s) => s.id === targetId);
+        const idx = readableAndApprovedSongs.findIndex(s => s.id === targetId);
         if (idx !== -1) initialIndex = idx;
       }
-      
-      setCurrentIndex(initialIndex);
 
+      setCurrentIndex(initialIndex);
     } catch (err) {
       showError('Failed to load repertoire');
     } finally {
@@ -178,72 +172,64 @@ const SheetReaderMode: React.FC = () => {
     fetchSongs();
   }, [fetchSongs]);
 
-  // === Song Selection ===
   const currentSong = allSongs[currentIndex];
 
-  // Update formData for useHarmonicSync when currentSong changes
+  // Update formData when song changes
   useEffect(() => {
     if (currentSong) {
-      setFormData({ 
-        originalKey: currentSong.originalKey, 
-        targetKey: currentSong.targetKey, 
+      setFormData({
+        originalKey: currentSong.originalKey,
+        targetKey: currentSong.targetKey,
         pitch: currentSong.pitch,
         is_pitch_linked: currentSong.is_pitch_linked,
       });
     }
   }, [currentSong]);
 
-  // Load audio when song changes
+  // Load audio preview
   useEffect(() => {
     if (!currentSong?.previewUrl) {
       stopPlayback();
       return;
     }
 
-    // FIX: Reset engine state to ensure loading wheel logic works correctly
-    // This forces the "Already loading" check to pass if we are switching songs
     if (audioEngine.currentUrl !== currentSong.previewUrl) {
-        resetEngine();
+      resetEngine();
     }
 
-    // Use force=true to bypass the "Already loading" check if we are in a stuck state
     if (audioEngine.currentUrl !== currentSong.previewUrl || !audioEngine.currentBuffer) {
       loadFromUrl(currentSong.previewUrl, pitch || 0, true);
     } else {
       setAudioProgress(0);
     }
-  }, [currentSong, loadFromUrl, stopPlayback, pitch, setAudioProgress, audioEngine.currentUrl, audioEngine.currentBuffer, resetEngine]);
+  }, [currentSong, pitch, loadFromUrl, stopPlayback, audioEngine, resetEngine, setAudioProgress]);
 
-  // Update URL and Persistence when song changes
+  // Persist current song in URL + localStorage
   useEffect(() => {
     if (currentSong) {
       setSearchParams({ id: currentSong.id }, { replace: true });
-      // NEW: Save index to localStorage
       localStorage.setItem('reader_last_index', currentIndex.toString());
     }
   }, [currentSong, currentIndex, setSearchParams]);
 
-  // === Navigation ===
+  // Navigation
   const handleNext = useCallback(() => {
     if (allSongs.length === 0) return;
-    const nextIndex = (currentIndex + 1) % allSongs.length;
-    setCurrentIndex(nextIndex);
+    setCurrentIndex(prev => (prev + 1) % allSongs.length);
     stopPlayback();
-  }, [currentIndex, allSongs.length, stopPlayback]);
+  }, [allSongs.length, stopPlayback]);
 
   const handlePrev = useCallback(() => {
     if (allSongs.length === 0) return;
-    const prevIndex = (currentIndex - 1 + allSongs.length) % allSongs.length;
-    setCurrentIndex(prevIndex);
+    setCurrentIndex(prev => (prev - 1 + allSongs.length) % allSongs.length);
     stopPlayback();
-  }, [currentIndex, allSongs.length, stopPlayback]);
+  }, [allSongs.length, stopPlayback]);
 
-  // === Key Update ===
+  // Key update handler
   const handleUpdateKey = useCallback(async (newTargetKey: string) => {
     if (!currentSong || !user) return;
     
     setTargetKey(newTargetKey);
-
     const newPitch = calculateSemitones(currentSong.originalKey || 'C', newTargetKey);
 
     try {
@@ -251,27 +237,32 @@ const SheetReaderMode: React.FC = () => {
         .from('repertoire')
         .update({ target_key: newTargetKey, pitch: newPitch })
         .eq('id', currentSong.id);
+
       if (error) throw error;
 
-      setAllSongs((prev) =>
-        prev.map((s) =>
-          s.id === currentSong.id ? { ...s, targetKey: newTargetKey, pitch: newPitch } : s
-        )
-      );
+      setAllSongs(prev => prev.map(s =>
+        s.id === currentSong.id ? { ...s, targetKey: newTargetKey, pitch: newPitch } : s
+      ));
       showSuccess(`Stage Key set to ${newTargetKey}`);
-    } catch (err) {
+    } catch {
       showError('Failed to update key');
     }
   }, [currentSong, user, setTargetKey]);
 
-  // Helper to check if a URL can be embedded
-  const isFramable = useCallback((url: string | null | undefined) => {
-    if (!url) return true;
-    const blockedSites = ['ultimate-guitar.com', 'musicnotes.com', 'sheetmusicplus.com'];
-    return !blockedSites.some(site => url.includes(site));
+  // Dummy onPullKey – adjust if you have real logic later
+  const onPullKey = useCallback(() => {
+    // Could refetch or sync from external source
+    console.log('Pull key triggered');
   }, []);
 
-  // === Chart Content Rendering Logic ===
+  // Check if URL is embeddable
+  const isFramable = useCallback((url: string | null | undefined) => {
+    if (!url) return true;
+    const blocked = ['ultimate-guitar.com', 'musicnotes.com', 'sheetmusicplus.com'];
+    return !blocked.some(site => url.includes(site));
+  }, []);
+
+  // Render chart content
   const renderChartForSong = useCallback((song: SetlistSong, chartType: ChartType) => {
     const readiness = calculateReadiness(song);
     if (readiness < 40 && forceReaderResource !== 'simulation' && !ignoreConfirmedGate) {
@@ -287,13 +278,12 @@ const SheetReaderMode: React.FC = () => {
       );
     }
 
-    // Determine content based on requested type
     if (chartType === 'chords') {
-      if (song.ug_chords_text && song.ug_chords_text.trim().length > 0) {
+      if (song.ug_chords_text?.trim()) {
         return (
           <UGChordsReader
             key={`${song.id}-chords`}
-            chordsText={song.ug_chords_text || ""}
+            chordsText={song.ug_chords_text}
             config={song.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
             isMobile={false}
             originalKey={song.originalKey}
@@ -303,23 +293,21 @@ const SheetReaderMode: React.FC = () => {
             duration={duration}
             chordAutoScrollEnabled={chordAutoScrollEnabled}
             chordScrollSpeed={chordScrollSpeed}
-            // Pass the reader override
             readerKeyPreference={readerKeyPreference}
           />
         );
-      } else {
-        return renderChartForSong(song, 'pdf'); // Fallback to PDF if chords requested but missing
       }
+      return renderChartForSong(song, 'pdf');
     }
 
-    // PDF/Leadsheet Logic
     const chartUrl = chartType === 'pdf' ? song.pdfUrl : song.leadsheetUrl;
-    
     if (!chartUrl) {
-       return (
+      return (
         <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-950">
           <Music className="w-24 h-24 text-slate-700 mb-8" />
-          <h2 className="text-4xl font-black uppercase text-white mb-4">No {chartType === 'pdf' ? 'Full Score' : 'Leadsheet'} Available</h2>
+          <h2 className="text-4xl font-black uppercase text-white mb-4">
+            No {chartType === 'pdf' ? 'Full Score' : 'Leadsheet'} Available
+          </h2>
           <p className="text-xl text-slate-400 mb-8">Upload one in the Studio.</p>
           <Button onClick={() => setIsStudioModalOpen(true)} className="text-lg px-10 py-6 bg-indigo-600 rounded-2xl">
             Open Studio
@@ -340,14 +328,6 @@ const SheetReaderMode: React.FC = () => {
             title="Chart Viewer"
             style={{ border: 'none' }}
             allowFullScreen
-            onLoad={() => {
-              // Mark as loaded after a slight delay to ensure render
-              setTimeout(() => {
-                setRenderedCharts(prev => prev.map(rc => 
-                  rc.id === song.id && rc.type === chartType ? { ...rc, isLoaded: true } : rc
-                ));
-              }, 300);
-            }}
           />
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20">
             <a
@@ -361,26 +341,26 @@ const SheetReaderMode: React.FC = () => {
           </div>
         </div>
       );
-    } else {
-      return (
-        <div className="h-full flex flex-col items-center justify-center bg-slate-950 p-6 md:p-12 text-center">
-          <ShieldCheck className="w-12 h-12 md:w-16 md:h-16 text-indigo-400 mb-6 md:mb-10" />
-          <h4 className="text-3xl md:text-5xl font-black uppercase tracking-tight mb-4 md:mb-6 text-white">Asset Protected</h4>
-          <p className="text-slate-500 max-xl mb-8 md:mb-16 text-lg md:text-xl font-medium leading-relaxed">
-            External security prevents in-app display. Use the button below to launch in a secure dedicated performance window.
-          </p>
-          <Button 
-            onClick={() => window.open(chartUrl, '_blank')} 
-            className="bg-indigo-600 hover:bg-indigo-700 h-16 md:h-20 px-10 md:px-16 font-black uppercase tracking-[0.2em] text-xs md:text-sm rounded-2xl md:rounded-3xl shadow-2xl shadow-indigo-600/30 gap-4 md:gap-6"
-          >
-            <ExternalLink className="w-6 h-6 md:w-8 md:h-8" /> Launch Chart Window
-          </Button>
-        </div>
-      );
     }
-  }, [forceReaderResource, ignoreConfirmedGate, navigate, targetKey, isPlaying, progress, duration, chordAutoScrollEnabled, chordScrollSpeed, pitch, isFramable, readerKeyPreference]);
 
-  // === Chart Cache Management ===
+    return (
+      <div className="h-full flex flex-col items-center justify-center bg-slate-950 p-6 md:p-12 text-center">
+        <ShieldCheck className="w-12 h-12 md:w-16 md:h-16 text-indigo-400 mb-6 md:mb-10" />
+        <h4 className="text-3xl md:text-5xl font-black uppercase tracking-tight mb-4 md:mb-6 text-white">Asset Protected</h4>
+        <p className="text-slate-500 max-xl mb-8 md:mb-16 text-lg md:text-xl font-medium leading-relaxed">
+          External security prevents in-app display. Use the button below to launch in a secure dedicated performance window.
+        </p>
+        <Button 
+          onClick={() => window.open(chartUrl, '_blank')} 
+          className="bg-indigo-600 hover:bg-indigo-700 h-16 md:h-20 px-10 md:px-16 font-black uppercase tracking-[0.2em] text-xs md:text-sm rounded-2xl md:rounded-3xl shadow-2xl shadow-indigo-600/30 gap-4 md:gap-6"
+        >
+          <ExternalLink className="w-6 h-6 md:w-8 md:h-8" /> Launch Chart Window
+        </Button>
+      </div>
+    );
+  }, [forceReaderResource, ignoreConfirmedGate, navigate, targetKey, isPlaying, progress, duration, chordAutoScrollEnabled, chordScrollSpeed, readerKeyPreference, isFramable]);
+
+  // Chart preloading cache
   const [renderedCharts, setRenderedCharts] = useState<RenderedChart[]>([]);
 
   useEffect(() => {
@@ -389,33 +369,33 @@ const SheetReaderMode: React.FC = () => {
       return;
     }
 
-    setRenderedCharts(prevCharts => {
+    setRenderedCharts(prev => {
       const newCharts: RenderedChart[] = [];
-      const currentChartId = currentSong.id;
+      const currentId = currentSong.id;
 
-      // 1. Ensure Current Song's Selected Chart is in Cache
-      const existingCurrent = prevCharts.find(c => c.id === currentChartId && c.type === selectedChartType);
-      if (existingCurrent) {
-        newCharts.push({ ...existingCurrent, opacity: 1, zIndex: 10 });
-      } else {
-        newCharts.push({
-          id: currentChartId,
+      // Current chart
+      let current = prev.find(c => c.id === currentId && c.type === selectedChartType);
+      if (!current) {
+        current = {
+          id: currentId,
           content: renderChartForSong(currentSong, selectedChartType),
           isLoaded: false,
-          opacity: 0.5,
+          opacity: 1,
           zIndex: 10,
           type: selectedChartType,
-        });
+        };
+      } else {
+        current.opacity = 1;
+        current.zIndex = 10;
       }
+      newCharts.push(current);
 
-      // 2. Pre-load Next Song's Primary Chart
-      const nextSongIndex = (currentIndex + 1) % allSongs.length;
-      const nextSong = allSongs[nextSongIndex];
-      if (nextSong && nextSong.id !== currentChartId) {
+      // Preload next
+      const nextIdx = (currentIndex + 1) % allSongs.length;
+      const nextSong = allSongs[nextIdx];
+      if (nextSong && nextSong.id !== currentId) {
         const nextType = nextSong.pdfUrl ? 'pdf' : (nextSong.leadsheetUrl ? 'leadsheet' : 'chords');
-        const existingNext = prevCharts.find(c => c.id === nextSong.id && c.type === nextType);
-        
-        if (!existingNext) {
+        if (!prev.some(c => c.id === nextSong.id && c.type === nextType)) {
           newCharts.push({
             id: nextSong.id,
             content: renderChartForSong(nextSong, nextType),
@@ -427,14 +407,12 @@ const SheetReaderMode: React.FC = () => {
         }
       }
 
-      // 3. Pre-load Previous Song's Primary Chart
-      const prevSongIndex = (currentIndex - 1 + allSongs.length) % allSongs.length;
-      const prevSong = allSongs[prevSongIndex];
-      if (prevSong && prevSong.id !== currentChartId) {
+      // Preload previous
+      const prevIdx = (currentIndex - 1 + allSongs.length) % allSongs.length;
+      const prevSong = allSongs[prevIdx];
+      if (prevSong && prevSong.id !== currentId) {
         const prevType = prevSong.pdfUrl ? 'pdf' : (prevSong.leadsheetUrl ? 'leadsheet' : 'chords');
-        const existingPrev = prevCharts.find(c => c.id === prevSong.id && c.type === prevType);
-        
-        if (!existingPrev) {
+        if (!prev.some(c => c.id === prevSong.id && c.type === prevType)) {
           newCharts.push({
             id: prevSong.id,
             content: renderChartForSong(prevSong, prevType),
@@ -446,39 +424,33 @@ const SheetReaderMode: React.FC = () => {
         }
       }
 
-      // Merge with existing charts that aren't being replaced
-      const relevantIds = new Set(newCharts.map(c => `${c.id}-${c.type}`));
-      const filteredPrevCharts = prevCharts.filter(c => !relevantIds.has(`${c.id}-${c.type}`));
-
-      return [...filteredPrevCharts, ...newCharts];
+      return newCharts;
     });
-
   }, [currentSong, currentIndex, allSongs, selectedChartType, renderChartForSong]);
 
-  // Keyboard shortcut for 'I' to open Song Studio Modal
+  // Keyboard shortcut: 'I' → open studio
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handler = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() === 'i' && currentSong && !isStudioModalOpen) {
         e.preventDefault();
         setIsStudioModalOpen(true);
       }
     };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [currentSong, isStudioModalOpen]);
 
-  // Determine available chart types for the current song
-  const availableChartTypes = useMemo(() => {
+  // Available chart types for current song
+  const availableChartTypes = useMemo((): ChartType[] => {
     if (!currentSong) return [];
     const types: ChartType[] = [];
     if (currentSong.pdfUrl) types.push('pdf');
     if (currentSong.leadsheetUrl) types.push('leadsheet');
-    if (currentSong.ug_chords_text) types.push('chords');
+    if (currentSong.ug_chords_text?.trim()) types.push('chords');
     return types;
   }, [currentSong]);
 
-  // Auto-select chart type if current selection is unavailable
+  // Auto-switch if selected type becomes unavailable
   useEffect(() => {
     if (currentSong && availableChartTypes.length > 0 && !availableChartTypes.includes(selectedChartType)) {
       setSelectedChartType(availableChartTypes[0]);
@@ -496,7 +468,10 @@ const SheetReaderMode: React.FC = () => {
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-white">
       {/* Left Sidebar */}
-      <aside className={cn("bg-slate-900 border-r border-white/10 flex flex-col shrink-0 transition-all duration-300", isImmersive ? "w-0 opacity-0 pointer-events-none" : "w-80")}>
+      <aside className={cn(
+        "bg-slate-900 border-r border-white/10 flex flex-col shrink-0 transition-all duration-300",
+        isImmersive ? "w-0 opacity-0 pointer-events-none" : "w-80"
+      )}>
         <div className="p-6 border-b border-white/10 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-black uppercase tracking-tight">Reader</h1>
@@ -547,7 +522,7 @@ const SheetReaderMode: React.FC = () => {
         </div>
       </aside>
 
-      {/* Main Content Area */}
+      {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
         <SheetReaderHeader
@@ -567,9 +542,9 @@ const SheetReaderMode: React.FC = () => {
           isOverrideActive={forceReaderResource !== 'default'}
           pitch={pitch}
           setPitch={setPitch}
-          // Pass new props
           readerKeyPreference={readerKeyPreference}
           setReaderKeyPreference={setReaderKeyPreference}
+          onPullKey={onPullKey} // Fixed: added required prop
         />
 
         {/* Chart Viewer */}
@@ -586,15 +561,15 @@ const SheetReaderMode: React.FC = () => {
               {rc.content}
             </motion.div>
           ))}
-          
-          {/* Loading Overlay */}
+
+          {/* Loading overlay */}
           {currentSong && !renderedCharts.find(c => c.id === currentSong.id && c.type === selectedChartType)?.isLoaded && (
             <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm z-20">
               <Loader2 className="w-16 h-16 animate-spin text-indigo-500" />
             </div>
           )}
 
-          {/* Floating Chart Type Toggle (Only if multiple types exist) */}
+          {/* Chart type selector */}
           {currentSong && availableChartTypes.length > 1 && !isImmersive && (
             <div className="absolute top-4 right-4 z-30">
               <DropdownMenu>
@@ -630,7 +605,7 @@ const SheetReaderMode: React.FC = () => {
           )}
         </div>
 
-        {/* Footer Controls */}
+        {/* Footer */}
         {!isImmersive && currentSong && (
           <SheetReaderFooter
             currentSong={currentSong}
@@ -649,6 +624,7 @@ const SheetReaderMode: React.FC = () => {
             setChordAutoScrollEnabled={setChordAutoScrollEnabled}
             chordScrollSpeed={chordScrollSpeed}
             setChordScrollSpeed={setChordScrollSpeed}
+            isLoadingAudio={isLoadingAudio} // Fixed: added required prop
           />
         )}
       </main>
