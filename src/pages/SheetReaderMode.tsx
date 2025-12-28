@@ -184,7 +184,7 @@ const SheetReaderMode: React.FC = () => {
   // === Song Selection ===
   const currentSong = allSongs[currentIndex];
 
-  // FIX: Reset Transposition State on Song Change (Prevents Key Leakage)
+  // FIX: State Firewall (Reset Transposition on Song Change)
   useEffect(() => {
     if (currentSong) {
       // Reset formData to the new song's specific data
@@ -196,7 +196,6 @@ const SheetReaderMode: React.FC = () => {
       });
       
       // Reset the Audio Engine's pitch to match the new song's saved pitch
-      // This ensures "Angels" starts at 0, not the previous song's offset
       if (typeof currentSong.pitch === 'number') {
         setAudioPitch(currentSong.pitch);
       }
@@ -668,7 +667,7 @@ const SheetReaderMode: React.FC = () => {
             setChordAutoScrollEnabled={setChordAutoScrollEnabled}
             chordScrollSpeed={chordScrollSpeed}
             setChordScrollSpeed={setChordScrollSpeed}
-            isLoadingAudio={isLoadingAudio}
+            isLoadingAudio={isLoadingAudio} // Added missing prop
           />
         )}
       </main>
