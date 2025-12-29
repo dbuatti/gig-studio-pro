@@ -50,7 +50,7 @@ import * as Tone from 'tone';
 interface AdminPanelProps {
   isOpen: boolean;
   onClose: () => void;
-  onRefreshRepertoire: () => void; // New prop
+  onRefreshRepertoire: () => void; 
 }
 
 type AdminTab = 'vault' | 'maintenance' | 'automation';
@@ -157,7 +157,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
     setIsAutoSyncing(false);
     showSuccess("Global Auto-Sync Operation Finished");
     fetchMaintenanceData();
-    onRefreshRepertoire(); // Refresh main repertoire view
+    onRefreshRepertoire(); 
   };
 
   const handlePopulateMissingLinks = async () => {
@@ -199,7 +199,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
     setIsPopulatingLinks(false);
     showSuccess("Bulk Link Population Complete");
     fetchMaintenanceData();
-    onRefreshRepertoire(); // Refresh main repertoire view
+    onRefreshRepertoire(); 
   };
 
   const handleClearAutoPopulatedLinks = async () => {
@@ -232,7 +232,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
       addLog(`Cleared ${autoPopulated.length} links successfully.`, 'success');
       showSuccess("Links cleared");
       fetchMaintenanceData();
-      onRefreshRepertoire(); // Refresh main repertoire view
+      onRefreshRepertoire(); 
     } catch (err: any) {
       addLog(`Clear Error: ${err.message}`, 'error');
     } finally {
@@ -336,7 +336,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
     setIsExtracting(false);
     showSuccess("Bulk Override Process Complete");
     fetchMaintenanceData();
-    onRefreshRepertoire(); // Refresh main repertoire view
+    onRefreshRepertoire(); 
   };
 
   const handleSupabaseUpload = async (file: File) => {
@@ -465,7 +465,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
         </div>
 
         <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
-          <ScrollArea className="flex-1 border-r border-white/5">
+          <ScrollArea className="flex-1 h-full border-r border-white/5">
             {activeTab === 'automation' ? (
               <div className="p-8 space-y-8 animate-in fade-in duration-500">
                 <div className="bg-indigo-600/10 border border-indigo-600/20 rounded-[2.5rem] p-10 space-y-8">
@@ -552,7 +552,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
                    <div className="p-6 bg-black/20 border-b border-white/5 flex items-center justify-between">
                       <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Repertoire Library Sync Status</h4>
                    </div>
-                   <div className="divide-y divide-white/5 max-h-[400px] overflow-y-auto custom-scrollbar">
+                   <div className="divide-y divide-white/5">
                       {maintenanceSongs.map((s) => (
                         <div key={s.id} className="p-5 flex items-center justify-between group hover:bg-white/5 transition-colors">
                            <div className="flex items-center gap-4">
@@ -596,19 +596,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-[9px] font-black uppercase text-slate-500">Repository</label>
-                      <input type="text" value={githubRepo} onChange={(e) => setGithubRepo(e.target.value)} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-sm font-mono"/>
+                      <input type="text" value={githubRepo} onChange={(e) => setGithubRepo(e.target.value)} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-sm font-mono text-white"/>
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[9px] font-black uppercase text-slate-500">File Path</label>
-                      <input type="text" value={githubFile} onChange={(e) => setGithubFile(e.target.value)} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-sm font-mono"/>
+                      <input type="text" value={githubFile} onChange={(e) => setGithubFile(e.target.value)} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-sm font-mono text-white"/>
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[9px] font-black uppercase text-slate-500">Token</label>
-                      <input type="password" value={githubToken} onChange={(e) => setGithubToken(e.target.value)} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-sm font-mono"/>
+                      <input type="password" value={githubToken} onChange={(e) => setGithubToken(e.target.value)} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-sm font-mono text-white"/>
                     </div>
                   </div>
                   <div className="space-y-3">
-                    <Textarea value={clipboardContent} onChange={(e) => setClipboardContent(e.target.value)} placeholder="Paste cookies or data..." className="min-h-[120px] bg-slate-900 border-white/10 font-mono text-xs rounded-xl"/>
+                    <Textarea value={clipboardContent} onChange={(e) => setClipboardContent(e.target.value)} placeholder="Paste cookies or data..." className="min-h-[120px] bg-slate-900 border-white/10 font-mono text-xs rounded-xl text-white"/>
                     <Button onClick={handleGithubUpload} disabled={isGithubUploading || !clipboardContent} className="w-full bg-indigo-600 h-12 rounded-xl font-black uppercase">
                       {isGithubUploading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Zap className="w-4 h-4 mr-2" />} Push Update
                     </Button>
@@ -709,7 +709,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Console Feed</span>
                  <button onClick={() => setSyncLogs([])} className="text-[9px] font-black text-slate-600 hover:text-white uppercase">Clear</button>
                </div>
-               <ScrollArea className="flex-1">
+               <ScrollArea className="flex-1 h-full">
                  <div className="space-y-3 pr-4">
                    {syncLogs.map((log, i) => (
                      <div key={i} className="space-y-1">
