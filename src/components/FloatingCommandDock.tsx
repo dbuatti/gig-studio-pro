@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { 
@@ -13,7 +13,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSettings } from '@/hooks/use-settings';
 import { compareNotes } from '@/utils/keyUtils';
 import { showError } from '@/utils/toast';
-import { useIsMobile } from '@/hooks/use-mobile';
 
 interface FloatingCommandDockProps {
   onOpenSearch: () => void;
@@ -61,15 +60,12 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   onSetMenuOpen,
   isMenuOpen: isMenuOpenProp,
 }) => {
-  const isMobile = useIsMobile(); 
-  
-  // NEW: Ref to track if a drag just occurred
-  const wasDraggedRef = useRef(false); 
-  
   const [isOpen, setIsOpen] = useState<boolean>(() => {
     if (typeof window !== 'undefined') return localStorage.getItem('floating_dock_open') === 'true';
     return false;
   });
+
+  const [isSubMenuOpen, setIsSubMenuOpen] = useState(false);
 
   const [position, setPosition] = useState<{ x: number; y: number }>(() => {
     if (typeof window !== 'undefined') {
@@ -78,8 +74,6 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     }
     return { x: 0, y: 0 };
   });
-
-  const [isSubMenuOpen, setIsSubMenuOpen] = useState(false);
 
   const [isSafePitchActive, setIsSafePitchActive] = useState(false);
   const { safePitchMaxNote } = useSettings();
@@ -90,43 +84,48 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     
     const windowWidth = window.innerWidth;
     const windowHeight = window.innerHeight;
-    const dockSize = 56; 
-    const margin = 32; 
-
-    // Calculate the current center position of the dock button
-    const initialCenterX = windowWidth - margin - (dockSize / 2);
-    const initialCenterY = windowHeight - margin - (dockSize / 2);
     
-    const currentCenterX = initialCenterX + position.x;
-    const currentCenterY = initialCenterY + position.y;
+    // Calculate the absolute position of the dock center relative to the viewport
+    // The dock is initially positioned bottom-8 right-8, so its initial offset is negative.
+    // We need to calculate the actual screen coordinates.
+    const dockSize = 56; // Approximate size of the main button
+    const margin = 32; // 8 units margin * 4 (tailwind default)
+    
+    // Calculate the current screen position (relative to top-left)
+    const screenX = windowWidth - margin - dockSize + position.x;
+    const screenY = windowHeight - margin - dockSize + position.y;
 
-    if (isMobile) {
-        // Mobile Logic: Up/Down based on vertical half
-        if (currentCenterY < windowHeight / 2) {
-            return 'down'; // Top half -> expand down
-        } else {
-            return 'up'; // Bottom half -> expand up
-        }
-    } else {
-        // Desktop Logic: Left/Right based on horizontal half
-        if (currentCenterX < windowWidth / 2) {
-            return 'right'; // Left half -> expand right
-        } else {
-            return 'left'; // Right half -> expand left
-        }
+    // Determine available space
+    const spaceRight = windowWidth - screenX;
+    const spaceLeft = screenX;
+    const spaceDown = windowHeight - screenY;
+    const spaceUp = screenY;
+
+    // Threshold for deciding direction (e.g., 200px needed for menu)
+    const threshold = 200; 
+
+    // Prioritize opening away from the closest edge
+    if (spaceRight < threshold && spaceLeft > threshold) {
+      return 'left';
     }
-  }, [position, isMobile]);
+    if (spaceLeft < threshold && spaceRight > threshold) {
+      return 'right';
+    }
+    if (spaceDown < threshold && spaceUp > threshold) {
+      return 'up';
+    }
+    if (spaceUp < threshold && spaceDown > threshold) {
+      return 'down';
+    }
+
+    // Default to bottom-right corner behavior (expand up and left)
+    if (screenX > windowWidth / 2) return 'up';
+    return 'right';
+  }, [position]);
 
   const internalIsMenuOpen = isReaderMode ? isMenuOpenProp : isOpen;
   
   const handleToggleMenu = useCallback(() => {
-    // 1. Check if drag occurred
-    if (wasDraggedRef.current) {
-        wasDraggedRef.current = false; // Reset flag immediately
-        return; 
-    }
-
-    // 2. Proceed with menu toggle logic
     const nextState = !internalIsMenuOpen;
     if (isReaderMode) onSetMenuOpen?.(nextState);
     else setIsOpen(nextState);
@@ -147,11 +146,6 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     const newPos = { x: position.x + info.offset.x, y: position.y + info.offset.y };
     setPosition(newPos);
     localStorage.setItem('floating_dock_position', JSON.stringify(newPos));
-    
-    // If the drag moved more than 5 pixels in either direction, set the flag
-    if (Math.abs(info.offset.x) > 5 || Math.abs(info.offset.y) > 5) {
-        wasDraggedRef.current = true;
-    }
   };
 
   const safePitchLimit = useMemo(() => {
