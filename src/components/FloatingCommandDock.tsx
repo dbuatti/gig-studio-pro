@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { 
   LayoutDashboard, Search, Sparkles, ShieldCheck, X, Settings, 
-  Play, FileText, Pause, BookOpen, Volume2, ShieldAlert, Zap,
-  Wrench, GripVertical
+  Play, FileText, Pause, BookOpen, ShieldAlert, Zap,
+  Wrench
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { motion, AnimatePresence } from 'framer-motion';
@@ -86,7 +86,10 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     return window.innerWidth < 768 || 'ontouchstart' in window;
   }, []);
 
-  // Follow cursor when menu is closed (always "behind" the cursor for quick access)
+  // Must be declared BEFORE any useEffect that references it
+  const internalIsMenuOpen = isReaderMode ? isMenuOpenProp : isOpen;
+
+  // Follow cursor when menu is closed — always "behind" the cursor
   useEffect(() => {
     if (internalIsMenuOpen) return;
 
@@ -98,16 +101,16 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, [internalIsMenuOpen]);
 
-  // Intelligent Direction Calculation
+  // Intelligent direction based on available space
   const direction = useMemo((): MenuDirection => {
     if (typeof window === 'undefined') return isMobile ? 'up' : 'right';
-    
+
     const windowWidth = window.innerWidth;
     const windowHeight = window.innerHeight;
-    
+
     const dockSize = 64; // Larger main button
     const margin = 32;
-    
+
     const currentX = windowWidth - margin - dockSize / 2 + position.x;
     const currentY = windowHeight - margin - dockSize / 2 + position.y;
 
@@ -116,8 +119,8 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     const spaceDown = windowHeight - currentY;
     const spaceUp = currentY;
 
-    const menuWidth = isMobile ? 120 : 300;
-    const menuHeight = isMobile ? 400 : 180;
+    const menuWidth = isMobile ? 120 : 320;
+    const menuHeight = isMobile ? 420 : 180;
 
     const spaces = [
       { dir: 'right' as MenuDirection, space: spaceRight, needs: menuWidth },
@@ -136,32 +139,24 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     return spaces[0].dir;
   }, [position, isMobile]);
 
- const internalIsMenuOpen = isReaderMode ? isMenuOpenProp : isOpen;
+  const handleToggleMenu = useCallback(() => {
+    const nextState = !internalIsMenuOpen;
+    if (isReaderMode) onSetMenuOpen?.(nextState);
+    else setIsOpen(nextState);
+    if (!nextState) setIsSubMenuOpen(false);
+    localStorage.setItem('floating_dock_open', nextState.toString());
+  }, [internalIsMenuOpen, isReaderMode, onSetMenuOpen]);
 
-// ← MOVE ALL useEffects that use internalIsMenuOpen BELOW this line
+  // ESC to close
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && internalIsMenuOpen) handleToggleMenu();
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [internalIsMenuOpen, handleToggleMenu]);
 
-// Follow cursor when menu is closed
-useEffect(() => {
-  if (internalIsMenuOpen) return;
-
-  const handleMouseMove = (e: MouseEvent) => {
-    setMousePos({ x: e.clientX, y: e.clientY });
-  };
-
-  window.addEventListener('mousemove', handleMouseMove);
-  return () => window.removeEventListener('mousemove', handleMouseMove);
-}, [internalIsMenuOpen]); // now safe to include
-
-// ESC to close
-useEffect(() => {
-  const handleEsc = (e: KeyboardEvent) => {
-    if (e.key === 'Escape' && internalIsMenuOpen) handleToggleMenu();
-  };
-  window.addEventListener('keydown', handleEsc);
-  return () => window.removeEventListener('keydown', handleEsc);
-}, [internalIsMenuOpen, handleToggleMenu]);
-
-  // Drag handling - only allow when menu closed (prevents accidental reopen)
+  // Drag handling — only when menu is closed (prevents accidental reopen after drag)
   const handleDragStart = () => {
     if (internalIsMenuOpen) return;
     setIsDragging(true);
@@ -190,7 +185,9 @@ useEffect(() => {
         return;
       }
       onSafePitchToggle?.(true, safePitchLimit);
-    } else if (!isSafePitchActive) onSafePitchToggle?.(false, 0);
+    } else if (!isSafePitchActive) {
+      onSafePitchToggle?.(false, 0);
+    }
   }, [isSafePitchActive, safePitchLimit, currentSongPitch, onSafePitchToggle]);
 
   const primaryButtons = [
@@ -252,12 +249,12 @@ useEffect(() => {
         className={cn(
           "fixed z-[9999] flex touch-none",
           isDragging && "cursor-grabbing",
-          !isDragging && !internalIsMenuOpen && "cursor-none", // Hide default cursor when following (optional - feels magical)
+          !isDragging && !internalIsMenuOpen && "cursor-none",
           internalIsMenuOpen && getMenuAlignment(direction)
         )}
-        style={{ pointerEvents: internalIsMenuOpen ? 'auto' : 'none' }} // Disable interaction when following cursor
+        style={{ pointerEvents: internalIsMenuOpen ? 'auto' : 'none' }}
       >
-        {/* Main Hub Button - Larger & with drag handle when open */}
+        {/* Main Hub Button */}
         <div className="bg-slate-950/95 backdrop-blur-2xl p-3 rounded-full border border-white/20 shadow-2xl">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -272,14 +269,7 @@ useEffect(() => {
                     : "bg-slate-900 text-indigo-400 border-white/20 hover:border-indigo-400"
                 )}
               >
-                {internalIsMenuOpen ? (
-                  <X className="w-8 h-8" />
-                ) : (
-                  <>
-                    <LayoutDashboard className="w-8 h-8" />
-                    {internalIsMenuOpen && <GripVertical className="w-5 h-5 ml-2 opacity-60" />}
-                  </>
-                )}
+                {internalIsMenuOpen ? <X className="w-8 h-8" /> : <LayoutDashboard className="w-8 h-8" />}
               </Button>
             </TooltipTrigger>
             <TooltipContent side="top">Command Center</TooltipContent>
@@ -295,7 +285,7 @@ useEffect(() => {
               transition={{ duration: 0.25 }}
               className={cn("flex gap-4", isMobile ? "flex-col" : "flex-row")}
             >
-              {/* Primary Actions - Larger on mobile */}
+              {/* Primary Actions */}
               <div className={cn(
                 "flex gap-4 p-4 bg-slate-950/95 rounded-3xl border border-white/10 shadow-2xl backdrop-blur-2xl",
                 isMobile ? "flex-col" : "flex-row"
@@ -341,7 +331,7 @@ useEffect(() => {
                 </Tooltip>
               </div>
 
-              {/* Secondary Utilities - Grid on mobile */}
+              {/* Secondary Utilities */}
               <AnimatePresence>
                 {isSubMenuOpen && (
                   <motion.div
@@ -350,9 +340,7 @@ useEffect(() => {
                     exit={{ opacity: 0, scale: 0.8 }}
                     className={cn(
                       "p-4 bg-slate-900/95 rounded-3xl border border-white/10 shadow-2xl backdrop-blur-2xl",
-                      isMobile 
-                        ? "grid grid-cols-3 gap-4" 
-                        : "grid grid-cols-3 gap-3"
+                      isMobile ? "grid grid-cols-3 gap-4" : "grid grid-cols-3 gap-3"
                     )}
                   >
                     {secondaryButtons.map((btn) => (
@@ -361,7 +349,10 @@ useEffect(() => {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => { btn.onClick(); if (!['heatmap', 'safe-pitch'].includes(btn.id)) handleToggleMenu(); }}
+                            onClick={() => { 
+                              btn.onClick(); 
+                              if (!['heatmap', 'safe-pitch'].includes(btn.id)) handleToggleMenu(); 
+                            }}
                             className={cn(
                               "rounded-full border transition-all hover:scale-110",
                               isMobile ? "h-14 w-14" : "h-12 w-12",
