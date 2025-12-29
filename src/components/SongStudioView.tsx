@@ -142,12 +142,17 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           
           // Sync to Setlist (Gig)
           if (gigId !== 'library') {
-            const { data } = await supabase
+            const { data, error } = await supabase
               .from('setlists')
               .select('songs')
               .eq('id', gigId)
               .single();
             
+            if (error) {
+              console.error("[SongStudioView] Failed to fetch setlist for update:", error.message, error.details, error.hint, error.code);
+              throw error;
+            }
+
             const songs = (data?.songs as SetlistSong[]) || [];
             
             await supabase
@@ -158,7 +163,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
               .eq('id', gigId);
           }
         } catch (err: any) {
-          console.error("[SongStudioView] Auto-save failed:", err);
+          console.error("[SongStudioView] Auto-save failed:", err.message, err.details, err.hint, err.code);
           showError("Auto-save failed: " + (err.message || "Unknown error"));
         }
       }, 1000);
@@ -199,7 +204,10 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           .eq('id', songId)
           .single();
         
-        if (error) throw error;
+        if (error) {
+          console.error("[SongStudioView] Failed to fetch repertoire song:", error.message, error.details, error.hint, error.code);
+          throw error;
+        }
         
         if (data) {
           targetSong = {
@@ -241,7 +249,10 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           .eq('id', gigId)
           .single();
         
-        if (error) throw error;
+        if (error) {
+          console.error("[SongStudioView] Failed to fetch setlist for song:", error.message, error.details, error.hint, error.code);
+          throw error;
+        }
         
         targetSong = (data?.songs as SetlistSong[])?.find(s => s.id === songId);
       }
@@ -263,7 +274,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
       }
       
     } catch (err: any) {
-      console.error("[SongStudioView] Studio failed to initialize:", err.message);
+      console.error("[SongStudioView] Studio failed to initialize:", err.message, err.details, err.hint, err.code);
       showError("Studio failed to initialize: " + err.message);
       onClose();
     } finally {
@@ -328,6 +339,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
         window.open(`https://music.apple.com/us/search?term=${query}`, '_blank');
       }
     } catch (err: any) {
+      console.error("[SongStudioView] iTunes metadata fetch failed:", err.message);
       showError("Failed to fetch iTunes data. Opening manual search.");
       window.open(`https://music.apple.com/us/search?term=${encodeURIComponent(`${formData.artist} ${formData.name}`)}`, '_blank');
     } finally {

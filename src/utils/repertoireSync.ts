@@ -86,7 +86,6 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       const payload: { [key: string]: any } = {
         user_id: userId,
         title: song.name.trim() || 'Untitled Track',
-        artist: song.artist?.trim() || 'Unknown Artist',
         updated_at: new Date().toISOString(),
         readiness_score: calculateReadiness(song),
         is_active: true, // Default to true, can be overridden if needed
@@ -96,10 +95,10 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       // This prevents sending 'undefined' or default objects for nullable fields if not explicitly set
       if (song.originalKey !== undefined) payload.original_key = song.originalKey; else payload.original_key = null;
       if (song.targetKey !== undefined) payload.target_key = song.targetKey; else payload.target_key = null;
+      if (song.pitch !== undefined) payload.pitch = song.pitch; else payload.pitch = 0; // pitch is NOT NULL with default 0
       if (song.bpm !== undefined) payload.bpm = song.bpm; else payload.bpm = null;
       if (song.lyrics !== undefined) payload.lyrics = song.lyrics; else payload.lyrics = null;
       if (song.notes !== undefined) payload.notes = song.notes; else payload.notes = null;
-      if (song.pitch !== undefined) payload.pitch = song.pitch; else payload.pitch = 0; // pitch is NOT NULL with default 0
       if (song.ugUrl !== undefined) payload.ug_url = song.ugUrl; else payload.ug_url = null;
       if (song.pdfUrl !== undefined) payload.pdf_url = song.pdfUrl; else payload.pdf_url = null;
       if (song.leadsheetUrl !== undefined) payload.leadsheet_url = song.leadsheetUrl; else payload.leadsheet_url = null;
@@ -146,7 +145,7 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       .select('id, title, artist');
       
     if (error) {
-      console.error("[syncToMasterRepertoire] Supabase upsert error:", error);
+      console.error("[syncToMasterRepertoire] Supabase upsert error:", error.message, error.details, error.hint, error.code);
       throw error;
     }
     

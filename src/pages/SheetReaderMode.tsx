@@ -145,9 +145,7 @@ const SheetReaderMode: React.FC = () => {
         .eq('id', currentSong.id)
         .then(({ error }) => {
           if (error) {
-            console.error("[SheetReaderMode] Supabase Auto-save failed:", error);
-            if (error.message) console.error("Supabase Error Message:", error.message);
-            if (error.details) console.error("Supabase Error Details:", error.details);
+            console.error("[SheetReaderMode] Supabase Auto-save failed:", error.message, error.details, error.hint, error.code);
             showError('Auto-save failed');
           }
           else {
@@ -190,7 +188,7 @@ const SheetReaderMode: React.FC = () => {
 
       // Add robust error logging for Supabase fetches
       if (error) {
-        console.error("Supabase Fetch Error:", error);
+        console.error("[SheetReaderMode] Supabase Fetch Error:", error.message, error.details, error.hint, error.code);
         // Check for RLS specific error message
         if (error.message.includes("new row violates row-level-security")) {
           showError("Database Security Error: You don't have permission to read this data. Check RLS policies.");
@@ -279,7 +277,7 @@ const SheetReaderMode: React.FC = () => {
         setAllSetlists(mappedSetlists);
       }
     } catch (err: any) {
-      console.error("[SheetReaderMode] Error fetching all setlists:", err);
+      console.error("[SheetReaderMode] Error fetching all setlists:", err.message, err.details, err.hint, err.code);
       showError("Failed to load all setlists.");
     }
   }, [user]);
@@ -351,7 +349,7 @@ const SheetReaderMode: React.FC = () => {
         .eq('id', currentSong.id);
 
       if (error) {
-        console.error("[SheetReaderMode] Supabase update key error:", error);
+        console.error("[SheetReaderMode] Supabase update key error:", error.message, error.details, error.hint, error.code);
         // Check for RLS specific error message
         if (error.message.includes("new row violates row-level-security")) {
           showError("Database Security Error: You don't have permission to update this data. Check RLS policies.");
@@ -399,7 +397,7 @@ const SheetReaderMode: React.FC = () => {
           .eq('id', currentSong.id);
         
         if (error) {
-          console.error("[SheetReaderMode] Supabase pull key error:", error);
+          console.error("[SheetReaderMode] Supabase pull key error:", error.message, error.details, error.hint, error.code);
           // Check for RLS specific error message
           if (error.message.includes("new row violates row-level-security")) {
             showError("Database Security Error: You don't have permission to update this data. Check RLS policies.");
@@ -479,7 +477,7 @@ const SheetReaderMode: React.FC = () => {
       ));
       showSuccess(`Setlist "${targetSetlist.name}" updated.`);
     } catch (err: any) {
-      console.error("[SheetReaderMode] Failed to update setlist songs:", err);
+      console.error("[SheetReaderMode] Failed to update setlist songs:", err.message, err.details, err.hint, err.code);
       showError(`Failed to update setlist: ${err.message}`);
     }
   }, [allSetlists]);
