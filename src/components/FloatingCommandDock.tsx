@@ -120,12 +120,13 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   const internalIsMenuOpen = isReaderMode ? isMenuOpenProp : isOpen;
   
   const handleToggleMenu = useCallback(() => {
-    // NEW: Suppress click if a drag just finished
+    // 1. Check if drag occurred
     if (wasDraggedRef.current) {
-        wasDraggedRef.current = false;
+        wasDraggedRef.current = false; // Reset flag immediately
         return; 
     }
 
+    // 2. Proceed with menu toggle logic
     const nextState = !internalIsMenuOpen;
     if (isReaderMode) onSetMenuOpen?.(nextState);
     else setIsOpen(nextState);
@@ -150,10 +151,6 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     // If the drag moved more than 5 pixels in either direction, set the flag
     if (Math.abs(info.offset.x) > 5 || Math.abs(info.offset.y) > 5) {
         wasDraggedRef.current = true;
-        // Clear the flag after a short delay to allow normal clicks again
-        setTimeout(() => {
-            wasDraggedRef.current = false;
-        }, 100); 
     }
   };
 
