@@ -77,15 +77,12 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   const { safePitchMaxNote } = useSettings();
 
   // Intelligent Direction logic
-  // Since we start with 'bottom-8', a negative Y means we've moved UP.
+  // position.y is offset from initial bottom-8. Negative value means it moved UP.
   const isNearTop = useMemo(() => {
     if (typeof window === 'undefined') return false;
-    // Check if the center of the hub is in the top half of the screen
-    // y = 0 is bottom. y = -innerHeight is top.
     return position.y < -(window.innerHeight / 2);
   }, [position.y]);
 
-  // Sync menu state for ReaderMode or internal state
   const internalIsMenuOpen = isReaderMode ? isMenuOpenProp : isOpen;
   
   const handleToggleMenu = () => {
@@ -98,7 +95,6 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     localStorage.setItem('floating_dock_open', nextState.toString());
   };
 
-  // Persist position
   const handleDragEnd = (_: any, info: any) => {
     const newPos = { 
       x: position.x + info.offset.x, 
@@ -108,7 +104,6 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     localStorage.setItem('floating_dock_position', JSON.stringify(newPos));
   };
 
-  // Safe Pitch Calculation
   const safePitchLimit = useMemo(() => {
     if (!currentSongHighestNote || !safePitchMaxNote) return null;
     return compareNotes(safePitchMaxNote, currentSongHighestNote);
