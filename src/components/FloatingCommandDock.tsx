@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { 
@@ -13,7 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSettings } from '@/hooks/use-settings';
 import { compareNotes } from '@/utils/keyUtils';
 import { showError } from '@/utils/toast';
-import { useIsMobile } from '@/hooks/use-mobile'; // <-- NEW: Import useIsMobile
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface FloatingCommandDockProps {
   onOpenSearch: () => void;
@@ -61,7 +61,10 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   onSetMenuOpen,
   isMenuOpen: isMenuOpenProp,
 }) => {
-  const isMobile = useIsMobile(); // <-- NEW: Use the hook
+  const isMobile = useIsMobile(); 
+  
+  // NEW: Ref to track if a drag just occurred
+  const wasDraggedRef = useRef(false); 
   
   const [isOpen, setIsOpen] = useState<boolean>(() => {
     if (typeof window !== 'undefined') return localStorage.getItem('floating_dock_open') === 'true';
@@ -91,7 +94,6 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     const margin = 32; 
 
     // Calculate the current center position of the dock button
-    // Note: position.x/y are offsets from the initial bottom-right position (windowWidth - margin - dockSize)
     const initialCenterX = windowWidth - margin - (dockSize / 2);
     const initialCenterY = windowHeight - margin - (dockSize / 2);
     
@@ -118,6 +120,12 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   const internalIsMenuOpen = isReaderMode ? isMenuOpenProp : isOpen;
   
   const handleToggleMenu = useCallback(() => {
+    // NEW: Suppress click if a drag just finished
+    if (wasDraggedRef.current) {
+        wasDraggedRef.current = false;
+        return; 
+    }
+
     const nextState = !internalIsMenuOpen;
     if (isReaderMode) onSetMenuOpen?.(nextState);
     else setIsOpen(nextState);
@@ -138,6 +146,15 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     const newPos = { x: position.x + info.offset.x, y: position.y + info.offset.y };
     setPosition(newPos);
     localStorage.setItem('floating_dock_position', JSON.stringify(newPos));
+    
+    // If the drag moved more than 5 pixels in either direction, set the flag
+    if (Math.abs(info.offset.x) > 5 || Math.abs(info.offset.y) > 5) {
+        wasDraggedRef.current = true;
+        // Clear the flag after a short delay to allow normal clicks again
+        setTimeout(() => {
+            wasDraggedRef.current = false;
+        }, 100); 
+    }
   };
 
   const safePitchLimit = useMemo(() => {
