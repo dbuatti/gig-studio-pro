@@ -5,16 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
-  Youtube, Search, Loader2, X, Download, ExternalLink, PlayCircle, Terminal
+  Youtube, Search, Loader2, X, Download, ExternalLink, PlayCircle, Terminal, CheckCircle2
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import YoutubeResultsShelf from './YoutubeResultsShelf';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
-import { showSuccess, showError } from '@/utils/toast';
+import { showSuccess, showError, showInfo } from '@/utils/toast';
 import { SetlistSong } from './SetlistManager';
-import { CustomProgress } from '@/components/CustomProgress';
-import * as Tone from 'tone';
 import { cleanYoutubeUrl } from '@/utils/youtubeUtils';
 
 interface YoutubeMediaManagerProps {
@@ -38,9 +36,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
   const [ytApiKey, setYtApiKey] = useState("");
   const [isSearchingYoutube, setIsSearchingYoutube] = useState(false);
   const [ytResults, setYtResults] = useState<any[]>([]);
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [downloadStatus, setDownloadStatus] = useState<'idle' | 'processing' | 'downloading' | 'error' | 'success'>('idle');
-  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [isTriggering, setIsTriggering] = useState(false);
   const [lastQuery, setLastQuery] = useState("");
 
   const currentVideoId = useMemo(() => {
@@ -86,7 +82,6 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
     setYtResults([]);
     setLastQuery(searchTerm);
 
-    // Strategy 1: Google YouTube API
     if (ytApiKey) {
       try {
         const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(searchTerm)}&type=video&videoCategoryId=10&relevanceLanguage=en&maxResults=12&key=${ytApiKey}`;
@@ -118,11 +113,10 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
             return;
           }
         }
-      } catch (e) {
-      }
+      } catch (e) {}
     }
 
-    // Strategy 2: Proxy Fallback
+    // Fallback search strategy
     try {
       const proxies = ["https://api.allorigins.win/get?url=", "https://corsproxy.io/?"];
       const instances = ['https://iv.ggtyler.dev', 'https://yewtu.be', 'https://invidious.flokinet.to'];
@@ -176,7 +170,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
     handleAutoSave({ youtubeUrl: cleanYoutubeUrl(url) });
   };
 
-  const handleDownloadViaProxy = async (videoUrlToDownload?: string) => {
+  const handleBackgroundExtraction = async (videoUrlToDownload?: string) => {
     const targetVideoUrl = cleanYoutubeUrl(videoUrlToDownload || formData.youtubeUrl || '');
 
     if (!targetVideoUrl) {
@@ -189,61 +183,26 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
     }
 
     handleAutoSave({ youtubeUrl: targetVideoUrl });
-    showSuccess("YouTube URL linked. Starting audio extraction...");
-
-    setDownloadStatus('processing');
-    setIsDownloading(true);
-    setDownloadProgress(0);
+    setIsTriggering(true);
 
     try {
-      const API_BASE_URL = "https://yt-audio-api-1-wedr.onrender.com";
-      const tokenResponse = await fetch(`${API_BASE_URL}/?url=${encodeURIComponent(targetVideoUrl)}`);
-      if (!tokenResponse.ok) throw new Error("API Connection Failed");
-      const { token } = await tokenResponse.json();
-
-      let attempts = 0;
-      let fileResponse: Response | undefined;
-      let downloadReady = false;
-
-      while (attempts < 30 && !downloadReady) {
-        attempts++;
-        await new Promise(resolve => setTimeout(resolve, 5000));
-        fileResponse = await fetch(`${API_BASE_URL}/download?token=${token}`);
-        const clonedResponse = fileResponse.clone();
-        const responseData = await clonedResponse.json().catch(() => ({}));
-
-        if (fileResponse.status === 200) {
-          downloadReady = true;
-          setDownloadStatus('downloading');
-          break;
-        } else if (fileResponse.status === 202) {
-          setDownloadProgress(responseData.progress_percentage || 0);
+      const { data, error } = await supabase.functions.invoke('download-audio', {
+        body: { 
+          videoUrl: targetVideoUrl,
+          songId: song.id,
+          userId: user.id
         }
-      }
+      });
 
-      if (!downloadReady || !fileResponse) throw new Error("Audio extraction timed out.");
+      if (error) throw error;
 
-      const audioArrayBuffer = await fileResponse.arrayBuffer();
-      const audioBuffer = await Tone.getContext().decodeAudioData(audioArrayBuffer.slice(0));
-
-      const fileName = `${user.id}/${song.id}/${Date.now()}.mp3`;
-      const { error: uploadError } = await supabase.storage
-        .from('public_audio')
-        .upload(fileName, audioArrayBuffer, { contentType: 'audio/mpeg', upsert: true });
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = await supabase.storage.from('public_audio').getPublicUrl(fileName);
-
-      await onLoadAudioFromUrl(publicUrl, formData.pitch || 0);
-      handleAutoSave({ previewUrl: publicUrl, duration_seconds: audioBuffer.duration });
-      showSuccess("Master Audio Bound");
-      setDownloadStatus('success');
-
+      showInfo("Background extraction started. You can close this window; the audio will update automatically.");
+      showSuccess("Task Queued Successfully");
+      
     } catch (err: any) {
-      showError(`Extraction failed: ${err.message}`);
-      setDownloadStatus('error');
+      showError(`Trigger failed: ${err.message}`);
     } finally {
-      setIsDownloading(false);
+      setIsTriggering(false);
     }
   };
 
@@ -271,44 +230,35 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
           <Button
             variant="default"
             onClick={handleYoutubeSearch}
-            disabled={isSearchingYoutube || isDownloading}
+            disabled={isSearchingYoutube || isTriggering}
             className="bg-red-600 hover:bg-red-700 text-white h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg shadow-red-600/20"
           >
             {isSearchingYoutube ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-4 h-4" />} SEARCH
           </Button>
           <Button
-            onClick={() => handleDownloadViaProxy()}
-            disabled={isSearchingYoutube || isDownloading || !formData.youtubeUrl}
-            className="bg-indigo-600 hover:bg-indigo-700 h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg shadow-indigo-600/20"
+            onClick={() => handleBackgroundExtraction()}
+            disabled={isSearchingYoutube || isTriggering || !formData.youtubeUrl}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg shadow-indigo-600/20"
           >
-            {(isSearchingYoutube || isDownloading) ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-4 h-4" />} 
-            {downloadStatus === 'processing' ? `SYNCING... ${downloadProgress}%` : 'EXTRACT'}
+            {isTriggering ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-4 h-4" />} 
+            {isTriggering ? 'TRIGGERING...' : 'START BACKGROUND EXTRACT'}
           </Button>
         </div>
       </div>
-
-      {isDownloading && downloadStatus === 'processing' && (
-        <div className="space-y-2 animate-in fade-in duration-300">
-          <CustomProgress value={downloadProgress} className="h-2 bg-white/10" indicatorClassName="bg-indigo-500" />
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 text-center">
-            Cloud Conversion in progress... {downloadProgress}%
-          </p>
-        </div>
-      )}
 
       {ytResults.length > 0 && (
         <YoutubeResultsShelf
           results={ytResults}
           currentVideoId={currentVideoId}
           onSelect={handleSelectYoutubeVideo}
-          onDownloadAudio={handleDownloadViaProxy}
+          onDownloadAudio={handleBackgroundExtraction}
           onPreviewVideo={(url) => {
             handleAutoSave({ youtubeUrl: cleanYoutubeUrl(url) });
             onSwitchTab('visual');
           }}
           isLoading={isSearchingYoutube}
-          isDownloading={isDownloading}
-          downloadStatus={downloadStatus}
+          isDownloading={isTriggering}
+          downloadStatus={isTriggering ? 'processing' : 'idle'}
         />
       )}
     </div>

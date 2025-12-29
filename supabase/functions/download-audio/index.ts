@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { videoUrl } = await req.json();
+    const { videoUrl, songId, userId } = await req.json();
     
     if (!videoUrl) {
       return new Response(JSON.stringify({ error: "Video URL is required" }), {
@@ -22,83 +22,40 @@ serve(async (req) => {
     }
 
     const renderUrl = "https://yt-audio-api-1-wedr.onrender.com";
+    
+    // @ts-ignore: Deno global
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    // @ts-ignore: Deno global
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-    let token = null;
-    let attempts = 0;
-    const MAX_ATTEMPTS = 3;
+    // Trigger Render API with background sync parameters
+    const queryParams = new URLSearchParams({
+      url: videoUrl,
+      s_url: supabaseUrl || '',
+      s_key: supabaseKey || '',
+      song_id: songId || '',
+      user_id: userId || ''
+    });
 
-    while (attempts < MAX_ATTEMPTS) {
-      attempts++;
-      
-      // 1. Get Token from Render API
-      const tokenResponse = await fetch(`${renderUrl}/?url=${encodeURIComponent(videoUrl)}`);
-      if (!tokenResponse.ok) {
-        const errorText = await tokenResponse.text();
-        throw new Error(`Render API token request failed: ${tokenResponse.statusText}`);
-      }
-      const tokenData = await tokenResponse.json();
-      token = tokenData.token;
-
-      // 2. Poll for the file to be ready
-      const downloadUrl = `${renderUrl}/download?token=${token}`;
-      
-      // Wait a moment for processing
-      await new Promise(resolve => setTimeout(resolve, 3000));
-
-      const fileResponse = await fetch(downloadUrl);
-      
-      if (fileResponse.status === 202) {
-        const responseData = await fileResponse.json().catch(() => ({}));
-        return new Response(JSON.stringify({ 
-          status: 'processing', 
-          message: 'Audio is being converted. Please try again in a few seconds.',
-          token: token,
-          downloadUrl: downloadUrl,
-          progress_percentage: responseData.progress_percentage || 0
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
-
-      if (fileResponse.status === 404 && attempts < MAX_ATTEMPTS) {
-        await new Promise(resolve => setTimeout(resolve, 2000 * attempts));
-        continue;
-      }
-
-      if (fileResponse.status === 500) {
-        const errorData = await fileResponse.json();
-        if (errorData.error === "YouTube Block") {
-          return new Response(JSON.stringify({ 
-            error: "YouTube blocked the download. Try again later or use manual fallback.", 
-            details: errorData.detail 
-          }), {
-            status: 500,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          });
-        }
-        throw new Error(errorData.error || `Download failed with status 500: ${fileResponse.statusText}`);
-      }
-
-      if (!fileResponse.ok) {
-        throw new Error(`Download failed: ${fileResponse.statusText}`);
-      }
-
-      // 3. Return the audio file directly
-      const audioBuffer = await fileResponse.arrayBuffer();
-      const headers = new Headers(corsHeaders);
-      headers.set('Content-Type', 'audio/mpeg');
-      headers.set('Content-Disposition', `attachment; filename="audio.mp3"`);
-
-      return new Response(audioBuffer, { headers });
+    const triggerResponse = await fetch(`${renderUrl}/?${queryParams.toString()}`);
+    
+    if (!triggerResponse.ok) {
+      throw new Error(`Render API trigger failed: ${triggerResponse.statusText}`);
     }
 
-    // If all attempts fail
-    return new Response(JSON.stringify({ error: "Failed to download audio after multiple attempts. Render API might be unstable or blocked." }), {
-      status: 500,
+    const data = await triggerResponse.json();
+
+    return new Response(JSON.stringify({ 
+      success: true, 
+      status: 'background_started', 
+      message: 'Background audio extraction initialized. This may take a minute and will update automatically.',
+      token: data.token
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
   } catch (error: any) {
+    console.error("[download-audio] Fatal Error:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

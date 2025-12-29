@@ -36,7 +36,7 @@ import {
   Undo2
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { showSuccess, showError } from '@/utils/toast';
+import { showSuccess, showError, showInfo } from '@/utils/toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
 import { cn } from "@/lib/utils";
@@ -45,7 +45,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { cleanYoutubeUrl } from '@/utils/youtubeUtils';
-import * as Tone from 'tone';
 
 interface AdminPanelProps {
   isOpen: boolean;
@@ -69,7 +68,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
 
   // Maintenance / Bulk Extraction State
   const [isExtracting, setIsExtracting] = useState(false);
-  const [extractionProgress, setExtractionProgress] = useState({ current: 0, total: 0 });
   const [maintenanceSongs, setMaintenanceSongs] = useState<any[]>([]);
 
   // Automation State
@@ -261,82 +259,45 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
     }
   };
 
-  const handleBulkExtract = async () => {
+  const handleBulkBackgroundExtract = async () => {
     const songsToProcess = maintenanceSongs.filter(s => s.youtube_url);
     if (songsToProcess.length === 0) {
       showError("No songs with YouTube links found.");
       return;
     }
 
-    if (!confirm(`WARNING: This will override existing master audio for ${songsToProcess.length} songs. Continue?`)) {
+    if (!confirm(`WARNING: This will initiate background extraction for ${songsToProcess.length} songs. Continue?`)) {
       return;
     }
 
     setIsExtracting(true);
-    setExtractionProgress({ current: 0, total: songsToProcess.length });
-    addLog(`Starting bulk override for ${songsToProcess.length} tracks...`, 'info');
+    addLog(`Initiating background bulk override for ${songsToProcess.length} tracks...`, 'info');
+    showInfo("Task Queued: Extraction occurring in background.");
 
     for (let i = 0; i < songsToProcess.length; i++) {
       const song = songsToProcess[i];
-      setExtractionProgress(prev => ({ ...prev, current: i + 1 }));
-      addLog(`Extracting [${i+1}/${songsToProcess.length}]: ${song.title}`, 'info');
-
       try {
-        await supabase.from('repertoire').update({ extraction_status: 'PROCESSING' }).eq('id', song.id);
-        
         const targetVideoUrl = cleanYoutubeUrl(song.youtube_url);
-        const API_BASE_URL = "https://yt-audio-api-1-wedr.onrender.com";
         
-        const tokenRes = await fetch(`${API_BASE_URL}/?url=${encodeURIComponent(targetVideoUrl)}`);
-        if (!tokenRes.ok) throw new Error("API Token Fetch Failed");
-        const { token } = await tokenRes.json();
-
-        let downloadReady = false;
-        let fileResponse;
-        let attempts = 0;
-        
-        while (attempts < 24 && !downloadReady) {
-          attempts++;
-          await new Promise(r => setTimeout(r, 5000));
-          fileResponse = await fetch(`${API_BASE_URL}/download?token=${token}`);
-          if (fileResponse.status === 200) {
-            downloadReady = true;
-            break;
+        await supabase.functions.invoke('download-audio', {
+          body: { 
+            videoUrl: targetVideoUrl,
+            songId: song.id,
+            userId: user?.id
           }
-        }
+        });
 
-        if (!downloadReady || !fileResponse) throw new Error("Extraction Timeout");
-
-        const audioArrayBuffer = await fileResponse.arrayBuffer();
-        const audioBuffer = await Tone.getContext().decodeAudioData(audioArrayBuffer.slice(0));
-
-        const fileName = `${user?.id}/${song.id}/${Date.now()}.mp3`;
-        const { error: uploadError } = await supabase.storage
-          .from('public_audio')
-          .upload(fileName, audioArrayBuffer, { contentType: 'audio/mpeg', upsert: true });
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = await supabase.storage.from('public_audio').getPublicUrl(fileName);
-
-        await supabase.from('repertoire').update({ 
-          extraction_status: 'COMPLETED',
-          preview_url: publicUrl,
-          duration_seconds: Math.round(audioBuffer.duration),
-          last_extracted_at: new Date().toISOString()
-        }).eq('id', song.id);
-
-        addLog(`Success: ${song.title}`, 'success');
+        addLog(`Queued: ${song.title}`, 'success');
       } catch (err: any) {
-        addLog(`Failed: ${song.title} - ${err.message}`, 'error');
-        await supabase.from('repertoire').update({ extraction_status: 'FAILED' }).eq('id', song.id);
+        addLog(`Failed to Queue: ${song.title} - ${err.message}`, 'error');
       }
+      // Small delay between trigger calls
+      await new Promise(r => setTimeout(r, 500));
     }
 
     setIsExtracting(false);
-    showSuccess("Bulk Override Process Complete");
+    showSuccess("All background tasks initialized.");
     fetchMaintenanceData();
-    onRefreshRepertoire(); 
   };
 
   const handleSupabaseUpload = async (file: File) => {
@@ -641,39 +602,29 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
                             <HardDriveDownload className="w-8 h-8 text-white" />
                          </div>
                          <div>
-                            <h3 className="text-2xl font-black uppercase tracking-tight text-white">Audio Re-Extraction Hub</h3>
-                            <p className="text-sm text-slate-400 mt-1">Force refresh all master audio assets from source links.</p>
+                            <h3 className="text-2xl font-black uppercase tracking-tight text-white">Asynchronous Bulk Extraction</h3>
+                            <p className="text-sm text-slate-400 mt-1">Initialize master audio extraction in the background.</p>
                          </div>
                       </div>
                       <Button 
-                        onClick={handleBulkExtract} 
+                        onClick={handleBulkBackgroundExtract} 
                         disabled={isExtracting}
                         className="bg-red-600 hover:bg-red-700 h-16 px-10 rounded-2xl font-black uppercase tracking-[0.2em] text-xs shadow-2xl shadow-red-600/30 gap-4"
                       >
                         {isExtracting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5 fill-current" />}
-                        Run Global Override
+                        Run Background Batch
                       </Button>
                    </div>
 
                    <div className="p-6 bg-red-600/5 border border-red-600/20 rounded-2xl flex items-start gap-4">
                       <AlertTriangle className="w-6 h-6 text-red-500 shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-sm font-black uppercase text-red-500">CRITICAL MAINTENANCE ADVISORY</p>
+                        <p className="text-sm font-black uppercase text-red-500">ASYNCHRONOUS EXTRACTION POLICY</p>
                         <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                          This operation will purge existing audio files in your Supabase storage and re-process them from YouTube. 
+                          Background tasks will process sequentially and update the database when finished. You do not need to keep the app open.
                         </p>
                       </div>
                    </div>
-
-                   {isExtracting && (
-                     <div className="space-y-4 pt-4">
-                        <div className="flex justify-between items-end">
-                           <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400">Processing Engine Active</span>
-                           <span className="text-sm font-mono font-black text-white">{extractionProgress.current} / {extractionProgress.total}</span>
-                        </div>
-                        <Progress value={(extractionProgress.current / extractionProgress.total) * 100} className="h-3 bg-white/5" />
-                     </div>
-                   )}
                 </div>
               </div>
             )}
