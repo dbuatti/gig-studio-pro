@@ -67,13 +67,8 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
 
   const [isSubMenuOpen, setIsSubMenuOpen] = useState(false);
 
-  const [position, setPosition] = useState<{ x: number; y: number }>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('floating_dock_position');
-      return saved ? JSON.parse(saved) : { x: 0, y: 0 };
-    }
-    return { x: 0, y: 0 };
-  });
+  // Initialize position to { x: 0, y: 0 } to ensure it starts at the CSS-defined point
+  const [position, setPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const [isSafePitchActive, setIsSafePitchActive] = useState(false);
   const { safePitchMaxNote } = useSettings();
@@ -85,31 +80,35 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     const windowWidth = window.innerWidth;
     const windowHeight = window.innerHeight;
     
-    // The dock is fixed bottom-8 right-8 initially.
-    // We need to calculate its actual screen coordinates.
-    const dockSize = 56; // Approximate size of the main button
+    const dockSize = 56; // Approximate size of the main button (h-14 w-14)
     const margin = 32; // 8 units margin * 4 (tailwind default)
     
-    // Calculate the current screen position of the dock's center
-    // Initial position is bottom-8 right-8
-    const initialX = windowWidth - margin - dockSize / 2;
-    const initialY = windowHeight - margin - dockSize / 2;
-    
-    const currentX = initialX + position.x;
-    const currentY = initialY + position.y;
+    // Calculate the current screen position of the dock's top-left corner
+    // Initial CSS: left-8 (32px), bottom-8 (32px)
+    const currentLeft = margin + position.x;
+    const currentBottom = margin - position.y; // positive y from framer-motion means moving down, which decreases distance from bottom
 
-    // Calculate available space in each direction
-    const spaceRight = windowWidth - currentX - dockSize / 2;
-    const spaceLeft = currentX - dockSize / 2;
-    const spaceDown = windowHeight - currentY - dockSize / 2;
-    const spaceUp = currentY - dockSize / 2;
+    // Calculate the center of the dock
+    const centerX = currentLeft + dockSize / 2;
+    const centerY = windowHeight - currentBottom - dockSize / 2; // Y from top
 
-    // Threshold for menu size (approximate)
+    // Determine if the dock is in the bottom-left quadrant
+    const isBottomHalf = centerY > windowHeight / 2;
+    const isLeftHalf = centerX < windowWidth / 2;
+
+    if (isBottomHalf && isLeftHalf) {
+      return 'up'; // Force up when in bottom-left quadrant
+    }
+
+    // Fallback to dynamic calculation for other quadrants
+    const spaceRight = windowWidth - (currentLeft + dockSize);
+    const spaceLeft = currentLeft;
+    const spaceDown = currentBottom; // Space from bottom edge
+    const spaceUp = windowHeight - (currentBottom + dockSize); // Space from top edge
+
     const menuWidth = 250;
     const menuHeight = 200;
 
-    // Determine best direction
-    // Prioritize opening into the largest available space
     const spaces = [
       { dir: 'right' as MenuDirection, space: spaceRight },
       { dir: 'left' as MenuDirection, space: spaceLeft },
@@ -117,18 +116,15 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
       { dir: 'up' as MenuDirection, space: spaceUp },
     ];
 
-    // Filter out directions that don't have enough space
     const validSpaces = spaces.filter(s => 
       (s.dir === 'left' || s.dir === 'right') ? s.space > menuWidth : s.space > menuHeight
     );
 
     if (validSpaces.length > 0) {
-      // Sort by available space (descending) and pick the best
       validSpaces.sort((a, b) => b.space - a.space);
       return validSpaces[0].dir;
     }
 
-    // Fallback: if no direction has enough space, pick the one with the most space
     spaces.sort((a, b) => b.space - a.space);
     return spaces[0].dir;
   }, [position]);
@@ -231,7 +227,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
         onDragEnd={handleDragEnd}
         style={{ x: position.x, y: position.y }}
         className={cn(
-          "fixed bottom-8 right-8 z-[300] flex items-center gap-3 touch-none cursor-grab active:cursor-grabbing",
+          "fixed bottom-8 left-8 z-[300] flex items-center gap-3 touch-none cursor-grab active:cursor-grabbing", // Changed right-8 to left-8
           direction === 'up' && "flex-col-reverse",
           direction === 'down' && "flex-col",
           direction === 'left' && "flex-row-reverse",
