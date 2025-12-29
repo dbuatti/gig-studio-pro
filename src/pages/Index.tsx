@@ -116,10 +116,12 @@ const Index = () => {
           highest_note_original: d.highest_note_original
         }));
         setMasterRepertoire(mapped);
+        return mapped; // Return for chain use
       }
     } catch (err) {
       console.error("[Index] Master Repertoire Fetch Error:", err);
     }
+    return [];
   }, [user]);
 
   const fetchSetlists = useCallback(async () => {
@@ -165,7 +167,6 @@ const Index = () => {
       const score = calculateReadiness(s);
       if (score < activeFilters.readiness) return false;
 
-      // Audio Filtering Logic
       const hasAudio = !!s.previewUrl;
       const isItunes = hasAudio && (s.previewUrl.includes('apple.com') || s.previewUrl.includes('itunes-assets'));
       const hasFullAudio = hasAudio && !isItunes;
@@ -212,6 +213,32 @@ const Index = () => {
       setIsSaving(false);
     }
   };
+
+  // PROPAGATION HELPER: Updates current setlist based on master repertoire
+  const propagateMasterUpdates = useCallback(async (freshMaster: SetlistSong[]) => {
+    if (!currentListId || !currentList) return;
+
+    const masterMap = new Map(freshMaster.map(s => [s.id, s]));
+    const updatedSongs = currentList.songs.map(song => {
+      const masterRecord = masterMap.get(song.master_id || '');
+      if (masterRecord) {
+        return {
+          ...song,
+          youtubeUrl: masterRecord.youtubeUrl || song.youtubeUrl,
+          previewUrl: masterRecord.previewUrl || song.previewUrl,
+          appleMusicUrl: masterRecord.appleMusicUrl || song.appleMusicUrl,
+          genre: masterRecord.genre || song.genre,
+          bpm: masterRecord.bpm || song.bpm,
+          duration_seconds: masterRecord.duration_seconds || song.duration_seconds,
+          isMetadataConfirmed: masterRecord.isMetadataConfirmed || song.isMetadataConfirmed,
+          originalKey: masterRecord.originalKey || song.originalKey
+        };
+      }
+      return song;
+    });
+
+    await saveList(currentListId, updatedSongs);
+  }, [currentListId, currentList]);
 
   const handleUpdateSong = useCallback((songId: string, updates: Partial<SetlistSong>) => {
     if (viewMode === 'repertoire') {
@@ -298,91 +325,88 @@ const Index = () => {
 
   const handleTogglePlayback = useCallback(() => transposerRef.current?.togglePlayback(), []);
 
-  // --- Bulk Automation Handlers ---
   const handleGlobalAutoSync = async () => {
     if (!user) return;
-    const songIds = songs.map(s => s.master_id || s.id);
+    // Step 1: Ensure current view is synced to master
+    if (viewMode === 'setlist' && currentList) {
+      await syncToMasterRepertoire(user.id, currentList.songs);
+    }
+    
+    const songIds = songs.map(s => s.master_id || s.id).filter(id => id.length > 10); // Simple UUID check
     await supabase.functions.invoke('global-auto-sync', { body: { songIds } });
-    fetchMasterRepertoire();
+    
+    const freshMaster = await fetchMasterRepertoire();
+    if (viewMode === 'setlist') await propagateMasterUpdates(freshMaster);
   };
 
   const handleAutoLink = async () => {
     if (!user) return;
-    const missing = songs.filter(s => !s.youtubeUrl).map(s => s.master_id || s.id);
+    // Step 1: Ensure current view is synced
+    if (viewMode === 'setlist' && currentList) {
+      await syncToMasterRepertoire(user.id, currentList.songs);
+    }
+
+    const missing = songs.filter(s => !s.youtubeUrl).map(s => s.master_id || s.id).filter(id => id.length > 10);
+    if (missing.length === 0) {
+      showInfo("No missing links to discover.");
+      return;
+    }
+
     await supabase.functions.invoke('bulk-populate-youtube-links', { body: { songIds: missing } });
-    fetchMasterRepertoire();
+    
+    const freshMaster = await fetchMasterRepertoire();
+    if (viewMode === 'setlist') await propagateMasterUpdates(freshMaster);
   };
 
   const handleBulkRefreshAudio = async () => {
-    const songsToProcess = songs.filter(s => s.youtubeUrl);
-    if (songsToProcess.length === 0) {
+    const songsWithLinks = songs.filter(s => s.youtubeUrl);
+    if (songsWithLinks.length === 0) {
       showError("No songs with YouTube links found.");
       return;
     }
 
-    if (!confirm(`Trigger bulk audio extraction for ${songsToProcess.length} songs?`)) {
-      return;
-    }
+    if (!confirm(`Trigger bulk audio extraction for ${songsWithLinks.length} songs?`)) return;
 
     setIsBulkDownloading(true);
-    showInfo(`Initiating extraction for ${songsToProcess.length} tracks...`);
+    showInfo(`Initiating extraction for ${songsWithLinks.length} tracks...`);
 
-    for (let i = 0; i < songsToProcess.length; i++) {
-      const song = songsToProcess[i];
+    for (let i = 0; i < songsWithLinks.length; i++) {
+      const song = songsWithLinks[i];
       try {
         const targetVideoUrl = cleanYoutubeUrl(song.youtubeUrl || '');
         const API_BASE_URL = "https://yt-audio-api-1-wedr.onrender.com";
-        
         const tokenRes = await fetch(`${API_BASE_URL}/?url=${encodeURIComponent(targetVideoUrl)}`);
         const { token } = await tokenRes.json();
 
         let downloadReady = false;
-        let fileResponse;
         let attempts = 0;
-        
-        while (attempts < 24 && !downloadReady) {
+        while (attempts < 20 && !downloadReady) {
           attempts++;
           await new Promise(r => setTimeout(r, 5000));
-          fileResponse = await fetch(`${API_BASE_URL}/download?token=${token}`);
-          if (fileResponse.status === 200) {
+          const res = await fetch(`${API_BASE_URL}/download?token=${token}`);
+          if (res.status === 200) {
+            const buffer = await res.arrayBuffer();
+            const fileName = `${user?.id}/${song.master_id || song.id}/${Date.now()}.mp3`;
+            await supabase.storage.from('public_audio').upload(fileName, buffer, { contentType: 'audio/mpeg', upsert: true });
+            const { data: { publicUrl } } = supabase.storage.from('public_audio').getPublicUrl(fileName);
+            await supabase.from('repertoire').update({ preview_url: publicUrl }).eq('id', song.master_id || song.id);
             downloadReady = true;
-            break;
           }
         }
-
-        if (!downloadReady || !fileResponse) throw new Error("Timeout");
-
-        const audioArrayBuffer = await fileResponse.arrayBuffer();
-        const audioBuffer = await Tone.getContext().decodeAudioData(audioArrayBuffer.slice(0));
-
-        const fileName = `${user?.id}/${song.master_id || song.id}/${Date.now()}.mp3`;
-        const { error: uploadError } = await supabase.storage
-          .from('public_audio')
-          .upload(fileName, audioArrayBuffer, { contentType: 'audio/mpeg', upsert: true });
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = await supabase.storage.from('public_audio').getPublicUrl(fileName);
-
-        await supabase.from('repertoire').update({ 
-          preview_url: publicUrl,
-          duration_seconds: Math.round(audioBuffer.duration),
-        }).eq('id', song.master_id || song.id);
-
-      } catch (err: any) {
-        console.error(`[Index] Extraction failed for ${song.name}:`, err);
-      }
+      } catch (err) {}
     }
 
     setIsBulkDownloading(false);
     showSuccess("Bulk Audio Extraction Complete");
-    fetchMasterRepertoire();
+    const freshMaster = await fetchMasterRepertoire();
+    if (viewMode === 'setlist') await propagateMasterUpdates(freshMaster);
   };
 
   const handleClearAutoLinks = async () => {
     if (!user) return;
     await supabase.from('repertoire').update({ youtube_url: null, metadata_source: null }).eq('metadata_source', 'auto_populated').eq('user_id', user.id);
-    fetchMasterRepertoire();
+    const freshMaster = await fetchMasterRepertoire();
+    if (viewMode === 'setlist') await propagateMasterUpdates(freshMaster);
   };
 
   const missingAudioCount = useMemo(() => songs.filter(s => !s.previewUrl || s.previewUrl.includes('apple.com')).length, [songs]);
@@ -396,8 +420,8 @@ const Index = () => {
             <span className="font-black uppercase tracking-tighter text-lg hidden sm:block">Gig Studio <span className="text-indigo-600">Pro</span></span>
           </div>
           <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl shrink-0">
-            <Button variant="ghost" size="sm" onClick={() => setViewMode('repertoire')} className={cn("h-8 px-4 text-[10px] font-black uppercase tracking-widest gap-2 rounded-lg", viewMode === 'repertoire' ? "bg-white dark:bg-slate-700 shadow-sm text-indigo-600" : "text-slate-500")}><Library className="w-3.5 h-3.5" /> Repertoire</Button>
-            <Button variant="ghost" size="sm" onClick={() => setViewMode('setlist')} className={cn("h-8 px-4 text-[10px] font-black uppercase tracking-widest gap-2 rounded-lg", viewMode === 'setlist' ? "bg-white dark:bg-slate-700 shadow-sm text-indigo-600" : "text-slate-500")}><ListMusic className="w-3.5 h-3.5" /> Gigs</Button>
+            <Button variant="ghost" size="sm" onClick={() => { setViewMode('repertoire'); localStorage.setItem('gig_view_mode', 'repertoire'); }} className={cn("h-8 px-4 text-[10px] font-black uppercase tracking-widest gap-2 rounded-lg", viewMode === 'repertoire' ? "bg-white dark:bg-slate-700 shadow-sm text-indigo-600" : "text-slate-500")}><Library className="w-3.5 h-3.5" /> Repertoire</Button>
+            <Button variant="ghost" size="sm" onClick={() => { setViewMode('setlist'); localStorage.setItem('gig_view_mode', 'setlist'); }} className={cn("h-8 px-4 text-[10px] font-black uppercase tracking-widest gap-2 rounded-lg", viewMode === 'setlist' ? "bg-white dark:bg-slate-700 shadow-sm text-indigo-600" : "text-slate-500")}><ListMusic className="w-3.5 h-3.5" /> Gigs</Button>
           </div>
           {viewMode === 'setlist' && (
             <SetlistSelector setlists={setlists} currentId={currentListId || ''} onSelect={(id) => { setCurrentListId(id); localStorage.setItem('active_gig_id', id); }} onCreate={async () => { const name = prompt("Gig Name:"); if (name) { const { data } = await supabase.from('setlists').insert([{ user_id: user?.id, name, songs: [] }]).select().single(); if (data) { fetchSetlists(); setCurrentListId(data.id); } } }} onDelete={async (id) => { if(confirm("Delete gig?")) { await supabase.from('setlists').delete().eq('id', id); fetchSetlists(); } }} />
