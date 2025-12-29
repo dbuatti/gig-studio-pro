@@ -163,8 +163,16 @@ const Index = () => {
     base = base.filter(s => {
       const score = calculateReadiness(s);
       if (score < activeFilters.readiness) return false;
-      const hasFullAudio = !!s.previewUrl && !(s.previewUrl.includes('apple.com') || s.previewUrl.includes('itunes-assets'));
+
+      // Audio Filtering Logic
+      const hasAudio = !!s.previewUrl;
+      const isItunes = hasAudio && (s.previewUrl.includes('apple.com') || s.previewUrl.includes('itunes-assets'));
+      const hasFullAudio = hasAudio && !isItunes;
+
       if (activeFilters.hasAudio === 'full' && !hasFullAudio) return false;
+      if (activeFilters.hasAudio === 'itunes' && !isItunes) return false;
+      if (activeFilters.hasAudio === 'none' && hasAudio) return false;
+
       if (activeFilters.isApproved === 'yes' && !s.isApproved) return false;
       if (activeFilters.isConfirmed === 'yes' && !s.isKeyConfirmed) return false;
       if (activeFilters.hasVideo === 'yes' && !s.youtubeUrl) return false;
