@@ -76,7 +76,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     return { x: 0, y: 0 };
   });
 
-  const [mousePos, setMousePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [mousePos, setMousePos] = useState<{ x: number; y: number }>({ x: window.innerWidth - 100, y: window.innerHeight - 100 });
 
   const [isSafePitchActive, setIsSafePitchActive] = useState(false);
   const { safePitchMaxNote } = useSettings();
@@ -86,10 +86,9 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     return window.innerWidth < 768 || 'ontouchstart' in window;
   }, []);
 
-  // Must be declared BEFORE any useEffect that references it
   const internalIsMenuOpen = isReaderMode ? isMenuOpenProp : isOpen;
 
-  // Follow cursor when menu is closed — always "behind" the cursor
+  // Follow cursor when menu is closed
   useEffect(() => {
     if (internalIsMenuOpen) return;
 
@@ -101,7 +100,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, [internalIsMenuOpen]);
 
-  // Intelligent direction based on available space
+  // Intelligent direction
   const direction = useMemo((): MenuDirection => {
     if (typeof window === 'undefined') return isMobile ? 'up' : 'right';
 
@@ -156,7 +155,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     return () => window.removeEventListener('keydown', handleEsc);
   }, [internalIsMenuOpen, handleToggleMenu]);
 
-  // Drag handling — only when menu is closed
+  // Drag handling
   const handleDragStart = () => {
     if (internalIsMenuOpen) return;
     setIsDragging(true);
@@ -234,8 +233,12 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     }
   };
 
-  const dockX = internalIsMenuOpen ? position.x : mousePos.x - 32;
-  const dockY = internalIsMenuOpen ? position.y : mousePos.y - 32;
+  // Default position when closed: bottom-right corner (fallback if mouse not moved yet)
+  const defaultX = typeof window !== 'undefined' ? window.innerWidth - 96 : 0;
+  const defaultY = typeof window !== 'undefined' ? window.innerHeight - 96 : 0;
+
+  const dockX = internalIsMenuOpen ? position.x : mousePos.x - 32 || defaultX;
+  const dockY = internalIsMenuOpen ? position.y : mousePos.y - 32 || defaultY;
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -247,13 +250,13 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
         animate={{ x: dockX, y: dockY }}
         transition={{ type: "spring", damping: 30, stiffness: 300 }}
         className={cn(
-          "fixed z-[9999] flex touch-none pointer-events-none", // container ignores events when closed
+          "fixed inset-0 z-[9999] flex touch-none pointer-events-none", // inset-0 ensures full coverage
           isDragging && "cursor-grabbing",
           !isDragging && !internalIsMenuOpen && "cursor-none",
           internalIsMenuOpen && getMenuAlignment(direction)
         )}
       >
-        {/* Main Hub Button — ONLY this part is clickable when menu is closed */}
+        {/* Main Hub Button - always visible and clickable */}
         <div className="bg-slate-950/95 backdrop-blur-2xl p-3 rounded-full border border-white/20 shadow-2xl pointer-events-auto">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -282,7 +285,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
               animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
               exit={{ opacity: 0, scale: 0.9 }}
               transition={{ duration: 0.25 }}
-              className={cn("flex gap-4 pointer-events-auto", isMobile ? "flex-col" : "flex-row")} // re-enable events when open
+              className={cn("flex gap-4 pointer-events-auto", isMobile ? "flex-col" : "flex-row")}
             >
               {/* Primary Actions */}
               <div className={cn(
