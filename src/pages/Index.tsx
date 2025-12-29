@@ -465,7 +465,7 @@ const Index = () => {
     await saveList(currentListId, [...currentList!.songs, newSong], {}, [newSong]);
     showSuccess(`Added "${name}" to gig`);
     setActiveSongId(newSong.id);
-    setIsSearchPanelOpen(false);
+    // Removed setIsSearchPanelOpen(false) to keep the search panel open
   };
 
   const handleUpdateSetlistSongs = useCallback(async (
