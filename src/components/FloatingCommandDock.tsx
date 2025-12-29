@@ -136,24 +136,30 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     return spaces[0].dir;
   }, [position, isMobile]);
 
-  const internalIsMenuOpen = isReaderMode ? isMenuOpenProp : isOpen;
-  
-  const handleToggleMenu = useCallback(() => {
-    const nextState = !internalIsMenuOpen;
-    if (isReaderMode) onSetMenuOpen?.(nextState);
-    else setIsOpen(nextState);
-    if (!nextState) setIsSubMenuOpen(false);
-    localStorage.setItem('floating_dock_open', nextState.toString());
-  }, [internalIsMenuOpen, isReaderMode, onSetMenuOpen]);
+ const internalIsMenuOpen = isReaderMode ? isMenuOpenProp : isOpen;
 
-  // ESC to close
-  useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && internalIsMenuOpen) handleToggleMenu();
-    };
-    window.addEventListener('keydown', handleEsc);
-    return () => window.removeEventListener('keydown', handleEsc);
-  }, [internalIsMenuOpen, handleToggleMenu]);
+// ← MOVE ALL useEffects that use internalIsMenuOpen BELOW this line
+
+// Follow cursor when menu is closed
+useEffect(() => {
+  if (internalIsMenuOpen) return;
+
+  const handleMouseMove = (e: MouseEvent) => {
+    setMousePos({ x: e.clientX, y: e.clientY });
+  };
+
+  window.addEventListener('mousemove', handleMouseMove);
+  return () => window.removeEventListener('mousemove', handleMouseMove);
+}, [internalIsMenuOpen]); // now safe to include
+
+// ESC to close
+useEffect(() => {
+  const handleEsc = (e: KeyboardEvent) => {
+    if (e.key === 'Escape' && internalIsMenuOpen) handleToggleMenu();
+  };
+  window.addEventListener('keydown', handleEsc);
+  return () => window.removeEventListener('keydown', handleEsc);
+}, [internalIsMenuOpen, handleToggleMenu]);
 
   // Drag handling - only allow when menu closed (prevents accidental reopen)
   const handleDragStart = () => {
