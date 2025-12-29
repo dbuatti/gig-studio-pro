@@ -25,7 +25,6 @@ import { cn } from "@/lib/utils";
 import { useSettings } from '@/hooks/use-settings';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { syncToMasterRepertoire, calculateReadiness } from '@/utils/repertoireSync';
-import * as Tone from 'tone';
 import { cleanYoutubeUrl } from '@/utils/youtubeUtils';
 import { useNavigate } from 'react-router-dom';
 import { FilterState } from '@/components/SetlistFilters';
@@ -113,7 +112,8 @@ const Index = () => {
           sheet_music_url: d.sheet_music_url,
           is_sheet_verified: d.is_sheet_verified,
           is_ug_chords_present: d.is_ug_chords_present,
-          highest_note_original: d.highest_note_original
+          highest_note_original: d.highest_note_original,
+          extraction_status: d.extraction_status
         }));
         setMasterRepertoire(mapped);
         return mapped;
@@ -149,12 +149,32 @@ const Index = () => {
   }, [user, currentListId]);
 
   useEffect(() => {
-    if (user) {
-      fetchSetlists();
-      fetchMasterRepertoire();
-    }
+    if (!user) return;
+    
+    fetchSetlists();
+    fetchMasterRepertoire();
+
+    // Subscribe to realtime changes in the repertoire table
+    const channel = supabase
+      .channel('repertoire_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'repertoire', filter: `user_id=eq.${user.id}` }, (payload) => {
+        if (payload.eventType === 'UPDATE') {
+          const updated = payload.new;
+          // Refresh data if status or audio changed
+          if (updated.extraction_status === 'COMPLETED' || updated.extraction_status === 'FAILED' || updated.extraction_status === 'PROCESSING') {
+             fetchMasterRepertoire().then(freshMaster => {
+                if (freshMaster) propagateMasterUpdates(freshMaster);
+             });
+          }
+        }
+      })
+      .subscribe();
+
     const clockInterval = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(clockInterval);
+    return () => {
+      clearInterval(clockInterval);
+      supabase.removeChannel(channel);
+    };
   }, [user, fetchSetlists, fetchMasterRepertoire]);
 
   const processedSongs = useMemo(() => {
@@ -230,7 +250,8 @@ const Index = () => {
           bpm: masterRecord.bpm || song.bpm,
           duration_seconds: masterRecord.duration_seconds || song.duration_seconds,
           isMetadataConfirmed: masterRecord.isMetadataConfirmed || song.isMetadataConfirmed,
-          originalKey: masterRecord.originalKey || song.originalKey
+          originalKey: masterRecord.originalKey || song.originalKey,
+          extraction_status: masterRecord.extraction_status
         };
       }
       return song;
@@ -339,7 +360,6 @@ const Index = () => {
   };
 
   const handleBulkRefreshAudio = async () => {
-    // Determine which songs are actually missing master audio
     const isMissingMasterAudio = (s: SetlistSong) => 
       !s.previewUrl || s.previewUrl.includes('apple.com') || s.previewUrl.includes('itunes-assets');
 
@@ -350,64 +370,31 @@ const Index = () => {
       return;
     }
 
-    if (!confirm(`Trigger audio extraction for ${songsToProcess.length} missing tracks?`)) {
+    if (!confirm(`Trigger background audio extraction for ${songsToProcess.length} tracks? This will run in the background.`)) {
       return;
     }
 
     setIsBulkDownloading(true);
-    showInfo(`Initiating extraction for ${songsToProcess.length} tracks...`);
+    showInfo(`Initiating background extraction for ${songsToProcess.length} tracks...`);
 
     for (let i = 0; i < songsToProcess.length; i++) {
       const song = songsToProcess[i];
       try {
         const targetVideoUrl = cleanYoutubeUrl(song.youtubeUrl || '');
-        const API_BASE_URL = "https://yt-audio-api-1-wedr.onrender.com";
-        
-        const tokenRes = await fetch(`${API_BASE_URL}/?url=${encodeURIComponent(targetVideoUrl)}`);
-        const { token } = await tokenRes.json();
-
-        let downloadReady = false;
-        let fileResponse;
-        let attempts = 0;
-        
-        while (attempts < 24 && !downloadReady) {
-          attempts++;
-          await new Promise(r => setTimeout(r, 5000));
-          fileResponse = await fetch(`${API_BASE_URL}/download?token=${token}`);
-          if (fileResponse.status === 200) {
-            downloadReady = true;
-            break;
+        await supabase.functions.invoke('download-audio', {
+          body: { 
+            videoUrl: targetVideoUrl,
+            songId: song.master_id || song.id,
+            userId: user?.id
           }
-        }
-
-        if (!downloadReady || !fileResponse) throw new Error("Timeout");
-
-        const audioArrayBuffer = await fileResponse.arrayBuffer();
-        const audioBuffer = await Tone.getContext().decodeAudioData(audioArrayBuffer.slice(0));
-
-        const fileName = `${user?.id}/${song.master_id || song.id}/${Date.now()}.mp3`;
-        const { error: uploadError } = await supabase.storage
-          .from('public_audio')
-          .upload(fileName, audioArrayBuffer, { contentType: 'audio/mpeg', upsert: true });
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = await supabase.storage.from('public_audio').getPublicUrl(fileName);
-
-        await supabase.from('repertoire').update({ 
-          preview_url: publicUrl,
-          duration_seconds: Math.round(audioBuffer.duration),
-        }).eq('id', song.master_id || song.id);
-
+        });
       } catch (err: any) {
-        console.error(`[Index] Extraction failed for ${song.name}:`, err);
+        console.error(`[Index] Failed to trigger extraction for ${song.name}:`, err);
       }
     }
 
     setIsBulkDownloading(false);
-    showSuccess("Bulk Audio Extraction Complete");
-    const freshMaster = await fetchMasterRepertoire();
-    if (viewMode === 'setlist') await propagateMasterUpdates(freshMaster);
+    showSuccess("All background tasks initialized.");
   };
 
   const handleClearAutoLinks = async () => {

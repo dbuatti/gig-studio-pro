@@ -4,7 +4,7 @@ import time
 import uuid
 import sys
 import requests
-from flask import Flask, request, jsonify, make_response
+from flask import Flask, request, jsonify, make_response, send_file
 from flask_cors import CORS
 import yt_dlp
 
@@ -59,16 +59,9 @@ def download_task(token, video_url, supabase_url=None, supabase_key=None, song_i
                 "Prefer": "return=minimal"
             }
             requests.patch(update_url, headers=headers, json={"extraction_status": "PROCESSING"})
+            log(f"Supabase Status Updated: PROCESSING for {song_id}")
         except Exception as e:
             log(f"Supabase Init Update Error: {e}")
-
-    def progress_hook(d):
-        if d['status'] == 'downloading':
-            p = d.get('_percent_str', '0%').replace('%','')
-            try:
-                active_tokens[token]['progress'] = float(p)
-            except:
-                pass
 
     file_id = str(uuid.uuid4())
     output_template = os.path.join(DOWNLOAD_DIR, f"{file_id}.%(ext)s")
@@ -101,6 +94,7 @@ def download_task(token, video_url, supabase_url=None, supabase_key=None, song_i
                 storage_path = f"{user_id}/{song_id}/{int(time.time())}.mp3"
                 upload_url = f"{supabase_url}/storage/v1/object/public_audio/{storage_path}"
                 
+                log(f"Uploading to Supabase: {storage_path}")
                 with open(expected_file, 'rb') as f:
                     upload_res = requests.post(
                         upload_url,
@@ -128,6 +122,9 @@ def download_task(token, video_url, supabase_url=None, supabase_key=None, song_i
                         "last_extracted_at": time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
                     })
                     log(f"BACKGROUND SYNC COMPLETE | Song: {song_id}")
+                else:
+                    log(f"UPLOAD FAILED: {upload_res.status_code} - {upload_res.text}")
+                    raise Exception("Supabase Upload Error")
             
             active_tokens[token]['file_path'] = expected_file
             active_tokens[token]['status'] = 'ready'
@@ -137,6 +134,7 @@ def download_task(token, video_url, supabase_url=None, supabase_key=None, song_i
     except Exception as e:
         log(f"ERROR | {token} | {str(e)}")
         active_tokens[token]['status'] = 'error'
+        active_tokens[token]['error_message'] = str(e)
         if supabase_url and supabase_key and song_id:
             try:
                 update_url = f"{supabase_url}/rest/v1/repertoire?id=eq.{song_id}"
