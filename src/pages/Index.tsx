@@ -202,6 +202,8 @@ const Index = () => {
       if (activeFilters.hasVideo === 'yes' && !s.youtubeUrl) return false;
       if (activeFilters.hasPdf === 'yes' && !s.pdfUrl) return false;
       if (activeFilters.hasUg === 'yes' && !s.ugUrl) return false;
+      if (activeFilters.hasUgChords === 'yes' && !s.ug_chords_text) return false; // NEW: Filter for UG Chords
+      if (activeFilters.hasUgChords === 'no' && s.ug_chords_text) return false; // NEW: Filter for missing UG Chords
       return true;
     });
     if (sortMode === 'none') return base;
@@ -295,7 +297,7 @@ const Index = () => {
 
     let updated = [...targetSetlist.songs];
     if (action === 'add') {
-      const exists = updated.some(s => (s.master_id === songToUpdate.master_id) || s.id === songToUpdate.id);
+      const exists = updated.some(s => (s.master_id && s.master_id === songToUpdate.master_id) || s.id === songToUpdate.id);
       if (!exists) {
         updated.push({
           ...songToUpdate,
@@ -365,24 +367,26 @@ const Index = () => {
     if (!user) return;
     
     const itunesKeywords = ['apple.com', 'itunes-assets', 'mzstatic.com'];
-    const missing = songs.filter(s => {
+    const songsToProcess = songs.filter(s => {
       const url = s.previewUrl || "";
       const isMissing = url === "" || itunesKeywords.some(kw => url.includes(kw));
       return isMissing && s.youtubeUrl; // Must have a link to download
     });
 
-    if (missing.length === 0) {
+    if (songsToProcess.length === 0) {
       showInfo("No songs found matching criteria (Missing Audio + YouTube Link present).");
       return;
     }
 
-    if (!confirm(`Initialize background extraction for ${missing.length} songs?`)) return;
+    if (!confirm(`Initialize background extraction for ${songsToProcess.length} songs?`)) return;
 
     setIsBulkDownloading(true);
     showInfo("Activating Extraction Engine...");
 
-    for (const song of missing) {
+    // Implement the drip-feed logic here
+    for (const song of songsToProcess) {
       try {
+        console.log(`[Index] Throttling: Requesting audio download for ${song.name}...`);
         await supabase.functions.invoke('download-audio', {
           body: { 
             videoUrl: cleanYoutubeUrl(song.youtubeUrl || ''),
@@ -390,12 +394,16 @@ const Index = () => {
             userId: user.id
           }
         });
-      } catch (err) {}
-      await new Promise(r => setTimeout(r, 500));
+      } catch (err) {
+        console.error(`[Index] Failed to queue download for ${song.name}:`, err);
+        showError(`Failed to queue download for ${song.name}.`);
+      }
+      // Wait 5 seconds before asking for the next song
+      await new Promise(resolve => setTimeout(resolve, 5000)); 
     }
 
     setIsBulkDownloading(false);
-    showSuccess(`Queued ${missing.length} tasks successfully.`);
+    showSuccess(`Queued ${songsToProcess.length} tasks successfully.`);
     fetchMasterRepertoire();
   };
 
