@@ -108,7 +108,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     const windowWidth = window.innerWidth;
     const windowHeight = window.innerHeight;
 
-    const dockSize = 64; // Larger main button
+    const dockSize = 64;
     const margin = 32;
 
     const currentX = windowWidth - margin - dockSize / 2 + position.x;
@@ -156,7 +156,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     return () => window.removeEventListener('keydown', handleEsc);
   }, [internalIsMenuOpen, handleToggleMenu]);
 
-  // Drag handling — only when menu is closed (prevents accidental reopen after drag)
+  // Drag handling — only when menu is closed
   const handleDragStart = () => {
     if (internalIsMenuOpen) return;
     setIsDragging(true);
@@ -234,7 +234,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     }
   };
 
-  const dockX = internalIsMenuOpen ? position.x : mousePos.x - 32; // Center under cursor when closed
+  const dockX = internalIsMenuOpen ? position.x : mousePos.x - 32;
   const dockY = internalIsMenuOpen ? position.y : mousePos.y - 32;
 
   return (
@@ -247,15 +247,14 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
         animate={{ x: dockX, y: dockY }}
         transition={{ type: "spring", damping: 30, stiffness: 300 }}
         className={cn(
-          "fixed z-[9999] flex touch-none",
+          "fixed z-[9999] flex touch-none pointer-events-none", // container ignores events when closed
           isDragging && "cursor-grabbing",
           !isDragging && !internalIsMenuOpen && "cursor-none",
           internalIsMenuOpen && getMenuAlignment(direction)
         )}
-        style={{ pointerEvents: internalIsMenuOpen ? 'auto' : 'none' }}
       >
-        {/* Main Hub Button */}
-        <div className="bg-slate-950/95 backdrop-blur-2xl p-3 rounded-full border border-white/20 shadow-2xl">
+        {/* Main Hub Button — ONLY this part is clickable when menu is closed */}
+        <div className="bg-slate-950/95 backdrop-blur-2xl p-3 rounded-full border border-white/20 shadow-2xl pointer-events-auto">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -266,7 +265,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                   "h-16 w-16 rounded-full transition-all duration-500 border-4 shadow-2xl flex items-center justify-center",
                   internalIsMenuOpen 
                     ? "bg-slate-100 text-slate-950 border-white" 
-                    : "bg-slate-900 text-indigo-400 border-white/20 hover:border-indigo-400"
+                    : "bg-slate-900 text-indigo-400 border-white/20 hover:border-indigo-400 hover:scale-110"
                 )}
               >
                 {internalIsMenuOpen ? <X className="w-8 h-8" /> : <LayoutDashboard className="w-8 h-8" />}
@@ -283,7 +282,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
               animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
               exit={{ opacity: 0, scale: 0.9 }}
               transition={{ duration: 0.25 }}
-              className={cn("flex gap-4", isMobile ? "flex-col" : "flex-row")}
+              className={cn("flex gap-4 pointer-events-auto", isMobile ? "flex-col" : "flex-row")} // re-enable events when open
             >
               {/* Primary Actions */}
               <div className={cn(
