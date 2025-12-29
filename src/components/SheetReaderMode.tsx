@@ -711,27 +711,31 @@ const SheetReaderMode: React.FC = () => {
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-white">
       <main className="flex-1 flex flex-col overflow-hidden">
-        <SheetReaderHeader
-          currentSong={currentSong}
-          onClose={() => navigate('/')}
-          onSearchClick={() => setIsStudioModalOpen(true)}
-          onPrevSong={handlePrev}
-          onNextSong={handleNext}
-          currentSongIndex={currentIndex}
-          totalSongs={allSongs.length}
-          isLoading={!currentSong}
-          keyPreference={globalKeyPreference}
-          onUpdateKey={handleUpdateKey}
-          isFullScreen={isImmersive}
-          onToggleFullScreen={() => setIsImmersive(!isImmersive)}
-          setIsOverlayOpen={setIsOverlayOpen}
-          isOverrideActive={forceReaderResource !== 'default'}
-          pitch={pitch}
-          setPitch={setPitch}
-          readerKeyPreference={readerKeyPreference}
-          setReaderKeyPreference={setReaderKeyPreference}
-          onPullKey={handlePullKey}
-        />
+<SheetReaderHeader
+  currentSong={currentSong}
+  onClose={() => navigate('/')}
+  onSearchClick={() => setIsStudioModalOpen(true)}
+  onPrevSong={handlePrev}
+  onNextSong={handleNext}
+  currentSongIndex={currentIndex}
+  totalSongs={allSongs.length}
+  isLoading={!currentSong}
+  keyPreference={globalKeyPreference}
+  onUpdateKey={handleUpdateKey}
+  isFullScreen={isImmersive}
+  onToggleFullScreen={() => setIsImmersive(!isImmersive)}
+  setIsOverlayOpen={setIsOverlayOpen}
+  isOverrideActive={forceReaderResource !== 'default'}
+  pitch={pitch}
+  setPitch={setPitch}
+  readerKeyPreference={readerKeyPreference}
+  setReaderKeyPreference={setReaderKeyPreference}
+  onPullKey={handlePullKey}
+  
+  // ADD THESE TWO LINES:
+  isSidebarOpen={false}
+  onToggleSidebar={() => {}} // no-op, or optionally show a message
+/>
 
         {isOriginalKeyMissing && (
           <div className="fixed top-16 left-0 right-0 bg-red-950/30 border-b border-red-900/50 p-3 flex items-center justify-center gap-3 shrink-0 z-50 h-10">
