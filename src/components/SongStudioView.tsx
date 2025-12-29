@@ -67,20 +67,28 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   const [chordScrollSpeed, setChordScrollSpeed] = useState(1.0);
   
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
+  const lastPendingUpdatesRef = useRef<Partial<SetlistSong>>({});
+  const currentSongRef = useRef<SetlistSong | null>(null);
+
+  // Keep ref in sync for the unmount effect
+  useEffect(() => {
+    currentSongRef.current = song;
+  }, [song]);
 
   const performSave = async (currentUpdates: Partial<SetlistSong>) => {
-    if (!song || !user) return;
+    const targetSong = currentSongRef.current;
+    if (!targetSong || !user) return;
 
     try {
-      // Merge current state with the newest updates
-      const updatedFullSong = { ...song, ...formData, ...currentUpdates };
+      // Clear pending updates ref as we are now processing them
+      lastPendingUpdatesRef.current = {};
+
+      const updatedFullSong = { ...targetSong, ...formData, ...currentUpdates };
       
       // 1. Sync to Master Repertoire
       const syncedSongs = await syncToMasterRepertoire(user.id, [updatedFullSong]);
       const syncedSong = syncedSongs[0];
 
-      // CRITICAL: Update local state with the synced song (contains valid master_id)
-      // This prevents subsequent saves from being treated as new records.
       setSong(syncedSong);
       setFormData(prev => ({ ...prev, ...currentUpdates, master_id: syncedSong.master_id }));
       
@@ -95,8 +103,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
         if (fetchErr) throw fetchErr;
 
         const setlistSongs = (setlistData?.songs as SetlistSong[]) || [];
-        // Map back to the setlist array using local IDs
-        const updatedList = setlistSongs.map(s => s.id === song.id ? syncedSong : s);
+        const updatedList = setlistSongs.map(s => s.id === targetSong.id ? syncedSong : s);
         
         await supabase
           .from('setlists')
@@ -106,21 +113,39 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
 
     } catch (err: any) {
       console.error("[SongStudioView] Auto-save engine failure:", err.message);
-      showError("Sync failed: " + err.message);
     }
   };
 
   const handleAutoSave = useCallback((updates: Partial<SetlistSong>) => {
-    // 1. Update UI state immediately for responsiveness
+    // 1. Update UI state immediately
     setFormData(prev => ({ ...prev, ...updates }));
+    
+    // 2. Track pending updates for the unmount/immediate save
+    lastPendingUpdatesRef.current = { ...lastPendingUpdatesRef.current, ...updates };
 
-    // 2. Debounce the actual database push
+    // 3. Debounce the actual database push
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     
     saveTimeoutRef.current = setTimeout(() => {
-      performSave(updates);
+      performSave(lastPendingUpdatesRef.current);
     }, 1000);
-  }, [song, user, gigId, formData]);
+  }, [formData, user, gigId]);
+
+  // Handle forcing a save immediately (e.g. on close)
+  const forceImmediateSave = useCallback(() => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      const pending = lastPendingUpdatesRef.current;
+      if (Object.keys(pending).length > 0) {
+        performSave(pending);
+      }
+    }
+  }, []);
+
+  const handleClose = () => {
+    forceImmediateSave();
+    onClose();
+  };
 
   const {
     pitch,
@@ -208,6 +233,12 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   useEffect(() => {
     fetchData();
     return () => {
+      // Force any unsaved typing into the DB on unmount/song change
+      const pending = lastPendingUpdatesRef.current;
+      if (Object.keys(pending).length > 0) {
+        performSave(pending);
+      }
+      
       audio.stopPlayback();
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
@@ -247,7 +278,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   useKeyboardNavigation({
     onNext: () => visibleSongs.length > 1 && onSelectSong?.(visibleSongs[(visibleSongs.findIndex(s => s.id === songId) + 1) % visibleSongs.length].id),
     onPrev: () => visibleSongs.length > 1 && onSelectSong?.(visibleSongs[(visibleSongs.findIndex(s => s.id === songId) - 1 + visibleSongs.length) % visibleSongs.length].id),
-    onClose,
+    onClose: handleClose,
     onPlayPause: audio.togglePlayback,
     disabled: loading || isProSyncSearchOpen
   });
@@ -258,7 +289,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     <div className="flex flex-col h-full bg-slate-950 overflow-hidden relative">
       <header className="h-20 bg-slate-900 border-b border-white/5 flex items-center justify-between px-6 shrink-0 z-50">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={onClose} className="h-12 w-12 rounded-2xl bg-white/5"><ArrowLeft className="w-5 h-5 text-slate-400" /></Button>
+          <Button variant="ghost" onClick={handleClose} className="h-12 w-12 rounded-2xl bg-white/5"><ArrowLeft className="w-5 h-5 text-slate-400" /></Button>
           <div className="min-w-0">
             <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">{gigId === 'library' ? 'MASTER' : 'GIG'}</p>
             <h2 className="text-xl font-black uppercase text-white truncate max-w-[250px]">{formData.name}</h2>
