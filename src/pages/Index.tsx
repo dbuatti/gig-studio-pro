@@ -15,7 +15,7 @@ import RepertoirePicker from "@/components/RepertoirePicker";
 import SetlistExporter from "@/components/SetlistExporter";
 import FloatingCommandDock from "@/components/FloatingCommandDock";
 import UserGuideModal from "@/components/UserGuideModal";
-import { MadeWithDyad } from "@/components/made-with-dyad";
+import { MadeWithDyad } from '@/components/made-with-dyad';
 import { showSuccess, showError, showInfo } from '@/utils/toast';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
@@ -185,7 +185,6 @@ const Index = () => {
       const score = calculateReadiness(s);
       if (score < activeFilters.readiness) return false;
 
-      // Robust Audio Filtering Logic
       const previewUrl = s.previewUrl || "";
       const hasAnyAudio = previewUrl.trim() !== "";
       
@@ -194,11 +193,8 @@ const Index = () => {
       
       const hasFullAudio = hasAnyAudio && !isItunes;
 
-      // Logic for Audio Filters
       if (activeFilters.hasAudio === 'full' && !hasFullAudio) return false;
       if (activeFilters.hasAudio === 'itunes' && !isItunes) return false;
-      
-      // "Missing Audio" should show songs with NO audio OR only iTunes audio
       if (activeFilters.hasAudio === 'none' && hasFullAudio) return false;
 
       if (activeFilters.isApproved === 'yes' && !s.isApproved) return false;
@@ -365,6 +361,44 @@ const Index = () => {
     fetchMasterRepertoire();
   };
 
+  const handleBulkDownloadMissing = async () => {
+    if (!user) return;
+    
+    const itunesKeywords = ['apple.com', 'itunes-assets', 'mzstatic.com'];
+    const missing = songs.filter(s => {
+      const url = s.previewUrl || "";
+      const isMissing = url === "" || itunesKeywords.some(kw => url.includes(kw));
+      return isMissing && s.youtubeUrl; // Must have a link to download
+    });
+
+    if (missing.length === 0) {
+      showInfo("No songs found matching criteria (Missing Audio + YouTube Link present).");
+      return;
+    }
+
+    if (!confirm(`Initialize background extraction for ${missing.length} songs?`)) return;
+
+    setIsBulkDownloading(true);
+    showInfo("Activating Extraction Engine...");
+
+    for (const song of missing) {
+      try {
+        await supabase.functions.invoke('download-audio', {
+          body: { 
+            videoUrl: cleanYoutubeUrl(song.youtubeUrl || ''),
+            songId: song.master_id || song.id,
+            userId: user.id
+          }
+        });
+      } catch (err) {}
+      await new Promise(r => setTimeout(r, 500));
+    }
+
+    setIsBulkDownloading(false);
+    showSuccess(`Queued ${missing.length} tasks successfully.`);
+    fetchMasterRepertoire();
+  };
+
   const handleBulkRefreshAudio = async () => {
     setIsAdminOpen(true);
   };
@@ -438,7 +472,7 @@ const Index = () => {
                 songs={songs} 
                 onAutoLink={handleAutoLink} 
                 onGlobalAutoSync={handleGlobalAutoSync} 
-                onBulkRefreshAudio={handleBulkRefreshAudio}
+                onBulkRefreshAudio={handleBulkDownloadMissing}
                 onClearAutoLinks={handleClearAutoLinks}
                 isBulkDownloading={isBulkDownloading}
                 missingAudioCount={missingAudioCount}

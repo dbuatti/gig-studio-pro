@@ -27,7 +27,8 @@ import {
   Wand2,
   Box,
   Link2,
-  Undo2
+  Undo2,
+  Download
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError, showInfo } from '@/utils/toast';
@@ -61,6 +62,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
 
   // Maintenance / Bulk Extraction State
   const [isExtracting, setIsExtracting] = useState(false);
+  const [isExtractingMissing, setIsExtractingMissing] = useState(false);
   const [maintenanceSongs, setMaintenanceSongs] = useState<any[]>([]);
 
   // Automation State
@@ -94,7 +96,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
     try {
       const { data, error } = await supabase
         .from('repertoire')
-        .select('id, title, artist, youtube_url, extraction_status, last_extracted_at, sync_status, metadata_source')
+        .select('id, title, artist, youtube_url, extraction_status, last_extracted_at, sync_status, metadata_source, preview_url')
         .eq('user_id', user?.id)
         .order('title', { ascending: true });
       
@@ -252,19 +254,32 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
     }
   };
 
-  const handleBulkBackgroundExtract = async () => {
-    const songsToProcess = maintenanceSongs.filter(s => s.youtube_url);
+  const handleBulkBackgroundExtract = async (onlyMissing: boolean = false) => {
+    const itunesKeywords = ['apple.com', 'itunes-assets', 'mzstatic.com'];
+    const songsToProcess = maintenanceSongs.filter(s => {
+      if (!s.youtube_url) return false;
+      if (onlyMissing) {
+        const url = s.preview_url || "";
+        return url === "" || itunesKeywords.some(kw => url.includes(kw));
+      }
+      return true;
+    });
+
     if (songsToProcess.length === 0) {
-      showError("No songs with YouTube links found.");
+      showInfo(onlyMissing ? "No tracks found missing master audio." : "No songs with YouTube links found.");
       return;
     }
 
-    if (!confirm(`WARNING: This will initiate background extraction for ${songsToProcess.length} songs. Continue?`)) {
-      return;
-    }
+    const message = onlyMissing 
+      ? `Initiating background extraction for ${songsToProcess.length} songs missing master audio...`
+      : `Initiating global background refresh for ${songsToProcess.length} tracks...`;
 
-    setIsExtracting(true);
-    addLog(`Initiating background bulk override for ${songsToProcess.length} tracks...`, 'info');
+    if (!confirm(`WARNING: ${message} Continue?`)) return;
+
+    if (onlyMissing) setIsExtractingMissing(true);
+    else setIsExtracting(true);
+
+    addLog(message, 'info');
     showInfo("Task Queued: Extraction occurring in background.");
 
     for (let i = 0; i < songsToProcess.length; i++) {
@@ -287,8 +302,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
       await new Promise(r => setTimeout(r, 500));
     }
 
-    setIsExtracting(false);
-    showSuccess("All background tasks initialized.");
+    if (onlyMissing) setIsExtractingMissing(false);
+    else setIsExtracting(false);
+
+    showSuccess("Background tasks initialized.");
     fetchMaintenanceData();
   };
 
@@ -379,7 +396,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-6xl w-[95vw] h-[95vh] md:h-[92vh] bg-slate-950 border-white/10 text-white rounded-[2rem] p-0 overflow-hidden shadow-2xl flex flex-col">
-        {/* Header - Fixed */}
         <div className="bg-red-600 p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between shrink-0 gap-4">
           <div className="flex items-center gap-4 md:gap-6">
             <div className="bg-white/20 p-2 md:p-3 rounded-2xl backdrop-blur-md">
@@ -418,9 +434,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
           </div>
         </div>
 
-        {/* Body - Responsive Grid */}
         <div className="flex-1 overflow-hidden flex flex-col md:flex-row min-h-0">
-          {/* Main Panel Content Area */}
           <div className="flex-1 overflow-y-auto border-r border-white/5 bg-slate-900/20 custom-scrollbar">
             {activeTab === 'automation' ? (
               <div className="p-4 md:p-8 space-y-8 animate-in fade-in duration-500">
@@ -488,7 +502,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
                   </div>
                 </div>
 
-                {/* Library Status Table */}
                 <div className="bg-white/5 border border-white/10 rounded-3xl md:rounded-[2.5rem] overflow-hidden">
                    <div className="p-4 md:p-6 bg-black/20 border-b border-white/5 flex items-center justify-between">
                       <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Sync Status Matrix</h4>
@@ -587,14 +600,24 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
                             <p className="text-xs md:text-sm text-slate-400 mt-1">Force refresh all master audio assets.</p>
                          </div>
                       </div>
-                      <Button 
-                        onClick={handleBulkBackgroundExtract} 
-                        disabled={isExtracting}
-                        className="bg-red-600 hover:bg-red-700 h-14 md:h-16 px-8 md:px-10 rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] md:text-xs shadow-2xl shadow-red-600/30 gap-3"
-                      >
-                        {isExtracting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5 fill-current" />}
-                        Run Global Override
-                      </Button>
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <Button 
+                          onClick={() => handleBulkBackgroundExtract(true)} 
+                          disabled={isExtractingMissing || isExtracting}
+                          className="bg-indigo-600 hover:bg-indigo-700 h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg"
+                        >
+                          {isExtractingMissing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                          Download Remaining
+                        </Button>
+                        <Button 
+                          onClick={() => handleBulkBackgroundExtract(false)} 
+                          disabled={isExtracting || isExtractingMissing}
+                          className="bg-red-600 hover:bg-red-700 h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg"
+                        >
+                          {isExtracting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
+                          Force Refresh All
+                        </Button>
+                      </div>
                    </div>
 
                    <div className="p-6 bg-red-600/5 border border-red-600/20 rounded-2xl flex items-start gap-4">
@@ -611,7 +634,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
             )}
           </div>
 
-          {/* Sidebar / Console Panel */}
           <aside className="w-full md:w-80 lg:w-96 bg-slate-950/50 flex flex-col shrink-0 min-h-0 border-t md:border-t-0 md:border-l border-white/5">
             <div className="p-5 md:p-6 border-b border-white/5 bg-black/20 shrink-0">
               <div className="flex items-center gap-2 text-slate-400 mb-4 md:mb-6">
@@ -639,7 +661,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
               )}
             </div>
 
-            {/* Console Feed */}
             <div className="flex-1 flex flex-col p-5 md:p-6 min-h-0">
                <div className="flex items-center justify-between mb-4 shrink-0">
                  <div className="flex items-center gap-2">
@@ -677,7 +698,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
           </aside>
         </div>
 
-        {/* Footer - Fixed */}
         <div className="p-6 md:p-8 border-t border-white/5 bg-slate-900 flex flex-col md:flex-row items-center justify-between shrink-0 gap-4">
            <p className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.1em] text-slate-600 font-mono text-center md:text-left">
               Control Unit v4.0 // Smart-Link Logic Engine Online // ID: {user?.id?.substring(0,8)}
