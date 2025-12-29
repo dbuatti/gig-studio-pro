@@ -1,7 +1,6 @@
 "use client";
 import { supabase } from "@/integrations/supabase/client";
 import { SetlistSong } from "@/components/SetlistManager";
-import { DEFAULT_UG_CHORDS_CONFIG } from "./constants";
 
 /**
  * Checks if a given string is a valid UUID.
@@ -57,16 +56,10 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
  * Synchronizes local setlist songs with the master repertoire table.
  */
 export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong | SetlistSong[]): Promise<SetlistSong[]> => {
-  if (!userId) {
-    console.warn("[syncToMasterRepertoire] userId is missing. Skipping sync.");
-    return Array.isArray(songs) ? songs : [songs];
-  }
+  if (!userId) return Array.isArray(songs) ? songs : [songs];
   
   const songsArray = Array.isArray(songs) ? songs : [songs];
-  if (songsArray.length === 0) {
-    console.warn("[syncToMasterRepertoire] No songs provided for sync. Skipping.");
-    return [];
-  }
+  if (songsArray.length === 0) return [];
   
   try {
     const payloads = songsArray.map(song => {
@@ -106,15 +99,6 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       if (song.sheet_music_url !== undefined) payload.sheet_music_url = song.sheet_music_url;
       if (song.is_sheet_verified !== undefined) payload.is_sheet_verified = song.is_sheet_verified;
       
-      if ((song as any).sync_status !== undefined) payload.sync_status = (song as any).sync_status;
-      if ((song as any).last_sync_log !== undefined) payload.last_sync_log = (song as any).last_sync_log;
-      if ((song as any).auto_synced !== undefined) payload.auto_synced = (song as any).auto_synced;
-      if ((song as any).metadata_source !== undefined) payload.metadata_source = (song as any).metadata_source;
-      if ((song as any).extraction_status !== undefined) payload.extraction_status = (song as any).extraction_status;
-      if ((song as any).source_type !== undefined) payload.source_type = (song as any).source_type;
-
-      // If we have a master_id, provide it to ensure PK-based upsert.
-      // If we don't, the database unique constraint (user_id, title, artist) handles it.
       if (isValidUuid(song.master_id)) {
         payload.id = song.master_id;
       }
@@ -122,23 +106,19 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       return payload;
     });
     
-    // We use the natural key (user_id, title, artist) for conflict resolution.
-    // This prevents duplication even if the client-side master_id is missing.
     const { data, error } = await supabase
       .from('repertoire')
       .upsert(payloads, { onConflict: 'user_id,title,artist' })
       .select('id, title, artist');
       
     if (error) {
-      console.error("[syncToMasterRepertoire] Supabase upsert error:", error.message);
+      console.error("[syncToMasterRepertoire] Supabase 400 Error:", error.message, error.details);
       throw error;
     }
     
     return songsArray.map(originalSong => {
       const matchedDbSong = data.find(dbSong => {
-        // Match by ID if we had it
         if (originalSong.master_id && dbSong.id === originalSong.master_id) return true;
-        // Or match by the natural key
         if (dbSong.title === originalSong.name?.trim() && dbSong.artist === (originalSong.artist?.trim() || 'Unknown Artist')) return true;
         return false;
       });
@@ -146,7 +126,6 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       return matchedDbSong ? { ...originalSong, master_id: matchedDbSong.id, id: originalSong.id } : originalSong;
     });
   } catch (err) {
-    console.error("[syncToMasterRepertoire] Caught error:", err);
     throw err;
   }
 };

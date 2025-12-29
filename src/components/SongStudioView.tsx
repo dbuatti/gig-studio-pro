@@ -2,17 +2,16 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Activity, Check, Sparkles, Loader2, ShieldCheck, Maximize2, ChevronLeft, ChevronRight, AlertCircle, ShieldAlert, ClipboardCheck, CheckCircle2, Music } from 'lucide-react';
+import { ArrowLeft, Check, Sparkles, Loader2, AlertCircle, ShieldAlert } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useToneAudio } from '@/hooks/use-tone-audio';
 import { SetlistSong } from '@/components/SetlistManager';
-import { syncToMasterRepertoire, calculateReadiness } from '@/utils/repertoireSync';
+import { syncToMasterRepertoire } from '@/utils/repertoireSync';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
-import { showSuccess, showError, showInfo } from '@/utils/toast';
+import { showSuccess, showError } from '@/utils/toast';
 import StudioTabContent from '@/components/StudioTabContent';
-import ProSyncSearch from '@/components/ProSyncSearch';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -53,15 +52,14 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   const isMobile = useIsMobile();
   const { user } = useAuth();
   const { keyPreference: globalKeyPreference } = useSettings();
-  const audio = useToneAudio();
+  const audio = useToneAudio(true);
   
   const [song, setSong] = useState<SetlistSong | null>(null);
   const [formData, setFormData] = useState<Partial<SetlistSong>>({});
   const [activeTab, setActiveTab] = useState<StudioTab>('audio');
   const [loading, setLoading] = useState(true);
-  const [isProSyncSearchOpen, setIsProSyncSearchOpen] = useState(false);
-  const [activeChartType, setActiveChartType] = useState<'pdf' | 'leadsheet' | 'web' | 'ug'>('pdf');
   const [isVerifying, setIsVerifying] = useState(false);
+  const [activeChartType, setActiveChartType] = useState<'pdf' | 'leadsheet' | 'web' | 'ug'>('pdf');
   
   const [chordAutoScrollEnabled, setChordAutoScrollEnabled] = useState(true);
   const [chordScrollSpeed, setChordScrollSpeed] = useState(1.0);
@@ -70,7 +68,6 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   const lastPendingUpdatesRef = useRef<Partial<SetlistSong>>({});
   const currentSongRef = useRef<SetlistSong | null>(null);
 
-  // Keep ref in sync for the unmount effect
   useEffect(() => {
     currentSongRef.current = song;
   }, [song]);
@@ -80,97 +77,59 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     if (!targetSong || !user) return;
 
     try {
-      // Clear pending updates ref as we are now processing them
       lastPendingUpdatesRef.current = {};
-
       const updatedFullSong = { ...targetSong, ...formData, ...currentUpdates };
-      
-      // 1. Sync to Master Repertoire
       const syncedSongs = await syncToMasterRepertoire(user.id, [updatedFullSong]);
       const syncedSong = syncedSongs[0];
 
       setSong(syncedSong);
       setFormData(prev => ({ ...prev, ...currentUpdates, master_id: syncedSong.master_id }));
       
-      // 2. Sync to Setlist (Gig) if applicable
       if (gigId !== 'library') {
-        const { data: setlistData, error: fetchErr } = await supabase
-          .from('setlists')
-          .select('songs')
-          .eq('id', gigId)
-          .single();
-        
+        const { data: setlistData, error: fetchErr } = await supabase.from('setlists').select('songs').eq('id', gigId).maybeSingle();
         if (fetchErr) throw fetchErr;
 
-        const setlistSongs = (setlistData?.songs as SetlistSong[]) || [];
-        const updatedList = setlistSongs.map(s => s.id === targetSong.id ? syncedSong : s);
-        
-        await supabase
-          .from('setlists')
-          .update({ songs: updatedList })
-          .eq('id', gigId);
+        if (setlistData) {
+          const setlistSongs = (setlistData.songs as SetlistSong[]) || [];
+          const updatedList = setlistSongs.map(s => s.id === targetSong.id ? syncedSong : s);
+          await supabase.from('setlists').update({ songs: updatedList }).eq('id', gigId);
+        }
       }
-
     } catch (err: any) {
-      console.error("[SongStudioView] Auto-save engine failure:", err.message);
+      console.error("[SongStudioView] performSave 400 Failure:", err.message, err.details);
     }
   };
 
   const handleAutoSave = useCallback((updates: Partial<SetlistSong>) => {
-    // 1. Update UI state immediately
     setFormData(prev => ({ ...prev, ...updates }));
-    
-    // 2. Track pending updates for the unmount/immediate save
     lastPendingUpdatesRef.current = { ...lastPendingUpdatesRef.current, ...updates };
 
-    // 3. Debounce the actual database push
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    
     saveTimeoutRef.current = setTimeout(() => {
       performSave(lastPendingUpdatesRef.current);
     }, 1000);
-  }, [formData, user, gigId]);
+  }, [user, gigId]);
 
-  // Handle forcing a save immediately (e.g. on close)
-  const forceImmediateSave = useCallback(() => {
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-      const pending = lastPendingUpdatesRef.current;
-      if (Object.keys(pending).length > 0) {
-        performSave(pending);
-      }
-    }
-  }, []);
-
-  const handleClose = () => {
-    forceImmediateSave();
-    onClose();
-  };
-
-  const {
-    pitch,
-    setPitch,
-    targetKey,
-    setTargetKey,
-    isPitchLinked,
-    setIsPitchLinked,
-  } = useHarmonicSync({
+  const { pitch, setPitch, targetKey, setTargetKey, isPitchLinked, setIsPitchLinked } = useHarmonicSync({
     formData,
     handleAutoSave,
     globalKeyPreference
   });
 
+  const handleClose = useCallback(() => {
+    const pending = lastPendingUpdatesRef.current;
+    if (Object.keys(pending).length > 0) performSave(pending);
+    onClose();
+  }, [onClose]);
+
   const fetchData = async () => {
     if (!user || !songId) return;
-    
     setLoading(true);
     try {
       let targetSong: SetlistSong | undefined;
-      
       if (gigId === 'library') {
-        const { data, error } = await supabase.from('repertoire').select('*').eq('id', songId).single();
+        const { data, error } = await supabase.from('repertoire').select('*').eq('id', songId).maybeSingle();
         if (error) throw error;
-        
         if (data) {
           targetSong = {
             id: data.id,
@@ -206,24 +165,20 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           } as SetlistSong;
         }
       } else {
-        const { data, error } = await supabase.from('setlists').select('songs').eq('id', gigId).single();
+        const { data, error } = await supabase.from('setlists').select('songs').eq('id', gigId).maybeSingle();
         if (error) throw error;
         targetSong = (data?.songs as SetlistSong[])?.find(s => s.id === songId);
       }
       
-      if (!targetSong) throw new Error("Song not found.");
-      
+      if (!targetSong) throw new Error("Track not found in current context.");
       setSong(targetSong);
       setFormData(targetSong);
       
       if (targetSong.previewUrl) {
         await audio.loadFromUrl(targetSong.previewUrl, targetSong.pitch ?? 0, true);
-      } else {
-        audio.stopPlayback();
       }
-      
     } catch (err: any) {
-      showError("Studio Error: " + err.message);
+      showError("Studio Engine Error: " + err.message);
       onClose();
     } finally {
       setLoading(false);
@@ -233,60 +188,25 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   useEffect(() => {
     fetchData();
     return () => {
-      // Force any unsaved typing into the DB on unmount/song change
-      const pending = lastPendingUpdatesRef.current;
-      if (Object.keys(pending).length > 0) {
-        performSave(pending);
-      }
-      
-      audio.stopPlayback();
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      const pending = lastPendingUpdatesRef.current;
+      if (Object.keys(pending).length > 0) performSave(pending);
+      audio.stopPlayback();
     };
   }, [songId, gigId]);
-
-  const handleVerifyMetadata = async () => {
-    if (!formData.name || !formData.artist) return showError("Title and Artist required.");
-    setIsVerifying(true);
-    try {
-      const q = encodeURIComponent(`${formData.artist} ${formData.name}`);
-      const res = await fetch(`https://itunes.apple.com/search?term=${q}&entity=song&limit=1`);
-      const data = await res.json();
-      if (data.results?.[0]) {
-        const t = data.results[0];
-        handleAutoSave({
-          name: t.trackName,
-          artist: t.artistName,
-          genre: t.primaryGenreName,
-          appleMusicUrl: t.trackViewUrl,
-          duration_seconds: Math.floor(t.trackTimeMillis / 1000),
-          isMetadataConfirmed: true
-        });
-        showSuccess("Metadata verified.");
-      } else showError("No match found.");
-    } catch (err) { showError("Verification failed."); } finally { setIsVerifying(false); }
-  };
-
-  const handlePullKey = async () => {
-    if (!formData.ug_chords_text) return showError("No chords available.");
-    const key = extractKeyFromChords(formData.ug_chords_text);
-    if (key) {
-      handleAutoSave({ originalKey: key, targetKey: key, pitch: 0, isKeyConfirmed: true });
-      showSuccess(`Key extracted: ${key}`);
-    } else showError("Extraction failed.");
-  };
 
   useKeyboardNavigation({
     onNext: () => visibleSongs.length > 1 && onSelectSong?.(visibleSongs[(visibleSongs.findIndex(s => s.id === songId) + 1) % visibleSongs.length].id),
     onPrev: () => visibleSongs.length > 1 && onSelectSong?.(visibleSongs[(visibleSongs.findIndex(s => s.id === songId) - 1 + visibleSongs.length) % visibleSongs.length].id),
     onClose: handleClose,
     onPlayPause: audio.togglePlayback,
-    disabled: loading || isProSyncSearchOpen
+    disabled: loading
   });
 
-  if (loading) return <div className="h-full flex flex-col items-center justify-center bg-slate-950"><Loader2 className="w-10 h-10 animate-spin text-indigo-500" /></div>;
+  if (loading) return <div className="h-full flex items-center justify-center bg-slate-950"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
 
   return (
-    <div className="flex flex-col h-full bg-slate-950 overflow-hidden relative">
+    <div className="flex flex-col h-full bg-slate-950 overflow-hidden">
       <header className="h-20 bg-slate-900 border-b border-white/5 flex items-center justify-between px-6 shrink-0 z-50">
         <div className="flex items-center gap-4">
           <Button variant="ghost" onClick={handleClose} className="h-12 w-12 rounded-2xl bg-white/5"><ArrowLeft className="w-5 h-5 text-slate-400" /></Button>
@@ -295,18 +215,12 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
             <h2 className="text-xl font-black uppercase text-white truncate max-w-[250px]">{formData.name}</h2>
           </div>
         </div>
-        
         <div className="flex items-center gap-4">
-          <Button onClick={handleVerifyMetadata} disabled={isVerifying || formData.isMetadataConfirmed} className={cn("h-11 px-6 rounded-xl font-black text-[9px] uppercase tracking-widest gap-2", formData.isMetadataConfirmed ? "bg-emerald-600" : "bg-white/5")}>
-            {isVerifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} VERIFY METADATA
-          </Button>
-          <Button onClick={handlePullKey} disabled={!formData.ug_chords_text} className="h-11 px-6 bg-purple-600 rounded-xl font-black text-[9px] uppercase tracking-widest gap-2"><Sparkles className="w-4 h-4" /> PULL KEY</Button>
-          
           {gigId === 'library' ? (
             <SetlistMultiSelector songMasterId={songId} allSetlists={allSetlists} songToAssign={song!} onUpdateSetlistSongs={onUpdateSetlistSongs!} />
           ) : (
             <div className="flex items-center gap-3 bg-white/5 px-4 h-11 rounded-xl border border-white/10">
-              <Label className="text-[8px] font-black text-slate-500 uppercase">Confirm for Gig</Label>
+              <Label className="text-[8px] font-black text-slate-500 uppercase">Gig Approved</Label>
               <Switch checked={formData.isApproved || false} onCheckedChange={(v) => handleAutoSave({ isApproved: v })} className="data-[state=checked]:bg-emerald-500" />
             </div>
           )}
@@ -314,9 +228,9 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
       </header>
       
       {(!formData.originalKey || formData.originalKey === 'TBC') && (
-        <div className="bg-red-950/30 border-b border-red-900/50 p-3 flex items-center justify-center gap-3 shrink-0">
+        <div className="bg-red-950/30 border-b border-red-900/50 p-3 flex items-center justify-center gap-3 shrink-0 h-10">
           <AlertCircle className="w-4 h-4 text-red-400" />
-          <p className="text-xs font-bold uppercase text-red-400">CRITICAL: Original Key is missing. Transposition is relative to 'C'.</p>
+          <p className="text-xs font-bold uppercase text-red-400">Original Key missing. Transposition is relative to 'C'.</p>
         </div>
       )}
       
