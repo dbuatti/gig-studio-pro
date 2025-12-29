@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { 
   LayoutDashboard, Search, Sparkles, ShieldCheck, X, Settings, 
-  Play, FileText, Pause, BookOpen, ShieldAlert, Zap,
-  Wrench
+  Play, FileText, Pause, BookOpen, Volume2, ShieldAlert, Zap,
+  ChevronRight, ChevronLeft, ChevronUp, ChevronDown, MoreHorizontal, Wrench
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { motion, AnimatePresence } from 'framer-motion';
@@ -66,7 +66,6 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   });
 
   const [isSubMenuOpen, setIsSubMenuOpen] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
 
   const [position, setPosition] = useState<{ x: number; y: number }>(() => {
     if (typeof window !== 'undefined') {
@@ -76,68 +75,66 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     return { x: 0, y: 0 };
   });
 
-  const [mousePos, setMousePos] = useState<{ x: number; y: number }>({ x: window.innerWidth - 100, y: window.innerHeight - 100 });
-
   const [isSafePitchActive, setIsSafePitchActive] = useState(false);
   const { safePitchMaxNote } = useSettings();
 
-  const isMobile = useMemo(() => {
-    if (typeof window === 'undefined') return false;
-    return window.innerWidth < 768 || 'ontouchstart' in window;
-  }, []);
-
-  const internalIsMenuOpen = isReaderMode ? isMenuOpenProp : isOpen;
-
-  // Follow cursor when menu is closed
-  useEffect(() => {
-    if (internalIsMenuOpen) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      setMousePos({ x: e.clientX, y: e.clientY });
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, [internalIsMenuOpen]);
-
-  // Intelligent direction
+  // Intelligent Direction Calculation based on available space
   const direction = useMemo((): MenuDirection => {
-    if (typeof window === 'undefined') return isMobile ? 'up' : 'right';
-
+    if (typeof window === 'undefined') return 'up';
+    
     const windowWidth = window.innerWidth;
     const windowHeight = window.innerHeight;
+    
+    // The dock is fixed bottom-8 right-8 initially.
+    // We need to calculate its actual screen coordinates.
+    const dockSize = 56; // Approximate size of the main button
+    const margin = 32; // 8 units margin * 4 (tailwind default)
+    
+    // Calculate the current screen position of the dock's center
+    // Initial position is bottom-8 right-8
+    const initialX = windowWidth - margin - dockSize / 2;
+    const initialY = windowHeight - margin - dockSize / 2;
+    
+    const currentX = initialX + position.x;
+    const currentY = initialY + position.y;
 
-    const dockSize = 64;
-    const margin = 32;
+    // Calculate available space in each direction
+    const spaceRight = windowWidth - currentX - dockSize / 2;
+    const spaceLeft = currentX - dockSize / 2;
+    const spaceDown = windowHeight - currentY - dockSize / 2;
+    const spaceUp = currentY - dockSize / 2;
 
-    const currentX = windowWidth - margin - dockSize / 2 + position.x;
-    const currentY = windowHeight - margin - dockSize / 2 + position.y;
+    // Threshold for menu size (approximate)
+    const menuWidth = 250;
+    const menuHeight = 200;
 
-    const spaceRight = windowWidth - currentX;
-    const spaceLeft = currentX;
-    const spaceDown = windowHeight - currentY;
-    const spaceUp = currentY;
-
-    const menuWidth = isMobile ? 120 : 320;
-    const menuHeight = isMobile ? 420 : 180;
-
+    // Determine best direction
+    // Prioritize opening into the largest available space
     const spaces = [
-      { dir: 'right' as MenuDirection, space: spaceRight, needs: menuWidth },
-      { dir: 'left' as MenuDirection, space: spaceLeft, needs: menuWidth },
-      { dir: 'down' as MenuDirection, space: spaceDown, needs: menuHeight },
-      { dir: 'up' as MenuDirection, space: spaceUp, needs: menuHeight },
+      { dir: 'right' as MenuDirection, space: spaceRight },
+      { dir: 'left' as MenuDirection, space: spaceLeft },
+      { dir: 'down' as MenuDirection, space: spaceDown },
+      { dir: 'up' as MenuDirection, space: spaceUp },
     ];
 
-    const valid = spaces.filter(s => s.space > s.needs + dockSize);
-    if (valid.length > 0) {
-      valid.sort((a, b) => b.space - a.space);
-      return valid[0].dir;
+    // Filter out directions that don't have enough space
+    const validSpaces = spaces.filter(s => 
+      (s.dir === 'left' || s.dir === 'right') ? s.space > menuWidth : s.space > menuHeight
+    );
+
+    if (validSpaces.length > 0) {
+      // Sort by available space (descending) and pick the best
+      validSpaces.sort((a, b) => b.space - a.space);
+      return validSpaces[0].dir;
     }
 
+    // Fallback: if no direction has enough space, pick the one with the most space
     spaces.sort((a, b) => b.space - a.space);
     return spaces[0].dir;
-  }, [position, isMobile]);
+  }, [position]);
 
+  const internalIsMenuOpen = isReaderMode ? isMenuOpenProp : isOpen;
+  
   const handleToggleMenu = useCallback(() => {
     const nextState = !internalIsMenuOpen;
     if (isReaderMode) onSetMenuOpen?.(nextState);
@@ -146,7 +143,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     localStorage.setItem('floating_dock_open', nextState.toString());
   }, [internalIsMenuOpen, isReaderMode, onSetMenuOpen]);
 
-  // ESC to close
+  // Global ESC listener
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && internalIsMenuOpen) handleToggleMenu();
@@ -155,18 +152,10 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     return () => window.removeEventListener('keydown', handleEsc);
   }, [internalIsMenuOpen, handleToggleMenu]);
 
-  // Drag handling
-  const handleDragStart = () => {
-    if (internalIsMenuOpen) return;
-    setIsDragging(true);
-  };
-
   const handleDragEnd = (_: any, info: any) => {
-    if (internalIsMenuOpen) return;
     const newPos = { x: position.x + info.offset.x, y: position.y + info.offset.y };
     setPosition(newPos);
     localStorage.setItem('floating_dock_position', JSON.stringify(newPos));
-    setIsDragging(false);
   };
 
   const safePitchLimit = useMemo(() => {
@@ -184,80 +173,73 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
         return;
       }
       onSafePitchToggle?.(true, safePitchLimit);
-    } else if (!isSafePitchActive) {
-      onSafePitchToggle?.(false, 0);
-    }
+    } else if (!isSafePitchActive) onSafePitchToggle?.(false, 0);
   }, [isSafePitchActive, safePitchLimit, currentSongPitch, onSafePitchToggle]);
 
   const primaryButtons = [
     {
       id: 'practice',
-      icon: isPlaying ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8" />,
+      icon: isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />,
       onClick: onTogglePlayback,
       disabled: !hasPlayableSong,
       tooltip: isPlaying ? "Pause (Space)" : "Play (Space)",
-      className: cn("text-white shadow-2xl scale-110", isPlaying ? "bg-red-600" : "bg-indigo-600"),
+      className: cn(
+        "text-white shadow-xl scale-110",
+        isPlaying ? "bg-red-600 border-red-500" : "bg-indigo-600 border-indigo-500"
+      ),
     },
     {
       id: 'reader',
-      icon: <FileText className="w-7 h-7" />,
+      icon: <FileText className="w-5 h-5" />,
       onClick: () => onOpenReader(activeSongId || undefined),
       disabled: !hasReadableChart,
       tooltip: "Reader (R)",
-      className: "bg-emerald-600 text-white",
+      className: "bg-emerald-600 text-white border-emerald-500",
     },
     {
       id: 'search',
-      icon: <Search className="w-7 h-7" />,
+      icon: <Search className="w-5 h-5" />,
       onClick: onOpenSearch,
       tooltip: "Discovery",
-      className: "bg-slate-700 text-white hover:bg-indigo-600",
+      className: "bg-slate-800 text-white border-white/10 hover:bg-indigo-600",
     },
   ];
 
   const secondaryButtons = [
-    { id: 'automation', icon: <Zap className="w-5 h-5" />, onClick: onOpenAdmin, tooltip: "Automation Hub" },
-    { id: 'admin', icon: <ShieldCheck className="w-5 h-5" />, onClick: onOpenAdmin, tooltip: "Audit Matrix" },
-    { id: 'heatmap', icon: <Sparkles className="w-5 h-5" />, onClick: onToggleHeatmap, tooltip: "Heatmap (H)", active: showHeatmap },
-    { id: 'safe-pitch', icon: <ShieldAlert className="w-5 h-5" />, onClick: () => setIsSafePitchActive(prev => !prev), tooltip: "Safe Pitch", active: isSafePitchActive },
-    { id: 'preferences', icon: <Settings className="w-5 h-5" />, onClick: onOpenPreferences, tooltip: "Preferences" },
-    { id: 'user-guide', icon: <BookOpen className="w-5 h-5" />, onClick: onOpenUserGuide, tooltip: "User Guide" },
+    { id: 'automation', icon: <Zap className="w-4 h-4" />, onClick: onOpenAdmin, tooltip: "Automation Hub", className: "bg-purple-600/20 text-purple-400 border-purple-500/30" },
+    { id: 'admin', icon: <ShieldCheck className="w-4 h-4" />, onClick: onOpenAdmin, tooltip: "Audit Matrix", className: "bg-red-900/40 text-red-400 border-red-500/30" },
+    { id: 'heatmap', icon: <Sparkles className="w-4 h-4" />, onClick: onToggleHeatmap, tooltip: "Heatmap (H)", className: cn(showHeatmap ? "bg-amber-500 text-black border-amber-400" : "bg-slate-800 text-amber-400 border-white/10") },
+    { id: 'safe-pitch', icon: <ShieldAlert className="w-4 h-4" />, onClick: () => setIsSafePitchActive(!isSafePitchActive), tooltip: "Safe Pitch", className: cn(isSafePitchActive ? "bg-emerald-600 text-white border-emerald-400" : "bg-slate-800 text-emerald-400 border-white/10") },
+    { id: 'preferences', icon: <Settings className="w-4 h-4" />, onClick: onOpenPreferences, tooltip: "Prefs", className: "bg-slate-800 text-slate-300 border-white/10" },
+    { id: 'user-guide', icon: <BookOpen className="w-4 h-4" />, onClick: onOpenUserGuide, tooltip: "Guide", className: "bg-blue-600/20 text-blue-400 border-blue-500/30" },
   ];
 
-  const getMenuAlignment = (dir: MenuDirection) => {
+  const getMenuClasses = (dir: MenuDirection) => {
     switch (dir) {
-      case 'up': return "items-end flex-col-reverse mb-4";
-      case 'down': return "items-start flex-col mt-4";
-      case 'left': return "items-end flex-row-reverse mr-4";
-      case 'right': return "items-start flex-row ml-4";
+      case 'up': return "flex-col-reverse mb-3";
+      case 'down': return "flex-col mt-3";
+      case 'left': return "flex-row-reverse mr-3";
+      case 'right': return "flex-row ml-3";
     }
   };
 
-  // Default position when closed: bottom-right corner (fallback if mouse not moved yet)
-  const defaultX = typeof window !== 'undefined' ? window.innerWidth - 96 : 0;
-  const defaultY = typeof window !== 'undefined' ? window.innerHeight - 96 : 0;
-
-  const dockX = internalIsMenuOpen ? position.x : mousePos.x - 32 || defaultX;
-  const dockY = internalIsMenuOpen ? position.y : mousePos.y - 32 || defaultY;
-
   return (
-    <TooltipProvider delayDuration={300}>
+    <TooltipProvider>
       <motion.div
-        drag={!internalIsMenuOpen}
+        drag
         dragMomentum={false}
-        onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
-        animate={{ x: dockX, y: dockY }}
-        transition={{ type: "spring", damping: 30, stiffness: 300 }}
+        style={{ x: position.x, y: position.y }}
         className={cn(
-          "fixed inset-0 z-[9999] flex touch-none pointer-events-none", // inset-0 ensures full coverage
-          isDragging && "cursor-grabbing",
-          !isDragging && !internalIsMenuOpen && "cursor-none",
-          internalIsMenuOpen && getMenuAlignment(direction)
+          "fixed bottom-8 right-8 z-[300] flex items-center gap-3 touch-none cursor-grab active:cursor-grabbing",
+          direction === 'up' && "flex-col-reverse",
+          direction === 'down' && "flex-col",
+          direction === 'left' && "flex-row-reverse",
+          direction === 'right' && "flex-row"
         )}
       >
-        {/* Main Hub Button - always visible and clickable */}
-        <div className="bg-slate-950/95 backdrop-blur-2xl p-3 rounded-full border border-white/20 shadow-2xl pointer-events-auto">
+        {/* Hub Trigger Button */}
+        <div className="bg-slate-950/90 backdrop-blur-2xl p-2 rounded-full border border-white/20 shadow-2xl">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -265,32 +247,29 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                 size="icon"
                 onClick={handleToggleMenu}
                 className={cn(
-                  "h-16 w-16 rounded-full transition-all duration-500 border-4 shadow-2xl flex items-center justify-center",
-                  internalIsMenuOpen 
-                    ? "bg-slate-100 text-slate-950 border-white" 
-                    : "bg-slate-900 text-indigo-400 border-white/20 hover:border-indigo-400 hover:scale-110"
+                  "h-14 w-14 rounded-full transition-all duration-500 border-2 shadow-xl",
+                  internalIsMenuOpen ? "bg-slate-100 text-slate-950 border-white rotate-90" : "bg-slate-900 text-indigo-400 border-white/10"
                 )}
               >
-                {internalIsMenuOpen ? <X className="w-8 h-8" /> : <LayoutDashboard className="w-8 h-8" />}
+                {internalIsMenuOpen ? <X className="w-6 h-6" /> : <LayoutDashboard className="w-6 h-6" />}
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="top">Command Center</TooltipContent>
+            <TooltipContent side={direction === 'left' ? 'right' : direction === 'right' ? 'left' : direction === 'up' ? 'bottom' : 'top'}>Command Hub</TooltipContent>
           </Tooltip>
         </div>
 
         <AnimatePresence>
           {internalIsMenuOpen && (
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: isMobile ? 20 : 0, x: isMobile ? 0 : 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ duration: 0.25 }}
-              className={cn("flex gap-4 pointer-events-auto", isMobile ? "flex-col" : "flex-row")}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              className={cn("flex items-center gap-3", getMenuClasses(direction))}
             >
-              {/* Primary Actions */}
+              {/* Primary Slot Container */}
               <div className={cn(
-                "flex gap-4 p-4 bg-slate-950/95 rounded-3xl border border-white/10 shadow-2xl backdrop-blur-2xl",
-                isMobile ? "flex-col" : "flex-row"
+                "flex items-center gap-3 p-3 bg-slate-950/90 rounded-[2.5rem] border border-white/10 shadow-2xl backdrop-blur-xl",
+                (direction === 'up' || direction === 'down') ? "flex-col" : "flex-row"
               )}>
                 {primaryButtons.map((btn) => (
                   <Tooltip key={btn.id}>
@@ -300,49 +279,44 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                         size="icon"
                         disabled={btn.disabled}
                         onClick={() => { btn.onClick(); if (btn.id !== 'practice') handleToggleMenu(); }}
-                        className={cn(
-                          "rounded-full border-2 transition-all hover:scale-110 active:scale-95 disabled:opacity-30",
-                          isMobile ? "h-16 w-16" : "h-14 w-14",
-                          btn.className
-                        )}
+                        className={cn("h-12 w-12 rounded-full border transition-all active:scale-90 disabled:opacity-10", btn.className)}
                       >
                         {btn.icon}
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>{btn.tooltip}</TooltipContent>
+                    <TooltipContent side={direction === 'left' ? 'right' : direction === 'right' ? 'left' : direction === 'up' ? 'bottom' : 'top'}>{btn.tooltip}</TooltipContent>
                   </Tooltip>
                 ))}
 
-                {/* Utilities Toggle */}
+                {/* Sub-Menu Toggle */}
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => setIsSubMenuOpen(prev => !prev)}
+                      onClick={() => setIsSubMenuOpen(!isSubMenuOpen)}
                       className={cn(
-                        "rounded-full border-2 transition-all",
-                        isMobile ? "h-16 w-16" : "h-14 w-14",
-                        isSubMenuOpen ? "bg-white text-slate-950" : "bg-slate-800 text-slate-400"
+                        "h-12 w-12 rounded-full border transition-all",
+                        isSubMenuOpen ? "bg-white text-slate-950 border-white" : "bg-slate-800 text-slate-400 border-white/5"
                       )}
                     >
-                      {isSubMenuOpen ? <X className="w-7 h-7" /> : <Wrench className="w-7 h-7" />}
+                      {isSubMenuOpen ? <X className="w-5 h-5" /> : <Wrench className="w-5 h-5" />}
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>More Tools</TooltipContent>
+                  <TooltipContent side={direction === 'left' ? 'right' : direction === 'right' ? 'left' : direction === 'up' ? 'bottom' : 'top'}>Utilities</TooltipContent>
                 </Tooltip>
               </div>
 
-              {/* Secondary Utilities */}
+              {/* Secondary Utility Matrix */}
               <AnimatePresence>
                 {isSubMenuOpen && (
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.8 }}
+                    initial={{ opacity: 0, scale: 0.5 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
+                    exit={{ opacity: 0, scale: 0.5 }}
                     className={cn(
-                      "p-4 bg-slate-900/95 rounded-3xl border border-white/10 shadow-2xl backdrop-blur-2xl",
-                      isMobile ? "grid grid-cols-3 gap-4" : "grid grid-cols-3 gap-3"
+                      "grid grid-cols-2 gap-2 p-3 bg-slate-900/90 rounded-[2rem] border border-white/10 shadow-2xl backdrop-blur-xl",
+                      (direction === 'left' || direction === 'right') && "grid-flow-col"
                     )}
                   >
                     {secondaryButtons.map((btn) => (
@@ -351,20 +325,13 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => { 
-                              btn.onClick(); 
-                              if (!['heatmap', 'safe-pitch'].includes(btn.id)) handleToggleMenu(); 
-                            }}
-                            className={cn(
-                              "rounded-full border transition-all hover:scale-110",
-                              isMobile ? "h-14 w-14" : "h-12 w-12",
-                              btn.active ? "bg-emerald-600 text-white" : "bg-slate-800 text-slate-300"
-                            )}
+                            onClick={() => { btn.onClick(); if (btn.id !== 'heatmap' && btn.id !== 'safe-pitch') handleToggleMenu(); }}
+                            className={cn("h-10 w-10 rounded-full border transition-all hover:scale-110", btn.className)}
                           >
                             {btn.icon}
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>{btn.tooltip}</TooltipContent>
+                        <TooltipContent side="top" className="text-[10px] font-black uppercase">{btn.tooltip}</TooltipContent>
                       </Tooltip>
                     ))}
                   </motion.div>
