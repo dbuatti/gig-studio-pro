@@ -11,13 +11,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { 
   ShieldAlert, 
-  Activity,
   Loader2,
-  Cloud,
-  FileText,
-  RefreshCw,
   ShieldCheck,
-  Server,
   History,
   CheckCircle2,
   Database,
@@ -31,7 +26,6 @@ import {
   Settings2,
   Wand2,
   Box,
-  Monitor,
   Link2,
   Undo2
 } from 'lucide-react';
@@ -43,7 +37,6 @@ import { cn } from "@/lib/utils";
 import { useAuth } from './AuthProvider';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { cleanYoutubeUrl } from '@/utils/youtubeUtils';
 
 interface AdminPanelProps {
@@ -291,7 +284,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
       } catch (err: any) {
         addLog(`Failed to Queue: ${song.title} - ${err.message}`, 'error');
       }
-      // Small delay between trigger calls
       await new Promise(r => setTimeout(r, 500));
     }
 
@@ -386,23 +378,24 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-6xl w-[95vw] max-h-[92vh] bg-slate-950 border-white/10 text-white rounded-[2rem] p-0 overflow-hidden shadow-2xl flex flex-col">
-        <div className="bg-red-600 p-8 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-6">
-            <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-md">
-              <ShieldAlert className="w-8 h-8 text-white" />
+      <DialogContent className="max-w-6xl w-[95vw] h-[95vh] md:h-[92vh] bg-slate-950 border-white/10 text-white rounded-[2rem] p-0 overflow-hidden shadow-2xl flex flex-col">
+        {/* Header - Fixed */}
+        <div className="bg-red-600 p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between shrink-0 gap-4">
+          <div className="flex items-center gap-4 md:gap-6">
+            <div className="bg-white/20 p-2 md:p-3 rounded-2xl backdrop-blur-md">
+              <ShieldAlert className="w-6 h-6 md:w-8 md:h-8 text-white" />
             </div>
             <div>
-              <DialogTitle className="text-2xl font-black uppercase tracking-tight">System Core Admin</DialogTitle>
-              <DialogDescription className="text-red-100 font-medium">Core Infrastructure & Maintenance</DialogDescription>
+              <DialogTitle className="text-xl md:text-2xl font-black uppercase tracking-tight">System Core Admin</DialogTitle>
+              <DialogDescription className="text-red-100 font-medium text-xs md:text-sm">Infrastructure Maintenance</DialogDescription>
             </div>
           </div>
-          <div className="flex bg-black/20 p-1 rounded-xl overflow-x-auto no-scrollbar">
+          <div className="flex bg-black/20 p-1 rounded-xl overflow-x-auto no-scrollbar self-start md:self-center">
              <Button 
                variant="ghost" 
                size="sm" 
                onClick={() => setActiveTab('vault')}
-               className={cn("text-[10px] font-black uppercase tracking-widest h-8 px-6 rounded-lg whitespace-nowrap", activeTab === 'vault' ? "bg-white text-red-600" : "text-white/60")}
+               className={cn("text-[9px] md:text-[10px] font-black uppercase tracking-widest h-8 px-4 md:px-6 rounded-lg whitespace-nowrap", activeTab === 'vault' ? "bg-white text-red-600" : "text-white/60")}
              >
                Cloud Vault
              </Button>
@@ -410,7 +403,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
                variant="ghost" 
                size="sm" 
                onClick={() => setActiveTab('automation')}
-               className={cn("text-[10px] font-black uppercase tracking-widest h-8 px-6 rounded-lg whitespace-nowrap", activeTab === 'automation' ? "bg-white text-red-600" : "text-white/60")}
+               className={cn("text-[9px] md:text-[10px] font-black uppercase tracking-widest h-8 px-4 md:px-6 rounded-lg whitespace-nowrap", activeTab === 'automation' ? "bg-white text-red-600" : "text-white/60")}
              >
                Auto-Sync
              </Button>
@@ -418,46 +411,48 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
                variant="ghost" 
                size="sm" 
                onClick={() => setActiveTab('maintenance')}
-               className={cn("text-[10px] font-black uppercase tracking-widest h-8 px-6 rounded-lg whitespace-nowrap", activeTab === 'maintenance' ? "bg-white text-red-600" : "text-white/60")}
+               className={cn("text-[9px] md:text-[10px] font-black uppercase tracking-widest h-8 px-4 md:px-6 rounded-lg whitespace-nowrap", activeTab === 'maintenance' ? "bg-white text-red-600" : "text-white/60")}
              >
                Extraction
              </Button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
-          <ScrollArea className="flex-1 h-full border-r border-white/5">
+        {/* Body - Responsive Grid */}
+        <div className="flex-1 overflow-hidden flex flex-col md:flex-row min-h-0">
+          {/* Main Panel Content Area */}
+          <div className="flex-1 overflow-y-auto border-r border-white/5 bg-slate-900/20 custom-scrollbar">
             {activeTab === 'automation' ? (
-              <div className="p-8 space-y-8 animate-in fade-in duration-500">
-                <div className="bg-indigo-600/10 border border-indigo-600/20 rounded-[2.5rem] p-10 space-y-8">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div className="flex items-center gap-6">
-                      <div className="bg-indigo-600 p-4 rounded-3xl shadow-xl shadow-indigo-600/20">
-                        <Wand2 className="w-8 h-8 text-white" />
+              <div className="p-4 md:p-8 space-y-8 animate-in fade-in duration-500">
+                <div className="bg-indigo-600/10 border border-indigo-600/20 rounded-3xl md:rounded-[2.5rem] p-6 md:p-10 space-y-8">
+                  <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+                    <div className="flex items-center gap-4 md:gap-6">
+                      <div className="bg-indigo-600 p-3 md:p-4 rounded-2xl md:rounded-3xl shadow-xl shadow-indigo-600/20">
+                        <Wand2 className="w-6 h-6 md:w-8 md:h-8 text-white" />
                       </div>
                       <div>
-                        <h3 className="text-2xl font-black uppercase tracking-tight text-white">Global Auto-Sync Engine</h3>
-                        <p className="text-sm text-slate-400 mt-1">Automate metadata enrichment and audio discovery.</p>
+                        <h3 className="text-xl md:text-2xl font-black uppercase tracking-tight text-white">Global Auto-Sync Engine</h3>
+                        <p className="text-xs md:text-sm text-slate-400 mt-1">Automate metadata and audio discovery.</p>
                       </div>
                     </div>
                     <Button 
                       onClick={handleGlobalAutoSync} 
                       disabled={isAutoSyncing}
-                      className="bg-indigo-600 hover:bg-indigo-700 h-16 px-10 rounded-2xl font-black uppercase tracking-[0.2em] text-xs shadow-2xl shadow-indigo-600/30 gap-4"
+                      className="bg-indigo-600 hover:bg-indigo-700 h-14 md:h-16 px-8 md:px-10 rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] md:text-xs shadow-2xl shadow-indigo-600/30 gap-3"
                     >
                       {isAutoSyncing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5 fill-current" />}
                       Trigger Pipeline
                     </Button>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-white/5">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-4 border-t border-white/5">
                     <div className="space-y-4">
                       <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Smart-Link Discovery</h4>
                       <div className="flex flex-col gap-3">
                         <Button 
                           onClick={handlePopulateMissingLinks}
                           disabled={isPopulatingLinks}
-                          className="w-full bg-emerald-600 hover:bg-emerald-700 h-14 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg"
+                          className="w-full bg-emerald-600 hover:bg-emerald-700 h-12 md:h-14 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg"
                         >
                           {isPopulatingLinks ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
                           Populate Missing Links
@@ -466,7 +461,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
                           variant="ghost"
                           onClick={handleClearAutoPopulatedLinks}
                           disabled={isClearingLinks}
-                          className="w-full text-red-500 hover:bg-red-500/10 h-12 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3"
+                          className="w-full text-red-500 hover:bg-red-500/10 h-10 md:h-12 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3"
                         >
                           {isClearingLinks ? <Loader2 className="w-4 h-4 animate-spin" /> : <Undo2 className="w-4 h-4" />}
                           Clear Auto-Populated
@@ -476,66 +471,48 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
 
                     <div className="space-y-4">
                       <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Global Configuration</h4>
-                      <div className="space-y-4">
-                        <div className="p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <Settings2 className="w-4 h-4 text-indigo-400" />
-                            <p className="text-xs font-bold uppercase">Overwrite Verified</p>
-                          </div>
+                      <div className="space-y-3">
+                        <div className="p-3 md:p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-between">
+                          <p className="text-xs font-bold uppercase text-slate-300">Overwrite Verified</p>
                           <Switch checked={overwriteExisting} onCheckedChange={setOverwriteExisting} />
                         </div>
-                        <div className="p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <Box className="w-4 h-4 text-indigo-400" />
-                            <p className="text-xs font-bold uppercase">Batch Size: {syncBatchSize}</p>
-                          </div>
+                        <div className="p-3 md:p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-between">
+                          <p className="text-xs font-bold uppercase text-slate-300">Batch Size: {syncBatchSize}</p>
                           <div className="flex items-center gap-2">
-                            <button onClick={() => setSyncBatchSize(Math.max(1, syncBatchSize - 1))} className="h-7 w-7 bg-black/20 rounded-lg">-</button>
-                            <button onClick={() => setSyncBatchSize(Math.min(10, syncBatchSize + 1))} className="h-7 w-7 bg-black/20 rounded-lg">+</button>
+                            <button onClick={() => setSyncBatchSize(Math.max(1, syncBatchSize - 1))} className="h-8 w-8 bg-black/40 rounded-lg border border-white/5 hover:bg-black/60 transition-colors">-</button>
+                            <button onClick={() => setSyncBatchSize(Math.min(10, syncBatchSize + 1))} className="h-8 w-8 bg-black/40 rounded-lg border border-white/5 hover:bg-black/60 transition-colors">+</button>
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
-
-                  <div className="p-6 bg-indigo-600/5 border border-indigo-600/20 rounded-2xl flex items-start gap-4">
-                    <AlertCircle className="w-6 h-6 text-indigo-500 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-black uppercase text-indigo-400">Smart-Link Automation Policy</p>
-                      <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                        Population logic uses [Artist] + [Title] + 'official audio' and strictly assigns the top video hit.
-                      </p>
-                    </div>
-                  </div>
                 </div>
 
-                <div className="bg-white/5 border border-white/10 rounded-[2.5rem] overflow-hidden">
-                   <div className="p-6 bg-black/20 border-b border-white/5 flex items-center justify-between">
-                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Repertoire Library Sync Status</h4>
+                {/* Library Status Table */}
+                <div className="bg-white/5 border border-white/10 rounded-3xl md:rounded-[2.5rem] overflow-hidden">
+                   <div className="p-4 md:p-6 bg-black/20 border-b border-white/5 flex items-center justify-between">
+                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Sync Status Matrix</h4>
                    </div>
                    <div className="divide-y divide-white/5">
                       {maintenanceSongs.map((s) => (
-                        <div key={s.id} className="p-5 flex items-center justify-between group hover:bg-white/5 transition-colors">
-                           <div className="flex items-center gap-4">
+                        <div key={s.id} className="p-4 md:p-5 flex items-center justify-between group hover:bg-white/5 transition-colors">
+                           <div className="flex items-center gap-3 md:gap-4 min-w-0">
                               <div className={cn(
-                                "w-2 h-2 rounded-full",
+                                "w-2 h-2 rounded-full shrink-0",
                                 s.sync_status === 'COMPLETED' ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" :
                                 s.sync_status === 'SYNCING' ? "bg-indigo-500 animate-pulse" :
                                 s.sync_status === 'ERROR' ? "bg-red-500" : "bg-slate-700"
                               )} />
-                              <div>
-                                 <p className="text-sm font-black uppercase tracking-tight">{s.title}</p>
-                                 <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{s.metadata_source || "Unsynced"}</p>
+                              <div className="min-w-0">
+                                 <p className="text-xs md:text-sm font-black uppercase tracking-tight truncate">{s.title}</p>
+                                 <p className="text-[8px] md:text-[9px] font-bold text-slate-500 uppercase tracking-widest truncate">{s.metadata_source || "Unsynced"}</p>
                               </div>
                            </div>
-                           <div className="flex items-center gap-8">
-                              <div className="text-right">
-                                 <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest">State</p>
-                                 <p className={cn(
-                                   "text-[10px] font-mono font-black uppercase",
-                                   s.sync_status === 'COMPLETED' ? "text-emerald-400" : "text-slate-500"
-                                 )}>{s.sync_status || "IDLE"}</p>
-                              </div>
+                           <div className="text-right shrink-0">
+                              <p className={cn(
+                                "text-[9px] md:text-[10px] font-mono font-black uppercase",
+                                s.sync_status === 'COMPLETED' ? "text-emerald-400" : "text-slate-500"
+                              )}>{s.sync_status || "IDLE"}</p>
                            </div>
                         </div>
                       ))}
@@ -543,148 +520,169 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
                 </div>
               </div>
             ) : activeTab === 'vault' ? (
-              <div className="p-8 space-y-8">
-                <div className="bg-indigo-600/10 border border-indigo-600/20 rounded-[2.5rem] p-8 space-y-6">
+              <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-in fade-in duration-500">
+                <div className="bg-indigo-600/10 border border-indigo-600/20 rounded-3xl md:rounded-[2.5rem] p-6 md:p-8 space-y-6">
                   <div className="flex items-center gap-4">
                     <div className="bg-indigo-600 p-2.5 rounded-xl">
                       <Upload className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                      <h4 className="text-xl font-black uppercase tracking-tight">GitHub Clipboard Push</h4>
-                      <p className="text-[10px] font-black uppercase tracking-widest">Update Repository Assets</p>
+                      <h4 className="text-xl font-black uppercase tracking-tight">GitHub Direct Update</h4>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Update Repository Assets</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-[9px] font-black uppercase text-slate-500">Repository</label>
-                      <input type="text" value={githubRepo} onChange={(e) => setGithubRepo(e.target.value)} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-sm font-mono text-white"/>
+                      <input type="text" value={githubRepo} onChange={(e) => setGithubRepo(e.target.value)} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-white outline-none focus:border-indigo-500/50"/>
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[9px] font-black uppercase text-slate-500">File Path</label>
-                      <input type="text" value={githubFile} onChange={(e) => setGithubFile(e.target.value)} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-sm font-mono text-white"/>
+                      <input type="text" value={githubFile} onChange={(e) => setGithubFile(e.target.value)} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-white outline-none focus:border-indigo-500/50"/>
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase text-slate-500">Token</label>
-                      <input type="password" value={githubToken} onChange={(e) => setGithubToken(e.target.value)} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-sm font-mono text-white"/>
+                      <label className="text-[9px] font-black uppercase text-slate-500">Auth Token</label>
+                      <input type="password" value={githubToken} onChange={(e) => setGithubToken(e.target.value)} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-white outline-none focus:border-indigo-500/50"/>
                     </div>
                   </div>
                   <div className="space-y-3">
-                    <Textarea value={clipboardContent} onChange={(e) => setClipboardContent(e.target.value)} placeholder="Paste cookies or data..." className="min-h-[120px] bg-slate-900 border-white/10 font-mono text-xs rounded-xl text-white"/>
-                    <Button onClick={handleGithubUpload} disabled={isGithubUploading || !clipboardContent} className="w-full bg-indigo-600 h-12 rounded-xl font-black uppercase">
-                      {isGithubUploading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Zap className="w-4 h-4 mr-2" />} Push Update
+                    <Textarea value={clipboardContent} onChange={(e) => setClipboardContent(e.target.value)} placeholder="Paste cookie string or asset content here..." className="min-h-[150px] bg-slate-900 border-white/10 font-mono text-[10px] rounded-2xl text-white resize-none"/>
+                    <Button onClick={handleGithubUpload} disabled={isGithubUploading || !clipboardContent} className="w-full bg-indigo-600 hover:bg-indigo-700 h-12 rounded-xl font-black uppercase tracking-widest text-xs gap-3">
+                      {isGithubUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />} 
+                      {isGithubUploading ? 'PUSHING...' : 'PUSH TO REPOSITORY'}
                     </Button>
                   </div>
                 </div>
 
-                <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8">
-                   <div className="flex justify-between items-center mb-8">
+                <div className="bg-white/5 border border-white/10 rounded-3xl md:rounded-[2.5rem] p-6 md:p-8">
+                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
                      <div className="flex items-center gap-4">
                        <div className="bg-indigo-600 p-2.5 rounded-xl"><Database className="w-6 h-6" /></div>
-                       <h4 className="text-xl font-black uppercase tracking-tight">Supabase Vault</h4>
+                       <div>
+                        <h4 className="text-xl font-black uppercase tracking-tight">Supabase Vault</h4>
+                        <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Encrypted Cookie Storage</p>
+                       </div>
                      </div>
                      <input type="file" accept=".txt" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleSupabaseUpload(f); }} className="hidden" id="v-upload" />
-                     <Button onClick={() => document.getElementById('v-upload')?.click()} className="bg-indigo-600 h-10 px-6 rounded-xl font-black uppercase text-[10px]">Select Cookies.txt</Button>
+                     <Button onClick={() => document.getElementById('v-upload')?.click()} className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 h-10 px-8 rounded-xl font-black uppercase text-[10px] shadow-lg">Upload Cookies.txt</Button>
                    </div>
                    {isUploading && (
-                     <div className="flex flex-col items-center py-10 gap-4">
+                     <div className="flex flex-col items-center py-12 gap-4">
                         <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
-                        <p className="text-[10px] font-black uppercase tracking-widest animate-pulse">Syncing Vault...</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest animate-pulse text-indigo-400">Syncing Vault...</p>
                      </div>
                    )}
                 </div>
               </div>
             ) : (
-              <div className="p-8 space-y-8 animate-in fade-in duration-500">
-                <div className="bg-red-600/10 border border-red-600/20 rounded-[2.5rem] p-10 space-y-8">
-                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="p-4 md:p-8 space-y-8 animate-in fade-in duration-500">
+                <div className="bg-red-600/10 border border-red-600/20 rounded-3xl md:rounded-[2.5rem] p-8 md:p-10 space-y-8">
+                   <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
                       <div className="flex items-center gap-6">
-                         <div className="bg-red-600 p-4 rounded-3xl shadow-xl shadow-red-600/20">
-                            <HardDriveDownload className="w-8 h-8 text-white" />
+                         <div className="bg-red-600 p-3 md:p-4 rounded-2xl md:rounded-3xl shadow-xl shadow-red-600/20">
+                            <HardDriveDownload className="w-6 h-6 md:w-8 md:h-8 text-white" />
                          </div>
                          <div>
-                            <h3 className="text-2xl font-black uppercase tracking-tight text-white">Asynchronous Bulk Extraction</h3>
-                            <p className="text-sm text-slate-400 mt-1">Initialize master audio extraction in the background.</p>
+                            <h3 className="text-xl md:text-2xl font-black uppercase tracking-tight text-white">Bulk Extraction Hub</h3>
+                            <p className="text-xs md:text-sm text-slate-400 mt-1">Force refresh all master audio assets.</p>
                          </div>
                       </div>
                       <Button 
                         onClick={handleBulkBackgroundExtract} 
                         disabled={isExtracting}
-                        className="bg-red-600 hover:bg-red-700 h-16 px-10 rounded-2xl font-black uppercase tracking-[0.2em] text-xs shadow-2xl shadow-red-600/30 gap-4"
+                        className="bg-red-600 hover:bg-red-700 h-14 md:h-16 px-8 md:px-10 rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] md:text-xs shadow-2xl shadow-red-600/30 gap-3"
                       >
                         {isExtracting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5 fill-current" />}
-                        Run Background Batch
+                        Run Global Override
                       </Button>
                    </div>
 
                    <div className="p-6 bg-red-600/5 border border-red-600/20 rounded-2xl flex items-start gap-4">
                       <AlertTriangle className="w-6 h-6 text-red-500 shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-sm font-black uppercase text-red-500">ASYNCHRONOUS EXTRACTION POLICY</p>
+                        <p className="text-sm font-black uppercase text-red-500">ASYNCHRONOUS PROCESSING ADVISORY</p>
                         <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                          Background tasks will process sequentially and update the database when finished. You do not need to keep the app open.
+                          Background tasks will process sequentially. Database records will update automatically when each track is finalized.
                         </p>
                       </div>
                    </div>
                 </div>
               </div>
             )}
-          </ScrollArea>
+          </div>
 
-          <aside className="w-full md:w-80 bg-slate-900/50 flex flex-col shrink-0">
-            <div className="p-6 border-b border-white/5 bg-black/20">
-              <div className="flex items-center gap-2 text-slate-400 mb-6">
+          {/* Sidebar / Console Panel */}
+          <aside className="w-full md:w-80 lg:w-96 bg-slate-950/50 flex flex-col shrink-0 min-h-0 border-t md:border-t-0 md:border-l border-white/5">
+            <div className="p-5 md:p-6 border-b border-white/5 bg-black/20 shrink-0">
+              <div className="flex items-center gap-2 text-slate-400 mb-4 md:mb-6">
                 <History className="w-4 h-4" />
                 <span className="text-[10px] font-black uppercase tracking-widest">Automation Logs</span>
               </div>
               
               {cookieMetadata && activeTab === 'vault' && (
-                <div className="space-y-6">
+                <div className="space-y-4 animate-in slide-in-from-top-2">
                    <div className="space-y-1">
                      <p className="text-[9px] font-black text-slate-500 uppercase">Cloud Filename</p>
-                     <p className="text-sm font-mono font-bold text-emerald-400">{cookieMetadata.name}</p>
+                     <p className="text-xs md:text-sm font-mono font-bold text-emerald-400 truncate">{cookieMetadata.name}</p>
                    </div>
                    <div className="space-y-1">
                      <p className="text-[9px] font-black text-slate-500 uppercase">Last Sync Event</p>
-                     <p className="text-sm font-bold text-white">{new Date(cookieMetadata.lastUpdated).toLocaleString()}</p>
+                     <p className="text-xs md:text-sm font-bold text-white">{new Date(cookieMetadata.lastUpdated).toLocaleString()}</p>
                    </div>
-                   <div className="pt-4 flex items-center gap-2 text-emerald-500 bg-emerald-500/5 border border-emerald-500/10 p-3 rounded-xl">
-                      <CheckCircle2 className="w-4 h-4 shrink-0" />
-                      <span className="text-[10px] font-black uppercase">Vault Verified</span>
+                   <div className="pt-2">
+                      <div className="flex items-center gap-2 text-emerald-500 bg-emerald-500/5 border border-emerald-500/10 p-3 rounded-xl">
+                        <CheckCircle2 className="w-4 h-4 shrink-0" />
+                        <span className="text-[9px] md:text-[10px] font-black uppercase">Vault Status: Verified</span>
+                      </div>
                    </div>
                 </div>
               )}
             </div>
 
-            <div className="flex-1 flex flex-col p-6 min-h-0">
-               <div className="flex items-center justify-between mb-4">
-                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Console Feed</span>
-                 <button onClick={() => setSyncLogs([])} className="text-[9px] font-black text-slate-600 hover:text-white uppercase">Clear</button>
-               </div>
-               <ScrollArea className="flex-1 h-full">
-                 <div className="space-y-3 pr-4">
-                   {syncLogs.map((log, i) => (
-                     <div key={i} className="space-y-1">
-                       <div className="flex items-center justify-between text-[8px] font-mono font-bold opacity-40">
-                         <span>{log.time}</span>
-                         <span className="uppercase">{log.type}</span>
-                       </div>
-                       <p className={cn(
-                         "text-[10px] font-medium leading-tight",
-                         log.type === 'error' ? "text-red-400" : log.type === 'success' ? "text-emerald-400" : "text-slate-400"
-                       )}>
-                         {log.msg}
-                       </p>
-                     </div>
-                   ))}
+            {/* Console Feed */}
+            <div className="flex-1 flex flex-col p-5 md:p-6 min-h-0">
+               <div className="flex items-center justify-between mb-4 shrink-0">
+                 <div className="flex items-center gap-2">
+                    <Terminal className="w-3.5 h-3.5 text-slate-500" />
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Console Stream</span>
                  </div>
-               </ScrollArea>
+                 <button onClick={() => setSyncLogs([])} className="text-[9px] font-black text-slate-600 hover:text-white uppercase transition-colors">Clear</button>
+               </div>
+               
+               <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
+                 <div className="space-y-3">
+                   {syncLogs.length === 0 ? (
+                     <div className="py-12 text-center opacity-20">
+                        <p className="text-[9px] font-mono font-bold uppercase italic">Listening for system events...</p>
+                     </div>
+                   ) : (
+                     syncLogs.map((log, i) => (
+                       <div key={i} className="space-y-1 animate-in fade-in slide-in-from-left-2 duration-300">
+                         <div className="flex items-center justify-between text-[8px] font-mono font-bold opacity-40">
+                           <span>{log.time}</span>
+                           <span className="uppercase">{log.type}</span>
+                         </div>
+                         <p className={cn(
+                           "text-[10px] font-medium leading-tight font-mono",
+                           log.type === 'error' ? "text-red-400" : log.type === 'success' ? "text-emerald-400" : "text-slate-400"
+                         )}>
+                           {log.msg}
+                         </p>
+                       </div>
+                     ))
+                   )}
+                 </div>
+               </div>
             </div>
           </aside>
         </div>
 
-        <div className="p-8 border-t border-white/5 bg-slate-900 flex items-center justify-between shrink-0">
-           <p className="text-[10px] font-black uppercase tracking-widest text-slate-600 font-mono">Control Unit v4.0 // Smart-Link Logic Engine Online</p>
-           <Button onClick={onClose} variant="ghost" className="text-slate-400 hover:text-white font-black uppercase tracking-widest text-[10px]">Close Admin</Button>
+        {/* Footer - Fixed */}
+        <div className="p-6 md:p-8 border-t border-white/5 bg-slate-900 flex flex-col md:flex-row items-center justify-between shrink-0 gap-4">
+           <p className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.1em] text-slate-600 font-mono text-center md:text-left">
+              Control Unit v4.0 // Smart-Link Logic Engine Online // ID: {user?.id?.substring(0,8)}
+           </p>
+           <Button onClick={onClose} variant="ghost" className="w-full md:w-auto text-slate-400 hover:text-white font-black uppercase tracking-widest text-[10px] h-10 px-8 bg-white/5 md:bg-transparent rounded-xl">Close System Admin</Button>
         </div>
       </DialogContent>
     </Dialog>
