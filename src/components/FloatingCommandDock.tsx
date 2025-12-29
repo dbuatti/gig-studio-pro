@@ -76,6 +76,15 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   const [isSafePitchActive, setIsSafePitchActive] = useState(false);
   const { safePitchMaxNote } = useSettings();
 
+  // Intelligent Direction logic
+  // Since we start with 'bottom-8', a negative Y means we've moved UP.
+  const isNearTop = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    // Check if the center of the hub is in the top half of the screen
+    // y = 0 is bottom. y = -innerHeight is top.
+    return position.y < -(window.innerHeight / 2);
+  }, [position.y]);
+
   // Sync menu state for ReaderMode or internal state
   const internalIsMenuOpen = isReaderMode ? isMenuOpenProp : isOpen;
   
@@ -176,7 +185,10 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
         dragMomentum={false}
         onDragEnd={handleDragEnd}
         style={{ x: position.x, y: position.y }}
-        className="fixed bottom-8 right-8 z-[300] flex flex-col-reverse items-center gap-3 touch-none cursor-grab active:cursor-grabbing"
+        className={cn(
+          "fixed bottom-8 right-8 z-[300] flex items-center gap-3 touch-none cursor-grab active:cursor-grabbing",
+          isNearTop ? "flex-col" : "flex-col-reverse"
+        )}
       >
         {/* Hub Trigger Button */}
         <div className="bg-slate-950/90 backdrop-blur-2xl p-2 rounded-full border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
@@ -204,13 +216,20 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
         <AnimatePresence>
           {internalIsMenuOpen && (
             <motion.div
-              initial={{ opacity: 0, y: 20, scale: 0.8 }}
+              initial={{ opacity: 0, y: isNearTop ? -20 : 20, scale: 0.8 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 20, scale: 0.8 }}
-              className="flex flex-col items-center gap-3 mb-2"
+              exit={{ opacity: 0, y: isNearTop ? -20 : 20, scale: 0.8 }}
+              className={cn(
+                "flex items-center gap-3",
+                isNearTop ? "flex-col" : "flex-col-reverse",
+                isNearTop ? "mt-2" : "mb-2"
+              )}
             >
               {/* Secondary Actions (Mini) */}
-              <div className="flex flex-col items-center gap-2 p-2 bg-slate-900/60 rounded-3xl border border-white/5 mb-2">
+              <div className={cn(
+                "flex items-center gap-2 p-2 bg-slate-900/60 rounded-3xl border border-white/5",
+                isNearTop ? "flex-col" : "flex-col-reverse"
+              )}>
                 {secondaryButtons.map((btn) => (
                   <Tooltip key={btn.id}>
                     <TooltipTrigger asChild>
@@ -229,7 +248,10 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
               </div>
 
               {/* Primary Actions (Large) */}
-              <div className="flex flex-col items-center gap-3 p-2 bg-slate-900/80 rounded-[2.5rem] border border-white/10 shadow-2xl">
+              <div className={cn(
+                "flex items-center gap-3 p-2 bg-slate-900/80 rounded-[2.5rem] border border-white/10 shadow-2xl",
+                isNearTop ? "flex-col" : "flex-col-reverse"
+              )}>
                 {primaryButtons.map((btn) => (
                   <Tooltip key={btn.id}>
                     <TooltipTrigger asChild>
