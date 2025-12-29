@@ -154,13 +154,11 @@ const Index = () => {
     fetchSetlists();
     fetchMasterRepertoire();
 
-    // Subscribe to realtime changes in the repertoire table
     const channel = supabase
       .channel('repertoire_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'repertoire', filter: `user_id=eq.${user.id}` }, (payload) => {
         if (payload.eventType === 'UPDATE') {
           const updated = payload.new;
-          // Refresh data if status or audio changed
           if (updated.extraction_status === 'COMPLETED' || updated.extraction_status === 'FAILED' || updated.extraction_status === 'PROCESSING') {
              fetchMasterRepertoire().then(freshMaster => {
                 if (freshMaster) propagateMasterUpdates(freshMaster);
@@ -187,13 +185,16 @@ const Index = () => {
       const score = calculateReadiness(s);
       if (score < activeFilters.readiness) return false;
 
+      // Audio Filtering Logic
       const hasAudio = !!s.previewUrl;
       const isItunes = hasAudio && (s.previewUrl.includes('apple.com') || s.previewUrl.includes('itunes-assets'));
       const hasFullAudio = hasAudio && !isItunes;
 
+      // Logic refinement: If filter is 'none', we should show songs that MISS full audio.
+      // iTunes previews don't count as "audio attached" for performance.
       if (activeFilters.hasAudio === 'full' && !hasFullAudio) return false;
       if (activeFilters.hasAudio === 'itunes' && !isItunes) return false;
-      if (activeFilters.hasAudio === 'none' && hasAudio) return false;
+      if (activeFilters.hasAudio === 'none' && hasFullAudio) return false;
 
       if (activeFilters.isApproved === 'yes' && !s.isApproved) return false;
       if (activeFilters.isConfirmed === 'yes' && !s.isKeyConfirmed) return false;
@@ -360,41 +361,7 @@ const Index = () => {
   };
 
   const handleBulkRefreshAudio = async () => {
-    const isMissingMasterAudio = (s: SetlistSong) => 
-      !s.previewUrl || s.previewUrl.includes('apple.com') || s.previewUrl.includes('itunes-assets');
-
-    const songsToProcess = songs.filter(s => s.youtubeUrl && isMissingMasterAudio(s));
-    
-    if (songsToProcess.length === 0) {
-      showInfo("No tracks requiring audio extraction found.");
-      return;
-    }
-
-    if (!confirm(`Trigger background audio extraction for ${songsToProcess.length} tracks? This will run in the background.`)) {
-      return;
-    }
-
-    setIsBulkDownloading(true);
-    showInfo(`Initiating background extraction for ${songsToProcess.length} tracks...`);
-
-    for (let i = 0; i < songsToProcess.length; i++) {
-      const song = songsToProcess[i];
-      try {
-        const targetVideoUrl = cleanYoutubeUrl(song.youtubeUrl || '');
-        await supabase.functions.invoke('download-audio', {
-          body: { 
-            videoUrl: targetVideoUrl,
-            songId: song.master_id || song.id,
-            userId: user?.id
-          }
-        });
-      } catch (err: any) {
-        console.error(`[Index] Failed to trigger extraction for ${song.name}:`, err);
-      }
-    }
-
-    setIsBulkDownloading(false);
-    showSuccess("All background tasks initialized.");
+    setIsAdminOpen(true);
   };
 
   const handleClearAutoLinks = async () => {
@@ -404,6 +371,9 @@ const Index = () => {
   };
 
   const missingAudioCount = useMemo(() => songs.filter(s => !s.previewUrl || s.previewUrl.includes('apple.com')).length, [songs]);
+
+  const activeSong = useMemo(() => processedSongs.find(s => s.id === activeSongIdState), [processedSongs, activeSongIdState]);
+  const hasPlayableSong = !!activeSong?.previewUrl && !(activeSong.previewUrl.includes('apple.com') || activeSong.previewUrl.includes('itunes-assets'));
 
   return (
     <div className="h-screen bg-slate-50 dark:bg-slate-950 flex flex-col overflow-hidden relative">
@@ -496,7 +466,7 @@ const Index = () => {
       <ResourceAuditModal isOpen={isAuditModalOpen} onClose={() => setIsAuditModalOpen(false)} songs={songs} onVerify={handleUpdateSong} onRefreshRepertoire={fetchMasterRepertoire} />
       <UserGuideModal isOpen={isUserGuideOpen} onClose={() => setIsUserGuideOpen(false)} />
       <aside className={cn("w-screen md:w-[450px] bg-white dark:bg-slate-900 border-l fixed right-0 top-20 bottom-0 z-40 transition-transform duration-500", isSearchPanelOpen ? "translate-x-0" : "translate-x-full")}><AudioTransposer ref={transposerRef} onAddToSetlist={handleAddNewSongToCurrentSetlist} onAddExistingSong={handleAddToGig} repertoire={masterRepertoire} currentSong={processedSongs.find(s => s.id === activeSongIdState) || null} onUpdateSongKey={(id, k) => handleUpdateSong(id, { targetKey: k })} onOpenAdmin={() => setIsAdminOpen(true)} currentList={currentList} /></aside>
-      <FloatingCommandDock onOpenSearch={() => setIsSearchPanelOpen(!isSearchPanelOpen)} onOpenPractice={handleTogglePlayback} onOpenReader={() => { sessionStorage.setItem('from_dashboard', 'true'); navigate(activeSongIdState ? `/sheet-reader/${activeSongIdState}` : '/sheet-reader'); }} onOpenAdmin={() => setIsAdminOpen(true)} onOpenPreferences={() => setIsPreferencesOpen(true)} onToggleHeatmap={() => setShowHeatmap(!showHeatmap)} onOpenUserGuide={() => setIsUserGuideOpen(true)} showHeatmap={showHeatmap} viewMode={viewMode} hasPlayableSong={true} hasReadableChart={true} isPlaying={false} onTogglePlayback={handleTogglePlayback} />
+      <FloatingCommandDock onOpenSearch={() => setIsSearchPanelOpen(!isSearchPanelOpen)} onOpenPractice={handleTogglePlayback} onOpenReader={() => { sessionStorage.setItem('from_dashboard', 'true'); navigate(activeSongIdState ? `/sheet-reader/${activeSongIdState}` : '/sheet-reader'); }} onOpenAdmin={() => setIsAdminOpen(true)} onOpenPreferences={() => setIsPreferencesOpen(true)} onToggleHeatmap={() => setShowHeatmap(!showHeatmap)} onOpenUserGuide={() => setIsUserGuideOpen(true)} showHeatmap={showHeatmap} viewMode={viewMode} hasPlayableSong={hasPlayableSong} hasReadableChart={true} isPlaying={false} onTogglePlayback={handleTogglePlayback} />
     </div>
   );
 };
