@@ -398,8 +398,8 @@ const Index = () => {
         console.error(`[Index] Failed to queue download for ${song.name}:`, err);
         showError(`Failed to queue download for ${song.name}.`);
       }
-      // Wait 5 seconds before asking for the next song
-      await new Promise(resolve => setTimeout(resolve, 5000)); 
+      // Wait 10 seconds before asking for the next song
+      await new Promise(resolve => setTimeout(resolve, 10000)); 
     }
 
     setIsBulkDownloading(false);

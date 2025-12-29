@@ -28,6 +28,9 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 active_tokens = {}
 
+# Change from 2 to 1 to prevent OOM (Out of Memory) crashes
+download_semaphore = threading.BoundedSemaphore(value=1)
+
 def cleanup_old_files():
     while True:
         now = time.time()
@@ -48,106 +51,113 @@ threading.Thread(target=cleanup_old_files, daemon=True).start()
 def download_task(token, video_url, supabase_url=None, supabase_key=None, song_id=None, user_id=None):
     log(f"--- STARTING BACKGROUND TASK | Token: {token} | Song: {song_id} ---")
     
-    # Update status to processing in Supabase if possible
-    if supabase_url and supabase_key and song_id:
-        try:
-            update_url = f"{supabase_url}/rest/v1/repertoire?id=eq.{song_id}"
-            headers = {
-                "apikey": supabase_key,
-                "Authorization": f"Bearer {supabase_key}",
-                "Content-Type": "application/json",
-                "Prefer": "return=minimal"
-            }
-            requests.patch(update_url, headers=headers, json={"extraction_status": "PROCESSING"})
-            log(f"[download_task] Supabase Status Updated: PROCESSING for {song_id}")
-        except Exception as e:
-            log(f"[download_task] Supabase Init Update Error for {song_id}: {e}")
-
-    file_id = str(uuid.uuid4())
-    output_template = os.path.join(DOWNLOAD_DIR, f"{file_id}.%(ext)s")
-
-    ydl_opts = {
-        'format': 'wa',
-        'noplaylist': True,
-        'outtmpl': output_template,
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '128',
-        }],
-        'nocheckcertificate': True,
-        'quiet': True,
-        'logger': log # Direct yt_dlp logs to our function
-    }
-
-    try:
-        log(f"[download_task] Starting yt_dlp extraction for {video_url}")
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(video_url, download=True)
-            duration = info.get('duration', 0)
-        log(f"[download_task] yt_dlp extraction completed. Duration: {duration}s")
+    # Acquire the semaphore before starting the download
+    with download_semaphore:
+        log(f"[download_task] Semaphore acquired for token: {token}")
         
-        expected_file = os.path.join(DOWNLOAD_DIR, f"{file_id}.mp3")
-        if os.path.exists(expected_file):
-            log(f"[download_task] SUCCESS | MP3 ready for upload: {token} at {expected_file}")
-            
-            if supabase_url and supabase_key and song_id and user_id:
-                storage_path = f"{user_id}/{song_id}/{int(time.time())}.mp3"
-                upload_url = f"{supabase_url}/storage/v1/object/public_audio/{storage_path}"
-                
-                log(f"[download_task] Uploading to Supabase Storage: {storage_path}")
-                with open(expected_file, 'rb') as f:
-                    upload_res = requests.post(
-                        upload_url,
-                        headers={
-                            "apikey": supabase_key,
-                            "Authorization": f"Bearer {supabase_key}",
-                            "Content-Type": "audio/mpeg"
-                        },
-                        data=f
-                    )
-                
-                if upload_res.ok:
-                    public_url = f"{supabase_url}/storage/v1/object/public/public_audio/{storage_path}"
-                    update_url = f"{supabase_url}/rest/v1/repertoire?id=eq.{song_id}"
-                    headers = {
-                        "apikey": supabase_key,
-                        "Authorization": f"Bearer {supabase_key}",
-                        "Content-Type": "application/json",
-                        "Prefer": "return=minimal"
-                    }
-                    requests.patch(update_url, headers=headers, json={
-                        "preview_url": public_url,
-                        "duration_seconds": int(duration),
-                        "extraction_status": "COMPLETED",
-                        "last_extracted_at": time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
-                    })
-                    log(f"[download_task] BACKGROUND SYNC COMPLETE | Song: {song_id} | Public URL: {public_url}")
-                else:
-                    log(f"[download_task] UPLOAD FAILED for {song_id}: {upload_res.status_code} - {upload_res.text}")
-                    raise Exception(f"Supabase Upload Error: {upload_res.status_code} - {upload_res.text}")
-            
-            active_tokens[token]['file_path'] = expected_file
-            active_tokens[token]['status'] = 'ready'
-        else:
-            raise Exception("MP3 conversion failed: Expected file not found.")
-
-    except Exception as e:
-        log(f"[download_task] ERROR | {token} | Song: {song_id} | Message: {str(e)}")
-        active_tokens[token]['status'] = 'error'
-        active_tokens[token]['error_message'] = str(e)
+        # Update status to processing in Supabase if possible
         if supabase_url and supabase_key and song_id:
             try:
                 update_url = f"{supabase_url}/rest/v1/repertoire?id=eq.{song_id}"
                 headers = {
                     "apikey": supabase_key,
                     "Authorization": f"Bearer {supabase_key}",
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
+                    "Prefer": "return=minimal"
                 }
-                requests.patch(update_url, headers=headers, json={"extraction_status": "FAILED", "last_sync_log": str(e)})
-                log(f"[download_task] Supabase Status Updated: FAILED for {song_id}")
-            except Exception as db_e:
-                log(f"[download_task] Supabase Error Update Failed for {song_id}: {db_e}")
+                requests.patch(update_url, headers=headers, json={"extraction_status": "PROCESSING"})
+                log(f"[download_task] Supabase Status Updated: PROCESSING for {song_id}")
+            except Exception as e:
+                log(f"[download_task] Supabase Init Update Error for {song_id}: {e}")
+
+        file_id = str(uuid.uuid4())
+        output_template = os.path.join(DOWNLOAD_DIR, f"{file_id}.%(ext)s")
+
+        ydl_opts = {
+            'format': 'wa',
+            'noplaylist': True,
+            'outtmpl': output_template,
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '128',
+            }],
+            'nocheckcertificate': True,
+            'quiet': True,
+            'logger': log # Direct yt_dlp logs to our function
+        }
+
+        try:
+            log(f"[download_task] Starting yt_dlp extraction for {video_url}")
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(video_url, download=True)
+                duration = info.get('duration', 0)
+            log(f"[download_task] yt_dlp extraction completed. Duration: {duration}s")
+            
+            expected_file = os.path.join(DOWNLOAD_DIR, f"{file_id}.mp3")
+            if os.path.exists(expected_file):
+                log(f"[download_task] SUCCESS | MP3 ready for upload: {token} at {expected_file}")
+                
+                if supabase_url and supabase_key and song_id and user_id:
+                    storage_path = f"{user_id}/{song_id}/{int(time.time())}.mp3"
+                    upload_url = f"{supabase_url}/storage/v1/object/public_audio/{storage_path}"
+                    
+                    log(f"[download_task] Uploading to Supabase Storage: {storage_path}")
+                    with open(expected_file, 'rb') as f:
+                        upload_res = requests.post(
+                            upload_url,
+                            headers={
+                                "apikey": supabase_key,
+                                "Authorization": f"Bearer {supabase_key}",
+                                "Content-Type": "audio/mpeg"
+                            },
+                            data=f
+                        )
+                    
+                    if upload_res.ok:
+                        public_url = f"{supabase_url}/storage/v1/object/public/public_audio/{storage_path}"
+                        update_url = f"{supabase_url}/rest/v1/repertoire?id=eq.{song_id}"
+                        headers = {
+                            "apikey": supabase_key,
+                            "Authorization": f"Bearer {supabase_key}",
+                            "Content-Type": "application/json",
+                            "Prefer": "return=minimal"
+                        }
+                        requests.patch(update_url, headers=headers, json={
+                            "preview_url": public_url,
+                            "duration_seconds": int(duration),
+                            "extraction_status": "COMPLETED",
+                            "last_extracted_at": time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+                        })
+                        log(f"[download_task] BACKGROUND SYNC COMPLETE | Song: {song_id} | Public URL: {public_url}")
+                    else:
+                        log(f"[download_task] UPLOAD FAILED for {song_id}: {upload_res.status_code} - {upload_res.text}")
+                        raise Exception(f"Supabase Upload Error: {upload_res.status_code} - {upload_res.text}")
+                
+                active_tokens[token]['file_path'] = expected_file
+                active_tokens[token]['status'] = 'ready'
+            else:
+                raise Exception("MP3 conversion failed: Expected file not found.")
+
+        except Exception as e:
+            log(f"[download_task] ERROR | {token} | Song: {song_id} | Message: {str(e)}")
+            active_tokens[token]['status'] = 'error'
+            active_tokens[token]['error_message'] = str(e)
+            if supabase_url and supabase_key and song_id:
+                try:
+                    update_url = f"{supabase_url}/rest/v1/repertoire?id=eq.{song_id}"
+                    headers = {
+                        "apikey": supabase_key,
+                        "Authorization": f"Bearer {supabase_key}",
+                        "Content-Type": "application/json"
+                    }
+                    requests.patch(update_url, headers=headers, json={"extraction_status": "FAILED", "last_sync_log": str(e)})
+                    log(f"[download_task] Supabase Status Updated: FAILED for {song_id}")
+                except Exception as db_e:
+                    log(f"[download_task] Supabase Error Update Failed for {song_id}: {db_e}")
+    finally:
+        log(f"[download_task] Semaphore released for token: {token}")
+
 
 @app.route('/')
 def init_download():
