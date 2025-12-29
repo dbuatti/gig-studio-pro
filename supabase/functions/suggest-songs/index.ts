@@ -14,11 +14,6 @@ serve(async (req) => {
   try {
     const { repertoire, seedSong } = await req.json();
     
-    // [suggest-songs] Logging environment variables for debugging
-    console.log("[suggest-songs] Attempting to retrieve GEMINI_API_KEY:", (globalThis as any).Deno.env.get('GEMINI_API_KEY') ? '***** (present)' : 'NOT PRESENT');
-    console.log("[suggest-songs] Attempting to retrieve GEMINI_API_KEY_2:", (globalThis as any).Deno.env.get('GEMINI_API_KEY_2') ? '***** (present)' : 'NOT PRESENT');
-    console.log("[suggest-songs] Attempting to retrieve GEMINI_API_KEY_3:", (globalThis as any).Deno.env.get('GEMINI_API_KEY_3') ? '***** (present)' : 'NOT PRESENT');
-
     const keys = [
       (globalThis as any).Deno.env.get('GEMINI_API_KEY'),
       (globalThis as any).Deno.env.get('GEMINI_API_KEY_2'),
