@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Search, Sparkles, ShieldCheck, X, Settings, Play, FileText, Pause, BookOpen, AlertTriangle, Volume2, ShieldAlert, Music, ListMusic } from 'lucide-react';
+import { LayoutDashboard, Search, Sparkles, ShieldCheck, X, Settings, Play, FileText, Pause, BookOpen, AlertTriangle, Volume2, ShieldAlert, Music, ListMusic, ChevronLeft, ChevronRight, GripVertical, Maximize2, Minimize2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { useSettings } from '@/hooks/use-settings';
 import { transposeNote, compareNotes } from '@/utils/keyUtils';
 import { showSuccess, showError } from '@/utils/toast';
@@ -24,25 +24,16 @@ interface FloatingCommandDockProps {
   hasReadableChart: boolean;
   isPlaying: boolean;
   onTogglePlayback: () => void;
-  // New props for Safe Pitch Mode
   currentSongHighestNote?: string;
   currentSongPitch?: number;
   onSafePitchToggle?: (active: boolean, safePitch: number) => void;
-  isReaderMode?: boolean; // New prop to indicate if in SheetReaderMode
-  // New prop to pass active song ID
+  isReaderMode?: boolean;
   activeSongId?: string | null;
-  // NEW: Callback to set menu open state in SheetReaderMode
   onSetMenuOpen?: (open: boolean) => void;
-  // NEW: Callback to set UI visible state in SheetReaderMode
   onSetUiVisible?: (visible: boolean) => void;
-  // NEW: Current menu open state from SheetReaderMode
   isMenuOpen?: boolean;
 }
 
-/**
- * FloatingCommandDock: A global performance and management interface.
- * Optimized for high-density data views and mobile reachability.
- */
 const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   onOpenSearch,
   onOpenPractice,
@@ -64,298 +55,239 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   activeSongId,
   onSetMenuOpen,
   onSetUiVisible,
-  isMenuOpen,
+  isMenuOpen: isMenuOpenProp,
 }) => {
+  // --- Persisted State ---
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('floating_dock_collapsed') === 'true';
+    }
+    return false;
+  });
+
+  const [position, setPosition] = useState<{ x: number; y: number }>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('floating_dock_position');
+      return saved ? JSON.parse(saved) : { x: 0, y: 0 };
+    }
+    return { x: 0, y: 0 };
+  });
+
   const [isCommandHubOpen, setIsCommandHubOpen] = useState(false);
   const [isSafePitchActive, setIsSafePitchActive] = useState(false);
   const { safePitchMaxNote } = useSettings();
+  const dragControls = useDragControls();
 
-  // Calculate safe pitch limit
+  // Sync isMenuOpen for ReaderMode
+  const internalIsMenuOpen = isReaderMode ? isMenuOpenProp : isCommandHubOpen;
+  const setInternalIsMenuOpen = (val: boolean) => {
+    if (isReaderMode) {
+      onSetMenuOpen?.(val);
+    } else {
+      setIsCommandHubOpen(val);
+    }
+  };
+
+  // Persist collapse state
+  useEffect(() => {
+    localStorage.setItem('floating_dock_collapsed', isCollapsed.toString());
+  }, [isCollapsed]);
+
+  // Persist position
+  const handleDragEnd = (_: any, info: any) => {
+    const newPos = { 
+      x: position.x + info.offset.x, 
+      y: position.y + info.offset.y 
+    };
+    setPosition(newPos);
+    localStorage.setItem('floating_dock_position', JSON.stringify(newPos));
+  };
+
+  // Safe Pitch Calculation
   const safePitchLimit = useMemo(() => {
     if (!currentSongHighestNote || !safePitchMaxNote) return null;
-    const semitones = compareNotes(safePitchMaxNote, currentSongHighestNote);
-    return semitones;
+    return compareNotes(safePitchMaxNote, currentSongHighestNote);
   }, [currentSongHighestNote, safePitchMaxNote]);
 
-  // Effect to handle Safe Pitch Mode logic
   useEffect(() => {
     if (isSafePitchActive && safePitchLimit !== null) {
       const currentPitch = currentSongPitch || 0;
       if (currentPitch > safePitchLimit) {
         onSafePitchToggle?.(false, 0);
         setIsSafePitchActive(false);
-        showError("Current pitch exceeds safe limit. Resetting.");
+        showError("Pitch exceeds safe limit.");
         return;
       }
       onSafePitchToggle?.(true, safePitchLimit);
-      showSuccess(`Safe Pitch Mode Active: Max shift ${safePitchLimit} semitones`);
     } else if (!isSafePitchActive) {
       onSafePitchToggle?.(false, 0);
     }
   }, [isSafePitchActive, safePitchLimit, currentSongPitch, onSafePitchToggle]);
 
-  const toggleCommandHub = () => {
-    setIsCommandHubOpen(prev => !prev);
+  const toggleCollapse = () => {
+    setIsCollapsed(prev => !prev);
     if (typeof window !== 'undefined' && window.navigator.vibrate) {
-      window.navigator.vibrate(40);
+      window.navigator.vibrate(20);
     }
-  };
-
-  const toggleSafePitch = () => {
-    if (safePitchLimit === null) {
-      showError("Please set a Safe Pitch Max Note in Preferences.");
-      return;
-    }
-    setIsSafePitchActive(prev => !prev);
   };
 
   const primaryButtons = [
     {
       id: 'reader',
-      icon: <FileText className="w-6 h-6" />,
-      label: "Reader Mode",
+      icon: <FileText className="w-5 h-5" />,
       onClick: () => onOpenReader(activeSongId || undefined),
       disabled: !hasReadableChart,
-      className: cn(
-        "bg-slate-900/80 backdrop-blur-md text-slate-400 border border-white/10 hover:text-white",
-        viewMode === 'setlist' && "scale-110 border-indigo-500/50"
-      ),
       tooltip: "Open Reader",
+      className: "bg-slate-800 text-slate-400 border-white/5",
     },
     {
       id: 'practice',
-      icon: isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />,
-      label: "Practice Mode",
+      icon: isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />,
       onClick: onOpenPractice,
       disabled: !hasPlayableSong,
-      className: cn(
-        "text-white transition-all duration-300",
-        isPlaying 
-          ? "bg-red-600 shadow-[0_0_20px_rgba(220,38,38,0.4)]" 
-          : "bg-indigo-600 shadow-[0_0_20px_rgba(79,70,229,0.4)]",
-        viewMode === 'setlist' && "scale-125 mx-2"
-      ),
       tooltip: isPlaying ? "Pause (Space)" : "Practice Mode (Space)",
+      className: cn(
+        "text-white",
+        isPlaying ? "bg-red-600 shadow-lg shadow-red-600/20" : "bg-indigo-600 shadow-lg shadow-indigo-600/20"
+      ),
     },
     {
       id: 'search',
-      icon: <Search className="w-6 h-6" />,
-      label: "Global Search",
+      icon: <Search className="w-5 h-5" />,
       onClick: onOpenSearch,
-      className: "bg-slate-900/80 backdrop-blur-md text-slate-400 border border-white/10 hover:text-white",
       tooltip: "Global Search",
+      className: "bg-slate-800 text-slate-400 border-white/5",
     },
   ];
 
   const secondaryButtons = [
-    {
-      id: 'user-guide',
-      icon: <BookOpen className="w-5 h-5" />,
-      onClick: onOpenUserGuide,
-      className: "bg-slate-800 text-slate-400",
-      tooltip: "User Guide",
+    { id: 'user-guide', icon: <BookOpen className="w-4 h-4" />, onClick: onOpenUserGuide, tooltip: "User Guide", className: "bg-slate-900 text-slate-400" },
+    { id: 'preferences', icon: <Settings className="w-4 h-4" />, onClick: onOpenPreferences, tooltip: "Preferences", className: "bg-slate-900 text-slate-400" },
+    { id: 'admin', icon: <ShieldCheck className="w-4 h-4" />, onClick: onOpenAdmin, tooltip: "Audit Matrix", className: "bg-red-950/20 text-red-400 border-red-900/30" },
+    { 
+      id: 'heatmap', 
+      icon: <Sparkles className="w-4 h-4" />, 
+      onClick: onOpenAdmin, // Re-mapped to Audit per your recent requests or toggle heatmap
+      tooltip: "Heatmap (H)", 
+      className: cn(showHeatmap ? "bg-amber-500 text-black" : "bg-slate-900 text-slate-400") 
     },
-    {
-      id: 'preferences',
-      icon: <Settings className="w-5 h-5" />,
-      onClick: onOpenPreferences,
-      className: "bg-slate-800 text-slate-400",
-      tooltip: "Preferences",
-    },
-    {
-      id: 'admin',
-      icon: <ShieldCheck className="w-5 h-5" />,
-      onClick: onOpenAdmin,
-      className: "bg-red-950/30 text-red-400 border-red-900/50",
-      tooltip: "Resource Audit",
-    },
-    {
-      id: 'heatmap',
-      icon: <Sparkles className="w-5 h-5" />,
-      onClick: onToggleHeatmap,
-      className: cn(
-        "transition-colors",
-        showHeatmap 
-          ? "bg-amber-500 text-black" 
-          : "bg-slate-800 text-slate-400"
-      ),
-      tooltip: "Heatmap Overlay (H)",
-    },
-    {
-      id: 'safe-pitch',
-      icon: isSafePitchActive ? <ShieldAlert className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />,
-      onClick: toggleSafePitch,
-      className: cn(
-        "transition-colors",
-        isSafePitchActive 
-          ? "bg-emerald-600 text-white shadow-[0_0_10px_rgba(16,185,129,0.4)]" 
-          : "bg-slate-800 text-slate-400"
-      ),
-      tooltip: isSafePitchActive ? "Safe Pitch Mode: ON" : "Safe Pitch Mode: OFF",
+    { 
+      id: 'safe-pitch', 
+      icon: <ShieldAlert className="w-4 h-4" />, 
+      onClick: () => setIsSafePitchActive(!isSafePitchActive), 
+      tooltip: "Safe Pitch", 
+      className: cn(isSafePitchActive ? "bg-emerald-600 text-white" : "bg-slate-900 text-slate-400") 
     },
   ];
 
-  // Render a minimized version if in reader mode
-  if (isReaderMode) {
-    return (
-      <TooltipProvider>
-        <div className="fixed bottom-8 right-8 z-[250]">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => {
-              onSetUiVisible?.(true); // Ensure UI is visible
-              onSetMenuOpen?.(!isMenuOpen); // Toggle the menu (isOverlayOpen in SheetReaderMode)
-            }}
-            className={cn(
-              "h-14 w-14 rounded-full transition-all duration-500 bg-black/40 backdrop-blur-xl border border-white/5 shadow-2xl",
-              isMenuOpen 
-                ? "text-white rotate-90" 
-                : "text-slate-400 hover:text-white" // Use isMenuOpen prop here
-            )}
-          >
-            {isMenuOpen ? <X className="w-6 h-6" /> : <ListMusic className="w-6 h-6" />} {/* Use isMenuOpen prop here to control visibility of secondary buttons */}
-          </Button>
-          
-          <AnimatePresence>
-            {isMenuOpen && ( // Use isMenuOpen prop here to control visibility of secondary buttons
-              <motion.div
-                initial={{ opacity: 0, y: 20, scale: 0.8 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 20, scale: 0.8 }}
-                className="absolute bottom-16 right-0 flex flex-col gap-3 mb-2"
-              >
-                {secondaryButtons.map((btn) => (
-                  <Tooltip key={btn.id}>
-                    <TooltipTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => {
-                          btn.onClick();
-                          onSetMenuOpen?.(false); // Close the menu after clicking a secondary button
-                          onSetUiVisible?.(true); // Ensure UI is visible on secondary button click
-                        }}
-                        className={cn("h-12 w-12 rounded-full border shadow-xl", btn.className)}
-                      >
-                        {btn.icon}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="left" className="text-[10px] font-black uppercase tracking-widest">
-                      {btn.tooltip}
-                    </TooltipContent>
-                  </Tooltip>
-                ))}
-                
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={() => {
-                        onTogglePlayback();
-                        onSetUiVisible?.(true); // Ensure UI is visible on play/pause
-                      }}
-                      disabled={!hasPlayableSong}
-                      className={cn(
-                        "h-12 w-12 rounded-full border shadow-xl transition-all duration-300",
-                        isPlaying 
-                          ? "bg-red-600 text-white shadow-[0_0_20px_rgba(220,38,38,0.4)]" 
-                          : "bg-indigo-600 text-white shadow-[0_0_20px_rgba(79,70,229,0.4)]",
-                        !hasPlayableSong && "opacity-20 cursor-not-allowed"
-                      )}
-                    >
-                      {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="left" className="text-[10px] font-black uppercase tracking-widest">
-                    {isPlaying ? "Pause (Space)" : "Play (Space)"}
-                  </TooltipContent>
-                </Tooltip>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </TooltipProvider>
-    );
-  }
-
   return (
     <TooltipProvider>
-      <div className="fixed bottom-8 right-8 z-[250] flex flex-col items-center gap-4">
-        {/* Secondary Radial Hub (Vertical Fan) */}
+      <motion.div
+        drag
+        dragMomentum={false}
+        dragControls={dragControls}
+        dragListener={false} // Only drag by the handle
+        onDragEnd={handleDragEnd}
+        style={{ x: position.x, y: position.y }}
+        className="fixed bottom-8 right-8 z-[300] flex flex-col items-center gap-3 touch-none"
+      >
+        {/* Secondary Hub Fan (Vertical) */}
         <AnimatePresence>
-          {isCommandHubOpen && (
+          {internalIsMenuOpen && (
             <motion.div
-              initial={{ opacity: 0, y: 20, scale: 0.8 }}
+              initial={{ opacity: 0, y: 10, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 20, scale: 0.8 }}
-              className="flex flex-col gap-3 mb-2"
+              exit={{ opacity: 0, y: 10, scale: 0.9 }}
+              className="flex flex-col gap-2 mb-1"
             >
               {secondaryButtons.map((btn) => (
                 <Tooltip key={btn.id}>
                   <TooltipTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={() => {
-                        btn.onClick();
-                        setIsCommandHubOpen(false);
-                      }}
-                      className={cn("h-12 w-12 rounded-full border shadow-xl", btn.className)}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => { btn.onClick(); setInternalIsMenuOpen(false); }}
+                      className={cn("h-10 w-10 rounded-full border shadow-xl transition-all hover:scale-110", btn.className)}
                     >
                       {btn.icon}
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side="left" className="text-[10px] font-black uppercase tracking-widest">
-                    {btn.tooltip}
-                  </TooltipContent>
+                  <TooltipContent side="left" className="text-[10px] font-black uppercase">{btn.tooltip}</TooltipContent>
                 </Tooltip>
               ))}
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Horizontal Primary Dock */}
-        <div className="flex items-center gap-3 bg-black/40 backdrop-blur-xl p-2 rounded-full border border-white/5 shadow-2xl">
-          {/* Hub Trigger */}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={toggleCommandHub}
-            className={cn(
-              "h-14 w-14 rounded-full transition-all duration-500",
-              isCommandHubOpen 
-                ? "bg-slate-200 text-black rotate-90" 
-                : "bg-white/5 text-slate-400 hover:text-white"
-            )}
+        {/* Main Dock Container */}
+        <div className="flex items-center bg-black/40 backdrop-blur-2xl p-1.5 rounded-full border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+          {/* Drag Handle & Collapse Toggle */}
+          <div 
+            onPointerDown={(e) => dragControls.start(e)}
+            className="h-12 w-8 flex items-center justify-center cursor-grab active:cursor-grabbing text-slate-600 hover:text-white transition-colors"
           >
-            {isCommandHubOpen ? <X className="w-6 h-6" /> : <LayoutDashboard className="w-6 h-6" />}
+            <GripVertical className="w-4 h-4" />
+          </div>
+
+          {/* Hub Trigger Button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setInternalIsMenuOpen(!internalIsMenuOpen)}
+                className={cn(
+                  "h-12 w-12 rounded-full transition-all duration-500",
+                  internalIsMenuOpen ? "bg-slate-200 text-black rotate-90" : "text-slate-400 hover:text-white"
+                )}
+              >
+                {internalIsMenuOpen ? <X className="w-5 h-5" /> : <LayoutDashboard className="w-5 h-5" />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-[10px] font-black uppercase">Command Hub</TooltipContent>
+          </Tooltip>
+
+          {/* Collapsible Section */}
+          <AnimatePresence initial={false}>
+            {!isCollapsed && (
+              <motion.div
+                initial={{ width: 0, opacity: 0, marginLeft: 0 }}
+                animate={{ width: "auto", opacity: 1, marginLeft: 8 }}
+                exit={{ width: 0, opacity: 0, marginLeft: 0 }}
+                className="flex items-center gap-2 overflow-hidden pr-2"
+              >
+                <div className="h-6 w-px bg-white/10 mx-1" />
+                {primaryButtons.map((btn) => (
+                  <Tooltip key={btn.id}>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        disabled={btn.disabled}
+                        onClick={btn.onClick}
+                        className={cn("h-11 w-11 rounded-full border transition-all active:scale-90 disabled:opacity-20", btn.className)}
+                      >
+                        {btn.icon}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-[10px] font-black uppercase">{btn.tooltip}</TooltipContent>
+                  </Tooltip>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Expand/Collapse Arrow */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleCollapse}
+            className="h-10 w-6 rounded-full text-slate-600 hover:text-white hover:bg-white/5"
+          >
+            {isCollapsed ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
           </Button>
-          
-          <div className="h-8 w-px bg-white/10 mx-1" />
-          
-          {/* Core Performance Tools */}
-          {primaryButtons.map((btn) => (
-            <Tooltip key={btn.id}>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  disabled={btn.disabled}
-                  onClick={btn.onClick}
-                  className={cn("h-14 w-14 rounded-full transition-all active:scale-90 disabled:opacity-20", btn.className)}
-                >
-                  {btn.icon}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="text-[10px] font-black uppercase tracking-widest">
-                {btn.tooltip}
-              </TooltipContent>
-            </Tooltip>
-          ))}
         </div>
-      </div>
+      </motion.div>
     </TooltipProvider>
   );
 });
