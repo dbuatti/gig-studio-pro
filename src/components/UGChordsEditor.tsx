@@ -56,7 +56,8 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
   const activeTransposeOffset = isPitchLinked ? pitch : localTransposeSemitones;
 
   const transposedText = useMemo(() => {
-    if (!chordsText || activeTransposeOffset === 0) return chordsText;
+    if (!chordsText) return chordsText;
+    // Removed the "if offset === 0" check here to allow notation conversion at 0 pitch shift
     return transposeChords(chordsText, activeTransposeOffset, activeKeyPreference);
   }, [chordsText, activeTransposeOffset, activeKeyPreference]);
 
