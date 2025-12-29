@@ -11,7 +11,7 @@ import { SetlistSong } from './SetlistManager';
 import { transposeChords, extractKeyFromChords } from '@/utils/chordUtils';
 import { useSettings } from '@/hooks/use-settings';
 import { cn } from "@/lib/utils";
-import { Play, RotateCcw, Download, Palette, Type, AlignCenter, AlignLeft, AlignRight, ExternalLink, Search, Check, Link as LinkIcon, Loader2, Music, Eye, Sparkles } from 'lucide-react';
+import { Play, RotateCcw, Download, Palette, Type, AlignCenter, AlignLeft, AlignRight, ExternalLink, Search, Check, Link as LinkIcon, Loader2, Music, Eye, Sparkles, Hash, Music2 } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { calculateSemitones, transposeKey, formatKey } from '@/utils/keyUtils';
@@ -43,20 +43,22 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
   isPitchLinked,
   setIsPitchLinked,
 }) => {
-  const { keyPreference } = useSettings(); // Use global key preference
+  const { keyPreference: globalPreference } = useSettings(); 
+  
+  // Use song-specific preference or fall back to global
+  const activeKeyPreference = formData.key_preference || globalPreference;
+
   const [chordsText, setChordsText] = useState(formData.ug_chords_text || "");
-  // localTransposeSemitones is only active when isPitchLinked is false
   const [localTransposeSemitones, setLocalTransposeSemitones] = useState(0);
   const [isFetchingUg, setIsFetchingUg] = useState(false);
   const [config, setConfig] = useState(formData.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG);
 
-  // Determine the active transposition offset
   const activeTransposeOffset = isPitchLinked ? pitch : localTransposeSemitones;
 
   const transposedText = useMemo(() => {
     if (!chordsText || activeTransposeOffset === 0) return chordsText;
-    return transposeChords(chordsText, activeTransposeOffset, keyPreference); // Pass keyPreference
-  }, [chordsText, activeTransposeOffset, keyPreference]);
+    return transposeChords(chordsText, activeTransposeOffset, activeKeyPreference);
+  }, [chordsText, activeTransposeOffset, activeKeyPreference]);
 
   useEffect(() => {
     if (chordsText !== formData.ug_chords_text) {
@@ -80,27 +82,23 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
     });
   }, [config, handleAutoSave]);
 
-  // Sync localTransposeSemitones with formData.pitch if linking changes
   useEffect(() => {
     if (!isPitchLinked) {
-      // When unlinked, reset local transpose to 0
       setLocalTransposeSemitones(0);
     }
   }, [isPitchLinked]);
 
   const handleResetTranspose = () => {
     if (isPitchLinked) {
-      setPitch(0); // Reset global pitch
+      setPitch(0);
     } else {
-      setLocalTransposeSemitones(0); // Reset local transpose
+      setLocalTransposeSemitones(0);
     }
     showSuccess("Transpose reset");
   };
 
   const handleApplyTranspose = () => {
     if (isPitchLinked) {
-      // If linked, transposition is already 'applied' in real-time.
-      // This button should be disabled or hidden.
       showError("Transpose is linked to audio. Cannot apply directly.");
       return;
     }
@@ -121,6 +119,12 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
       showSuccess("Opening linked UG tab...");
     }
     window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleTogglePreference = () => {
+    const next = activeKeyPreference === 'sharps' ? 'flats' : 'sharps';
+    handleAutoSave({ key_preference: next });
+    showSuccess(`Notation set to ${next === 'sharps' ? 'Sharps' : 'Flats'}`);
   };
 
   const handleFetchUgChords = async () => {
@@ -181,11 +185,10 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
 
       if (extractedContent) {
         setChordsText(extractedContent);
-        // When new chords are fetched, the link should be considered verified
-        handleAutoSave({ ugUrl: formData.ugUrl }); // Just save the URL
+        handleAutoSave({ ugUrl: formData.ugUrl });
         showSuccess("Chords fetched successfully!");
       } else {
-        showError("Could not find chords content on the page. Try a different URL or paste manually.");
+        showError("Could not find chords content on the page.");
       }
 
     } catch (error: any) {
@@ -200,13 +203,13 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
       showError("Paste chords first to pull key.");
       return;
     }
-    const rawExtractedKey = extractKeyFromChords(chordsText); // Get raw key
+    const rawExtractedKey = extractKeyFromChords(chordsText);
     if (rawExtractedKey) {
-      const formattedKey = formatKey(rawExtractedKey, keyPreference); // Format based on preference
+      const formattedKey = formatKey(rawExtractedKey, activeKeyPreference);
       handleAutoSave({ 
         originalKey: formattedKey, 
-        targetKey: formattedKey, // Set targetKey to be the same as originalKey
-        pitch: 0, // Reset pitch to 0
+        targetKey: formattedKey,
+        pitch: 0,
         isKeyConfirmed: true,
       });
       showSuccess(`Pulled key: ${formattedKey}`);
@@ -242,7 +245,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
           <Button 
             size="sm" 
             onClick={handleApplyTranspose}
-            disabled={isPitchLinked || activeTransposeOffset === 0} // Disable if linked or no offset
+            disabled={isPitchLinked || activeTransposeOffset === 0}
             className="h-10 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] uppercase gap-2 rounded-xl"
           >
             <Download className="w-3.5 h-3.5" /> Export
@@ -281,7 +284,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
                 <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <Input
                   value={formData.ugUrl || ""}
-                  onChange={(e) => handleAutoSave({ ugUrl: e.target.value })} // Just save the URL
+                  onChange={(e) => handleAutoSave({ ugUrl: e.target.value })}
                   placeholder="Paste Ultimate Guitar tab URL here..."
                   className="w-full bg-black/40 border border-white/20 rounded-xl p-4 pl-10 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
                 />
@@ -305,7 +308,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
             <Textarea
               value={chordsText}
               onChange={(e) => setChordsText(e.target.value)}
-              placeholder="Paste your chords and lyrics here. Example: [Verse] C G Am F When I find myself in times of trouble, Mother Mary comes to me"
+              placeholder="Paste your chords and lyrics here..."
               className="w-full mt-3 bg-black/40 border border-white/20 rounded-xl p-4 pl-10 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:border-transparent min-h-[300px] font-mono text-sm resize-none flex-1"
             />
             <div className="flex justify-between items-center mt-2">
@@ -330,19 +333,31 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
               <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
                 Transpose
               </Label>
-              <div className="flex gap-2">
-                <span className="text-sm font-mono font-bold text-indigo-400">
-                  {activeTransposeOffset > 0 ? '+' : ''}{activeTransposeOffset} ST
-                </span>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleApplyTranspose}
-                  disabled={isPitchLinked || activeTransposeOffset === 0} // Disable if linked or no offset
-                  className="h-7 px-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase rounded-lg"
-                >
-                  Apply
-                </Button>
+              <div className="flex gap-4 items-center">
+                {/* Notation Override Toggle */}
+                <div className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-lg px-2 h-8">
+                  <span className={cn("text-[9px] font-black uppercase", activeKeyPreference === 'flats' ? "text-indigo-400" : "text-slate-500")}>b</span>
+                  <Switch 
+                    checked={activeKeyPreference === 'sharps'} 
+                    onCheckedChange={handleTogglePreference}
+                    className="data-[state=checked]:bg-indigo-600 scale-75"
+                  />
+                  <span className={cn("text-[9px] font-black uppercase", activeKeyPreference === 'sharps' ? "text-indigo-400" : "text-slate-500")}>#</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-mono font-bold text-indigo-400">
+                    {activeTransposeOffset > 0 ? '+' : ''}{activeTransposeOffset} ST
+                  </span>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleApplyTranspose}
+                    disabled={isPitchLinked || activeTransposeOffset === 0}
+                    className="h-7 px-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase rounded-lg"
+                  >
+                    Apply
+                  </Button>
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-4">
@@ -398,7 +413,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
             </div>
           </div>
 
-          {/* NEW: Key Selection for Audio Linking */}
+          {/* Audio Key Link */}
           <div className="bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-3xl p-6">
             <div className="flex items-center gap-2 mb-4">
               <Music className="w-4 h-4 text-emerald-500" />
@@ -409,9 +424,9 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-[9px] font-bold text-slate-400 uppercase">Original</Label>
-                <div className="flex items-center gap-2"> {/* Added flex container */}
+                <div className="flex items-center gap-2">
                   <Input 
-                    value={formData.originalKey || "TBC"} 
+                    value={formatKey(formData.originalKey || "TBC", activeKeyPreference)} 
                     readOnly 
                     className="h-10 bg-black/20 border-white/10 font-mono font-bold text-slate-500 flex-1"
                   />
@@ -432,24 +447,23 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
               <div className="space-y-1.5">
                 <Label className="text-[9px] font-bold text-emerald-400 uppercase">Target (Linked)</Label>
                 <Select 
-                  value={targetKey || formData.originalKey || "C"} // Use targetKey from hook
-                  onValueChange={setTargetKey} // Use setTargetKey from hook
+                  value={formatKey(targetKey || formData.originalKey || "C", activeKeyPreference)}
+                  onValueChange={setTargetKey}
                 >
                   <SelectTrigger className="h-10 bg-emerald-900/20 border-emerald-500/30 text-emerald-400 font-mono font-bold">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-slate-900 border-white/10 text-white z-[300]">
-                    {["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B", 
-                      "Cm", "C#m", "Dm", "D#m", "Em", "Fm", "F#m", "Gm", "G#m", "Am", "A#m", "Bm"].map(k => (
+                    {(activeKeyPreference === 'sharps' ? 
+                      ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B", "Cm", "C#m", "Dm", "D#m", "Em", "Fm", "F#m", "Gm", "G#m", "Am", "A#m", "Bm"] : 
+                      ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B", "Cm", "Dbm", "Dm", "Ebm", "Em", "Fm", "Gbm", "Gm", "Abm", "Am", "Bbm", "Bm"]
+                    ).map(k => (
                       <SelectItem key={k} value={k} className="font-mono">{k}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
-            <p className="text-[9px] text-emerald-500/80 mt-2 font-medium uppercase tracking-tight">
-              Selecting a key here updates the audio transposer automatically.
-            </p>
           </div>
 
           {/* Styling Controls */}
@@ -461,7 +475,6 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
               </Label>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Font Family */}
               <div className="space-y-2">
                 <Label className="text-[9px] font-bold text-slate-400 uppercase">Font Family</Label>
                 <Select 
@@ -479,7 +492,6 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
                 </Select>
               </div>
 
-              {/* Font Size */}
               <div className="space-y-2">
                 <Label className="text-[9px] font-bold text-slate-400 uppercase">Font Size</Label>
                 <div className="flex items-center gap-2">
@@ -495,7 +507,6 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
                 </div>
               </div>
 
-              {/* Line Spacing */}
               <div className="space-y-2">
                 <Label className="text-[9px] font-bold text-slate-400 uppercase">Line Spacing</Label>
                 <div className="flex items-center gap-2">
@@ -511,7 +522,6 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
                 </div>
               </div>
 
-              {/* Chord Bold */}
               <div className="space-y-2">
                 <Label className="text-[9px] font-bold text-slate-400 uppercase">Chord Bold</Label>
                 <div className="flex items-center gap-2">
@@ -524,7 +534,6 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
                 </div>
               </div>
 
-              {/* Text Alignment */}
               <div className="space-y-2">
                 <Label className="text-[9px] font-bold text-slate-400 uppercase">Alignment</Label>
                 <div className="flex gap-1">
@@ -570,7 +579,6 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
                 </div>
               </div>
 
-              {/* Chord Color */}
               <div className="space-y-2">
                 <Label className="text-[9px] font-bold text-slate-400 uppercase">Chord Color</Label>
                 <div className="flex items-center gap-2">
