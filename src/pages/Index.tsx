@@ -1170,7 +1170,7 @@ const Index = () => {
       <aside 
         ref={searchPanelRef}
         className={cn(
-          "w-full md:w-[450px] bg-white dark:bg-slate-900 border-l absolute right-0 top-20 bottom-0 z-40 transition-transform duration-500",
+          "w-screen md:w-[450px] bg-white dark:bg-slate-900 border-l absolute right-0 top-20 bottom-0 z-40 transition-transform duration-500",
           isSearchPanelOpen ? "translate-x-0" : "translate-x-full"
         )}
       >
