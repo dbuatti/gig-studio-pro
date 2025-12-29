@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSettings } from '@/hooks/use-settings';
 import { compareNotes } from '@/utils/keyUtils';
 import { showError } from '@/utils/toast';
+import { useIsMobile } from '@/hooks/use-mobile'; // <-- NEW: Import useIsMobile
 
 interface FloatingCommandDockProps {
   onOpenSearch: () => void;
@@ -60,6 +61,8 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   onSetMenuOpen,
   isMenuOpen: isMenuOpenProp,
 }) => {
+  const isMobile = useIsMobile(); // <-- NEW: Use the hook
+  
   const [isOpen, setIsOpen] = useState<boolean>(() => {
     if (typeof window !== 'undefined') return localStorage.getItem('floating_dock_open') === 'true';
     return false;
@@ -84,53 +87,33 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     
     const windowWidth = window.innerWidth;
     const windowHeight = window.innerHeight;
-    
-    const dockSize = 56; // h-14 w-14 button size
-    const margin = 32; // bottom-8 right-8 (8 units * 4px/unit)
-    const requiredSpace = 550; // Conservative estimate for menu width/height
+    const dockSize = 56; 
+    const margin = 32; 
 
-    // Calculate the current top-left corner position of the dock button
-    const initialX = windowWidth - margin - dockSize;
-    const initialY = windowHeight - margin - dockSize;
+    // Calculate the current center position of the dock button
+    // Note: position.x/y are offsets from the initial bottom-right position (windowWidth - margin - dockSize)
+    const initialCenterX = windowWidth - margin - (dockSize / 2);
+    const initialCenterY = windowHeight - margin - (dockSize / 2);
     
-    const currentX = initialX + position.x;
-    const currentY = initialY + position.y;
-    
-    // Determine available space around the dock
-    const spaceRight = windowWidth - (currentX + dockSize);
-    const spaceLeft = currentX;
-    const spaceUp = currentY;
-    const spaceDown = windowHeight - (currentY + dockSize);
+    const currentCenterX = initialCenterX + position.x;
+    const currentCenterY = initialCenterY + position.y;
 
-    // 1. Prioritize Right expansion
-    if (spaceRight >= requiredSpace) {
-      return 'right';
+    if (isMobile) {
+        // Mobile Logic: Up/Down based on vertical half
+        if (currentCenterY < windowHeight / 2) {
+            return 'down'; // Top half -> expand down
+        } else {
+            return 'up'; // Bottom half -> expand up
+        }
+    } else {
+        // Desktop Logic: Left/Right based on horizontal half
+        if (currentCenterX < windowWidth / 2) {
+            return 'right'; // Left half -> expand right
+        } else {
+            return 'left'; // Right half -> expand left
+        }
     }
-    
-    // 2. Next, prioritize Up expansion
-    if (spaceUp >= requiredSpace) {
-      return 'up';
-    }
-    
-    // 3. Next, prioritize Left expansion
-    if (spaceLeft >= requiredSpace) {
-      return 'left';
-    }
-    
-    // 4. Fallback to Down (or the direction with most space if none meet the threshold)
-    if (spaceDown >= requiredSpace) {
-        return 'down';
-    }
-
-    // If no direction has enough space, choose the one with the most space
-    const maxSpace = Math.max(spaceRight, spaceUp, spaceLeft, spaceDown);
-    
-    if (maxSpace === spaceRight) return 'right';
-    if (maxSpace === spaceUp) return 'up';
-    if (maxSpace === spaceLeft) return 'left';
-    return 'down';
-
-  }, [position]);
+  }, [position, isMobile]);
 
   const internalIsMenuOpen = isReaderMode ? isMenuOpenProp : isOpen;
   
