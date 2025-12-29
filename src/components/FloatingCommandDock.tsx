@@ -167,110 +167,109 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
         dragElastic={0.2}
         onDragEnd={handleDragEnd}
         style={{ x: position.x, y: position.y }}
-        className={cn(
-          "fixed bottom-8 left-8 z-[9999] touch-none cursor-grab active:cursor-grabbing",
-          "flex flex-col-reverse items-center gap-3" // Always vertical, expands upward
-        )}
+        className="fixed inset-0 pointer-events-none z-[9999]"
       >
-        {/* Main Hub Button */}
-        <div className="bg-slate-950/90 backdrop-blur-2xl p-2 rounded-full border border-white/20 shadow-2xl">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleToggleMenu}
-                className={cn(
-                  "h-14 w-14 rounded-full transition-all duration-500 border-2 shadow-xl",
-                  internalIsMenuOpen 
-                    ? "bg-slate-100 text-slate-950 border-white rotate-90" 
-                    : "bg-slate-900 text-indigo-400 border-white/10 hover:border-indigo-400"
-                )}
-              >
-                {internalIsMenuOpen ? <X className="w-6 h-6" /> : <LayoutDashboard className="w-6 h-6" />}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="right">Command Hub</TooltipContent>
-          </Tooltip>
-        </div>
+        <div className="absolute bottom-8 left-8 pointer-events-auto flex flex-col-reverse items-center gap-3">
+          {/* Main Hub Button */}
+          <div className="bg-slate-950/90 backdrop-blur-2xl p-2 rounded-full border border-white/20 shadow-2xl">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleToggleMenu}
+                  className={cn(
+                    "h-14 w-14 rounded-full transition-all duration-500 border-2 shadow-xl",
+                    internalIsMenuOpen 
+                      ? "bg-slate-100 text-slate-950 border-white rotate-90" 
+                      : "bg-slate-900 text-indigo-400 border-white/10 hover:border-indigo-400"
+                  )}
+                >
+                  {internalIsMenuOpen ? <X className="w-6 h-6" /> : <LayoutDashboard className="w-6 h-6" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">Command Hub</TooltipContent>
+            </Tooltip>
+          </div>
 
-        <AnimatePresence>
-          {internalIsMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.8, y: 20 }}
-              transition={{ duration: 0.25 }}
-              className="flex flex-col-reverse items-center gap-4 mb-4" // Expands upward
-            >
-              {/* Primary Panel */}
-              <div className="flex flex-col items-center gap-3 p-4 bg-slate-950/90 rounded-[2.5rem] border border-white/10 shadow-2xl backdrop-blur-xl">
-                {primaryButtons.map((btn) => (
-                  <Tooltip key={btn.id}>
+          <AnimatePresence>
+            {internalIsMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.8, y: 20 }}
+                transition={{ duration: 0.25 }}
+                className="flex flex-col-reverse items-center gap-4 mb-4"
+              >
+                {/* Primary Panel */}
+                <div className="flex flex-col items-center gap-3 p-4 bg-slate-950/90 rounded-[2.5rem] border border-white/10 shadow-2xl backdrop-blur-xl">
+                  {primaryButtons.map((btn) => (
+                    <Tooltip key={btn.id}>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          disabled={btn.disabled}
+                          onClick={() => { btn.onClick(); if (btn.id !== 'practice') handleToggleMenu(); }}
+                          className={cn("h-12 w-12 rounded-full border transition-all active:scale-90 disabled:opacity-30", btn.className)}
+                        >
+                          {btn.icon}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">{btn.tooltip}</TooltipContent>
+                    </Tooltip>
+                  ))}
+
+                  {/* Tools Toggle */}
+                  <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
                         variant="ghost"
                         size="icon"
-                        disabled={btn.disabled}
-                        onClick={() => { btn.onClick(); if (btn.id !== 'practice') handleToggleMenu(); }}
-                        className={cn("h-12 w-12 rounded-full border transition-all active:scale-90 disabled:opacity-30", btn.className)}
+                        onClick={() => setIsSubMenuOpen(p => !p)}
+                        className={cn(
+                          "h-12 w-12 rounded-full border transition-all",
+                          isSubMenuOpen ? "bg-white text-slate-950 border-white" : "bg-slate-800 text-slate-400 border-white/5"
+                        )}
                       >
-                        {btn.icon}
+                        {isSubMenuOpen ? <X className="w-5 h-5" /> : <Wrench className="w-5 h-5" />}
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent side="right">{btn.tooltip}</TooltipContent>
+                    <TooltipContent side="right">Utilities</TooltipContent>
                   </Tooltip>
-                ))}
+                </div>
 
-                {/* Tools Toggle */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setIsSubMenuOpen(p => !p)}
-                      className={cn(
-                        "h-12 w-12 rounded-full border transition-all",
-                        isSubMenuOpen ? "bg-white text-slate-950 border-white" : "bg-slate-800 text-slate-400 border-white/5"
-                      )}
+                {/* Secondary Grid */}
+                <AnimatePresence>
+                  {isSubMenuOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.5, y: 20 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.5 }}
+                      className="grid grid-cols-2 gap-3 p-4 bg-slate-900/90 rounded-[2rem] border border-white/10 shadow-2xl backdrop-blur-xl"
                     >
-                      {isSubMenuOpen ? <X className="w-5 h-5" /> : <Wrench className="w-5 h-5" />}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">Utilities</TooltipContent>
-                </Tooltip>
-              </div>
-
-              {/* Secondary Grid - Vertical stack on mobile/small screens too */}
-              <AnimatePresence>
-                {isSubMenuOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.5, y: 20 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.5 }}
-                    className="grid grid-cols-2 gap-3 p-4 bg-slate-900/90 rounded-[2rem] border border-white/10 shadow-2xl backdrop-blur-xl"
-                  >
-                    {secondaryButtons.map((btn) => (
-                      <Tooltip key={btn.id}>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => { btn.onClick(); if (btn.id !== 'heatmap' && btn.id !== 'safe-pitch') handleToggleMenu(); }}
-                            className={cn("h-10 w-10 rounded-full border transition-all hover:scale-110", btn.className)}
-                          >
-                            {btn.icon}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="top" className="text-[10px] font-black uppercase">{btn.tooltip}</TooltipContent>
-                      </Tooltip>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                      {secondaryButtons.map((btn) => (
+                        <Tooltip key={btn.id}>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => { btn.onClick(); if (btn.id !== 'heatmap' && btn.id !== 'safe-pitch') handleToggleMenu(); }}
+                              className={cn("h-10 w-10 rounded-full border transition-all hover:scale-110", btn.className)}
+                            >
+                              {btn.icon}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-[10px] font-black uppercase">{btn.tooltip}</TooltipContent>
+                        </Tooltip>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </motion.div>
     </TooltipProvider>
   );
