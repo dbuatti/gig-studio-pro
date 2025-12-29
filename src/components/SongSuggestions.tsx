@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Sparkles, Loader2, Music, Search, Target, CheckCircle2 } from 'lucide-react';
+import { Sparkles, Loader2, Music, Search, Target, CheckCircle2, ListPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,17 +10,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from '@/lib/utils';
 import { Label } from './ui/label';
 import { showError } from '@/utils/toast'; // Import showError
+import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants'; // Import DEFAULT_UG_CHORDS_CONFIG
 
 interface SongSuggestionsProps {
   repertoire: SetlistSong[];
   onSelectSuggestion: (query: string) => void;
+  onAddExistingSong?: (song: SetlistSong) => void; // Added onAddExistingSong prop
 }
 
 // Global session cache to persist raw suggestions
 let sessionSuggestionsCache: any[] | null = null;
 let sessionInitialLoadAttempted = false;
 
-const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectSuggestion }) => {
+const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectSuggestion, onAddExistingSong }) => {
   const [rawSuggestions, setRawSuggestions] = useState<any[]>(sessionSuggestionsCache || []);
   const [isLoading, setIsLoading] = useState(false);
   const [seedSongId, setSeedSongId] = useState<string | null>(null);
@@ -107,9 +109,9 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
 
   return (
     <div className="space-y-4">
-      <div className="space-y-3 px-1">
+      <div className="space-y-3 px-4"> {/* Changed px-1 to px-4 */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0"> {/* Added flex-shrink-0 */}
             <Sparkles className="w-4 h-4 text-indigo-500" />
             <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">AI Discover Engine</span>
           </div>
@@ -118,7 +120,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
             size="sm" 
             onClick={fetchSuggestions} 
             disabled={isLoading}
-            className="h-7 text-[9px] font-black uppercase hover:bg-indigo-50 text-indigo-600"
+            className="h-7 text-[9px] font-black uppercase hover:bg-indigo-50 text-indigo-600 flex-shrink-0" {/* Added flex-shrink-0 */}
           >
             {isLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : "Refresh Suggestions"}
           </Button>
@@ -194,14 +196,54 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
                     </div>
                     
                     {!song.isDuplicate && (
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => onSelectSuggestion(`${song.artist} ${song.name}`)}
-                        className="h-10 w-10 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white shrink-0"
-                      >
-                        <Search className="w-4 h-4" />
-                      </Button>
+                      <div className="flex flex-col gap-2 shrink-0"> {/* Added container for buttons */}
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => onSelectSuggestion(`${song.artist} ${song.name}`)}
+                          className="h-10 w-10 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white shrink-0"
+                        >
+                          <Search className="w-4 h-4" />
+                        </Button>
+                        {onAddExistingSong && ( // Conditionally render if onAddExistingSong is provided
+                          <Button
+                            onClick={() => onAddExistingSong({
+                              id: Math.random().toString(36).substr(2, 9), // Temporary ID, will be replaced by master_id on sync
+                              name: song.name,
+                              artist: song.artist,
+                              previewUrl: "", // No preview URL from suggestion
+                              pitch: 0,
+                              originalKey: "C", // Default
+                              targetKey: "C", // Default
+                              isPlayed: false,
+                              isSyncing: true, // Mark for sync
+                              isMetadataConfirmed: false,
+                              isKeyConfirmed: false,
+                              duration_seconds: 0,
+                              notes: "",
+                              lyrics: "",
+                              resources: [],
+                              user_tags: [],
+                              is_pitch_linked: true,
+                              isApproved: false,
+                              preferred_reader: null,
+                              ug_chords_config: DEFAULT_UG_CHORDS_CONFIG,
+                              is_ug_chords_present: false,
+                              highest_note_original: null,
+                              is_ug_link_verified: false,
+                              metadata_source: null,
+                              sync_status: 'IDLE',
+                              last_sync_log: null,
+                              auto_synced: false,
+                              is_sheet_verified: false,
+                              sheet_music_url: null,
+                            })}
+                            className="h-10 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-[10px] rounded-xl gap-2 shadow-lg"
+                          >
+                            <ListPlus className="w-4 h-4" /> Add
+                          </Button>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
