@@ -110,6 +110,7 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
           isPlaying={isPlaying}
           progress={progress}
           duration={duration}
+          setProgress={audioEngine.setProgress} // Pass setProgress from audioEngine
           togglePlayback={togglePlayback}
           stopPlayback={stopPlayback}
           isMobile={isMobile}

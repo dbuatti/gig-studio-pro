@@ -3,6 +3,7 @@ import React, { useCallback } from 'react';
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { SetlistSong } from './SetlistManager';
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, calculateSemitones, formatKey, transposeKey, transposeNote, PURE_NOTES_SHARP, PURE_NOTES_FLAT } from '@/utils/keyUtils';
@@ -32,6 +33,7 @@ interface SongConfigTabProps {
   isPlaying: boolean;
   progress: number;
   duration: number;
+  setProgress: (p: number) => void; // Added setProgress prop
   togglePlayback: () => void;
   stopPlayback: () => void;
   isMobile: boolean;
@@ -57,6 +59,7 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
   isPlaying,
   progress,
   duration,
+  setProgress, // Destructured setProgress
   togglePlayback,
   stopPlayback,
   isMobile,
@@ -87,37 +90,50 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
     setIsPitchLinked(!isPitchLinked);
   }, [isPitchLinked, setIsPitchLinked]);
 
-  const formatTime = (seconds: number) => 
-    new Date(seconds * 1000).toISOString().substr(14, 5);
+  const formatTime = (seconds: number) => {
+    if (!seconds || isNaN(seconds)) return "0:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   return (
     <div className={cn("flex-1 p-6 md:p-8 space-y-8 md:space-y-10 overflow-y-auto")}>
       {/* Mini Audio Playback Controls */}
       {formData.previewUrl && (
-        <div className="bg-slate-900/50 border border-white/10 rounded-3xl p-6 space-y-6">
+        <div className="bg-slate-900/50 border border-white/10 rounded-3xl p-6 space-y-6 shadow-xl">
           <div className="flex items-center justify-between">
             <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400">
-              Audio Playback
+              Audio Control Center
             </Label>
           </div>
 
           <div className="space-y-4">
-            <div className="flex justify-between text-[10px] font-mono text-slate-500">
-              <span>{formatTime((progress / 100) * duration)}</span>
-              <span>{formatTime(duration)}</span>
+            <div className="space-y-2">
+              <Slider 
+                value={[progress]} 
+                max={100} 
+                step={0.1} 
+                onValueChange={([v]) => setProgress(v)} 
+                className="w-full"
+              />
+              <div className="flex justify-between text-[10px] font-mono font-black text-slate-500 uppercase tracking-widest">
+                <span className="text-indigo-400">{formatTime((progress / 100) * duration)}</span>
+                <span>{formatTime(duration)}</span>
+              </div>
             </div>
 
             <div className="flex items-center justify-center gap-6">
               <button 
                 onClick={stopPlayback}
-                className="h-10 w-10 rounded-full bg-white/5 flex items-center justify-center text-slate-400"
+                className="h-10 w-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 transition-colors"
               >
                 <RotateCcw className="w-5 h-5" />
               </button>
 
               <button 
                 onClick={togglePlayback}
-                className="h-16 w-16 rounded-full bg-indigo-600 hover:bg-indigo-700 shadow-2xl flex items-center justify-center text-white"
+                className="h-16 w-16 rounded-full bg-indigo-600 hover:bg-indigo-700 shadow-2xl flex items-center justify-center text-white transition-all active:scale-95"
               >
                 {isPlaying ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8 ml-1" />}
               </button>
