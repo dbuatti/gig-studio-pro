@@ -65,6 +65,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
 
   const [isSubMenuOpen, setIsSubMenuOpen] = useState(false);
 
+  // Position is now relative to the bottom-left starting point
   const [position, setPosition] = useState<{ x: number; y: number }>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('floating_dock_position');
@@ -120,7 +121,6 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     }
   }, [isSafePitchActive, safePitchLimit, currentSongPitch, onSafePitchToggle]);
 
-  // Your original beautiful colors
   const primaryButtons = [
     {
       id: 'practice',
@@ -161,17 +161,20 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
 
   return (
     <TooltipProvider>
+      {/* FIX: Removed 'inset-0' and 'pointer-events-none'. 
+          Container is now 'fixed bottom-8 left-8' so it doesn't cover the screen.
+      */}
       <motion.div
         drag
         dragMomentum={false}
-        dragElastic={0.2}
+        dragElastic={0.1}
         onDragEnd={handleDragEnd}
-        style={{ x: position.x, y: position.y }}
-        className="fixed inset-0 pointer-events-none z-[9999]"
+        animate={{ x: position.x, y: position.y }}
+        className="fixed bottom-8 left-8 z-[9999] touch-none"
       >
-        <div className="absolute bottom-8 left-8 pointer-events-auto flex flex-col-reverse items-center gap-3">
+        <div className="flex flex-col-reverse items-center gap-3">
           {/* Main Hub Button */}
-          <div className="bg-slate-950/90 backdrop-blur-2xl p-2 rounded-full border border-white/20 shadow-2xl">
+          <div className="bg-slate-950/90 backdrop-blur-2xl p-2 rounded-full border border-white/20 shadow-2xl pointer-events-auto">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -199,7 +202,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.8, y: 20 }}
                 transition={{ duration: 0.25 }}
-                className="flex flex-col-reverse items-center gap-4 mb-4"
+                className="flex flex-col-reverse items-center gap-4 mb-4 pointer-events-auto"
               >
                 {/* Primary Panel */}
                 <div className="flex flex-col items-center gap-3 p-4 bg-slate-950/90 rounded-[2.5rem] border border-white/10 shadow-2xl backdrop-blur-xl">
