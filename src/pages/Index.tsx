@@ -5,7 +5,6 @@ import AudioTransposer, { AudioTransposerRef } from "@/components/AudioTranspose
 import SetlistManager, { SetlistSong } from "@/components/SetlistManager";
 import SetlistSelector from "@/components/SetlistSelector";
 import ImportSetlist from "@/components/ImportSetlist";
-import PerformanceOverlay from "@/components/PerformanceOverlay";
 import ActiveSongBanner from "@/components/ActiveSongBanner";
 import SetlistStats from "@/components/SetlistStats";
 import PreferencesModal from "@/components/PreferencesModal";
@@ -71,6 +70,8 @@ const Index = () => {
   const [sortMode, setSortMode] = useState<'none' | 'ready' | 'work'>(() => (localStorage.getItem('gig_sort_mode') as any) || 'none');
   const [activeFilters, setActiveFilters] = useState<FilterState>(INITIAL_FILTERS);
   const [searchTerm, setSearchTerm] = useState("");
+
+  const [isBulkDownloading, setIsBulkDownloading] = useState(false);
 
   const transposerRef = useRef<AudioTransposerRef>(null);
   const currentList = useMemo(() => setlists.find(l => l.id === currentListId), [setlists, currentListId]);
@@ -236,7 +237,7 @@ const Index = () => {
 
     let updated = [...targetSetlist.songs];
     if (action === 'add') {
-      const exists = updated.some(s => (s.master_id && s.master_id === songToUpdate.master_id) || s.id === songToUpdate.id);
+      const exists = updated.some(s => (s.master_id === songToUpdate.master_id) || s.id === songToUpdate.id);
       if (!exists) {
         updated.push({
           ...songToUpdate,
@@ -288,6 +289,33 @@ const Index = () => {
 
   const handleTogglePlayback = useCallback(() => transposerRef.current?.togglePlayback(), []);
 
+  // --- Bulk Automation Handlers ---
+  const handleGlobalAutoSync = async () => {
+    if (!user) return;
+    const songIds = songs.map(s => s.master_id || s.id);
+    await supabase.functions.invoke('global-auto-sync', { body: { songIds } });
+    fetchMasterRepertoire();
+  };
+
+  const handleAutoLink = async () => {
+    if (!user) return;
+    const missing = songs.filter(s => !s.youtubeUrl).map(s => s.master_id || s.id);
+    await supabase.functions.invoke('bulk-populate-youtube-links', { body: { songIds: missing } });
+    fetchMasterRepertoire();
+  };
+
+  const handleBulkRefreshAudio = async () => {
+    setIsAdminOpen(true);
+  };
+
+  const handleClearAutoLinks = async () => {
+    if (!user) return;
+    await supabase.from('repertoire').update({ youtube_url: null, metadata_source: null }).eq('metadata_source', 'auto_populated').eq('user_id', user.id);
+    fetchMasterRepertoire();
+  };
+
+  const missingAudioCount = useMemo(() => songs.filter(s => !s.previewUrl || s.previewUrl.includes('apple.com')).length, [songs]);
+
   return (
     <div className="h-screen bg-slate-50 dark:bg-slate-950 flex flex-col overflow-hidden relative">
       <nav className="h-16 md:h-20 bg-white dark:bg-slate-900 border-b px-4 md:px-6 flex items-center justify-between z-30 shadow-sm shrink-0">
@@ -331,7 +359,22 @@ const Index = () => {
             </div>
           </div>
           
-          {viewMode === 'setlist' && <SetlistStats songs={songs} goalSeconds={currentList?.time_goal} onUpdateGoal={(s) => saveList(currentListId!, songs, { time_goal: s })} />}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="md:col-span-2">
+              {viewMode === 'setlist' && <SetlistStats songs={songs} goalSeconds={currentList?.time_goal} onUpdateGoal={(s) => saveList(currentListId!, songs, { time_goal: s })} />}
+            </div>
+            <div>
+              <SetlistExporter 
+                songs={songs} 
+                onAutoLink={handleAutoLink} 
+                onGlobalAutoSync={handleGlobalAutoSync} 
+                onBulkRefreshAudio={handleBulkRefreshAudio}
+                onClearAutoLinks={handleClearAutoLinks}
+                isBulkDownloading={isBulkDownloading}
+                missingAudioCount={missingAudioCount}
+              />
+            </div>
+          </div>
           
           <SetlistManager
             songs={processedSongs}
