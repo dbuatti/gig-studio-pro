@@ -65,8 +65,6 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     return false;
   });
 
-  const [isSubMenuOpen, setIsSubMenuOpen] = useState(false);
-
   const [position, setPosition] = useState<{ x: number; y: number }>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('floating_dock_position');
@@ -74,6 +72,8 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     }
     return { x: 0, y: 0 };
   });
+
+  const [isSubMenuOpen, setIsSubMenuOpen] = useState(false);
 
   const [isSafePitchActive, setIsSafePitchActive] = useState(false);
   const { safePitchMaxNote } = useSettings();
@@ -85,42 +85,51 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     const windowWidth = window.innerWidth;
     const windowHeight = window.innerHeight;
     
-    // Calculate the absolute position of the dock center relative to the viewport
-    // The dock is initially positioned bottom-8 right-8, so its initial offset is negative.
-    // We need to calculate the actual screen coordinates.
-    const dockSize = 56; // Approximate size of the main button
-    const margin = 32; // 8 units margin * 4 (tailwind default)
+    const dockSize = 56; // h-14 w-14 button size
+    const margin = 32; // bottom-8 right-8 (8 units * 4px/unit)
+    const requiredSpace = 550; // Conservative estimate for menu width/height
+
+    // Calculate the current top-left corner position of the dock button
+    const initialX = windowWidth - margin - dockSize;
+    const initialY = windowHeight - margin - dockSize;
     
-    // Calculate the current screen position (relative to top-left)
-    const screenX = windowWidth - margin - dockSize + position.x;
-    const screenY = windowHeight - margin - dockSize + position.y;
+    const currentX = initialX + position.x;
+    const currentY = initialY + position.y;
+    
+    // Determine available space around the dock
+    const spaceRight = windowWidth - (currentX + dockSize);
+    const spaceLeft = currentX;
+    const spaceUp = currentY;
+    const spaceDown = windowHeight - (currentY + dockSize);
 
-    // Determine available space
-    const spaceRight = windowWidth - screenX;
-    const spaceLeft = screenX;
-    const spaceDown = windowHeight - screenY;
-    const spaceUp = screenY;
-
-    // Threshold for deciding direction (e.g., 200px needed for menu)
-    const threshold = 200; 
-
-    // Prioritize opening away from the closest edge
-    if (spaceRight < threshold && spaceLeft > threshold) {
-      return 'left';
-    }
-    if (spaceLeft < threshold && spaceRight > threshold) {
+    // 1. Prioritize Right expansion
+    if (spaceRight >= requiredSpace) {
       return 'right';
     }
-    if (spaceDown < threshold && spaceUp > threshold) {
+    
+    // 2. Next, prioritize Up expansion
+    if (spaceUp >= requiredSpace) {
       return 'up';
     }
-    if (spaceUp < threshold && spaceDown > threshold) {
-      return 'down';
+    
+    // 3. Next, prioritize Left expansion
+    if (spaceLeft >= requiredSpace) {
+      return 'left';
+    }
+    
+    // 4. Fallback to Down (or the direction with most space if none meet the threshold)
+    if (spaceDown >= requiredSpace) {
+        return 'down';
     }
 
-    // Default to bottom-right corner behavior (expand up and left)
-    if (screenX > windowWidth / 2) return 'up';
-    return 'right';
+    // If no direction has enough space, choose the one with the most space
+    const maxSpace = Math.max(spaceRight, spaceUp, spaceLeft, spaceDown);
+    
+    if (maxSpace === spaceRight) return 'right';
+    if (maxSpace === spaceUp) return 'up';
+    if (maxSpace === spaceLeft) return 'left';
+    return 'down';
+
   }, [position]);
 
   const internalIsMenuOpen = isReaderMode ? isMenuOpenProp : isOpen;
