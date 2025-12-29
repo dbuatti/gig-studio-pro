@@ -1,188 +1,220 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Loader2, Sparkles, PlusCircle, CheckCircle2, Search, Library } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { showSuccess, showError } from '@/utils/toast';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Sparkles, Loader2, Music, Search, Target, CheckCircle2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/components/AuthProvider';
 import { SetlistSong } from './SetlistManager';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from '@/lib/utils';
+import { Label } from './ui/label';
+import { showError } from '@/utils/toast'; // Import showError
 
 interface SongSuggestionsProps {
   repertoire: SetlistSong[];
   onSelectSuggestion: (query: string) => void;
 }
 
+// Global session cache to persist raw suggestions
+let sessionSuggestionsCache: any[] | null = null;
+let sessionInitialLoadAttempted = false;
+
 const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectSuggestion }) => {
-  const { user } = useAuth();
-  const [suggestions, setSuggestions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [searchMode, setSearchMode] = useState('entire_profile_vibe');
-  const [selectedGenre, setSelectedGenre] = useState('');
-  const [customPrompt, setCustomPrompt] = useState('');
+  const [rawSuggestions, setRawSuggestions] = useState<any[]>(sessionSuggestionsCache || []);
+  const [isLoading, setIsLoading] = useState(false);
+  const [seedSongId, setSeedSongId] = useState<string | null>(null);
 
-  const fetchSuggestions = useCallback(async () => {
-    if (!user) {
-      showError("Please log in to get suggestions.");
-      return;
-    }
+  // Robust matching logic for duplicates
+  const existingKeys = useMemo(() => {
+    return new Set(repertoire.map(s => 
+      `${s.name.trim().toLowerCase()}-${(s.artist || "").trim().toLowerCase()}`
+    ));
+  }, [repertoire]);
 
-    setLoading(true);
-    setSuggestions([]); // Clear previous suggestions
+  // Reactive filtering/marking of suggestions
+  const suggestions = useMemo(() => {
+    return rawSuggestions.map(s => ({
+      ...s,
+      isDuplicate: existingKeys.has(`${s.name.trim().toLowerCase()}-${s.artist.trim().toLowerCase()}`)
+    }));
+  }, [rawSuggestions, existingKeys]);
 
-    try {
-      let prompt = '';
-      let payload: any = { userId: user.id };
+  const seedSong = useMemo(() => 
+    repertoire.find(s => s.id === seedSongId), 
+  [seedSongId, repertoire]);
 
-      if (searchMode === 'entire_profile_vibe') {
-        prompt = 'Suggest songs based on my entire repertoire vibe.';
-      } else if (searchMode === 'specific_genre' && selectedGenre) {
-        prompt = `Suggest songs in the ${selectedGenre} genre.`;
-        payload.genre = selectedGenre;
-      } else if (searchMode === 'custom_prompt' && customPrompt) {
-        prompt = customPrompt;
-        payload.customPrompt = customPrompt;
-      } else {
-        showError("Please select a search mode or enter a custom prompt.");
-        setLoading(false);
-        return;
+  const fetchSuggestions = async () => {
+    if (repertoire.length === 0) return;
+    
+    setIsLoading(true);
+    let lastError = null;
+    const MAX_RETRIES = 3;
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const { data, error } = await supabase.functions.invoke('suggest-songs', {
+          body: { 
+            repertoire: repertoire.slice(0, 50),
+            seedSong: seedSong ? { name: seedSong.name, artist: seedSong.artist } : null
+          } 
+        });
+
+        if (error) {
+          lastError = error;
+          if (attempt < MAX_RETRIES) {
+            console.warn(`[SongSuggestions] Attempt ${attempt} failed. Retrying in ${attempt * 2}s...`);
+            await new Promise(resolve => setTimeout(resolve, attempt * 2000));
+            continue;
+          }
+          throw error;
+        }
+        
+        setRawSuggestions(data || []);
+        sessionSuggestionsCache = data || [];
+        sessionInitialLoadAttempted = true;
+        setIsLoading(false);
+        return; // Success
+        
+      } catch (err: any) {
+        lastError = err;
+        if (attempt === MAX_RETRIES) {
+          console.error("[SongSuggestions] All retry attempts failed.", lastError);
+          showError("Song suggestions temporarily unavailable.");
+        } else {
+          // Retry logic handled inside the loop
+        }
       }
-
-      const { data, error } = await supabase.functions.invoke('generate-song-suggestions', {
-        body: payload,
-      });
-
-      if (error) throw error;
-
-      if (data && data.suggestions) {
-        setSuggestions(data.suggestions);
-        showSuccess("Suggestions loaded!");
-      } else {
-        showError("No suggestions found.");
-      }
-    } catch (err: any) {
-      console.error("[SongSuggestions] Error fetching suggestions:", err);
-      showError(`Failed to fetch suggestions: ${err.message}`);
-    } finally {
-      setLoading(false);
     }
-  }, [user, searchMode, selectedGenre, customPrompt]);
+    
+    setIsLoading(false);
+  };
 
   useEffect(() => {
-    // Fetch suggestions on component mount or when user changes
-    if (user) {
+    if (repertoire.length > 0 && !sessionInitialLoadAttempted && rawSuggestions.length === 0) {
       fetchSuggestions();
     }
-  }, [user, fetchSuggestions]);
+  }, [repertoire]);
 
-  const handleRefreshSuggestions = () => {
-    fetchSuggestions();
-  };
-
-  const isSongInRepertoire = (suggestion: any) => {
-    return repertoire.some(song => 
-      song.name?.toLowerCase() === suggestion.name?.toLowerCase() && 
-      song.artist?.toLowerCase() === suggestion.artist?.toLowerCase()
+  if (repertoire.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center opacity-40 px-6">
+        <Music className="w-10 h-10 mb-4" />
+        <p className="text-[10px] font-black uppercase tracking-[0.2em]">Add songs to your library to get AI recommendations</p>
+      </div>
     );
-  };
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-          <Sparkles className="w-3.5 h-3.5 text-indigo-500" /> AI Discover Engine
-        </h3>
-        <Button 
-          variant="link" 
-          onClick={handleRefreshSuggestions} 
-          className="text-indigo-600 text-[10px] font-bold uppercase tracking-widest h-auto p-0"
-          disabled={loading}
-        >
-          {loading ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : null}
-          Refresh Suggestions
-        </Button>
-      </div>
+    <div className="space-y-4">
+      <div className="space-y-3 px-1">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-indigo-500" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">AI Discover Engine</span>
+          </div>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={fetchSuggestions} 
+            disabled={isLoading}
+            className="h-7 text-[9px] font-black uppercase hover:bg-indigo-50 text-indigo-600"
+          >
+            {isLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : "Refresh Suggestions"}
+          </Button>
+        </div>
 
-      <div className="space-y-4">
-        <div className="space-y-1.5">
-          <label htmlFor="search-mode" className="text-[9px] font-bold text-slate-500 uppercase">Search Mode</label>
-          <Select value={searchMode} onValueChange={setSearchMode}>
-            <SelectTrigger id="search-mode" className="h-9 text-[10px] bg-white border-slate-100">
-              <SelectValue placeholder="Select search mode" />
+        <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800 space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-400 flex items-center gap-1.5">
+              <Target className="w-3 h-3" /> Search Mode
+            </Label>
+            {seedSongId && (
+              <button 
+                onClick={() => { setSeedSongId(null); }}
+                className="text-[8px] font-black text-indigo-500 uppercase hover:text-indigo-600"
+              >
+                Clear Seed
+              </button>
+            )}
+          </div>
+          <Select value={seedSongId || "profile"} onValueChange={(val) => setSeedSongId(val === "profile" ? null : val)}>
+            <SelectTrigger className="h-8 text-[10px] font-bold bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800">
+              <SelectValue placeholder="Suggest based on entire profile" />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="entire_profile_vibe">Entire Profile Vibe</SelectItem>
-              <SelectItem value="specific_genre">Specific Genre</SelectItem>
-              <SelectItem value="custom_prompt">Custom Prompt</SelectItem>
+            <SelectContent className="max-h-[300px]">
+              <SelectItem value="profile" className="text-[10px] font-bold">Entire Profile Vibe</SelectItem>
+              {repertoire.map(s => (
+                <SelectItem key={s.id} value={s.id} className="text-[10px] font-medium">
+                  {s.name} - {s.artist}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
-
-        {searchMode === 'specific_genre' && (
-          <div className="space-y-1.5">
-            <label htmlFor="genre-select" className="text-[9px] font-bold text-slate-500 uppercase">Genre</label>
-            <Input 
-              id="genre-select"
-              placeholder="e.g., Pop, Rock, Jazz" 
-              className="h-9 text-[10px] bg-white border-slate-100" 
-              value={selectedGenre}
-              onChange={(e) => setSelectedGenre(e.target.value)}
-            />
-          </div>
-        )}
-
-        {searchMode === 'custom_prompt' && (
-          <div className="space-y-1.5">
-            <label htmlFor="custom-prompt" className="text-[9px] font-bold text-slate-500 uppercase">Custom Prompt</label>
-            <Input 
-              id="custom-prompt"
-              placeholder="e.g., Upbeat songs for a wedding" 
-              className="h-9 text-[10px] bg-white border-slate-100" 
-              value={customPrompt}
-              onChange={(e) => setCustomPrompt(e.target.value)}
-            />
-          </div>
-        )}
       </div>
 
-      <div className="space-y-4">
-        {loading ? (
-          <div className="flex items-center justify-center h-32 text-slate-500">
-            <Loader2 className="w-6 h-6 animate-spin mr-2" /> Generating suggestions...
-          </div>
-        ) : suggestions.length === 0 ? (
-          <p className="text-center text-slate-500 text-sm">No suggestions yet. Try refreshing or changing your search mode.</p>
-        ) : (
-          suggestions.map((suggestion, index) => (
-            <div key={index} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm">
-              <div className="flex-1 min-w-0 mb-3 sm:mb-0 sm:pr-4">
-                <h4 className="text-sm font-semibold text-slate-900 dark:text-white truncate">{suggestion.name}</h4>
-                <p className="text-xs text-indigo-600 font-medium truncate">{suggestion.artist}</p>
-                <p className="text-xs text-slate-500 mt-1 line-clamp-2">{suggestion.description}</p>
-              </div>
-              <div className="flex-shrink-0 flex items-center gap-2">
-                {isSongInRepertoire(suggestion) ? (
-                  <span className="flex items-center gap-1 text-green-600 text-[9px] font-bold uppercase">
-                    <CheckCircle2 className="w-3 h-3" /> In Library
-                  </span>
-                ) : (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => onSelectSuggestion(suggestion.name + " " + suggestion.artist)}
-                    className="h-8 px-3 text-[9px] uppercase font-bold gap-1.5 border-indigo-200 text-indigo-600 hover:bg-indigo-50"
-                  >
-                    <Search className="w-3 h-3" /> Search & Add
-                  </Button>
-                )}
-              </div>
+      <ScrollArea className="h-[500px]">
+        <div className="space-y-2 pr-4">
+          {isLoading ? (
+            <div className="py-20 flex flex-col items-center gap-4 text-center">
+              <Loader2 className="w-8 h-8 animate-spin text-indigo-500 opacity-20" />
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                {seedSong ? `Finding tracks like "${seedSong.name}"...` : "Analyzing your sonic profile..."}
+              </p>
             </div>
-          ))
-        )}
-      </div>
+          ) : (
+            suggestions.length > 0 ? (
+              suggestions.map((song, i) => (
+                <div 
+                  key={i}
+                  className={cn(
+                    "group p-4 border rounded-2xl transition-all shadow-sm",
+                    song.isDuplicate 
+                      ? "bg-slate-50/50 dark:bg-slate-900/30 border-slate-100 dark:border-slate-800 opacity-60"
+                      : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:border-indigo-200"
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-black uppercase tracking-tight truncate">{song.name}</h4>
+                        {song.isDuplicate && <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
+                      </div>
+                      <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mt-0.5">{song.artist}</p>
+                      {song.isDuplicate ? (
+                        <span className="inline-block mt-2 text-[8px] font-black bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                          Already in Set
+                        </span>
+                      ) : song.reason && (
+                        <p className="text-[9px] text-slate-400 font-bold uppercase mt-2 leading-relaxed">
+                          {song.reason}
+                        </p>
+                      )}
+                    </div>
+                    
+                    {!song.isDuplicate && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => onSelectSuggestion(`${song.artist} ${song.name}`)}
+                        className="h-10 w-10 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white shrink-0"
+                      >
+                        <Search className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="py-20 text-center opacity-30">
+                <Sparkles className="w-10 h-10 mb-4 mx-auto" />
+                <p className="text-[10px] font-black uppercase tracking-[0.2em]">Discovery engine ready.</p>
+              </div>
+            )
+          )}
+        </div>
+      </ScrollArea>
     </div>
   );
 };
