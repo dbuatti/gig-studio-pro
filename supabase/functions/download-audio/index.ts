@@ -31,21 +31,46 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
     console.log("[download-audio] Triggering Render API for background audio extraction.");
-    // Trigger Render API with background sync parameters
-    const queryParams = new URLSearchParams({
-      url: videoUrl,
-      s_url: supabaseUrl || '',
-      s_key: supabaseKey || '',
-      song_id: songId || '',
-      user_id: userId || ''
-    });
-
-    const triggerResponse = await fetch(`${renderUrl}/?${queryParams.toString()}`);
     
-    if (!triggerResponse.ok) {
-      const errorText = await triggerResponse.text();
-      console.error(`[download-audio] Render API trigger failed: ${triggerResponse.statusText}. Response: ${errorText}`);
-      throw new Error(`Render API trigger failed: ${triggerResponse.statusText}`);
+    const MAX_RETRIES = 3;
+    let triggerResponse: Response | null = null;
+    let lastError: any = null;
+
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      try {
+        const queryParams = new URLSearchParams({
+          url: videoUrl,
+          s_url: supabaseUrl || '',
+          s_key: supabaseKey || '',
+          song_id: songId || '',
+          user_id: userId || ''
+        });
+
+        triggerResponse = await fetch(`${renderUrl}/?${queryParams.toString()}`);
+        
+        if (triggerResponse.ok) {
+          console.log(`[download-audio] Render API trigger successful on attempt ${attempt + 1}.`);
+          break; // Success, exit retry loop
+        } else {
+          const errorText = await triggerResponse.text();
+          lastError = new Error(`Render API trigger failed (Status: ${triggerResponse.status}, Text: ${errorText})`);
+          console.warn(`[download-audio] Attempt ${attempt + 1} failed: ${lastError.message}`);
+          if (attempt < MAX_RETRIES - 1) {
+            await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1))); // Exponential backoff
+          }
+        }
+      } catch (e: any) {
+        lastError = e;
+        console.warn(`[download-audio] Fetch error on attempt ${attempt + 1}: ${e.message}`);
+        if (attempt < MAX_RETRIES - 1) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+        }
+      }
+    }
+
+    if (!triggerResponse || !triggerResponse.ok) {
+      console.error(`[download-audio] All retry attempts failed. Last error: ${lastError?.message || 'Unknown error'}`);
+      throw new Error(`Render API trigger failed after ${MAX_RETRIES} attempts: ${lastError?.message || 'Unknown error'}`);
     }
 
     const data = await triggerResponse.json();
