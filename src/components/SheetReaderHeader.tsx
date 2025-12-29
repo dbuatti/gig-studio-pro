@@ -32,7 +32,7 @@ interface SheetReaderHeaderProps {
   readerKeyPreference: 'sharps' | 'flats';
   setReaderKeyPreference: (pref: 'sharps' | 'flats') => void;
   // NEW: Pull Key Handler
-  onPullKey: () => void;
+  onPullKey: () => Promise<void>;
   // NEW: Sidebar Toggle
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
