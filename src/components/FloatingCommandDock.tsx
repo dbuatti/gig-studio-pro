@@ -5,8 +5,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { 
   LayoutDashboard, Search, Sparkles, ShieldCheck, X, Settings, 
-  Play, FileText, Pause, BookOpen, Volume2, ShieldAlert, 
-  ChevronUp, ChevronDown 
+  Play, FileText, Pause, BookOpen, Volume2, ShieldAlert
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { motion, AnimatePresence } from 'framer-motion';
@@ -58,10 +57,10 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   onSetMenuOpen,
   isMenuOpen: isMenuOpenProp,
 }) => {
-  // --- Persisted State ---
-  const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
+  // --- Persisted Open/Close State ---
+  const [isOpen, setIsOpen] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('floating_dock_collapsed') === 'true';
+      return localStorage.getItem('floating_dock_open') === 'true';
     }
     return false;
   });
@@ -74,24 +73,21 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     return { x: 0, y: 0 };
   });
 
-  const [isCommandHubOpen, setIsCommandHubOpen] = useState(false);
   const [isSafePitchActive, setIsSafePitchActive] = useState(false);
   const { safePitchMaxNote } = useSettings();
 
-  // Sync isMenuOpen for ReaderMode
-  const internalIsMenuOpen = isReaderMode ? isMenuOpenProp : isCommandHubOpen;
-  const setInternalIsMenuOpen = (val: boolean) => {
+  // Sync menu state for ReaderMode or internal state
+  const internalIsMenuOpen = isReaderMode ? isMenuOpenProp : isOpen;
+  
+  const handleToggleMenu = () => {
+    const nextState = !internalIsMenuOpen;
     if (isReaderMode) {
-      onSetMenuOpen?.(val);
+      onSetMenuOpen?.(nextState);
     } else {
-      setIsCommandHubOpen(val);
+      setIsOpen(nextState);
     }
+    localStorage.setItem('floating_dock_open', nextState.toString());
   };
-
-  // Persist collapse state
-  useEffect(() => {
-    localStorage.setItem('floating_dock_collapsed', isCollapsed.toString());
-  }, [isCollapsed]);
 
   // Persist position
   const handleDragEnd = (_: any, info: any) => {
@@ -182,14 +178,14 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
         style={{ x: position.x, y: position.y }}
         className="fixed bottom-8 right-8 z-[300] flex flex-col-reverse items-center gap-3 touch-none cursor-grab active:cursor-grabbing"
       >
-        {/* Hub Trigger Button (The Anchor) */}
-        <div className="flex flex-col items-center bg-slate-950/90 backdrop-blur-2xl p-2 rounded-full border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
+        {/* Hub Trigger Button */}
+        <div className="bg-slate-950/90 backdrop-blur-2xl p-2 rounded-full border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setInternalIsMenuOpen(!internalIsMenuOpen)}
+                onClick={handleToggleMenu}
                 className={cn(
                   "h-14 w-14 rounded-full transition-all duration-500 border-2",
                   internalIsMenuOpen 
@@ -202,21 +198,11 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
             </TooltipTrigger>
             <TooltipContent side="left" className="text-[10px] font-black uppercase">Command Hub</TooltipContent>
           </Tooltip>
-
-          {/* Expand/Collapse Toggle Button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className="h-8 w-8 mt-1 rounded-full text-slate-500 hover:text-white transition-colors"
-          >
-            {isCollapsed ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </Button>
         </div>
 
-        {/* Action Buttons Stack (Visible when hub is open and NOT collapsed) */}
+        {/* Action Buttons Stack (Visible when hub is open) */}
         <AnimatePresence>
-          {internalIsMenuOpen && !isCollapsed && (
+          {internalIsMenuOpen && (
             <motion.div
               initial={{ opacity: 0, y: 20, scale: 0.8 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -231,7 +217,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => { btn.onClick(); if (btn.id !== 'heatmap' && btn.id !== 'safe-pitch') setInternalIsMenuOpen(false); }}
+                        onClick={() => { btn.onClick(); if (btn.id !== 'heatmap' && btn.id !== 'safe-pitch') handleToggleMenu(); }}
                         className={cn("h-10 w-10 rounded-full border transition-all hover:scale-110", btn.className)}
                       >
                         {btn.icon}
@@ -251,7 +237,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                         variant="ghost"
                         size="icon"
                         disabled={btn.disabled}
-                        onClick={() => { btn.onClick(); if (btn.id === 'search') setInternalIsMenuOpen(false); }}
+                        onClick={() => { btn.onClick(); if (btn.id === 'search' || btn.id === 'reader') handleToggleMenu(); }}
                         className={cn(
                           "h-14 w-14 rounded-full border-2 transition-all active:scale-90 disabled:opacity-10", 
                           btn.className
