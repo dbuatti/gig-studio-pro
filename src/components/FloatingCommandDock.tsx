@@ -78,49 +78,59 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   const [isSafePitchActive, setIsSafePitchActive] = useState(false);
   const { safePitchMaxNote } = useSettings();
 
-  // Intelligent Direction Calculation
+  // Intelligent Direction Calculation based on available space
   const direction = useMemo((): MenuDirection => {
     if (typeof window === 'undefined') return 'up';
     
     const windowWidth = window.innerWidth;
     const windowHeight = window.innerHeight;
     
-    // Calculate the absolute position of the dock center relative to the viewport
-    // The dock is initially positioned bottom-8 right-8, so its initial offset is negative.
-    // We need to calculate the actual screen coordinates.
+    // The dock is fixed bottom-8 right-8 initially.
+    // We need to calculate its actual screen coordinates.
     const dockSize = 56; // Approximate size of the main button
     const margin = 32; // 8 units margin * 4 (tailwind default)
     
-    // Calculate the current screen position (relative to top-left)
-    const screenX = windowWidth - margin - dockSize + position.x;
-    const screenY = windowHeight - margin - dockSize + position.y;
+    // Calculate the current screen position of the dock's center
+    // Initial position is bottom-8 right-8
+    const initialX = windowWidth - margin - dockSize / 2;
+    const initialY = windowHeight - margin - dockSize / 2;
+    
+    const currentX = initialX + position.x;
+    const currentY = initialY + position.y;
 
-    // Determine available space
-    const spaceRight = windowWidth - screenX;
-    const spaceLeft = screenX;
-    const spaceDown = windowHeight - screenY;
-    const spaceUp = screenY;
+    // Calculate available space in each direction
+    const spaceRight = windowWidth - currentX - dockSize / 2;
+    const spaceLeft = currentX - dockSize / 2;
+    const spaceDown = windowHeight - currentY - dockSize / 2;
+    const spaceUp = currentY - dockSize / 2;
 
-    // Threshold for deciding direction (e.g., 200px needed for menu)
-    const threshold = 200; 
+    // Threshold for menu size (approximate)
+    const menuWidth = 250;
+    const menuHeight = 200;
 
-    // Prioritize opening away from the closest edge
-    if (spaceRight < threshold && spaceLeft > threshold) {
-      return 'left';
-    }
-    if (spaceLeft < threshold && spaceRight > threshold) {
-      return 'right';
-    }
-    if (spaceDown < threshold && spaceUp > threshold) {
-      return 'up';
-    }
-    if (spaceUp < threshold && spaceDown > threshold) {
-      return 'down';
+    // Determine best direction
+    // Prioritize opening into the largest available space
+    const spaces = [
+      { dir: 'right' as MenuDirection, space: spaceRight },
+      { dir: 'left' as MenuDirection, space: spaceLeft },
+      { dir: 'down' as MenuDirection, space: spaceDown },
+      { dir: 'up' as MenuDirection, space: spaceUp },
+    ];
+
+    // Filter out directions that don't have enough space
+    const validSpaces = spaces.filter(s => 
+      (s.dir === 'left' || s.dir === 'right') ? s.space > menuWidth : s.space > menuHeight
+    );
+
+    if (validSpaces.length > 0) {
+      // Sort by available space (descending) and pick the best
+      validSpaces.sort((a, b) => b.space - a.space);
+      return validSpaces[0].dir;
     }
 
-    // Default to bottom-right corner behavior (expand up and left)
-    if (screenX > windowWidth / 2) return 'up';
-    return 'right';
+    // Fallback: if no direction has enough space, pick the one with the most space
+    spaces.sort((a, b) => b.space - a.space);
+    return spaces[0].dir;
   }, [position]);
 
   const internalIsMenuOpen = isReaderMode ? isMenuOpenProp : isOpen;
@@ -244,7 +254,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                 {internalIsMenuOpen ? <X className="w-6 h-6" /> : <LayoutDashboard className="w-6 h-6" />}
               </Button>
             </TooltipTrigger>
-            <TooltipContent side={direction === 'left' ? 'right' : 'left'}>Command Hub</TooltipContent>
+            <TooltipContent side={direction === 'left' ? 'right' : direction === 'right' ? 'left' : direction === 'up' ? 'bottom' : 'top'}>Command Hub</TooltipContent>
           </Tooltip>
         </div>
 
@@ -274,7 +284,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                         {btn.icon}
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent side={direction === 'left' ? 'right' : 'left'}>{btn.tooltip}</TooltipContent>
+                    <TooltipContent side={direction === 'left' ? 'right' : direction === 'right' ? 'left' : direction === 'up' ? 'bottom' : 'top'}>{btn.tooltip}</TooltipContent>
                   </Tooltip>
                 ))}
 
@@ -293,7 +303,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                       {isSubMenuOpen ? <X className="w-5 h-5" /> : <Wrench className="w-5 h-5" />}
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side={direction === 'left' ? 'right' : 'left'}>Utilities</TooltipContent>
+                  <TooltipContent side={direction === 'left' ? 'right' : direction === 'right' ? 'left' : direction === 'up' ? 'bottom' : 'top'}>Utilities</TooltipContent>
                 </Tooltip>
               </div>
 
