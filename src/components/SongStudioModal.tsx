@@ -40,7 +40,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-[95vw] w-[1400px] h-[90vh] p-0 overflow-hidden bg-slate-950 border-white/10 rounded-[2.5rem] shadow-2xl">
+      <DialogContent className="max-w-[95vw] h-[90vh] p-0 overflow-hidden bg-slate-950 border-white/10 rounded-[2.5rem] shadow-2xl">
         {/* Accessible Header (Hidden visually) */}
         <DialogHeader className="sr-only">
           <DialogTitle>Song Studio - Editing Song</DialogTitle>
