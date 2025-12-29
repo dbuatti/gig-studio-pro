@@ -59,9 +59,9 @@ def download_task(token, video_url, supabase_url=None, supabase_key=None, song_i
                 "Prefer": "return=minimal"
             }
             requests.patch(update_url, headers=headers, json={"extraction_status": "PROCESSING"})
-            log(f"Supabase Status Updated: PROCESSING for {song_id}")
+            log(f"[download_task] Supabase Status Updated: PROCESSING for {song_id}")
         except Exception as e:
-            log(f"Supabase Init Update Error: {e}")
+            log(f"[download_task] Supabase Init Update Error for {song_id}: {e}")
 
     file_id = str(uuid.uuid4())
     output_template = os.path.join(DOWNLOAD_DIR, f"{file_id}.%(ext)s")
@@ -77,24 +77,25 @@ def download_task(token, video_url, supabase_url=None, supabase_key=None, song_i
         }],
         'nocheckcertificate': True,
         'quiet': True,
+        'logger': log # Direct yt_dlp logs to our function
     }
 
     try:
+        log(f"[download_task] Starting yt_dlp extraction for {video_url}")
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            # Get duration before download for DB update
             info = ydl.extract_info(video_url, download=True)
             duration = info.get('duration', 0)
+        log(f"[download_task] yt_dlp extraction completed. Duration: {duration}s")
         
         expected_file = os.path.join(DOWNLOAD_DIR, f"{file_id}.mp3")
         if os.path.exists(expected_file):
-            log(f"SUCCESS | MP3 ready for upload: {token}")
+            log(f"[download_task] SUCCESS | MP3 ready for upload: {token} at {expected_file}")
             
-            # If Supabase info provided, upload and update DB
             if supabase_url and supabase_key and song_id and user_id:
                 storage_path = f"{user_id}/{song_id}/{int(time.time())}.mp3"
                 upload_url = f"{supabase_url}/storage/v1/object/public_audio/{storage_path}"
                 
-                log(f"Uploading to Supabase: {storage_path}")
+                log(f"[download_task] Uploading to Supabase Storage: {storage_path}")
                 with open(expected_file, 'rb') as f:
                     upload_res = requests.post(
                         upload_url,
@@ -121,18 +122,18 @@ def download_task(token, video_url, supabase_url=None, supabase_key=None, song_i
                         "extraction_status": "COMPLETED",
                         "last_extracted_at": time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
                     })
-                    log(f"BACKGROUND SYNC COMPLETE | Song: {song_id}")
+                    log(f"[download_task] BACKGROUND SYNC COMPLETE | Song: {song_id} | Public URL: {public_url}")
                 else:
-                    log(f"UPLOAD FAILED: {upload_res.status_code} - {upload_res.text}")
-                    raise Exception("Supabase Upload Error")
+                    log(f"[download_task] UPLOAD FAILED for {song_id}: {upload_res.status_code} - {upload_res.text}")
+                    raise Exception(f"Supabase Upload Error: {upload_res.status_code} - {upload_res.text}")
             
             active_tokens[token]['file_path'] = expected_file
             active_tokens[token]['status'] = 'ready'
         else:
-            raise Exception("Conversion Error")
+            raise Exception("MP3 conversion failed: Expected file not found.")
 
     except Exception as e:
-        log(f"ERROR | {token} | {str(e)}")
+        log(f"[download_task] ERROR | {token} | Song: {song_id} | Message: {str(e)}")
         active_tokens[token]['status'] = 'error'
         active_tokens[token]['error_message'] = str(e)
         if supabase_url and supabase_key and song_id:
@@ -143,21 +144,26 @@ def download_task(token, video_url, supabase_url=None, supabase_key=None, song_i
                     "Authorization": f"Bearer {supabase_key}",
                     "Content-Type": "application/json"
                 }
-                requests.patch(update_url, headers=headers, json={"extraction_status": "FAILED"})
-            except: pass
+                requests.patch(update_url, headers=headers, json={"extraction_status": "FAILED", "last_sync_log": str(e)})
+                log(f"[download_task] Supabase Status Updated: FAILED for {song_id}")
+            except Exception as db_e:
+                log(f"[download_task] Supabase Error Update Failed for {song_id}: {db_e}")
 
 @app.route('/')
 def init_download():
     video_url = request.args.get('url')
-    # Background parameters
     s_url = request.args.get('s_url')
     s_key = request.args.get('s_key')
     song_id = request.args.get('song_id')
     user_id = request.args.get('user_id')
 
-    if not video_url: return jsonify({"error": "No URL"}), 400
+    if not video_url: 
+        log("[init_download] Error: No URL provided.")
+        return jsonify({"error": "No URL"}), 400
+    
     token = str(uuid.uuid4())
     active_tokens[token] = {'status': 'processing', 'progress': 0, 'timestamp': time.time(), 'file_path': None}
+    log(f"[init_download] Received request for {video_url}. Assigned token: {token}")
     
     threading.Thread(
         target=download_task, 
@@ -171,16 +177,20 @@ def init_download():
 def get_file():
     token = request.args.get('token')
     if not token or token not in active_tokens:
+        log(f"[get_file] Error: Invalid or missing token: {token}")
         return jsonify({"error": "Invalid token"}), 404
     
     task = active_tokens[token]
     if task['status'] == 'processing':
+        log(f"[get_file] Status: Processing for token: {token}")
         return jsonify({"status": "processing", "progress": task.get('progress', 0)}), 202
     
     if task['status'] == 'error':
+        log(f"[get_file] Status: Error for token: {token}. Message: {task.get('error_message', 'Unknown Error')}")
         return jsonify({"status": "error", "error": task.get('error_message', 'Unknown Error')}), 500
 
     if task['status'] == 'ready':
+        log(f"[get_file] Status: Ready for token: {token}. Serving file: {task['file_path']}")
         response = make_response(send_file(
             task['file_path'], 
             as_attachment=True, 
