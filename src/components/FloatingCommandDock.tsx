@@ -37,8 +37,6 @@ interface FloatingCommandDockProps {
   isMenuOpen?: boolean;
 }
 
-type MenuDirection = 'left' | 'right';
-
 const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   onOpenSearch,
   onOpenPractice,
@@ -78,21 +76,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   const [isSafePitchActive, setIsSafePitchActive] = useState(false);
   const { safePitchMaxNote } = useSettings();
 
-  const isMobile = typeof window !== 'undefined' && (window.innerWidth < 768 || 'ontouchstart' in window);
-
   const internalIsMenuOpen = isReaderMode ? isMenuOpenProp : isOpen;
-
-  // Truly intelligent direction: always opens inward, never off-screen
-  const direction = useMemo((): MenuDirection => {
-    if (typeof window === 'undefined') return 'right';
-
-    const windowWidth = window.innerWidth;
-    const dockApproxX = windowWidth - 80 + position.x; // ~80px from right edge when at default
-
-    // If the dock is on the left half of the screen → open right
-    // If on the right half → open left
-    return dockApproxX < windowWidth / 2 ? 'right' : 'left';
-  }, [position.x]);
 
   const handleToggleMenu = useCallback(() => {
     const nextState = !internalIsMenuOpen;
@@ -136,7 +120,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     }
   }, [isSafePitchActive, safePitchLimit, currentSongPitch, onSafePitchToggle]);
 
-  // Restored your original beautiful colors and sizes
+  // Your original beautiful colors
   const primaryButtons = [
     {
       id: 'practice',
@@ -184,14 +168,11 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
         onDragEnd={handleDragEnd}
         style={{ x: position.x, y: position.y }}
         className={cn(
-          "fixed bottom-8 right-8 z-[9999] touch-none cursor-grab active:cursor-grabbing",
-          "flex items-center gap-3",
-          direction === 'left' && "flex-row-reverse",
-          direction === 'right' && "flex-row",
-          isMobile && internalIsMenuOpen && "flex-col bottom-20 right-auto left-1/2 -translate-x-1/2" // centered vertical on mobile
+          "fixed bottom-8 left-8 z-[9999] touch-none cursor-grab active:cursor-grabbing",
+          "flex flex-col-reverse items-center gap-3" // Always vertical, expands upward
         )}
       >
-        {/* Main Hub Button - Your original colors and style */}
+        {/* Main Hub Button */}
         <div className="bg-slate-950/90 backdrop-blur-2xl p-2 rounded-full border border-white/20 shadow-2xl">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -209,28 +190,21 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                 {internalIsMenuOpen ? <X className="w-6 h-6" /> : <LayoutDashboard className="w-6 h-6" />}
               </Button>
             </TooltipTrigger>
-            <TooltipContent side={direction === 'left' ? 'right' : 'left'}>Command Hub</TooltipContent>
+            <TooltipContent side="right">Command Hub</TooltipContent>
           </Tooltip>
         </div>
 
         <AnimatePresence>
           {internalIsMenuOpen && (
             <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              transition={{ duration: 0.2 }}
-              className={cn(
-                "flex items-center gap-3",
-                direction === 'left' ? "mr-4" : "ml-4",
-                isMobile && "flex-col !gap-5"
-              )}
+              initial={{ opacity: 0, scale: 0.8, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.8, y: 20 }}
+              transition={{ duration: 0.25 }}
+              className="flex flex-col-reverse items-center gap-4 mb-4" // Expands upward
             >
-              {/* Primary Buttons - Your original styling */}
-              <div className={cn(
-                "flex items-center gap-3 p-3 bg-slate-950/90 rounded-[2.5rem] border border-white/10 shadow-2xl backdrop-blur-xl",
-                isMobile ? "flex-col" : "flex-row"
-              )}>
+              {/* Primary Panel */}
+              <div className="flex flex-col items-center gap-3 p-4 bg-slate-950/90 rounded-[2.5rem] border border-white/10 shadow-2xl backdrop-blur-xl">
                 {primaryButtons.map((btn) => (
                   <Tooltip key={btn.id}>
                     <TooltipTrigger asChild>
@@ -244,7 +218,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                         {btn.icon}
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent side={direction === 'left' ? 'right' : 'left'}>{btn.tooltip}</TooltipContent>
+                    <TooltipContent side="right">{btn.tooltip}</TooltipContent>
                   </Tooltip>
                 ))}
 
@@ -263,21 +237,18 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                       {isSubMenuOpen ? <X className="w-5 h-5" /> : <Wrench className="w-5 h-5" />}
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side={direction === 'left' ? 'right' : 'left'}>Utilities</TooltipContent>
+                  <TooltipContent side="right">Utilities</TooltipContent>
                 </Tooltip>
               </div>
 
-              {/* Secondary Menu */}
+              {/* Secondary Grid - Vertical stack on mobile/small screens too */}
               <AnimatePresence>
                 {isSubMenuOpen && (
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.5 }}
-                    animate={{ opacity: 1, scale: 1 }}
+                    initial={{ opacity: 0, scale: 0.5, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.5 }}
-                    className={cn(
-                      "grid grid-cols-2 gap-2 p-3 bg-slate-900/90 rounded-[2rem] border border-white/10 shadow-2xl backdrop-blur-xl",
-                      (direction === 'left' || direction === 'right') && !isMobile && "grid-flow-col"
-                    )}
+                    className="grid grid-cols-2 gap-3 p-4 bg-slate-900/90 rounded-[2rem] border border-white/10 shadow-2xl backdrop-blur-xl"
                   >
                     {secondaryButtons.map((btn) => (
                       <Tooltip key={btn.id}>
