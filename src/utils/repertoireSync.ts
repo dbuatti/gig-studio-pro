@@ -11,6 +11,14 @@ const isValidUuid = (uuid: string | undefined | null): boolean => {
 };
 
 /**
+ * Cleans metadata by removing redundant quotes and trimming whitespace.
+ */
+const cleanMetadata = (val: string | undefined | null) => {
+  if (!val) return "";
+  return val.trim().replace(/^["']+|["']+$/g, '');
+};
+
+/**
  * Calculates a readiness score (0-100) based on asset presence.
  */
 export const calculateReadiness = (song: Partial<SetlistSong>): number => {
@@ -18,7 +26,7 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
   
   // 1. Audio Assets (Max 25)
   const preview = song.previewUrl || "";
-  const isItunes = preview.includes('apple.com') || preview.includes('itunes-assets');
+  const isItunes = preview.includes('apple.com') || preview.includes('itunes-assets') || preview.includes('mzstatic.com');
   if (preview && !isItunes) assetScore += 25;
 
   // 2. Chords & Lyrics (Max 20)
@@ -54,6 +62,7 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
 
 /**
  * Synchronizes local setlist songs with the master repertoire table.
+ * Uses ID for conflict resolution to allow renames without duplication.
  */
 export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong | SetlistSong[]): Promise<SetlistSong[]> => {
   if (!userId) return Array.isArray(songs) ? songs : [songs];
@@ -65,8 +74,8 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
     const payloads = songsArray.map(song => {
       const payload: { [key: string]: any } = {
         user_id: userId,
-        title: song.name?.trim() || 'Untitled Track',
-        artist: song.artist?.trim() || 'Unknown Artist',
+        title: cleanMetadata(song.name) || 'Untitled Track',
+        artist: cleanMetadata(song.artist) || 'Unknown Artist',
         updated_at: new Date().toISOString(),
         readiness_score: calculateReadiness(song),
         is_active: true,
@@ -106,20 +115,25 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       return payload;
     });
     
+    // Logic: Use 'id' for conflict resolution if we have it (allows renaming).
+    // If no ID is present (new song), default to metadata to match existing entries.
+    const hasIds = payloads.some(p => p.id);
+    const conflictTarget = hasIds ? 'id' : 'user_id,title,artist';
+
     const { data, error } = await supabase
       .from('repertoire')
-      .upsert(payloads, { onConflict: 'user_id,title,artist' })
+      .upsert(payloads, { onConflict: conflictTarget })
       .select('id, title, artist');
       
     if (error) {
-      console.error("[syncToMasterRepertoire] Supabase 400 Error:", error.message, error.details);
+      console.error("[syncToMasterRepertoire] Upsert Failure:", error.message);
       throw error;
     }
     
     return songsArray.map(originalSong => {
       const matchedDbSong = data.find(dbSong => {
         if (originalSong.master_id && dbSong.id === originalSong.master_id) return true;
-        if (dbSong.title === originalSong.name?.trim() && dbSong.artist === (originalSong.artist?.trim() || 'Unknown Artist')) return true;
+        if (dbSong.title === cleanMetadata(originalSong.name) && dbSong.artist === (cleanMetadata(originalSong.artist) || 'Unknown Artist')) return true;
         return false;
       });
       
