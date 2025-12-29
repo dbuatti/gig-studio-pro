@@ -1,14 +1,18 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Search, Sparkles, ShieldCheck, X, Settings, Play, FileText, Pause, BookOpen, AlertTriangle, Volume2, ShieldAlert, Music, ListMusic, ChevronLeft, ChevronRight, GripVertical, Maximize2, Minimize2 } from 'lucide-react';
+import { 
+  LayoutDashboard, Search, Sparkles, ShieldCheck, X, Settings, 
+  Play, FileText, Pause, BookOpen, Volume2, ShieldAlert, 
+  ChevronUp, ChevronDown 
+} from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import { motion, AnimatePresence, useDragControls } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useSettings } from '@/hooks/use-settings';
-import { transposeNote, compareNotes } from '@/utils/keyUtils';
-import { showSuccess, showError } from '@/utils/toast';
+import { compareNotes } from '@/utils/keyUtils';
+import { showError } from '@/utils/toast';
 
 interface FloatingCommandDockProps {
   onOpenSearch: () => void;
@@ -30,7 +34,6 @@ interface FloatingCommandDockProps {
   isReaderMode?: boolean;
   activeSongId?: string | null;
   onSetMenuOpen?: (open: boolean) => void;
-  onSetUiVisible?: (visible: boolean) => void;
   isMenuOpen?: boolean;
 }
 
@@ -43,7 +46,6 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   onToggleHeatmap,
   onOpenUserGuide,
   showHeatmap,
-  viewMode,
   hasPlayableSong,
   hasReadableChart,
   isPlaying,
@@ -54,7 +56,6 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   isReaderMode = false,
   activeSongId,
   onSetMenuOpen,
-  onSetUiVisible,
   isMenuOpen: isMenuOpenProp,
 }) => {
   // --- Persisted State ---
@@ -76,7 +77,6 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   const [isCommandHubOpen, setIsCommandHubOpen] = useState(false);
   const [isSafePitchActive, setIsSafePitchActive] = useState(false);
   const { safePitchMaxNote } = useSettings();
-  const dragControls = useDragControls();
 
   // Sync isMenuOpen for ReaderMode
   const internalIsMenuOpen = isReaderMode ? isMenuOpenProp : isCommandHubOpen;
@@ -124,59 +124,52 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     }
   }, [isSafePitchActive, safePitchLimit, currentSongPitch, onSafePitchToggle]);
 
-  const toggleCollapse = () => {
-    setIsCollapsed(prev => !prev);
-    if (typeof window !== 'undefined' && window.navigator.vibrate) {
-      window.navigator.vibrate(20);
-    }
-  };
-
   const primaryButtons = [
     {
       id: 'reader',
       icon: <FileText className="w-5 h-5" />,
       onClick: () => onOpenReader(activeSongId || undefined),
       disabled: !hasReadableChart,
-      tooltip: "Open Reader",
-      className: "bg-slate-800 text-slate-400 border-white/5",
+      tooltip: "Sheet Reader (R)",
+      className: "bg-emerald-600/20 text-emerald-400 border-emerald-500/30 hover:bg-emerald-600 hover:text-white",
     },
     {
       id: 'practice',
       icon: isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />,
-      onClick: onOpenPractice,
+      onClick: onTogglePlayback,
       disabled: !hasPlayableSong,
-      tooltip: isPlaying ? "Pause (Space)" : "Practice Mode (Space)",
+      tooltip: isPlaying ? "Pause (Space)" : "Play (Space)",
       className: cn(
-        "text-white",
-        isPlaying ? "bg-red-600 shadow-lg shadow-red-600/20" : "bg-indigo-600 shadow-lg shadow-indigo-600/20"
+        "text-white shadow-lg",
+        isPlaying ? "bg-red-600 border-red-500 hover:bg-red-700" : "bg-indigo-600 border-indigo-500 hover:bg-indigo-700"
       ),
     },
     {
       id: 'search',
       icon: <Search className="w-5 h-5" />,
       onClick: onOpenSearch,
-      tooltip: "Global Search",
-      className: "bg-slate-800 text-slate-400 border-white/5",
+      tooltip: "Global Discovery",
+      className: "bg-slate-800 text-slate-100 border-white/10 hover:bg-indigo-600 hover:text-white",
     },
   ];
 
   const secondaryButtons = [
-    { id: 'user-guide', icon: <BookOpen className="w-4 h-4" />, onClick: onOpenUserGuide, tooltip: "User Guide", className: "bg-slate-900 text-slate-400" },
-    { id: 'preferences', icon: <Settings className="w-4 h-4" />, onClick: onOpenPreferences, tooltip: "Preferences", className: "bg-slate-900 text-slate-400" },
-    { id: 'admin', icon: <ShieldCheck className="w-4 h-4" />, onClick: onOpenAdmin, tooltip: "Audit Matrix", className: "bg-red-950/20 text-red-400 border-red-900/30" },
+    { id: 'user-guide', icon: <BookOpen className="w-4 h-4" />, onClick: onOpenUserGuide, tooltip: "User Guide", className: "bg-blue-600/20 text-blue-400 border-blue-500/30" },
+    { id: 'preferences', icon: <Settings className="w-4 h-4" />, onClick: onOpenPreferences, tooltip: "Preferences", className: "bg-slate-800 text-slate-300 border-white/10" },
+    { id: 'admin', icon: <ShieldCheck className="w-4 h-4" />, onClick: onOpenAdmin, tooltip: "Audit Matrix", className: "bg-red-900/40 text-red-400 border-red-500/30" },
     { 
       id: 'heatmap', 
       icon: <Sparkles className="w-4 h-4" />, 
-      onClick: onOpenAdmin, // Re-mapped to Audit per your recent requests or toggle heatmap
+      onClick: onToggleHeatmap,
       tooltip: "Heatmap (H)", 
-      className: cn(showHeatmap ? "bg-amber-500 text-black" : "bg-slate-900 text-slate-400") 
+      className: cn(showHeatmap ? "bg-amber-500 text-black border-amber-400" : "bg-slate-800 text-amber-400 border-amber-500/20") 
     },
     { 
       id: 'safe-pitch', 
       icon: <ShieldAlert className="w-4 h-4" />, 
       onClick: () => setIsSafePitchActive(!isSafePitchActive), 
-      tooltip: "Safe Pitch", 
-      className: cn(isSafePitchActive ? "bg-emerald-600 text-white" : "bg-slate-900 text-slate-400") 
+      tooltip: "Safe Pitch Mode", 
+      className: cn(isSafePitchActive ? "bg-emerald-600 text-white border-emerald-400" : "bg-slate-800 text-emerald-400 border-emerald-500/20") 
     },
   ];
 
@@ -185,51 +178,12 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
       <motion.div
         drag
         dragMomentum={false}
-        dragControls={dragControls}
-        dragListener={false} // Only drag by the handle
         onDragEnd={handleDragEnd}
         style={{ x: position.x, y: position.y }}
-        className="fixed bottom-8 right-8 z-[300] flex flex-col items-center gap-3 touch-none"
+        className="fixed bottom-8 right-8 z-[300] flex flex-col-reverse items-center gap-3 touch-none cursor-grab active:cursor-grabbing"
       >
-        {/* Secondary Hub Fan (Vertical) */}
-        <AnimatePresence>
-          {internalIsMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: 10, scale: 0.9 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 10, scale: 0.9 }}
-              className="flex flex-col gap-2 mb-1"
-            >
-              {secondaryButtons.map((btn) => (
-                <Tooltip key={btn.id}>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => { btn.onClick(); setInternalIsMenuOpen(false); }}
-                      className={cn("h-10 w-10 rounded-full border shadow-xl transition-all hover:scale-110", btn.className)}
-                    >
-                      {btn.icon}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="left" className="text-[10px] font-black uppercase">{btn.tooltip}</TooltipContent>
-                </Tooltip>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Main Dock Container */}
-        <div className="flex items-center bg-black/40 backdrop-blur-2xl p-1.5 rounded-full border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-          {/* Drag Handle & Collapse Toggle */}
-          <div 
-            onPointerDown={(e) => dragControls.start(e)}
-            className="h-12 w-8 flex items-center justify-center cursor-grab active:cursor-grabbing text-slate-600 hover:text-white transition-colors"
-          >
-            <GripVertical className="w-4 h-4" />
-          </div>
-
-          {/* Hub Trigger Button */}
+        {/* Hub Trigger Button (The Anchor) */}
+        <div className="flex flex-col items-center bg-slate-950/90 backdrop-blur-2xl p-2 rounded-full border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -237,26 +191,59 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                 size="icon"
                 onClick={() => setInternalIsMenuOpen(!internalIsMenuOpen)}
                 className={cn(
-                  "h-12 w-12 rounded-full transition-all duration-500",
-                  internalIsMenuOpen ? "bg-slate-200 text-black rotate-90" : "text-slate-400 hover:text-white"
+                  "h-14 w-14 rounded-full transition-all duration-500 border-2",
+                  internalIsMenuOpen 
+                    ? "bg-slate-100 text-slate-950 border-white rotate-90 shadow-xl" 
+                    : "bg-slate-900 text-indigo-400 border-white/10 hover:border-indigo-500/50"
                 )}
               >
-                {internalIsMenuOpen ? <X className="w-5 h-5" /> : <LayoutDashboard className="w-5 h-5" />}
+                {internalIsMenuOpen ? <X className="w-6 h-6" /> : <LayoutDashboard className="w-6 h-6" />}
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="top" className="text-[10px] font-black uppercase">Command Hub</TooltipContent>
+            <TooltipContent side="left" className="text-[10px] font-black uppercase">Command Hub</TooltipContent>
           </Tooltip>
 
-          {/* Collapsible Section */}
-          <AnimatePresence initial={false}>
-            {!isCollapsed && (
-              <motion.div
-                initial={{ width: 0, opacity: 0, marginLeft: 0 }}
-                animate={{ width: "auto", opacity: 1, marginLeft: 8 }}
-                exit={{ width: 0, opacity: 0, marginLeft: 0 }}
-                className="flex items-center gap-2 overflow-hidden pr-2"
-              >
-                <div className="h-6 w-px bg-white/10 mx-1" />
+          {/* Expand/Collapse Toggle Button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="h-8 w-8 mt-1 rounded-full text-slate-500 hover:text-white transition-colors"
+          >
+            {isCollapsed ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </Button>
+        </div>
+
+        {/* Action Buttons Stack (Visible when hub is open and NOT collapsed) */}
+        <AnimatePresence>
+          {internalIsMenuOpen && !isCollapsed && (
+            <motion.div
+              initial={{ opacity: 0, y: 20, scale: 0.8 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.8 }}
+              className="flex flex-col items-center gap-3 mb-2"
+            >
+              {/* Secondary Actions (Mini) */}
+              <div className="flex flex-col items-center gap-2 p-2 bg-slate-900/60 rounded-3xl border border-white/5 mb-2">
+                {secondaryButtons.map((btn) => (
+                  <Tooltip key={btn.id}>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => { btn.onClick(); if (btn.id !== 'heatmap' && btn.id !== 'safe-pitch') setInternalIsMenuOpen(false); }}
+                        className={cn("h-10 w-10 rounded-full border transition-all hover:scale-110", btn.className)}
+                      >
+                        {btn.icon}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="left" className="text-[10px] font-black uppercase tracking-widest">{btn.tooltip}</TooltipContent>
+                  </Tooltip>
+                ))}
+              </div>
+
+              {/* Primary Actions (Large) */}
+              <div className="flex flex-col items-center gap-3 p-2 bg-slate-900/80 rounded-[2.5rem] border border-white/10 shadow-2xl">
                 {primaryButtons.map((btn) => (
                   <Tooltip key={btn.id}>
                     <TooltipTrigger asChild>
@@ -264,29 +251,22 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                         variant="ghost"
                         size="icon"
                         disabled={btn.disabled}
-                        onClick={btn.onClick}
-                        className={cn("h-11 w-11 rounded-full border transition-all active:scale-90 disabled:opacity-20", btn.className)}
+                        onClick={() => { btn.onClick(); if (btn.id === 'search') setInternalIsMenuOpen(false); }}
+                        className={cn(
+                          "h-14 w-14 rounded-full border-2 transition-all active:scale-90 disabled:opacity-10", 
+                          btn.className
+                        )}
                       >
                         {btn.icon}
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent side="top" className="text-[10px] font-black uppercase">{btn.tooltip}</TooltipContent>
+                    <TooltipContent side="left" className="text-[10px] font-black uppercase tracking-widest">{btn.tooltip}</TooltipContent>
                   </Tooltip>
                 ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Expand/Collapse Arrow */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleCollapse}
-            className="h-10 w-6 rounded-full text-slate-600 hover:text-white hover:bg-white/5"
-          >
-            {isCollapsed ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-          </Button>
-        </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     </TooltipProvider>
   );
