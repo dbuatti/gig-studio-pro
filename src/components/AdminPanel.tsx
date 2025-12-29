@@ -600,11 +600,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
                             <p className="text-xs md:text-sm text-slate-400 mt-1">Force refresh all master audio assets.</p>
                          </div>
                       </div>
-                      <div className="flex flex-col sm:flex-row gap-3">
+                      <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                         <Button 
                           onClick={() => handleBulkBackgroundExtract(true)} 
                           disabled={isExtractingMissing || isExtracting}
-                          className="bg-indigo-600 hover:bg-indigo-700 h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg"
+                          className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg"
                         >
                           {isExtractingMissing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                           Download Remaining
@@ -612,7 +612,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
                         <Button 
                           onClick={() => handleBulkBackgroundExtract(false)} 
                           disabled={isExtracting || isExtractingMissing}
-                          className="bg-red-600 hover:bg-red-700 h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg"
+                          className="flex-1 sm:flex-none bg-red-600 hover:bg-red-700 h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg"
                         >
                           {isExtracting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
                           Force Refresh All

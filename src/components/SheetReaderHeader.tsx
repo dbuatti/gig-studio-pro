@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Search, Music, ChevronLeft, ChevronRight, Loader2, ChevronDown, Maximize2, Minimize2, Bug, Hash, Sparkles } from 'lucide-react';
+import { ArrowLeft, Search, Music, ChevronLeft, ChevronRight, Loader2, ChevronDown, Maximize2, Minimize2, Bug, Hash, Sparkles, ListMusic } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatKey, ALL_KEYS_SHARP, ALL_KEYS_FLAT } from '@/utils/keyUtils';
 import { SetlistSong } from './SetlistManager';
@@ -33,6 +33,9 @@ interface SheetReaderHeaderProps {
   setReaderKeyPreference: (pref: 'sharps' | 'flats') => void;
   // NEW: Pull Key Handler
   onPullKey: () => void;
+  // NEW: Sidebar Toggle
+  isSidebarOpen: boolean;
+  onToggleSidebar: () => void;
 }
 
 const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
@@ -53,6 +56,8 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   readerKeyPreference,
   setReaderKeyPreference,
   onPullKey,
+  isSidebarOpen,
+  onToggleSidebar,
 }) => {
   // Use the reader specific preference for display
   const rawTargetKey = currentSong?.targetKey || currentSong?.originalKey;
@@ -62,10 +67,21 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   return (
     <div className="fixed top-0 left-0 right-0 z-60 bg-slate-900/80 backdrop-blur-xl border-b border-white/10 px-6 py-3 flex items-center justify-between shadow-lg animate-in slide-in-from-top duration-300">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={onClose} className="h-10 w-10 rounded-xl hover:bg-white/10 text-slate-400">
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
+        <Button variant="ghost" size="icon" onClick={onClose} className="h-10 w-10 rounded-xl bg-white/5"><ArrowLeft className="w-5 h-5 text-slate-400" /></Button>
         
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={onToggleSidebar} 
+          className={cn(
+            "h-10 w-10 rounded-xl transition-all",
+            isSidebarOpen ? "bg-indigo-600 text-white hover:bg-indigo-700" : "bg-white/5 hover:bg-white/10 text-slate-400"
+          )}
+          title="Toggle Song List"
+        >
+          <ListMusic className="w-5 h-5" />
+        </Button>
+
         <div className="flex items-center gap-2">
           <Button 
             variant="ghost" 

@@ -21,6 +21,7 @@ import PreferencesModal from '@/components/PreferencesModal';
 import SongStudioModal from '@/components/SongStudioModal';
 import SheetReaderHeader from '@/components/SheetReaderHeader';
 import SheetReaderFooter from '@/components/SheetReaderFooter';
+import SheetReaderSidebar from '@/components/SheetReaderSidebar'; // NEW: Import Sidebar
 import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
 import { motion } from 'framer-motion';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -55,6 +56,7 @@ const SheetReaderMode: React.FC = () => {
   const [isImmersive, setIsImmersive] = useState(false);
   const [isStudioModalOpen, setIsStudioModalOpen] = useState(false);
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // NEW: Sidebar state
 
   const [readerKeyPreference, setReaderKeyPreference] = useState<'sharps' | 'flats'>(globalKeyPreference);
   const [selectedChartType, setSelectedChartType] = useState<ChartType>('pdf');
@@ -77,7 +79,7 @@ const SheetReaderMode: React.FC = () => {
     isLoadingAudio
   } = audioEngine;
 
-  const [chordAutoScrollEnabled, setChordAutoScrollEnabled] = useState(true);
+  const [chordAutoScrollEnabled, setChordAutoScrollEnabled] = useState(false); // Default to false
   const [chordScrollSpeed, setChordScrollSpeed] = useState(1.0);
 
   const currentSong = allSongs[currentIndex];
@@ -195,6 +197,7 @@ const SheetReaderMode: React.FC = () => {
         sheet_music_url: d.sheet_music_url,
         is_sheet_verified: d.is_sheet_verified,
         highest_note_original: d.highest_note_original,
+        extraction_status: d.extraction_status
       }));
 
       const filtered = mappedSongs.filter(s => {
@@ -254,28 +257,26 @@ const SheetReaderMode: React.FC = () => {
   }, [user]);
 
   useEffect(() => {
-    const fromDashboard = sessionStorage.getItem('from_dashboard');
-    if (!fromDashboard) {
-      navigate('/', { replace: true });
-      return;
-    }
-    sessionStorage.removeItem('from_dashboard');
+    // FIX: Removed the session storage check to allow direct access/refresh, 
+    // but kept the navigation to '/' if no user is present (handled by App.tsx ProtectedRoute)
     fetchSongs();
     fetchAllSetlists();
-  }, [fetchSongs, fetchAllSetlists, navigate]);
+  }, [fetchSongs, fetchAllSetlists]);
 
   useEffect(() => {
     if (!currentSong?.previewUrl) {
       stopPlayback();
       return;
     }
-    if (currentUrl !== currentSong.previewUrl) {
+    // FIX: Ensure audio is reset and reloaded if the song changes, even if the URL is the same 
+    // (to ensure pitch/tempo settings are applied correctly to the new song context)
+    if (currentUrl !== currentSong.previewUrl || !currentBuffer) {
       resetEngine();
       loadFromUrl(currentSong.previewUrl, pitch || 0, true);
     } else {
       setAudioProgress(0);
     }
-  }, [currentSong, pitch, currentUrl, loadFromUrl, stopPlayback, resetEngine, setAudioProgress]);
+  }, [currentSong, pitch, currentUrl, currentBuffer, loadFromUrl, stopPlayback, resetEngine, setAudioProgress]);
 
   useEffect(() => {
     if (currentSong) {
@@ -284,17 +285,22 @@ const SheetReaderMode: React.FC = () => {
     }
   }, [currentSong, currentIndex, setSearchParams]);
 
+  const handleSelectSongByIndex = useCallback((index: number) => {
+    if (index >= 0 && index < allSongs.length) {
+      setCurrentIndex(index);
+      stopPlayback();
+    }
+  }, [allSongs.length, stopPlayback]);
+
   const handleNext = useCallback(() => {
     if (allSongs.length === 0) return;
-    setCurrentIndex(prev => (prev + 1) % allSongs.length);
-    stopPlayback();
-  }, [allSongs.length, stopPlayback]);
+    handleSelectSongByIndex((currentIndex + 1) % allSongs.length);
+  }, [allSongs.length, currentIndex, handleSelectSongByIndex]);
 
   const handlePrev = useCallback(() => {
     if (allSongs.length === 0) return;
-    setCurrentIndex(prev => (prev - 1 + allSongs.length) % allSongs.length);
-    stopPlayback();
-  }, [allSongs.length, stopPlayback]);
+    handleSelectSongByIndex((currentIndex - 1 + allSongs.length) % allSongs.length);
+  }, [allSongs.length, currentIndex, handleSelectSongByIndex]);
 
   const handleUpdateKey = useCallback(async (newTargetKey: string) => {
     if (!currentSong || !user) return;
@@ -361,7 +367,6 @@ const SheetReaderMode: React.FC = () => {
 
   const [renderedCharts, setRenderedCharts] = useState<RenderedChart[]>([]);
 
-  // Restored handleChartLoad definition
   const handleChartLoad = useCallback((id: string, type: ChartType) => {
     setRenderedCharts(prev => prev.map(rc => 
       rc.id === id && rc.type === type ? { ...rc, isLoaded: true } : rc
@@ -486,12 +491,14 @@ const SheetReaderMode: React.FC = () => {
   }, [currentChartState, currentSong, selectedChartType]);
 
   const availableChartTypes = useMemo((): ChartType[] => {
-    if (!currentSong) return [];
-    const types: ChartType[] = [];
-    if (currentSong.pdfUrl) types.push('pdf');
-    if (currentSong.leadsheetUrl) types.push('leadsheet');
-    if (currentSong.ug_chords_text?.trim()) types.push('chords');
-    return types;
+    if (currentSong) {
+      const types: ChartType[] = [];
+      if (currentSong.pdfUrl) types.push('pdf');
+      if (currentSong.leadsheetUrl) types.push('leadsheet');
+      if (currentSong.ug_chords_text?.trim()) types.push('chords');
+      return types;
+    }
+    return [];
   }, [currentSong]);
 
   useEffect(() => {
@@ -500,17 +507,25 @@ const SheetReaderMode: React.FC = () => {
     }
   }, [currentSong, availableChartTypes, selectedChartType]);
 
+  // NEW: Keyboard navigation for songs
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || (e.target as HTMLElement).isContentEditable) return;
-      if (e.key.toLowerCase() === 'i' && currentSong) {
+      
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        handleNext();
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        handlePrev();
+      } else if (e.key.toLowerCase() === 'i' && currentSong) {
         e.preventDefault();
         setIsStudioModalOpen(true);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentSong]);
+  }, [currentSong, handleNext, handlePrev]);
 
   if (initialLoading) {
     return (
@@ -522,7 +537,22 @@ const SheetReaderMode: React.FC = () => {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-white">
-      <main className="flex-1 flex flex-col overflow-hidden">
+      
+      {/* Sidebar */}
+      <motion.div
+        initial={{ x: isSidebarOpen ? 0 : -300 }}
+        animate={{ x: isSidebarOpen ? 0 : -300 }}
+        transition={{ duration: 0.3 }}
+        className="h-full w-[300px] shrink-0 z-50"
+      >
+        <SheetReaderSidebar 
+          songs={allSongs} 
+          currentIndex={currentIndex} 
+          onSelectSong={handleSelectSongByIndex} 
+        />
+      </motion.div>
+
+      <main className="flex-1 flex flex-col overflow-hidden relative">
         <SheetReaderHeader
           currentSong={currentSong}
           onClose={() => navigate('/')}
@@ -543,6 +573,8 @@ const SheetReaderMode: React.FC = () => {
           readerKeyPreference={readerKeyPreference}
           setReaderKeyPreference={setReaderKeyPreference}
           onPullKey={handlePullKey}
+          isSidebarOpen={isSidebarOpen}
+          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         />
 
         {(!currentSong?.originalKey || currentSong.originalKey === 'TBC') && (

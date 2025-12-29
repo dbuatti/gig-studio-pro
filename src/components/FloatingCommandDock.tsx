@@ -82,22 +82,45 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   const direction = useMemo((): MenuDirection => {
     if (typeof window === 'undefined') return 'up';
     
-    // We start from bottom-8 right-8
-    const midX = -window.innerWidth / 2;
-    const midY = -window.innerHeight / 2;
-
-    const leftSpace = Math.abs(position.x);
-    const rightSpace = window.innerWidth - Math.abs(position.x);
-    const topSpace = Math.abs(position.y);
-    const bottomSpace = window.innerHeight - Math.abs(position.y);
-
-    // If moved significantly horizontal, prefer horizontal expansion
-    if (Math.abs(position.x) > window.innerWidth * 0.3) {
-      return position.x < midX ? 'right' : 'left';
-    }
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
     
-    // Default to vertical
-    return position.y < midY ? 'down' : 'up';
+    // Calculate the absolute position of the dock center relative to the viewport
+    // The dock is initially positioned bottom-8 right-8, so its initial offset is negative.
+    // We need to calculate the actual screen coordinates.
+    const dockSize = 56; // Approximate size of the main button
+    const margin = 32; // 8 units margin * 4 (tailwind default)
+    
+    // Calculate the current screen position (relative to top-left)
+    const screenX = windowWidth - margin - dockSize + position.x;
+    const screenY = windowHeight - margin - dockSize + position.y;
+
+    // Determine available space
+    const spaceRight = windowWidth - screenX;
+    const spaceLeft = screenX;
+    const spaceDown = windowHeight - screenY;
+    const spaceUp = screenY;
+
+    // Threshold for deciding direction (e.g., 200px needed for menu)
+    const threshold = 200; 
+
+    // Prioritize opening away from the closest edge
+    if (spaceRight < threshold && spaceLeft > threshold) {
+      return 'left';
+    }
+    if (spaceLeft < threshold && spaceRight > threshold) {
+      return 'right';
+    }
+    if (spaceDown < threshold && spaceUp > threshold) {
+      return 'up';
+    }
+    if (spaceUp < threshold && spaceDown > threshold) {
+      return 'down';
+    }
+
+    // Default to bottom-right corner behavior (expand up and left)
+    if (screenX > windowWidth / 2) return 'up';
+    return 'right';
   }, [position]);
 
   const internalIsMenuOpen = isReaderMode ? isMenuOpenProp : isOpen;
@@ -181,18 +204,13 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     { id: 'user-guide', icon: <BookOpen className="w-4 h-4" />, onClick: onOpenUserGuide, tooltip: "Guide", className: "bg-blue-600/20 text-blue-400 border-blue-500/30" },
   ];
 
-  const containerVariants = {
-    up: { flexDirection: 'column-reverse' },
-    down: { flexDirection: 'column' },
-    left: { flexDirection: 'row-reverse' },
-    right: { flexDirection: 'row' }
-  };
-
-  const stackVariants = {
-    up: { marginBottom: 12 },
-    down: { marginTop: 12 },
-    left: { marginRight: 12 },
-    right: { marginLeft: 12 }
+  const getMenuClasses = (dir: MenuDirection) => {
+    switch (dir) {
+      case 'up': return "flex-col-reverse mb-3";
+      case 'down': return "flex-col mt-3";
+      case 'left': return "flex-row-reverse mr-3";
+      case 'right': return "flex-row ml-3";
+    }
   };
 
   return (
@@ -236,13 +254,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
-              className={cn(
-                "flex items-center gap-3",
-                direction === 'up' && "flex-col-reverse mb-3",
-                direction === 'down' && "flex-col mt-3",
-                direction === 'left' && "flex-row-reverse mr-3",
-                direction === 'right' && "flex-row ml-3"
-              )}
+              className={cn("flex items-center gap-3", getMenuClasses(direction))}
             >
               {/* Primary Slot Container */}
               <div className={cn(
@@ -289,8 +301,8 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
               <AnimatePresence>
                 {isSubMenuOpen && (
                   <motion.div
-                    initial={{ opacity: 0, x: direction === 'right' ? -20 : (direction === 'left' ? 20 : 0), y: direction === 'down' ? -20 : (direction === 'up' ? 20 : 0) }}
-                    animate={{ opacity: 1, x: 0, y: 0 }}
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.5 }}
                     className={cn(
                       "grid grid-cols-2 gap-2 p-3 bg-slate-900/90 rounded-[2rem] border border-white/10 shadow-2xl backdrop-blur-xl",
