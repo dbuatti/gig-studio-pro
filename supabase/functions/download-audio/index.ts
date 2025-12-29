@@ -13,8 +13,10 @@ serve(async (req) => {
 
   try {
     const { videoUrl, songId, userId } = await req.json();
+    console.log("[download-audio] Function started.", { videoUrl, songId, userId });
     
     if (!videoUrl) {
+      console.error("[download-audio] Video URL is required.");
       return new Response(JSON.stringify({ error: "Video URL is required" }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -28,6 +30,7 @@ serve(async (req) => {
     // @ts-ignore: Deno global
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
+    console.log("[download-audio] Triggering Render API for background audio extraction.");
     // Trigger Render API with background sync parameters
     const queryParams = new URLSearchParams({
       url: videoUrl,
@@ -40,10 +43,13 @@ serve(async (req) => {
     const triggerResponse = await fetch(`${renderUrl}/?${queryParams.toString()}`);
     
     if (!triggerResponse.ok) {
+      const errorText = await triggerResponse.text();
+      console.error(`[download-audio] Render API trigger failed: ${triggerResponse.statusText}. Response: ${errorText}`);
       throw new Error(`Render API trigger failed: ${triggerResponse.statusText}`);
     }
 
     const data = await triggerResponse.json();
+    console.log("[download-audio] Render API trigger successful. Response data:", data);
 
     return new Response(JSON.stringify({ 
       success: true, 
