@@ -136,8 +136,9 @@ const Index = () => {
         }));
         setSetlists(mapped);
         if (!currentListId) {
-          setCurrentListId(mapped[0].id);
-          localStorage.setItem('active_gig_id', mapped[0].id);
+          const listId = mapped[0].id;
+          setCurrentListId(listId);
+          localStorage.setItem('active_gig_id', listId);
         }
       }
     } catch (err) {
@@ -313,7 +314,69 @@ const Index = () => {
   };
 
   const handleBulkRefreshAudio = async () => {
-    setIsAdminOpen(true);
+    const songsToProcess = songs.filter(s => s.youtubeUrl);
+    if (songsToProcess.length === 0) {
+      showError("No songs with YouTube links found.");
+      return;
+    }
+
+    if (!confirm(`Trigger bulk audio extraction for ${songsToProcess.length} songs?`)) {
+      return;
+    }
+
+    setIsBulkDownloading(true);
+    showInfo(`Initiating extraction for ${songsToProcess.length} tracks...`);
+
+    for (let i = 0; i < songsToProcess.length; i++) {
+      const song = songsToProcess[i];
+      try {
+        const targetVideoUrl = cleanYoutubeUrl(song.youtubeUrl || '');
+        const API_BASE_URL = "https://yt-audio-api-1-wedr.onrender.com";
+        
+        const tokenRes = await fetch(`${API_BASE_URL}/?url=${encodeURIComponent(targetVideoUrl)}`);
+        const { token } = await tokenRes.json();
+
+        let downloadReady = false;
+        let fileResponse;
+        let attempts = 0;
+        
+        while (attempts < 24 && !downloadReady) {
+          attempts++;
+          await new Promise(r => setTimeout(r, 5000));
+          fileResponse = await fetch(`${API_BASE_URL}/download?token=${token}`);
+          if (fileResponse.status === 200) {
+            downloadReady = true;
+            break;
+          }
+        }
+
+        if (!downloadReady || !fileResponse) throw new Error("Timeout");
+
+        const audioArrayBuffer = await fileResponse.arrayBuffer();
+        const audioBuffer = await Tone.getContext().decodeAudioData(audioArrayBuffer.slice(0));
+
+        const fileName = `${user?.id}/${song.master_id || song.id}/${Date.now()}.mp3`;
+        const { error: uploadError } = await supabase.storage
+          .from('public_audio')
+          .upload(fileName, audioArrayBuffer, { contentType: 'audio/mpeg', upsert: true });
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = await supabase.storage.from('public_audio').getPublicUrl(fileName);
+
+        await supabase.from('repertoire').update({ 
+          preview_url: publicUrl,
+          duration_seconds: Math.round(audioBuffer.duration),
+        }).eq('id', song.master_id || song.id);
+
+      } catch (err: any) {
+        console.error(`[Index] Extraction failed for ${song.name}:`, err);
+      }
+    }
+
+    setIsBulkDownloading(false);
+    showSuccess("Bulk Audio Extraction Complete");
+    fetchMasterRepertoire();
   };
 
   const handleClearAutoLinks = async () => {
