@@ -86,7 +86,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
     setYtResults([]);
     setLastQuery(searchTerm);
 
-    // Strategy 1: Google YouTube API (Optimized with Developer Notes Alignment)
+    // Strategy 1: Google YouTube API
     if (ytApiKey) {
       try {
         const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(searchTerm)}&type=video&videoCategoryId=10&relevanceLanguage=en&maxResults=12&key=${ytApiKey}`;
@@ -119,11 +119,10 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
           }
         }
       } catch (e) {
-        // Silent failure, will try proxy fallback
       }
     }
 
-    // Strategy 2: Proxy Fallback (Desktop Chrome Header Simulation)
+    // Strategy 2: Proxy Fallback
     try {
       const proxies = ["https://api.allorigins.win/get?url=", "https://corsproxy.io/?"];
       const instances = ['https://iv.ggtyler.dev', 'https://yewtu.be', 'https://invidious.flokinet.to'];
@@ -169,19 +168,12 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
   const handleYoutubeSearch = () => {
     const artist = (formData.artist || "").replace(/&/g, 'and'); 
     const title = (formData.name || "").replace(/&/g, 'and');
-    // Level 1 Strict Query Logic as per Developer Notes
     const query = `${artist} - ${title} (Official Audio)`;
     performYoutubeDiscovery(query);
   };
 
   const handleSelectYoutubeVideo = (url: string) => {
     handleAutoSave({ youtubeUrl: cleanYoutubeUrl(url) });
-  };
-
-  const handleClearYoutubeSelection = () => {
-    handleAutoSave({ youtubeUrl: "" });
-    setYtResults([]);
-    setLastQuery("");
   };
 
   const handleDownloadViaProxy = async (videoUrlToDownload?: string) => {
@@ -196,7 +188,6 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
       return;
     }
 
-    // NEW: Save the YouTube URL to the song's data before downloading
     handleAutoSave({ youtubeUrl: targetVideoUrl });
     showSuccess("YouTube URL linked. Starting audio extraction...");
 
@@ -278,17 +269,17 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
         />
         <div className="flex gap-3">
           <Button
-            variant="outline"
+            variant="default"
             onClick={handleYoutubeSearch}
             disabled={isSearchingYoutube || isDownloading}
-            className="bg-red-950/30 border-red-900/50 text-red-500 h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3"
+            className="bg-red-600 hover:bg-red-700 text-white h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg shadow-red-600/20"
           >
             {isSearchingYoutube ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-4 h-4" />} SEARCH
           </Button>
           <Button
             onClick={() => handleDownloadViaProxy()}
             disabled={isSearchingYoutube || isDownloading || !formData.youtubeUrl}
-            className="bg-indigo-600 hover:bg-indigo-700 h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3"
+            className="bg-indigo-600 hover:bg-indigo-700 h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg shadow-indigo-600/20"
           >
             {(isSearchingYoutube || isDownloading) ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-4 h-4" />} 
             {downloadStatus === 'processing' ? `SYNCING... ${downloadProgress}%` : 'EXTRACT'}

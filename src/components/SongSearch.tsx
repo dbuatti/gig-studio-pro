@@ -41,7 +41,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
     setIsLoading(true);
     setExpandingId(null);
     try {
-      const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(searchTerm)}&entity=song&limit=10`);
+      const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(searchTerm)}&entity=song&limit=15`);
       const data = await response.json();
       setResults(data.results || []);
     } catch (err) {
@@ -138,8 +138,8 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input 
-            placeholder="Search for a song or artist..." 
-            className="pl-9 h-11 border-indigo-100 focus-visible:ring-indigo-500"
+            placeholder="Search iTunes library..." 
+            className="pl-9 h-11 border-indigo-100 bg-white dark:bg-slate-900 focus-visible:ring-indigo-500"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -147,14 +147,14 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
         <Button 
           type="submit" 
           disabled={isLoading}
-          className="bg-indigo-600 hover:bg-indigo-700 h-11 px-6 font-bold uppercase tracking-wider text-xs"
+          className="bg-indigo-600 hover:bg-indigo-700 h-11 px-6 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-indigo-600/20"
         >
-          {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Search"}
+          {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "SEARCH"}
         </Button>
       </form>
 
       {results.length > 0 && (
-        <Card className="border-indigo-50 overflow-hidden shadow-inner bg-slate-50/30">
+        <Card className="border-slate-100 dark:border-slate-800 overflow-hidden shadow-inner bg-slate-50/30 dark:bg-black/20">
           <ScrollArea className="h-[450px]">
             <div className="p-2 space-y-1">
               <TooltipProvider>
@@ -184,7 +184,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
                               onClick={() => toggleExpand(song)}
                               className={cn(
                                 "p-2 rounded-md transition-all",
-                                expandingId === song.trackId ? "bg-indigo-600 text-white shadow-lg" : "hover:bg-slate-100 text-slate-500"
+                                expandingId === song.trackId ? "bg-indigo-600 text-white shadow-lg" : "hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500"
                               )}
                             >
                               <LinkIcon className="w-4 h-4" />
@@ -209,7 +209,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
 
                     {expandingId === song.trackId && (
                       <div className="px-3 pb-3 animate-in slide-in-from-top-2 duration-300">
-                        <div className="p-4 bg-white dark:bg-slate-900 rounded-xl border-2 border-indigo-50 shadow-sm space-y-4">
+                        <div className="p-4 bg-white dark:bg-slate-900 rounded-xl border-2 border-indigo-50 dark:border-indigo-900/20 shadow-sm space-y-4">
                           <div className="flex items-center justify-between border-b pb-2">
                             <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Library Engine Configuration</span>
                             {ytSearchLoading && <Loader2 className="w-3 h-3 animate-spin text-indigo-500" />}
@@ -226,7 +226,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
                                   <LinkIcon className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
                                   <Input 
                                     placeholder="Paste video URL..." 
-                                    className="h-9 pl-7 text-[10px] bg-slate-50 border-slate-100"
+                                    className="h-9 pl-7 text-[10px] bg-slate-50 dark:bg-slate-950 border-slate-100 dark:border-slate-800"
                                     value={manualYtUrl}
                                     onChange={(e) => setManualYtUrl(e.target.value)}
                                   />
@@ -252,7 +252,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
                                   <LinkIcon className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
                                   <Input 
                                     placeholder="Paste UG tab URL..." 
-                                    className="h-9 pl-7 text-[10px] bg-slate-50 border-slate-100"
+                                    className="h-9 pl-7 text-[10px] bg-slate-50 dark:bg-slate-950 border-slate-100 dark:border-slate-800"
                                     value={manualUgUrl}
                                     onChange={(e) => setManualUgUrl(e.target.value)}
                                   />
