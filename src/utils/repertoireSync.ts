@@ -73,13 +73,12 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       const payload: { [key: string]: any } = {
         user_id: userId,
         title: song.name?.trim() || 'Untitled Track',
-        artist: song.artist?.trim() || 'Unknown Artist', // Default to string to avoid NOT NULL violation
+        artist: song.artist?.trim() || 'Unknown Artist',
         updated_at: new Date().toISOString(),
         readiness_score: calculateReadiness(song),
         is_active: true,
       };
 
-      // Conditionally add fields only if they are defined to prevent sending null to NOT NULL columns
       if (song.originalKey !== undefined) payload.original_key = song.originalKey;
       if (song.targetKey !== undefined) payload.target_key = song.targetKey;
       if (song.pitch !== undefined) payload.pitch = song.pitch;
@@ -101,7 +100,6 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       if (song.preferred_reader !== undefined) payload.preferred_reader = song.preferred_reader;
       if (song.ug_chords_text !== undefined) payload.ug_chords_text = song.ug_chords_text;
       if (song.ug_chords_config !== undefined) payload.ug_chords_config = song.ug_chords_config;
-      if (song.is_ug_chords_present !== undefined) payload.is_ug_chords_present = song.is_ug_chords_present;
       if (song.is_pitch_linked !== undefined) payload.is_pitch_linked = song.is_pitch_linked;
       if (song.highest_note_original !== undefined) payload.highest_note_original = song.highest_note_original;
       if (song.isApproved !== undefined) payload.is_approved = song.isApproved;
@@ -115,6 +113,8 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       if ((song as any).extraction_status !== undefined) payload.extraction_status = (song as any).extraction_status;
       if ((song as any).source_type !== undefined) payload.source_type = (song as any).source_type;
 
+      // If we have a master_id, provide it to ensure PK-based upsert.
+      // If we don't, the database unique constraint (user_id, title, artist) handles it.
       if (isValidUuid(song.master_id)) {
         payload.id = song.master_id;
       }
@@ -122,9 +122,11 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       return payload;
     });
     
+    // We use the natural key (user_id, title, artist) for conflict resolution.
+    // This prevents duplication even if the client-side master_id is missing.
     const { data, error } = await supabase
       .from('repertoire')
-      .upsert(payloads, { onConflict: 'id' })
+      .upsert(payloads, { onConflict: 'user_id,title,artist' })
       .select('id, title, artist');
       
     if (error) {
@@ -134,12 +136,14 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
     
     return songsArray.map(originalSong => {
       const matchedDbSong = data.find(dbSong => {
+        // Match by ID if we had it
         if (originalSong.master_id && dbSong.id === originalSong.master_id) return true;
-        if (!originalSong.master_id && dbSong.title === originalSong.name?.trim() && dbSong.artist === (originalSong.artist?.trim() || 'Unknown Artist')) return true;
+        // Or match by the natural key
+        if (dbSong.title === originalSong.name?.trim() && dbSong.artist === (originalSong.artist?.trim() || 'Unknown Artist')) return true;
         return false;
       });
       
-      return matchedDbSong ? { ...originalSong, master_id: matchedDbSong.id } : originalSong;
+      return matchedDbSong ? { ...originalSong, master_id: matchedDbSong.id, id: originalSong.id } : originalSong;
     });
   } catch (err) {
     console.error("[syncToMasterRepertoire] Caught error:", err);

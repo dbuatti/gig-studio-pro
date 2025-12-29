@@ -72,12 +72,19 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     if (!song || !user) return;
 
     try {
+      // Merge current state with the newest updates
       const updatedFullSong = { ...song, ...formData, ...currentUpdates };
       
-      // Sync to Master Repertoire (CamelCase properties handled inside syncToMasterRepertoire)
-      await syncToMasterRepertoire(user.id, [updatedFullSong]);
+      // 1. Sync to Master Repertoire
+      const syncedSongs = await syncToMasterRepertoire(user.id, [updatedFullSong]);
+      const syncedSong = syncedSongs[0];
+
+      // CRITICAL: Update local state with the synced song (contains valid master_id)
+      // This prevents subsequent saves from being treated as new records.
+      setSong(syncedSong);
+      setFormData(prev => ({ ...prev, ...currentUpdates, master_id: syncedSong.master_id }));
       
-      // Sync to Setlist (Gig)
+      // 2. Sync to Setlist (Gig) if applicable
       if (gigId !== 'library') {
         const { data: setlistData, error: fetchErr } = await supabase
           .from('setlists')
@@ -88,16 +95,14 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
         if (fetchErr) throw fetchErr;
 
         const setlistSongs = (setlistData?.songs as SetlistSong[]) || [];
+        // Map back to the setlist array using local IDs
+        const updatedList = setlistSongs.map(s => s.id === song.id ? syncedSong : s);
+        
         await supabase
           .from('setlists')
-          .update({
-            songs: setlistSongs.map(s => s.id === song.id ? updatedFullSong : s)
-          })
+          .update({ songs: updatedList })
           .eq('id', gigId);
       }
-
-      // Update the base 'song' state to reflect reality
-      setSong(updatedFullSong);
 
     } catch (err: any) {
       console.error("[SongStudioView] Auto-save engine failure:", err.message);
@@ -106,10 +111,10 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   };
 
   const handleAutoSave = useCallback((updates: Partial<SetlistSong>) => {
-    // 1. Update UI state immediately
+    // 1. Update UI state immediately for responsiveness
     setFormData(prev => ({ ...prev, ...updates }));
 
-    // 2. Clear previous timeout and schedule new save
+    // 2. Debounce the actual database push
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     
     saveTimeoutRef.current = setTimeout(() => {
