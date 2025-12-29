@@ -9,14 +9,8 @@ import { SetlistSong } from './SetlistManager';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from '@/lib/utils';
 import { Label } from './ui/label';
-import { showError } from '@/utils/toast'; // Import showError
-import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants'; // Import DEFAULT_UG_CHORDS_CONFIG
-
-interface SongSuggestionsProps {
-  repertoire: SetlistSong[];
-  onSelectSuggestion: (query: string) => void;
-  onAddExistingSong?: (song: SetlistSong) => void; // Added onAddExistingSong prop
-}
+import { showError } from '@/utils/toast';
+import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 
 // Global session cache to persist raw suggestions
 let sessionSuggestionsCache: any[] | null = null;
@@ -83,8 +77,6 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
         if (attempt === MAX_RETRIES) {
           console.error("[SongSuggestions] All retry attempts failed.", lastError);
           showError("Song suggestions temporarily unavailable.");
-        } else {
-          // Retry logic handled inside the loop
         }
       }
     }
@@ -109,9 +101,9 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
 
   return (
     <div className="space-y-4">
-      <div className="space-y-3 px-4"> {/* Changed px-1 to px-4 */}
+      <div className="space-y-3 px-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 flex-shrink-0"> {/* Added flex-shrink-0 */}
+          <div className="flex items-center gap-2 flex-shrink-0">
             <Sparkles className="w-4 h-4 text-indigo-500" />
             <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">AI Discover Engine</span>
           </div>
@@ -120,7 +112,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
             size="sm" 
             onClick={fetchSuggestions} 
             disabled={isLoading}
-            className="h-7 text-[9px] font-black uppercase hover:bg-indigo-50 text-indigo-600 flex-shrink-0" {/* Added flex-shrink-0 */}
+            className="h-7 text-[9px] font-black uppercase hover:bg-indigo-50 text-indigo-600 flex-shrink-0"
           >
             {isLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : "Refresh Suggestions"}
           </Button>
@@ -196,7 +188,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
                     </div>
                     
                     {!song.isDuplicate && (
-                      <div className="flex flex-col gap-2 shrink-0"> {/* Added container for buttons */}
+                      <div className="flex flex-col gap-2 shrink-0">
                         <Button 
                           variant="ghost" 
                           size="icon" 
@@ -205,18 +197,18 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
                         >
                           <Search className="w-4 h-4" />
                         </Button>
-                        {onAddExistingSong && ( // Conditionally render if onAddExistingSong is provided
+                        {onAddExistingSong && (
                           <Button
                             onClick={() => onAddExistingSong({
-                              id: Math.random().toString(36).substr(2, 9), // Temporary ID, will be replaced by master_id on sync
+                              id: Math.random().toString(36).substr(2, 9),
                               name: song.name,
                               artist: song.artist,
-                              previewUrl: "", // No preview URL from suggestion
+                              previewUrl: "",
                               pitch: 0,
-                              originalKey: "C", // Default
-                              targetKey: "C", // Default
+                              originalKey: "C",
+                              targetKey: "C",
                               isPlayed: false,
-                              isSyncing: true, // Mark for sync
+                              isSyncing: true,
                               isMetadataConfirmed: false,
                               isKeyConfirmed: false,
                               duration_seconds: 0,
@@ -262,3 +254,9 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
 };
 
 export default SongSuggestions;
+
+interface SongSuggestionsProps {
+  repertoire: SetlistSong[];
+  onSelectSuggestion: (query: string) => void;
+  onAddExistingSong?: (song: SetlistSong) => void;
+}
