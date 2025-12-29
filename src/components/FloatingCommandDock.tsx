@@ -124,15 +124,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     }
   }, [isSafePitchActive, safePitchLimit, currentSongPitch, onSafePitchToggle]);
 
-  const primaryButtons = [
-    {
-      id: 'reader',
-      icon: <FileText className="w-5 h-5" />,
-      onClick: () => onOpenReader(activeSongId || undefined),
-      disabled: !hasReadableChart,
-      tooltip: "Sheet Reader (R)",
-      className: "bg-emerald-600/20 text-emerald-400 border-emerald-500/30 hover:bg-emerald-600 hover:text-white",
-    },
+  const menuButtons = [
     {
       id: 'practice',
       icon: isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />,
@@ -145,32 +137,37 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
       ),
     },
     {
+      id: 'reader',
+      icon: <FileText className="w-5 h-5" />,
+      onClick: () => onOpenReader(activeSongId || undefined),
+      disabled: !hasReadableChart,
+      tooltip: "Sheet Reader (R)",
+      className: "bg-emerald-600 text-white border-emerald-500 hover:bg-emerald-700",
+    },
+    {
       id: 'search',
       icon: <Search className="w-5 h-5" />,
       onClick: onOpenSearch,
       tooltip: "Global Discovery",
-      className: "bg-slate-800 text-slate-100 border-white/10 hover:bg-indigo-600 hover:text-white",
+      className: "bg-slate-800 text-white border-white/10 hover:bg-indigo-600",
     },
-  ];
-
-  const secondaryButtons = [
-    { id: 'user-guide', icon: <BookOpen className="w-4 h-4" />, onClick: onOpenUserGuide, tooltip: "User Guide", className: "bg-blue-600/20 text-blue-400 border-blue-500/30" },
-    { id: 'preferences', icon: <Settings className="w-4 h-4" />, onClick: onOpenPreferences, tooltip: "Preferences", className: "bg-slate-800 text-slate-300 border-white/10" },
-    { id: 'admin', icon: <ShieldCheck className="w-4 h-4" />, onClick: onOpenAdmin, tooltip: "Audit Matrix", className: "bg-red-900/40 text-red-400 border-red-500/30" },
     { 
       id: 'heatmap', 
-      icon: <Sparkles className="w-4 h-4" />, 
+      icon: <Sparkles className="w-5 h-5" />, 
       onClick: onToggleHeatmap,
       tooltip: "Heatmap (H)", 
-      className: cn(showHeatmap ? "bg-amber-500 text-black border-amber-400" : "bg-slate-800 text-amber-400 border-amber-500/20") 
+      className: cn(showHeatmap ? "bg-amber-500 text-black border-amber-400" : "bg-slate-800 text-amber-400 border-white/10") 
     },
     { 
       id: 'safe-pitch', 
-      icon: <ShieldAlert className="w-4 h-4" />, 
+      icon: <ShieldAlert className="w-5 h-5" />, 
       onClick: () => setIsSafePitchActive(!isSafePitchActive), 
       tooltip: "Safe Pitch Mode", 
-      className: cn(isSafePitchActive ? "bg-emerald-600 text-white border-emerald-400" : "bg-slate-800 text-emerald-400 border-emerald-500/20") 
+      className: cn(isSafePitchActive ? "bg-emerald-600 text-white border-emerald-400" : "bg-slate-800 text-emerald-400 border-white/10") 
     },
+    { id: 'admin', icon: <ShieldCheck className="w-5 h-5" />, onClick: onOpenAdmin, tooltip: "Audit Matrix", className: "bg-slate-800 text-red-400 border-white/10 hover:bg-red-900/40" },
+    { id: 'preferences', icon: <Settings className="w-5 h-5" />, onClick: onOpenPreferences, tooltip: "Preferences", className: "bg-slate-800 text-slate-300 border-white/10" },
+    { id: 'user-guide', icon: <BookOpen className="w-5 h-5" />, onClick: onOpenUserGuide, tooltip: "User Guide", className: "bg-slate-800 text-blue-400 border-white/10" },
   ];
 
   return (
@@ -215,58 +212,29 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: isNearTop ? -20 : 20, scale: 0.8 }}
               className={cn(
-                "flex items-center gap-3",
-                isNearTop ? "flex-col" : "flex-col-reverse",
-                isNearTop ? "mt-2" : "mb-2"
+                "flex items-center gap-3 p-2 bg-slate-950/90 rounded-[2.5rem] border border-white/10 shadow-2xl backdrop-blur-xl",
+                isNearTop ? "flex-col" : "flex-col-reverse"
               )}
             >
-              {/* Secondary Actions (Mini) */}
-              <div className={cn(
-                "flex items-center gap-2 p-2 bg-slate-900/60 rounded-3xl border border-white/5",
-                isNearTop ? "flex-col" : "flex-col-reverse"
-              )}>
-                {secondaryButtons.map((btn) => (
-                  <Tooltip key={btn.id}>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => { btn.onClick(); if (btn.id !== 'heatmap' && btn.id !== 'safe-pitch') handleToggleMenu(); }}
-                        className={cn("h-10 w-10 rounded-full border transition-all hover:scale-110", btn.className)}
-                      >
-                        {btn.icon}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="left" className="text-[10px] font-black uppercase tracking-widest">{btn.tooltip}</TooltipContent>
-                  </Tooltip>
-                ))}
-              </div>
-
-              {/* Primary Actions (Large) */}
-              <div className={cn(
-                "flex items-center gap-3 p-2 bg-slate-900/80 rounded-[2.5rem] border border-white/10 shadow-2xl",
-                isNearTop ? "flex-col" : "flex-col-reverse"
-              )}>
-                {primaryButtons.map((btn) => (
-                  <Tooltip key={btn.id}>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        disabled={btn.disabled}
-                        onClick={() => { btn.onClick(); if (btn.id === 'search' || btn.id === 'reader') handleToggleMenu(); }}
-                        className={cn(
-                          "h-14 w-14 rounded-full border-2 transition-all active:scale-90 disabled:opacity-10", 
-                          btn.className
-                        )}
-                      >
-                        {btn.icon}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="left" className="text-[10px] font-black uppercase tracking-widest">{btn.tooltip}</TooltipContent>
-                  </Tooltip>
-                ))}
-              </div>
+              {menuButtons.map((btn) => (
+                <Tooltip key={btn.id}>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      disabled={btn.disabled}
+                      onClick={() => { btn.onClick(); if (btn.id === 'search' || btn.id === 'reader') handleToggleMenu(); }}
+                      className={cn(
+                        "h-12 w-12 rounded-full border transition-all active:scale-90 disabled:opacity-10", 
+                        btn.className
+                      )}
+                    >
+                      {btn.icon}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" className="text-[10px] font-black uppercase tracking-widest">{btn.tooltip}</TooltipContent>
+                </Tooltip>
+              ))}
             </motion.div>
           )}
         </AnimatePresence>
