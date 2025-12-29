@@ -50,27 +50,14 @@ const UGChordsReader = React.memo(({
   const autoScrollRaf = useRef<number | null>(null);
 
   const transposedChordsText = useMemo(() => {
-    if (!chordsText || !originalKey || !targetKey || originalKey === "TBC") {
-      return chordsText;
-    }
+    if (!chordsText) return chordsText;
     
+    // Calculate distance. If originalKey is missing, semitones will be 0.
+    // 0 semitones is now valid as it will still convert notation styles.
     const n = calculateSemitones(originalKey, targetKey);
     
-    // DIAGNOSTIC LOGGING
-    console.log('UGChordsReader props:', { originalKey, targetKey, calculatedSemitones: n });
-    
-    if (n === 0) {
-      return chordsText;
-    }
-    
-    // Pass the stricter regex logic via the transposeChords utility
     return transposeChords(chordsText, n, activeKeyPreference);
   }, [chordsText, originalKey, targetKey, activeKeyPreference]);
-
-  // Diagnostic useEffect to confirm reactivity
-  useEffect(() => {
-    console.log('UGChordsReader re-calculating due to targetKey change:', targetKey);
-  }, [targetKey]);
 
   const readableChordColor = config.chordColor === "#000000" ? "#ffffff" : config.chordColor;
 
