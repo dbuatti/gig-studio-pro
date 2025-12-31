@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useTransition } from 'react'; // Import useTransition
 import { 
   Dialog, 
   DialogContent, 
@@ -53,6 +53,7 @@ type AdminTab = 'vault' | 'maintenance' | 'automation';
 const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshRepertoire }) => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<AdminTab>('vault');
+  const [isPending, startTransition] = useTransition(); // Initialize useTransition
   
   // Vault State
   const [isUploading, setIsUploading] = useState(false);
@@ -136,12 +137,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
 
         if (error) throw error;
 
-        data.results.forEach((res: any) => {
-          if (res.status === 'SUCCESS') {
-            addLog(`[✓] Sync Complete: ${res.title}`, 'success');
-          } else if (res.status === 'ERROR') {
-            addLog(`[!] Sync Failed: ${res.msg}`, 'error');
-          }
+        startTransition(() => { // Wrap state updates in startTransition
+          data.results.forEach((res: any) => {
+            if (res.status === 'SUCCESS') {
+              addLog(`[✓] Sync Complete: ${res.title}`, 'success');
+            } else if (res.status === 'ERROR') {
+              addLog(`[!] Sync Failed: ${res.msg}`, 'error');
+            }
+          });
         });
       } catch (err: any) {
         addLog(`Batch Process Error: ${err.message}`, 'error');
@@ -180,12 +183,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
 
         if (error) throw error;
 
-        data.results.forEach((res: any) => {
-          if (res.status === 'SUCCESS') {
-            addLog(`[✓] Link Bound: ${res.title}`, 'success');
-          } else if (res.status === 'ERROR') {
-            addLog(`[!] Link Error: ${res.msg}`, 'error');
-          }
+        startTransition(() => { // Wrap state updates in startTransition
+          data.results.forEach((res: any) => {
+            if (res.status === 'SUCCESS') {
+              addLog(`[✓] Link Bound: ${res.title}`, 'success');
+            } else if (res.status === 'ERROR') {
+              addLog(`[!] Link Error: ${res.msg}`, 'error');
+            }
+          });
         });
       } catch (err: any) {
         addLog(`Link Batch Error: ${err.message}`, 'error');
@@ -225,7 +230,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
 
       if (error) throw error;
 
-      addLog(`Cleared ${autoPopulated.length} links successfully.`, 'success');
+      startTransition(() => { // Wrap state updates in startTransition
+        addLog(`Cleared ${autoPopulated.length} links successfully.`, 'success');
+      });
       showSuccess("Links cleared");
       fetchMaintenanceData();
       onRefreshRepertoire(); 
@@ -246,10 +253,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
 
       const cookieFile = files?.find(f => f.name === 'cookies.txt');
       if (cookieFile) {
-        setCookieMetadata({
-          size: cookieFile.metadata?.size || 0,
-          lastUpdated: cookieFile.updated_at || cookieFile.created_at,
-          name: cookieFile.name
+        startTransition(() => { // Wrap state updates in startTransition
+          setCookieMetadata({
+            size: cookieFile.metadata?.size || 0,
+            lastUpdated: cookieFile.updated_at || cookieFile.created_at,
+            name: cookieFile.name
+          });
         });
       }
     } catch (e: any) {
@@ -274,7 +283,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
 
       if (error) throw error;
       showSuccess("Cookies.txt uploaded to Vault!");
-      addLog("Cookies.txt uploaded successfully.", 'success');
+      startTransition(() => { // Wrap state updates in startTransition
+        addLog("Cookies.txt uploaded successfully.", 'success');
+      });
       checkVaultStatus(); // Refresh metadata after upload
     } catch (err: any) {
       showError(`Upload failed: ${err.message}`);
@@ -339,7 +350,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
 
       if (error) throw error;
 
-      showSuccess(`Queued ${songsToQueue.length} tasks successfully.`);
+      startTransition(() => { // Wrap state updates in startTransition
+        showSuccess(`Queued ${songsToQueue.length} tasks successfully.`);
+      });
       fetchMaintenanceData(); // Refresh to show updated statuses
     } catch (err: any) {
       showError(`Failed to queue tasks: ${err.message}`);
@@ -395,7 +408,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
         throw new Error(errorData.message || `GitHub PUT failed: ${putRes.statusText}`);
       }
 
-      addLog(`GitHub Upload Successful!`, 'success');
+      startTransition(() => { // Wrap state updates in startTransition
+        addLog(`GitHub Upload Successful!`, 'success');
+      });
       showSuccess("Content pushed to GitHub!");
       setClipboardContent("");
 
@@ -476,10 +491,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
                           </div>
                           <Button 
                             onClick={handleGlobalAutoSync} 
-                            disabled={isAutoSyncing}
+                            disabled={isAutoSyncing || isPending}
                             className="bg-indigo-600 hover:bg-indigo-700 h-14 md:h-16 px-8 md:px-10 rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] md:text-xs shadow-2xl shadow-indigo-600/30 gap-3"
                           >
-                            {isAutoSyncing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5 fill-current" />}
+                            {isAutoSyncing || isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5 fill-current" />}
                             Trigger Pipeline
                           </Button>
                         </div>
@@ -490,19 +505,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
                             <div className="flex flex-col gap-3">
                               <Button 
                                 onClick={handlePopulateMissingLinks}
-                                disabled={isPopulatingLinks}
+                                disabled={isPopulatingLinks || isPending}
                                 className="w-full bg-emerald-600 hover:bg-emerald-700 h-12 md:h-14 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg"
                               >
-                                {isPopulatingLinks ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
+                                {isPopulatingLinks || isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
                                 Populate Missing Links
                               </Button>
                               <Button 
                                 variant="ghost"
                                 onClick={handleClearAutoPopulatedLinks}
-                                disabled={isClearingLinks}
+                                disabled={isClearingLinks || isPending}
                                 className="w-full text-red-500 hover:bg-red-500/10 h-10 md:h-12 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3"
                               >
-                                {isClearingLinks ? <Loader2 className="w-4 h-4 animate-spin" /> : <Undo2 className="w-4 h-4" />}
+                                {isClearingLinks || isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Undo2 className="w-4 h-4" />}
                                 Clear Auto-Populated
                               </Button>
                             </div>
@@ -513,13 +528,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
                             <div className="space-y-3">
                               <div className="p-3 md:p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-between">
                                 <p className="text-xs font-bold uppercase text-slate-300">Overwrite Verified</p>
-                                <Switch checked={overwriteExisting} onCheckedChange={setOverwriteExisting} />
+                                <Switch checked={overwriteExisting} onCheckedChange={(v) => startTransition(() => setOverwriteExisting(v))} />
                               </div>
                               <div className="p-3 md:p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-between">
                                 <p className="text-xs font-bold uppercase text-slate-300">Batch Size: {syncBatchSize}</p>
                                 <div className="flex items-center gap-2">
-                                  <button onClick={() => setSyncBatchSize(Math.max(1, syncBatchSize - 1))} className="h-8 w-8 bg-black/40 rounded-lg border border-white/5 hover:bg-black/60 transition-colors">-</button>
-                                  <button onClick={() => setSyncBatchSize(Math.min(10, syncBatchSize + 1))} className="h-8 w-8 bg-black/40 rounded-lg border border-white/5 hover:bg-black/60 transition-colors">+</button>
+                                  <button onClick={() => startTransition(() => setSyncBatchSize(Math.max(1, syncBatchSize - 1)))} className="h-8 w-8 bg-black/40 rounded-lg border border-white/5 hover:bg-black/60 transition-colors">-</button>
+                                  <button onClick={() => startTransition(() => setSyncBatchSize(Math.min(10, syncBatchSize + 1)))} className="h-8 w-8 bg-black/40 rounded-lg border border-white/5 hover:bg-black/60 transition-colors">+</button>
                                 </div>
                               </div>
                             </div>
@@ -574,22 +589,22 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <div className="space-y-1.5">
                             <label className="text-[9px] font-black uppercase text-slate-500">Repository</label>
-                            <input type="text" value={githubRepo} onChange={(e) => setGithubRepo(e.target.value)} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-white outline-none focus:border-indigo-500/50"/>
+                            <input type="text" value={githubRepo} onChange={(e) => startTransition(() => setGithubRepo(e.target.value))} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-white outline-none focus:border-indigo-500/50"/>
                           </div>
                           <div className="space-y-1.5">
                             <label className="text-[9px] font-black uppercase text-slate-500">File Path</label>
-                            <input type="text" value={githubFile} onChange={(e) => setGithubFile(e.target.value)} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-white outline-none focus:border-indigo-500/50"/>
+                            <input type="text" value={githubFile} onChange={(e) => startTransition(() => setGithubFile(e.target.value))} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-white outline-none focus:border-indigo-500/50"/>
                           </div>
                           <div className="space-y-1.5">
                             <label className="text-[9px] font-black uppercase text-slate-500">Auth Token</label>
-                            <input type="password" value={githubToken} onChange={(e) => setGithubToken(e.target.value)} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-white outline-none focus:border-indigo-500/50"/>
+                            <input type="password" value={githubToken} onChange={(e) => startTransition(() => setGithubToken(e.target.value))} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-white outline-none focus:border-indigo-500/50"/>
                           </div>
                         </div>
                         <div className="space-y-3">
-                          <Textarea value={clipboardContent} onChange={(e) => setClipboardContent(e.target.value)} placeholder="Paste cookie string or asset content here..." className="min-h-[150px] bg-slate-900 border-white/10 font-mono text-[10px] rounded-2xl text-white resize-none"/>
-                          <Button onClick={handleGithubUpload} disabled={isGithubUploading || !clipboardContent} className="w-full bg-indigo-600 hover:bg-indigo-700 h-12 rounded-xl font-black uppercase tracking-widest text-xs gap-3">
-                            {isGithubUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />} 
-                            {isGithubUploading ? 'PUSHING...' : 'PUSH TO REPOSITORY'}
+                          <Textarea value={clipboardContent} onChange={(e) => startTransition(() => setClipboardContent(e.target.value))} placeholder="Paste cookie string or asset content here..." className="min-h-[150px] bg-slate-900 border-white/10 font-mono text-[10px] rounded-2xl text-white resize-none"/>
+                          <Button onClick={handleGithubUpload} disabled={isGithubUploading || !clipboardContent || isPending} className="w-full bg-indigo-600 hover:bg-indigo-700 h-12 rounded-xl font-black uppercase tracking-widest text-xs gap-3">
+                            {isGithubUploading || isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />} 
+                            {isGithubUploading || isPending ? 'PUSHING...' : 'PUSH TO REPOSITORY'}
                           </Button>
                         </div>
                       </div>
@@ -604,9 +619,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
                             </div>
                           </div>
                           <input type="file" accept=".txt" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleSupabaseUpload(f); }} className="hidden" id="v-upload" />
-                          <Button onClick={() => document.getElementById('v-upload')?.click()} className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 h-10 px-8 rounded-xl font-black uppercase text-[10px] shadow-lg">Upload Cookies.txt</Button>
+                          <Button onClick={() => document.getElementById('v-upload')?.click()} disabled={isPending} className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 h-10 px-8 rounded-xl font-black uppercase text-[10px] shadow-lg">Upload Cookies.txt</Button>
                         </div>
-                        {isUploading && (
+                        {isUploading || isPending && (
                           <div className="flex flex-col items-center py-12 gap-4">
                             <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
                             <p className="text-[10px] font-black uppercase tracking-widest animate-pulse text-indigo-400">Syncing Vault...</p>
@@ -647,29 +662,29 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
                               <p className="text-xs md:text-sm text-slate-400 mt-1">Force refresh all master audio assets.</p>
                             </div>
                           </div>
-                          <div className="flex flex-wrap justify-center gap-3 w-full">
+                          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                             <Button 
                               onClick={() => handleQueueBackgroundExtract('stuck')} // NEW: Call with 'stuck' mode
-                              disabled={isQueuingStuckExtraction || isQueuingMissingExtraction || isQueuingAllExtraction || stuckOrFailedCount === 0} // Disable if no stuck tasks
+                              disabled={isQueuingStuckExtraction || isQueuingMissingExtraction || isQueuingAllExtraction || stuckOrFailedCount === 0 || isPending} // Disable if no stuck tasks
                               className="flex-1 sm:flex-none bg-amber-600 hover:bg-amber-700 h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg"
                             >
-                              {isQueuingStuckExtraction ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCcw className="w-4 h-4" />}
+                              {isQueuingStuckExtraction || isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCcw className="w-4 h-4" />}
                               Re-queue Stuck/Failed ({stuckOrFailedCount})
                             </Button>
                             <Button 
                               onClick={() => handleQueueBackgroundExtract('missing')} // Call with 'missing' mode
-                              disabled={isQueuingMissingExtraction || isQueuingAllExtraction || isQueuingStuckExtraction}
+                              disabled={isQueuingMissingExtraction || isQueuingAllExtraction || isQueuingStuckExtraction || isPending}
                               className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg"
                             >
-                              {isQueuingMissingExtraction ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                              {isQueuingMissingExtraction || isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                               Queue Remaining
                             </Button>
                             <Button 
                               onClick={() => handleQueueBackgroundExtract('all')} // Call with 'all' mode
-                              disabled={isQueuingAllExtraction || isQueuingMissingExtraction || isQueuingStuckExtraction}
+                              disabled={isQueuingAllExtraction || isQueuingMissingExtraction || isQueuingStuckExtraction || isPending}
                               className="flex-1 sm:flex-none bg-red-600 hover:bg-red-700 h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg"
                             >
-                              {isQueuingAllExtraction ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
+                              {isQueuingAllExtraction || isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
                               Queue All Refresh
                             </Button>
                           </div>
@@ -756,7 +771,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
                     <Terminal className="w-3.5 h-3.5 text-slate-500" />
                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Console Stream</span>
                  </div>
-                 <button onClick={() => setSyncLogs([])} className="text-[9px] font-black text-slate-600 hover:text-white uppercase transition-colors">Clear</button>
+                 <button onClick={() => startTransition(() => setSyncLogs([]))} className="text-[9px] font-black text-slate-600 hover:text-white uppercase transition-colors">Clear</button>
                </div>
                
                <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">

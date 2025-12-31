@@ -10,6 +10,10 @@ from flask_cors import CORS
 import yt_dlp
 from supabase import create_client, Client
 
+# Log a message when the script starts
+print("[WORKER STARTUP] Python worker script is initializing...")
+sys.stdout.flush()
+
 app = Flask(__name__)
 CORS(app)
 
@@ -24,8 +28,8 @@ DOWNLOAD_DIR = "/tmp/downloads"
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 def log(message):
-    print(f"[WORKER LOG] {message}")
-    sys.stdout.flush()
+    # Added flush=True directly to the print function
+    print(f"[WORKER LOG] {message}", flush=True)
 
 def process_queued_song(song):
     song_id = song.get('id')
