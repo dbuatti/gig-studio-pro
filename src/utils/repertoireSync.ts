@@ -25,8 +25,11 @@ const cleanMetadata = (val: string | undefined | null) => {
 export const calculateReadiness = (song: Partial<SetlistSong>): number => {
   let score = 0;
   
+  // Normalize status for case-insensitive comparison
+  const status = (song.extraction_status || "").toLowerCase();
+
   // 1. Audio Assets (Max 25)
-  if (song.audio_url && song.extraction_status === 'completed') score += 25;
+  if (song.audio_url && status === 'completed') score += 25;
 
   // 2. Chords & Lyrics (Max 20)
   const hasLyrics = (song.lyrics || "").length > 20;

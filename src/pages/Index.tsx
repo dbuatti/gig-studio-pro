@@ -95,14 +95,17 @@ const Index = () => {
 
   const userId = user?.id;
 
-  // --- REFINED AUDIO CALCULATION LOGIC (Moved up to satisfy Hooks rules) ---
+  // --- REFINED AUDIO CALCULATION LOGIC ---
   const missingAudioCount = useMemo(() => {
-    // Only count tracks that HAVE a YouTube URL but LACK extracted audio (or extraction failed/queued)
-    const count = masterRepertoire.filter(s => 
-      !!s.youtubeUrl && (!s.audio_url || s.extraction_status !== 'completed')
-    ).length;
+    const count = masterRepertoire.filter(s => {
+      const hasLink = !!s.youtubeUrl;
+      const hasAudio = !!s.audio_url;
+      const status = (s.extraction_status || "").toLowerCase();
+      // Only count as "missing" if there's a link but no completed audio
+      return hasLink && (!hasAudio || status !== 'completed');
+    }).length;
     
-    console.log(`[Dashboard] Audio Audit: ${count} tracks are currently missing full extracted audio but have YouTube links.`);
+    console.log(`[Dashboard] Audio Audit: ${count} tracks are missing full extracted audio but have YouTube links.`);
     return count;
   }, [masterRepertoire]);
 
@@ -639,9 +642,13 @@ const Index = () => {
 
   // NEW: Handler for the "Queue Audio" button in Automation Hub
   const handleBulkRefreshAudio = async () => {
-    const songsToQueue = masterRepertoire.filter(s => 
-      !!s.youtubeUrl && (!s.audio_url || s.extraction_status !== 'completed') && s.extraction_status !== 'queued' && s.extraction_status !== 'processing'
-    );
+    const songsToQueue = masterRepertoire.filter(s => {
+      const hasLink = !!s.youtubeUrl;
+      const hasAudio = !!s.audio_url;
+      const status = (s.extraction_status || "").toLowerCase();
+      // Only queue tracks with a link that aren't already done, processing, or queued
+      return hasLink && (!hasAudio || status !== 'completed') && status !== 'processing' && status !== 'queued';
+    });
 
     if (songsToQueue.length === 0) {
       showInfo("No eligible tracks found missing audio.");
