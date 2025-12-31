@@ -5,7 +5,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { SetlistSong } from '@/components/SetlistManager';
-import { Button } from '@/components/ui/button'; // Fixed: Corrected import syntax
+import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Music, Loader2, AlertCircle, X, Settings, ExternalLink, ShieldCheck, FileText, Layout, Guitar, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -21,7 +21,7 @@ import PreferencesModal from '@/components/PreferencesModal';
 import SongStudioModal from '@/components/SongStudioModal';
 import SheetReaderHeader from '@/components/SheetReaderHeader';
 import SheetReaderFooter from '@/components/SheetReaderFooter';
-import SheetReaderSidebar from '@/components/SheetReaderSidebar'; // NEW: Import Sidebar
+import SheetReaderSidebar from '@/components/SheetReaderSidebar';
 import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
 import { motion } from 'framer-motion';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -56,7 +56,7 @@ const SheetReaderMode: React.FC = () => {
   const [isImmersive, setIsImmersive] = useState(false);
   const [isStudioModalOpen, setIsStudioModalOpen] = useState(false);
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // NEW: Sidebar state
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const [readerKeyPreference, setReaderKeyPreference] = useState<'sharps' | 'flats'>(globalKeyPreference);
 
@@ -85,11 +85,10 @@ const SheetReaderMode: React.FC = () => {
 
   const currentSong = allSongs[currentIndex];
 
-  // === CRITICAL FIX: Pass correct initial values to useHarmonicSync ===
   const harmonicSync = useHarmonicSync({
     formData: {
       originalKey: currentSong?.originalKey,
-      targetKey: currentSong?.targetKey || currentSong?.originalKey, // Fallback to original if target missing
+      targetKey: currentSong?.targetKey || currentSong?.originalKey,
       pitch: currentSong?.pitch ?? 0,
       is_pitch_linked: currentSong?.is_pitch_linked ?? true,
       ug_chords_text: currentSong?.ug_chords_text,
@@ -97,12 +96,10 @@ const SheetReaderMode: React.FC = () => {
     handleAutoSave: useCallback(async (updates: Partial<SetlistSong>) => {
       if (!currentSong || !user) return;
 
-      // Filter out client-side-only properties before sending to Supabase
       const dbUpdates: { [key: string]: any } = {};
       
-      // Explicitly map SetlistSong properties to repertoire table columns
-      if (updates.name !== undefined) dbUpdates.title = updates.name || 'Untitled Track'; // Ensure title is never null
-      if (updates.artist !== undefined) dbUpdates.artist = updates.artist || 'Unknown Artist'; // Ensure artist is never null
+      if (updates.name !== undefined) dbUpdates.title = updates.name || 'Untitled Track';
+      if (updates.artist !== undefined) dbUpdates.artist = updates.artist || 'Unknown Artist';
       if (updates.previewUrl !== undefined) dbUpdates.preview_url = updates.previewUrl; else if (updates.previewUrl === null) dbUpdates.preview_url = null;
       if (updates.youtubeUrl !== undefined) dbUpdates.youtube_url = updates.youtubeUrl; else if (updates.youtubeUrl === null) dbUpdates.youtube_url = null;
       if (updates.ugUrl !== undefined) dbUpdates.ug_url = updates.ugUrl; else if (updates.ugUrl === null) dbUpdates.ug_url = null;
@@ -111,7 +108,7 @@ const SheetReaderMode: React.FC = () => {
       if (updates.leadsheetUrl !== undefined) dbUpdates.leadsheet_url = updates.leadsheetUrl; else if (updates.leadsheetUrl === null) dbUpdates.leadsheet_url = null;
       if (updates.originalKey !== undefined) dbUpdates.original_key = updates.originalKey; else if (updates.originalKey === null) dbUpdates.original_key = null;
       if (updates.targetKey !== undefined) dbUpdates.target_key = updates.targetKey; else if (updates.targetKey === null) dbUpdates.target_key = null;
-      if (updates.pitch !== undefined) dbUpdates.pitch = updates.pitch; else if (updates.pitch === null) dbUpdates.pitch = 0; // pitch is NOT NULL with default 0
+      if (updates.pitch !== undefined) dbUpdates.pitch = updates.pitch; else if (updates.pitch === null) dbUpdates.pitch = 0;
       if (updates.bpm !== undefined) dbUpdates.bpm = updates.bpm; else if (updates.bpm === null) dbUpdates.bpm = null;
       if (updates.genre !== undefined) dbUpdates.genre = updates.genre; else if (updates.genre === null) dbUpdates.genre = null;
       if (updates.isMetadataConfirmed !== undefined) dbUpdates.is_metadata_confirmed = updates.isMetadataConfirmed; else if (updates.isMetadataConfirmed === null) dbUpdates.is_metadata_confirmed = false;
@@ -126,7 +123,7 @@ const SheetReaderMode: React.FC = () => {
       if (updates.isApproved !== undefined) dbUpdates.is_approved = updates.isApproved; else if (updates.isApproved === null) dbUpdates.is_approved = false;
       if (updates.preferred_reader !== undefined) dbUpdates.preferred_reader = updates.preferred_reader; else if (updates.preferred_reader === null) dbUpdates.preferred_reader = null;
       if (updates.ug_chords_text !== undefined) dbUpdates.ug_chords_text = updates.ug_chords_text; else if (updates.ug_chords_text === null) dbUpdates.ug_chords_text = null;
-      if (updates.ug_chords_config !== undefined) dbUpdates.ug_chords_config = updates.ug_chords_config; else if (updates.ug_chords_config === null) dbUpdates.ug_chords_config = null; // Send null if not explicitly set
+      if (updates.ug_chords_config !== undefined) dbUpdates.ug_chords_config = updates.ug_chords_config; else if (updates.ug_chords_config === null) dbUpdates.ug_chords_config = null;
       if (updates.is_ug_chords_present !== undefined) dbUpdates.is_ug_chords_present = updates.is_ug_chords_present; else if (updates.is_ug_chords_present === null) dbUpdates.is_ug_chords_present = false;
       if (updates.highest_note_original !== undefined) dbUpdates.highest_note_original = updates.highest_note_original; else if (updates.highest_note_original === null) dbUpdates.highest_note_original = null;
       if (updates.metadata_source !== undefined) dbUpdates.metadata_source = updates.metadata_source; else if (updates.metadata_source === null) dbUpdates.metadata_source = null;
@@ -135,12 +132,10 @@ const SheetReaderMode: React.FC = () => {
       if (updates.auto_synced !== undefined) dbUpdates.auto_synced = updates.auto_synced; else if (updates.auto_synced === null) dbUpdates.auto_synced = false;
       if (updates.sheet_music_url !== undefined) dbUpdates.sheet_music_url = updates.sheet_music_url; else if (updates.sheet_music_url === null) dbUpdates.sheet_music_url = null;
       if (updates.is_sheet_verified !== undefined) dbUpdates.is_sheet_verified = updates.is_sheet_verified; else if (updates.is_sheet_verified === null) dbUpdates.is_sheet_verified = false;
-      if (updates.extraction_status !== undefined) dbUpdates.extraction_status = updates.extraction_status; else if (updates.extraction_status === null) dbUpdates.extraction_status = 'idle'; // NEW: Default to 'idle'
+      if (updates.extraction_status !== undefined) dbUpdates.extraction_status = updates.extraction_status; else if (updates.extraction_status === null) dbUpdates.extraction_status = 'idle';
       
-      // Always update `updated_at`
       dbUpdates.updated_at = new Date().toISOString();
 
-      // LOG: Key saving via Song Studio Modal (This is the only log allowed)
       if (updates.originalKey !== undefined || updates.targetKey !== undefined) {
         console.log(`[SongStudioView] Saving key data: originalKey=${dbUpdates.original_key}, targetKey=${dbUpdates.target_key}`);
       }
@@ -152,7 +147,6 @@ const SheetReaderMode: React.FC = () => {
         .then(({ error }) => {
           if (error) {
             console.error("[SheetReaderMode] Supabase Auto-save failed:", error);
-            // Check for RLS specific error message
             if (error.message.includes("new row violates row-level-security")) {
               showError("Database Security Error: You don't have permission to update this data. Check RLS policies.");
             } else {
@@ -171,22 +165,17 @@ const SheetReaderMode: React.FC = () => {
 
   const { pitch, setPitch, targetKey: harmonicTargetKey, setTargetKey } = harmonicSync;
 
-  // Sync audio pitch
   useEffect(() => {
     setAudioPitch(pitch);
   }, [pitch, setAudioPitch]);
 
-  // === Force harmonic sync when song changes ===
   useEffect(() => {
     if (currentSong) {
-      // This ensures the hook gets fresh data immediately
-      // Even if formData is delayed, we force the correct key
       setTargetKey(currentSong.targetKey || currentSong.originalKey || 'C');
       setPitch(currentSong.pitch ?? 0);
     }
   }, [currentSong, setTargetKey, setPitch]);
 
-  // === Data Fetching ===
   const fetchSongs = useCallback(async () => {
     if (!user) return;
     setInitialLoading(true);
@@ -197,7 +186,6 @@ const SheetReaderMode: React.FC = () => {
         .eq('user_id', user.id)
         .order('title');
 
-      // Apply 'confirmed for gig' filter if coming from gig mode
       const filterApproved = searchParams.get('filterApproved');
       if (filterApproved === 'true') {
         query = query.eq('is_approved', true);
@@ -205,10 +193,8 @@ const SheetReaderMode: React.FC = () => {
 
       const { data, error } = await query;
 
-      // Add robust error logging for Supabase fetches
       if (error) {
         console.error("Supabase Fetch Error:", error);
-        // Check for RLS specific error message
         if (error.message.includes("new row violates row-level-security")) {
           showError("Database Security Error: You don't have permission to read this data. Check RLS policies.");
         } else {
@@ -225,8 +211,8 @@ const SheetReaderMode: React.FC = () => {
         originalKey: d.original_key,
         targetKey: d.target_key,
         pitch: d.pitch ?? 0,
-        // FIX: Prioritize audio_url if extraction is completed, otherwise fallback to preview_url
         previewUrl: d.extraction_status === 'completed' && d.audio_url ? d.audio_url : d.preview_url,
+        youtubeUrl: d.youtube_url,
         ug_chords_text: d.ug_chords_text,
         ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
         isApproved: d.is_approved,
@@ -239,19 +225,16 @@ const SheetReaderMode: React.FC = () => {
         is_pitch_linked: d.is_pitch_linked ?? true,
         sheet_music_url: d.sheet_music_url,
         is_sheet_verified: d.is_sheet_verified,
-        // FIX: Ensure highest_note_original is mapped
         highest_note_original: d.highest_note_original,
-        extraction_status: d.extraction_status, // NEW: Map extraction_status
-        last_sync_log: d.last_sync_log // NEW: Map last_sync_log
+        extraction_status: d.extraction_status,
+        last_sync_log: d.last_sync_log
       }));
 
       const readableAndApprovedSongs = mappedSongs.filter(s => {
         const readiness = calculateReadiness(s);
-        // UPDATED: hasChart condition to include sheet_music_url
         const hasChart = s.pdfUrl || s.leadsheetUrl || s.ug_chords_text || s.sheet_music_url; 
         const meetsReadiness = readiness >= 40 || forceReaderResource === 'simulation' || ignoreConfirmedGate;
 
-        // Debugging for the specific song
         if (s.id === "582ded79-5b51-45e1-8260-72de214fbff1") {
           console.log(`[SheetReaderMode Debug] Song: ${s.name}, ID: ${s.id}`);
           console.log(`[SheetReaderMode Debug] readiness: ${readiness}`);
@@ -283,13 +266,11 @@ const SheetReaderMode: React.FC = () => {
 
       setCurrentIndex(initialIndex);
     } catch (err) {
-      // Error already handled above
     } finally {
       setInitialLoading(false);
     }
   }, [user, routeSongId, searchParams, forceReaderResource, ignoreConfirmedGate]);
 
-  // NEW: Fetch all setlists
   const fetchAllSetlists = useCallback(async () => {
     if (!user) return;
     try {
@@ -305,7 +286,7 @@ const SheetReaderMode: React.FC = () => {
           id: d.id,
           name: d.name,
           songs: (d.songs as any[]) || [],
-          time_goal: d.time_goal // Assuming time_goal might be present
+          time_goal: d.time_goal
         }));
         setAllSetlists(mappedSetlists);
       }
@@ -316,21 +297,10 @@ const SheetReaderMode: React.FC = () => {
   }, [user]);
 
   useEffect(() => {
-    // Check for the flag on mount
-    const fromDashboard = sessionStorage.getItem('from_dashboard');
-    if (!fromDashboard) {
-      console.log("[SheetReaderMode] Not navigated from dashboard, redirecting to /");
-      navigate('/', { replace: true });
-      return; // Stop further execution of this effect
-    }
-    // Clear the flag regardless, so subsequent direct access (e.g., refresh) won't be fooled
-    sessionStorage.removeItem('from_dashboard');
-
     fetchSongs();
     fetchAllSetlists();
-  }, [fetchSongs, fetchAllSetlists, navigate]); // Added navigate to dependencies
+  }, [fetchSongs, fetchAllSetlists]);
 
-  // Load audio
   useEffect(() => {
     if (!currentSong?.previewUrl) {
       stopPlayback();
@@ -348,7 +318,6 @@ const SheetReaderMode: React.FC = () => {
     }
   }, [currentSong, pitch, currentUrl, currentBuffer, loadFromUrl, stopPlayback, resetEngine, setAudioProgress]);
 
-  // Persist current song
   useEffect(() => {
     if (currentSong) {
       setSearchParams({ id: currentSong.id }, { replace: true });
@@ -356,7 +325,6 @@ const SheetReaderMode: React.FC = () => {
     }
   }, [currentSong, currentIndex, setSearchParams]);
 
-  // Navigation
   const handleNext = useCallback(() => {
     if (allSongs.length === 0) return;
     setCurrentIndex(prev => (prev + 1) % allSongs.length);
@@ -369,7 +337,6 @@ const SheetReaderMode: React.FC = () => {
     stopPlayback();
   }, [allSongs.length, stopPlayback]);
 
-  // Key update
   const handleUpdateKey = useCallback(async (newTargetKey: string) => {
     if (!currentSong || !user) return;
 
@@ -383,13 +350,12 @@ const SheetReaderMode: React.FC = () => {
 
       if (error) {
         console.error("[SheetReaderMode] Supabase update key error:", error);
-        // Check for RLS specific error message
         if (error.message.includes("new row violates row-level-security")) {
           showError("Database Security Error: You don't have permission to update this data. Check RLS policies.");
         } else {
           showError(`Failed to update key: ${error.message}`);
         }
-        throw error; // Re-throw to stop further processing
+        throw error;
       }
 
       setAllSongs(prev => prev.map(s =>
@@ -398,17 +364,14 @@ const SheetReaderMode: React.FC = () => {
           : s
       ));
 
-      // Immediately reflect in UI
       setTargetKey(newTargetKey);
       setPitch(newPitch);
 
       showSuccess(`Stage Key set to ${newTargetKey}`);
     } catch (err) {
-      // Error already logged and shown by the `if (error)` block
     }
   }, [currentSong, user, setTargetKey, setPitch]);
 
-  // Pull Key Feature
   const handlePullKey = useCallback(async () => {
     if (!currentSong || !user || !currentSong.ug_chords_text) {
       showError("No UG Chords text found to extract key.");
@@ -431,36 +394,31 @@ const SheetReaderMode: React.FC = () => {
         
         if (error) {
           console.error("[SheetReaderMode] Supabase pull key error:", error);
-          // Check for RLS specific error message
           if (error.message.includes("new row violates row-level-security")) {
             showError("Database Security Error: You don't have permission to update this data. Check RLS policies.");
           } else {
             showError(`Failed to update key: ${error.message}`);
           }
-          throw error; // Re-throw to stop further processing
+          throw error;
         }
 
-        // FIX: Correctly update the state array with the new properties
         setAllSongs(prev => prev.map(s => 
           s.id === currentSong.id 
             ? { ...s, originalKey: extractedKey, targetKey: extractedKey, pitch: 0, isKeyConfirmed: true } 
             : s
         ));
 
-        // Force immediate UI update
         setTargetKey(extractedKey);
         setPitch(0);
 
         showSuccess(`Key extracted and set to: ${extractedKey}`);
       } catch (err) {
-        // Error already logged and shown by the `if (error)` block
       }
     } else {
       showError("Could not find a valid chord in the UG text.");
     }
   }, [currentSong, user, setTargetKey, setPitch]);
 
-  // NEW: Callback to update setlist songs (for SetlistMultiSelector)
   const handleUpdateSetlistSongs = useCallback(async (
     setlistId: string,
     songToUpdate: SetlistSong,
@@ -482,7 +440,7 @@ const SheetReaderMode: React.FC = () => {
       if (!isAlreadyInList) {
         const newSetlistSong: SetlistSong = {
           ...songToUpdate,
-          id: crypto.randomUUID(), // Generate new ID for setlist entry
+          id: crypto.randomUUID(),
           master_id: songToUpdate.master_id || songToUpdate.id,
           isPlayed: false,
           isApproved: false,
@@ -491,8 +449,8 @@ const SheetReaderMode: React.FC = () => {
       }
     } else if (action === 'remove') {
       updatedSongsArray = updatedSongsArray.filter(s =>
-        (s.master_id && s.master_id !== songToUpdate.master_id) || // Filter by master_id if present
-        (!s.master_id && s.id !== songToUpdate.id) // Fallback to local ID if no master_id
+        (s.master_id && s.master_id !== songToUpdate.master_id) ||
+        (!s.master_id && s.id !== songToUpdate.id)
       );
     }
 
@@ -504,7 +462,6 @@ const SheetReaderMode: React.FC = () => {
 
       if (error) throw error;
 
-      // Update local state
       setAllSetlists(prev => prev.map(l =>
         l.id === setlistId ? { ...l, songs: updatedSongsArray } : l
       ));
@@ -552,7 +509,6 @@ const SheetReaderMode: React.FC = () => {
         setTimeout(() => onChartLoad(song.id, chartType), 50);
         return (
           <UGChordsReader
-            // Key includes targetKey to force re-render on change
             key={`${song.id}-chords-${harmonicTargetKey}`}
             chordsText={song.ug_chords_text}
             config={song.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
@@ -704,10 +660,8 @@ const SheetReaderMode: React.FC = () => {
     [currentSong]
   );
 
-  // NEW: Keyboard shortcut for 'i' to open Song Studio
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if user is typing in an input or textarea
       if (
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement ||
@@ -726,7 +680,6 @@ const SheetReaderMode: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentSong]);
 
-  // Fixed: Define handleSelectSongByIndex
   const handleSelectSongByIndex = useCallback((index: number) => {
     if (index >= 0 && index < allSongs.length) {
       setCurrentIndex(index);
@@ -747,7 +700,6 @@ const SheetReaderMode: React.FC = () => {
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-white">
       
-      {/* Sidebar */}
       <motion.div
         initial={{ x: isSidebarOpen ? 0 : -300 }}
         animate={{ x: isSidebarOpen ? 0 : -300 }}

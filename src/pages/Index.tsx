@@ -7,7 +7,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useToneAudio } from '@/hooks/use-tone-audio';
 import { useSettings } from '@/hooks/use-settings';
-import { showSuccess, showError, showInfo, showWarning } from '@/utils/toast'; // Added showWarning
+import { showSuccess, showError, showInfo, showWarning } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 import { calculateReadiness, syncToMasterRepertoire } from '@/utils/repertoireSync';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
@@ -40,16 +40,15 @@ import ActiveSongBanner from '@/components/ActiveSongBanner';
 import { StudioTab } from '@/components/SongStudioView';
 import RepertoireView from '@/components/RepertoireView';
 import KeyManagementModal from '@/components/KeyManagementModal';
-import PerformanceOverlay from '@/components/PerformanceOverlay'; // Import PerformanceOverlay
+import PerformanceOverlay from '@/components/PerformanceOverlay';
 
 const Index = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const isMobile = useIsMobile();
-  const { keyPreference: globalKeyPreference, safePitchMaxNote, isSafePitchEnabled, isFetchingSettings } = useSettings(); // Use loading state from useSettings
+  const { keyPreference: globalKeyPreference, safePitchMaxNote, isSafePitchEnabled, isFetchingSettings } = useSettings();
   const audio = useToneAudio();
 
-  // --- State Management ---
   const [allSetlists, setAllSetlists] = useState<Setlist[]>([]);
   const [masterRepertoire, setMasterRepertoire] = useState<SetlistSong[]>([]);
   const [activeSetlistId, setActiveSetlistId] = useState<string | null>(null);
@@ -57,7 +56,6 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
   const [activeDashboardView, setActiveDashboardView] = useState<'gigs' | 'repertoire'>('gigs');
 
-  // Modals
   const [isSetlistSettingsOpen, setIsSetlistSettingsOpen] = useState(false);
   const [isRepertoirePickerOpen, setIsRepertoirePickerOpen] = useState(false);
   const [isImportSetlistOpen, setIsImportSetlistOpen] = useState(false);
@@ -69,22 +67,19 @@ const Index = () => {
   const [songStudioModalSongId, setSongStudioModalSongId] = useState<string | null>(null);
   const [songStudioDefaultTab, setSongStudioDefaultTab] = useState<StudioTab | undefined>(undefined);
   const [isKeyManagementOpen, setIsKeyManagementOpen] = useState(false);
-  const [isPerformanceOverlayOpen, setIsPerformanceOverlayOpen] = useState(false); // NEW: State for PerformanceOverlay
+  const [isPerformanceOverlayOpen, setIsPerformanceOverlayOpen] = useState(false);
 
-  // Setlist Management
   const [newSetlistName, setNewSetlistName] = useState("");
   const [isCreatingSetlist, setIsCreatingSetlist] = useState(false);
   const [renameSetlistId, setRenameSetlistId] = useState<string | null>(null);
   const [renameSetlistName, setNewSetlistNameForRename] = useState("");
   const [deleteSetlistConfirmId, setDeleteSetlistConfirmId] = useState<string | null>(null);
 
-  // SetlistManager Filters & Search
   const [searchTerm, setSearchTerm] = useState("");
   const [sortMode, setSortMode] = useState<'none' | 'ready' | 'work'>('none');
   const [activeFilters, setActiveFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [showHeatmap, setShowHeatmap] = useState(false);
 
-  // Repertoire Exporter states
   const [isRepertoireAutoLinking, setIsRepertoireAutoLinking] = useState(false);
   const [isRepertoireGlobalAutoSyncing, setIsRepertoireGlobalAutoSyncing] = useState(false);
   const [isRepertoireBulkQueuingAudio, setIsRepertoireBulkQueuingAudio] = useState(false);
@@ -92,7 +87,6 @@ const Index = () => {
 
   const [floatingDockMenuOpen, setFloatingDockMenuOpen] = useState(false);
 
-  // --- Derived State ---
   const activeSetlist = useMemo(() =>
     allSetlists.find(list => list.id === activeSetlistId),
   [allSetlists, activeSetlistId]);
@@ -102,7 +96,6 @@ const Index = () => {
 
     let songs = [...activeSetlist.songs];
 
-    // Apply search term
     const q = searchTerm.toLowerCase();
     if (q) {
       songs = songs.filter(s =>
@@ -112,7 +105,6 @@ const Index = () => {
       );
     }
 
-    // Apply filters
     songs = songs.filter(s => {
       const readiness = calculateReadiness(s);
       const hasAudio = !!s.audio_url;
@@ -150,7 +142,6 @@ const Index = () => {
       return true;
     });
 
-    // Apply sort mode
     if (sortMode === 'ready') {
       songs.sort((a, b) => calculateReadiness(b) - calculateReadiness(a));
     } else if (sortMode === 'work') {
@@ -182,12 +173,10 @@ const Index = () => {
     return activeSongForPerformance.highest_note_original;
   }, [activeSongForPerformance]);
 
-  // --- Data Fetching ---
   const fetchSetlistsAndRepertoire = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
-      // 1. Fetch Setlists (just the metadata)
       const { data: setlistsData, error: setlistsError } = await supabase
         .from('setlists')
         .select('*')
@@ -196,7 +185,7 @@ const Index = () => {
 
       if (setlistsError) {
         console.error("[Index] Supabase Setlists Fetch Error:", setlistsError);
-        console.error("[Index] Full Setlists Error Object:", JSON.stringify(setlistsError, null, 2)); // Log full error
+        console.error("[Index] Full Setlists Error Object:", JSON.stringify(setlistsError, null, 2));
         if (setlistsError.message.includes("new row violates row-level-security")) {
           showError("Database Security Error: You don't have permission to read setlist data. Check RLS policies.");
         } else {
@@ -205,7 +194,6 @@ const Index = () => {
         throw setlistsError;
       }
 
-      // 2. Fetch Master Repertoire
       const { data: repertoireData, error: repertoireError } = await supabase
         .from('repertoire')
         .select('*')
@@ -214,7 +202,7 @@ const Index = () => {
 
       if (repertoireError) {
         console.error("[Index] Supabase Repertoire Fetch Error:", repertoireError);
-        console.error("[Index] Full Repertoire Error Object:", JSON.stringify(repertoireError, null, 2)); // Log full error
+        console.error("[Index] Full Repertoire Error Object:", JSON.stringify(repertoireError, null, 2));
         if (repertoireError.message.includes("new row violates row-level-security")) {
           showError("Database Security Error: You don't have permission to read repertoire data. Check RLS policies.");
         } else {
@@ -272,11 +260,9 @@ const Index = () => {
       }));
       setMasterRepertoire(mappedRepertoire);
 
-      // 3. Fetch Setlist Songs (Junction Table) and Merge
       const setlistsWithSongs: Setlist[] = [];
 
       for (const setlist of setlistsData || []) {
-        // Fetch songs for this setlist from the junction table
         const { data: junctionData, error: junctionError } = await supabase
           .from('setlist_songs')
           .select('*')
@@ -285,27 +271,24 @@ const Index = () => {
 
         if (junctionError) {
           console.warn(`Failed to fetch songs for setlist ${setlist.id}:`, junctionError);
-          continue; // Skip this setlist if junction fetch fails
+          continue;
         }
 
-        // Map junction data to full song objects using masterRepertoire
         const songs: SetlistSong[] = junctionData.map(junction => {
           const masterSong = mappedRepertoire.find(r => r.id === junction.song_id);
           
           if (!masterSong) {
             console.warn(`Master song not found for junction entry: ${junction.song_id}`);
-            return null; // Will be filtered out
+            return null;
           }
 
-          // Return a merged object: properties from master, but with the junction's ID
           return {
             ...masterSong,
-            id: junction.id, // Use the junction ID for the setlist entry
-            master_id: masterSong.id, // Keep reference to master
-            isPlayed: junction.isPlayed || false, // Use junction-specific data if available
-            // Ensure other junction-specific fields are mapped if they exists
+            id: junction.id,
+            master_id: masterSong.id,
+            isPlayed: junction.isPlayed || false,
           };
-        }).filter(Boolean) as SetlistSong[]; // Filter out nulls
+        }).filter(Boolean) as SetlistSong[];
 
         setlistsWithSongs.push({
           id: setlist.id,
@@ -317,7 +300,6 @@ const Index = () => {
 
       setAllSetlists(setlistsWithSongs);
 
-      // Set active setlist
       let initialSetlistId = setlistsWithSongs[0]?.id || null;
       const savedSetlistId = localStorage.getItem('active_setlist_id');
       if (savedSetlistId && setlistsWithSongs.some(s => s.id === savedSetlistId)) {
@@ -341,7 +323,6 @@ const Index = () => {
     }
   }, [user, authLoading, fetchSetlistsAndRepertoire, navigate]);
 
-  // NEW: Supabase Realtime Subscription for repertoire changes
   useEffect(() => {
     if (!user) return;
 
@@ -354,7 +335,7 @@ const Index = () => {
           const updatedSong = payload.new as SetlistSong;
           if (updatedSong.extraction_status && (updatedSong.extraction_status === 'completed' || updatedSong.extraction_status === 'failed')) {
             showSuccess(`Repertoire updated for "${updatedSong.name}"`);
-            fetchSetlistsAndRepertoire(); // Re-fetch all data to ensure consistency
+            fetchSetlistsAndRepertoire();
           }
         }
       )
@@ -366,16 +347,13 @@ const Index = () => {
   }, [user, fetchSetlistsAndRepertoire]);
 
 
-  // --- FIX: Clear active song for performance on setlist change or initial load ---
   useEffect(() => {
     console.log("[Index] activeSetlist changed or initial load. Clearing activeSongForPerformance.");
-    setActiveSongForPerformance(null); // Always clear when activeSetlist changes or on initial load
+    setActiveSongForPerformance(null);
   }, [activeSetlist]);
 
-  // Load audio for active song for performance
   useEffect(() => {
     console.log("[Index] activeSongForPerformance or its audio properties changed.");
-    // Only load audio if a song is selected for performance AND it has a preview URL
     if (activeSongForPerformance && (activeSongForPerformance.audio_url || activeSongForPerformance.previewUrl)) {
       const urlToLoad = activeSongForPerformance.audio_url || activeSongForPerformance.previewUrl;
       console.log(`[Index] Attempting to load audio for '${activeSongForPerformance.name}' from URL:`, urlToLoad);
@@ -387,15 +365,12 @@ const Index = () => {
     }
   }, [activeSongForPerformance?.audio_url, activeSongForPerformance?.previewUrl, activeSongForPerformance?.pitch, audio]);
 
-  // --- FIX: Remove persistence of active song for performance on refresh ---
   useEffect(() => {
     if (activeSetlistId) {
       localStorage.setItem('active_setlist_id', activeSetlistId);
     }
-    // Removed: localStorage.setItem(`active_song_id_${activeSetlist.id}`, activeSongForPerformance.id);
   }, [activeSetlistId]);
 
-  // --- Setlist Management Handlers ---
   const handleSelectSetlist = (id: string) => {
     setActiveSetlistId(id);
     audio.stopPlayback();
@@ -465,11 +440,9 @@ const Index = () => {
     }
   };
 
-  // --- Song Management Handlers ---
   const handleRemoveSongFromSetlist = async (songIdToRemove: string) => {
     if (!user || !activeSetlist) return;
     try {
-      // Delete from junction table
       const { error } = await supabase
         .from('setlist_songs')
         .delete()
@@ -477,7 +450,6 @@ const Index = () => {
 
       if (error) throw error;
       
-      // Update local state
       const updatedSongs = activeSetlist.songs.filter(s => s.id !== songIdToRemove);
       setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: updatedSongs } : s));
       
@@ -491,16 +463,14 @@ const Index = () => {
   const handleSelectSongForPlayback = (song: SetlistSong) => {
     setActiveSongForPerformance(song);
     audio.stopPlayback();
-    // --- FIX: Persist active song only when explicitly selected ---
     if (activeSetlist) {
       localStorage.setItem(`active_song_id_${activeSetlist.id}`, song.id);
     }
   };
 
   const handleEditSong = (song: SetlistSong, defaultTab?: StudioTab) => {
-    // Stop audio playback when opening the studio
     audio.stopPlayback();
-    setSongStudioModalSongId(song.master_id || song.id); // Use master_id for studio
+    setSongStudioModalSongId(song.master_id || song.id);
     setIsSongStudioModalOpen(true);
     setSongStudioDefaultTab(defaultTab || 'audio');
   };
@@ -508,7 +478,6 @@ const Index = () => {
   const handleUpdateSongInSetlist = async (junctionIdToUpdate: string, updates: Partial<SetlistSong>) => {
     if (!user || !activeSetlist) return;
 
-    // 1. Find the junction song in the current active setlist
     const junctionSong = activeSetlist.songs.find(s => s.id === junctionIdToUpdate);
     if (!junctionSong) {
       console.error("[Index] handleUpdateSongInSetlist: Junction song not found for ID:", junctionIdToUpdate);
@@ -516,7 +485,6 @@ const Index = () => {
       return;
     }
 
-    // 2. Get the master_id from the junction song
     const masterSongId = junctionSong.master_id;
     if (!masterSongId) {
       console.error("[Index] handleUpdateSongInSetlist: Master ID missing for junction song:", junctionIdToUpdate);
@@ -524,7 +492,6 @@ const Index = () => {
       return;
     }
 
-    // 3. Find the current master song from the masterRepertoire
     const currentMasterSong = masterRepertoire.find(s => s.id === masterSongId);
     if (!currentMasterSong) {
       console.error("[Index] handleUpdateSongInSetlist: Master song not found in repertoire for ID:", masterSongId);
@@ -532,24 +499,18 @@ const Index = () => {
       return;
     }
 
-    // 4. Merge current master song state with new updates
     const mergedUpdatesForMaster = { ...currentMasterSong, ...updates } as SetlistSong;
 
     try {
-      // 5. Update the master repertoire and get the fully synced song back
-      // This will correctly trigger an UPDATE in 'repertoire' because mergedUpdatesForMaster.master_id is present.
       const syncedMasterSongs = await syncToMasterRepertoire(user.id, [mergedUpdatesForMaster]);
       const fullySyncedMasterSong = syncedMasterSongs[0];
 
-      // 6. Update local master repertoire state
       setMasterRepertoire(prev => prev.map(s => s.id === fullySyncedMasterSong.id ? fullySyncedMasterSong : s));
 
-      // 7. Update the song in the active setlist using the fully synced master song's data
       const updatedSetlistSongs = activeSetlist.songs.map(s =>
-        s.id === junctionIdToUpdate ? { ...s, ...fullySyncedMasterSong } : s // Update the specific junction entry
+        s.id === junctionIdToUpdate ? { ...s, ...fullySyncedMasterSong } : s
       );
 
-      // 8. Update the setlist_songs table for any junction-specific fields (like isPlayed)
       const { error: junctionUpdateError } = await supabase
         .from('setlist_songs')
         .update({ 
@@ -559,10 +520,8 @@ const Index = () => {
 
       if (junctionUpdateError) throw junctionUpdateError;
 
-      // 9. Update local allSetlists state
       setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: updatedSetlistSongs } : s));
       
-      // 10. Update active song for performance if it matches
       if (activeSongForPerformance?.id === junctionIdToUpdate) {
         setActiveSongForPerformance(prev => ({ ...prev!, ...fullySyncedMasterSong }));
       }
@@ -581,12 +540,10 @@ const Index = () => {
 
     const newPitch = calculateSemitones(songToUpdate.originalKey || 'C', newTargetKey);
 
-    // Update in master repertoire
     const updatedMasterSong = { ...masterRepertoire.find(s => s.id === songToUpdate.master_id), targetKey: newTargetKey, pitch: newPitch } as SetlistSong;
     await syncToMasterRepertoire(user.id, [updatedMasterSong]);
     setMasterRepertoire(prev => prev.map(s => s.id === songToUpdate.master_id ? updatedMasterSong : s));
 
-    // Update in active setlist
     const updatedSetlistSongs = activeSetlist.songs.map(s =>
       s.id === songIdToUpdate ? { ...s, targetKey: newTargetKey, pitch: newPitch } : s
     );
@@ -617,7 +574,6 @@ const Index = () => {
     );
 
     try {
-      // Update junction table
       const { error } = await supabase
         .from('setlist_songs')
         .update({ isPlayed: !song.isPlayed })
@@ -643,11 +599,9 @@ const Index = () => {
       return;
     }
 
-    // Ensure songToAdd is the latest from masterRepertoire
     const masterVersion = masterRepertoire.find(s => s.id === songToAdd.id || s.master_id === songToAdd.master_id);
     const songToUse = masterVersion || songToAdd;
 
-    // Insert into junction table
     const { error } = await supabase
       .from('setlist_songs')
       .insert({
@@ -663,7 +617,6 @@ const Index = () => {
       return;
     }
 
-    // Refetch to get the new junction ID and ensure consistency
     await fetchSetlistsAndRepertoire();
     showSuccess(`Added "${songToAdd.name}" to setlist.`);
     setIsRepertoirePickerOpen(false);
@@ -673,14 +626,11 @@ const Index = () => {
   const handleReorderSongs = async (newSongs: SetlistSong[]) => {
     if (!user || !activeSetlist) return;
     try {
-      // Update sort_order for each song in the junction table
       const updates = newSongs.map((song, index) => ({
         id: song.id,
         sort_order: index
       }));
 
-      // We can't do a bulk update easily with supabase-js for multiple rows with different IDs
-      // So we'll do sequential updates or a loop
       for (const update of updates) {
         const { error } = await supabase
           .from('setlist_songs')
@@ -696,7 +646,6 @@ const Index = () => {
     }
   };
 
-  // --- Repertoire Exporter Handlers (for Repertoire tab) ---
   const handleRepertoireAutoLink = async () => {
     if (!user) return;
     setIsRepertoireAutoLinking(true);
@@ -802,7 +751,6 @@ const Index = () => {
 
       if (error) throw error;
 
-      // Update local repertoire state to reflect queued status
       const updatedRepertoire = masterRepertoire.map(s =>
         songIdsToQueue.includes(s.id) ? { ...s, extraction_status: 'queued' as SetlistSong['extraction_status'], last_sync_log: 'Queued for background audio extraction.' } : s
       );
@@ -842,7 +790,6 @@ const Index = () => {
 
       if (error) throw error;
 
-      // Update local repertoire state
       const updatedRepertoire = masterRepertoire.map(s =>
         songIdsToClear.includes(s.id) ? { ...s, youtubeUrl: undefined, metadata_source: null, sync_status: 'IDLE' as SetlistSong['sync_status'], last_sync_log: 'Cleared auto-populated link' } : s
       );
@@ -873,7 +820,6 @@ const Index = () => {
         s.id === songToUpdate.id
       );
       if (!isAlreadyInList) {
-        // Insert into junction table
         const { error } = await supabase
           .from('setlist_songs')
           .insert({
@@ -890,7 +836,6 @@ const Index = () => {
         }
       }
     } else if (action === 'remove') {
-      // Find the junction ID for this song in this setlist
       const junctionSong = targetSetlist.songs.find(s =>
         (s.master_id && s.master_id === songToUpdate.master_id) || s.id === songToUpdate.id
       );
@@ -907,7 +852,6 @@ const Index = () => {
       }
     }
 
-    // Refetch to ensure consistency
     await fetchSetlistsAndRepertoire();
     showSuccess(`Setlist "${targetSetlist.name}" updated.`);
   }, [allSetlists, fetchSetlistsAndRepertoire]);
@@ -921,18 +865,14 @@ const Index = () => {
       return;
     }
 
-    // Merge current master song state with new updates
     const mergedUpdatesForMaster = { ...currentMasterSong, ...updates } as SetlistSong;
 
     try {
-      // 1. Update the master repertoire and get the fully synced song back
       const syncedMasterSongs = await syncToMasterRepertoire(user.id, [mergedUpdatesForMaster]);
       const fullySyncedMasterSong = syncedMasterSongs[0];
 
-      // 2. Update local master repertoire state
       setMasterRepertoire(prev => prev.map(s => s.id === songId ? fullySyncedMasterSong : s));
 
-      // 3. Update all setlists that contain this master song
       const masterId = fullySyncedMasterSong.master_id || fullySyncedMasterSong.id;
       
       const updatedSetlists = allSetlists.map(setlist => {
@@ -944,7 +884,6 @@ const Index = () => {
       
       setAllSetlists(updatedSetlists);
       
-      // 4. Update active song for performance if it matches
       if (activeSongForPerformance?.master_id === masterId || activeSongForPerformance?.id === masterId) {
         setActiveSongForPerformance(fullySyncedMasterSong);
       }
@@ -960,19 +899,16 @@ const Index = () => {
   }, [fetchSetlistsAndRepertoire]);
 
   const handleOpenReader = useCallback((initialSongId?: string) => {
-    sessionStorage.setItem('from_dashboard', 'true');
     const params = new URLSearchParams();
     if (initialSongId) {
       params.set('id', initialSongId);
     }
-    // NEW: Add filterApproved parameter if in 'gigs' view
     if (activeDashboardView === 'gigs') {
       params.set('filterApproved', 'true');
     }
     navigate(`/sheet-reader/${initialSongId ? initialSongId : ''}?${params.toString()}`);
-  }, [navigate, activeSongForPerformance, filteredAndSortedSongs, activeDashboardView]);
+  }, [navigate, activeDashboardView]);
 
-  // NEW: Handle opening Performance Overlay
   const handleOpenPerformanceOverlay = useCallback(() => {
     console.log("[Index] handleOpenPerformanceOverlay called.");
     console.log("[Index] Current activeSetlist:", activeSetlist);
@@ -983,7 +919,6 @@ const Index = () => {
       console.log("[Index] No active setlist or empty setlist. Cannot open performance overlay.");
       return;
     }
-    // Set the first song as active for performance if none is already selected
     if (!activeSongForPerformance) {
       const firstSong = activeSetlist.songs[0];
       setActiveSongForPerformance(firstSong);
@@ -996,7 +931,6 @@ const Index = () => {
   }, [activeSetlist, activeSongForPerformance]);
 
   const handleSafePitchToggle = useCallback((active: boolean, safePitch: number) => {
-    // NEW: Only apply safe pitch logic if the feature is enabled in preferences
     if (!isSafePitchEnabled) {
       return;
     }
@@ -1011,11 +945,10 @@ const Index = () => {
         showInfo(`Pitch adjusted to ${newPitch} ST to stay within safe range.`);
       }
     } else {
-      // No toast needed for deactivation
     }
   }, [activeSongForPerformance, handleUpdateSongInSetlist, isSafePitchEnabled]);
 
-  if (loading || authLoading || isFetchingSettings) { // Show loading if useSettings is still fetching
+  if (loading || authLoading || isFetchingSettings) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-16 h-16 animate-spin text-indigo-500" />
@@ -1028,7 +961,6 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col relative">
-      {/* Main Content Area */}
       <div className="flex-1 flex flex-col p-6 md:p-10 overflow-y-auto custom-scrollbar">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
@@ -1071,7 +1003,6 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Active Song Banner (only for Gigs tab) */}
         {activeDashboardView === 'gigs' && activeSongForPerformance && (
           <ActiveSongBanner
             song={activeSongForPerformance}
@@ -1082,7 +1013,6 @@ const Index = () => {
           />
         )}
 
-        {/* NEW: Tabs for Gigs and Repertoire */}
         <Tabs value={activeDashboardView} onValueChange={(value) => setActiveDashboardView(value as 'gigs' | 'repertoire')} className="w-full mt-8">
           <TabsList className="grid w-full grid-cols-2 h-12 bg-slate-900 p-1 rounded-xl mb-6">
             <TabsTrigger value="gigs" className="text-sm font-black uppercase tracking-tight gap-2 h-10 rounded-lg">
@@ -1094,7 +1024,6 @@ const Index = () => {
           </TabsList>
 
           <TabsContent value="gigs" className="mt-0 space-y-8">
-            {/* Setlist Selector & Actions */}
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <SetlistSelector
                 setlists={allSetlists}
@@ -1124,7 +1053,6 @@ const Index = () => {
                     try {
                       const newSongsWithMasterIds = await syncToMasterRepertoire(user.id, songs);
                       
-                      // Insert into junction table
                       const junctionInserts = newSongsWithMasterIds.map((s, index) => ({
                         setlist_id: activeSetlist.id,
                         song_id: s.master_id || s.id,
@@ -1150,7 +1078,6 @@ const Index = () => {
               </div>
             </div>
 
-            {/* Setlist Stats */}
             <SetlistStats
               songs={activeSetlist?.songs || []}
               goalSeconds={activeSetlist?.time_goal}
@@ -1161,7 +1088,7 @@ const Index = () => {
                     .from('setlists')
                     .update({ time_goal: newGoal })
                     .eq('id', activeSetlist.id)
-                    .eq('user_id', user.id); // Corrected to user.id
+                    .eq('user_id', user.id);
                   if (error) throw error;
                   setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, time_goal: newGoal } : s));
                   showSuccess("Performance goal updated!");
@@ -1171,7 +1098,6 @@ const Index = () => {
               }}
             />
 
-            {/* Setlist Manager */}
             <SetlistManager
               songs={filteredAndSortedSongs}
               onRemove={handleRemoveSongFromSetlist}
@@ -1179,7 +1105,7 @@ const Index = () => {
               onEdit={handleEditSong}
               onUpdateKey={handleUpdateSongKey}
               onTogglePlayed={handleTogglePlayed}
-              onLinkAudio={() => {}} // Not directly used here, handled by StudioModal
+              onLinkAudio={() => {}}
               onUpdateSong={handleUpdateSongInSetlist}
               onSyncProData={async (song) => {
                 if (!user) return;
@@ -1188,7 +1114,6 @@ const Index = () => {
                   const syncedSongs = await syncToMasterRepertoire(user.id, [song]);
                   const updatedSong = syncedSongs[0];
                   setMasterRepertoire(prev => prev.map(s => s.id === updatedSong.id ? updatedSong : s));
-                  // Also update in active setlist if present
                   if (activeSetlist) {
                     const updatedSetlistSongs = activeSetlist.songs.map(s =>
                       (s.master_id === updatedSong.id || s.id === updatedSong.id) ? { ...s, ...updatedSong } : s
@@ -1216,7 +1141,6 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="repertoire" className="mt-0 space-y-8">
-            {/* Automation Hub (Moved here) */}
             <SetlistExporter
               songs={masterRepertoire}
               onAutoLink={handleRepertoireAutoLink}
@@ -1244,7 +1168,6 @@ const Index = () => {
                   showError(`Failed to add new song to repertoire: ${err.message}`);
                 }
               }}
-              // PASS NEW PROPS HERE
               searchTerm={searchTerm}
               setSearchTerm={setSearchTerm}
               sortMode={sortMode}
@@ -1256,14 +1179,13 @@ const Index = () => {
         </Tabs>
       </div>
 
-      {/* Floating Command Dock */}
       <FloatingCommandDock
         onOpenSearch={() => {
           setSongStudioModalSongId(null);
           setIsSongStudioModalOpen(true);
           setSongStudioDefaultTab('library');
         }}
-        onOpenPractice={() => {}} // Placeholder
+        onOpenPractice={() => {}}
         onOpenReader={handleOpenReader}
         onOpenAdmin={() => setIsAdminPanelOpen(true)}
         onOpenPreferences={() => setIsPreferencesOpen(true)}
@@ -1281,11 +1203,8 @@ const Index = () => {
         activeSongId={activeSongForPerformance?.id}
         onSetMenuOpen={setFloatingDockMenuOpen}
         isMenuOpen={floatingDockMenuOpen}
-        onOpenPerformance={handleOpenPerformanceOverlay} // Pass the new handler
+        onOpenPerformance={handleOpenPerformanceOverlay}
       />
-
-      {/* Modals */}
-      {/* ... existing AlertDialogs ... */}
 
       <AlertDialog open={isCreatingSetlist} onOpenChange={setIsCreatingSetlist}>
         <AlertDialogContent className="bg-slate-900 border-white/10 text-white rounded-[2rem]">
@@ -1342,12 +1261,11 @@ const Index = () => {
           setlistName={activeSetlist.name}
           onDelete={(id) => {
             setDeleteSetlistConfirmId(id);
-            setIsSetlistSettingsOpen(false); // Close settings modal to show confirm dialog
+            setIsSetlistSettingsOpen(false);
           }}
           onRename={(id) => {
             setRenameSetlistId(id);
             setNewSetlistNameForRename(activeSetlist.name);
-            // This will open another dialog, so keep settings open or manage flow
           }}
         />
       )}
@@ -1400,7 +1318,6 @@ const Index = () => {
           try {
             const newSongsWithMasterIds = await syncToMasterRepertoire(user.id, songs);
             
-            // Insert into junction table
             const junctionInserts = newSongsWithMasterIds.map((s, index) => ({
               setlist_id: activeSetlist.id,
               song_id: s.master_id || s.id,
@@ -1433,7 +1350,6 @@ const Index = () => {
           const updatedMasterSong = { ...masterRepertoire.find(s => s.id === songId), ...updates } as SetlistSong;
           await syncToMasterRepertoire(user.id, [updatedMasterSong]);
           setMasterRepertoire(prev => prev.map(s => s.id === songId ? updatedMasterSong : s));
-          // Also update in active setlist if present
           if (activeSetlist) {
             const updatedSetlistSongs = activeSetlist.songs.map(s =>
               (s.master_id === songId || s.id === songId) ? { ...s, ...updatedMasterSong } : s
@@ -1466,7 +1382,6 @@ const Index = () => {
         onClose={() => setIsUserGuideOpen(false)}
       />
 
-      {/* NEW: Key Management Modal */}
       <KeyManagementModal
         isOpen={isKeyManagementOpen}
         onClose={() => setIsKeyManagementOpen(false)}
@@ -1496,7 +1411,6 @@ const Index = () => {
         />
       )}
 
-      {/* NEW: Performance Overlay */}
       {isPerformanceOverlayOpen && activeSetlist && activeSongForPerformance && (
         <PerformanceOverlay
           songs={activeSetlist.songs}
