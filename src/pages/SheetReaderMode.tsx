@@ -80,7 +80,7 @@ const SheetReaderMode: React.FC = () => {
     isLoadingAudio
   } = audioEngine;
 
-  const [chordAutoScrollEnabled, setChordAutoScrollEnabled] = useState(true); // Changed from 1.0 to true
+  const [chordAutoScrollEnabled, setChordAutoScrollEnabled] = useState(true);
   const [chordScrollSpeed, setChordScrollSpeed] = useState(1.0);
 
   const currentSong = allSongs[currentIndex];
@@ -242,6 +242,16 @@ const SheetReaderMode: React.FC = () => {
         // REMOVED: s.ugUrl from hasChart condition
         const hasChart = s.pdfUrl || s.leadsheetUrl || s.ug_chords_text; 
         const meetsReadiness = readiness >= 40 || forceReaderResource === 'simulation' || ignoreConfirmedGate;
+
+        // Debugging for the specific song
+        if (s.id === "582ded79-5b51-45e1-8260-72de214fbff1") {
+          console.log(`[SheetReaderMode Debug] Song: ${s.name}`);
+          console.log(`[SheetReaderMode Debug] readiness: ${readiness}`);
+          console.log(`[SheetReaderMode Debug] hasChart (pdfUrl: ${s.pdfUrl}, leadsheetUrl: ${s.leadsheetUrl}, ug_chords_text: ${!!s.ug_chords_text}): ${hasChart}`);
+          console.log(`[SheetReaderMode Debug] meetsReadiness: ${meetsReadiness}`);
+          console.log(`[SheetReaderMode Debug] Filter result: ${hasChart && meetsReadiness}`);
+        }
+
         return hasChart && meetsReadiness;
       });
 
@@ -544,7 +554,7 @@ const SheetReaderMode: React.FC = () => {
             isPlaying={isPlaying}
             progress={progress}
             duration={duration}
-            chordAutoScrollEnabled={chordAutoScrollEnabled} // Removed 'as boolean'
+            chordAutoScrollEnabled={chordAutoScrollEnabled}
             chordScrollSpeed={chordScrollSpeed}
             readerKeyPreference={readerKeyPreference}
           />
