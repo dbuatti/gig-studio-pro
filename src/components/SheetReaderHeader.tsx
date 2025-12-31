@@ -34,7 +34,7 @@ interface SheetReaderHeaderProps {
   // NEW: Sidebar Toggle
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
-  headerLeftOffset: number; // Re-added this property
+  headerLeftOffset: number; // Re-added this property to the interface
 }
 
 const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
