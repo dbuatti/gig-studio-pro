@@ -54,13 +54,13 @@ const SheetReaderMode: React.FC = () => {
   const [initialLoading, setInitialLoading] = useState(true);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [isImmersive, setIsImmersive] = useState(false);
-  const [isStudioPanelOpen, setIsStudioPanelOpen] = useState(false); // Only one state now
+  const [isStudioPanelOpen, setIsStudioPanelOpen] = useState(false);
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const [readerKeyPreference, setReaderKeyPreference] = useState<'sharps' | 'flats'>(globalKeyPreference);
   const [selectedChartType, setSelectedChartType] = useState<ChartType>('pdf');
-  const [renderedCharts, setRenderedCharts] = useState<RenderedChart[]>([]); // Moved up
+  const [renderedCharts, setRenderedCharts] = useState<RenderedChart[]>([]);
 
   const audioEngine = useToneAudio(true);
   const {
@@ -69,27 +69,20 @@ const SheetReaderMode: React.FC = () => {
     resetEngine, currentUrl, currentBuffer, isLoadingAudio
   } = audioEngine;
 
-  // --- Derived State (useMemo) - Level 1 (depends on simple state) ---
-  const currentSong = allSongs[currentIndex]; // Depends on allSongs, currentIndex
+  const currentSong = allSongs[currentIndex];
 
-  const isOriginalKeyMissing = useMemo(() => // Depends on currentSong
-    !currentSong?.originalKey || currentSong.originalKey === 'TBC',
-    [currentSong]
-  );
-
-  const isFramable = useCallback((url: string | null | undefined) => { // No complex dependencies
+  const isFramable = useCallback((url: string | null | undefined) => {
     if (!url) return true;
     const blocked = ['ultimate-guitar.com', 'musicnotes.com', 'sheetmusicplus.com'];
     return !blocked.some(site => url.includes(site));
   }, []);
 
-  const handleChartLoad = useCallback((id: string, type: ChartType) => { // Depends on setRenderedCharts
+  const handleChartLoad = useCallback((id: string, type: ChartType) => {
     setRenderedCharts(prev => prev.map(rc => 
       rc.id === id && rc.type === type ? { ...rc, isLoaded: true } : rc
     ));
   }, []);
 
-  // --- Callbacks (Level 1 - minimal dependencies, or dependencies already defined) ---
   const handleUpdateSetlistSongs = useCallback(async (
     setlistId: string,
     songToUpdate: SetlistSong,
@@ -141,9 +134,8 @@ const SheetReaderMode: React.FC = () => {
       console.error("[SheetReaderMode] Failed to update setlist songs:", err);
       showError("Failed to load all setlists.");
     }
-  }, [allSetlists, user]); // Added user to dependencies
+  }, [allSetlists, user]);
 
-  // --- Harmonic Sync (depends on currentSong, user, globalKeyPreference, and an internal handleAutoSave) ---
   const harmonicSync = useHarmonicSync({
     formData: {
       originalKey: currentSong?.originalKey,
@@ -302,118 +294,9 @@ const SheetReaderMode: React.FC = () => {
     }
   }, [currentSong, user, setTargetKey, setPitch]);
 
-  const isOriginalKeyMissing = useMemo(() => 
+  const isOriginalKeyMissingMemo = useMemo(() =>
     !currentSong?.originalKey || currentSong.originalKey === 'TBC', 
     [currentSong]
-  );
-
-  const renderChartForSong = useCallback((song: SetlistSong, chartType: ChartType, onChartLoad: (id: string, type: ChartType) => void): React.ReactNode => {
-    const readiness = calculateReadiness(song);
-    const isReadyGatePassed = true || forceReaderResource === 'simulation' || ignoreConfirmedGate;
-
-    if (!isReadyGatePassed) {
-      setTimeout(() => onChartLoad(song.id, chartType), 50);
-      return (
-        <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-950">
-          <AlertCircle className="w-24 h-24 text-red-500 mb-8" />
-          <h2 className="text-4xl font-black uppercase text-white mb-4">Missing Resources</h2>
-          <p className="text-xl text-slate-400 mb-8">Audit this track to link charts or audio.</p>
-          <Button onClick={() => navigate('/')} className="text-lg px-10 py-6 bg-indigo-600 rounded-2xl">
-            Go to Dashboard
-          </Button>
-        </div>
-      );
-    }
-
-    if (chartType === 'chords') {
-      if (song.ug_chords_text?.trim()) {
-        setTimeout(() => onChartLoad(song.id, chartType), 50);
-        console.log(`[UGChordsReader] Rendering chords for ${song.name}. Original Key: ${song.originalKey}, Target Key: ${harmonicTargetKey}, Reader Key Preference: ${readerKeyPreference}`);
-        return (
-          <UGChordsReader
-            key={`${song.id}-chords-${harmonicTargetKey}`}
-            chordsText={song.ug_chords_text}
-            config={song.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
-            isMobile={false}
-            originalKey={song.originalKey}
-            targetKey={harmonicTargetKey}
-            isPlaying={isPlaying}
-            progress={progress}
-            duration={duration}
-            readerKeyPreference={readerKeyPreference}
-          />
-        );
-      }
-      return renderChartForSong(song, 'pdf', onChartLoad);
-    }
-
-    const chartUrl = chartType === 'pdf' ? song.pdfUrl : song.leadsheetUrl;
-    if (!chartUrl) {
-      setTimeout(() => onChartLoad(song.id, chartType), 50);
-      return (
-        <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-950">
-          <Music className="w-24 h-24 text-slate-700 mb-8" />
-          <h2 className="text-4xl font-black uppercase text-white mb-4">
-            No {chartType === 'pdf' ? 'Full Score' : 'Leadsheet'} Available
-          </h2>
-          <p className="text-xl text-slate-400 mb-8">Upload one in the Studio.</p>
-          <Button onClick={() => setIsStudioPanelOpen(true)} className="text-lg px-10 py-6 bg-indigo-600 rounded-2xl">
-            Open Studio
-          </Button>
-        </div>
-      );
-    }
-
-    const googleViewer = `https://docs.google.com/viewer?url=${encodeURIComponent(chartUrl)}&embedded=true`;
-
-    if (isFramable(chartUrl)) {
-      return (
-        <div className="w-full h-full relative bg-black">
-          <iframe
-            key={`${song.id}-${chartType}`}
-            src={googleViewer}
-            className="absolute inset-0 w-full h-full"
-            title="Chart Viewer"
-            style={{ border: 'none' }}
-            allowFullScreen
-            onLoad={() => onChartLoad(song.id, chartType)}
-          />
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20">
-            <a
-              href={chartUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bg-indigo-600 hover:bg-indigo-700 px-8 py-4 rounded-2xl text-lg font-bold shadow-2xl"
-            >
-              Open Chart Externally →
-            </a>
-          </div>
-        </div>
-      );
-    }
-
-    setTimeout(() => onChartLoad(song.id, chartType), 50);
-    return (
-      <div className="h-full flex flex-col items-center justify-center bg-slate-950 p-6 md:p-12 text-center">
-        <ShieldCheck className="w-12 h-12 md:w-16 md:h-16 text-indigo-400 mb-6 md:mb-10" />
-        <h4 className="text-3xl md:text-5xl font-black uppercase tracking-tight mb-4 md:mb-6 text-white">Asset Protected</h4>
-        <p className="text-slate-500 max-xl mb-8 md:mb-16 text-lg md:text-xl font-medium leading-relaxed">
-          External security prevents in-app display. Use the button below to launch in a secure dedicated performance window.
-        </p>
-        <Button 
-          onClick={() => window.open(chartUrl, '_blank')} 
-          className="bg-indigo-600 hover:bg-indigo-700 h-16 md:h-20 px-10 md:px-16 font-black uppercase tracking-[0.2em] text-xs md:text-sm rounded-2xl md:rounded-3xl shadow-2xl gap-4 md:gap-6"
-        >
-          <ExternalLink className="w-6 h-6 md:w-8 md:h-8" /> Launch Chart Window
-        </Button>
-      </div>
-    );
-  }, [forceReaderResource, ignoreConfirmedGate, navigate, harmonicTargetKey, isFramable, setIsStudioPanelOpen, isPlaying, progress, duration, readerKeyPreference, user]); // Added user to dependencies
-
-  // --- Derived State (useMemo) - Level 2 (depends on other derived state or complex callbacks) ---
-  const currentChartState = useMemo(() => 
-    renderedCharts.find(c => c.id === currentSong?.id && c.type === selectedChartType),
-    [renderedCharts, currentSong?.id, selectedChartType]
   );
 
   const availableChartTypes = useMemo((): ChartType[] => {
@@ -425,10 +308,76 @@ const SheetReaderMode: React.FC = () => {
     return types;
   }, [currentSong]);
 
+  const renderChartForSong = useCallback((
+    song: SetlistSong,
+    type: ChartType,
+    onLoad: (id: string, type: ChartType) => void
+  ) => {
+    const isMobile = false;
+
+    const commonIframeProps = {
+      className: "w-full h-full",
+      title: "Chart Viewer",
+      frameBorder: "0",
+      allowFullScreen: true,
+      onLoad: () => onLoad(song.id, type),
+    };
+
+    switch (type) {
+      case 'pdf':
+        if (song.pdfUrl && isFramable(song.pdfUrl)) {
+          return <iframe src={`${song.pdfUrl}#toolbar=0&navpanes=0&view=FitH`} {...commonIframeProps} />;
+        }
+        break;
+      case 'leadsheet':
+        if (song.leadsheetUrl && isFramable(song.leadsheetUrl)) {
+          return <iframe src={`${song.leadsheetUrl}#toolbar=0&navpanes=0&view=FitH`} {...commonIframeProps} />;
+        }
+        break;
+      case 'chords':
+        if (song.ug_chords_text) {
+          return (
+            <UGChordsReader
+              chordsText={song.ug_chords_text}
+              config={song.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
+              isMobile={isMobile}
+              originalKey={song.originalKey}
+              targetKey={song.targetKey}
+              isPlaying={false}
+              progress={0}
+              duration={0}
+              readerKeyPreference={readerKeyPreference}
+            />
+          );
+        }
+        break;
+    }
+
+    return (
+      <div className="h-full flex flex-col items-center justify-center bg-slate-900 p-8 text-center">
+        <ShieldCheck className="w-12 h-12 text-indigo-400 mb-6" />
+        <h4 className="text-3xl md:text-5xl font-black uppercase tracking-tight mb-4 md:mb-6 text-white">Asset Protected</h4>
+        <p className="text-slate-500 max-xl mb-8 md:mb-16 text-lg md:text-xl font-medium leading-relaxed">
+          External security prevents in-app display. Use the button below to launch in a secure dedicated performance window.
+        </p>
+        <Button 
+          onClick={() => window.open(song.pdfUrl || song.leadsheetUrl || song.ugUrl, '_blank')} 
+          className="bg-indigo-600 hover:bg-indigo-700 h-16 md:h-20 px-10 md:px-16 font-black uppercase tracking-[0.2em] text-xs md:text-sm rounded-2xl md:rounded-3xl shadow-2xl shadow-indigo-600/30 gap-4 md:gap-6"
+        >
+          <ExternalLink className="w-6 h-6 md:w-8 md:h-8" /> Launch Chart Window
+        </Button>
+      </div>
+    );
+  }, [isFramable, readerKeyPreference]);
+
+  const currentChartState = useMemo(() =>
+    renderedCharts.find(c => c.id === currentSong?.id && c.type === selectedChartType),
+    [renderedCharts, currentSong?.id, selectedChartType]
+  );
+
   const isChartLoading = !currentChartState?.isLoaded;
   const headerLeftOffset = isSidebarOpen ? 300 : 0;
 
-  // --- Effects ---
   useEffect(() => {
     setAudioPitch(pitch);
   }, [pitch, setAudioPitch]);
@@ -484,11 +433,12 @@ const SheetReaderMode: React.FC = () => {
         is_ug_chords_present: d.is_ug_chords_present,
         is_ug_link_verified: d.is_ug_link_verified,
         is_pitch_linked: d.is_pitch_linked ?? true,
-        sheet_music_url: d.sheet_music_url,
+        sheet_music_url: d.is_sheet_verified ? d.sheet_music_url : null,
         is_sheet_verified: d.is_sheet_verified,
         highest_note_original: d.highest_note_original,
         extraction_status: d.extraction_status,
-        last_sync_log: d.last_sync_log
+        last_sync_log: d.last_sync_log,
+        audio_url: d.audio_url,
       }));
 
       const readableAndApprovedSongs = mappedSongs.filter(s => {
@@ -632,7 +582,7 @@ const SheetReaderMode: React.FC = () => {
 
       if (e.key.toLowerCase() === 'i' && currentSong) {
         e.preventDefault();
-        setIsStudioPanelOpen(prev => !prev); // Toggle side panel with 'i'
+        setIsStudioPanelOpen(prev => !prev);
       }
     };
 
@@ -681,7 +631,7 @@ const SheetReaderMode: React.FC = () => {
           currentSong={currentSong}
           onClose={() => navigate('/')}
           onSearchClick={() => {
-            setIsStudioPanelOpen(true); // Open side panel instead of modal
+            setIsStudioPanelOpen(true);
             setSearchParams({ id: 'new', tab: 'library' }, { replace: true });
           }}
           onPrevSong={handlePrev}
@@ -704,7 +654,7 @@ const SheetReaderMode: React.FC = () => {
         />
 
         {/* Warning Banner */}
-        {isOriginalKeyMissing && (
+        {isOriginalKeyMissingMemo && (
           <div className="fixed top-16 left-0 right-0 bg-red-950/30 border-b border-red-900/50 p-3 flex items-center justify-center gap-3 shrink-0 z-50 h-10" style={{ left: `${headerLeftOffset}px` }}>
             <AlertCircle className="w-4 h-4 text-red-400" />
             <p className="text-xs font-bold uppercase tracking-widest text-red-400">
@@ -716,7 +666,7 @@ const SheetReaderMode: React.FC = () => {
         {/* Chart Area */}
         <div className={cn(
           "flex-1 bg-black overflow-hidden relative", 
-          isImmersive ? "mt-0" : isOriginalKeyMissing ? "mt-[104px]" : "mt-16"
+          isImmersive ? "mt-0" : isOriginalKeyMissingMemo ? "mt-[104px]" : "mt-16"
         )}>
           {renderedCharts.map(rc => (
             <motion.div
