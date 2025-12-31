@@ -38,16 +38,14 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
   const performSearch = async (searchTerm: string) => {
     if (!searchTerm.trim()) return;
 
-    console.log("[SongSearch] Performing iTunes search for:", searchTerm);
     setIsLoading(true);
     setExpandingId(null);
     try {
       const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(searchTerm)}&entity=song&limit=15`);
       const data = await response.json();
-      console.log("[SongSearch] iTunes results received:", data.results?.length || 0);
       setResults(data.results || []);
     } catch (err) {
-      console.error("[SongSearch] iTunes search error:", err);
+      // Silence error
     } finally {
       setIsLoading(false);
     }
@@ -135,7 +133,6 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
   };
 
   const handleAddClick = (song: any) => {
-    console.log("[SongSearch] 'Add to Gig' clicked for:", song.trackName, "by", song.artistName);
     onAddToSetlist(
       song.previewUrl, 
       song.trackName, 

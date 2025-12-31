@@ -150,7 +150,6 @@ const Index = () => {
 
   const fetchSetlistsAndRepertoire = useCallback(async () => {
     if (!userId) return;
-    console.log("[Dashboard] Triggering fetchSetlistsAndRepertoire...");
     setLoading(true);
     try {
       const { data: setlistsData, error: setlistsError } = await supabase
@@ -398,8 +397,7 @@ const Index = () => {
   };
 
   const handleSafePitchToggle = (active: boolean, limit: number) => {
-    // This is managed within FloatingCommandDock, but we can log it
-    console.log(`[Dashboard] Safe Pitch Toggled: ${active}, Limit: ${limit}`);
+    // Handled internally in FloatingCommandDock
   };
 
   const handleTogglePlayed = async (songIdToToggle: string) => {
@@ -479,7 +477,6 @@ const Index = () => {
 
   const handleImportNewSong = async (previewUrl: string, name: string, artist: string, youtubeUrl?: string, ugUrl?: string, appleMusicUrl?: string, genre?: string, pitch?: number, audioUrl?: string, extractionStatus?: 'idle' | 'PENDING' | 'queued' | 'processing' | 'completed' | 'failed') => {
     if (!userId) return;
-    console.log("[Dashboard] handleImportNewSong initiated for:", name);
     try {
       const newSongData: Partial<SetlistSong> = {
         name,
@@ -497,7 +494,6 @@ const Index = () => {
         is_pitch_linked: true
       };
       
-      console.log("[Dashboard] Syncing new track to master repertoire...");
       const syncedSongs = await syncToMasterRepertoire(userId, [newSongData]);
       const syncedSong = syncedSongs[0];
       
@@ -505,14 +501,9 @@ const Index = () => {
         throw new Error("Master sync failed to return a valid song ID.");
       }
       
-      console.log("[Dashboard] Master sync successful. ID:", syncedSong.master_id);
-
       setMasterRepertoire(prev => [...prev, syncedSong]);
 
       if (activeSetlist) {
-        console.log("[Dashboard] Adding track to active setlist:", activeSetlist.name, "ID:", activeSetlist.id);
-        
-        // Use a more resilient insertion for the junction table
         const { error: junctionError } = await supabase.from('setlist_songs').insert({
           setlist_id: activeSetlist.id,
           song_id: syncedSong.master_id,
@@ -521,22 +512,15 @@ const Index = () => {
           is_confirmed: false
         });
 
-        if (junctionError) {
-          console.error("[Dashboard] Junction table insert error:", junctionError);
-          throw junctionError;
-        }
-
-        console.log("[Dashboard] Junction insert complete. Refreshing UI...");
+        if (junctionError) throw junctionError;
         await fetchSetlistsAndRepertoire();
         showSuccess(`"${name}" added to gig.`);
       } else {
-        console.log("[Dashboard] No active setlist. Track added to library only.");
         await fetchSetlistsAndRepertoire();
         showSuccess(`"${name}" added to master repertoire.`);
       }
       setIsAudioTransposerModalOpen(false);
     } catch (err: any) {
-      console.error("[Dashboard] handleImportNewSong FAILED:", err);
       showError(`Import failed: ${err.message || 'Database connection error'}`);
     }
   };

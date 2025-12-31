@@ -85,12 +85,9 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
   };
 
   const loadFromUrl = async (targetUrl: string, name: string, artist: string, youtubeUrl?: string, originalKey?: string, ugUrl?: string, appleMusicUrl?: string, genre?: string, audioUrl?: string, extractionStatus?: 'idle' | 'PENDING' | 'queued' | 'processing' | 'completed' | 'failed') => {
-    console.log("[AudioTransposer] loadFromUrl called for:", name);
     resetEngine();
     const initialPitch = currentSong?.pitch || 0;
-    
     const urlToLoad = (extractionStatus === 'completed' && audioUrl) ? audioUrl : targetUrl;
-    console.log("[AudioTransposer] Loading audio resource:", urlToLoad);
 
     await hookLoadFromUrl(urlToLoad, initialPitch);
     
@@ -106,19 +103,12 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
   };
 
   const handleAddToGig = () => {
-    console.log("[AudioTransposer] handleAddToGig initiated.");
-    if (!file) {
-      console.warn("[AudioTransposer] Cannot add: 'file' is null.");
-      return;
-    }
-    
+    if (!file) return;
     if (!onAddToSetlist) {
-      console.error("[AudioTransposer] onAddToSetlist prop is UNDEFINED. Import will fail.");
       showError("Configuration error: Handlers missing.");
       return;
     }
 
-    console.log("[AudioTransposer] Dispatching onAddToSetlist with data:", file.name);
     onAddToSetlist?.(
       file.url || '', 
       file.name, 
@@ -140,7 +130,6 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
   };
 
   const handleImportGlobal = (songData: Partial<SetlistSong>) => {
-    console.log("[AudioTransposer] handleImportGlobal called for:", songData.name);
     if (onAddExistingSong) {
       const { id, master_id, ...dataToClone } = songData;
       const newSong = {
@@ -149,8 +138,6 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
         isPlayed: false
       } as SetlistSong;
       onAddExistingSong(newSong);
-    } else {
-      console.error("[AudioTransposer] onAddExistingSong prop is missing!");
     }
   };
 
@@ -229,11 +216,10 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
             <SongSearch 
               onSelectSong={(url, name, artist, yt) => { loadFromUrl(url, name, artist, yt); }} 
               onAddToSetlist={(url, name, artist, yt, ug, apple, gen) => {
-                console.log("[AudioTransposer] SongSearch onAddToSetlist triggered for:", name);
                 if (onAddToSetlist) {
                    onAddToSetlist(url, name, artist, yt, ug, apple, gen, 0);
                 } else {
-                   console.error("[AudioTransposer] Inner onAddToSetlist handler missing!");
+                   showError("Inner onAddToSetlist handler missing!");
                 }
               }}
               externalQuery={searchQuery}
@@ -252,7 +238,6 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
             <MyLibrary 
               repertoire={repertoire} 
               onAddSong={(song) => {
-                console.log("[AudioTransposer] MyLibrary add triggered for:", song.name);
                 onAddExistingSong?.(song);
               }}
             />
