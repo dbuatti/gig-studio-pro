@@ -36,8 +36,6 @@ interface RenderedChart {
   type: ChartType;
 }
 
-const CHART_LOAD_TIMEOUT_MS = 5000;
-
 const SheetReaderMode: React.FC = () => {
   const navigate = useNavigate();
   const { songId: routeSongId } = useParams<{ songId?: string }>();
@@ -47,7 +45,6 @@ const SheetReaderMode: React.FC = () => {
   const { forceReaderResource } = useReaderSettings();
 
   const [allSongs, setAllSongs] = useState<SetlistSong[]>([]);
-  const [allSetlists, setAllSetlists] = useState<{ id: string; name: string; songs: SetlistSong[] }[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [initialLoading, setInitialLoading] = useState(true);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
@@ -56,7 +53,6 @@ const SheetReaderMode: React.FC = () => {
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  // Narrowing KeyPreference for internal reader state to satisfy child component types
   const [readerKeyPreference, setReaderKeyPreference] = useState<'sharps' | 'flats'>(
     globalKeyPreference === 'neutral' ? 'sharps' : globalKeyPreference
   );
@@ -66,19 +62,24 @@ const SheetReaderMode: React.FC = () => {
 
   const audioEngine = useToneAudio(true);
   const {
-    isPlaying, progress, duration, loadFromUrl, togglePlayback, stopPlayback,
+    isPlaying, progress, duration, loadFromUrl, stopPlayback,
     setPitch: setAudioPitch, setProgress: setAudioProgress, volume, setVolume,
-    resetEngine, currentUrl, currentBuffer, isLoadingAudio
+    currentUrl, currentBuffer, isLoadingAudio
   } = audioEngine;
 
   const currentSong = allSongs[currentIndex];
 
-  const isOriginalKeyMissing = useMemo(() => 
-    !currentSong?.originalKey || currentSong.originalKey === 'TBC',
-    [currentSong]
-  );
+  // Sync state to current song's saved preference
+  useEffect(() => {
+    if (currentSong?.key_preference) {
+      console.log(`[SheetReader] Setting notation to song preference: ${currentSong.key_preference}`);
+      setReaderKeyPreference(currentSong.key_preference as 'sharps' | 'flats');
+    } else if (globalKeyPreference !== 'neutral') {
+      console.log(`[SheetReader] Defaulting to global preference: ${globalKeyPreference}`);
+      setReaderKeyPreference(globalKeyPreference as 'sharps' | 'flats');
+    }
+  }, [currentSong?.id, globalKeyPreference]);
 
-  // Helper to update state of a song in the main list
   const handleLocalSongUpdate = useCallback((songId: string, updates: Partial<SetlistSong>) => {
     setAllSongs(prev => prev.map(s => s.id === songId ? { ...s, ...updates } : s));
   }, []);
@@ -93,6 +94,7 @@ const SheetReaderMode: React.FC = () => {
     },
     handleAutoSave: useCallback(async (updates: Partial<SetlistSong>) => {
       if (!currentSong || !user) return;
+      console.log("[SheetReader] Auto-saving master updates:", updates);
       handleLocalSongUpdate(currentSong.id, updates);
 
       const dbUpdates: { [key: string]: any } = {};
@@ -117,6 +119,7 @@ const SheetReaderMode: React.FC = () => {
   const handleUpdateKey = useCallback(async (newTargetKey: string) => {
     if (!currentSong || !user) return;
     const newPitch = calculateSemitones(currentSong.originalKey || 'C', newTargetKey);
+    console.log(`[SheetReader] Manual key override to ${newTargetKey} (Pitch: ${newPitch})`);
     handleLocalSongUpdate(currentSong.id, { targetKey: newTargetKey, pitch: newPitch });
     await supabase.from('repertoire').update({ target_key: newTargetKey, pitch: newPitch }).eq('id', currentSong.id);
     setTargetKey(newTargetKey);
@@ -134,6 +137,7 @@ const SheetReaderMode: React.FC = () => {
       showError("Could not extract key.");
       return;
     }
+    console.log(`[SheetReader] Pulling key from chords: ${extractedKey}`);
     handleLocalSongUpdate(currentSong.id, { originalKey: extractedKey, targetKey: extractedKey, pitch: 0, isKeyConfirmed: true });
     await supabase.from('repertoire').update({ original_key: extractedKey, target_key: extractedKey, pitch: 0, is_key_confirmed: true }).eq('id', currentSong.id);
     setTargetKey(extractedKey);
@@ -143,6 +147,7 @@ const SheetReaderMode: React.FC = () => {
 
   const handleSaveReaderPreference = useCallback(async (pref: 'sharps' | 'flats') => {
     if (!currentSong || !user) return;
+    console.log(`[SheetReader] Saving reader notation preference: ${pref}`);
     handleLocalSongUpdate(currentSong.id, { key_preference: pref });
     await supabase.from('repertoire').update({ key_preference: pref }).eq('id', currentSong.id);
     showSuccess(`Preference saved: ${pref === 'sharps' ? 'Sharps' : 'Flats'}`);
@@ -274,7 +279,6 @@ const SheetReaderMode: React.FC = () => {
   }, []);
 
   const renderChartForSong = useCallback((song: SetlistSong, chartType: ChartType): React.ReactNode => {
-    // Current readerKeyPreference is already narrowed to 'sharps' | 'flats'
     if (chartType === 'chords' && song.ug_chords_text?.trim()) {
       return (
         <UGChordsReader
@@ -400,7 +404,7 @@ const SheetReaderMode: React.FC = () => {
           onSavePreference={handleSaveReaderPreference}
         />
 
-        <div className={cn("flex-1 bg-black relative", isImmersive ? "mt-0" : isOriginalKeyMissing ? "mt-[104px]" : "mt-16")}>
+        <div className={cn("flex-1 bg-black relative", isImmersive ? "mt-0" : "mt-16")}>
           {renderedCharts.map(rc => (
             <motion.div key={`${rc.id}-${rc.type}`} className="absolute inset-0" animate={{ opacity: rc.opacity }} style={{ zIndex: rc.zIndex }}>
               {rc.content}
@@ -415,7 +419,7 @@ const SheetReaderMode: React.FC = () => {
             isPlaying={isPlaying}
             progress={progress}
             duration={duration}
-            onTogglePlayback={togglePlayback}
+            onTogglePlayback={audioEngine.togglePlayback}
             onStopPlayback={stopPlayback}
             onSetProgress={setAudioProgress}
             pitch={pitch}
@@ -447,7 +451,7 @@ const SheetReaderMode: React.FC = () => {
                   onClose={() => setIsStudioPanelOpen(false)}
                   gigId="library"
                   songId={currentSong.id}
-                  masterRepertoire={allSongs}
+                  visibleSongs={allSongs}
                   handleAutoSave={(updates) => handleLocalSongUpdate(currentSong.id, updates)}
                 />
               )}
@@ -455,15 +459,6 @@ const SheetReaderMode: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
-
-      <Button
-        variant="outline"
-        size="icon"
-        className="fixed right-4 top-1/2 -translate-y-1/2 z-40 bg-slate-800 border-slate-700 rounded-full w-12 h-12 shadow-xl"
-        onClick={() => setIsStudioPanelOpen(!isStudioPanelOpen)}
-      >
-        {isStudioPanelOpen ? <ChevronRight className="w-6 h-6" /> : <ChevronLeft className="w-6 h-6" />}
-      </Button>
 
       <PreferencesModal isOpen={isPreferencesOpen} onClose={() => setIsPreferencesOpen(false)} />
     </div>

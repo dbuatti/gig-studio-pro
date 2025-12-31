@@ -26,11 +26,14 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
   if (!isGoalTrackerEnabled) return null;
 
   const stats = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
+    // Get YYYY-MM-DD in local time
+    const today = new Date().toLocaleDateString('en-CA');
 
     const isToday = (timestamp: string | undefined | null) => {
       if (!timestamp) return false;
-      return timestamp.split('T')[0] === today;
+      // Convert stored UTC timestamp to local date string for comparison
+      const localDate = new Date(timestamp).toLocaleDateString('en-CA');
+      return localDate === today;
     };
 
     const counts = {
