@@ -72,7 +72,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   const [position, setPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const [isSafePitchActive, setIsSafePitchActive] = useState(false);
-  const { safePitchMaxNote } = useSettings();
+  const { safePitchMaxNote, isSafePitchEnabled } = useSettings(); // NEW: Get isSafePitchEnabled
 
   // Intelligent Direction Calculation based on available space
   const direction = useMemo((): MenuDirection => {
@@ -161,17 +161,20 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   }, [currentSongHighestNote, safePitchMaxNote]);
 
   useEffect(() => {
-    if (isSafePitchActive && safePitchLimit !== null) {
+    // Only apply safe pitch logic if the feature is enabled in preferences
+    if (isSafePitchEnabled && isSafePitchActive && safePitchLimit !== null) {
       const currentPitch = currentSongPitch || 0;
       if (currentPitch > safePitchLimit) {
-        onSafePitchToggle?.(false, 0);
+        onSafePitchToggle?.(false, 0); // Deactivate if pitch exceeds limit
         setIsSafePitchActive(false);
         // Removed: showError("Pitch exceeds safe limit.");
         return;
       }
       onSafePitchToggle?.(true, safePitchLimit);
-    } else if (!isSafePitchActive) onSafePitchToggle?.(false, 0);
-  }, [isSafePitchActive, safePitchLimit, currentSongPitch, onSafePitchToggle]);
+    } else if (!isSafePitchActive) {
+      onSafePitchToggle?.(false, 0); // Ensure it's off if not active
+    }
+  }, [isSafePitchEnabled, isSafePitchActive, safePitchLimit, currentSongPitch, onSafePitchToggle]);
 
   const primaryButtons = [
     {
@@ -206,7 +209,8 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     { id: 'automation', icon: <Zap className="w-4 h-4" />, onClick: onOpenAdmin, tooltip: "Automation Hub", className: "bg-purple-600/20 text-purple-400 border-purple-500/30" },
     { id: 'admin', icon: <ShieldCheck className="w-4 h-4" />, onClick: onOpenAdmin, tooltip: "Audit Matrix", className: "bg-red-900/40 text-red-400 border-red-500/30" },
     { id: 'heatmap', icon: <Sparkles className="w-4 h-4" />, onClick: onToggleHeatmap, tooltip: "Heatmap (H)", className: cn(showHeatmap ? "bg-amber-500 text-black border-amber-400" : "bg-slate-800 text-amber-400 border-white/10") },
-    { id: 'safe-pitch', icon: <ShieldAlert className="w-4 h-4" />, onClick: () => setIsSafePitchActive(!isSafePitchActive), tooltip: "Safe Pitch", className: cn(isSafePitchActive ? "bg-emerald-600 text-white border-emerald-400" : "bg-slate-800 text-emerald-400 border-white/10") },
+    // NEW: Conditionally render Safe Pitch button
+    ...(isSafePitchEnabled ? [{ id: 'safe-pitch', icon: <ShieldAlert className="w-4 h-4" />, onClick: () => setIsSafePitchActive(!isSafePitchActive), tooltip: "Safe Pitch", className: cn(isSafePitchActive ? "bg-emerald-600 text-white border-emerald-400" : "bg-slate-800 text-emerald-400 border-white/10") }] : []),
     { id: 'preferences', icon: <Settings className="w-4 h-4" />, onClick: onOpenPreferences, tooltip: "Prefs", className: "bg-slate-800 text-slate-300 border-white/10" },
     { id: 'user-guide', icon: <BookOpen className="w-4 h-4" />, onClick: onOpenUserGuide, tooltip: "Guide", className: "bg-blue-600/20 text-blue-400 border-blue-500/30" },
   ];

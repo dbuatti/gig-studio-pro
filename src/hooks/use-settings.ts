@@ -13,7 +13,6 @@ export function useSettings() {
     return 'sharps';
   });
 
-  // Add safePitchMaxNote state
   const [safePitchMaxNote, setSafePitchMaxNote] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('gig_safe_pitch_max_note');
@@ -22,14 +21,27 @@ export function useSettings() {
     return 'G3';
   });
 
+  // NEW: Add state for enabling/disabling Safe Pitch Mode
+  const [isSafePitchEnabled, setIsSafePitchEnabled] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('gig_is_safe_pitch_enabled');
+      return saved ? JSON.parse(saved) : true; // Default to true
+    }
+    return true;
+  });
+
   useEffect(() => {
     localStorage.setItem('gig_key_preference', keyPreference);
   }, [keyPreference]);
 
-  // Add effect to persist safePitchMaxNote
   useEffect(() => {
     localStorage.setItem('gig_safe_pitch_max_note', safePitchMaxNote);
   }, [safePitchMaxNote]);
+
+  // NEW: Effect to persist isSafePitchEnabled
+  useEffect(() => {
+    localStorage.setItem('gig_is_safe_pitch_enabled', JSON.stringify(isSafePitchEnabled));
+  }, [isSafePitchEnabled]);
 
   const toggleKeyPreference = () => {
     setKeyPreference(prev => prev === 'sharps' ? 'flats' : 'sharps');
@@ -40,6 +52,8 @@ export function useSettings() {
     setKeyPreference,
     toggleKeyPreference,
     safePitchMaxNote,
-    setSafePitchMaxNote
+    setSafePitchMaxNote,
+    isSafePitchEnabled, // NEW: Expose isSafePitchEnabled
+    setIsSafePitchEnabled, // NEW: Expose setIsSafePitchEnabled
   };
 }

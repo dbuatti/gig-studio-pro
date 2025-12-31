@@ -24,11 +24,12 @@ interface PreferencesModalProps {
 }
 
 const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) => {
-  const { keyPreference, setKeyPreference } = useSettings();
+  const { keyPreference, setKeyPreference, safePitchMaxNote: globalSafePitchMaxNote, setSafePitchMaxNote: setGlobalSafePitchMaxNote, isSafePitchEnabled: globalIsSafePitchEnabled, setIsSafePitchEnabled: setGlobalIsSafePitchEnabled } = useSettings();
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [ytKey, setYtKey] = useState("");
-  const [safePitchMaxNote, setSafePitchMaxNote] = useState("G3");
+  const [safePitchMaxNote, setSafePitchMaxNote] = useState(globalSafePitchMaxNote);
+  const [isSafePitchEnabled, setIsSafePitchEnabled] = useState(globalIsSafePitchEnabled);
   const [isSaving, setIsSaving] = useState(false);
 
   const {
@@ -47,10 +48,17 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
     }
   }, [isOpen, user]);
 
+  // Sync local state with global state when modal opens or global state changes
+  useEffect(() => {
+    setSafePitchMaxNote(globalSafePitchMaxNote);
+    setIsSafePitchEnabled(globalIsSafePitchEnabled);
+  }, [globalSafePitchMaxNote, globalIsSafePitchEnabled]);
+
   const fetchProfile = async () => {
-    const { data } = await supabase.from('profiles').select('youtube_api_key, safe_pitch_max_note').eq('id', user?.id).single();
+    const { data } = await supabase.from('profiles').select('youtube_api_key, safe_pitch_max_note, is_safe_pitch_enabled').eq('id', user?.id).single();
     if (data?.youtube_api_key) setYtKey(data.youtube_api_key);
     if (data?.safe_pitch_max_note) setSafePitchMaxNote(data.safe_pitch_max_note);
+    if (data?.is_safe_pitch_enabled !== undefined) setIsSafePitchEnabled(data.is_safe_pitch_enabled);
   };
 
   const handleSaveSettings = async () => {
@@ -59,9 +67,15 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
     try {
       const { error } = await supabase.from('profiles').update({ 
         youtube_api_key: ytKey,
-        safe_pitch_max_note: safePitchMaxNote
+        safe_pitch_max_note: safePitchMaxNote,
+        is_safe_pitch_enabled: isSafePitchEnabled, // NEW: Save isSafePitchEnabled
       }).eq('id', user.id);
       if (error) throw error;
+      
+      // Update global state after successful save
+      setGlobalSafePitchMaxNote(safePitchMaxNote);
+      setGlobalIsSafePitchEnabled(isSafePitchEnabled);
+
       showSuccess("Preferences Updated");
     } catch (err) {
       showError("Failed to save settings");
@@ -126,42 +140,63 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
           <div className="space-y-4">
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Stage Safety</h4>
             <div className="p-4 bg-indigo-50 dark:bg-indigo-600/5 rounded-2xl border border-indigo-100 dark:border-indigo-600/20 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-100 dark:bg-indigo-600/10 rounded-lg">
-                  <ShieldAlert className="w-4 h-4 text-indigo-400" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-100 dark:bg-indigo-600/10 rounded-lg">
+                    <ShieldAlert className="w-4 h-4 text-indigo-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-foreground">Safe Pitch Mode</p>
+                    <p className="text-[9px] text-muted-foreground uppercase font-black">Enable pitch limit enforcement</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-bold text-foreground">Safe Pitch Mode Target</p>
-                  <p className="text-[9px] text-muted-foreground uppercase font-black">Max Allowable Ceiling Note</p>
+                <Switch 
+                  checked={isSafePitchEnabled} 
+                  onCheckedChange={setIsSafePitchEnabled}
+                  className="data-[state=checked]:bg-indigo-600"
+                />
+              </div>
+
+              <div className="space-y-4" >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-100 dark:bg-indigo-600/10 rounded-lg">
+                    <ShieldAlert className="w-4 h-4 text-indigo-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-foreground">Safe Pitch Mode Target</p>
+                    <p className="text-[9px] text-muted-foreground uppercase font-black">Max Allowable Ceiling Note</p>
+                  </div>
                 </div>
+                <div className="flex gap-2">
+                  <Select 
+                    value={safePitchMaxNote.slice(0, -1)} 
+                    onValueChange={(note) => setSafePitchMaxNote(`${note}${safePitchMaxNote.slice(-1) || '3'}`)}
+                    disabled={!isSafePitchEnabled} // Disable if mode is off
+                  >
+                    <SelectTrigger className="bg-secondary border-border text-xs font-mono font-bold h-10 text-foreground">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border-border text-foreground z-[300]">
+                      {pureNotes.map(n => <SelectItem key={n} value={n} className="font-mono">{n}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Select 
+                    value={safePitchMaxNote.slice(-1)} 
+                    onValueChange={(oct) => setSafePitchMaxNote(`${safePitchMaxNote.slice(0, -1) || 'G'}${oct}`)}
+                    disabled={!isSafePitchEnabled} // Disable if mode is off
+                  >
+                    <SelectTrigger className="w-24 bg-secondary border-border text-xs font-mono font-bold h-10 text-foreground">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border-border text-foreground z-[300]">
+                      {[...Array(9)].map((_, i) => <SelectItem key={i} value={`${i}`}>{i}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <p className="text-[9px] text-muted-foreground leading-relaxed font-medium uppercase tracking-tight">
+                  This target will be used to calculate temporary transpositions when Safe Pitch Mode is activated on the stage.
+                </p>
               </div>
-              <div className="flex gap-2">
-                <Select 
-                  value={safePitchMaxNote.slice(0, -1)} 
-                  onValueChange={(note) => setSafePitchMaxNote(`${note}${safePitchMaxNote.slice(-1) || '3'}`)}
-                >
-                  <SelectTrigger className="bg-secondary border-border text-xs font-mono font-bold h-10 text-foreground">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover border-border text-foreground z-[300]">
-                    {pureNotes.map(n => <SelectItem key={n} value={n} className="font-mono">{n}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <Select 
-                  value={safePitchMaxNote.slice(-1)} 
-                  onValueChange={(oct) => setSafePitchMaxNote(`${safePitchMaxNote.slice(0, -1) || 'G'}${oct}`)}
-                >
-                  <SelectTrigger className="w-24 bg-secondary border-border text-xs font-mono font-bold h-10 text-foreground">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover border-border text-foreground z-[300]">
-                    {[...Array(9)].map((_, i) => <SelectItem key={i} value={`${i}`}>{i}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <p className="text-[9px] text-muted-foreground leading-relaxed font-medium uppercase tracking-tight">
-                This target will be used to calculate temporary transpositions when Safe Pitch Mode is activated on the stage.
-              </p>
             </div>
           </div>
 

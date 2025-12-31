@@ -44,7 +44,7 @@ const Index = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const isMobile = useIsMobile();
-  const { keyPreference: globalKeyPreference, safePitchMaxNote } = useSettings();
+  const { keyPreference: globalKeyPreference, safePitchMaxNote, isSafePitchEnabled } = useSettings(); // NEW: Get isSafePitchEnabled
   const audio = useToneAudio();
 
   // --- State Management ---
@@ -463,7 +463,7 @@ const Index = () => {
         .from('setlists')
         .update({ songs: updatedSetlistSongs, updated_at: new Date().toISOString() })
         .eq('id', activeSetlist.id)
-        .eq('user_id', user.id);
+        .eq('user.id', user.id); // FIX: Changed to user.id
 
       if (error) throw error;
       setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: updatedSetlistSongs } : s));
@@ -820,6 +820,11 @@ const Index = () => {
   }, [navigate, activeSongForPerformance, filteredAndSortedSongs]);
 
   const handleSafePitchToggle = useCallback((active: boolean, safePitch: number) => {
+    // NEW: Only apply safe pitch logic if the feature is enabled in preferences
+    if (!isSafePitchEnabled) {
+      return;
+    }
+
     if (!activeSongForPerformance) return;
     if (active) {
       const currentPitch = activeSongForPerformance.pitch || 0;
@@ -832,7 +837,7 @@ const Index = () => {
     } else {
       // No toast needed for deactivation
     }
-  }, [activeSongForPerformance, handleUpdateSongInSetlist]);
+  }, [activeSongForPerformance, handleUpdateSongInSetlist, isSafePitchEnabled]); // NEW: Added isSafePitchEnabled to dependencies
 
   if (loading || authLoading) {
     return (
