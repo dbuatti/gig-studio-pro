@@ -354,8 +354,31 @@ const Index = () => {
 
 
   useEffect(() => {
-    setActiveSongForPerformance(null);
+    // This effect now handles setting activeSongForPerformance based on activeSetlist
+    if (activeSetlist) {
+      const lastActiveSongId = localStorage.getItem(`active_song_id_${activeSetlist.id}`);
+      let songToActivate = null;
+
+      if (lastActiveSongId) {
+        songToActivate = activeSetlist.songs.find(s => s.id === lastActiveSongId);
+      }
+
+      if (!songToActivate && activeSetlist.songs.length > 0) {
+        songToActivate = activeSetlist.songs[0];
+      }
+      
+      setActiveSongForPerformance(songToActivate || null);
+    } else {
+      setActiveSongForPerformance(null);
+    }
   }, [activeSetlist]);
+
+  useEffect(() => {
+    // This effect saves the active song ID to local storage whenever it changes
+    if (activeSetlist && activeSongForPerformance) {
+      localStorage.setItem(`active_song_id_${activeSetlist.id}`, activeSongForPerformance.id);
+    }
+  }, [activeSetlist, activeSongForPerformance]);
 
   useEffect(() => {
     if (activeSongForPerformance && (activeSongForPerformance.audio_url || activeSongForPerformance.previewUrl)) {
