@@ -27,79 +27,95 @@ def log(message):
     print(f"[WORKER LOG] {message}")
     sys.stdout.flush()
 
-def process_song_task(song_id, video_url, user_id):
-    """The core logic that handles the heavy lifting."""
-    log(f"[TASK {song_id}] Starting process_song_task for video: {video_url}")
-    log(f"[TASK {song_id}] Starting Extraction for video: {video_url}")
-    try:
-        # 1. Mark as Processing
-        supabase.table("repertoire").update({"extraction_status": "PROCESSING", "last_sync_log": "Starting audio extraction..."}).eq("id", song_id).execute()
-        log(f"[TASK {song_id}] Supabase Status Updated: PROCESSING")
+def process_queued_song(song):
+    song_id = song.get('id')
+    video_url = song.get('youtube_url')
+    user_id = song.get('user_id')
+    title = song.get('title', 'Unknown Title')
 
-        file_id = str(uuid.uuid4())
-        output_template = os.path.join(DOWNLOAD_DIR, f"{file_id}.%(ext)s")
-        
-        ydl_opts = {
-            'format': 'wa',
-            'noplaylist': True,
-            'outtmpl': output_template,
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '128',
-            }],
-            'nocheckcertificate': True,
-            'quiet': True,
-            'logger': log # Direct yt_dlp logs to our function
-        }
+    # Get credentials from Render Environment Variables
+    po_token = os.environ.get("YOUTUBE_PO_TOKEN")
+    visitor_data = os.environ.get("YOUTUBE_VISITOR_DATA")
 
-        # 2. Download from YouTube
-        log(f"[TASK {song_id}] Initiating yt_dlp download.")
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(video_url, download=True)
-            duration = info.get('duration', 0)
-        log(f"[TASK {song_id}] yt_dlp download completed. Duration: {duration}s")
-        
-        mp3_path = os.path.join(DOWNLOAD_DIR, f"{file_id}.mp3")
-        
-        if os.path.exists(mp3_path):
-            log(f"[TASK {song_id}] MP3 file created: {mp3_path}")
-            # 3. Upload to Supabase Storage
-            storage_path = f"{user_id}/{song_id}/{int(time.time())}.mp3"
-            log(f"[TASK {song_id}] Starting upload to Supabase Storage: {storage_path}")
-            with open(mp3_path, 'rb') as f:
-                res = supabase.storage.from_("public_audio").upload(storage_path, f, {"content-type": "audio/mpeg"})
-                if res.status_code != 200:
-                    raise Exception(f"Supabase Storage Upload Error: {res.text}")
-            log(f"[TASK {song_id}] Supabase Storage upload successful.")
+    with download_semaphore:
+        try:
+            log(f">>> STARTING: {title} ({song_id})")
+            supabase.table("repertoire").update({"extraction_status": "PROCESSING", "last_sync_log": "Starting audio extraction..."}).eq("id", song_id).execute()
+
+            file_id = str(uuid.uuid4())
+            output_template = os.path.join(DOWNLOAD_DIR, f"{file_id}.%(ext)s")
             
-            public_url = supabase.storage.from_("public_audio").get_public_url(storage_path)
+            # Look for cookies file
+            cookie_path = './cookies.txt' if os.path.exists('./cookies.txt') else None
 
-            # 4. Update Database
-            supabase.table("repertoire").update({
-                "preview_url": public_url,
-                "duration_seconds": int(duration),
-                "extraction_status": "COMPLETED",
-                "last_extracted_at": time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
-                "last_sync_log": "Audio extraction and upload completed successfully."
-            }).eq("id", song_id).execute()
+            ydl_opts = {
+                'format': 'wa',
+                'noplaylist': True,
+                'outtmpl': output_template,
+                'postprocessors': [{
+                    'key': 'FFmpegExtractAudio',
+                    'preferredcodec': 'mp3',
+                    'preferredquality': '128',
+                }],
+                # --- CRITICAL AUTH SETTINGS ---
+                'cookiefile': cookie_path,
+                'po_token': f"web+none:{po_token}" if po_token else None,
+                'headers': {'X-Goog-Visitor-Id': visitor_data} if visitor_data else {},
+                # ------------------------------
+                'nocheckcertificate': True,
+                'quiet': True,
+                'no_warnings': True,
+                'logger': log # Direct yt_dlp logs to our function
+            }
+
+            log(f"Downloading from YouTube...")
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([video_url])
             
-            log(f"[TASK {song_id}] SUCCESS: Audio extraction and upload complete. Public URL: {public_url}")
-            os.remove(mp3_path)
-            log(f"[TASK {song_id}] Cleaned up local file: {mp3_path}")
-        else:
-            raise Exception("MP3 conversion failed: Expected file not found after yt_dlp.")
-        
-    except Exception as e:
-        error_msg = str(e)
-        log(f"[TASK {song_id}] ERROR during download/upload: {error_msg}")
-        supabase.table("repertoire").update({
-            "extraction_status": "FAILED",
-            "last_sync_log": f"Extraction failed: {error_msg}"
-        }).eq("id", song_id).execute()
-        log(f"[TASK {song_id}] Supabase Status Updated: FAILED")
-    finally:
-        gc.collect() # Force garbage collection to free memory
+            mp3_path = os.path.join(DOWNLOAD_DIR, f"{file_id}.mp3")
+            
+            if os.path.exists(mp3_path):
+                log(f"Upload starting...")
+                storage_path = f"{user_id}/{song_id}/{int(time.time())}.mp3"
+                
+                with open(mp3_path, 'rb') as f:
+                    res = supabase.storage.from_("public_audio").upload(
+                        path=storage_path, 
+                        file=f,
+                        file_options={"content-type": "audio/mpeg"}
+                    )
+                    if res.status_code != 200:
+                        raise Exception(f"Supabase Storage Upload Error: {res.text}")
+                
+                public_url = supabase.storage.from_("public_audio").get_public_url(storage_path)
+                
+                supabase.table("repertoire").update({
+                    "preview_url": public_url, # Changed from audio_url to preview_url
+                    "extraction_status": "COMPLETED", # Changed to COMPLETED
+                    "extraction_error": None,
+                    "last_extracted_at": time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+                    "last_sync_log": "Audio extraction and upload completed successfully."
+                }).eq("id", song_id).execute()
+                
+                log(f"SUCCESS: Finished {title}")
+                os.remove(mp3_path)
+            else:
+                raise Exception("MP3 conversion failed: Expected file not found after yt_dlp.")
+            
+        except Exception as e:
+            error_msg = str(e)
+            log(f"FAILED: {title} | Error: {error_msg}")
+            # Use a simpler update in case columns are still jittery
+            try:
+                supabase.table("repertoire").update({
+                    "extraction_status": "FAILED", # Changed to FAILED
+                    "extraction_error": error_msg[:200], # Truncate long errors
+                    "last_sync_log": f"Extraction failed: {error_msg[:100]}" # Add to last_sync_log
+                }).eq("id", song_id).execute()
+            except Exception as db_update_e:
+                log(f"Could not update failure status in Supabase: {db_update_e}")
+        finally:
+            gc.collect()
 
 def job_poller():
     """Checks the DB for new work every 20 seconds."""
@@ -112,6 +128,7 @@ def job_poller():
             res = supabase.table("repertoire")\
                 .select("id, youtube_url, user_id, title")\
                 .eq("extraction_status", "queued")\
+                .order('created_at', ascending=True)\
                 .limit(1)\
                 .execute()
             
@@ -120,9 +137,9 @@ def job_poller():
 
             if res.data and len(res.data) > 0:
                 log(f"Poller: Found job! Starting {res.data[0].get('title')}")
-                # Ensure process_song_task is called with correct arguments
+                # Call the new process_queued_song function
                 song_data = res.data[0]
-                threading.Thread(target=lambda: process_song_task(song_data['id'], song_data['youtube_url'], song_data['user_id'])).start()
+                threading.Thread(target=lambda: process_queued_song(song_data)).start()
             else:
                 # No work to do, wait 20s
                 time.sleep(20)
