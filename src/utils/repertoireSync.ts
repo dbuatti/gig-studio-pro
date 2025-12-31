@@ -84,8 +84,9 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
     if (song.appleMusicUrl !== undefined) dbUpdates.apple_music_url = song.appleMusicUrl; else if (song.appleMusicUrl === null) dbUpdates.apple_music_url = null;
     if (song.pdfUrl !== undefined) dbUpdates.pdf_url = song.pdfUrl; else if (song.pdfUrl === null) dbUpdates.pdf_url = null;
     if (song.leadsheetUrl !== undefined) dbUpdates.leadsheet_url = song.leadsheetUrl; else if (song.leadsheetUrl === null) dbUpdates.leadsheet_url = null;
-    if (song.originalKey !== undefined) dbUpdates.original_key = song.originalKey; else if (song.originalKey === null) dbUpdates.original_key = null;
-    if (song.targetKey !== undefined) dbUpdates.target_key = song.targetKey; else if (song.targetKey === null) dbUpdates.target_key = null;
+    // Ensure original_key and target_key are always strings, defaulting to 'TBC'
+    dbUpdates.original_key = song.originalKey !== undefined && song.originalKey !== null ? song.originalKey : 'TBC';
+    dbUpdates.target_key = song.targetKey !== undefined && song.targetKey !== null ? song.targetKey : dbUpdates.original_key;
     if (song.pitch !== undefined) dbUpdates.pitch = song.pitch; else if (song.pitch === null) dbUpdates.pitch = 0;
     if (song.bpm !== undefined) dbUpdates.bpm = song.bpm; else if (song.bpm === null) dbUpdates.bpm = null;
     if (song.genre !== undefined) dbUpdates.genre = song.genre; else if (song.genre === null) dbUpdates.genre = null;

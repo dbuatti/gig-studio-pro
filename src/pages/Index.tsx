@@ -216,8 +216,8 @@ const Index = () => {
         master_id: d.id,
         name: d.title,
         artist: d.artist,
-        originalKey: d.original_key,
-        targetKey: d.target_key,
+        originalKey: d.original_key !== null ? d.original_key : 'TBC', // Default to 'TBC' if null
+        targetKey: d.target_key !== null ? d.target_key : (d.original_key !== null ? d.original_key : 'TBC'), // Default to 'TBC' if null
         pitch: d.pitch ?? 0,
         previewUrl: d.extraction_status === 'completed' && d.audio_url ? d.audio_url : d.preview_url,
         youtubeUrl: d.youtube_url,
@@ -553,7 +553,7 @@ const Index = () => {
         .from('setlists')
         .update({ songs: updatedSetlistSongs, updated_at: new Date().toISOString() })
         .eq('id', activeSetlist.id)
-        .eq('user_id', user.id);
+        .eq('user.id', user.id);
 
       if (error) throw error;
       setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: updatedSetlistSongs } : s));

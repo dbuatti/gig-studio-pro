@@ -209,8 +209,8 @@ const SheetReaderMode: React.FC = () => {
         master_id: d.id,
         name: d.title,
         artist: d.artist,
-        originalKey: d.original_key,
-        targetKey: d.target_key,
+        originalKey: d.original_key !== null ? d.original_key : 'TBC', // Default to 'TBC' if null
+        targetKey: d.target_key !== null ? d.target_key : (d.original_key !== null ? d.original_key : 'TBC'), // Default to 'TBC' if null
         pitch: d.pitch ?? 0,
         previewUrl: d.extraction_status === 'completed' && d.audio_url ? d.audio_url : d.preview_url,
         ug_chords_text: d.ug_chords_text,
