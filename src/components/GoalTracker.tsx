@@ -28,26 +28,28 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
   if (!isGoalTrackerEnabled) return null;
 
   const stats = useMemo(() => {
-    // Robust local midnight check
+    // Standardize "Today" to local midnight for robust tracking
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 
     const isToday = (timestamp: string | undefined | null) => {
       if (!timestamp) return false;
-      const date = new Date(timestamp).getTime();
-      return date >= startOfToday;
+      return new Date(timestamp).getTime() >= startOfToday;
     };
 
     const counts = {
-      lyrics: repertoire.filter(s => (s.lyrics || "").length > 20 && isToday((s as any).lyrics_updated_at)).length,
-      chords: repertoire.filter(s => (s.ug_chords_text || "").length > 10 && isToday((s as any).chords_updated_at)).length,
-      links: repertoire.filter(s => !!s.ugUrl && isToday((s as any).ug_link_updated_at)).length,
-      highestNote: repertoire.filter(s => !!s.highest_note_original && isToday((s as any).highest_note_updated_at)).length,
-      originalKey: repertoire.filter(s => (s as any).original_key_updated_at && isToday((s as any).original_key_updated_at)).length,
-      targetKey: repertoire.filter(s => (s as any).target_key_updated_at && isToday((s as any).target_key_updated_at)).length
+      lyrics: repertoire.filter(s => (s.lyrics || "").length > 20 && isToday(s.lyrics_updated_at)).length,
+      chords: repertoire.filter(s => (s.ug_chords_text || "").length > 10 && isToday(s.chords_updated_at)).length,
+      links: repertoire.filter(s => !!s.ugUrl && isToday(s.ug_link_updated_at)).length,
+      highestNote: repertoire.filter(s => !!s.highest_note_original && isToday(s.highest_note_updated_at)).length,
+      originalKey: repertoire.filter(s => isToday(s.original_key_updated_at)).length,
+      targetKey: repertoire.filter(s => isToday(s.target_key_updated_at)).length
     };
 
-    const goals = [
+    // Diagnostics Log
+    console.log("[GoalTracker] Active Counts (Today):", counts);
+
+    return [
       { 
         label: 'Lyrics Transcribed', 
         icon: <Type className="w-3 h-3" />, 
@@ -97,8 +99,6 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
         lightBg: 'bg-blue-500/10'
       }
     ];
-
-    return goals;
   }, [repertoire, goalLyricsCount, goalUgChordsCount, goalUgLinksCount, goalHighestNoteCount, goalOriginalKeyCount, goalTargetKeyCount]);
 
   const overallProgress = useMemo(() => {
