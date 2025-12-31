@@ -259,8 +259,8 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           </div>
         </div>
         <div className="flex items-center gap-4">
-          {gigId === 'library' ? (
-            <SetlistMultiSelector songMasterId={songId || ''} allSetlists={allSetlists} songToAssign={song!} onUpdateSetlistSongs={onUpdateSetlistSongs!} />
+          {gigId === 'library' && song ? ( // Only render if gigId is 'library' AND song is not null
+            <SetlistMultiSelector songMasterId={songId || ''} allSetlists={allSetlists} songToAssign={song} onUpdateSetlistSongs={onUpdateSetlistSongs!} />
           ) : (
             <div className="flex items-center gap-3 bg-white/5 px-4 h-11 rounded-xl border border-white/10">
               <Label className="text-[8px] font-black text-slate-500 uppercase">Gig Approved</Label>
