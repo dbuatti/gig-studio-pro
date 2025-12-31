@@ -103,18 +103,24 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       payload.genre = song.genre ?? null;
       payload.user_tags = song.user_tags ?? []; // Default to empty array
       payload.resources = song.resources ?? []; // Default to empty array
+      payload.comfort_level = song.comfort_level ?? 0; // Default to 0 as per schema
       payload.preferred_reader = song.preferred_reader ?? null;
       payload.ug_chords_text = song.ug_chords_text ?? null;
       payload.ug_chords_config = song.ug_chords_config ?? DEFAULT_UG_CHORDS_CONFIG; // Explicitly set default if undefined/null
       payload.is_ug_chords_present = song.is_ug_chords_present ?? false; // Explicitly set default if undefined/null
       payload.is_pitch_linked = song.is_pitch_linked ?? true; // Default to true
       payload.highest_note_original = song.highest_note_original ?? null;
-      payload.is_approved = song.isApproved ?? false; // Default to false
-      payload.is_sheet_verified = song.is_sheet_verified ?? false; // Default to false
       payload.extraction_status = song.extraction_status ?? 'idle'; // Default to 'idle'
+      payload.last_extracted_at = song.last_extracted_at ?? null; // Explicitly set to null if undefined
+      payload.source_type = song.source_type ?? 'YOUTUBE'; // Default to 'YOUTUBE' as per schema
+      payload.sync_status = song.sync_status ?? 'IDLE'; // Default to 'IDLE' as per schema
       payload.last_sync_log = song.last_sync_log ?? null;
       payload.auto_synced = song.auto_synced ?? false; // Default to false
+      payload.metadata_source = song.metadata_source ?? null; // Explicitly set to null if undefined
+      payload.is_approved = song.isApproved ?? false; // Default to false
+      payload.is_in_library = song.is_in_library ?? true; // Default to true as per schema
       payload.sheet_music_url = song.sheet_music_url ?? null;
+      payload.is_sheet_verified = song.is_sheet_verified ?? false; // Default to false
       
       if (isValidUuid(song.master_id)) {
         payload.id = song.master_id;

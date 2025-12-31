@@ -11,7 +11,7 @@ import { useSettings, KeyPreference } from '@/hooks/use-settings';
 import { RESOURCE_TYPES, DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import SetlistFilters, { FilterState } from './SetlistFilters';
+import SetlistFilters, { FilterState, DEFAULT_FILTERS } from './SetlistFilters';
 import { calculateReadiness } from '@/utils/repertoireSync';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import SetlistMultiSelector from './SetlistMultiSelector'; // Import SetlistMultiSelector
@@ -65,12 +65,17 @@ export interface SetlistSong {
   is_ug_link_verified?: boolean; 
   metadata_source?: string; 
   sync_status?: 'IDLE' | 'SYNCING' | 'COMPLETED' | 'ERROR'; 
-  last_sync_log?: string; // Added this field
+  last_sync_log?: string;
   auto_synced?: boolean;
   is_sheet_verified?: boolean;
   sheet_music_url?: string;
   extraction_status?: 'idle' | 'queued' | 'processing' | 'completed' | 'failed';
   extraction_error?: string;
+  // NEWLY ADDED PROPERTIES
+  comfort_level?: number;
+  last_extracted_at?: string;
+  source_type?: string;
+  is_in_library?: boolean;
 }
 
 // Define the Setlist interface here
