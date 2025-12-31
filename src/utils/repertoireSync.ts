@@ -74,8 +74,10 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
     };
 
     // Map SetlistSong properties to repertoire table columns
-    if (song.name !== undefined) dbUpdates.title = cleanMetadata(song.name) || 'Untitled Track';
-    if (song.artist !== undefined) dbUpdates.artist = cleanMetadata(song.artist) || 'Unknown Artist';
+    // Ensure title and artist are always present and not null
+    dbUpdates.title = cleanMetadata(song.name) || 'Untitled Track';
+    dbUpdates.artist = cleanMetadata(song.artist) || 'Unknown Artist';
+
     if (song.previewUrl !== undefined) dbUpdates.preview_url = song.previewUrl; else if (song.previewUrl === null) dbUpdates.preview_url = null;
     if (song.youtubeUrl !== undefined) dbUpdates.youtube_url = song.youtubeUrl; else if (song.youtubeUrl === null) dbUpdates.youtube_url = null;
     if (song.ugUrl !== undefined) dbUpdates.ug_url = song.ugUrl; else if (song.ugUrl === null) dbUpdates.ug_url = null;
@@ -116,6 +118,8 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
     if (song.source_type !== undefined) dbUpdates.source_type = song.source_type; else if (song.source_type === null) dbUpdates.source_type = null;
     if (song.is_in_library !== undefined) dbUpdates.is_in_library = song.is_in_library; else if (song.is_in_library === null) dbUpdates.is_in_library = true;
     
+    // console.log("[syncToMasterRepertoire] dbUpdates payload:", dbUpdates); // Added for debugging
+
     let result;
     if (song.master_id && isValidUuid(song.master_id)) {
       // Update existing repertoire entry

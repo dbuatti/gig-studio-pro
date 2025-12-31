@@ -22,20 +22,17 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({
 }) => {
   const [isEditingGoal, setIsEditingGoal] = useState(false);
   
-  // Logic: Only 100% readiness (Verified + Confirmed) tracks count towards goal
-  const approvedSongs = songs.filter(song => calculateReadiness(song) === 100);
-  const totalApprovedSongs = approvedSongs.length;
+  // Filter for songs that are approved for gig AND have full audio
+  const performanceReadySongs = songs.filter(song => 
+    song.isApproved && !!song.audio_url && song.extraction_status === 'completed'
+  );
+  const totalPerformanceReadySongs = performanceReadySongs.length;
 
-  // New: Count songs with confirmed metadata
+  // New: Count songs with confirmed metadata (this is separate from performance readiness)
   const totalMetadataVerifiedSongs = songs.filter(song => song.isMetadataConfirmed).length;
 
-  const totalSeconds = approvedSongs.reduce((acc, song) => {
-    // FIX: Use song.audio_url to determine if it has full audio
-    const hasFullAudio = !!song.audio_url;
-    if (hasFullAudio) {
-      return acc + (song.duration_seconds || 210);
-    }
-    return acc;
+  const totalSeconds = performanceReadySongs.reduce((acc, song) => {
+    return acc + (song.duration_seconds || 210); // Default to 210 seconds if duration is missing
   }, 0);
 
   const formatDuration = (seconds: number) => {
@@ -44,14 +41,14 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({
     return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
   };
 
-  // FIX: Use song.audio_url for readiness percentage calculation
-  const readinessPercent = totalApprovedSongs > 0 ? (approvedSongs.filter(s => !!s.audio_url).length / totalApprovedSongs) * 100 : 0;
+  // "Audio Readiness (Performance Ready)" - Percentage of songs that are fully performance ready with audio
+  const audioReadinessPercentage = songs.length > 0 ? (totalPerformanceReadySongs / songs.length) * 100 : 0;
   
   const goalProgress = goalSeconds > 0 ? (totalSeconds / goalSeconds) * 100 : 0;
   const remainingSeconds = Math.max(0, goalSeconds - totalSeconds);
   const isGoalMet = remainingSeconds <= 0;
 
-  const genres = approvedSongs.reduce((acc, song) => {
+  const genres = performanceReadySongs.reduce((acc, song) => {
     const g = song.genre || "Standard";
     acc[g] = (acc[g] || 0) + 1;
     return acc;
@@ -114,7 +111,7 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({
                   Add tracks to library to start tracking goals!
                 </p>
               </div>
-            ) : totalApprovedSongs === 0 ? (
+            ) : totalPerformanceReadySongs === 0 ? (
               <div className="text-center py-4">
                 <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400 animate-pulse">
                   Reach 100% Readiness to Activate Target Tracking
@@ -160,10 +157,10 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({
                 {topGenres.map(([genre, count]) => (
                   <div key={genre} className="flex items-baseline gap-1.5">
                     <span className="text-xs font-black uppercase tracking-tight text-foreground">{genre}</span>
-                    <span className="text-[10px] font-mono font-bold text-indigo-600">{Math.round((count/Math.max(1, totalApprovedSongs))*100)}%</span>
+                    <span className="text-[10px] font-mono font-bold text-indigo-600">{Math.round((count/Math.max(1, totalPerformanceReadySongs))*100)}%</span>
                   </div>
                 ))}
-                {totalApprovedSongs === 0 && <span className="text-[9px] text-muted-foreground font-bold uppercase">Ready tracks analyzed here</span>}
+                {totalPerformanceReadySongs === 0 && <span className="text-[9px] text-muted-foreground font-bold uppercase">Ready tracks analyzed here</span>}
               </div>
             </div>
           </div>
@@ -175,10 +172,10 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({
           </div>
           <div className="flex-1">
             <div className="flex justify-between items-center mb-2">
-              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Audio Readiness (Ready Only)</p>
-              <span className="text-xs font-black text-indigo-600">{Math.round(readinessPercent)}%</span>
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Audio Readiness (Performance Ready)</p>
+              <span className="text-xs font-black text-indigo-600">{Math.round(audioReadinessPercentage)}%</span>
             </div>
-            <Progress value={readinessPercent} className="h-1.5" />
+            <Progress value={audioReadinessPercentage} className="h-1.5" />
           </div>
         </div>
       </div>
