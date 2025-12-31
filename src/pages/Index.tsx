@@ -368,20 +368,24 @@ const Index = () => {
 
   // --- FIX: Clear active song for performance on setlist change or initial load ---
   useEffect(() => {
+    console.log("[Index] activeSetlist changed or initial load. Clearing activeSongForPerformance.");
     setActiveSongForPerformance(null); // Always clear when activeSetlist changes or on initial load
   }, [activeSetlist]);
 
   // Load audio for active song for performance
   useEffect(() => {
+    console.log("[Index] activeSongForPerformance or its audio properties changed.");
     // Only load audio if a song is selected for performance AND it has a preview URL
     if (activeSongForPerformance && (activeSongForPerformance.audio_url || activeSongForPerformance.previewUrl)) {
       const urlToLoad = activeSongForPerformance.audio_url || activeSongForPerformance.previewUrl;
+      console.log(`[Index] Attempting to load audio for '${activeSongForPerformance.name}' from URL:`, urlToLoad);
       audio.loadFromUrl(urlToLoad, activeSongForPerformance.pitch || 0, true);
     } else {
+      console.log("[Index] No activeSongForPerformance or valid audio URL. Stopping/resetting audio engine.");
       audio.stopPlayback();
       audio.resetEngine();
     }
-  }, [activeSongForPerformance?.audio_url, activeSongForPerformance?.previewUrl, activeSongForPerformance?.pitch]);
+  }, [activeSongForPerformance?.audio_url, activeSongForPerformance?.previewUrl, activeSongForPerformance?.pitch, audio]);
 
   // --- FIX: Remove persistence of active song for performance on refresh ---
   useEffect(() => {
@@ -922,8 +926,8 @@ const Index = () => {
 
     try {
       // 1. Update the master repertoire and get the fully synced song back
-      const syncedSongs = await syncToMasterRepertoire(user.id, [mergedUpdatesForMaster]);
-      const fullySyncedMasterSong = syncedSongs[0];
+      const syncedMasterSongs = await syncToMasterRepertoire(user.id, [mergedUpdatesForMaster]);
+      const fullySyncedMasterSong = syncedMasterSongs[0];
 
       // 2. Update local master repertoire state
       setMasterRepertoire(prev => prev.map(s => s.id === songId ? fullySyncedMasterSong : s));
@@ -970,15 +974,25 @@ const Index = () => {
 
   // NEW: Handle opening Performance Overlay
   const handleOpenPerformanceOverlay = useCallback(() => {
+    console.log("[Index] handleOpenPerformanceOverlay called.");
+    console.log("[Index] Current activeSetlist:", activeSetlist);
+    console.log("[Index] Current activeSongForPerformance:", activeSongForPerformance);
+
     if (!activeSetlist || activeSetlist.songs.length === 0) {
       showWarning("Please select a setlist with songs to enter performance mode.");
+      console.log("[Index] No active setlist or empty setlist. Cannot open performance overlay.");
       return;
     }
     // Set the first song as active for performance if none is already selected
     if (!activeSongForPerformance) {
-      setActiveSongForPerformance(activeSetlist.songs[0]);
+      const firstSong = activeSetlist.songs[0];
+      setActiveSongForPerformance(firstSong);
+      console.log("[Index] No active song for performance, setting first song:", firstSong);
+    } else {
+      console.log("[Index] activeSongForPerformance already set:", activeSongForPerformance);
     }
     setIsPerformanceOverlayOpen(true);
+    console.log("[Index] Setting isPerformanceOverlayOpen to true.");
   }, [activeSetlist, activeSongForPerformance]);
 
   const handleSafePitchToggle = useCallback((active: boolean, safePitch: number) => {
@@ -1147,7 +1161,7 @@ const Index = () => {
                     .from('setlists')
                     .update({ time_goal: newGoal })
                     .eq('id', activeSetlist.id)
-                    .eq('user.id', user.id); // Corrected to user.id
+                    .eq('user_id', user.id); // Corrected to user.id
                   if (error) throw error;
                   setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, time_goal: newGoal } : s));
                   showSuccess("Performance goal updated!");
