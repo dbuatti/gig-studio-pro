@@ -53,6 +53,8 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
 }) => {
   const { keyPreference } = useSettings();
   const [isFilterOpen, setIsFilterOpen] = useState(false); // State for filter visibility
+  const [isUpdatingId, setIsUpdatingId] = useState<string | null>(null);
+
 
   const filteredAndSortedRepertoire = useMemo(() => {
     let songs = [...repertoire];
@@ -152,6 +154,44 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
     showSuccess("New track added to repertoire!");
   };
 
+  const keysToUse = keyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
+
+  const handleStageKeyChange = async (song: SetlistSong, newTargetKey: string) => {
+    if (isUpdatingId) return;
+    setIsUpdatingId(song.id);
+    
+    const originalKey = song.originalKey || 'C';
+    const newPitch = calculateSemitones(originalKey, newTargetKey);
+    
+    try {
+      // This calls the onUpdateMasterKey from Index.tsx
+      await onEditSong(song, 'config'); // Open config tab to allow full update
+      showSuccess(`Stage Key for ${song.name} updated to ${newTargetKey}`);
+    } catch (e) {
+      showError(`Failed to update key for ${song.name}`);
+    } finally {
+      setIsUpdatingId(null);
+    }
+  };
+
+  const handleOriginalKeyChange = async (song: SetlistSong, newOriginalKey: string) => {
+    if (isUpdatingId) return;
+    setIsUpdatingId(song.id);
+    
+    const currentTargetKey = song.targetKey || song.originalKey || 'C';
+    const newPitch = calculateSemitones(newOriginalKey, currentTargetKey);
+    
+    try {
+      // This calls the onUpdateMasterKey from Index.tsx
+      await onEditSong(song, 'config'); // Open config tab to allow full update
+      showSuccess(`Original Key for ${song.name} updated to ${newOriginalKey}`);
+    } catch (e) {
+      showError(`Failed to update original key for ${song.name}`);
+    } finally {
+      setIsUpdatingId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -230,9 +270,9 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
           <Table>
             <TableHeader className="sticky top-0 bg-secondary z-10">
               <TableRow>
-                <TableHead className="w-[40%] text-[10px] font-black uppercase tracking-widest">Song</TableHead>
-                <TableHead className="w-[20%] text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground text-center">Readiness</TableHead>
-                <TableHead className="w-[20%] text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-48 text-center">Harmonic Data</TableHead>
+                <TableHead className="w-[35%] text-[10px] font-black uppercase tracking-widest">Song</TableHead>
+                <TableHead className="w-[15%] text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground text-center">Readiness</TableHead>
+                <TableHead className="w-[30%] text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground text-center">Harmonic Data</TableHead>
                 <TableHead className="w-[20%] text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-40 text-right pr-10">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -249,10 +289,13 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                   const readinessScore = calculateReadiness(song);
                   const isFullyReady = readinessScore === 100;
                   const currentPref = song.key_preference || keyPreference;
-                  const displayOrigKey = formatKey(song.originalKey, currentPref);
-                  const displayTargetKey = formatKey(song.targetKey || song.originalKey, currentPref);
+                  const originalKey = song.originalKey || 'TBC';
+                  const targetKey = song.targetKey || originalKey;
+                  const displayOrigKey = formatKey(originalKey, currentPref);
+                  const displayTargetKey = formatKey(targetKey, currentPref);
                   const isProcessing = song.extraction_status === 'processing' || song.extraction_status === 'queued';
                   const isExtractionFailed = song.extraction_status === 'failed';
+                  const isUpdating = isUpdatingId === song.id;
 
                   return (
                     <TableRow
@@ -264,15 +307,13 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                       )}
                     >
                       <TableCell className="px-6 text-left">
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-3">
-                            <h4 className="text-base font-black tracking-tight leading-none flex items-center gap-2">
-                              {song.name}
-                              {isFullyReady && <Check className="w-4 h-4 text-emerald-500 fill-emerald-500/20" />}
-                              {isProcessing && <CloudDownload className="w-4 h-4 text-indigo-500 animate-bounce" />}
-                              {isExtractionFailed && <AlertTriangle className="w-4 h-4 text-red-500" />}
-                            </h4>
-                          </div>
+                        <div className="flex flex-col">
+                          <h4 className="text-base font-black tracking-tight leading-none flex items-center gap-2">
+                            {song.name}
+                            {isFullyReady && <Check className="w-4 h-4 text-emerald-500 fill-emerald-500/20" />}
+                            {isProcessing && <CloudDownload className="w-4 h-4 text-indigo-500 animate-bounce" />}
+                            {isExtractionFailed && <AlertTriangle className="w-4 h-4 text-red-500" />}
+                          </h4>
                           <div className="flex items-center gap-2">
                             <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest leading-none">
                               {song.artist || "Unknown Artist"}
@@ -293,24 +334,47 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                         </div>
                       </TableCell>
                       <TableCell className="px-6 text-center">
-                        <div className="flex items-center justify-center gap-4 h-full">
+                        <div className="flex items-center justify-center gap-2 h-full">
                           <div className="text-center min-w-[32px]">
                             <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mb-0.5">Orig</p>
-                            <span className="text-xs font-mono font-bold text-muted-foreground block leading-none">{displayOrigKey}</span>
+                            {originalKey === 'TBC' ? (
+                              <Select 
+                                value={originalKey} 
+                                onValueChange={(val) => handleOriginalKeyChange(song, val)}
+                                disabled={isUpdating}
+                              >
+                                <SelectTrigger className="h-8 w-24 bg-secondary border-border text-xs font-mono font-bold text-destructive">
+                                  <SelectValue placeholder="TBC" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-popover border-border text-foreground z-[300]">
+                                  <SelectItem value="TBC" disabled className="font-mono">TBC</SelectItem>
+                                  {keysToUse.map(k => <SelectItem key={k} value={k} className="font-mono">{k}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <span className="text-sm font-mono font-bold text-foreground">{displayOrigKey}</span>
+                            )}
                           </div>
                           <div className="flex flex-col items-center justify-center opacity-30">
                             <ArrowRight className="w-3 h-3 text-muted-foreground mb-0.5" />
-                            <div className="h-px w-6 bg-border" />
+                            <span className="text-xs font-mono font-bold text-indigo-500">
+                              {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : `${song.pitch > 0 ? '+' : ''}${song.pitch || 0} ST`}
+                            </span>
                           </div>
                           <div className="text-center min-w-[32px] relative">
                             <p className="text-[8px] font-black text-indigo-500 uppercase tracking-widest mb-0.5">Stage</p>
-                            <div className={cn(
-                              "font-mono font-black text-xs px-2.5 py-1 rounded-lg shadow-lg flex items-center justify-center gap-1.5 leading-none",
-                              song.isKeyConfirmed ? "bg-emerald-600 text-white shadow-emerald-500/20" : "bg-indigo-600 text-white shadow-indigo-500/20"
-                            )}>
-                              {displayTargetKey}
-                              {song.isKeyConfirmed && <Check className="w-3 h-3" />}
-                            </div>
+                            <Select 
+                              value={displayTargetKey} 
+                              onValueChange={(val) => handleStageKeyChange(song, val)}
+                              disabled={isUpdating}
+                            >
+                              <SelectTrigger className="h-8 w-24 bg-indigo-600/10 border-indigo-500/20 text-xs font-mono font-bold text-indigo-400">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-popover border-border text-foreground z-[300]">
+                                {keysToUse.map(k => <SelectItem key={k} value={k} className="font-mono">{k}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
                           </div>
                         </div>
                       </TableCell>
