@@ -7,7 +7,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { SetlistSong } from '@/components/SetlistManager';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Music, Loader2, AlertCircle, X, Settings, ExternalLink, ShieldCheck, FileText, Layout, Guitar, Sparkles } from 'lucide-react';
+import { Music, Loader2, AlertCircle, X, Settings, ExternalLink, ShieldCheck, FileText, Layout, Guitar, Sparkles, ChevronLeft, ChevronRight, PanelRightOpen, PanelRightClose } from 'lucide-react'; // Added PanelRightOpen/Close
 import { cn } from '@/lib/utils';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { useSettings } from '@/hooks/use-settings';
@@ -18,7 +18,7 @@ import { useToneAudio } from '@/hooks/use-tone-audio';
 import { calculateSemitones } from '@/utils/keyUtils';
 import { useReaderSettings } from '@/hooks/use-reader-settings';
 import PreferencesModal from '@/components/PreferencesModal';
-import SongStudioModal from '@/components/SongStudioModal';
+import SongStudioSheet from '@/components/SongStudioSheet'; // Changed import to SongStudioSheet
 import SheetReaderHeader from '@/components/SheetReaderHeader';
 import SheetReaderFooter from '@/components/SheetReaderFooter';
 import SheetReaderSidebar from '@/components/SheetReaderSidebar';
@@ -54,7 +54,7 @@ const SheetReaderMode: React.FC = () => {
   const [initialLoading, setInitialLoading] = useState(true);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [isImmersive, setIsImmersive] = useState(false);
-  const [isStudioModalOpen, setIsStudioModalOpen] = useState(false);
+  const [isStudioSheetOpen, setIsStudioSheetOpen] = useState(false); // Changed state name
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -520,7 +520,7 @@ const SheetReaderMode: React.FC = () => {
             No {chartType === 'pdf' ? 'Full Score' : 'Leadsheet'} Available
           </h2>
           <p className="text-xl text-slate-400 mb-8">Upload one in the Studio.</p>
-          <Button onClick={() => setIsStudioModalOpen(true)} className="text-lg px-10 py-6 bg-indigo-600 rounded-2xl">
+          <Button onClick={() => setIsStudioSheetOpen(true)} className="text-lg px-10 py-6 bg-indigo-600 rounded-2xl">
             Open Studio
           </Button>
         </div>
@@ -571,7 +571,7 @@ const SheetReaderMode: React.FC = () => {
         </Button>
       </div>
     );
-  }, [forceReaderResource, ignoreConfirmedGate, navigate, harmonicTargetKey, isFramable, setIsStudioModalOpen, isPlaying, progress, duration, readerKeyPreference]);
+  }, [forceReaderResource, ignoreConfirmedGate, navigate, harmonicTargetKey, isFramable, setIsStudioSheetOpen, isPlaying, progress, duration, readerKeyPreference]);
 
   useEffect(() => {
     if (!currentSong) {
@@ -655,7 +655,7 @@ const SheetReaderMode: React.FC = () => {
 
       if (e.key.toLowerCase() === 'i' && currentSong) {
         e.preventDefault();
-        setIsStudioModalOpen(true);
+        setIsStudioSheetOpen(true); // Changed to setIsStudioSheetOpen
       }
     };
 
@@ -679,15 +679,17 @@ const SheetReaderMode: React.FC = () => {
   }
 
   const isChartLoading = !currentChartState?.isLoaded;
-  const headerLeftOffset = isSidebarOpen ? 300 : 0; // Calculate offset here
+  const sidebarWidth = isSidebarOpen ? 300 : 0;
+  const studioSheetWidth = 700;
+  const mainContentRightMargin = isStudioSheetOpen ? studioSheetWidth : 0;
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-white">
       
       {/* Sidebar */}
       <motion.div
-        initial={{ x: isSidebarOpen ? 0 : -300 }}
-        animate={{ x: isSidebarOpen ? 0 : -300 }}
+        initial={{ x: isSidebarOpen ? 0 : -sidebarWidth }}
+        animate={{ x: isSidebarOpen ? 0 : -sidebarWidth }}
         transition={{ duration: 0.3 }}
         className="h-full w-[300px] shrink-0 z-50"
       >
@@ -699,14 +701,13 @@ const SheetReaderMode: React.FC = () => {
       </motion.div>
 
       <main className={cn(
-        "flex-1 flex flex-col overflow-hidden relative transition-all duration-300",
-        isSidebarOpen ? "ml-0" : "ml-0" // Sidebar is absolutely positioned, main content doesn't need margin-left
-      )}>
+        "flex-1 flex flex-col overflow-hidden relative transition-all duration-300"
+      )} style={{ marginLeft: `${sidebarWidth}px`, marginRight: `${mainContentRightMargin}px` }}>
         <SheetReaderHeader
           currentSong={currentSong}
           onClose={() => navigate('/')}
-          onSearchClick={() => { // Updated onSearchClick handler
-            setIsStudioModalOpen(true);
+          onSearchClick={() => {
+            setIsStudioSheetOpen(true);
             setSearchParams({ id: 'new', tab: 'library' }, { replace: true });
           }}
           onPrevSong={handlePrev}
@@ -725,11 +726,11 @@ const SheetReaderMode: React.FC = () => {
           onPullKey={handlePullKey}
           isSidebarOpen={isSidebarOpen}
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-          headerLeftOffset={headerLeftOffset}
+          headerLeftOffset={0} // This will be handled by the main's marginLeft
         />
 
         {isOriginalKeyMissing && (
-          <div className="fixed top-16 left-0 right-0 bg-red-950/30 border-b border-red-900/50 p-3 flex items-center justify-center gap-3 shrink-0 z-50 h-10" style={{ left: `${headerLeftOffset}px` }}>
+          <div className="fixed top-16 left-0 right-0 bg-red-950/30 border-b border-red-900/50 p-3 flex items-center justify-center gap-3 shrink-0 z-50 h-10" style={{ left: `${sidebarWidth}px`, right: `${mainContentRightMargin}px` }}>
             <AlertCircle className="w-4 h-4 text-red-400" />
             <p className="text-xs font-bold uppercase tracking-widest text-red-400">
               CRITICAL: Original Key is missing. Transposition is currently relative to 'C'. Use the Studio (I) to set it.
@@ -814,12 +815,33 @@ const SheetReaderMode: React.FC = () => {
         )}
       </main>
 
+      {/* Toggle button for Song Studio Sheet */}
+      <motion.div
+        className="fixed right-0 top-1/2 -translate-y-1/2 z-50"
+        initial={{ x: isStudioSheetOpen ? 0 : 50 }}
+        animate={{ x: isStudioSheetOpen ? 0 : 50 }}
+        transition={{ duration: 0.3 }}
+      >
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setIsStudioSheetOpen(prev => !prev)}
+          className={cn(
+            "h-12 w-12 rounded-l-2xl rounded-r-none bg-slate-900/80 backdrop-blur-xl border border-white/10 shadow-lg transition-all",
+            isStudioSheetOpen ? "text-indigo-400 hover:bg-white/10" : "text-slate-400 hover:bg-white/10"
+          )}
+          title={isStudioSheetOpen ? "Close Studio" : "Open Studio (I)"}
+        >
+          {isStudioSheetOpen ? <PanelRightClose className="w-6 h-6" /> : <PanelRightOpen className="w-6 h-6" />}
+        </Button>
+      </motion.div>
+
       <PreferencesModal isOpen={isPreferencesOpen} onClose={() => setIsPreferencesOpen(false)} />
       
       {currentSong && (
-        <SongStudioModal
-          isOpen={isStudioModalOpen}
-          onClose={() => setIsStudioModalOpen(false)}
+        <SongStudioSheet // Changed to SongStudioSheet
+          isOpen={isStudioSheetOpen} // Controlled by new state
+          onClose={() => setIsStudioSheetOpen(false)}
           gigId="library"
           songId={currentSong.id}
           allSetlists={allSetlists}

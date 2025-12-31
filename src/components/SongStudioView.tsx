@@ -29,7 +29,7 @@ interface SongStudioViewProps {
   songId: string | null; // Allow songId to be null
   onClose: () => void;
   isModal?: boolean;
-  onExpand?: () => void;
+  // onExpand?: () => void; // Removed onExpand prop
   visibleSongs?: SetlistSong[];
   onSelectSong?: (id: string) => void;
   allSetlists?: Setlist[]; // Use Setlist interface
@@ -43,7 +43,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   songId,
   onClose,
   isModal,
-  onExpand,
+  // onExpand, // Removed onExpand
   visibleSongs = [],
   onSelectSong,
   allSetlists = [],
@@ -65,7 +65,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
   const lastPendingUpdatesRef = useRef<Partial<SetlistSong>>({});
-  const currentSongRef = useRef<SetlistSong | null>(null);
+  const currentSongRef = useRef<SetlistSong | null>(null); // Initialize with null
 
   useEffect(() => {
     currentSongRef.current = song;

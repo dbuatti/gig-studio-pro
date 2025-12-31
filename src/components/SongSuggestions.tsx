@@ -167,18 +167,18 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
                     "group p-4 border rounded-2xl transition-all shadow-sm",
                     song.isDuplicate 
                       ? "bg-slate-50/50 dark:bg-slate-900/30 border-slate-100 dark:border-slate-800 opacity-60"
-                      : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:border-indigo-200"
+                      : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-500/20"
                   )}
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <h4 className="text-sm font-black uppercase tracking-tight truncate">{song.name}</h4>
+                        <h4 className="text-sm font-black uppercase tracking-tight truncate text-slate-900 dark:text-white">{song.name}</h4>
                         {song.isDuplicate && <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
                       </div>
-                      <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mt-0.5">{song.artist}</p>
+                      <p className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mt-0.5">{song.artist}</p>
                       {song.isDuplicate ? (
-                        <span className="inline-block mt-2 text-[8px] font-black bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                        <span className="inline-block mt-2 text-[8px] font-black bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded-full uppercase tracking-tighter dark:bg-emerald-500/20 dark:text-emerald-400">
                           Already in Set
                         </span>
                       ) : song.reason && (
@@ -194,7 +194,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
                           variant="ghost" 
                           size="icon" 
                           onClick={() => onSelectSuggestion(`${song.artist} ${song.name}`)}
-                          className="h-10 w-10 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white shrink-0"
+                          className="h-10 w-10 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white shrink-0 dark:bg-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-900/50"
                         >
                           <Search className="w-4 h-4" />
                         </Button>
