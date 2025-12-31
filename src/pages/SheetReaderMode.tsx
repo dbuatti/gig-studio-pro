@@ -80,7 +80,7 @@ const SheetReaderMode: React.FC = () => {
     isLoadingAudio
   } = audioEngine;
 
-  const [chordAutoScrollEnabled, setChordAutoScrollEnabled] = useState(true);
+  const [chordAutoScrollEnabled, setChordAutoScrollEnabled] = useState(true); // Changed from 1.0 to true
   const [chordScrollSpeed, setChordScrollSpeed] = useState(1.0);
 
   const currentSong = allSongs[currentIndex];
@@ -239,7 +239,8 @@ const SheetReaderMode: React.FC = () => {
 
       const readableAndApprovedSongs = mappedSongs.filter(s => {
         const readiness = calculateReadiness(s);
-        const hasChart = s.ugUrl || s.pdfUrl || s.leadsheetUrl || s.ug_chords_text;
+        // REMOVED: s.ugUrl from hasChart condition
+        const hasChart = s.pdfUrl || s.leadsheetUrl || s.ug_chords_text; 
         const meetsReadiness = readiness >= 40 || forceReaderResource === 'simulation' || ignoreConfirmedGate;
         return hasChart && meetsReadiness;
       });
@@ -543,7 +544,7 @@ const SheetReaderMode: React.FC = () => {
             isPlaying={isPlaying}
             progress={progress}
             duration={duration}
-            chordAutoScrollEnabled={chordAutoScrollEnabled}
+            chordAutoScrollEnabled={chordAutoScrollEnabled} // Removed 'as boolean'
             chordScrollSpeed={chordScrollSpeed}
             readerKeyPreference={readerKeyPreference}
           />
