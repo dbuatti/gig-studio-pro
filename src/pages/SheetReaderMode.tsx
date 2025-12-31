@@ -18,7 +18,6 @@ import { useToneAudio } from '@/hooks/use-tone-audio';
 import { calculateSemitones } from '@/utils/keyUtils';
 import { useReaderSettings } from '@/hooks/use-reader-settings';
 import PreferencesModal from '@/components/PreferencesModal';
-import SongStudioModal from '@/components/SongStudioModal';
 import SheetReaderHeader from '@/components/SheetReaderHeader';
 import SheetReaderFooter from '@/components/SheetReaderFooter';
 import SheetReaderSidebar from '@/components/SheetReaderSidebar';
@@ -55,9 +54,6 @@ const SheetReaderMode: React.FC = () => {
   const [initialLoading, setInitialLoading] = useState(true);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [isImmersive, setIsImmersive] = useState(false);
-  
-  // Modal (centered overlay) - opened with 'i' key
-  const [isStudioModalOpen, setIsStudioModalOpen] = useState(false);
   
   // Side panel (collapsible docked panel) - default collapsed
   const [isStudioPanelOpen, setIsStudioPanelOpen] = useState(false);
@@ -531,7 +527,7 @@ const SheetReaderMode: React.FC = () => {
             No {chartType === 'pdf' ? 'Full Score' : 'Leadsheet'} Available
           </h2>
           <p className="text-xl text-slate-400 mb-8">Upload one in the Studio.</p>
-          <Button onClick={() => setIsStudioModalOpen(true)} className="text-lg px-10 py-6 bg-indigo-600 rounded-2xl">
+          <Button onClick={() => setIsStudioPanelOpen(true)} className="text-lg px-10 py-6 bg-indigo-600 rounded-2xl">
             Open Studio
           </Button>
         </div>
@@ -582,7 +578,7 @@ const SheetReaderMode: React.FC = () => {
         </Button>
       </div>
     );
-  }, [forceReaderResource, ignoreConfirmedGate, navigate, harmonicTargetKey, isFramable, setIsStudioModalOpen, isPlaying, progress, duration, readerKeyPreference]);
+  }, [forceReaderResource, ignoreConfirmedGate, navigate, harmonicTargetKey, isFramable, setIsStudioPanelOpen, isPlaying, progress, duration, readerKeyPreference]);
 
   useEffect(() => {
     if (!currentSong) {
@@ -666,8 +662,7 @@ const SheetReaderMode: React.FC = () => {
 
       if (e.key.toLowerCase() === 'i' && currentSong) {
         e.preventDefault();
-        setIsStudioModalOpen(true); // Full modal with 'i'
-        setIsStudioPanelOpen(false); // Close panel if open
+        setIsStudioPanelOpen(true); // Open panel with 'i'
       }
     };
 
@@ -719,7 +714,7 @@ const SheetReaderMode: React.FC = () => {
           currentSong={currentSong}
           onClose={() => navigate('/')}
           onSearchClick={() => {
-            setIsStudioModalOpen(true);
+            setIsStudioPanelOpen(true); // Open panel with search click
             setSearchParams({ id: 'new', tab: 'library' }, { replace: true });
           }}
           onPrevSong={handlePrev}
@@ -877,19 +872,6 @@ const SheetReaderMode: React.FC = () => {
       >
         {isStudioPanelOpen ? <ChevronRight className="w-6 h-6" /> : <ChevronLeft className="w-6 h-6" />}
       </Button>
-
-      {/* Full Modal (opened with 'i') */}
-      {currentSong && (
-        <SongStudioModal
-          isOpen={isStudioModalOpen}
-          onClose={() => setIsStudioModalOpen(false)}
-          gigId="library"
-          songId={currentSong.id}
-          allSetlists={allSetlists}
-          masterRepertoire={allSongs}
-          onUpdateSetlistSongs={handleUpdateSetlistSongs}
-        />
-      )}
 
       <PreferencesModal isOpen={isPreferencesOpen} onClose={() => setIsPreferencesOpen(false)} />
     </div>
