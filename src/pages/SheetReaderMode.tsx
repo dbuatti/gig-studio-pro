@@ -165,14 +165,16 @@ const SheetReaderMode: React.FC = () => {
     setAudioPitch(pitch);
   }, [pitch, setAudioPitch]);
 
+  // === Force harmonic sync when currentSong changes ===
   useEffect(() => {
     if (currentSong) {
+      // This ensures the hook gets fresh data immediately
       setTargetKey(currentSong.targetKey || currentSong.originalKey || 'C');
       setPitch(currentSong.pitch ?? 0);
       console.log(`[SheetReaderMode] currentSong changed: ${currentSong.name}, Original Key: ${currentSong.originalKey}, Target Key: ${currentSong.targetKey}, Pitch: ${currentSong.pitch}`);
       console.log(`[SheetReaderMode] Harmonic Sync State after update: Target Key: ${harmonicTargetKey}, Pitch: ${pitch}`);
     }
-  }, [currentSong, setTargetKey, setPitch, harmonicTargetKey, pitch]);
+  }, [currentSong, setTargetKey, setPitch]); // Simplified dependencies
 
   const fetchSongs = useCallback(async () => {
     if (!user) return;
@@ -211,12 +213,12 @@ const SheetReaderMode: React.FC = () => {
         pitch: d.pitch ?? 0,
         previewUrl: d.extraction_status === 'completed' && d.audio_url ? d.audio_url : d.preview_url,
         youtubeUrl: d.youtube_url,
-        ugUrl: d.ug_url, // Keep this one
+        ugUrl: d.ug_url,
         appleMusicUrl: d.apple_music_url,
         pdfUrl: d.pdf_url,
         leadsheetUrl: d.leadsheet_url,
         bpm: d.bpm,
-        ug_chords_text: d.ug_chords_text, // ADDED THIS LINE
+        ug_chords_text: d.ug_chords_text,
         is_ug_chords_present: d.is_ug_chords_present,
         is_ug_link_verified: d.is_ug_link_verified,
         is_pitch_linked: d.is_pitch_linked ?? true,

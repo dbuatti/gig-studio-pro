@@ -19,13 +19,17 @@ export function useHarmonicSync({ formData, handleAutoSave, globalKeyPreference 
 
   // Sync internal state with formData changes
   useEffect(() => {
+    console.log(`[useHarmonicSync] useEffect triggered for song: ${formData.name || 'N/A'}`);
+    console.log(`[useHarmonicSync] Received formData: originalKey=${formData.originalKey}, targetKey=${formData.targetKey}, pitch=${formData.pitch}, is_pitch_linked=${formData.is_pitch_linked}`);
+
     const safePitch = typeof formData.pitch === 'number' ? formData.pitch : 0;
     const safeLink = typeof formData.is_pitch_linked === 'boolean' ? formData.is_pitch_linked : true;
 
     setPitchState(safePitch);
     setIsPitchLinkedState(safeLink);
     setTargetKeyState(formData.targetKey || formData.originalKey || 'C');
-  }, [formData.pitch, formData.is_pitch_linked, formData.originalKey, formData.targetKey]);
+    console.log(`[useHarmonicSync] Internal state set: targetKeyState=${formData.targetKey || formData.originalKey || 'C'}, pitch=${safePitch}`);
+  }, [formData.pitch, formData.is_pitch_linked, formData.originalKey, formData.targetKey, formData.name]); // Added formData.name for logging
 
   // --- Setters that interact with handleAutoSave ---
 
