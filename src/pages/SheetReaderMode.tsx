@@ -166,15 +166,18 @@ const SheetReaderMode: React.FC = () => {
   }, [pitch, setAudioPitch]);
 
   // === Force harmonic sync when currentSong changes ===
+  // REMOVED: This useEffect was causing redundant and conflicting state updates.
+  // The useHarmonicSync hook is designed to manage its own state based on the formData prop.
+  /*
   useEffect(() => {
     if (currentSong) {
-      // This ensures the hook gets fresh data immediately
       setTargetKey(currentSong.targetKey || currentSong.originalKey || 'C');
       setPitch(currentSong.pitch ?? 0);
       console.log(`[SheetReaderMode] currentSong changed: ${currentSong.name}, Original Key: ${currentSong.originalKey}, Target Key: ${currentSong.targetKey}, Pitch: ${currentSong.pitch}`);
       console.log(`[SheetReaderMode] Harmonic Sync State after update: Target Key: ${harmonicTargetKey}, Pitch: ${pitch}`);
     }
-  }, [currentSong, setTargetKey, setPitch]); // Simplified dependencies
+  }, [currentSong, setTargetKey, setPitch, harmonicTargetKey, pitch]);
+  */
 
   const fetchSongs = useCallback(async () => {
     if (!user) return;
