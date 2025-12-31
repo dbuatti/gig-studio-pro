@@ -116,7 +116,7 @@ def job_poller():
                 .execute()
             
             # Print the raw response for debugging
-            # log(f"Poller DB Response: {res.data}")
+            # log(f"Poller DB Response: {res.data}") # Uncomment this line if you want to see the raw DB response
 
             if res.data and len(res.data) > 0:
                 log(f"Poller: Found job! Starting {res.data[0].get('title')}")
