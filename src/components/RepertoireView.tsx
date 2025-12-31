@@ -66,7 +66,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
   isBulkDownloading,
   missingAudioCount,
   onOpenAdmin,
-  onDeleteSong, // Destructure new prop
+  onDeleteSong,
 }) => {
   const { keyPreference } = useSettings();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -165,7 +165,6 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
 
   const handleConfirmDelete = async () => {
     if (deleteConfirmId) {
-      console.log("[RepertoireView] Confirming deletion for ID:", deleteConfirmId);
       await onDeleteSong(deleteConfirmId);
       setDeleteConfirmId(null);
     }
