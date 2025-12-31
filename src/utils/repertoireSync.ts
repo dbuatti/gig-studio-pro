@@ -116,7 +116,6 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
     if (song.last_extracted_at !== undefined) dbUpdates.last_extracted_at = song.last_extracted_at;
     if (song.source_type !== undefined) dbUpdates.source_type = song.source_type;
     if (song.is_in_library !== undefined) dbUpdates.is_in_library = song.is_in_library;
-    // Map key_preference for persistence
     if (song.key_preference !== undefined) dbUpdates.key_preference = song.key_preference;
 
     let result;
@@ -165,7 +164,7 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
       user_tags: result.user_tags || [],
       is_pitch_linked: result.is_pitch_linked ?? true,
       duration_seconds: result.duration_seconds,
-      key_preference: result.key_preference, // Map back from DB
+      key_preference: result.key_preference, 
       is_active: result.is_active,
       fineTune: result.fineTune,
       tempo: result.tempo,

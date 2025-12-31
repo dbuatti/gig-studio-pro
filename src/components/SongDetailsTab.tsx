@@ -27,7 +27,6 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
   const [dragActive, setDragActive] = useState(false);
   const [pendingUpload, setPendingUpload] = useState<{ file: File; type: 'pdf' | 'leadsheet' } | null>(null);
 
-  // --- UG Link Handlers ---
   const handleUgChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     handleAutoSave({ ugUrl: e.target.value });
   };
@@ -49,7 +48,6 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
     window.open(`https://www.ultimate-guitar.com/search.php?search_type=title&value=${query}`, '_blank');
   };
 
-  // --- Sheet Music Link Handlers ---
   const handleSheetChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     handleAutoSave({ sheet_music_url: e.target.value });
   };
@@ -67,7 +65,6 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
     window.open(`https://www.google.com/search?q=${query}`, '_blank');
   };
 
-  // --- Open Link Handlers ---
   const handleOpenUgLink = () => {
     if (formData.ugUrl) {
       window.open(formData.ugUrl, '_blank');
@@ -81,7 +78,6 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
     }
   };
 
-  // --- Drag and Drop Handlers ---
   const handleDrag = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -118,12 +114,8 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
     }
   };
 
-  // --- Upload Logic ---
   const confirmUpload = async (designation: 'pdf' | 'leadsheet') => {
-    if (!user || !pendingUpload || !formData.name) {
-      console.error("[Upload] Missing required data:", { user: !!user, pending: !!pendingUpload, name: !!formData.name });
-      return;
-    }
+    if (!user || !pendingUpload || !formData.name) return;
 
     setIsUploading(true);
     try {
@@ -131,14 +123,7 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
       const sanitizedName = formData.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
       const fileName = `${user.id}/${formData.id || 'temp'}_${sanitizedName}_${designation}.${fileExt}`;
       
-      console.log("[Upload] Starting PDF upload...", {
-        bucket: 'public_audio',
-        path: fileName,
-        size: `${(pendingUpload.file.size / 1024 / 1024).toFixed(2)} MB`,
-        type: pendingUpload.file.type
-      });
-
-      const { data, error } = await supabase.storage
+      const { error } = await supabase.storage
         .from('public_audio')
         .upload(fileName, pendingUpload.file, { 
           upsert: true, 
@@ -146,12 +131,8 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
           cacheControl: '3600'
         });
 
-      if (error) {
-        console.error("[Upload] Supabase Storage Error:", error);
-        throw error;
-      }
+      if (error) throw error;
 
-      console.log("[Upload] Upload success. Generating public URL...");
       const { data: { publicUrl } } = supabase.storage.from('public_audio').getPublicUrl(fileName);
 
       const updates: any = { 
@@ -170,23 +151,17 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
       setPendingUpload(null);
 
     } catch (err: any) {
-      console.error("[Upload] Fatal Upload Exception:", err);
-      // Extra check for 400 errors which usually contain details in the error object
-      const errorMsg = err.message || "Unknown storage error";
-      const errorDetail = err.error || err.statusCode || "";
-      showError(`Upload failed: ${errorMsg} ${errorDetail}`);
+      showError(`Upload failed: ${err.message}`);
     } finally {
       setIsUploading(false);
     }
   };
 
-  // Determine verification status based on presence
   const isUgVerified = !!formData.ugUrl;
   const isSheetVerified = !!(formData.sheet_music_url || formData.pdfUrl || formData.leadsheetUrl);
 
   return (
     <div className="space-y-10 animate-in fade-in duration-500">
-      {/* Drag & Drop Zone Overlay */}
       <div 
         className={cn(
           "fixed inset-0 z-[100] bg-indigo-600/90 backdrop-blur-sm flex flex-col items-center justify-center transition-all duration-300",
@@ -221,7 +196,6 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
         </div>
       </div>
 
-      {/* Upload Area */}
       <div 
         className={cn(
           "border-2 border-dashed rounded-3xl p-8 text-center transition-colors cursor-pointer group",
@@ -246,7 +220,6 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
       </div>
 
       <div className={cn("grid gap-10", isMobile ? "grid-cols-1" : "grid-cols-2")}>
-        {/* Ultimate Guitar Link Section */}
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Ultimate Guitar</Label>
@@ -284,7 +257,6 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
           </div>
         </div>
 
-        {/* Sheet Music Link Section */}
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Sheet Music / PDF</Label>
@@ -333,7 +305,6 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
         />
       </div>
 
-      {/* Upload Confirmation Dialog */}
       <Dialog open={!!pendingUpload} onOpenChange={(open) => !open && setPendingUpload(null)}>
         <DialogContent className="bg-slate-900 border-white/10 text-white rounded-[2rem]">
           <DialogHeader>
