@@ -2,15 +2,13 @@
 
 import React, { useState, useMemo } from 'react';
 import { Input } from "@/components/ui/input";
-import { Search, Library, Music, Download } from 'lucide-react'; // NEW: Import Download
+import { Search, Library, Music } from 'lucide-react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SetlistSong } from './SetlistManager';
 import { cn } from "@/lib/utils";
 import { formatKey } from '@/utils/keyUtils';
 import { useSettings } from '@/hooks/use-settings';
 import SearchHighlight from './SearchHighlight';
-import { hasFullAudio } from '@/utils/audioUtils'; // NEW: Import hasFullAudio
-import { Badge } from './ui/badge'; // NEW: Import Badge
 
 interface MyLibraryProps {
   repertoire: SetlistSong[];
@@ -58,7 +56,6 @@ const MyLibrary: React.FC<MyLibraryProps> = ({ repertoire, onAddSong }) => {
           <div className="divide-y divide-slate-200 dark:divide-slate-800 border-t border-slate-200 dark:border-slate-800">
             {uniqueSongs.map((song) => {
               const displayKey = formatKey(song.targetKey || song.originalKey, keyPreference);
-              const audioDownloaded = hasFullAudio(song); // NEW: Check for downloaded audio
               return (
                 <button 
                   key={song.id} 
@@ -73,11 +70,6 @@ const MyLibrary: React.FC<MyLibraryProps> = ({ repertoire, onAddSong }) => {
                         query={query} 
                         className="text-[11px] font-black uppercase tracking-tight truncate" 
                       />
-                      {audioDownloaded && ( // NEW: Audio Downloaded Badge
-                        <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-500 text-[8px] font-black uppercase flex items-center gap-1 px-2 py-0.5 rounded-full">
-                          <Download className="w-2.5 h-2.5" />
-                        </Badge>
-                      )}
                       <span className="text-slate-300 dark:text-slate-700 text-[10px]">|</span>
                       <SearchHighlight 
                         text={song.artist || "Unknown Artist"} 

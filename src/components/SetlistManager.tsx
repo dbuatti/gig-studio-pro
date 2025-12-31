@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, CircleDashed, CheckCircle2, Volume2, ChevronUp, ChevronDown, Search, LayoutList, SortAsc, SortDesc, ClipboardList, Clock, ShieldCheck, Check, MoreVertical, Settings2, FileText, Filter, AlertTriangle, Loader2, Guitar, CloudDownload, Edit3, Download } from 'lucide-react';
+import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, CircleDashed, CheckCircle2, Volume2, ChevronUp, ChevronDown, Search, LayoutList, SortAsc, SortDesc, ClipboardList, Clock, ShieldCheck, Check, MoreVertical, Settings2, FileText, Filter, AlertTriangle, Loader2, Guitar, CloudDownload, Edit3 } from 'lucide-react';
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, formatKey, transposeKey, calculateSemitones } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
 import { showSuccess } from '@/utils/toast';
@@ -15,8 +15,6 @@ import SetlistFilters, { FilterState, DEFAULT_FILTERS } from './SetlistFilters';
 import { calculateReadiness } from '@/utils/repertoireSync';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import SetlistMultiSelector from './SetlistMultiSelector'; // Import SetlistMultiSelector
-import { hasFullAudio } from '@/utils/audioUtils'; // NEW: Import hasFullAudio
-import { Badge } from './ui/badge'; // NEW: Import Badge
 
 export interface UGChordsConfig {
   fontFamily: string;
@@ -139,6 +137,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
+  const isItunesPreview = (url: string) => url && (url.includes('apple.com') || url.includes('itunes-assets'));
+
   const handleMove = (id: string, direction: 'up' | 'down') => {
     if (sortMode !== 'none' || searchTerm) return;
     
@@ -160,12 +160,13 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     if (!showHeatmap) return "";
 
     const readiness = calculateReadiness(song);
+    const hasAudio = !!song.previewUrl && !isItunesPreview(song.previewUrl);
     const hasYoutubeLink = !!song.youtubeUrl && song.youtubeUrl.trim() !== "";
     const hasUgLink = !!song.ugUrl && song.ugUrl.trim() !== "";
     const hasUgChordsText = !!song.ug_chords_text && song.ug_chords_text.trim().length > 0;
     const hasSheetLink = !!(song.pdfUrl || song.leadsheetUrl || song.sheet_music_url);
 
-    if (!hasFullAudio(song) || !hasYoutubeLink || (hasUgLink && !hasUgChordsText) || readiness < 40) {
+    if (!hasAudio || !hasYoutubeLink || (hasUgLink && !hasUgChordsText) || readiness < 40) {
       return "bg-red-500/10 border-red-500/20";
     }
 
@@ -249,11 +250,11 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
             const isSelected = currentSongId === song.id;
             const readinessScore = calculateReadiness(song);
             const isFullyReady = readinessScore === 100;
+            const hasAudio = !!song.previewUrl && !isItunesPreview(song.previewUrl);
             const currentPref = song.key_preference || globalPreference;
             const displayTargetKey = formatKey(song.targetKey || song.originalKey, currentPref);
             const isProcessing = song.extraction_status === 'processing' || song.extraction_status === 'queued';
             const isExtractionFailed = song.extraction_status === 'failed';
-            const audioDownloaded = hasFullAudio(song); // NEW: Check for downloaded audio
 
             return (
               <div 
@@ -289,11 +290,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         {isFullyReady && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 fill-emerald-500/20" />}
                         {isProcessing && <CloudDownload className="w-3.5 h-3.5 text-indigo-500 animate-bounce" />}
                         {isExtractionFailed && <AlertTriangle className="w-3.5 h-3.5 text-red-500" />}
-                        {audioDownloaded && ( // NEW: Audio Downloaded Badge
-                          <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-500 text-[8px] font-black uppercase flex items-center gap-1 px-2 py-0.5 rounded-full">
-                            <Download className="w-2.5 h-2.5" />
-                          </Badge>
-                        )}
                       </h4>
                       <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-0.5">
                         {song.artist || "Unknown Artist"}
@@ -353,7 +349,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    {audioDownloaded && <Volume2 className="w-3.5 h-3.5 text-indigo-500" />}
+                    {hasAudio && <Volume2 className="w-3.5 h-3.5 text-indigo-500" />}
                     <Button 
                       size="sm"
                       className={cn(
@@ -393,12 +389,12 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                   const isSelected = currentSongId === song.id;
                   const readinessScore = calculateReadiness(song);
                   const isFullyReady = readinessScore === 100;
+                  const hasAudio = !!song.previewUrl && !isItunesPreview(song.previewUrl);
                   const currentPref = song.key_preference || globalPreference;
                   const displayOrigKey = formatKey(song.originalKey, currentPref);
                   const displayTargetKey = formatKey(song.targetKey || song.originalKey, currentPref);
                   const isProcessing = song.extraction_status === 'processing' || song.extraction_status === 'queued';
                   const isExtractionFailed = song.extraction_status === 'failed';
-                  const audioDownloaded = hasFullAudio(song); // NEW: Check for downloaded audio
 
                   return (
                     <tr 
@@ -439,12 +435,16 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                               {isFullyReady && <CheckCircle2 className="w-4 h-4 text-emerald-500 fill-emerald-500/20" />}
                               {isProcessing && <CloudDownload className="w-4 h-4 text-indigo-500 animate-bounce" />}
                               {isExtractionFailed && <AlertTriangle className="w-4 h-4 text-red-500" />}
-                              {audioDownloaded && ( // NEW: Audio Downloaded Badge
-                                <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-500 text-[8px] font-black uppercase flex items-center gap-1 px-2 py-0.5 rounded-full">
-                                  <Download className="w-2.5 h-2.5" />
-                                </Badge>
-                              )}
                             </h4>
+                            {song.isMetadataConfirmed && <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />}
+                            {(song.isSyncing || isProcessing) ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-500 ml-1" />
+                            ) : (
+                              <div className={cn(
+                                "h-1.5 w-1.5 rounded-full",
+                                isFullyReady ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]"
+                              )} />
+                            )}
                           </div>
                           <div className="flex items-center gap-2 ml-[32px]">
                             <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest leading-none">

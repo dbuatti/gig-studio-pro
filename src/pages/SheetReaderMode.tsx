@@ -5,7 +5,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { SetlistSong } from '@/components/SetlistManager';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/button'; // Fixed: Corrected import syntax
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Music, Loader2, AlertCircle, X, Settings, ExternalLink, ShieldCheck, FileText, Layout, Guitar, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -21,7 +21,7 @@ import PreferencesModal from '@/components/PreferencesModal';
 import SongStudioModal from '@/components/SongStudioModal';
 import SheetReaderHeader from '@/components/SheetReaderHeader';
 import SheetReaderFooter from '@/components/SheetReaderFooter';
-import SheetReaderSidebar from '@/components/SheetReaderSidebar';
+import SheetReaderSidebar from '@/components/SheetReaderSidebar'; // NEW: Import Sidebar
 import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
 import { motion } from 'framer-motion';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -56,7 +56,7 @@ const SheetReaderMode: React.FC = () => {
   const [isImmersive, setIsImmersive] = useState(false);
   const [isStudioModalOpen, setIsStudioModalOpen] = useState(false);
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // NEW: Sidebar state
 
   const [readerKeyPreference, setReaderKeyPreference] = useState<'sharps' | 'flats'>(globalKeyPreference);
 
@@ -232,8 +232,8 @@ const SheetReaderMode: React.FC = () => {
         is_sheet_verified: d.is_sheet_verified,
         // FIX: Ensure highest_note_original is mapped
         highest_note_original: d.highest_note_original,
-        extraction_status: d.extraction_status,
-        last_sync_log: d.last_sync_log
+        extraction_status: d.extraction_status, // NEW: Map extraction_status
+        last_sync_log: d.last_sync_log // NEW: Map last_sync_log
       }));
 
       const readableAndApprovedSongs = mappedSongs.filter(s => {
@@ -285,7 +285,7 @@ const SheetReaderMode: React.FC = () => {
           id: d.id,
           name: d.name,
           songs: (d.songs as any[]) || [],
-          time_goal: d.time_goal
+          time_goal: d.time_goal // Assuming time_goal might be present
         }));
         setAllSetlists(mappedSetlists);
       }
@@ -303,11 +303,12 @@ const SheetReaderMode: React.FC = () => {
       navigate('/', { replace: true });
       return; // Stop further execution of this effect
     }
-    // Removed: sessionStorage.removeItem('from_dashboard'); // This line was causing the refresh issue
+    // Clear the flag regardless, so subsequent direct access (e.g., refresh) won't be fooled
+    sessionStorage.removeItem('from_dashboard');
 
     fetchSongs();
     fetchAllSetlists();
-  }, [fetchSongs, fetchAllSetlists, navigate]);
+  }, [fetchSongs, fetchAllSetlists, navigate]); // Added navigate to dependencies
 
   // Load audio
   useEffect(() => {

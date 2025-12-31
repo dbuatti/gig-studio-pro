@@ -3,15 +3,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Globe, Music, Loader2, Plus, ShieldCheck, User, Star, FileText, CloudDownload, AlertTriangle, Download } from 'lucide-react'; // NEW: Import Download
+import { Search, Globe, Music, Loader2, Plus, ShieldCheck, User, Star, FileText, CloudDownload, AlertTriangle } from 'lucide-react'; // NEW: Import CloudDownload and AlertTriangle
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SetlistSong } from './SetlistManager';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from "@/lib/utils";
 import { formatKey } from '@/utils/keyUtils';
 import { useSettings } from '@/hooks/use-settings';
-import { hasFullAudio } from '@/utils/audioUtils'; // NEW: Import hasFullAudio
-import { Badge } from './ui/badge'; // NEW: Import Badge
 
 interface GlobalLibraryProps {
   onImport: (song: Partial<SetlistSong>) => void;
@@ -88,7 +86,6 @@ const GlobalLibrary: React.FC<GlobalLibraryProps> = ({ onImport }) => {
               const readiness = song.readiness_score || 0;
               const isProcessing = song.extraction_status === 'processing' || song.extraction_status === 'queued';
               const isExtractionFailed = song.extraction_status === 'failed';
-              const audioDownloaded = hasFullAudio(song); // NEW: Check for downloaded audio
               
               return (
                 <div 
@@ -102,11 +99,6 @@ const GlobalLibrary: React.FC<GlobalLibraryProps> = ({ onImport }) => {
                         {readiness >= 90 && <ShieldCheck className="w-3 h-3 text-emerald-500" />}
                         {isProcessing && <CloudDownload className="w-3.5 h-3.5 text-indigo-500 animate-bounce" />}
                         {isExtractionFailed && <AlertTriangle className="w-3.5 h-3.5 text-red-500" />}
-                        {audioDownloaded && ( // NEW: Audio Downloaded Badge
-                          <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-500 text-[8px] font-black uppercase flex items-center gap-1 px-2 py-0.5 rounded-full">
-                            <Download className="w-2.5 h-2.5" />
-                          </Badge>
-                        )}
                       </div>
                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-0.5">{song.artist}</p>
                       
@@ -148,7 +140,7 @@ const GlobalLibrary: React.FC<GlobalLibraryProps> = ({ onImport }) => {
                           duration_seconds: song.duration_seconds,
                           isMetadataConfirmed: true,
                           extraction_status: song.extraction_status, // NEW: Pass extraction_status
-                          last_sync_log: song.last_sync_log
+                          last_sync_log: song.last_sync_log // NEW: Pass last_sync_log
                         })}
                         className="h-8 px-3 text-[9px] font-black uppercase bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-xl gap-1.5 transition-all"
                       >
