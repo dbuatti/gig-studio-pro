@@ -18,6 +18,7 @@ import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { showSuccess } from '@/utils/toast';
 import SetlistFilters, { FilterState, DEFAULT_FILTERS } from './SetlistFilters';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"; // Ensure TableCell is imported
 
 interface RepertoireViewProps {
   repertoire: SetlistSong[];
@@ -226,24 +227,23 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
 
       <div className="bg-card rounded-[2rem] border-4 border-border shadow-2xl overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse min-w-[900px]">
-            <thead>
-              <tr className="bg-secondary dark:bg-secondary border-b border-border">
-                <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-16 text-center">#</th>
-                <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground text-left">Song / Artist</th>
-                <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-24 text-center">Readiness</th>
-                <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-48 text-center">Harmonic Data</th>
-                <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-40 text-right pr-10">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
+          <Table>
+            <TableHeader className="sticky top-0 bg-secondary z-10">
+              <TableRow>
+                <TableHead className="w-[40%] text-[10px] font-black uppercase tracking-widest">Song</TableHead>
+                <TableHead className="w-[20%] text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground text-center">Readiness</TableHead>
+                <TableHead className="w-[20%] text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-48 text-center">Harmonic Data</TableHead>
+                <TableHead className="w-[20%] text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-40 text-right pr-10">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {filteredAndSortedRepertoire.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="py-20 text-center opacity-30">
+                <TableRow>
+                  <TableCell colSpan={5} className="py-20 text-center opacity-30">
                     <Library className="w-12 h-12 mx-auto mb-4" />
                     <p className="text-sm font-black uppercase tracking-widest">No Tracks Found</p>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ) : (
                 filteredAndSortedRepertoire.map((song, idx) => {
                   const readinessScore = calculateReadiness(song);
@@ -255,7 +255,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                   const isExtractionFailed = song.extraction_status === 'failed';
 
                   return (
-                    <tr
+                    <TableRow
                       key={song.id}
                       onClick={() => onEditSong(song, 'details')} // Make entire row clickable and open to 'details'
                       className={cn(
@@ -263,10 +263,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                         "hover:bg-accent dark:hover:bg-secondary"
                       )}
                     >
-                      <td className="px-6 text-center">
-                        <span className="text-[10px] font-mono font-black text-muted-foreground">{(idx + 1).toString().padStart(2, '0')}</span>
-                      </td>
-                      <td className="px-6 text-left">
+                      <TableCell className="px-6 text-left">
                         <div className="flex flex-col gap-1">
                           <div className="flex items-center gap-3">
                             <h4 className="text-base font-black tracking-tight leading-none flex items-center gap-2">
@@ -285,8 +282,8 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                             <p className="text-[8px] text-red-400 mt-1 truncate max-w-[200px]">Error: {song.last_sync_log}</p>
                           )}
                         </div>
-                      </td>
-                      <td className="px-6 text-center">
+                      </TableCell>
+                      <TableCell className="px-6 text-center">
                         <div className="flex flex-col items-center justify-center h-full">
                           <p className={cn(
                             "text-sm font-mono font-black",
@@ -294,7 +291,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                           )}>{readinessScore}%</p>
                           {readinessScore === 100 && <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 mt-1" />}
                         </div>
-                      </td>
+                      </TableCell>
                       <TableCell className="px-6 text-center">
                         <div className="flex items-center justify-center gap-4 h-full">
                           <div className="text-center min-w-[32px]">
@@ -317,7 +314,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                           </div>
                         </div>
                       </TableCell>
-                      <td className="px-6 text-right pr-10">
+                      <TableCell className="px-6 text-right pr-10">
                         <div className="flex items-center justify-end gap-2 h-full">
                           <SetlistMultiSelector
                             songMasterId={song.id}
@@ -329,14 +326,14 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                             <Edit3 className="w-4 h-4" />
                           </Button>
                         </div>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   );
                 })
               )}
-            </tbody>
-          </table>
-        </div>
+            </TableBody>
+          </Table>
+        </ScrollArea>
       </div>
     </div>
   );
