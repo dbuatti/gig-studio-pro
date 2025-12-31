@@ -28,7 +28,9 @@ import {
   Sparkles,
   Loader2,
   Hash, // Added Hash icon for keys
-  Music2 // Added Music2 icon for keys
+  Music2, // Added Music2 icon for keys
+  ArrowRight, // Added ArrowRight
+  Settings2 // Added Settings2
 } from 'lucide-react';
 import { SetlistSong } from './SetlistManager';
 import { cn } from '@/lib/utils';
@@ -498,7 +500,7 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
                                 </Button>
                               )}
                               {hasLink && (
-                                <Button variant="ghost" size="sm" onClick={() => window.open(activeTab === 'ug' ? song.ugUrl : sheetUrl, '_blank')} className="h-8 px-2 bg-white/5 text-white font-bold text-[8px] uppercase rounded-xl gap-2">
+                                <Button variant="ghost" size="sm" onClick={() => window.open(song.ugUrl, '_blank')} className="h-8 px-2 bg-white/5 text-white font-bold text-[8px] uppercase rounded-xl gap-2">
                                   <ExternalLink className="w-3 h-3" /> Open
                                 </Button>
                               )}
@@ -534,7 +536,7 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
                           ) : (
                             <>
                               {hasLink && (
-                                <Button variant="ghost" size="sm" onClick={() => window.open(activeTab === 'ug' ? song.ugUrl : sheetUrl, '_blank')} className="h-8 px-2 bg-white/5 text-white font-bold text-[8px] uppercase rounded-xl gap-2">
+                                <Button variant="ghost" size="sm" onClick={() => window.open(sheetUrl, '_blank')} className="h-8 px-2 bg-white/5 text-white font-bold text-[8px] uppercase rounded-xl gap-2">
                                   <ExternalLink className="w-3 h-3" /> Open
                                 </Button>
                               )}
