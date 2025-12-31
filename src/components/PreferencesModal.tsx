@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { useSettings } from '@/hooks/use-settings';
-import { Settings2, Hash, Music2, LogOut, ShieldCheck, Zap, Coffee, Heart, Globe, User, Youtube, Key, ShieldAlert, Bug, FileText, Monitor } from 'lucide-react';
+import { Settings2, Hash, Music2, LogOut, ShieldCheck, Zap, Coffee, Heart, Globe, User, Youtube, Key, ShieldAlert, Bug, FileText, Monitor, Sun, Moon } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { cn } from "@/lib/utils";
 import { useNavigate } from 'react-router-dom';
@@ -16,6 +16,7 @@ import { showSuccess, showError } from '@/utils/toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PURE_NOTES_SHARP, PURE_NOTES_FLAT } from '@/utils/keyUtils';
 import { useReaderSettings, ReaderResourceForce } from '@/hooks/use-reader-settings'; // NEW: Import useReaderSettings
+import { useTheme } from '@/hooks/use-theme'; // NEW: Import useTheme
 
 interface PreferencesModalProps {
   isOpen: boolean;
@@ -38,6 +39,9 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
     forceDesktopView,
     updateSetting,
   } = useReaderSettings();
+
+  // NEW: Use theme hook
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     if (isOpen && user) {
@@ -206,6 +210,27 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
                   onCheckedChange={(checked) => setKeyPreference(checked ? 'sharps' : 'flats')}
                 />
                 <span className={cn("text-[10px] font-black uppercase", keyPreference === 'sharps' ? "text-indigo-400" : "text-slate-600")}>Sharps</span>
+              </div>
+            </div>
+
+            {/* NEW: Dark Mode Toggle */}
+            <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-600/10 rounded-lg">
+                  {theme === 'dark' ? <Moon className="w-4 h-4 text-indigo-400" /> : <Sun className="w-4 h-4 text-indigo-400" />}
+                </div>
+                <div>
+                  <p className="text-sm font-bold">App Theme</p>
+                  <p className="text-[10px] text-slate-500 uppercase font-black">Current: {theme}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={cn("text-[10px] font-black uppercase", theme === 'light' ? "text-indigo-400" : "text-slate-600")}>Light</span>
+                <Switch 
+                  checked={theme === 'dark'} 
+                  onCheckedChange={toggleTheme}
+                />
+                <span className={cn("text-[10px] font-black uppercase", theme === 'dark' ? "text-indigo-400" : "text-slate-600")}>Dark</span>
               </div>
             </div>
           </div>

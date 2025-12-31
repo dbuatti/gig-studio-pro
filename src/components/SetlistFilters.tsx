@@ -87,7 +87,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
           {/* Presets Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9 px-4 rounded-xl border-indigo-100 dark:border-slate-800 bg-slate-900 text-indigo-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-sm">
+              <Button variant="outline" size="sm" className="h-9 px-4 rounded-xl border-slate-800 bg-slate-900 text-indigo-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-sm">
                 <Star className="w-3.5 h-3.5 fill-indigo-600" /> <span className="hidden sm:inline">Views</span> <ChevronDown className="w-3 h-3 opacity-50" />
               </Button>
             </DropdownMenuTrigger>
@@ -112,7 +112,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden md:block" />
+          <div className="h-6 w-px bg-slate-800 mx-1 hidden md:block" />
 
           {/* Readiness Slider - Expanded */}
           <div className="flex items-center gap-4 bg-slate-900 px-4 py-1.5 rounded-xl border border-slate-800 flex-1 min-w-[300px]">
@@ -129,7 +129,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
             />
           </div>
 
-          <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden lg:block" />
+          <div className="h-6 w-px bg-slate-800 mx-1 hidden lg:block" />
 
           {/* Confirmed Toggle (Icon only) */}
           <DropdownMenu>

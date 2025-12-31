@@ -154,13 +154,13 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
       </form>
 
       {results.length > 0 && (
-        <Card className="border-slate-100 dark:border-slate-800 overflow-hidden shadow-inner bg-slate-50/30 dark:bg-black/20">
+        <Card className="border-slate-800 overflow-hidden shadow-inner bg-slate-900/30">
           <ScrollArea className="h-[450px]">
             <div className="p-2 space-y-1">
               <TooltipProvider>
                 {results.map((song) => (
-                  <div key={song.trackId} className="flex flex-col border-b last:border-0 border-slate-100 dark:border-slate-800">
-                    <div className="w-full flex items-center gap-3 p-2 hover:bg-white dark:hover:bg-indigo-950/30 rounded-lg transition-all group">
+                  <div key={song.trackId} className="flex flex-col border-b last:border-0 border-slate-800">
+                    <div className="w-full flex items-center gap-3 p-2 hover:bg-slate-800 rounded-lg transition-all group">
                       <button
                         onClick={() => onAddToSetlist(song.previewUrl, song.trackName, song.artistName, manualYtUrl, manualUgUrl, song.trackViewUrl, song.primaryGenreName)}
                         className="flex flex-1 items-center gap-3 text-left min-w-0"
@@ -184,7 +184,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
                               onClick={() => toggleExpand(song)}
                               className={cn(
                                 "p-2 rounded-md transition-all",
-                                expandingId === song.trackId ? "bg-indigo-600 text-white shadow-lg" : "hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500"
+                                expandingId === song.trackId ? "bg-indigo-600 text-white shadow-lg" : "hover:bg-slate-800 text-slate-500"
                               )}
                             >
                               <LinkIcon className="w-4 h-4" />
@@ -209,7 +209,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
 
                     {expandingId === song.trackId && (
                       <div className="px-3 pb-3 animate-in slide-in-from-top-2 duration-300">
-                        <div className="p-4 bg-white dark:bg-slate-900 rounded-xl border-2 border-indigo-50 dark:border-indigo-900/20 shadow-sm space-y-4">
+                        <div className="p-4 bg-slate-900 rounded-xl border-2 border-indigo-900/20 shadow-sm space-y-4">
                           <div className="flex items-center justify-between border-b pb-2">
                             <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Library Engine Configuration</span>
                             {ytSearchLoading && <Loader2 className="w-3 h-3 animate-spin text-indigo-500" />}
@@ -226,7 +226,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
                                   <LinkIcon className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
                                   <Input 
                                     placeholder="Paste video URL..." 
-                                    className="h-9 pl-7 text-[10px] bg-slate-50 dark:bg-slate-950 border-slate-100 dark:border-slate-800"
+                                    className="h-9 pl-7 text-[10px] bg-slate-950 border-slate-800"
                                     value={manualYtUrl}
                                     onChange={(e) => setManualYtUrl(e.target.value)}
                                   />
@@ -234,7 +234,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
                                 <Button 
                                   variant="outline" 
                                   size="sm" 
-                                  className="h-9 border-slate-200 text-slate-600 hover:bg-red-50 hover:text-red-600 text-[10px] font-bold uppercase"
+                                  className="h-9 border-slate-800 text-slate-600 hover:bg-red-50 hover:text-red-600 text-[10px] font-bold uppercase"
                                   onClick={() => openYoutubeSearch(song.trackName, song.artistName)}
                                 >
                                   <Search className="w-3 h-3 mr-1" /> Find
@@ -252,7 +252,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
                                   <LinkIcon className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
                                   <Input 
                                     placeholder="Paste UG tab URL..." 
-                                    className="h-9 pl-7 text-[10px] bg-slate-50 dark:bg-slate-950 border-slate-100 dark:border-slate-800"
+                                    className="h-9 pl-7 text-[10px] bg-slate-950 border-slate-800"
                                     value={manualUgUrl}
                                     onChange={(e) => setManualUgUrl(e.target.value)}
                                   />
@@ -260,7 +260,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
                                 <Button 
                                   variant="outline" 
                                   size="sm" 
-                                  className="h-9 border-slate-200 text-slate-600 hover:bg-orange-50 hover:text-orange-600 text-[10px] font-bold uppercase"
+                                  className="h-9 border-slate-800 text-slate-600 hover:bg-orange-50 hover:text-orange-600 text-[10px] font-bold uppercase"
                                   onClick={() => openUgSearch(song.trackName, song.artistName)}
                                 >
                                   <Search className="w-3 h-3 mr-1" /> Find

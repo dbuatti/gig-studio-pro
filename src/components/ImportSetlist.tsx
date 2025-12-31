@@ -130,7 +130,7 @@ const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport, isOpen, onClose
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-slate-900 border border-white/10 rounded-2xl p-5 flex items-center justify-between shadow-sm">
               <div className="flex items-center gap-3">
-                <div className="bg-red-100 dark:bg-red-900/30 p-2.5 rounded-xl">
+                <div className="bg-red-900/30 p-2.5 rounded-xl">
                   <Youtube className="w-5 h-5 text-red-600" />
                 </div>
                 <div>
@@ -147,7 +147,7 @@ const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport, isOpen, onClose
             </div>
 
             <div className="bg-slate-900 border border-white/10 rounded-2xl p-5 flex items-center gap-4 shadow-sm">
-              <div className="bg-emerald-100 dark:bg-emerald-900/30 p-2.5 rounded-xl">
+              <div className="bg-emerald-900/30 p-2.5 rounded-xl">
                 <Music className="w-5 h-5 text-emerald-600" />
               </div>
               <div>
@@ -170,18 +170,18 @@ const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport, isOpen, onClose
             />
           </div>
 
-          <div className="flex items-start gap-4 p-5 bg-indigo-50 dark:bg-indigo-950/30 rounded-2xl border border-indigo-100 dark:border-indigo-900/50">
+          <div className="flex items-start gap-4 p-5 bg-indigo-950/30 rounded-2xl border border-indigo-900/50">
             <AlertCircle className="w-6 h-6 text-indigo-600 shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-black text-indigo-900 dark:text-indigo-300 uppercase tracking-tight">Intelligence Report</p>
-              <p className="text-[11px] text-indigo-700/80 dark:text-indigo-400/80 mt-1 leading-relaxed">
+              <p className="text-sm font-black text-indigo-300 uppercase tracking-tight">Intelligence Report</p>
+              <p className="text-[11px] text-indigo-400/80 mt-1 leading-relaxed">
                 The engine will attempt to extract the song name, artist, and musical key automatically. After import, the AI background worker will verify these details and link professional reference audio.
               </p>
             </div>
           </div>
         </div>
 
-        <div className="p-8 bg-slate-100 dark:bg-slate-900/50 border-t flex flex-col sm:flex-row gap-4">
+        <div className="p-8 bg-slate-900/50 border-t flex flex-col sm:flex-row gap-4">
           <Button variant="ghost" onClick={onClose} className="flex-1 font-black uppercase tracking-widest text-xs h-12 rounded-xl">Discard</Button>
           <Button 
             onClick={handleImport} 

@@ -101,8 +101,8 @@ const RepertoirePicker: React.FC<RepertoirePickerProps> = ({
                   const isAdded = existingIds.has(song.master_id || song.id);
                   const readiness = calculateReadiness(song);
                   const displayKey = formatKey(song.targetKey || song.originalKey, keyPreference);
-                  const isProcessing = song.extraction_status === 'processing' || song.extraction_status === 'queued'; // NEW: Check for queued status
-                  const isExtractionFailed = song.extraction_status === 'failed'; // NEW: Check for failed status
+                  const isProcessing = song.extraction_status === 'processing' || song.extraction_status === 'queued';
+                  const isExtractionFailed = song.extraction_status === 'failed';
 
                   return (
                     <div 

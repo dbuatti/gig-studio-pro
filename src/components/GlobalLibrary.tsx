@@ -71,7 +71,7 @@ const GlobalLibrary: React.FC<GlobalLibraryProps> = ({ onImport }) => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <Input 
             placeholder="Search verified community tracks..." 
-            className="pl-9 h-10 border-slate-200 dark:border-slate-800 bg-transparent text-xs focus-visible:ring-emerald-500"
+            className="pl-9 h-10 border-slate-800 bg-transparent text-xs focus-visible:ring-emerald-500"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -84,8 +84,8 @@ const GlobalLibrary: React.FC<GlobalLibraryProps> = ({ onImport }) => {
             results.map((song) => {
               const displayKey = formatKey(song.target_key || song.original_key, keyPreference);
               const readiness = song.readiness_score || 0;
-              const isProcessing = song.extraction_status === 'processing' || song.extraction_status === 'queued'; // NEW: Check for queued status
-              const isExtractionFailed = song.extraction_status === 'failed'; // NEW: Check for failed status
+              const isProcessing = song.extraction_status === 'processing' || song.extraction_status === 'queued';
+              const isExtractionFailed = song.extraction_status === 'failed';
               
               return (
                 <div 
