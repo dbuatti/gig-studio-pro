@@ -133,6 +133,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
   };
 
   const handleAddClick = (song: any) => {
+    console.log("[Search] User clicked 'Add' for song:", song.trackName);
     onAddToSetlist(
       song.previewUrl, 
       song.trackName, 

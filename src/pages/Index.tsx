@@ -158,9 +158,11 @@ const Index = () => {
     return songs;
   }, [activeSetlist, searchTerm, sortMode, activeFilters]);
 
-  const fetchSetlistsAndRepertoire = useCallback(async () => {
+  // NEW: Added isInitial parameter to prevent full-page refresh on data updates
+  const fetchSetlistsAndRepertoire = useCallback(async (isInitial = false) => {
     if (!userId) return;
-    setLoading(true);
+    if (isInitial) setLoading(true);
+    
     try {
       const { data: setlistsData, error: setlistsError } = await supabase
         .from('setlists')
@@ -266,13 +268,13 @@ const Index = () => {
     } catch (err: any) {
       showError(`Failed to load data: ${err.message}`);
     } finally {
-      setLoading(false);
+      if (isInitial) setLoading(false);
     }
   }, [userId]);
 
   useEffect(() => {
     if (!authLoading && userId) {
-      fetchSetlistsAndRepertoire();
+      fetchSetlistsAndRepertoire(true);
     } else if (!authLoading && !userId) {
       navigate('/landing');
     }
@@ -487,6 +489,8 @@ const Index = () => {
 
   const handleImportNewSong = async (previewUrl: string, name: string, artist: string, youtubeUrl?: string, ugUrl?: string, appleMusicUrl?: string, genre?: string, pitch?: number, audioUrl?: string, extractionStatus?: 'idle' | 'PENDING' | 'queued' | 'processing' | 'completed' | 'failed') => {
     if (!userId) return;
+    console.log("[Import] Starting song import pipeline for:", name);
+    
     try {
       const newSongData: Partial<SetlistSong> = {
         name,
@@ -504,6 +508,7 @@ const Index = () => {
         is_pitch_linked: true
       };
       
+      console.log("[Import] Syncing to master repertoire database...");
       const syncedSongs = await syncToMasterRepertoire(userId, [newSongData]);
       const syncedSong = syncedSongs[0];
       
@@ -511,9 +516,10 @@ const Index = () => {
         throw new Error("Master sync failed to return a valid song ID.");
       }
       
-      setMasterRepertoire(prev => [...prev, syncedSong]);
+      console.log("[Import] Master sync complete. ID:", syncedSong.master_id);
 
       if (activeSetlist) {
+        console.log("[Import] Binding to active setlist:", activeSetlist.id);
         const { error: junctionError } = await supabase.from('setlist_songs').insert({
           setlist_id: activeSetlist.id,
           song_id: syncedSong.master_id,
@@ -523,14 +529,18 @@ const Index = () => {
         });
 
         if (junctionError) throw junctionError;
-        await fetchSetlistsAndRepertoire();
+        
+        console.log("[Import] Refreshing dashboard data (background)...");
+        await fetchSetlistsAndRepertoire(false); // Background refresh
         showSuccess(`"${name}" added to gig.`);
       } else {
-        await fetchSetlistsAndRepertoire();
+        console.log("[Import] Refreshing dashboard data (background)...");
+        await fetchSetlistsAndRepertoire(false); // Background refresh
         showSuccess(`"${name}" added to master repertoire.`);
       }
       setIsAudioTransposerModalOpen(false);
     } catch (err: any) {
+      console.error("[Import] Pipeline failed:", err);
       showError(`Import failed: ${err.message || 'Database connection error'}`);
     }
   };
