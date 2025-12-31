@@ -308,7 +308,8 @@ const Index = () => {
 
   // Load audio for active song for performance
   useEffect(() => {
-    if (activeSongForPerformance?.previewUrl) {
+    // Only load audio if a song is selected for performance AND it has a preview URL
+    if (activeSongForPerformance && activeSongForPerformance.previewUrl) {
       audio.loadFromUrl(activeSongForPerformance.previewUrl, activeSongForPerformance.pitch || 0, true);
     } else {
       audio.stopPlayback();
@@ -422,6 +423,8 @@ const Index = () => {
   };
 
   const handleEditSong = (song: SetlistSong, defaultTab?: StudioTab) => {
+    // Stop audio playback when opening the studio
+    audio.stopPlayback();
     setSongStudioModalSongId(song.id); // Set the song ID for the modal
     setIsSongStudioModalOpen(true);
     setSongStudioDefaultTab(defaultTab || 'audio'); // Default to audio tab when editing a song
@@ -571,11 +574,6 @@ const Index = () => {
       showError(`Failed to reorder songs: ${err.message}`);
     }
   };
-
-  // --- Setlist Exporter Handlers (for Gigs tab) ---
-  // These handlers are no longer needed in Index.tsx for the Gigs tab
-  // as SetlistExporter is now in the Repertoire tab and manages its own state.
-  // The errors were caused by these functions trying to use undeclared state setters.
 
   // --- Repertoire Exporter Handlers (for Repertoire tab) ---
   const handleRepertoireAutoLink = async () => {
@@ -934,7 +932,7 @@ const Index = () => {
                         .from('setlists')
                         .update({ songs: updatedSongs, updated_at: new Date().toISOString() })
                         .eq('id', activeSetlist.id)
-                        .eq('user.id', user.id);
+                        .eq('user_id', user.id);
 
                       if (error) throw error;
                       setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: updatedSongs } : s));
@@ -1156,7 +1154,7 @@ const Index = () => {
                 id="rename-setlist-name"
                 placeholder="New Setlist Name"
                 value={renameSetlistName}
-                onChange={(e) => setNewSetlistName(e.target.value)}
+                onChange={(e) => setRenameSetlistName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleRenameSetlist(renameSetlistId)}
                 className="bg-white/5 border-white/10 text-white h-12 rounded-xl"
               />

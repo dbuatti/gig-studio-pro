@@ -59,7 +59,7 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
     return clean === "" || clean === "undefined" || clean === "null";
   };
 
-  const missingMetadataCount = useMemo(() => {
+  const missingYoutubeLinkCount = useMemo(() => { // Renamed for clarity
     return songs.filter(s => isMissingLink(s.youtubeUrl) && s.name).length;
   }, [songs]);
 
@@ -155,20 +155,20 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
                   variant="ghost" 
                   size="sm" 
                   onClick={() => handleAction(onAutoLink!, setIsLinking, "AI Discovery Pipeline Complete")}
-                  disabled={isLinking || missingMetadataCount === 0}
+                  disabled={isLinking || missingYoutubeLinkCount === 0} // Use new count
                   className={cn(
                     "h-9 w-full justify-start text-[10px] font-black uppercase tracking-widest rounded-xl gap-3 relative overflow-hidden transition-all",
                     isLinking ? "bg-indigo-50 text-indigo-400" : "text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
                   )}
                 >
                   {isLinking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Youtube className="w-4 h-4" />}
-                  Smart-Link Missing ({missingMetadataCount})
+                  Smart-Link Missing YouTube ({missingYoutubeLinkCount}) {/* Updated label */}
                 </Button>
               </div>
             </TooltipTrigger>
-            {missingMetadataCount === 0 && (
+            {missingYoutubeLinkCount === 0 && (
               <TooltipContent className="bg-popover text-foreground border-border text-[10px] font-black uppercase">
-                All songs already have links bound.
+                All songs already have YouTube links bound.
               </TooltipContent>
             )}
           </Tooltip>
@@ -183,7 +183,7 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
           className="h-9 justify-start text-[10px] font-black uppercase tracking-widest text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-xl gap-3 relative overflow-hidden"
         >
           {isBulkDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-          Queue Audio ({missingAudioCount} Missing)
+          Queue Audio ({missingAudioCount} Missing Full Audio) {/* Updated label */}
         </Button>
       </div>
     </div>
