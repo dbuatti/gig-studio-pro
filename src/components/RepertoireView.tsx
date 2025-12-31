@@ -43,6 +43,7 @@ interface RepertoireViewProps {
   isBulkDownloading?: boolean;
   missingAudioCount?: number;
   onOpenAdmin?: () => void;
+  onDeleteSong: (songId: string) => Promise<void>; // NEW: Prop for actual deletion
 }
 
 const RepertoireView: React.FC<RepertoireViewProps> = ({
@@ -64,7 +65,8 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
   onClearAutoLinks,
   isBulkDownloading,
   missingAudioCount,
-  onOpenAdmin
+  onOpenAdmin,
+  onDeleteSong, // Destructure new prop
 }) => {
   const { keyPreference } = useSettings();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -161,15 +163,17 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
     showSuccess("New track added to repertoire!");
   };
 
-  const handleDeleteSong = (songId: string) => {
-    setDeleteConfirmId(null);
-    onRefreshRepertoire();
-    showSuccess("Song removed from master repertoire.");
+  const handleConfirmDelete = async () => {
+    if (deleteConfirmId) {
+      console.log("[RepertoireView] Confirming deletion for ID:", deleteConfirmId);
+      await onDeleteSong(deleteConfirmId);
+      setDeleteConfirmId(null);
+    }
   };
 
   return (
     <div className="space-y-8">
-      {/* RESTORED: Automation Hub at the top of Repertoire View */}
+      {/* Automation Hub at the top of Repertoire View */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-3 space-y-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -250,7 +254,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
             onGlobalAutoSync={onGlobalAutoSync}
             onBulkRefreshAudio={onBulkRefreshAudio}
             onClearAutoLinks={onClearAutoLinks}
-            isBulkDownloading={isBulkDownloading}
+            isBulkDownloading={false}
             missingAudioCount={missingAudioCount}
             onOpenAdmin={onOpenAdmin}
           />
@@ -385,14 +389,14 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
             <div className="bg-destructive/10 w-12 h-12 rounded-2xl flex items-center justify-center text-destructive mb-4">
               <AlertTriangle className="w-6 h-6" />
             </div>
-            <AlertDialogTitle className="text-xl font-black uppercase tracking-tight">Remove Track?</AlertDialogTitle>
+            <AlertDialogTitle className="text-xl font-black uppercase tracking-tight">Permanently Delete Track?</AlertDialogTitle>
             <AlertDialogDescription className="text-muted-foreground">
-              This will remove the song from your master repertoire. This action cannot be undone.
+              This will remove the song and all its associated data from your master repertoire. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-6">
             <AlertDialogCancel className="rounded-xl border-border bg-secondary hover:bg-accent hover:text-foreground font-bold uppercase text-[10px] tracking-widest">Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { if (deleteConfirmId) { handleDeleteSong(deleteConfirmId); } }} className="rounded-xl bg-destructive hover:bg-destructive-foreground text-white font-black uppercase text-[10px] tracking-widest">Confirm Removal</AlertDialogAction>
+            <AlertDialogAction onClick={handleConfirmDelete} className="rounded-xl bg-destructive hover:bg-destructive-foreground text-white font-black uppercase text-[10px] tracking-widest">Confirm Deletion</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

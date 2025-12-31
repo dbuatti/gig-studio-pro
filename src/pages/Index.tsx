@@ -525,6 +525,36 @@ const Index = () => {
     }
   };
 
+  const handleDeleteMasterSong = async (songId: string) => {
+    if (!userId) return;
+    console.log("[Dashboard] handleDeleteMasterSong initiated for ID:", songId);
+    try {
+      const { error } = await supabase
+        .from('repertoire')
+        .delete()
+        .eq('id', songId)
+        .eq('user_id', userId);
+
+      if (error) {
+        console.error("[Dashboard] Database delete error:", error);
+        throw error;
+      }
+
+      console.log("[Dashboard] Deletion successful. Updating local state...");
+      setMasterRepertoire(prev => prev.filter(s => s.id !== songId));
+      if (activeSongForPerformance?.master_id === songId || activeSongForPerformance?.id === songId) {
+        setActiveSongForPerformance(null);
+      }
+      
+      // Also refresh setlists as the song might have been in them
+      await fetchSetlistsAndRepertoire();
+      showSuccess("Track permanently removed from repertoire.");
+    } catch (err: any) {
+      console.error("[Dashboard] handleDeleteMasterSong FAILED:", err);
+      showError(`Delete failed: ${err.message}`);
+    }
+  };
+
   const handleOpenReader = useCallback((initialSongId?: string) => {
     sessionStorage.setItem('from_dashboard', 'true');
     const params = new URLSearchParams();
@@ -609,7 +639,7 @@ const Index = () => {
               setSortMode={setSortMode} 
               activeFilters={activeFilters} 
               setActiveFilters={setActiveFilters}
-              // Restored Automation Hub handlers
+              // Automation Hub handlers
               onAutoLink={async () => { /* Add logic if needed */ }}
               onGlobalAutoSync={async () => { /* Add logic if needed */ }}
               onBulkRefreshAudio={async () => { /* Add logic if needed */ }}
@@ -617,6 +647,7 @@ const Index = () => {
               isBulkDownloading={false}
               missingAudioCount={missingAudioCount}
               onOpenAdmin={() => setIsAdminPanelOpen(true)}
+              onDeleteSong={handleDeleteMasterSong} // NEW: Pass the deletion handler
             />
           </TabsContent>
         </Tabs>
