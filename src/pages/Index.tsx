@@ -538,7 +538,7 @@ const Index = () => {
         await fetchSetlistsAndRepertoire(false); // Background refresh
         showSuccess(`"${name}" added to master repertoire.`);
       }
-      setIsAudioTransposerModalOpen(false);
+      // REMOVED: setIsAudioTransposerModalOpen(false); -> Keeping modal open for workflow
     } catch (err: any) {
       console.error("[Import] Pipeline failed:", err);
       showError(`Import failed: ${err.message || 'Database connection error'}`);
@@ -663,16 +663,8 @@ const Index = () => {
     setIsRepertoireBulkQueuingAudio(true);
 
     try {
-      const { error } = await supabase
-        .from('repertoire')
-        .update({ 
-          extraction_status: 'queued',
-          last_sync_log: 'Queued via Repertoire Automation Hub.'
-        })
-        .in('id', songsToQueue.map(s => s.id));
-
+      const { error } = await supabase.from('repertoire').update({ extraction_status: 'queued', last_sync_log: 'Queued via Repertoire Automation Hub.' }).in('id', songsToQueue.map(s => s.id));
       if (error) throw error;
-      
       await fetchSetlistsAndRepertoire();
       showSuccess(`Queued ${songsToQueue.length} extractions.`);
     } catch (err: any) {
@@ -823,7 +815,7 @@ const Index = () => {
                 onAddToSetlist={handleImportNewSong}
                 onAddExistingSong={(song) => {
                    handleAddSongToSetlist(song);
-                   setIsAudioTransposerModalOpen(false);
+                   // Modal logic handled here now
                 }}
               />
             </div>
