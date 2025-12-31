@@ -232,6 +232,8 @@ const Index = () => {
         chords_updated_at: d.chords_updated_at,
         ug_link_updated_at: d.ug_link_updated_at,
         highest_note_updated_at: d.highest_note_updated_at,
+        original_key_updated_at: d.original_key_updated_at,
+        target_key_updated_at: d.target_key_updated_at,
       }));
       setMasterRepertoire(mappedRepertoire);
 
