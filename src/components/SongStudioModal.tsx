@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import SongStudioView from './SongStudioView';
+import SongStudioView, { StudioTab } from './SongStudioView'; // Import StudioTab
 import { useNavigate } from 'react-router-dom';
 import { SetlistSong } from './SetlistManager';
 
@@ -16,6 +16,7 @@ interface SongStudioModalProps {
   allSetlists?: { id: string; name: string; songs: SetlistSong[] }[]; // New prop
   masterRepertoire?: SetlistSong[]; // New prop
   onUpdateSetlistSongs?: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>; // New prop
+  defaultTab?: StudioTab; // New prop for default active tab
 }
 
 const SongStudioModal: React.FC<SongStudioModalProps> = ({ 
@@ -27,7 +28,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   onSelectSong,
   allSetlists, // Destructure new prop
   masterRepertoire, // Destructure new prop
-  onUpdateSetlistSongs // Destructure new prop
+  onUpdateSetlistSongs, // Destructure new prop
+  defaultTab // Destructure new prop
 }) => {
   const navigate = useNavigate();
 
@@ -60,6 +62,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
           allSetlists={allSetlists} // Pass new prop
           masterRepertoire={masterRepertoire} // Pass new prop
           onUpdateSetlistSongs={onUpdateSetlistSongs} // Pass the new callback
+          defaultTab={defaultTab} // Pass the default tab
         />
       </DialogContent>
     </Dialog>

@@ -11,11 +11,12 @@ import { SetlistSong } from './SetlistManager';
 
 interface ImportSetlistProps {
   onImport: (songs: SetlistSong[]) => void;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
-const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport }) => {
+const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport, isOpen, onClose }) => {
   const [text, setText] = useState("");
-  const [isOpen, setIsOpen] = useState(false);
   const [includeYoutube, setIncludeYoutube] = useState(true);
 
   const parseText = (content: string): SetlistSong[] => {
@@ -99,13 +100,13 @@ const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport }) => {
     const songs = parseText(text);
     if (songs.length > 0) {
       onImport(songs);
-      setIsOpen(false);
+      onClose(); // Use onClose prop
       setText("");
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="gap-2 border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-bold uppercase tracking-tight shadow-sm hover:shadow-md transition-all">
           <ClipboardPaste className="w-4 h-4" /> Smart Import
@@ -181,7 +182,7 @@ const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport }) => {
         </div>
 
         <div className="p-8 bg-slate-100 dark:bg-slate-900/50 border-t flex flex-col sm:flex-row gap-4">
-          <Button variant="ghost" onClick={() => setIsOpen(false)} className="flex-1 font-black uppercase tracking-widest text-xs h-12 rounded-xl">Discard</Button>
+          <Button variant="ghost" onClick={onClose} className="flex-1 font-black uppercase tracking-widest text-xs h-12 rounded-xl">Discard</Button>
           <Button 
             onClick={handleImport} 
             className="flex-[2] bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-[0.2em] text-xs h-12 rounded-xl shadow-xl shadow-indigo-500/20 gap-3"

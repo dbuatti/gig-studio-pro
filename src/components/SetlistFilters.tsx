@@ -36,7 +36,7 @@ export interface FilterState {
   hasUgChords: 'all' | 'yes' | 'no'; // NEW: Added hasUgChords filter
 }
 
-const DEFAULT_FILTERS: FilterState = {
+export const DEFAULT_FILTERS: FilterState = {
   hasAudio: 'all',
   hasVideo: 'all',
   hasChart: 'all',
@@ -51,12 +51,6 @@ const DEFAULT_FILTERS: FilterState = {
 interface SetlistFiltersProps {
   onFilterChange: (filters: FilterState) => void;
   activeFilters: FilterState;
-}
-
-interface SavedPreset {
-  id: string;
-  name: string;
-  filters: FilterState;
 }
 
 const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeFilters }) => {
@@ -432,3 +426,9 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
 };
 
 export default SetlistFilters;
+
+interface SavedPreset {
+  id: string;
+  name: string;
+  filters: FilterState;
+}

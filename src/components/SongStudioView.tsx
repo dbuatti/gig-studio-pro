@@ -22,7 +22,7 @@ import { useSettings } from '@/hooks/use-settings';
 import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
 import { extractKeyFromChords } from '@/utils/chordUtils';
 
-type StudioTab = 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library';
+export type StudioTab = 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library';
 
 interface SongStudioViewProps {
   gigId: string | 'library';
@@ -35,6 +35,7 @@ interface SongStudioViewProps {
   allSetlists?: { id: string; name: string; songs: SetlistSong[] }[];
   masterRepertoire?: SetlistSong[];
   onUpdateSetlistSongs?: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>;
+  defaultTab?: StudioTab; // New prop for default active tab
 }
 
 const SongStudioView: React.FC<SongStudioViewProps> = ({
@@ -47,7 +48,8 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   onSelectSong,
   allSetlists = [],
   masterRepertoire = [],
-  onUpdateSetlistSongs
+  onUpdateSetlistSongs,
+  defaultTab // Destructure new prop
 }) => {
   const isMobile = useIsMobile();
   const { user } = useAuth();
@@ -56,7 +58,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   
   const [song, setSong] = useState<SetlistSong | null>(null);
   const [formData, setFormData] = useState<Partial<SetlistSong>>({});
-  const [activeTab, setActiveTab] = useState<StudioTab>('audio');
+  const [activeTab, setActiveTab] = useState<StudioTab>(defaultTab || 'audio'); // Use defaultTab here
   const [loading, setLoading] = useState(true);
   const [isVerifying, setIsVerifying] = useState(false);
   const [activeChartType, setActiveChartType] = useState<'pdf' | 'leadsheet' | 'web' | 'ug'>('pdf');
