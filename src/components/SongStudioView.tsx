@@ -211,7 +211,8 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
         if (data) {
           const setlistSongs = (data.songs as SetlistSong[]) || [];
           console.log("[SongStudioView] fetchData: Setlist songs found:", setlistSongs);
-          targetSong = setlistSongs.find(s => s.id === songId);
+          // FIX: Check both id and master_id
+          targetSong = setlistSongs.find(s => s.id === songId || s.master_id === songId);
           if (!targetSong) {
             console.log("[SongStudioView] fetchData: Song not found in setlist for ID:", songId);
           } else {
