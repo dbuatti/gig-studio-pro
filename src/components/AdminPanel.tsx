@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useTransition } from 'react'; // Import useTransition
+import React, { useState, useEffect, useTransition, useRef } from 'react'; 
 import { 
   Dialog, 
   DialogContent, 
@@ -62,6 +62,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
     lastUpdated: string;
     name: string;
   } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null); // Ref for file input
 
   // Maintenance / Bulk Extraction State
   const [isQueuingAllExtraction, setIsQueuingAllExtraction] = useState(false); // Renamed from isExtracting
@@ -124,6 +125,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
     setIsAutoSyncing(true);
     addLog(`Initiating Global Auto-Sync for ${songsToProcess.length} tracks...`, 'info');
 
+    let successful = 0;
+    let failed = 0;
+
     for (let i = 0; i < songsToProcess.length; i += syncBatchSize) {
       const batch = songsToProcess.slice(i, i + syncBatchSize);
       const batchIds = batch.map(s => s.id);
@@ -140,13 +144,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
         startTransition(() => { // Wrap state updates in startTransition
           data.results.forEach((res: any) => {
             if (res.status === 'SUCCESS') {
+              successful++;
               addLog(`[✓] Sync Complete: ${res.title}`, 'success');
             } else if (res.status === 'ERROR') {
+              failed++;
               addLog(`[!] Sync Failed: ${res.msg}`, 'error');
             }
           });
         });
       } catch (err: any) {
+        failed += batch.length; // Assume all in batch failed if invoke fails
         addLog(`Batch Process Error: ${err.message}`, 'error');
       }
 
@@ -154,7 +161,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
     }
 
     setIsAutoSyncing(false);
-    showSuccess("Global Auto-Sync Operation Finished");
+    showSuccess(`Global Auto-Sync Finished: ${successful} successful, ${failed} failed.`);
     fetchMaintenanceData();
     onRefreshRepertoire(); 
   };
@@ -169,6 +176,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
 
     setIsPopulatingLinks(true);
     addLog(`Smart-Populating ${missing.length} missing links...`, 'info');
+
+    let successful = 0;
+    let failed = 0;
 
     for (let i = 0; i < missing.length; i += syncBatchSize) {
       const batch = missing.slice(i, i + syncBatchSize);
@@ -186,19 +196,22 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
         startTransition(() => { // Wrap state updates in startTransition
           data.results.forEach((res: any) => {
             if (res.status === 'SUCCESS') {
+              successful++;
               addLog(`[✓] Link Bound: ${res.title}`, 'success');
             } else if (res.status === 'ERROR') {
+              failed++;
               addLog(`[!] Link Error: ${res.msg}`, 'error');
             }
           });
         });
       } catch (err: any) {
+        failed += batch.length;
         addLog(`Link Batch Error: ${err.message}`, 'error');
       }
     }
 
     setIsPopulatingLinks(false);
-    showSuccess("Bulk Link Population Complete");
+    showSuccess(`Bulk Link Population Complete: ${successful} successful, ${failed} failed.`);
     fetchMaintenanceData();
     onRefreshRepertoire(); 
   };
@@ -216,6 +229,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
     setIsClearingLinks(true);
     addLog(`Clearing ${autoPopulated.length} auto-populated links...`, 'info');
 
+    let successful = 0;
+    let failed = 0;
+
     try {
       const { error } = await supabase
         .from('repertoire')
@@ -228,12 +244,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
         .eq('metadata_source', 'auto_populated')
         .eq('user_id', user?.id);
 
-      if (error) throw error;
+      if (error) {
+        failed = autoPopulated.length;
+        throw error;
+      }
+      successful = autoPopulated.length;
 
       startTransition(() => { // Wrap state updates in startTransition
         addLog(`Cleared ${autoPopulated.length} links successfully.`, 'success');
       });
-      showSuccess("Links cleared");
+      showSuccess(`Links cleared: ${successful} successful, ${failed} failed.`);
       fetchMaintenanceData();
       onRefreshRepertoire(); 
     } catch (err: any) {
@@ -287,6 +307,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
         addLog("Cookies.txt uploaded successfully.", 'success');
       });
       checkVaultStatus(); // Refresh metadata after upload
+      if (fileInputRef.current) { // Clear file input
+        fileInputRef.current.value = '';
+      }
     } catch (err: any) {
       showError(`Upload failed: ${err.message}`);
       addLog(`Upload failed: ${err.message}`, 'error');
@@ -341,6 +364,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
     addLog(message, 'info');
     showInfo("Tasks Queued: Extraction will occur in the background.");
 
+    let successful = 0;
+    let failed = 0;
+
     try {
       const songIdsToQueue = songsToQueue.map(s => s.id);
       const { error } = await supabase
@@ -348,18 +374,23 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
         .update({ extraction_status: 'queued', last_sync_log: 'Queued for background audio extraction.' })
         .in('id', songIdsToQueue);
 
-      if (error) throw error;
+      if (error) {
+        failed = songsToQueue.length;
+        throw error;
+      }
+      successful = songsToQueue.length;
 
       startTransition(() => { // Wrap state updates in startTransition
-        showSuccess(`Queued ${songsToQueue.length} tasks successfully.`);
+        showSuccess(`Queued ${successful} tasks successfully.`);
       });
       fetchMaintenanceData(); // Refresh to show updated statuses
     } catch (err: any) {
-      showError(`Failed to queue tasks: ${err.message}`);
+      addLog(`Failed to queue tasks: ${err.message}`, 'error');
     } finally {
       if (queueMode === 'missing') setIsQueuingMissingExtraction(false);
       else if (queueMode === 'stuck') setIsQueuingStuckExtraction(false); // NEW state setter
       else setIsQueuingAllExtraction(false);
+      showSuccess(`Queueing operation finished: ${successful} successful, ${failed} failed.`);
     }
   };
 
@@ -412,7 +443,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
         addLog(`GitHub Upload Successful!`, 'success');
       });
       showSuccess("Content pushed to GitHub!");
-      setClipboardContent("");
+      setClipboardContent(""); // Clear clipboard content after successful upload
 
     } catch (err: any) {
       addLog(`GitHub Error: ${err.message}`, 'error');
@@ -618,7 +649,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
                               <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Encrypted Cookie Storage</p>
                             </div>
                           </div>
-                          <input type="file" accept=".txt" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleSupabaseUpload(f); }} className="hidden" id="v-upload" />
+                          <input type="file" accept=".txt" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleSupabaseUpload(f); }} className="hidden" id="v-upload" ref={fileInputRef} />
                           <Button onClick={() => document.getElementById('v-upload')?.click()} disabled={isPending} className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 h-10 px-8 rounded-xl font-black uppercase text-[10px] shadow-lg">Upload Cookies.txt</Button>
                         </div>
                         {isUploading || isPending && (
