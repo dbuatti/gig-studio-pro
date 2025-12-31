@@ -30,22 +30,28 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
   const stats = useMemo(() => {
     // Current local date in YYYY-MM-DD format
     const todayStr = new Date().toLocaleDateString('en-CA');
+    console.log(`[GoalTracker] Diagnostic: Local Today is "${todayStr}". Repertoire size: ${repertoire.length}`);
 
-    const isToday = (timestamp: string | undefined | null) => {
+    const isToday = (timestamp: string | undefined | null, field: string) => {
       if (!timestamp) return false;
-      // Convert DB UTC string to local date string for comparison
       const localDateStr = new Date(timestamp).toLocaleDateString('en-CA');
-      return localDateStr === todayStr;
+      const match = localDateStr === todayStr;
+      if (match) {
+        // console.debug(`[GoalTracker] Match found for ${field}: ${timestamp} (Local: ${localDateStr})`);
+      }
+      return match;
     };
 
     const counts = {
-      lyrics: repertoire.filter(s => (s.lyrics || "").length > 20 && isToday(s.lyrics_updated_at)).length,
-      chords: repertoire.filter(s => (s.ug_chords_text || "").length > 10 && isToday(s.chords_updated_at)).length,
-      links: repertoire.filter(s => !!s.ugUrl && isToday(s.ug_link_updated_at)).length,
-      highestNote: repertoire.filter(s => !!s.highest_note_original && isToday(s.highest_note_updated_at)).length,
-      originalKey: repertoire.filter(s => s.originalKey !== "TBC" && isToday(s.original_key_updated_at)).length,
-      targetKey: repertoire.filter(s => s.targetKey !== "TBC" && isToday(s.target_key_updated_at)).length
+      lyrics: repertoire.filter(s => (s.lyrics || "").length > 20 && isToday(s.lyrics_updated_at, 'lyrics')).length,
+      chords: repertoire.filter(s => (s.ug_chords_text || "").length > 10 && isToday(s.chords_updated_at, 'chords')).length,
+      links: repertoire.filter(s => !!s.ugUrl && isToday(s.ug_link_updated_at, 'ug_link')).length,
+      highestNote: repertoire.filter(s => !!s.highest_note_original && isToday(s.highest_note_updated_at, 'highest_note')).length,
+      originalKey: repertoire.filter(s => s.originalKey && s.originalKey !== "TBC" && isToday(s.original_key_updated_at, 'orig_key')).length,
+      targetKey: repertoire.filter(s => s.targetKey && s.targetKey !== "TBC" && isToday(s.target_key_updated_at, 'target_key')).length
     };
+
+    console.log("[GoalTracker] Summary counts for today:", counts);
 
     return [
       { 
