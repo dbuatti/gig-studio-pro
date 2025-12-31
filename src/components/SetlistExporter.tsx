@@ -50,7 +50,6 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
 }) => {
   const [isLinking, setIsLinking] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
 
   const isMissingLink = (url?: string) => {
@@ -59,7 +58,7 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
     return clean === "" || clean === "undefined" || clean === "null";
   };
 
-  const missingYoutubeLinkCount = useMemo(() => { // Renamed for clarity
+  const missingYoutubeLinkCount = useMemo(() => { 
     return songs.filter(s => isMissingLink(s.youtubeUrl) && s.name).length;
   }, [songs]);
 
@@ -79,19 +78,9 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
     }
   };
 
-  const copyAllYoutubeLinks = () => {
-    const links = songs
-      .filter(s => !isMissingLink(s.youtubeUrl))
-      .map(s => s.youtubeUrl)
-      .join("\n");
-
-    if (!links) {
-      showError("No YouTube links found in this setlist.");
-      return;
-    }
-
-    navigator.clipboard.writeText(links);
-    showSuccess("Copied all YouTube links to clipboard");
+  const handleBulkQueueClick = () => {
+    console.log(`[AutomationHub] User triggered 'Queue Audio' for ${missingAudioCount} missing tracks.`);
+    onBulkRefreshAudio?.();
   };
 
   return (
@@ -155,14 +144,14 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
                   variant="ghost" 
                   size="sm" 
                   onClick={() => handleAction(onAutoLink!, setIsLinking, "AI Discovery Pipeline Complete")}
-                  disabled={isLinking || missingYoutubeLinkCount === 0} // Use new count
+                  disabled={isLinking || missingYoutubeLinkCount === 0}
                   className={cn(
                     "h-9 w-full justify-start text-[10px] font-black uppercase tracking-widest rounded-xl gap-3 relative overflow-hidden transition-all",
                     isLinking ? "bg-indigo-50 text-indigo-400" : "text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
                   )}
                 >
                   {isLinking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Youtube className="w-4 h-4" />}
-                  Smart-Link Missing YouTube ({missingYoutubeLinkCount}) {/* Updated label */}
+                  Smart-Link Missing YouTube ({missingYoutubeLinkCount})
                 </Button>
               </div>
             </TooltipTrigger>
@@ -178,12 +167,12 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
         <Button 
           variant="ghost" 
           size="sm" 
-          onClick={onBulkRefreshAudio}
+          onClick={handleBulkQueueClick}
           disabled={isBulkDownloading || missingAudioCount === 0}
           className="h-9 justify-start text-[10px] font-black uppercase tracking-widest text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-xl gap-3 relative overflow-hidden"
         >
           {isBulkDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-          Queue Audio ({missingAudioCount} Missing Full Audio) {/* Updated label */}
+          Queue Audio ({missingAudioCount} Missing Full Audio)
         </Button>
       </div>
     </div>

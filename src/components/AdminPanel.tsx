@@ -29,8 +29,8 @@ import {
   Link2,
   Undo2,
   Download,
-  CloudDownload, // Added CloudDownload icon
-  RefreshCcw // Added RefreshCcw icon
+  CloudDownload,
+  RefreshCcw
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError, showInfo } from '@/utils/toast';
@@ -53,7 +53,7 @@ type AdminTab = 'vault' | 'maintenance' | 'automation';
 const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshRepertoire }) => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<AdminTab>('vault');
-  const [isPending, startTransition] = useTransition(); // Initialize useTransition
+  const [isPending, startTransition] = useTransition(); 
   
   // Vault State
   const [isUploading, setIsUploading] = useState(false);
@@ -62,12 +62,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
     lastUpdated: string;
     name: string;
   } | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null); // Ref for file input
+  const fileInputRef = useRef<HTMLInputElement>(null); 
 
   // Maintenance / Bulk Extraction State
-  const [isQueuingAllExtraction, setIsQueuingAllExtraction] = useState(false); // Renamed from isExtracting
-  const [isQueuingMissingExtraction, setIsQueuingMissingExtraction] = useState(false); // For 'missing'
-  const [isQueuingStuckExtraction, setIsQueuingStuckExtraction] = useState(false); // NEW: For 'stuck'
+  const [isQueuingAllExtraction, setIsQueuingAllExtraction] = useState(false); 
+  const [isQueuingMissingExtraction, setIsQueuingMissingExtraction] = useState(false); 
+  const [isQueuingStuckExtraction, setIsQueuingStuckExtraction] = useState(false); 
   const [maintenanceSongs, setMaintenanceSongs] = useState<any[]>([]);
 
   // Automation State
@@ -87,6 +87,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
   const [syncLogs, setSyncLogs] = useState<{ msg: string; type: 'info' | 'success' | 'error'; time: string }[]>([]);
 
   const addLog = (msg: string, type: 'info' | 'success' | 'error' = 'info') => {
+    console.log(`[AdminPanel] ${msg}`); // Also log to real console
     setSyncLogs(prev => [{ msg, type, time: new Date().toLocaleTimeString() }, ...prev].slice(0, 20));
   };
 
@@ -101,7 +102,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
     try {
       const { data, error } = await supabase
         .from('repertoire')
-        .select('id, title, artist, youtube_url, extraction_status, last_extracted_at, sync_status, metadata_source, preview_url, last_sync_log') // Fetch new columns
+        .select('id, title, artist, youtube_url, extraction_status, last_extracted_at, sync_status, metadata_source, preview_url, last_sync_log, audio_url') 
         .eq('user_id', user?.id)
         .order('title', { ascending: true });
       
@@ -141,7 +142,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
 
         if (error) throw error;
 
-        startTransition(() => { // Wrap state updates in startTransition
+        startTransition(() => { 
           data.results.forEach((res: any) => {
             if (res.status === 'SUCCESS') {
               successful++;
@@ -153,7 +154,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
           });
         });
       } catch (err: any) {
-        failed += batch.length; // Assume all in batch failed if invoke fails
+        failed += batch.length; 
         addLog(`Batch Process Error: ${err.message}`, 'error');
       }
 
@@ -193,7 +194,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
 
         if (error) throw error;
 
-        startTransition(() => { // Wrap state updates in startTransition
+        startTransition(() => { 
           data.results.forEach((res: any) => {
             if (res.status === 'SUCCESS') {
               successful++;
@@ -250,7 +251,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
       }
       successful = autoPopulated.length;
 
-      startTransition(() => { // Wrap state updates in startTransition
+      startTransition(() => { 
         addLog(`Cleared ${autoPopulated.length} links successfully.`, 'success');
       });
       showSuccess(`Links cleared: ${successful} successful, ${failed} failed.`);
@@ -273,7 +274,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
 
       const cookieFile = files?.find(f => f.name === 'cookies.txt');
       if (cookieFile) {
-        startTransition(() => { // Wrap state updates in startTransition
+        startTransition(() => { 
           setCookieMetadata({
             size: cookieFile.metadata?.size || 0,
             lastUpdated: cookieFile.updated_at || cookieFile.created_at,
@@ -303,11 +304,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
 
       if (error) throw error;
       showSuccess("Cookies.txt uploaded to Vault!");
-      startTransition(() => { // Wrap state updates in startTransition
+      startTransition(() => { 
         addLog("Cookies.txt uploaded successfully.", 'success');
       });
-      checkVaultStatus(); // Refresh metadata after upload
-      if (fileInputRef.current) { // Clear file input
+      checkVaultStatus(); 
+      if (fileInputRef.current) { 
         fileInputRef.current.value = '';
       }
     } catch (err: any) {
@@ -318,79 +319,72 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
     }
   };
 
-  const handleQueueBackgroundExtract = async (queueMode: 'all' | 'missing' | 'stuck') => { // Changed parameter
-    const itunesKeywords = ['apple.com', 'itunes-assets', 'mzstatic.com'];
+  // --- REFINED EXTRACTION HUB LOGIC ---
+  const handleQueueBackgroundExtract = async (queueMode: 'all' | 'missing' | 'stuck') => {
     const songsToQueue = maintenanceSongs.filter(s => {
-      if (!s.youtube_url) return false; // Must have a YouTube URL to extract from
-
-      if (queueMode === 'missing') {
-        const url = s.preview_url || "";
-        // Filter for songs missing full audio AND not already queued/processing
-        return (url === "" || itunesKeywords.some(kw => url.includes(kw))) && 
-               s.extraction_status !== 'queued' && s.extraction_status !== 'processing';
-      } else if (queueMode === 'stuck') { // NEW: Logic for 'stuck' mode
-        // Filter for songs that are explicitly 'queued' or 'failed'
+      // Logic for "Re-queue Stuck/Failed"
+      if (queueMode === 'stuck') {
         return s.extraction_status === 'queued' || s.extraction_status === 'failed';
-      } else { // queueMode === 'all'
-        // For 'Force Refresh All', queue all songs with a YouTube URL that are not already processing
-        return s.extraction_status !== 'processing';
       }
+      
+      // Logic for "Queue Remaining" (Missing Full Audio)
+      if (queueMode === 'missing') {
+        // Song must have a YouTube URL to be eligible for extraction
+        return !!s.youtube_url && (!s.audio_url || s.extraction_status !== 'completed') && s.extraction_status !== 'processing' && s.extraction_status !== 'queued';
+      }
+
+      // Logic for "Queue All Refresh"
+      if (queueMode === 'all') {
+        return !!s.youtube_url && s.extraction_status !== 'processing';
+      }
+
+      return false;
     });
 
     if (songsToQueue.length === 0) {
-      showInfo(
-        queueMode === 'missing' ? "No tracks found missing master audio to queue." :
-        queueMode === 'stuck' ? "No stuck or failed tasks found to re-queue." : // NEW message
-        "No songs with YouTube links found to refresh."
-      );
+      showInfo(`Extraction Audit: No tracks match the '${queueMode}' criteria at this time.`);
+      addLog(`Extraction check: 0 matching records for mode '${queueMode}'.`, 'info');
       return;
     }
 
     let message = "";
-    if (queueMode === 'missing') {
-      message = `Queueing background extraction for ${songsToQueue.length} songs missing master audio...`;
-    } else if (queueMode === 'stuck') {
-      message = `Re-queueing ${songsToQueue.length} stuck or failed audio extraction tasks...`; // NEW message
-    } else { // 'all'
-      message = `Queueing global background refresh for ${songsToQueue.length} tracks...`;
-    }
+    if (queueMode === 'missing') message = `Queueing remaining ${songsToQueue.length} tracks for full audio extraction...`;
+    else if (queueMode === 'stuck') message = `Re-queueing ${songsToQueue.length} stuck or failed tasks...`;
+    else message = `Queueing global background refresh for ${songsToQueue.length} tracks...`;
 
-    if (!confirm(`WARNING: ${message} Continue? This will happen even if you close the app.`)) return;
+    if (!confirm(`CONFIRM: ${message}`)) return;
 
     if (queueMode === 'missing') setIsQueuingMissingExtraction(true);
-    else if (queueMode === 'stuck') setIsQueuingStuckExtraction(true); // NEW state setter
+    else if (queueMode === 'stuck') setIsQueuingStuckExtraction(true);
     else setIsQueuingAllExtraction(true);
 
     addLog(message, 'info');
-    showInfo("Tasks Queued: Extraction will occur in the background.");
-
-    let successful = 0;
-    let failed = 0;
 
     try {
       const songIdsToQueue = songsToQueue.map(s => s.id);
       const { error } = await supabase
         .from('repertoire')
-        .update({ extraction_status: 'queued', last_sync_log: 'Queued for background audio extraction.' })
+        .update({ 
+          extraction_status: 'queued', 
+          last_sync_log: `Queued via Extraction Hub (${queueMode}).` 
+        })
         .in('id', songIdsToQueue);
 
-      if (error) {
-        failed = songsToQueue.length;
-        throw error;
-      }
-      successful = songsToQueue.length;
+      if (error) throw error;
 
-      startTransition(() => { // Wrap state updates in startTransition
-        showSuccess(`Queued ${successful} tasks successfully.`);
+      startTransition(() => { 
+        showSuccess(`Queued ${songsToQueue.length} tasks successfully.`);
+        addLog(`Successfully queued ${songsToQueue.length} tasks in the background worker.`, 'success');
       });
-      fetchMaintenanceData(); // Refresh to show updated statuses
+      fetchMaintenanceData(); 
+      onRefreshRepertoire();
     } catch (err: any) {
-      addLog(`Failed to queue tasks: ${err.message}`, 'error');
+      addLog(`Batch Queue Error: ${err.message}`, 'error');
+      showError("System error during queue operation.");
     } finally {
-      if (queueMode === 'missing') setIsQueuingMissingExtraction(false);
-      else if (queueMode === 'stuck') setIsQueuingStuckExtraction(false); // NEW state setter
-      else setIsQueuingAllExtraction(false);
-      showSuccess(`Queueing operation finished: ${successful} successful, ${failed} failed.`);
+      setIsQueuingMissingExtraction(false);
+      setIsQueuingStuckExtraction(false);
+      setIsQueuingAllExtraction(false);
     }
   };
 
@@ -439,11 +433,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
         throw new Error(errorData.message || `GitHub PUT failed: ${putRes.statusText}`);
       }
 
-      startTransition(() => { // Wrap state updates in startTransition
+      startTransition(() => { 
         addLog(`GitHub Upload Successful!`, 'success');
       });
       showSuccess("Content pushed to GitHub!");
-      setClipboardContent(""); // Clear clipboard content after successful upload
+      setClipboardContent(""); 
 
     } catch (err: any) {
       addLog(`GitHub Error: ${err.message}`, 'error');
@@ -453,12 +447,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
     }
   };
 
+  // --- REFINED COUNTERS ---
   const activeExtractionQueue = maintenanceSongs.filter(s => 
     s.extraction_status === 'queued' || s.extraction_status === 'processing'
   );
 
   const stuckOrFailedCount = maintenanceSongs.filter(s => 
     s.extraction_status === 'queued' || s.extraction_status === 'failed'
+  ).length;
+
+  const missingRemainingCount = maintenanceSongs.filter(s => 
+    !!s.youtube_url && (!s.audio_url || s.extraction_status !== 'completed') && s.extraction_status !== 'processing' && s.extraction_status !== 'queued'
   ).length;
 
   return (
@@ -695,23 +694,23 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
                           </div>
                           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                             <Button 
-                              onClick={() => handleQueueBackgroundExtract('stuck')} // NEW: Call with 'stuck' mode
-                              disabled={isQueuingStuckExtraction || isQueuingMissingExtraction || isQueuingAllExtraction || stuckOrFailedCount === 0 || isPending} // Disable if no stuck tasks
+                              onClick={() => handleQueueBackgroundExtract('stuck')}
+                              disabled={isQueuingStuckExtraction || isQueuingMissingExtraction || isQueuingAllExtraction || stuckOrFailedCount === 0 || isPending}
                               className="flex-1 sm:flex-none bg-amber-600 hover:bg-amber-700 h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg"
                             >
                               {isQueuingStuckExtraction || isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCcw className="w-4 h-4" />}
                               Re-queue Stuck/Failed ({stuckOrFailedCount})
                             </Button>
                             <Button 
-                              onClick={() => handleQueueBackgroundExtract('missing')} // Call with 'missing' mode
-                              disabled={isQueuingMissingExtraction || isQueuingAllExtraction || isQueuingStuckExtraction || isPending}
+                              onClick={() => handleQueueBackgroundExtract('missing')}
+                              disabled={isQueuingMissingExtraction || isQueuingAllExtraction || isQueuingStuckExtraction || missingRemainingCount === 0 || isPending}
                               className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg"
                             >
                               {isQueuingMissingExtraction || isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                              Queue Remaining
+                              Queue Remaining ({missingRemainingCount})
                             </Button>
                             <Button 
-                              onClick={() => handleQueueBackgroundExtract('all')} // Call with 'all' mode
+                              onClick={() => handleQueueBackgroundExtract('all')}
                               disabled={isQueuingAllExtraction || isQueuingMissingExtraction || isQueuingStuckExtraction || isPending}
                               className="flex-1 sm:flex-none bg-red-600 hover:bg-red-700 h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg"
                             >
@@ -731,7 +730,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
                           </div>
                         </div>
 
-                        {/* NEW: Active Extraction Queue */}
                         <div className="bg-white/5 border border-white/10 rounded-3xl md:rounded-[2.5rem] overflow-hidden mt-8">
                           <div className="p-4 md:p-6 bg-black/20 border-b border-white/5 flex items-center justify-between">
                             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 flex items-center gap-2">
@@ -743,7 +741,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
                               onClick={fetchMaintenanceData}
                               className="h-7 px-3 text-[9px] font-black uppercase hover:bg-white/10 text-slate-400 gap-1.5"
                             >
-                              <RefreshCcw className="w-3 h-3" /> Refresh
+                              <RefreshCcw className="w-3 3" /> Refresh
                             </Button>
                           </div>
                           <div className="divide-y divide-white/5">
