@@ -63,8 +63,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
   } | null>(null);
 
   // Maintenance / Bulk Extraction State
-  const [isQueuingExtraction, setIsQueuingExtraction] = useState(false); // Renamed from isExtracting
-  const [isQueuingMissingExtraction, setIsQueuingMissingExtraction] = useState(false); // Renamed from isExtractingMissing
+  const [isQueuingAllExtraction, setIsQueuingAllExtraction] = useState(false); // Renamed from isExtracting
+  const [isQueuingMissingExtraction, setIsQueuingMissingExtraction] = useState(false); // For 'missing'
+  const [isQueuingStuckExtraction, setIsQueuingStuckExtraction] = useState(false); // NEW: For 'stuck'
   const [maintenanceSongs, setMaintenanceSongs] = useState<any[]>([]);
 
   // Automation State
@@ -256,33 +257,75 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
     }
   };
 
-  const handleQueueBackgroundExtract = async (onlyMissing: boolean = false) => { // Renamed function
+  const handleSupabaseUpload = async (file: File) => {
+    if (!user) {
+      showError("User not authenticated.");
+      return;
+    }
+    setIsUploading(true);
+    addLog(`Uploading ${file.name} to Supabase Vault...`, 'info');
+    try {
+      const { error } = await supabase.storage
+        .from('cookies')
+        .upload(`cookies.txt`, file, {
+          upsert: true,
+          contentType: 'text/plain',
+        });
+
+      if (error) throw error;
+      showSuccess("Cookies.txt uploaded to Vault!");
+      addLog("Cookies.txt uploaded successfully.", 'success');
+      checkVaultStatus(); // Refresh metadata after upload
+    } catch (err: any) {
+      showError(`Upload failed: ${err.message}`);
+      addLog(`Upload failed: ${err.message}`, 'error');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleQueueBackgroundExtract = async (queueMode: 'all' | 'missing' | 'stuck') => { // Changed parameter
     const itunesKeywords = ['apple.com', 'itunes-assets', 'mzstatic.com'];
     const songsToQueue = maintenanceSongs.filter(s => {
       if (!s.youtube_url) return false; // Must have a YouTube URL to extract from
-      if (onlyMissing) {
+
+      if (queueMode === 'missing') {
         const url = s.preview_url || "";
         // Filter for songs missing full audio AND not already queued/processing
         return (url === "" || itunesKeywords.some(kw => url.includes(kw))) && 
                s.extraction_status !== 'queued' && s.extraction_status !== 'processing';
+      } else if (queueMode === 'stuck') { // NEW: Logic for 'stuck' mode
+        // Filter for songs that are explicitly 'queued' or 'failed'
+        return s.extraction_status === 'queued' || s.extraction_status === 'failed';
+      } else { // queueMode === 'all'
+        // For 'Force Refresh All', queue all songs with a YouTube URL that are not already processing
+        return s.extraction_status !== 'processing';
       }
-      // For 'Force Refresh All', queue all songs with a YouTube URL that are not already processing
-      return s.extraction_status !== 'processing';
     });
 
     if (songsToQueue.length === 0) {
-      showInfo(onlyMissing ? "No tracks found missing master audio to queue." : "No songs with YouTube links found to refresh.");
+      showInfo(
+        queueMode === 'missing' ? "No tracks found missing master audio to queue." :
+        queueMode === 'stuck' ? "No stuck or failed tasks found to re-queue." : // NEW message
+        "No songs with YouTube links found to refresh."
+      );
       return;
     }
 
-    const message = onlyMissing 
-      ? `Queueing background extraction for ${songsToQueue.length} songs missing master audio...`
-      : `Queueing global background refresh for ${songsToQueue.length} tracks...`;
+    let message = "";
+    if (queueMode === 'missing') {
+      message = `Queueing background extraction for ${songsToQueue.length} songs missing master audio...`;
+    } else if (queueMode === 'stuck') {
+      message = `Re-queueing ${songsToQueue.length} stuck or failed audio extraction tasks...`; // NEW message
+    } else { // 'all'
+      message = `Queueing global background refresh for ${songsToQueue.length} tracks...`;
+    }
 
     if (!confirm(`WARNING: ${message} Continue? This will happen even if you close the app.`)) return;
 
-    if (onlyMissing) setIsQueuingMissingExtraction(true);
-    else setIsQueuingExtraction(true);
+    if (queueMode === 'missing') setIsQueuingMissingExtraction(true);
+    else if (queueMode === 'stuck') setIsQueuingStuckExtraction(true); // NEW state setter
+    else setIsQueuingAllExtraction(true);
 
     addLog(message, 'info');
     showInfo("Tasks Queued: Extraction will occur in the background.");
@@ -301,35 +344,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
     } catch (err: any) {
       showError(`Failed to queue tasks: ${err.message}`);
     } finally {
-      if (onlyMissing) setIsQueuingMissingExtraction(false);
-      else setIsQueuingExtraction(false);
-    }
-  };
-
-  const handleSupabaseUpload = async (file: File) => {
-    if (!user) return;
-    setIsUploading(true);
-    addLog(`Uploading session data to Supabase vault...`, 'info');
-    
-    try {
-      const { error: uploadError } = await supabase.storage
-        .from('cookies')
-        .upload('cookies.txt', file, {
-          upsert: true,
-          contentType: 'text/plain'
-        });
-
-      if (uploadError) throw uploadError;
-
-      showSuccess("Supabase Vault Updated");
-      addLog("Supabase Upload Successful.", 'success');
-      
-      await checkVaultStatus();
-    } catch (err: any) {
-      addLog(`Supabase Upload Failure: ${err.message}`, 'error');
-      showError(`Upload Error: ${err.message}`);
-    } finally {
-      setIsUploading(false);
+      if (queueMode === 'missing') setIsQueuingMissingExtraction(false);
+      else if (queueMode === 'stuck') setIsQueuingStuckExtraction(false); // NEW state setter
+      else setIsQueuingAllExtraction(false);
     }
   };
 
@@ -393,6 +410,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
   const activeExtractionQueue = maintenanceSongs.filter(s => 
     s.extraction_status === 'queued' || s.extraction_status === 'processing'
   );
+
+  const stuckOrFailedCount = maintenanceSongs.filter(s => 
+    s.extraction_status === 'queued' || s.extraction_status === 'failed'
+  ).length;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -628,19 +649,27 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
                           </div>
                           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                             <Button 
-                              onClick={() => handleQueueBackgroundExtract(true)} // Call new queuing function
-                              disabled={isQueuingMissingExtraction || isQueuingExtraction}
+                              onClick={() => handleQueueBackgroundExtract('stuck')} // NEW: Call with 'stuck' mode
+                              disabled={isQueuingStuckExtraction || isQueuingMissingExtraction || isQueuingAllExtraction || stuckOrFailedCount === 0} // Disable if no stuck tasks
+                              className="flex-1 sm:flex-none bg-amber-600 hover:bg-amber-700 h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg"
+                            >
+                              {isQueuingStuckExtraction ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCcw className="w-4 h-4" />}
+                              Re-queue Stuck/Failed ({stuckOrFailedCount})
+                            </Button>
+                            <Button 
+                              onClick={() => handleQueueBackgroundExtract('missing')} // Call with 'missing' mode
+                              disabled={isQueuingMissingExtraction || isQueuingAllExtraction || isQueuingStuckExtraction}
                               className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg"
                             >
                               {isQueuingMissingExtraction ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                               Queue Remaining
                             </Button>
                             <Button 
-                              onClick={() => handleQueueBackgroundExtract(false)} // Call new queuing function
-                              disabled={isQueuingExtraction || isQueuingMissingExtraction}
+                              onClick={() => handleQueueBackgroundExtract('all')} // Call with 'all' mode
+                              disabled={isQueuingAllExtraction || isQueuingMissingExtraction || isQueuingStuckExtraction}
                               className="flex-1 sm:flex-none bg-red-600 hover:bg-red-700 h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg"
                             >
-                              {isQueuingExtraction ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
+                              {isQueuingAllExtraction ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
                               Queue All Refresh
                             </Button>
                           </div>
