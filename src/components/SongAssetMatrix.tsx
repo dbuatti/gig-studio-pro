@@ -24,10 +24,13 @@ const SongAssetMatrix: React.FC<SongAssetMatrixProps> = ({ formData, handleAutoS
       <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Asset Matrix</h3>
       <div className="grid grid-cols-1 gap-2.5">
         {RESOURCE_TYPES.map(res => {
+          // Automated detection logic for asset ticks
           const isActive = formData.resources?.includes(res.id) ||
-                         (res.id === 'UG' && formData.ugUrl) ||
-                         (res.id === 'LYRICS' && formData.lyrics) ||
-                         (res.id === 'LEAD' && formData.leadsheetUrl);
+                         (res.id === 'UG' && !!formData.ugUrl) ||
+                         (res.id === 'LYRICS' && (formData.lyrics || "").length > 20) ||
+                         (res.id === 'LEAD' && !!formData.leadsheetUrl) ||
+                         (res.id === 'PDF' && !!formData.pdfUrl);
+
           return (
             <button
               key={res.id}
