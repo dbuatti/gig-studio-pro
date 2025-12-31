@@ -1,6 +1,7 @@
 "use client";
 import { supabase } from "@/integrations/supabase/client";
 import { SetlistSong } from "@/components/SetlistManager";
+import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants'; // Import DEFAULT_UG_CHORDS_CONFIG
 
 /**
  * Checks if a given string is a valid UUID.
@@ -83,35 +84,37 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       };
 
       // Handle optional fields, ensuring non-null defaults for NOT NULL columns
-      if (song.originalKey !== undefined) payload.original_key = song.originalKey;
-      if (song.targetKey !== undefined) payload.target_key = song.targetKey;
+      // Also explicitly set nullable fields to null if undefined, to ensure consistency on updates.
+      payload.original_key = song.originalKey ?? null;
+      payload.target_key = song.targetKey ?? null;
       payload.pitch = song.pitch ?? 0; // Default to 0 if undefined/null
-      if (song.bpm !== undefined) payload.bpm = song.bpm;
-      if (song.lyrics !== undefined) payload.lyrics = song.lyrics;
-      if (song.notes !== undefined) payload.notes = song.notes;
-      if (song.ugUrl !== undefined) payload.ug_url = song.ugUrl;
-      if (song.pdfUrl !== undefined) payload.pdf_url = song.pdfUrl;
-      if (song.leadsheetUrl !== undefined) payload.leadsheet_url = song.leadsheetUrl;
-      if (song.youtubeUrl !== undefined) payload.youtube_url = song.youtubeUrl;
-      if (song.previewUrl !== undefined) payload.preview_url = song.previewUrl;
-      if (song.appleMusicUrl !== undefined) payload.apple_music_url = song.appleMusicUrl;
+      payload.bpm = song.bpm ?? null;
+      payload.lyrics = song.lyrics ?? null;
+      payload.notes = song.notes ?? null;
+      payload.ug_url = song.ugUrl ?? null;
+      payload.pdf_url = song.pdfUrl ?? null;
+      payload.leadsheet_url = song.leadsheetUrl ?? null;
+      payload.youtube_url = song.youtubeUrl ?? null;
+      payload.preview_url = song.previewUrl ?? null;
+      payload.apple_music_url = song.appleMusicUrl ?? null;
       payload.is_metadata_confirmed = song.isMetadataConfirmed ?? false; // Default to false
       payload.is_key_confirmed = song.isKeyConfirmed ?? false; // Default to false
       payload.duration_seconds = Math.round(song.duration_seconds || 0); // Default to 0
-      if (song.genre !== undefined) payload.genre = song.genre;
+      payload.genre = song.genre ?? null;
       payload.user_tags = song.user_tags ?? []; // Default to empty array
       payload.resources = song.resources ?? []; // Default to empty array
-      if (song.preferred_reader !== undefined) payload.preferred_reader = song.preferred_reader;
-      if (song.ug_chords_text !== undefined) payload.ug_chords_text = song.ug_chords_text;
-      if (song.ug_chords_config !== undefined) payload.ug_chords_config = song.ug_chords_config;
+      payload.preferred_reader = song.preferred_reader ?? null;
+      payload.ug_chords_text = song.ug_chords_text ?? null;
+      payload.ug_chords_config = song.ug_chords_config ?? DEFAULT_UG_CHORDS_CONFIG; // Explicitly set default if undefined/null
+      payload.is_ug_chords_present = song.is_ug_chords_present ?? false; // Explicitly set default if undefined/null
       payload.is_pitch_linked = song.is_pitch_linked ?? true; // Default to true
-      if (song.highest_note_original !== undefined) payload.highest_note_original = song.highest_note_original;
+      payload.highest_note_original = song.highest_note_original ?? null;
       payload.is_approved = song.isApproved ?? false; // Default to false
       payload.is_sheet_verified = song.is_sheet_verified ?? false; // Default to false
       payload.extraction_status = song.extraction_status ?? 'idle'; // Default to 'idle'
-      if (song.last_sync_log !== undefined) payload.last_sync_log = song.last_sync_log;
+      payload.last_sync_log = song.last_sync_log ?? null;
       payload.auto_synced = song.auto_synced ?? false; // Default to false
-      if (song.sheet_music_url !== undefined) payload.sheet_music_url = song.sheet_music_url;
+      payload.sheet_music_url = song.sheet_music_url ?? null;
       
       if (isValidUuid(song.master_id)) {
         payload.id = song.master_id;
