@@ -95,18 +95,13 @@ const Index = () => {
 
   const userId = user?.id;
 
-  // --- REFINED AUDIO CALCULATION LOGIC ---
   const missingAudioCount = useMemo(() => {
-    const count = masterRepertoire.filter(s => {
+    return masterRepertoire.filter(s => {
       const hasLink = !!s.youtubeUrl;
       const hasAudio = !!s.audio_url;
       const status = (s.extraction_status || "").toLowerCase();
-      // Only count as "missing" if there's a link but no completed audio
       return hasLink && (!hasAudio || status !== 'completed');
     }).length;
-    
-    console.log(`[Dashboard] Audio Audit: ${count} tracks are missing full extracted audio but have YouTube links.`);
-    return count;
   }, [masterRepertoire]);
 
   const activeSetlist = useMemo(() =>
@@ -655,7 +650,6 @@ const Index = () => {
       return;
     }
 
-    console.log(`[Dashboard] Bulk Queueing ${songsToQueue.length} tracks for extraction...`);
     setIsRepertoireBulkQueuingAudio(true);
 
     try {
@@ -669,11 +663,9 @@ const Index = () => {
 
       if (error) throw error;
       
-      console.log("[Dashboard] Bulk queueing successful.");
       await fetchSetlistsAndRepertoire();
       showSuccess(`Queued ${songsToQueue.length} extractions.`);
     } catch (err: any) {
-      console.error("[Dashboard] Bulk queueing failure:", err);
       showError(`Queueing Failed: ${err.message}`);
     } finally {
       setIsRepertoireBulkQueuingAudio(false);

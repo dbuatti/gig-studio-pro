@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Check, Sparkles, Loader2, AlertCircle, ShieldAlert, Globe } from 'lucide-react'; // Added Globe
+import { ArrowLeft, Check, Sparkles, Loader2, AlertCircle, ShieldAlert, Globe } from 'lucide-react'; 
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -21,7 +21,7 @@ import { useKeyboardNavigation } from '@/hooks/use-keyboard-navigation';
 import SetlistMultiSelector from './SetlistMultiSelector';
 import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
 import { extractKeyFromChords } from '@/utils/chordUtils';
-import ProSyncSearch from './ProSyncSearch'; // Import ProSyncSearch
+import ProSyncSearch from './ProSyncSearch'; 
 import { formatKey } from '@/utils/keyUtils';
 
 export type StudioTab = 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library';
@@ -65,7 +65,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   const [activeTab, setActiveTab] = useState<StudioTab>(defaultTab || 'audio');
   const [loading, setLoading] = useState(true);
   const [activeChartType, setActiveChartType] = useState<'pdf' | 'leadsheet' | 'web' | 'ug'>('pdf');
-  const [isProSyncOpen, setIsProSyncOpen] = useState(false); // State for Pro Sync
+  const [isProSyncOpen, setIsProSyncOpen] = useState(false); 
   
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
   const lastPendingUpdatesRef = useRef<Partial<SetlistSong>>({});
@@ -88,7 +88,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
       setSong(syncedSong);
       setFormData(prev => ({ ...prev, ...currentUpdates, master_id: syncedSong.master_id }));
     } catch (err: any) {
-      console.error("[SongStudioView] performSave Failure:", err.message);
+      // Failure handled silently or via toast
     }
   };
 
@@ -272,7 +272,6 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           </div>
         </div>
         <div className="flex items-center gap-4">
-          {/* RESTORED: Pro Sync Button */}
           {songId && (
             <Button 
               variant="outline" 

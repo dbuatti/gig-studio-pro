@@ -30,7 +30,6 @@ const KeepAliveWorker = () => {
     // Heartbeat function to keep Render free tier awake
     const pingWorker = async () => {
       try {
-        console.log("[App] Sending heartbeat to Python Worker...");
         await fetch(RENDER_WORKER_URL, { mode: 'no-cors' });
       } catch (e) {
         // Silent fail on heartbeat

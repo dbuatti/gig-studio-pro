@@ -91,7 +91,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
   const [syncLogs, setSyncLogs] = useState<{ msg: string; type: 'info' | 'success' | 'error'; time: string }[]>([]);
 
   const addLog = (msg: string, type: 'info' | 'success' | 'error' = 'info') => {
-    console.log(`[AdminPanel] ${msg}`); 
     setSyncLogs(prev => [{ msg, type, time: new Date().toLocaleTimeString() }, ...prev].slice(0, 20));
   };
 

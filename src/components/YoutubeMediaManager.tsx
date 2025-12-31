@@ -36,7 +36,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
   const [ytApiKey, setYtApiKey] = useState("");
   const [isSearchingYoutube, setIsSearchingYoutube] = useState(false);
   const [ytResults, setYtResults] = useState<any[]>([]);
-  const [isQueuingExtraction, setIsQueuingExtraction] = useState(false); // Renamed from isTriggering
+  const [isQueuingExtraction, setIsQueuingExtraction] = useState(false); 
   const [lastQuery, setLastQuery] = useState("");
 
   const currentVideoId = useMemo(() => {
@@ -70,14 +70,9 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
   };
 
   const performYoutubeDiscovery = async (searchTerm: string) => {
-    console.log("[YoutubeMediaManager] Starting YouTube discovery for:", searchTerm);
-    if (!searchTerm.trim()) {
-      console.log("[YoutubeMediaManager] Search term is empty. Skipping discovery.");
-      return;
-    }
+    if (!searchTerm.trim()) return;
     
     if (searchTerm.startsWith('http')) {
-      console.log("[YoutubeMediaManager] Search term is a URL. Linking directly:", searchTerm);
       handleAutoSave({ youtubeUrl: cleanYoutubeUrl(searchTerm) });
       showSuccess("YouTube URL Linked");
       return;
@@ -88,7 +83,6 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
     setLastQuery(searchTerm);
 
     if (ytApiKey) {
-      console.log("[YoutubeMediaManager] Using YouTube Data API key for search.");
       try {
         const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(searchTerm)}&type=video&videoCategoryId=10&relevanceLanguage=en&maxResults=12&key=${ytApiKey}`;
         const searchResponse = await fetch(searchUrl);
@@ -116,15 +110,10 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
             setYtResults(resultsWithDurations);
             setIsSearchingYoutube(false);
             showSuccess(`Discovery Match: ${resultsWithDurations.length} records found`);
-            console.log("[YoutubeMediaManager] YouTube Data API search successful. Results:", resultsWithDurations);
             return;
           }
         }
-      } catch (e) {
-        console.error("[YoutubeMediaManager] YouTube Data API search failed:", e);
-      }
-    } else {
-      console.warn("[YoutubeMediaManager] No YouTube Data API key found. Falling back to Invidious instances.");
+      } catch (e) {}
     }
 
     // Fallback search strategy
@@ -138,7 +127,6 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
         for (const instance of instances) {
           if (success) break;
           try {
-            // Use formData.artist and formData.name directly for the search query
             const artistName = (formData.artist || "").replace(/&/g, 'and');
             const trackName = (formData.name || "").replace(/&/g, 'and');
             const searchQuery = encodeURIComponent(`${artistName} ${trackName} official music video`);
@@ -169,21 +157,16 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
                 viewCountText: v.viewCountText
               })));
               success = true;
-              console.log("[YoutubeMediaManager] Invidious fallback search successful. Results:", videos);
             }
-          } catch (err) {
-            console.error("[YoutubeMediaManager] Invidious instance search failed:", err);
-          }
+          } catch (err) {}
         }
       }
       
       if (!success) {
         showError("Global discovery engine congested or no results found.");
-        console.warn("[YoutubeMediaManager] All fallback search attempts failed.");
       }
     } catch (err) {
       showError("Search services offline.");
-      console.error("[YoutubeMediaManager] General search service error:", err);
     } finally {
       setIsSearchingYoutube(false);
     }
@@ -197,27 +180,21 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
   };
 
   const handleSelectYoutubeVideo = (url: string) => {
-    console.log("[YoutubeMediaManager] Selected YouTube video:", url);
     handleAutoSave({ youtubeUrl: cleanYoutubeUrl(url) });
   };
 
-  const handleQueueExtraction = async (videoUrlToQueue?: string) => { // Renamed function
+  const handleQueueExtraction = async (videoUrlToQueue?: string) => { 
     const targetVideoUrl = cleanYoutubeUrl(videoUrlToQueue || formData.youtubeUrl || '');
-
-    console.log("[YoutubeMediaManager] Queuing background extraction for:", targetVideoUrl);
 
     if (!targetVideoUrl) {
       showError("Link a YouTube URL first.");
-      console.error("[YoutubeMediaManager] No target video URL for queuing extraction.");
       return;
     }
     if (!user?.id || !song?.id) {
       showError("Session data missing. Please log in.");
-      console.error("[YoutubeMediaManager] User ID or Song ID missing for queuing extraction.");
       return;
     }
 
-    // NEW: Check if audio is already completed for this song
     if (song?.extraction_status === 'completed' && song?.audio_url) {
       showInfo("Audio already extracted and available.");
       setIsQueuingExtraction(false);
@@ -225,15 +202,14 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
     }
 
     handleAutoSave({ youtubeUrl: targetVideoUrl });
-    setIsQueuingExtraction(true); // Use new state variable
-    console.log("[YoutubeMediaManager] Updating Supabase to queue extraction...");
+    setIsQueuingExtraction(true); 
 
     try {
       const { error } = await supabase
         .from('repertoire')
         .update({ 
           youtube_url: targetVideoUrl,
-          extraction_status: 'queued', // Set status to 'queued'
+          extraction_status: 'queued', 
           last_sync_log: 'Queued for background audio extraction.'
         })
         .eq('id', song.id);
@@ -242,14 +218,11 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
 
       showInfo("Background extraction queued. You can close this window; the audio will update automatically.");
       showSuccess("Task Queued Successfully");
-      console.log("[YoutubeMediaManager] Supabase updated successfully. Extraction job queued.");
       
     } catch (err: any) {
       showError(`Failed to queue extraction: ${err.message}`);
-      console.error("[YoutubeMediaManager] Supabase update failed for queuing extraction:", err);
     } finally {
-      setIsQueuingExtraction(false); // Use new state variable
-      console.log("[YoutubeMediaManager] Queuing process finished.");
+      setIsQueuingExtraction(false); 
     }
   };
 
@@ -283,11 +256,11 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
             {isSearchingYoutube ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-4 h-4" />} SEARCH
           </Button>
           <Button
-            onClick={() => handleQueueExtraction()} // Call new queuing function
+            onClick={() => handleQueueExtraction()} 
             disabled={isSearchingYoutube || isQueuingExtraction || !formData.youtubeUrl}
             className="bg-indigo-600 hover:bg-indigo-700 text-white h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg shadow-indigo-600/20"
           >
-            {isQueuingExtraction ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-4 h-4" />} 
+            {isQueuingExtraction ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} 
             {isQueuingExtraction ? 'QUEUING...' : 'QUEUE BACKGROUND EXTRACT'}
           </Button>
         </div>
@@ -298,14 +271,14 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
           results={ytResults}
           currentVideoId={currentVideoId}
           onSelect={handleSelectYoutubeVideo}
-          onDownloadAudio={handleQueueExtraction} // Call new queuing function
+          onDownloadAudio={handleQueueExtraction} 
           onPreviewVideo={(url) => {
             handleAutoSave({ youtubeUrl: cleanYoutubeUrl(url) });
             onSwitchTab('visual');
           }}
           isLoading={isSearchingYoutube}
-          isDownloading={isQueuingExtraction} // Use new state variable
-          downloadStatus={isQueuingExtraction ? 'processing' : 'idle'} // Use new state variable
+          isDownloading={isQueuingExtraction} 
+          downloadStatus={isQueuingExtraction ? 'processing' : 'idle'} 
         />
       )}
     </div>

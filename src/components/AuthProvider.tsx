@@ -22,36 +22,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const lastSessionId = useRef<string | null>(null);
 
   useEffect(() => {
-    console.log("[AuthProvider] Initializing session check...");
-    
     // Check active sessions and sets the user
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
       if (initialSession) {
-        console.log("[AuthProvider] Initial session recovered:", initialSession.user.id);
         lastSessionId.current = initialSession.access_token;
         setSession(initialSession);
         setUser(initialSession.user);
-      } else {
-        console.log("[AuthProvider] No initial session found.");
       }
       setLoading(false);
     });
 
     // Listen for changes on auth state
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
-      console.log(`[AuthProvider] Auth State Change Event: ${event}`);
-      
       // Only trigger a state update if the session has actually changed
-      // (e.g. login, logout, or token refresh with a new identity)
       const newSessionId = newSession?.access_token ?? null;
       
       if (newSessionId !== lastSessionId.current) {
-        console.log("[AuthProvider] Session identity changed, updating state.");
         lastSessionId.current = newSessionId;
         setSession(newSession);
         setUser(newSession?.user ?? null);
-      } else {
-        console.log("[AuthProvider] Session identity unchanged, skipping state update.");
       }
       
       setLoading(false);
@@ -63,7 +52,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signOut = async () => {
-    console.log("[AuthProvider] Initiating sign out...");
     lastSessionId.current = null;
     await supabase.auth.signOut();
   };

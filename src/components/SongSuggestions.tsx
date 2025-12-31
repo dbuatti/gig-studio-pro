@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Sparkles, Loader2, Music, Search, Target, CheckCircle2, ListPlus, CloudDownload, AlertTriangle } from 'lucide-react'; // NEW: Import CloudDownload and AlertTriangle
+import { Sparkles, Loader2, Music, Search, Target, CheckCircle2, ListPlus, CloudDownload, AlertTriangle } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,7 +17,6 @@ let sessionSuggestionsCache: any[] | null = null;
 let sessionInitialLoadAttempted = false;
 
 const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectSuggestion, onAddExistingSong }) => {
-  console.log("[SongSuggestions] Repertoire prop received:", repertoire); // ADDED LOG
   const [rawSuggestions, setRawSuggestions] = useState<any[]>(sessionSuggestionsCache || []);
   const [isLoading, setIsLoading] = useState(false);
   const [seedSongId, setSeedSongId] = useState<string | null>(null);
@@ -60,7 +59,6 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
         if (error) {
           lastError = error;
           if (attempt < MAX_RETRIES) {
-            console.warn(`[SongSuggestions] Attempt ${attempt} failed. Retrying in ${attempt * 2}s...`);
             await new Promise(resolve => setTimeout(resolve, attempt * 2000));
             continue;
           }
@@ -76,7 +74,6 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
       } catch (err: any) {
         lastError = err;
         if (attempt === MAX_RETRIES) {
-          console.error("[SongSuggestions] All retry attempts failed.", lastError);
           showError("Song suggestions temporarily unavailable.");
         }
       }
@@ -230,7 +227,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
                               auto_synced: false,
                               is_sheet_verified: false,
                               sheet_music_url: null,
-                              extraction_status: 'idle', // NEW: Default status
+                              extraction_status: 'idle', 
                             })}
                             className="h-10 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-[10px] rounded-xl gap-2 shadow-lg"
                           >
