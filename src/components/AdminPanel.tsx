@@ -28,7 +28,9 @@ import {
   Box,
   Link2,
   Undo2,
-  Download
+  Download,
+  CloudDownload, // Added CloudDownload icon
+  RefreshCcw // Added RefreshCcw icon
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError, showInfo } from '@/utils/toast';
@@ -388,6 +390,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
     }
   };
 
+  const activeExtractionQueue = maintenanceSongs.filter(s => 
+    s.extraction_status === 'queued' || s.extraction_status === 'processing'
+  );
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-6xl w-[95vw] h-[95vh] md:h-[92vh] bg-slate-950 border-white/10 text-white rounded-[2rem] p-0 overflow-hidden shadow-2xl flex flex-col">
@@ -431,202 +437,280 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
 
         <div className="flex-1 overflow-hidden flex flex-col md:flex-row min-h-0">
           <div className="flex-1 overflow-y-auto border-r border-white/5 bg-slate-900/20 custom-scrollbar">
-            {activeTab === 'automation' ? (
-              <div className="p-4 md:p-8 space-y-8 animate-in fade-in duration-500">
-                <div className="bg-indigo-600/10 border border-indigo-600/20 rounded-3xl md:rounded-[2.5rem] p-6 md:p-10 space-y-8">
-                  <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
-                    <div className="flex items-center gap-4 md:gap-6">
-                      <div className="bg-indigo-600 p-3 md:p-4 rounded-2xl md:rounded-3xl shadow-xl shadow-indigo-600/20">
-                        <Wand2 className="w-6 h-6 md:w-8 md:h-8 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="text-xl md:text-2xl font-black uppercase tracking-tight text-white">Global Auto-Sync Engine</h3>
-                        <p className="text-xs md:text-sm text-slate-400 mt-1">Automate metadata and audio discovery.</p>
-                      </div>
-                    </div>
-                    <Button 
-                      onClick={handleGlobalAutoSync} 
-                      disabled={isAutoSyncing}
-                      className="bg-indigo-600 hover:bg-indigo-700 h-14 md:h-16 px-8 md:px-10 rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] md:text-xs shadow-2xl shadow-indigo-600/30 gap-3"
-                    >
-                      {isAutoSyncing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5 fill-current" />}
-                      Trigger Pipeline
-                    </Button>
-                  </div>
-
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-4 border-t border-white/5">
-                    <div className="space-y-4">
-                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Smart-Link Discovery</h4>
-                      <div className="flex flex-col gap-3">
-                        <Button 
-                          onClick={handlePopulateMissingLinks}
-                          disabled={isPopulatingLinks}
-                          className="w-full bg-emerald-600 hover:bg-emerald-700 h-12 md:h-14 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg"
-                        >
-                          {isPopulatingLinks ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
-                          Populate Missing Links
-                        </Button>
-                        <Button 
-                          variant="ghost"
-                          onClick={handleClearAutoPopulatedLinks}
-                          disabled={isClearingLinks}
-                          className="w-full text-red-500 hover:bg-red-500/10 h-10 md:h-12 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3"
-                        >
-                          {isClearingLinks ? <Loader2 className="w-4 h-4 animate-spin" /> : <Undo2 className="w-4 h-4" />}
-                          Clear Auto-Populated
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Global Configuration</h4>
-                      <div className="space-y-3">
-                        <div className="p-3 md:p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-between">
-                          <p className="text-xs font-bold uppercase text-slate-300">Overwrite Verified</p>
-                          <Switch checked={overwriteExisting} onCheckedChange={setOverwriteExisting} />
+            {(() => {
+              switch (activeTab) {
+                case 'automation':
+                  return (
+                    <div className="p-4 md:p-8 space-y-8 animate-in fade-in duration-500">
+                      <div className="bg-indigo-600/10 border border-indigo-600/20 rounded-3xl md:rounded-[2.5rem] p-6 md:p-10 space-y-8">
+                        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+                          <div className="flex items-center gap-4 md:gap-6">
+                            <div className="bg-indigo-600 p-3 md:p-4 rounded-2xl md:rounded-3xl shadow-xl shadow-indigo-600/20">
+                              <Wand2 className="w-6 h-6 md:w-8 md:h-8 text-white" />
+                            </div>
+                            <div>
+                              <h3 className="text-xl md:text-2xl font-black uppercase tracking-tight text-white">Global Auto-Sync Engine</h3>
+                              <p className="text-xs md:text-sm text-slate-400 mt-1">Automate metadata and audio discovery.</p>
+                            </div>
+                          </div>
+                          <Button 
+                            onClick={handleGlobalAutoSync} 
+                            disabled={isAutoSyncing}
+                            className="bg-indigo-600 hover:bg-indigo-700 h-14 md:h-16 px-8 md:px-10 rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] md:text-xs shadow-2xl shadow-indigo-600/30 gap-3"
+                          >
+                            {isAutoSyncing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5 fill-current" />}
+                            Trigger Pipeline
+                          </Button>
                         </div>
-                        <div className="p-3 md:p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-between">
-                          <p className="text-xs font-bold uppercase text-slate-300">Batch Size: {syncBatchSize}</p>
-                          <div className="flex items-center gap-2">
-                            <button onClick={() => setSyncBatchSize(Math.max(1, syncBatchSize - 1))} className="h-8 w-8 bg-black/40 rounded-lg border border-white/5 hover:bg-black/60 transition-colors">-</button>
-                            <button onClick={() => setSyncBatchSize(Math.min(10, syncBatchSize + 1))} className="h-8 w-8 bg-black/40 rounded-lg border border-white/5 hover:bg-black/60 transition-colors">+</button>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-4 border-t border-white/5">
+                          <div className="space-y-4">
+                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Smart-Link Discovery</h4>
+                            <div className="flex flex-col gap-3">
+                              <Button 
+                                onClick={handlePopulateMissingLinks}
+                                disabled={isPopulatingLinks}
+                                className="w-full bg-emerald-600 hover:bg-emerald-700 h-12 md:h-14 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg"
+                              >
+                                {isPopulatingLinks ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
+                                Populate Missing Links
+                              </Button>
+                              <Button 
+                                variant="ghost"
+                                onClick={handleClearAutoPopulatedLinks}
+                                disabled={isClearingLinks}
+                                className="w-full text-red-500 hover:bg-red-500/10 h-10 md:h-12 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3"
+                              >
+                                {isClearingLinks ? <Loader2 className="w-4 h-4 animate-spin" /> : <Undo2 className="w-4 h-4" />}
+                                Clear Auto-Populated
+                              </Button>
+                            </div>
+                          </div>
+
+                          <div className="space-y-4">
+                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Global Configuration</h4>
+                            <div className="space-y-3">
+                              <div className="p-3 md:p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-between">
+                                <p className="text-xs font-bold uppercase text-slate-300">Overwrite Verified</p>
+                                <Switch checked={overwriteExisting} onCheckedChange={setOverwriteExisting} />
+                              </div>
+                              <div className="p-3 md:p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-between">
+                                <p className="text-xs font-bold uppercase text-slate-300">Batch Size: {syncBatchSize}</p>
+                                <div className="flex items-center gap-2">
+                                  <button onClick={() => setSyncBatchSize(Math.max(1, syncBatchSize - 1))} className="h-8 w-8 bg-black/40 rounded-lg border border-white/5 hover:bg-black/60 transition-colors">-</button>
+                                  <button onClick={() => setSyncBatchSize(Math.min(10, syncBatchSize + 1))} className="h-8 w-8 bg-black/40 rounded-lg border border-white/5 hover:bg-black/60 transition-colors">+</button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-white/5 border border-white/10 rounded-3xl md:rounded-[2.5rem] overflow-hidden">
+                        <div className="p-4 md:p-6 bg-black/20 border-b border-white/5 flex items-center justify-between">
+                          <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Sync Status Matrix</h4>
+                        </div>
+                        <div className="divide-y divide-white/5">
+                          {maintenanceSongs.map((s) => (
+                            <div key={s.id} className="p-4 md:p-5 flex items-center justify-between group hover:bg-white/5 transition-colors">
+                              <div className="flex items-center gap-3 md:gap-4 min-w-0">
+                                <div className={cn(
+                                  "w-2 h-2 rounded-full shrink-0",
+                                  s.sync_status === 'COMPLETED' ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" :
+                                  s.sync_status === 'SYNCING' ? "bg-indigo-500 animate-pulse" :
+                                  s.sync_status === 'ERROR' ? "bg-red-500" : "bg-slate-700"
+                                )} />
+                                <div className="min-w-0">
+                                  <p className="text-xs md:text-sm font-black uppercase tracking-tight truncate">{s.title}</p>
+                                  <p className="text-[8px] md:text-[9px] font-bold text-slate-500 uppercase tracking-widest truncate">{s.metadata_source || "Unsynced"}</p>
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <p className={cn(
+                                  "text-[9px] md:text-[10px] font-mono font-black uppercase",
+                                  s.sync_status === 'COMPLETED' ? "text-emerald-400" : "text-slate-500"
+                                )}>{s.sync_status || "IDLE"}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                case 'vault':
+                  return (
+                    <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-in fade-in duration-500">
+                      <div className="bg-indigo-600/10 border border-indigo-600/20 rounded-3xl md:rounded-[2.5rem] p-6 md:p-8 space-y-6">
+                        <div className="flex items-center gap-4">
+                          <div className="bg-indigo-600 p-2.5 rounded-xl">
+                            <Upload className="w-6 h-6 text-white" />
+                          </div>
+                          <div>
+                            <h4 className="text-xl font-black uppercase tracking-tight">GitHub Direct Update</h4>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Update Repository Assets</p>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="space-y-1.5">
+                            <label className="text-[9px] font-black uppercase text-slate-500">Repository</label>
+                            <input type="text" value={githubRepo} onChange={(e) => setGithubRepo(e.target.value)} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-white outline-none focus:border-indigo-500/50"/>
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-[9px] font-black uppercase text-slate-500">File Path</label>
+                            <input type="text" value={githubFile} onChange={(e) => setGithubFile(e.target.value)} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-white outline-none focus:border-indigo-500/50"/>
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-[9px] font-black uppercase text-slate-500">Auth Token</label>
+                            <input type="password" value={githubToken} onChange={(e) => setGithubToken(e.target.value)} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-white outline-none focus:border-indigo-500/50"/>
+                          </div>
+                        </div>
+                        <div className="space-y-3">
+                          <Textarea value={clipboardContent} onChange={(e) => setClipboardContent(e.target.value)} placeholder="Paste cookie string or asset content here..." className="min-h-[150px] bg-slate-900 border-white/10 font-mono text-[10px] rounded-2xl text-white resize-none"/>
+                          <Button onClick={handleGithubUpload} disabled={isGithubUploading || !clipboardContent} className="w-full bg-indigo-600 hover:bg-indigo-700 h-12 rounded-xl font-black uppercase tracking-widest text-xs gap-3">
+                            {isGithubUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />} 
+                            {isGithubUploading ? 'PUSHING...' : 'PUSH TO REPOSITORY'}
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="bg-white/5 border border-white/10 rounded-3xl md:rounded-[2.5rem] p-6 md:p-8">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+                          <div className="flex items-center gap-4">
+                            <div className="bg-indigo-600 p-2.5 rounded-xl"><Database className="w-6 h-6" /></div>
+                            <div>
+                              <h4 className="text-xl font-black uppercase tracking-tight">Supabase Vault</h4>
+                              <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Encrypted Cookie Storage</p>
+                            </div>
+                          </div>
+                          <input type="file" accept=".txt" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleSupabaseUpload(f); }} className="hidden" id="v-upload" />
+                          <Button onClick={() => document.getElementById('v-upload')?.click()} className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 h-10 px-8 rounded-xl font-black uppercase text-[10px] shadow-lg">Upload Cookies.txt</Button>
+                        </div>
+                        {isUploading && (
+                          <div className="flex flex-col items-center py-12 gap-4">
+                            <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
+                            <p className="text-[10px] font-black uppercase tracking-widest animate-pulse text-indigo-400">Syncing Vault...</p>
+                          </div>
+                        )}
+                        {cookieMetadata && (
+                          <div className="space-y-4 animate-in slide-in-from-top-2">
+                            <div className="space-y-1">
+                              <p className="text-[9px] font-black text-slate-500 uppercase">Cloud Filename</p>
+                              <p className="text-xs md:text-sm font-mono font-bold text-emerald-400 truncate">{cookieMetadata.name}</p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-[9px] font-black text-slate-500 uppercase">Last Sync Event</p>
+                              <p className="text-xs md:text-sm font-bold text-white">{new Date(cookieMetadata.lastUpdated).toLocaleString()}</p>
+                            </div>
+                            <div className="pt-2">
+                              <div className="flex items-center gap-2 text-emerald-500 bg-emerald-500/5 border border-emerald-500/10 p-3 rounded-xl">
+                                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                                <span className="text-[9px] md:text-[10px] font-black uppercase">Vault Status: Verified</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                case 'maintenance':
+                  return (
+                    <div className="p-4 md:p-8 space-y-8 animate-in fade-in duration-500">
+                      <div className="bg-red-600/10 border border-red-600/20 rounded-3xl md:rounded-[2.5rem] p-8 md:p-10 space-y-8">
+                        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+                          <div className="flex items-center gap-6">
+                            <div className="bg-red-600 p-3 md:p-4 rounded-2xl md:rounded-3xl shadow-xl shadow-red-600/20">
+                              <HardDriveDownload className="w-6 h-6 md:w-8 md:h-8 text-white" />
+                            </div>
+                            <div>
+                              <h3 className="text-xl md:text-2xl font-black uppercase tracking-tight text-white">Bulk Extraction Hub</h3>
+                              <p className="text-xs md:text-sm text-slate-400 mt-1">Force refresh all master audio assets.</p>
+                            </div>
+                          </div>
+                          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                            <Button 
+                              onClick={() => handleQueueBackgroundExtract(true)} // Call new queuing function
+                              disabled={isQueuingMissingExtraction || isQueuingExtraction}
+                              className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg"
+                            >
+                              {isQueuingMissingExtraction ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                              Queue Remaining
+                            </Button>
+                            <Button 
+                              onClick={() => handleQueueBackgroundExtract(false)} // Call new queuing function
+                              disabled={isQueuingExtraction || isQueuingMissingExtraction}
+                              className="flex-1 sm:flex-none bg-red-600 hover:bg-red-700 h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg"
+                            >
+                              {isQueuingExtraction ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
+                              Queue All Refresh
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="p-6 bg-red-600/5 border border-red-600/20 rounded-2xl flex items-start gap-4">
+                          <AlertTriangle className="w-6 h-6 text-red-500 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-sm font-black uppercase text-red-500">ASYNCHRONOUS PROCESSING ADVISORY</p>
+                            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                              Background tasks will process sequentially. Database records will update automatically when each track is finalized.
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* NEW: Active Extraction Queue */}
+                        <div className="bg-white/5 border border-white/10 rounded-3xl md:rounded-[2.5rem] overflow-hidden mt-8">
+                          <div className="p-4 md:p-6 bg-black/20 border-b border-white/5 flex items-center justify-between">
+                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 flex items-center gap-2">
+                              <CloudDownload className="w-4 h-4 text-indigo-400" /> Active Extraction Queue ({activeExtractionQueue.length})
+                            </h4>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={fetchMaintenanceData}
+                              className="h-7 px-3 text-[9px] font-black uppercase hover:bg-white/10 text-slate-400 gap-1.5"
+                            >
+                              <RefreshCcw className="w-3 h-3" /> Refresh
+                            </Button>
+                          </div>
+                          <div className="divide-y divide-white/5">
+                            {activeExtractionQueue.length === 0 ? (
+                              <div className="py-12 text-center opacity-30">
+                                <Loader2 className="w-8 h-8 mx-auto mb-4 text-slate-700" />
+                                <p className="text-[10px] font-mono font-bold uppercase italic">No active extraction tasks.</p>
+                              </div>
+                            ) : (
+                              activeExtractionQueue.map((s) => (
+                                <div key={s.id} className="p-4 md:p-5 flex items-center justify-between group hover:bg-white/5 transition-colors">
+                                  <div className="flex items-center gap-3 md:gap-4 min-w-0">
+                                    <div className={cn(
+                                      "w-2 h-2 rounded-full shrink-0",
+                                      s.extraction_status === 'processing' ? "bg-indigo-500 animate-pulse" : "bg-amber-500"
+                                    )} />
+                                    <div className="min-w-0">
+                                      <p className="text-xs md:text-sm font-black uppercase tracking-tight truncate">{s.title}</p>
+                                      <p className="text-[8px] md:text-[9px] font-bold text-slate-500 uppercase tracking-widest truncate">{s.artist || "Unknown"}</p>
+                                    </div>
+                                  </div>
+                                  <div className="text-right shrink-0">
+                                    <p className={cn(
+                                      "text-[9px] md:text-[10px] font-mono font-black uppercase",
+                                      s.extraction_status === 'processing' ? "text-indigo-400" : "text-amber-400"
+                                    )}>{s.extraction_status || "IDLE"}</p>
+                                    {s.last_sync_log && (
+                                      <p className="text-[8px] font-mono text-slate-600 truncate max-w-[100px]">{s.last_sync_log}</p>
+                                    )}
+                                  </div>
+                                </div>
+                              ))
+                            )}
                           </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </div>
-
-                <div className="bg-white/5 border border-white/10 rounded-3xl md:rounded-[2.5rem] overflow-hidden">
-                   <div className="p-4 md:p-6 bg-black/20 border-b border-white/5 flex items-center justify-between">
-                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Sync Status Matrix</h4>
-                   </div>
-                   <div className="divide-y divide-white/5">
-                      {maintenanceSongs.map((s) => (
-                        <div key={s.id} className="p-4 md:p-5 flex items-center justify-between group hover:bg-white/5 transition-colors">
-                           <div className="flex items-center gap-3 md:gap-4 min-w-0">
-                              <div className={cn(
-                                "w-2 h-2 rounded-full shrink-0",
-                                s.sync_status === 'COMPLETED' ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" :
-                                s.sync_status === 'SYNCING' ? "bg-indigo-500 animate-pulse" :
-                                s.sync_status === 'ERROR' ? "bg-red-500" : "bg-slate-700"
-                              )} />
-                              <div className="min-w-0">
-                                 <p className="text-xs md:text-sm font-black uppercase tracking-tight truncate">{s.title}</p>
-                                 <p className="text-[8px] md:text-[9px] font-bold text-slate-500 uppercase tracking-widest truncate">{s.metadata_source || "Unsynced"}</p>
-                              </div>
-                           </div>
-                           <div className="text-right shrink-0">
-                              <p className={cn(
-                                "text-[9px] md:text-[10px] font-mono font-black uppercase",
-                                s.sync_status === 'COMPLETED' ? "text-emerald-400" : "text-slate-500"
-                              )}>{s.sync_status || "IDLE"}</p>
-                           </div>
-                        </div>
-                      ))}
-                   </div>
-                </div>
-              </div>
-            ) : activeTab === 'vault' ? (
-              <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-in fade-in duration-500">
-                <div className="bg-indigo-600/10 border border-indigo-600/20 rounded-3xl md:rounded-[2.5rem] p-6 md:p-8 space-y-6">
-                  <div className="flex items-center gap-4">
-                    <div className="bg-indigo-600 p-2.5 rounded-xl">
-                      <Upload className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h4 className="text-xl font-black uppercase tracking-tight">GitHub Direct Update</h4>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Update Repository Assets</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase text-slate-500">Repository</label>
-                      <input type="text" value={githubRepo} onChange={(e) => setGithubRepo(e.target.value)} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-white outline-none focus:border-indigo-500/50"/>
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase text-slate-500">File Path</label>
-                      <input type="text" value={githubFile} onChange={(e) => setGithubFile(e.target.value)} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-white outline-none focus:border-indigo-500/50"/>
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase text-slate-500">Auth Token</label>
-                      <input type="password" value={githubToken} onChange={(e) => setGithubToken(e.target.value)} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-white outline-none focus:border-indigo-500/50"/>
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <Textarea value={clipboardContent} onChange={(e) => setClipboardContent(e.target.value)} placeholder="Paste cookie string or asset content here..." className="min-h-[150px] bg-slate-900 border-white/10 font-mono text-[10px] rounded-2xl text-white resize-none"/>
-                    <Button onClick={handleGithubUpload} disabled={isGithubUploading || !clipboardContent} className="w-full bg-indigo-600 hover:bg-indigo-700 h-12 rounded-xl font-black uppercase tracking-widest text-xs gap-3">
-                      {isGithubUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />} 
-                      {isGithubUploading ? 'PUSHING...' : 'PUSH TO REPOSITORY'}
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="bg-white/5 border border-white/10 rounded-3xl md:rounded-[2.5rem] p-6 md:p-8">
-                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-                     <div className="flex items-center gap-4">
-                       <div className="bg-indigo-600 p-2.5 rounded-xl"><Database className="w-6 h-6" /></div>
-                       <div>
-                        <h4 className="text-xl font-black uppercase tracking-tight">Supabase Vault</h4>
-                        <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Encrypted Cookie Storage</p>
-                       </div>
-                     </div>
-                     <input type="file" accept=".txt" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleSupabaseUpload(f); }} className="hidden" id="v-upload" />
-                     <Button onClick={() => document.getElementById('v-upload')?.click()} className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 h-10 px-8 rounded-xl font-black uppercase text-[10px] shadow-lg">Upload Cookies.txt</Button>
-                   </div>
-                   {isUploading && (
-                     <div className="flex flex-col items-center py-12 gap-4">
-                        <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
-                        <p className="text-[10px] font-black uppercase tracking-widest animate-pulse text-indigo-400">Syncing Vault...</p>
-                     </div>
-                   )}
-                </div>
-              </div>
-            ) : (
-              <div className="p-4 md:p-8 space-y-8 animate-in fade-in duration-500">
-                <div className="bg-red-600/10 border border-red-600/20 rounded-3xl md:rounded-[2.5rem] p-8 md:p-10 space-y-8">
-                   <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
-                      <div className="flex items-center gap-6">
-                         <div className="bg-red-600 p-3 md:p-4 rounded-2xl md:rounded-3xl shadow-xl shadow-red-600/20">
-                            <HardDriveDownload className="w-6 h-6 md:w-8 md:h-8 text-white" />
-                         </div>
-                         <div>
-                            <h3 className="text-xl md:text-2xl font-black uppercase tracking-tight text-white">Bulk Extraction Hub</h3>
-                            <p className="text-xs md:text-sm text-slate-400 mt-1">Force refresh all master audio assets.</p>
-                         </div>
-                      </div>
-                      <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                        <Button 
-                          onClick={() => handleQueueBackgroundExtract(true)} // Call new queuing function
-                          disabled={isQueuingMissingExtraction || isQueuingExtraction}
-                          className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg"
-                        >
-                          {isQueuingMissingExtraction ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                          Queue Remaining
-                        </Button>
-                        <Button 
-                          onClick={() => handleQueueBackgroundExtract(false)} // Call new queuing function
-                          disabled={isQueuingExtraction || isQueuingMissingExtraction}
-                          className="flex-1 sm:flex-none bg-red-600 hover:bg-red-700 h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg"
-                        >
-                          {isQueuingExtraction ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
-                          Queue All Refresh
-                        </Button>
-                      </div>
-                   </div>
-
-                   <div className="p-6 bg-red-600/5 border border-red-600/20 rounded-2xl flex items-start gap-4">
-                      <AlertTriangle className="w-6 h-6 text-red-500 shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-black uppercase text-red-500">ASYNCHRONOUS PROCESSING ADVISORY</p>
-                        <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                          Background tasks will process sequentially. Database records will update automatically when each track is finalized.
-                        </p>
-                      </div>
-                   </div>
-                </div>
-              </div>
-            )}
+                  );
+                default:
+                  return null;
+              }
+            })()}
           </div>
 
           <aside className="w-full md:w-80 lg:w-96 bg-slate-950/50 flex flex-col shrink-0 min-h-0 border-t md:border-t-0 md:border-l border-white/5">
@@ -635,25 +719,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
                 <History className="w-4 h-4" />
                 <span className="text-[10px] font-black uppercase tracking-widest">Automation Logs</span>
               </div>
-              
-              {cookieMetadata && activeTab === 'vault' && (
-                <div className="space-y-4 animate-in slide-in-from-top-2">
-                   <div className="space-y-1">
-                     <p className="text-[9px] font-black text-slate-500 uppercase">Cloud Filename</p>
-                     <p className="text-xs md:text-sm font-mono font-bold text-emerald-400 truncate">{cookieMetadata.name}</p>
-                   </div>
-                   <div className="space-y-1">
-                     <p className="text-[9px] font-black text-slate-500 uppercase">Last Sync Event</p>
-                     <p className="text-xs md:text-sm font-bold text-white">{new Date(cookieMetadata.lastUpdated).toLocaleString()}</p>
-                   </div>
-                   <div className="pt-2">
-                      <div className="flex items-center gap-2 text-emerald-500 bg-emerald-500/5 border border-emerald-500/10 p-3 rounded-xl">
-                        <CheckCircle2 className="w-4 h-4 shrink-0" />
-                        <span className="text-[9px] md:text-[10px] font-black uppercase">Vault Status: Verified</span>
-                      </div>
-                   </div>
-                </div>
-              )}
             </div>
 
             <div className="flex-1 flex flex-col p-5 md:p-6 min-h-0">
