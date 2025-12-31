@@ -17,6 +17,7 @@ import SetlistMultiSelector from './SetlistMultiSelector';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { showSuccess } from '@/utils/toast';
+import SetlistFilters, { FilterState, DEFAULT_FILTERS } from './SetlistFilters';
 
 interface RepertoireViewProps {
   repertoire: SetlistSong[];
@@ -25,6 +26,13 @@ interface RepertoireViewProps {
   onUpdateSetlistSongs: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>;
   onRefreshRepertoire: () => void;
   onAddSong: (song: SetlistSong) => void;
+  // NEW PROPS
+  searchTerm: string;
+  setSearchTerm: (term: string) => void;
+  sortMode: 'none' | 'ready' | 'work';
+  setSortMode: (mode: 'none' | 'ready' | 'work') => void;
+  activeFilters: FilterState;
+  setActiveFilters: (filters: FilterState) => void;
 }
 
 const RepertoireView: React.FC<RepertoireViewProps> = ({
@@ -34,11 +42,16 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
   onUpdateSetlistSongs,
   onRefreshRepertoire,
   onAddSong,
+  // NEW PROPS
+  searchTerm,
+  setSearchTerm,
+  sortMode,
+  setSortMode,
+  activeFilters,
+  setActiveFilters,
 }) => {
   const { keyPreference } = useSettings();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [sortMode, setSortMode] = useState<'none' | 'ready' | 'work'>('none');
-  const [filterReady, setFilterReady] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(false); // State for filter visibility
 
   const filteredAndSortedRepertoire = useMemo(() => {
     let songs = [...repertoire];
@@ -49,7 +62,41 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                             s.artist?.toLowerCase().includes(q) ||
                             s.user_tags?.some(tag => tag.toLowerCase().includes(q));
       if (!matchesSearch) return false;
-      if (filterReady && calculateReadiness(s) < 100) return false;
+      
+      // Apply filters from activeFilters
+      const readiness = calculateReadiness(s);
+      const hasAudio = !!s.audio_url;
+      const hasItunesPreview = !!s.previewUrl && (s.previewUrl.includes('apple.com') || s.previewUrl.includes('itunes-assets'));
+      const hasVideo = !!s.youtubeUrl;
+      const hasPdf = !!s.pdfUrl || !!s.leadsheetUrl || !!s.sheet_music_url;
+      const hasUg = !!s.ugUrl;
+      const hasUgChords = !!s.ug_chords_text && s.ug_chords_text.trim().length > 0;
+
+      if (activeFilters.readiness > 0 && readiness < activeFilters.readiness) return false;
+      if (activeFilters.isConfirmed === 'yes' && !s.isKeyConfirmed) return false;
+      if (activeFilters.isConfirmed === 'no' && s.isKeyConfirmed) return false;
+      if (activeFilters.isApproved === 'yes' && !s.isApproved) return false;
+      if (activeFilters.isApproved === 'no' && s.isApproved) return false;
+
+      if (activeFilters.hasAudio === 'full' && !hasAudio) return false;
+      if (activeFilters.hasAudio === 'itunes' && !hasItunesPreview) return false;
+      if (activeFilters.hasAudio === 'none' && (hasAudio || hasItunesPreview)) return false;
+
+      if (activeFilters.hasVideo === 'yes' && !hasVideo) return false;
+      if (activeFilters.hasVideo === 'no' && hasVideo) return false;
+
+      if (activeFilters.hasChart === 'yes' && !(hasPdf || hasUg || hasUgChords)) return false;
+      if (activeFilters.hasChart === 'no' && (hasPdf || hasUg || hasUgChords)) return false;
+
+      if (activeFilters.hasPdf === 'yes' && !hasPdf) return false;
+      if (activeFilters.hasPdf === 'no' && hasPdf) return false;
+
+      if (activeFilters.hasUg === 'yes' && !hasUg) return false;
+      if (activeFilters.hasUg === 'no' && hasUg) return false;
+
+      if (activeFilters.hasUgChords === 'yes' && !hasUgChords) return false;
+      if (activeFilters.hasUgChords === 'no' && hasUgChords) return false;
+      
       return true;
     });
 
@@ -62,9 +109,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
     }
 
     return songs;
-  }, [repertoire, searchTerm, sortMode, filterReady]);
-
-  const isItunesPreview = (url?: string) => url && (url.includes('apple.com') || url.includes('itunes-assets'));
+  }, [repertoire, searchTerm, sortMode, activeFilters]);
 
   const handleAddNewSong = () => {
     const newSong: SetlistSong = {
@@ -144,13 +189,13 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
           </div>
           <Button
             variant="ghost" size="sm"
-            onClick={() => setFilterReady(!filterReady)}
+            onClick={() => setIsFilterOpen(!isFilterOpen)}
             className={cn(
               "h-8 px-4 text-[10px] font-black uppercase tracking-widest rounded-xl gap-2 transition-all",
-              filterReady ? "bg-emerald-500 text-emerald-600" : "text-muted-foreground hover:bg-accent dark:hover:bg-secondary"
+              isFilterOpen ? "bg-indigo-50 text-indigo-600" : "text-muted-foreground hover:bg-accent dark:hover:bg-secondary"
             )}
           >
-            <Filter className="w-3.5 h-3.5" /> {filterReady ? "Ready Only" : "All Tracks"}
+            <Filter className="w-3.5 h-3.5" /> Filter Matrix
           </Button>
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -171,6 +216,13 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
           </Button>
         </div>
       </div>
+      
+      {isFilterOpen && (
+        <SetlistFilters 
+          activeFilters={activeFilters} 
+          onFilterChange={setActiveFilters} 
+        />
+      )}
 
       <div className="bg-card rounded-[2rem] border-4 border-border shadow-2xl overflow-hidden">
         <div className="overflow-x-auto">
@@ -243,7 +295,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                           {readinessScore === 100 && <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 mt-1" />}
                         </div>
                       </td>
-                      <td className="px-6 text-center">
+                      <TableCell className="px-6 text-center">
                         <div className="flex items-center justify-center gap-4 h-full">
                           <div className="text-center min-w-[32px]">
                             <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mb-0.5">Orig</p>
@@ -264,7 +316,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                             </div>
                           </div>
                         </div>
-                      </td>
+                      </TableCell>
                       <td className="px-6 text-right pr-10">
                         <div className="flex items-center justify-end gap-2 h-full">
                           <SetlistMultiSelector

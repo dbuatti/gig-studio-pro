@@ -673,6 +673,7 @@ const Index = () => {
             genre: result.primaryGenreName as string | undefined, // Explicitly cast
             appleMusicUrl: result.trackViewUrl as string | undefined, // Explicitly cast
             metadata_source: 'itunes_autosync',
+            auto_synced: true,
             sync_status: 'COMPLETED' as SetlistSong['sync_status'] // Explicitly cast
           };
         }
@@ -1129,6 +1130,13 @@ const Index = () => {
                   showError(`Failed to add new song to repertoire: ${err.message}`);
                 }
               }}
+              // PASS NEW PROPS HERE
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              sortMode={sortMode}
+              setSortMode={setSortMode}
+              activeFilters={activeFilters}
+              setActiveFilters={setActiveFilters}
             />
           </TabsContent>
         </Tabs>
