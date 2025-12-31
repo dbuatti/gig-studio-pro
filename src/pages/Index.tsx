@@ -195,10 +195,17 @@ const Index = () => {
       const fetchedSetlists: Setlist[] = (setlistsData || []).map(d => ({
         id: d.id,
         name: d.name,
-        songs: ((d.songs as any[]) || []).map(s => ({
-          ...s,
-          duration_seconds: Number(s.duration_seconds || 0) // Ensure duration_seconds is a number
-        })) as SetlistSong[],
+        songs: ((d.songs as any[]) || []).map(s => {
+          const mappedSong: SetlistSong = {
+            ...s,
+            duration_seconds: Number(s.duration_seconds || 0) // Ensure duration_seconds is a number
+          };
+          // If audio_url is missing but previewUrl looks like an extracted audio, use previewUrl for audio_url
+          if (!mappedSong.audio_url && mappedSong.previewUrl && mappedSong.previewUrl.includes('supabase.co/storage/v1/object/public/audio_tracks')) {
+            mappedSong.audio_url = mappedSong.previewUrl;
+          }
+          return mappedSong;
+        }) as SetlistSong[],
         time_goal: d.time_goal
       }));
       setAllSetlists(fetchedSetlists);
