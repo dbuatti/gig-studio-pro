@@ -559,7 +559,6 @@ const Index = () => {
     }
 
     setIsRepertoireAutoLinking(true);
-    console.log(`[Dashboard] Initiating Smart-Link Discovery for ${missing.length} tracks...`);
     
     try {
       const { data, error } = await supabase.functions.invoke('bulk-populate-youtube-links', {
@@ -567,11 +566,9 @@ const Index = () => {
       });
 
       if (error) throw error;
-      console.log("[Dashboard] Smart-Link Results:", data.results);
       await fetchSetlistsAndRepertoire();
       showSuccess(`AI Discovery Complete: ${data.results.filter((r:any) => r.status === 'SUCCESS').length} links bound.`);
     } catch (err: any) {
-      console.error("[Dashboard] Smart-Link Discovery FAILED:", err);
       showError(`Discovery Failed: ${err.message}`);
     } finally {
       setIsRepertoireAutoLinking(false);
@@ -582,7 +579,6 @@ const Index = () => {
     if (masterRepertoire.length === 0) return;
     
     setIsRepertoireGlobalAutoSyncing(true);
-    console.log(`[Dashboard] Initiating Global Auto-Sync for ${masterRepertoire.length} tracks...`);
 
     try {
       const { data, error } = await supabase.functions.invoke('global-auto-sync', {
@@ -590,11 +586,9 @@ const Index = () => {
       });
 
       if (error) throw error;
-      console.log("[Dashboard] Global Auto-Sync Results:", data.results);
       await fetchSetlistsAndRepertoire();
       showSuccess("Metadata Sync Pipeline Finished.");
     } catch (err: any) {
-      console.error("[Dashboard] Global Auto-Sync FAILED:", err);
       showError(`Sync Failed: ${err.message}`);
     } finally {
       setIsRepertoireGlobalAutoSyncing(false);
@@ -649,14 +643,7 @@ const Index = () => {
     setIsPerformanceOverlayOpen(true);
   }, [activeSetlist, activeSongForPerformance]);
 
-  if (loading || authLoading || isFetchingSettings) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-16 h-16 animate-spin text-indigo-500" />
-      </div>
-    );
-  }
-
+  // MOVE THESE BEFORE THE CONDITIONAL RETURN
   const hasPlayableSong = !!activeSongForPerformance?.audio_url || !!activeSongForPerformance?.previewUrl;
   const hasReadableChart = !!activeSongForPerformance && (!!activeSongForPerformance.pdfUrl || !!activeSongForPerformance.leadsheetUrl || !!activeSongForPerformance.ugUrl || !!activeSongForPerformance.ug_chords_text || !!activeSongForPerformance.sheet_music_url);
 
@@ -664,6 +651,14 @@ const Index = () => {
   const missingAudioCount = useMemo(() => 
     masterRepertoire.filter(s => !s.audio_url || s.extraction_status !== 'completed').length,
   [masterRepertoire]);
+
+  if (loading || authLoading || isFetchingSettings) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-16 h-16 animate-spin text-indigo-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col relative">
