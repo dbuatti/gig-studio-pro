@@ -33,8 +33,14 @@ const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
   const [loading, setLoading] = useState(false);
 
   const fetchAssignments = useCallback(async () => {
+    if (!songMasterId) {
+      console.warn("[SetlistMultiSelector] songMasterId is empty, skipping fetchAssignments.");
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
+      console.log(`[SetlistMultiSelector] Fetching assignments for songMasterId: ${songMasterId}`);
       const { data, error } = await supabase
         .from('setlist_songs')
         .select('setlist_id')
@@ -45,7 +51,7 @@ const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
       const currentAssignments = new Set(data.map(item => item.setlist_id));
       setAssignedSetlistIds(currentAssignments);
     } catch (err) {
-      // console.error("Failed to fetch setlist assignments:", err);
+      console.error("Failed to fetch setlist assignments:", err);
       showError("Failed to load setlist assignments.");
     } finally {
       setLoading(false);
