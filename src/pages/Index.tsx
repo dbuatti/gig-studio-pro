@@ -11,19 +11,20 @@ import { showSuccess, showError, showInfo } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 import { calculateReadiness, syncToMasterRepertoire } from '@/utils/repertoireSync';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
-import { calculateSemitones, transposeKey } from '@/utils/keyUtils'; // NEW: Import calculateSemitones and transposeKey
+import { calculateSemitones, transposeKey } from '@/utils/keyUtils';
 
 // UI Components
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Plus, ListMusic, Settings2, BookOpen, Search, LayoutDashboard, X, AlertCircle, CloudDownload, AlertTriangle } from 'lucide-react';
+import { Loader2, Plus, ListMusic, Settings2, BookOpen, Search, LayoutDashboard, X, AlertCircle, CloudDownload, AlertTriangle, Library } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"; // NEW: Import Tabs components
 
 // Custom Components
 import SetlistSelector from '@/components/SetlistSelector';
 import SetlistManager, { SetlistSong } from '@/components/SetlistManager';
-import SetlistFilters, { FilterState, DEFAULT_FILTERS } from '@/components/SetlistFilters'; // NEW: Import FilterState and DEFAULT_FILTERS from SetlistFilters
+import SetlistFilters, { FilterState, DEFAULT_FILTERS } from '@/components/SetlistFilters';
 import SetlistStats from '@/components/SetlistStats';
 import SetlistExporter from '@/components/SetlistExporter';
 import RepertoirePicker from '@/components/RepertoirePicker';
@@ -36,7 +37,8 @@ import UserGuideModal from '@/components/UserGuideModal';
 import SongStudioModal from '@/components/SongStudioModal';
 import FloatingCommandDock from '@/components/FloatingCommandDock';
 import ActiveSongBanner from '@/components/ActiveSongBanner';
-import { StudioTab } from '@/components/SongStudioView'; // NEW: Import StudioTab type
+import { StudioTab } from '@/components/SongStudioView';
+import RepertoireView from '@/components/RepertoireView'; // NEW: Import RepertoireView
 
 interface Setlist {
   id: string;
@@ -58,6 +60,7 @@ const Index = () => {
   const [activeSetlistId, setActiveSetlistId] = useState<string | null>(null);
   const [activeSong, setActiveSong] = useState<SetlistSong | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeDashboardView, setActiveDashboardView] = useState<'gigs' | 'repertoire'>('gigs'); // NEW: Dashboard view state
 
   // Modals
   const [isSetlistSettingsOpen, setIsSetlistSettingsOpen] = useState(false);
@@ -68,7 +71,7 @@ const Index = () => {
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [isUserGuideOpen, setIsUserGuideOpen] = useState(false);
   const [isSongStudioModalOpen, setIsSongStudioModalOpen] = useState(false);
-  const [songStudioDefaultTab, setSongStudioDefaultTab] = useState<StudioTab | undefined>(undefined); // NEW: State for default tab
+  const [songStudioDefaultTab, setSongStudioDefaultTab] = useState<StudioTab | undefined>(undefined);
 
   // Setlist Management
   const [newSetlistName, setNewSetlistName] = useState("");
@@ -92,8 +95,8 @@ const Index = () => {
   const [floatingDockMenuOpen, setFloatingDockMenuOpen] = useState(false);
 
   // --- Derived State ---
-  const activeSetlist = useMemo(() => 
-    allSetlists.find(list => list.id === activeSetlistId), 
+  const activeSetlist = useMemo(() =>
+    allSetlists.find(list => list.id === activeSetlistId),
   [allSetlists, activeSetlistId]);
 
   const filteredAndSortedSongs = useMemo(() => {
@@ -104,8 +107,8 @@ const Index = () => {
     // Apply search term
     const q = searchTerm.toLowerCase();
     if (q) {
-      songs = songs.filter(s => 
-        s.name.toLowerCase().includes(q) || 
+      songs = songs.filter(s =>
+        s.name.toLowerCase().includes(q) ||
         s.artist?.toLowerCase().includes(q) ||
         s.user_tags?.some(tag => tag.toLowerCase().includes(q))
       );
@@ -162,7 +165,7 @@ const Index = () => {
   const missingAudioCount = useMemo(() => {
     if (!activeSetlist) return 0;
     const itunesKeywords = ['apple.com', 'itunes-assets', 'mzstatic.com'];
-    return activeSetlist.songs.filter(s => 
+    return activeSetlist.songs.filter(s =>
       s.youtubeUrl && // Must have a YouTube link to extract from
       (s.previewUrl === "" || itunesKeywords.some(kw => s.previewUrl?.includes(kw))) && // Missing full audio or only has iTunes preview
       s.extraction_status !== 'queued' && s.extraction_status !== 'processing' // Not already queued/processing
@@ -392,7 +395,7 @@ const Index = () => {
         .from('setlists')
         .update({ songs: updatedSongs, updated_at: new Date().toISOString() })
         .eq('id', activeSetlist.id)
-        .eq('user_id', user.id);
+        .eq('user.id', user.id);
 
       if (error) throw error;
       setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: updatedSongs } : s));
@@ -408,10 +411,10 @@ const Index = () => {
     audio.stopPlayback();
   };
 
-  const handleEditSong = (song: SetlistSong) => {
+  const handleEditSong = (song: SetlistSong, defaultTab?: StudioTab) => {
     setActiveSong(song); // Ensure the studio modal opens with the correct song
     setIsSongStudioModalOpen(true);
-    setSongStudioDefaultTab('audio'); // Default to audio tab when editing a song
+    setSongStudioDefaultTab(defaultTab || 'audio'); // Default to audio tab when editing a song
   };
 
   const handleUpdateSongInSetlist = async (songIdToUpdate: string, updates: Partial<SetlistSong>) => {
@@ -425,7 +428,7 @@ const Index = () => {
     setMasterRepertoire(prev => prev.map(s => s.id === syncedMasterSong.id ? syncedMasterSong : s));
 
     // Then, update the song in the active setlist
-    const updatedSetlistSongs = activeSetlist.songs.map(s => 
+    const updatedSetlistSongs = activeSetlist.songs.map(s =>
       (s.master_id === songIdToUpdate || s.id === songIdToUpdate) ? { ...s, ...updates } : s
     );
 
@@ -507,7 +510,7 @@ const Index = () => {
   const handleAddSongToSetlist = async (songToAdd: SetlistSong) => {
     if (!user || !activeSetlist) return;
 
-    const isAlreadyInSetlist = activeSetlist.songs.some(s => 
+    const isAlreadyInSetlist = activeSetlist.songs.some(s =>
       (s.master_id && s.master_id === songToAdd.master_id) || s.id === songToAdd.id
     );
     if (isAlreadyInSetlist) {
@@ -582,11 +585,11 @@ const Index = () => {
       const updatedSongs = activeSetlist.songs.map(s => {
         const result = data.results.find((r: any) => r.song_id === (s.master_id || s.id));
         if (result && result.status === 'SUCCESS') {
-          return { 
-            ...s, 
-            youtubeUrl: result.youtube_url, 
-            metadata_source: 'auto_populated', 
-            sync_status: (result.sync_status as SetlistSong['sync_status']) || 'COMPLETED' 
+          return {
+            ...s,
+            youtubeUrl: result.youtube_url,
+            metadata_source: 'auto_populated',
+            sync_status: (result.sync_status as SetlistSong['sync_status']) || 'COMPLETED'
           };
         }
         return s;
@@ -623,14 +626,14 @@ const Index = () => {
       const updatedSongs = activeSetlist.songs.map(s => {
         const result = data.results.find((r: any) => r.id === (s.master_id || s.id));
         if (result && result.status === 'SUCCESS') {
-          return { 
-            ...s, 
-            name: result.title, 
-            artist: result.artist, 
-            genre: result.primaryGenreName, 
-            appleMusicUrl: result.trackViewUrl, 
-            metadata_source: 'itunes_autosync', 
-            sync_status: (result.sync_status as SetlistSong['sync_status']) || 'COMPLETED' 
+          return {
+            ...s,
+            name: result.title,
+            artist: result.artist,
+            genre: result.primaryGenreName,
+            appleMusicUrl: result.trackViewUrl,
+            metadata_source: 'itunes_autosync',
+            sync_status: (result.sync_status as SetlistSong['sync_status']) || 'COMPLETED'
           };
         }
         return s;
@@ -657,7 +660,7 @@ const Index = () => {
     setIsBulkQueuingAudio(true);
     showInfo("Queueing background audio extraction for missing tracks...");
 
-    const songsToQueue = activeSetlist.songs.filter(s => 
+    const songsToQueue = activeSetlist.songs.filter(s =>
       s.youtubeUrl && // Must have a YouTube link to extract from
       (s.previewUrl === "" || (s.previewUrl?.includes('apple.com') || s.previewUrl?.includes('itunes-assets'))) && // Missing full audio or only has iTunes preview
       s.extraction_status !== 'queued' && s.extraction_status !== 'processing' // Not already queued/processing
@@ -679,11 +682,11 @@ const Index = () => {
       if (error) throw error;
 
       // Update local setlist state to reflect queued status
-      const updatedSetlistSongs = activeSetlist.songs.map(s => 
+      const updatedSetlistSongs = activeSetlist.songs.map(s =>
         songIdsToQueue.includes(s.master_id || s.id) ? { ...s, extraction_status: 'queued' as SetlistSong['extraction_status'], last_sync_log: 'Queued for background audio extraction.' } : s
       );
       setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: updatedSetlistSongs } : s));
-      
+
       showSuccess(`Queued ${songsToQueue.length} audio extraction tasks.`);
     } catch (err: any) {
       showError(`Failed to queue audio extraction: ${err.message}`);
@@ -708,8 +711,8 @@ const Index = () => {
       const songIdsToClear = autoPopulatedSongs.map(s => s.master_id || s.id);
       const { error } = await supabase
         .from('repertoire')
-        .update({ 
-          youtube_url: null, 
+        .update({
+          youtube_url: null,
           metadata_source: null,
           sync_status: 'IDLE' as SetlistSong['sync_status'],
           last_sync_log: 'Cleared auto-populated link'
@@ -719,7 +722,7 @@ const Index = () => {
       if (error) throw error;
 
       // Update local setlist state
-      const updatedSetlistSongs = activeSetlist.songs.map(s => 
+      const updatedSetlistSongs = activeSetlist.songs.map(s =>
         songIdsToClear.includes(s.master_id || s.id) ? { ...s, youtubeUrl: undefined, metadata_source: null, sync_status: 'IDLE' as SetlistSong['sync_status'], last_sync_log: 'Cleared auto-populated link' } : s
       );
       setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: updatedSetlistSongs } : s));
@@ -842,25 +845,25 @@ const Index = () => {
             <h1 className="text-2xl font-black uppercase tracking-tight">Gig Studio Dashboard</h1>
           </div>
           <div className="flex items-center gap-4">
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setIsResourceAuditOpen(true)}
               className="h-9 px-4 rounded-xl border-indigo-100 dark:border-slate-800 bg-white dark:bg-slate-950 text-indigo-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-sm"
             >
               <AlertCircle className="w-3.5 h-3.5" /> Audit Matrix
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setIsPreferencesOpen(true)}
               className="h-9 px-4 rounded-xl border-indigo-100 dark:border-slate-800 bg-white dark:bg-slate-950 text-indigo-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-sm"
             >
               <Settings2 className="w-3.5 h-3.5" /> Preferences
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setIsUserGuideOpen(true)}
               className="h-9 px-4 rounded-xl border-indigo-100 dark:border-slate-800 bg-white dark:bg-slate-950 text-indigo-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-sm"
             >
@@ -870,141 +873,175 @@ const Index = () => {
         </div>
 
         {/* Active Song Banner */}
-        <ActiveSongBanner 
-          song={activeSong} 
-          isPlaying={audio.isPlaying} 
-          onTogglePlayback={audio.togglePlayback} 
-          onClear={() => { setActiveSong(null); audio.stopPlayback(); }} 
+        <ActiveSongBanner
+          song={activeSong}
+          isPlaying={audio.isPlaying}
+          onTogglePlayback={audio.togglePlayback}
+          onClear={() => { setActiveSong(null); audio.stopPlayback(); }}
         />
 
-        {/* Setlist Selector & Actions */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
-          <SetlistSelector 
-            setlists={allSetlists}
-            currentId={activeSetlistId || ''}
-            onSelect={handleSelectSetlist}
-            onCreate={() => {
-              setNewSetlistName("");
-              setIsCreatingSetlist(true);
-            }}
-            onDelete={(id) => setDeleteSetlistConfirmId(id)}
-          />
-          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setIsRepertoirePickerOpen(true)}
-              className="h-10 px-6 rounded-xl border-indigo-100 dark:border-slate-800 bg-white dark:bg-slate-950 text-indigo-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-sm"
-            >
-              <Plus className="w-3.5 h-3.5" /> Add from Library
-            </Button>
-            <ImportSetlist 
-              isOpen={isImportSetlistOpen}
-              onClose={() => setIsImportSetlistOpen(false)}
-              onImport={async (songs) => {
-                if (!user || !activeSetlist) return;
-                showInfo(`Importing ${songs.length} songs...`);
-                try {
-                  const newSongsWithMasterIds = await syncToMasterRepertoire(user.id, songs);
-                  const updatedSongs = [...activeSetlist.songs, ...newSongsWithMasterIds.map(s => ({
-                    ...s,
-                    id: Math.random().toString(36).substr(2, 9), // Generate new ID for setlist entry
-                    master_id: s.master_id || s.id,
-                    isPlayed: false,
-                    isApproved: false,
-                  }))];
+        {/* NEW: Tabs for Gigs and Repertoire */}
+        <Tabs value={activeDashboardView} onValueChange={(value) => setActiveDashboardView(value as 'gigs' | 'repertoire')} className="w-full mt-8">
+          <TabsList className="grid w-full grid-cols-2 h-12 bg-slate-900 p-1 rounded-xl mb-6">
+            <TabsTrigger value="gigs" className="text-sm font-black uppercase tracking-tight gap-2 h-10 rounded-lg">
+              <ListMusic className="w-4 h-4" /> Gigs
+            </TabsTrigger>
+            <TabsTrigger value="repertoire" className="text-sm font-black uppercase tracking-tight gap-2 h-10 rounded-lg">
+              <Library className="w-4 h-4" /> Repertoire
+            </TabsTrigger>
+          </TabsList>
 
+          <TabsContent value="gigs" className="mt-0 space-y-8">
+            {/* Setlist Selector & Actions */}
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <SetlistSelector
+                setlists={allSetlists}
+                currentId={activeSetlistId || ''}
+                onSelect={handleSelectSetlist}
+                onCreate={() => {
+                  setNewSetlistName("");
+                  setIsCreatingSetlist(true);
+                }}
+                onDelete={(id) => setDeleteSetlistConfirmId(id)}
+              />
+              <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsRepertoirePickerOpen(true)}
+                  className="h-10 px-6 rounded-xl border-indigo-100 dark:border-slate-800 bg-white dark:bg-slate-950 text-indigo-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-sm"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add from Library
+                </Button>
+                <ImportSetlist
+                  isOpen={isImportSetlistOpen}
+                  onClose={() => setIsImportSetlistOpen(false)}
+                  onImport={async (songs) => {
+                    if (!user || !activeSetlist) return;
+                    showInfo(`Importing ${songs.length} songs...`);
+                    try {
+                      const newSongsWithMasterIds = await syncToMasterRepertoire(user.id, songs);
+                      const updatedSongs = [...activeSetlist.songs, ...newSongsWithMasterIds.map(s => ({
+                        ...s,
+                        id: Math.random().toString(36).substr(2, 9), // Generate new ID for setlist entry
+                        master_id: s.master_id || s.id,
+                        isPlayed: false,
+                        isApproved: false,
+                      }))];
+
+                      const { error } = await supabase
+                        .from('setlists')
+                        .update({ songs: updatedSongs, updated_at: new Date().toISOString() })
+                        .eq('id', activeSetlist.id)
+                        .eq('user_id', user.id);
+
+                      if (error) throw error;
+                      setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: updatedSongs } : s));
+                      showSuccess("Songs imported and synced!");
+                      setIsImportSetlistOpen(false);
+                    } catch (err: any) {
+                      showError(`Import failed: ${err.message}`);
+                    }
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Setlist Stats */}
+            <SetlistStats
+              songs={activeSetlist?.songs || []}
+              goalSeconds={activeSetlist?.time_goal}
+              onUpdateGoal={async (newGoal) => {
+                if (!user || !activeSetlist) return;
+                try {
                   const { error } = await supabase
                     .from('setlists')
-                    .update({ songs: updatedSongs, updated_at: new Date().toISOString() })
+                    .update({ time_goal: newGoal })
                     .eq('id', activeSetlist.id)
                     .eq('user_id', user.id);
-
                   if (error) throw error;
-                  setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: updatedSongs } : s));
-                  showSuccess("Songs imported and synced!");
-                  setIsImportSetlistOpen(false);
+                  setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, time_goal: newGoal } : s));
+                  showSuccess("Performance goal updated!");
                 } catch (err: any) {
-                  showError(`Import failed: ${err.message}`);
+                  showError(`Failed to update goal: ${err.message}`);
                 }
               }}
             />
-          </div>
-        </div>
 
-        {/* Setlist Stats */}
-        <SetlistStats 
-          songs={activeSetlist?.songs || []} 
-          goalSeconds={activeSetlist?.time_goal}
-          onUpdateGoal={async (newGoal) => {
-            if (!user || !activeSetlist) return;
-            try {
-              const { error } = await supabase
-                .from('setlists')
-                .update({ time_goal: newGoal })
-                .eq('id', activeSetlist.id)
-                .eq('user_id', user.id);
-              if (error) throw error;
-              setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, time_goal: newGoal } : s));
-              showSuccess("Performance goal updated!");
-            } catch (err: any) {
-              showError(`Failed to update goal: ${err.message}`);
-            }
-          }}
-        />
+            {/* Setlist Exporter */}
+            <SetlistExporter
+              songs={activeSetlist?.songs || []}
+              onAutoLink={handleAutoLink}
+              onGlobalAutoSync={handleGlobalAutoSync}
+              onBulkRefreshAudio={handleBulkRefreshAudio}
+              onClearAutoLinks={handleClearAutoLinks}
+              isBulkDownloading={isBulkQueuingAudio}
+              missingAudioCount={missingAudioCount}
+              onOpenAdmin={() => setIsAdminPanelOpen(true)}
+            />
 
-        {/* Setlist Exporter */}
-        <SetlistExporter 
-          songs={activeSetlist?.songs || []}
-          onAutoLink={handleAutoLink}
-          onGlobalAutoSync={handleGlobalAutoSync}
-          onBulkRefreshAudio={handleBulkRefreshAudio}
-          onClearAutoLinks={handleClearAutoLinks}
-          isBulkDownloading={isBulkQueuingAudio}
-          missingAudioCount={missingAudioCount}
-          onOpenAdmin={() => setIsAdminPanelOpen(true)}
-        />
+            {/* Setlist Manager */}
+            <SetlistManager
+              songs={filteredAndSortedSongs}
+              onRemove={handleRemoveSongFromSetlist}
+              onSelect={handleSelectSongForPlayback}
+              onEdit={handleEditSong}
+              onUpdateKey={handleUpdateSongKey}
+              onTogglePlayed={handleTogglePlayed}
+              onLinkAudio={() => {}} // Not directly used here, handled by StudioModal
+              onUpdateSong={handleUpdateSongInSetlist}
+              onSyncProData={async (song) => {
+                if (!user) return;
+                showInfo(`Syncing "${song.name}" with Pro Data...`);
+                try {
+                  const syncedSongs = await syncToMasterRepertoire(user.id, [song]);
+                  const updatedSong = syncedSongs[0];
+                  setMasterRepertoire(prev => prev.map(s => s.id === updatedSong.id ? updatedSong : s));
+                  // Also update in active setlist if present
+                  if (activeSetlist) {
+                    const updatedSetlistSongs = activeSetlist.songs.map(s =>
+                      (s.master_id === updatedSong.id || s.id === updatedSong.id) ? { ...s, ...updatedSong } : s
+                    );
+                    setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: updatedSetlistSongs } : s));
+                  }
+                  showSuccess(`"${song.name}" synced with Pro Data.`);
+                } catch (err: any) {
+                  showError(`Failed to sync Pro Data: ${err.message}`);
+                }
+              }}
+              onReorder={handleReorderSongs}
+              currentSongId={activeSong?.id}
+              onOpenAdmin={() => setIsAdminPanelOpen(true)}
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              sortMode={sortMode}
+              setSortMode={setSortMode}
+              activeFilters={activeFilters}
+              setActiveFilters={setActiveFilters}
+              showHeatmap={showHeatmap}
+            />
+          </TabsContent>
 
-        {/* Setlist Manager */}
-        <SetlistManager 
-          songs={filteredAndSortedSongs}
-          onRemove={handleRemoveSongFromSetlist}
-          onSelect={handleSelectSongForPlayback}
-          onEdit={handleEditSong}
-          onUpdateKey={handleUpdateSongKey}
-          onTogglePlayed={handleTogglePlayed}
-          onLinkAudio={() => {}} // Not directly used here, handled by StudioModal
-          onUpdateSong={handleUpdateSongInSetlist}
-          onSyncProData={async (song) => {
-            if (!user) return;
-            showInfo(`Syncing "${song.name}" with Pro Data...`);
-            try {
-              const syncedSongs = await syncToMasterRepertoire(user.id, [song]);
-              const updatedSong = syncedSongs[0];
-              setMasterRepertoire(prev => prev.map(s => s.id === updatedSong.id ? updatedSong : s));
-              // Also update in active setlist if present
-              if (activeSetlist) {
-                const updatedSetlistSongs = activeSetlist.songs.map(s => 
-                  (s.master_id === updatedSong.id || s.id === updatedSong.id) ? { ...s, ...updatedSong } : s
-                );
-                setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: updatedSetlistSongs } : s));
-              }
-              showSuccess(`"${song.name}" synced with Pro Data.`);
-            } catch (err: any) {
-              showError(`Failed to sync Pro Data: ${err.message}`);
-            }
-          }}
-          onReorder={handleReorderSongs}
-          currentSongId={activeSong?.id}
-          onOpenAdmin={() => setIsAdminPanelOpen(true)}
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          sortMode={sortMode}
-          setSortMode={setSortMode}
-          activeFilters={activeFilters}
-          setActiveFilters={setActiveFilters}
-          showHeatmap={showHeatmap}
-        />
+          <TabsContent value="repertoire" className="mt-0 space-y-8">
+            <RepertoireView
+              repertoire={masterRepertoire}
+              onEditSong={handleEditSong}
+              allSetlists={allSetlists}
+              onUpdateSetlistSongs={handleUpdateSetlistSongs}
+              onRefreshRepertoire={handleRefreshRepertoire}
+              onAddSong={async (newSong) => {
+                if (!user) return;
+                try {
+                  const syncedSongs = await syncToMasterRepertoire(user.id, [newSong]);
+                  const addedSong = syncedSongs[0];
+                  setMasterRepertoire(prev => [...prev, addedSong]);
+                } catch (err: any) {
+                  showError(`Failed to add new song to repertoire: ${err.message}`);
+                }
+              }}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Floating Command Dock */}
@@ -1021,7 +1058,7 @@ const Index = () => {
         onToggleHeatmap={() => setShowHeatmap(prev => !prev)}
         onOpenUserGuide={() => setIsUserGuideOpen(true)}
         showHeatmap={showHeatmap}
-        viewMode="setlist"
+        viewMode={activeDashboardView} // Pass current view mode
         hasPlayableSong={hasPlayableSong}
         hasReadableChart={hasReadableChart}
         isPlaying={audio.isPlaying}
@@ -1182,7 +1219,7 @@ const Index = () => {
           setMasterRepertoire(prev => prev.map(s => s.id === songId ? updatedMasterSong : s));
           // Also update in active setlist if present
           if (activeSetlist) {
-            const updatedSetlistSongs = activeSetlist.songs.map(s => 
+            const updatedSetlistSongs = activeSetlist.songs.map(s =>
               (s.master_id === songId || s.id === songId) ? { ...s, ...updatedMasterSong } : s
             );
             setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: updatedSetlistSongs } : s));

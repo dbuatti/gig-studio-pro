@@ -23,7 +23,7 @@ interface FloatingCommandDockProps {
   onToggleHeatmap: () => void;
   onOpenUserGuide: () => void;
   showHeatmap: boolean;
-  viewMode: 'repertoire' | 'setlist';
+  viewMode: 'repertoire' | 'gigs'; // Changed 'setlist' to 'gigs'
   hasPlayableSong: boolean;
   hasReadableChart: boolean;
   isPlaying: boolean;
@@ -48,6 +48,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   onToggleHeatmap,
   onOpenUserGuide,
   showHeatmap,
+  viewMode,
   hasPlayableSong,
   hasReadableChart,
   isPlaying,
@@ -273,7 +274,6 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                       <Button
                         variant="ghost"
                         size="icon"
-                        disabled={btn.disabled}
                         onClick={() => { btn.onClick(); if (btn.id !== 'practice') handleToggleMenu(); }}
                         className={cn("h-12 w-12 rounded-full border transition-all active:scale-90 disabled:opacity-10", btn.className)}
                       >
