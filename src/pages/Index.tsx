@@ -1241,7 +1241,7 @@ const Index = () => {
         <SongStudioModal
           isOpen={isSongStudioModalOpen}
           onClose={() => { setIsSongStudioModalOpen(false); setSongStudioDefaultTab(undefined); }} // Reset default tab on close
-          gigId={activeSetlistId || 'library'} // Pass activeSetlistId or 'library'
+          gigId={activeDashboardView === 'repertoire' ? 'library' : (activeSetlistId || 'library')}
           songId={songStudioModalSongId}
           // --- FIX: Pass correct visibleSongs based on active tab ---
           visibleSongs={activeDashboardView === 'gigs' ? filteredAndSortedSongs : masterRepertoire}
