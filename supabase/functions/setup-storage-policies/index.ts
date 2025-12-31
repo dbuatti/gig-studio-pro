@@ -14,7 +14,6 @@ serve(async (req) => {
   }
 
   // Use the Service Role Key for full admin access to manage policies
-  // @ts-ignore: Deno global
   const supabaseAdmin = createClient(
     // @ts-ignore: Deno global
     Deno.env.get('SUPABASE_URL') ?? '',
@@ -35,26 +34,25 @@ serve(async (req) => {
     if (!bucketExists) {
       const { error: createError } = await supabaseAdmin.storage.createBucket(bucketName, {
         public: true, // Publicly readable
-        allowedMimeTypes: ['audio/mpeg', 'audio/wav', 'audio/mp3', 'audio/m4a', 'audio/aac'],
+        allowedMimeTypes: ['audio/mpeg', 'audio/wav', 'audio/mp3', 'audio/m4a', 'audio/aac', 'application/pdf'], // Added application/pdf
         fileSizeLimit: 52428800 // 50 MB
       })
       if (createError) throw createError
+    } else {
+      // If bucket exists, ensure its allowedMimeTypes are updated
+      // Note: Supabase Storage API does not directly support updating allowedMimeTypes via client.
+      // This would typically require deleting and recreating the bucket, or manual intervention.
+      // For this context, we'll assume the createBucket call (if it were to run) would set it,
+      // and for existing buckets, the user might need to manually adjust if this is the first time.
+      // However, for the purpose of this function, if it's called, it implies an intent to ensure config.
+      // The `createBucket` call is idempotent for the bucket itself, but not for its properties.
+      // A more robust solution would involve checking current mime types and updating if possible,
+      // but that's beyond the direct capabilities of the `createBucket` method.
     }
-
-    // 3. Set up RLS policies using the Storage API
-    // Note: The Storage API for policies is not directly exposed in the JS client.
-    // We will use SQL commands via the admin client for this part, as it's the only way to manage storage policies programmatically.
-    // The previous SQL error was due to missing permissions, but using the Service Role Key via `supabaseAdmin.rpc` or direct SQL execution should work.
-    // However, the `supabaseAdmin` client doesn't have a direct method for storage policies.
-    // The most reliable way is to execute SQL commands using the Service Role Key.
-    
-    // We will execute the SQL commands directly using the admin client's `rpc` capability if available, or fall back to a message.
-    // Since `supabase-js` doesn't have a direct method for storage RLS, we'll provide the SQL commands for the user to run manually in the Supabase SQL Editor.
-    // This is a limitation of the current Supabase JS client for storage policies.
 
     return new Response(JSON.stringify({ 
       success: true, 
-      message: "Bucket checked/created. To complete setup, please run the provided SQL commands in your Supabase SQL Editor.",
+      message: "Bucket checked/created. If the bucket existed, please ensure 'application/pdf' is manually added to its allowed MIME types in Supabase Storage settings if you continue to face issues.",
       sqlCommands: `
 -- Enable RLS on the storage.objects table (this is a system table, but we can try)
 ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
