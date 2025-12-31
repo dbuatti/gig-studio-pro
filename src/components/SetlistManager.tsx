@@ -536,6 +536,18 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                           <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground hover:text-indigo-600 hover:bg-indigo-50 transition-colors inline-flex items-center justify-center" onClick={(e) => { e.stopPropagation(); onEdit(song); }}>
                             <Edit3 className="w-4 h-4" />
                           </Button>
+                          {/* NEW: Bin Icon for Remove */}
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-9 w-9 rounded-xl text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors inline-flex items-center justify-center" 
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              setDeleteConfirmId(song.id); 
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </div>
                       </td>
                     </tr>
