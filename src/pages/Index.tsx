@@ -194,6 +194,7 @@ const Index = () => {
 
       if (setlistsError) {
         console.error("[Index] Supabase Setlists Fetch Error:", setlistsError);
+        console.error("[Index] Full Setlists Error Object:", JSON.stringify(setlistsError, null, 2)); // Log full error
         if (setlistsError.message.includes("new row violates row-level-security")) {
           showError("Database Security Error: You don't have permission to read setlist data. Check RLS policies.");
         } else {
@@ -211,6 +212,7 @@ const Index = () => {
 
       if (repertoireError) {
         console.error("[Index] Supabase Repertoire Fetch Error:", repertoireError);
+        console.error("[Index] Full Repertoire Error Object:", JSON.stringify(repertoireError, null, 2)); // Log full error
         if (repertoireError.message.includes("new row violates row-level-security")) {
           showError("Database Security Error: You don't have permission to read repertoire data. Check RLS policies.");
         } else {
@@ -299,7 +301,7 @@ const Index = () => {
             id: junction.id, // Use the junction ID for the setlist entry
             master_id: masterSong.id, // Keep reference to master
             isPlayed: junction.isPlayed || false, // Use junction-specific data if available
-            // Ensure other junction-specific fields are mapped if they exist
+            // Ensure other junction-specific fields are mapped if they exists
           };
         }).filter(Boolean) as SetlistSong[]; // Filter out nulls
 
@@ -931,8 +933,6 @@ const Index = () => {
       navigate(`/sheet-reader/${initialSongId}`);
     } else if (activeSongForPerformance) {
       navigate(`/sheet-reader/${activeSongForPerformance.id}`);
-    } else if (filteredAndSortedSongs.length > 0) {
-      navigate(`/sheet-reader/${filteredAndSortedSongs[0].id}`);
     } else {
       showError("No songs available to open in reader mode.");
     }
