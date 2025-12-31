@@ -71,7 +71,7 @@ const Index = () => {
   const [newSetlistName, setNewSetlistName] = useState("");
   const [isCreatingSetlist, setIsCreatingSetlist] = useState(false);
   const [renameSetlistId, setRenameSetlistId] = useState<string | null>(null);
-  const [renameSetlistName, setRenameSetlistName] = useState("");
+  const [renameSetlistName, setNewSetlistNameForRename] = useState(""); // Renamed to avoid conflict
   const [deleteSetlistConfirmId, setDeleteSetlistConfirmId] = useState<string | null>(null);
 
   // SetlistManager Filters & Search
@@ -252,7 +252,7 @@ const Index = () => {
           volume: d.volume,
           isApproved: d.is_approved,
           preferred_reader: d.preferred_reader,
-          ug_chords_text: d.ug_chords_text,
+          ug_chords_text: d.ug_chchords_text,
           ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
           is_ug_chords_present: d.is_ug_chords_present,
           highest_note_original: d.highest_note_original,
@@ -298,9 +298,9 @@ const Index = () => {
           const updatedSong = payload.new as SetlistSong;
           // Fix 1 & 2: Add null/undefined check for extraction_status
           // Fix 3: Use updatedSong.name instead of updatedSong.title
-          if (updatedSong.extraction_status && (updatedSong.extraction_status === 'COMPLETED' || updatedSong.extraction_status === 'FAILED')) {
+          if (updatedSong.extraction_status && (updatedSong.extraction_status === 'completed' || updatedSong.extraction_status === 'failed')) {
             showSuccess(`Repertoire updated for "${updatedSong.name}"`);
-            fetchSetlistsAndReRepertoire(); // Re-fetch all data to ensure consistency
+            fetchSetlistsAndRepertoire(); // Re-fetch all data to ensure consistency
           }
         }
       )
@@ -377,7 +377,7 @@ const Index = () => {
       setAllSetlists(prev => prev.map(s => s.id === id ? { ...s, name: renameSetlistName } : s));
       showSuccess("Setlist Renamed!");
       setRenameSetlistId(null);
-      setRenameSetlistName("");
+      setNewSetlistNameForRename("");
       setIsSetlistSettingsOpen(false);
     } catch (err: any) {
       showError(`Failed to rename setlist: ${err.message}`);
@@ -391,7 +391,7 @@ const Index = () => {
         .from('setlists')
         .delete()
         .eq('id', id)
-        .eq('user.id', user.id);
+        .eq('user_id', user.id);
 
       if (error) throw error;
       setAllSetlists(prev => prev.filter(s => s.id !== id));
@@ -613,9 +613,9 @@ const Index = () => {
         if (result && result.status === 'SUCCESS') {
           return {
             ...s,
-            youtubeUrl: result.youtube_url,
+            youtubeUrl: result.youtube_url as string | undefined, // Explicitly cast
             metadata_source: 'auto_populated',
-            sync_status: (result.sync_status as SetlistSong['sync_status']) || 'COMPLETED'
+            sync_status: 'COMPLETED' as SetlistSong['sync_status'] // Explicitly cast
           };
         }
         return s;
@@ -647,12 +647,12 @@ const Index = () => {
         if (result && result.status === 'SUCCESS') {
           return {
             ...s,
-            name: result.title,
-            artist: result.artist,
-            genre: result.primaryGenreName,
-            appleMusicUrl: result.trackViewUrl,
+            name: result.title as string, // Explicitly cast
+            artist: result.artist as string, // Explicitly cast
+            genre: result.primaryGenreName as string | undefined, // Explicitly cast
+            appleMusicUrl: result.trackViewUrl as string | undefined, // Explicitly cast
             metadata_source: 'itunes_autosync',
-            sync_status: (result.sync_status as SetlistSong['sync_status']) || 'COMPLETED'
+            sync_status: 'COMPLETED' as SetlistSong['sync_status'] // Explicitly cast
           };
         }
         return s;
@@ -1145,7 +1145,7 @@ const Index = () => {
           }}
           onRename={(id) => {
             setRenameSetlistId(id);
-            setRenameSetlistName(activeSetlist.name);
+            setNewSetlistNameForRename(activeSetlist.name);
             // This will open another dialog, so keep settings open or manage flow
           }}
         />
@@ -1169,7 +1169,7 @@ const Index = () => {
                 id="rename-setlist-name"
                 placeholder="New Setlist Name"
                 value={renameSetlistName}
-                onChange={(e) => setRenameSetlistName(e.target.value)}
+                onChange={(e) => setNewSetlistNameForRename(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleRenameSetlist(renameSetlistId)}
                 className="bg-white/5 border-white/10 text-white h-12 rounded-xl"
               />
