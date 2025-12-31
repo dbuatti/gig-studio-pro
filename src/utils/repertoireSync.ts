@@ -107,11 +107,12 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       payload.is_ug_chords_present = Boolean(song.is_ug_chords_present ?? false);
       payload.is_pitch_linked = Boolean(song.is_pitch_linked ?? true);
       payload.highest_note_original = song.highest_note_original !== undefined ? String(song.highest_note_original) : null;
-      payload.extraction_status = String(song.extraction_status ?? 'idle');
-      // Ensure last_extracted_at is always a string or null
+      // Send null if extraction_status is undefined, allowing DB default to apply
+      payload.extraction_status = song.extraction_status !== undefined ? String(song.extraction_status) : null;
       payload.last_extracted_at = song.last_extracted_at !== undefined ? String(song.last_extracted_at) : null;
       payload.source_type = String(song.source_type ?? 'YOUTUBE');
-      payload.sync_status = String(song.sync_status ?? 'IDLE');
+      // Send null if sync_status is undefined, allowing DB default to apply
+      payload.sync_status = song.sync_status !== undefined ? String(song.sync_status) : null;
       payload.last_sync_log = song.last_sync_log !== undefined ? String(song.last_sync_log) : null;
       payload.auto_synced = Boolean(song.auto_synced ?? false);
       payload.metadata_source = song.metadata_source !== undefined ? String(song.metadata_source) : null;
