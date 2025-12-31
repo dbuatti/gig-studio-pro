@@ -288,9 +288,6 @@ const SheetReaderMode: React.FC = () => {
       return;
     }
 
-    // 1. Always prioritize loading chords first (they're already in memory if available)
-    // This is handled by the renderChartForSong function which uses currentSong.ug_chords_text directly
-
     // 2. Load audio in the background
     if (currentSong.previewUrl && (currentUrl !== currentSong.previewUrl || !currentBuffer)) {
       // Use setTimeout to defer audio loading slightly, allowing chords to render first
@@ -416,18 +413,41 @@ const SheetReaderMode: React.FC = () => {
       );
     }
 
-    if (isFramable(url)) {
-      const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
+    // FIX: Direct iframe rendering for PDFs
+    // We remove the Google Viewer wrapper as it causes CORS issues and timeouts.
+    // We rely on the browser's native PDF viewer.
+    if (chartType === 'pdf' || chartType === 'leadsheet') {
       return (
-        <iframe
-          src={viewerUrl}
-          className="w-full h-full"
-          title="Chart"
-          onLoad={() => onChartLoad(song.id, chartType)}
-        />
+        <div className="h-full w-full flex flex-col bg-slate-950 relative">
+          <iframe
+            src={url}
+            className="w-full h-full flex-1 bg-white"
+            title="Chart Viewer"
+            onLoad={() => {
+              console.log(`[SheetReaderMode] Iframe loaded successfully for ${chartType}`);
+              onChartLoad(song.id, chartType);
+            }}
+            onError={() => {
+              console.error(`[SheetReaderMode] Iframe failed to load for ${url}`);
+              // We don't set isLoaded here to keep the loading spinner, 
+              // but the timeout will handle the fallback UI.
+            }}
+            sandbox="allow-scripts allow-same-origin allow-popups allow-forms" // Allow necessary permissions
+          />
+          {/* Fallback Button Overlay (Visible if loading takes too long or user wants to open externally) */}
+          <div className="absolute bottom-4 right-4 z-20">
+             <Button 
+                onClick={() => window.open(url, '_blank')}
+                className="bg-slate-900/80 backdrop-blur border border-white/10 text-white hover:bg-slate-800 shadow-2xl h-10 px-4 gap-2"
+              >
+                <ExternalLink className="w-4 h-4" /> Open Externally
+             </Button>
+          </div>
+        </div>
       );
     }
 
+    // Fallback for other types (shouldn't happen given availableChartTypes logic, but kept for safety)
     return (
       <div className="h-full flex flex-col items-center justify-center bg-slate-950 p-12 text-center">
         <ShieldCheck className="w-16 h-16 text-indigo-400 mb-8" />
@@ -474,10 +494,12 @@ const SheetReaderMode: React.FC = () => {
       console.log(`[SheetReaderMode] Chart loading timeout started for ${currentSong.name}`);
       const timer = setTimeout(() => {
         console.log(`[SheetReaderMode] Chart loading timeout expired for ${currentSong.name}`);
+        // If it's still loading after timeout, mark it as loaded to hide the spinner
+        // The user can use the "Open Externally" button if the iframe failed
         setRenderedCharts(prev => prev.map(rc =>
           rc.id === currentSong.id && rc.type === selectedChartType ? { ...rc, isLoaded: true } : rc
         ));
-        showInfo("Chart took too long to load – try opening externally.", { duration: 8000 });
+        showInfo("Chart took too long to load. If blank, use 'Open Externally'.", { duration: 8000 });
       }, CHART_LOAD_TIMEOUT_MS);
       return () => clearTimeout(timer);
     }
