@@ -67,16 +67,17 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
   const lastPendingUpdatesRef = useRef<Partial<SetlistSong>>({});
   const currentSongRef = useRef<SetlistSong | null>(null);
-  const isFetchingRef = useRef<string | null>(null);
 
-  // Sync ref with state for use in callbacks without triggering re-renders
   useEffect(() => {
     currentSongRef.current = song;
   }, [song]);
 
-  const performSave = useCallback(async (currentUpdates: Partial<SetlistSong>) => {
+  // Define the performSave function
+  const performSave = async (currentUpdates: Partial<SetlistSong>) => {
     const targetSong = currentSongRef.current;
-    if (!targetSong || !user) return;
+    if (!targetSong || !user) {
+      return;
+    }
 
     try {
       lastPendingUpdatesRef.current = {};
@@ -86,25 +87,30 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
 
       setSong(syncedSong);
       setFormData(prev => ({ ...prev, ...currentUpdates, master_id: syncedSong.master_id }));
+      
+      if (masterRepertoire) { 
+        const updatedMasterRepertoire = masterRepertoire.map(s => s.id === syncedSong.id ? syncedSong : s);
+      }
     } catch (err: any) {
-      console.error("[SongStudioView] Auto-save failed:", err.message);
+      console.error("[SongStudioView] performSave 400 Failure:", err.message, err.details);
     }
-  }, [user, formData]);
+  };
 
-  const handleAutoSaveInternal = useCallback((updates: Partial<SetlistSong>) => {
+  // Define the handleAutoSave function
+  const handleAutoSave = useCallback((updates: Partial<SetlistSong>) => {
     setFormData(prev => ({ ...prev, ...updates }));
     lastPendingUpdatesRef.current = { ...lastPendingUpdatesRef.current, ...updates };
 
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(() => {
       performSave(lastPendingUpdatesRef.current);
-    }, 1500); // Increased debounce to stabilize
-  }, [performSave]);
+    }, 1000);
+  }, [user, gigId, formData, masterRepertoire]);
 
-  const activeAutoSave = externalAutoSave || handleAutoSaveInternal;
+  // Use externalAutoSave if provided, otherwise use the internal handleAutoSave
+  const activeAutoSave = externalAutoSave || handleAutoSave;
 
   const handleClose = useCallback(() => {
-    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     const pending = lastPendingUpdatesRef.current;
     if (Object.keys(pending).length > 0) {
       performSave(pending);
@@ -113,24 +119,51 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     onClose();
   }, [onClose, audio, performSave]);
 
-  const fetchData = useCallback(async (targetSongId: string) => {
-    if (!user || isFetchingRef.current === targetSongId) return;
-    
-    isFetchingRef.current = targetSongId;
+  const fetchData = async () => {
+    if (!user) {
+      console.log("[SongStudioView] fetchData: User not authenticated.");
+      return;
+    }
     setLoading(true);
+    console.log(`[SongStudioView] fetchData: Starting fetch for gigId: ${gigId}, songId: ${songId}`);
+
+    // Handle the case where we're opening the studio for general search/library access
+    if (gigId === 'library' && !songId) {
+      console.log("[SongStudioView] fetchData: Detected library search mode (gigId='library' and no songId). Setting loading to false and returning.");
+      setSong(null);
+      setFormData({});
+      setLoading(false);
+      audio.stopPlayback();
+      return;
+    }
+
+    if (!songId) {
+      console.error("[SongStudioView] fetchData: Error: No song ID provided, but not in library search mode.");
+      showError("Error: No song ID provided.");
+      onClose();
+      return;
+    }
 
     try {
-      const { data, error } = await supabase.from('repertoire').select('*').eq('id', targetSongId).maybeSingle();
-      if (error) throw error;
-      if (!data) throw new Error("Track not found.");
+      console.log(`[SongStudioView] fetchData: Attempting to fetch song from 'repertoire' with ID: ${songId}`);
+      const { data, error } = await supabase.from('repertoire').select('*').eq('id', songId).maybeSingle();
+      if (error) {
+        console.error("[SongStudioView] fetchData: Supabase 'repertoire' query error:", error);
+        throw error;
+      }
+      if (!data) {
+        console.error("[SongStudioView] fetchData: Error: The requested track could not be found for ID:", songId);
+        showError("Error: The requested track could not be found.");
+        throw new Error("Track not found.");
+      }
 
       const targetSong: SetlistSong = {
         id: data.id, 
         master_id: data.id,
         name: data.title,
         artist: data.artist,
-        originalKey: data.original_key ?? 'TBC', 
-        targetKey: data.target_key ?? data.original_key ?? 'TBC', 
+        originalKey: data.original_key !== null ? data.original_key : 'TBC', 
+        targetKey: data.target_key !== null ? data.target_key : (data.original_key !== null ? data.original_key : 'TBC'), 
         pitch: data.pitch ?? 0,
         previewUrl: data.extraction_status === 'completed' && data.audio_url ? data.audio_url : data.preview_url,
         youtubeUrl: data.youtube_url,
@@ -165,42 +198,37 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
         sync_status: data.sync_status,
         last_sync_log: data.last_sync_log,
         audio_url: data.audio_url,
-        extraction_status: data.extraction_status,
       };
       
+      console.log("[SongStudioView] fetchData: Song data fetched successfully:", targetSong.name);
       setSong(targetSong);
       setFormData(targetSong);
       
       if (targetSong.audio_url || targetSong.previewUrl) {
         const urlToLoad = targetSong.audio_url || targetSong.previewUrl;
-        if (urlToLoad) {
-          await audio.loadFromUrl(urlToLoad, targetSong.pitch ?? 0, true);
-        }
+        console.log(`[SongStudioView] fetchData: Loading audio from URL: ${urlToLoad}`);
+        await audio.loadFromUrl(urlToLoad, targetSong.pitch ?? 0, true);
       }
     } catch (err: any) {
-      showError(err.message);
+      console.error("[SongStudioView] fetchData: Caught error during fetch process:", err);
       onClose();
     } finally {
       setLoading(false);
-      isFetchingRef.current = null;
+      console.log("[SongStudioView] fetchData: Loading set to false.");
     }
-  }, [user, onClose, audio]);
+  };
 
   useEffect(() => {
-    if (songId) {
-      fetchData(songId);
-    } else if (gigId === 'library' && !songId) {
-      setSong(null);
-      setFormData({});
-      setLoading(false);
-      audio.stopPlayback();
-    }
-    
+    fetchData();
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      const pending = lastPendingUpdatesRef.current;
+      if (Object.keys(pending).length > 0) {
+        performSave(pending);
+      }
       audio.stopPlayback();
     };
-  }, [songId, gigId, fetchData]); // Corrected dependencies
+  }, [songId, gigId]);
 
   useKeyboardNavigation({
     onNext: () => visibleSongs.length > 1 && onSelectSong?.(visibleSongs[(visibleSongs.findIndex(s => s.id === songId) + 1) % visibleSongs.length].id),
@@ -210,33 +238,34 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     disabled: loading
   });
 
-  const harmonicSync = useHarmonicSync({
+  // --- HARMONIC SYNC LOGIC ---
+  // This hook manages pitch, targetKey, and isPitchLinked state, and provides setters
+  // that handle both local state updates and database persistence via handleAutoSave.
+  const {
+    pitch,
+    setPitch,
+    targetKey,
+    setTargetKey,
+    isPitchLinked,
+    setIsPitchLinked,
+  } = useHarmonicSync({
     formData: formData,
     handleAutoSave: activeAutoSave,
     globalKeyPreference: globalKeyPreference,
   });
 
-  const { pitch, targetKey, setTargetKey, setPitch, isPitchLinked, setIsPitchLinked } = harmonicSync;
-
+  // Sync audio engine pitch with the pitch from harmonic sync
   useEffect(() => {
     audio.setPitch(pitch);
   }, [pitch, audio]);
 
-  if (loading) {
-    return (
-      <div className="h-full flex items-center justify-center bg-slate-950">
-        <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
-      </div>
-    );
-  }
+  if (loading) return <div className="h-full flex items-center justify-center bg-slate-950"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
 
   return (
     <div className="flex flex-col h-full bg-slate-950 overflow-hidden">
       <header className="h-20 bg-slate-900 border-b border-white/5 flex items-center justify-between px-6 shrink-0 z-50">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={handleClose} className="h-12 w-12 rounded-2xl bg-white/5">
-            <ArrowLeft className="w-5 h-5 text-slate-400" />
-          </Button>
+          <Button variant="ghost" onClick={handleClose} className="h-12 w-12 rounded-2xl bg-white/5"><ArrowLeft className="w-5 h-5 text-slate-400" /></Button>
           <div className="min-w-0">
             <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">{gigId === 'library' ? 'MASTER' : 'GIG'}</p>
             <h2 className="text-xl font-black uppercase text-white truncate max-w-[250px]">
@@ -246,12 +275,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
         </div>
         <div className="flex items-center gap-4">
           {gigId === 'library' && song ? (
-            <SetlistMultiSelector 
-              songMasterId={songId || ''} 
-              allSetlists={allSetlists} 
-              songToAssign={song} 
-              onUpdateSetlistSongs={onUpdateSetlistSongs!} 
-            />
+            <SetlistMultiSelector songMasterId={songId || ''} allSetlists={allSetlists} songToAssign={song} onUpdateSetlistSongs={onUpdateSetlistSongs!} />
           ) : (
             <div className="flex items-center gap-3 bg-white/5 px-4 h-11 rounded-xl border border-white/10">
               <Label className="text-[8px] font-black text-slate-500 uppercase">Gig Approved</Label>
@@ -271,14 +295,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
       <nav className="h-16 bg-black/20 border-b border-white/5 flex items-center px-6 overflow-x-auto no-scrollbar shrink-0">
         <div className="flex gap-8">
           {['config', 'audio', 'details', 'charts', 'lyrics', 'visual', 'library'].map(tab => (
-            <button 
-              key={tab} 
-              onClick={() => setActiveTab(tab as any)} 
-              className={cn(
-                "text-[10px] font-black uppercase tracking-widest h-16 flex items-center border-b-4", 
-                activeTab === tab ? "text-indigo-400 border-indigo-50" : "text-slate-500 border-transparent"
-              )}
-            >
+            <button key={tab} onClick={() => setActiveTab(tab as any)} className={cn("text-[10px] font-black uppercase tracking-widest h-16 flex items-center border-b-4", activeTab === tab ? "text-indigo-400 border-indigo-50" : "text-slate-500 border-transparent")}>
               {tab.toUpperCase()}
             </button>
           ))}
