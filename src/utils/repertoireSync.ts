@@ -36,6 +36,11 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
       updated_at: new Date().toISOString(),
     };
 
+    // Use ID if available to ensure we update the correct record
+    if (song.master_id || song.id) {
+      dbUpdates.id = song.master_id || song.id;
+    }
+
     dbUpdates.title = cleanMetadata(song.name) || 'Untitled Track';
     dbUpdates.artist = cleanMetadata(song.artist) || 'Unknown Artist';
 
@@ -58,11 +63,11 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
       dbUpdates.highest_note_original = song.highest_note_original;
       dbUpdates.highest_note_updated_at = now;
     }
-    if (song.originalKey !== undefined) {
+    if (song.originalKey !== undefined && song.originalKey !== "TBC") {
       dbUpdates.original_key = song.originalKey;
       dbUpdates.original_key_updated_at = now;
     }
-    if (song.targetKey !== undefined) {
+    if (song.targetKey !== undefined && song.targetKey !== "TBC") {
       dbUpdates.target_key = song.targetKey;
       dbUpdates.target_key_updated_at = now;
     }

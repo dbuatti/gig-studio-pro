@@ -10,7 +10,7 @@ import { Music, Loader2, AlertCircle, X, ExternalLink, ShieldCheck, FileText, La
 import { cn } from '@/lib/utils';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
-import { calculateReadiness } from '@/utils/repertoireSync';
+import { calculateReadiness, syncToMasterRepertoire } from '@/utils/repertoireSync';
 import { showError, showSuccess, showInfo } from '@/utils/toast';
 import UGChordsReader from '@/components/UGChordsReader';
 import { useToneAudio } from '@/hooks/use-tone-audio';
@@ -72,10 +72,8 @@ const SheetReaderMode: React.FC = () => {
   // Sync state to current song's saved preference
   useEffect(() => {
     if (currentSong?.key_preference) {
-      console.log(`[SheetReader] Setting notation to song preference: ${currentSong.key_preference}`);
       setReaderKeyPreference(currentSong.key_preference as 'sharps' | 'flats');
     } else if (globalKeyPreference !== 'neutral') {
-      console.log(`[SheetReader] Defaulting to global preference: ${globalKeyPreference}`);
       setReaderKeyPreference(globalKeyPreference as 'sharps' | 'flats');
     }
   }, [currentSong?.id, globalKeyPreference]);
@@ -94,22 +92,22 @@ const SheetReaderMode: React.FC = () => {
     },
     handleAutoSave: useCallback(async (updates: Partial<SetlistSong>) => {
       if (!currentSong || !user) return;
-      console.log("[SheetReader] Auto-saving master updates:", updates);
-      handleLocalSongUpdate(currentSong.id, updates);
-
-      const dbUpdates: { [key: string]: any } = {};
-      if (updates.name !== undefined) dbUpdates.title = updates.name;
-      if (updates.artist !== undefined) dbUpdates.artist = updates.artist;
-      if (updates.originalKey !== undefined) dbUpdates.original_key = updates.originalKey;
-      if (updates.targetKey !== undefined) dbUpdates.target_key = updates.targetKey;
-      if (updates.pitch !== undefined) dbUpdates.pitch = updates.pitch;
-      if (updates.is_pitch_linked !== undefined) dbUpdates.is_pitch_linked = updates.is_pitch_linked;
-      if (updates.key_preference !== undefined) dbUpdates.key_preference = updates.key_preference;
-      if (updates.preferred_reader !== undefined) dbUpdates.preferred_reader = updates.preferred_reader;
-
-      dbUpdates.updated_at = new Date().toISOString();
-
-      await supabase.from('repertoire').update(dbUpdates).eq('id', currentSong.id);
+      console.log("[SheetReader] Auto-saving master updates via utility:", updates);
+      
+      try {
+        const result = await syncToMasterRepertoire(user.id, [{
+          ...updates,
+          id: currentSong.id,
+          name: currentSong.name,
+          artist: currentSong.artist
+        }]);
+        
+        if (result[0]) {
+          handleLocalSongUpdate(currentSong.id, result[0]);
+        }
+      } catch (err) {
+        console.error("Sheet Reader Auto-save failed:", err);
+      }
     }, [currentSong, user, handleLocalSongUpdate]),
     globalKeyPreference,
   });
@@ -119,16 +117,30 @@ const SheetReaderMode: React.FC = () => {
   const handleUpdateKey = useCallback(async (newTargetKey: string) => {
     if (!currentSong || !user) return;
     const newPitch = calculateSemitones(currentSong.originalKey || 'C', newTargetKey);
-    console.log(`[SheetReader] Manual key override to ${newTargetKey} (Pitch: ${newPitch})`);
-    handleLocalSongUpdate(currentSong.id, { targetKey: newTargetKey, pitch: newPitch });
-    await supabase.from('repertoire').update({ target_key: newTargetKey, pitch: newPitch }).eq('id', currentSong.id);
-    setTargetKey(newTargetKey);
-    setPitch(newPitch);
-    showSuccess(`Stage Key set to ${newTargetKey}`);
+    
+    try {
+      // Use the utility to ensure timestamps are updated
+      const result = await syncToMasterRepertoire(user.id, [{
+        id: currentSong.id,
+        name: currentSong.name,
+        artist: currentSong.artist,
+        targetKey: newTargetKey,
+        pitch: newPitch
+      }]);
+      
+      if (result[0]) {
+        handleLocalSongUpdate(currentSong.id, result[0]);
+        setTargetKey(newTargetKey);
+        setPitch(newPitch);
+        showSuccess(`Stage Key set to ${newTargetKey}`);
+      }
+    } catch (err) {
+      showError("Failed to update Stage Key.");
+    }
   }, [currentSong, user, handleLocalSongUpdate, setTargetKey, setPitch]);
 
   const handlePullKey = useCallback(async () => {
-    if (!currentSong || !currentSong.ug_chords_text) {
+    if (!currentSong || !currentSong.ug_chords_text || !user) {
       showError("No UG chords to extract key from.");
       return;
     }
@@ -137,20 +149,47 @@ const SheetReaderMode: React.FC = () => {
       showError("Could not extract key.");
       return;
     }
-    console.log(`[SheetReader] Pulling key from chords: ${extractedKey}`);
-    handleLocalSongUpdate(currentSong.id, { originalKey: extractedKey, targetKey: extractedKey, pitch: 0, isKeyConfirmed: true });
-    await supabase.from('repertoire').update({ original_key: extractedKey, target_key: extractedKey, pitch: 0, is_key_confirmed: true }).eq('id', currentSong.id);
-    setTargetKey(extractedKey);
-    setPitch(0);
-    showSuccess(`Key set to ${extractedKey}`);
-  }, [currentSong, handleLocalSongUpdate, setTargetKey, setPitch]);
+    
+    try {
+      const result = await syncToMasterRepertoire(user.id, [{
+        id: currentSong.id,
+        name: currentSong.name,
+        artist: currentSong.artist,
+        originalKey: extractedKey,
+        targetKey: extractedKey,
+        pitch: 0,
+        isKeyConfirmed: true
+      }]);
+      
+      if (result[0]) {
+        handleLocalSongUpdate(currentSong.id, result[0]);
+        setTargetKey(extractedKey);
+        setPitch(0);
+        showSuccess(`Key set to ${extractedKey}`);
+      }
+    } catch (err) {
+      showError("Failed to pull key.");
+    }
+  }, [currentSong, user, handleLocalSongUpdate, setTargetKey, setPitch]);
 
   const handleSaveReaderPreference = useCallback(async (pref: 'sharps' | 'flats') => {
     if (!currentSong || !user) return;
-    console.log(`[SheetReader] Saving reader notation preference: ${pref}`);
-    handleLocalSongUpdate(currentSong.id, { key_preference: pref });
-    await supabase.from('repertoire').update({ key_preference: pref }).eq('id', currentSong.id);
-    showSuccess(`Preference saved: ${pref === 'sharps' ? 'Sharps' : 'Flats'}`);
+    
+    try {
+      const result = await syncToMasterRepertoire(user.id, [{
+        id: currentSong.id,
+        name: currentSong.name,
+        artist: currentSong.artist,
+        key_preference: pref
+      }]);
+      
+      if (result[0]) {
+        handleLocalSongUpdate(currentSong.id, result[0]);
+        showSuccess(`Preference saved: ${pref === 'sharps' ? 'Sharps' : 'Flats'}`);
+      }
+    } catch (err) {
+      showError("Failed to save preference.");
+    }
   }, [currentSong, user, handleLocalSongUpdate]);
 
   useEffect(() => {
@@ -185,6 +224,7 @@ const SheetReaderMode: React.FC = () => {
         leadsheetUrl: d.leadsheet_url,
         bpm: d.bpm,
         ug_chords_text: d.ug_chords_text,
+        ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
         is_ug_chords_present: d.is_ug_chords_present,
         is_pitch_linked: d.is_pitch_linked ?? true,
         sheet_music_url: d.sheet_music_url,
@@ -194,6 +234,8 @@ const SheetReaderMode: React.FC = () => {
         last_sync_log: d.last_sync_log,
         preferred_reader: d.preferred_reader,
         key_preference: d.key_preference,
+        original_key_updated_at: d.original_key_updated_at,
+        target_key_updated_at: d.target_key_updated_at,
       }));
 
       const readableSongs = mappedSongs.filter(s => 

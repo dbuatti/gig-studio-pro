@@ -53,23 +53,6 @@ function formatKey(key: string | undefined, preference: 'flats' | 'sharps'): str
   return isMinor ? `${newRoot}m` : newRoot;
 }
 
-function calculateSemitones(original: string | undefined, target: string | undefined): number {
-  const normOriginal = normalizeKeyString(original).replace('m', '');
-  const normTarget = normalizeKeyString(target).replace('m', '');
-  if (normOriginal === "TBC" || normTarget === "TBC") return 0;
-  const getIdx = (k: string) => {
-    const r = MAPPING_TO_SHARP[k] || k;
-    return SHARP_KEYS.indexOf(r);
-  };
-  const originalIdx = getIdx(normOriginal);
-  const targetIdx = getIdx(normTarget);
-  if (originalIdx === -1 || targetIdx === -1) return 0;
-  let diff = targetIdx - originalIdx;
-  if (diff > 6) diff -= 12;
-  if (diff < -6) diff += 12;
-  return diff;
-}
-
 function extractKeyFromChords(text: string): string | null {
   if (!text) return null;
   const lines = text.split('\n');
@@ -91,17 +74,6 @@ function extractKeyFromChords(text: string): string | null {
     }
   }
   return null;
-}
-
-// Simplified calculateReadiness for Deno (only relevant parts for key extraction impact)
-function calculateReadinessDeno(song: any): number {
-  let score = 0;
-  if (song.is_key_confirmed) score += 15; // Harmonic Data
-  if (song.ug_chords_text && song.ug_chords_text.trim().length > 0) score += 20; // Chords & Lyrics (partial)
-  if (song.artist && song.artist !== "Unknown Artist") score += 5; // Basic Metadata
-  if (song.ug_url) score += 5; // UG Link Presence
-  // Other factors would be here in the full client-side version
-  return score;
 }
 
 // --- Edge Function Logic ---
@@ -134,7 +106,7 @@ serve(async (req) => {
       .eq('id', userId)
       .single();
 
-    const userKeyPreference = profile?.key_preference || 'sharps'; // Default to sharps
+    const userKeyPreference = profile?.key_preference || 'sharps';
 
     for (const id of songIds) {
       try {
@@ -151,25 +123,17 @@ serve(async (req) => {
           
           if (rawExtractedKey) {
             const formattedOriginalKey = formatKey(rawExtractedKey, userKeyPreference);
-            const newTargetKey = formattedOriginalKey; // Set targetKey to be the same as originalKey
-            const newPitch = 0; // Reset pitch to 0
-            const isKeyConfirmed = true;
+            const now = new Date().toISOString();
 
             const updates = {
               original_key: formattedOriginalKey,
-              target_key: newTargetKey,
-              pitch: newPitch,
-              is_key_confirmed: isKeyConfirmed,
-              updated_at: new Date().toISOString(),
+              target_key: formattedOriginalKey, // Set targetKey to be the same as originalKey
+              pitch: 0, 
+              is_key_confirmed: true,
+              original_key_updated_at: now, // CRITICAL: Update goal timestamps
+              target_key_updated_at: now,   // CRITICAL: Update goal timestamps
+              updated_at: now,
             };
-
-            // Recalculate readiness score based on updated fields
-            const tempSongForReadiness = { ...song, ...updates };
-            // Note: calculateReadinessDeno is a simplified version for this context
-            // The client-side calculateReadiness is more comprehensive.
-            // For a full sync, you'd need to fetch all fields or re-evaluate on client.
-            // For now, we'll just update the key-related fields.
-            // The client will re-calculate readiness when it refetches.
 
             const { error: updateErr } = await supabaseAdmin
               .from('repertoire')

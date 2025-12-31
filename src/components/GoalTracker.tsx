@@ -28,12 +28,14 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
   if (!isGoalTrackerEnabled) return null;
 
   const stats = useMemo(() => {
-    // Robust local date check
-    const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+    // Current local date in YYYY-MM-DD format
+    const todayStr = new Date().toLocaleDateString('en-CA');
 
     const isToday = (timestamp: string | undefined | null) => {
       if (!timestamp) return false;
-      return new Date(timestamp).toLocaleDateString('en-CA') === today;
+      // Convert DB UTC string to local date string for comparison
+      const localDateStr = new Date(timestamp).toLocaleDateString('en-CA');
+      return localDateStr === todayStr;
     };
 
     const counts = {
@@ -41,11 +43,10 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
       chords: repertoire.filter(s => (s.ug_chords_text || "").length > 10 && isToday(s.chords_updated_at)).length,
       links: repertoire.filter(s => !!s.ugUrl && isToday(s.ug_link_updated_at)).length,
       highestNote: repertoire.filter(s => !!s.highest_note_original && isToday(s.highest_note_updated_at)).length,
-      originalKey: repertoire.filter(s => isToday(s.original_key_updated_at)).length,
-      targetKey: repertoire.filter(s => isToday(s.target_key_updated_at)).length
+      originalKey: repertoire.filter(s => s.originalKey !== "TBC" && isToday(s.original_key_updated_at)).length,
+      targetKey: repertoire.filter(s => s.targetKey !== "TBC" && isToday(s.target_key_updated_at)).length
     };
 
-    // Mapping to full goal array
     return [
       { 
         label: 'Lyrics Transcribed', 
