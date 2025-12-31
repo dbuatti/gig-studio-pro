@@ -1,4 +1,0 @@
-supabase-py
-Flask
-Flask-Cors
-yt-dlp
