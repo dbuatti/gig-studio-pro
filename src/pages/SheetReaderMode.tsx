@@ -101,41 +101,41 @@ const SheetReaderMode: React.FC = () => {
       const dbUpdates: { [key: string]: any } = {};
       
       // Explicitly map SetlistSong properties to repertoire table columns
-      if (updates.name !== undefined) dbUpdates.title = updates.name;
-      if (updates.artist !== undefined) dbUpdates.artist = updates.artist;
-      if (updates.previewUrl !== undefined) dbUpdates.preview_url = updates.previewUrl;
-      if (updates.youtubeUrl !== undefined) dbUpdates.youtube_url = updates.youtubeUrl;
-      if (updates.ugUrl !== undefined) dbUpdates.ug_url = updates.ugUrl;
-      if (updates.appleMusicUrl !== undefined) dbUpdates.apple_music_url = updates.appleMusicUrl;
-      if (updates.pdfUrl !== undefined) dbUpdates.pdf_url = updates.pdfUrl;
-      if (updates.leadsheetUrl !== undefined) dbUpdates.leadsheet_url = updates.leadsheetUrl;
-      if (updates.originalKey !== undefined) dbUpdates.original_key = updates.originalKey; else dbUpdates.original_key = null;
-      if (updates.targetKey !== undefined) dbUpdates.target_key = updates.targetKey; else dbUpdates.target_key = null;
-      if (updates.pitch !== undefined) dbUpdates.pitch = updates.pitch; else dbUpdates.pitch = 0; // pitch is NOT NULL with default 0
-      if (updates.bpm !== undefined) dbUpdates.bpm = updates.bpm; else dbUpdates.bpm = null;
-      if (updates.genre !== undefined) dbUpdates.genre = updates.genre; else dbUpdates.genre = null;
-      if (updates.isMetadataConfirmed !== undefined) dbUpdates.is_metadata_confirmed = updates.isMetadataConfirmed; else dbUpdates.is_metadata_confirmed = false;
-      if (updates.isKeyConfirmed !== undefined) dbUpdates.is_key_confirmed = updates.isKeyConfirmed; else dbUpdates.is_key_confirmed = false;
-      if (updates.notes !== undefined) dbUpdates.notes = updates.notes; else dbUpdates.notes = null;
-      if (updates.lyrics !== undefined) dbUpdates.lyrics = updates.lyrics; else dbUpdates.lyrics = null;
-      if (updates.resources !== undefined) dbUpdates.resources = updates.resources; else dbUpdates.resources = [];
-      if (updates.user_tags !== undefined) dbUpdates.user_tags = updates.user_tags; else dbUpdates.user_tags = [];
-      if (updates.is_pitch_linked !== undefined) dbUpdates.is_pitch_linked = updates.is_pitch_linked; else dbUpdates.is_pitch_linked = true;
-      if (updates.duration_seconds !== undefined) dbUpdates.duration_seconds = Math.round(updates.duration_seconds || 0); else dbUpdates.duration_seconds = 0;
-      if (updates.is_active !== undefined) dbUpdates.is_active = updates.is_active; else dbUpdates.is_active = true;
-      if (updates.isApproved !== undefined) dbUpdates.is_approved = updates.isApproved; else dbUpdates.is_approved = false;
-      if (updates.preferred_reader !== undefined) dbUpdates.preferred_reader = updates.preferred_reader; else dbUpdates.preferred_reader = null;
-      if (updates.ug_chords_text !== undefined) dbUpdates.ug_chords_text = updates.ug_chords_text; else dbUpdates.ug_chords_text = null;
-      if (updates.ug_chords_config !== undefined) dbUpdates.ug_chords_config = updates.ug_chords_config; else dbUpdates.ug_chords_config = null; // Send null if not explicitly set
-      if (updates.is_ug_chords_present !== undefined) dbUpdates.is_ug_chords_present = updates.is_ug_chords_present; else dbUpdates.is_ug_chords_present = false;
-      if (updates.highest_note_original !== undefined) dbUpdates.highest_note_original = updates.highest_note_original; else dbUpdates.highest_note_original = null;
-      if (updates.metadata_source !== undefined) dbUpdates.metadata_source = updates.metadata_source; else dbUpdates.metadata_source = null;
-      if (updates.sync_status !== undefined) dbUpdates.sync_status = updates.sync_status; else dbUpdates.sync_status = 'IDLE';
-      if (updates.last_sync_log !== undefined) dbUpdates.last_sync_log = updates.last_sync_log; else dbUpdates.last_sync_log = null;
-      if (updates.auto_synced !== undefined) dbUpdates.auto_synced = updates.auto_synced; else dbUpdates.auto_synced = false;
-      if (updates.sheet_music_url !== undefined) dbUpdates.sheet_music_url = updates.sheet_music_url; else dbUpdates.sheet_music_url = null;
-      if (updates.is_sheet_verified !== undefined) dbUpdates.is_sheet_verified = updates.is_sheet_verified; else dbUpdates.is_sheet_verified = false;
-      if (updates.extraction_status !== undefined) dbUpdates.extraction_status = updates.extraction_status; else dbUpdates.extraction_status = 'idle'; // NEW: Default to 'idle'
+      if (updates.name !== undefined) dbUpdates.title = updates.name || 'Untitled Track'; // Ensure title is never null
+      if (updates.artist !== undefined) dbUpdates.artist = updates.artist || 'Unknown Artist'; // Ensure artist is never null
+      if (updates.previewUrl !== undefined) dbUpdates.preview_url = updates.previewUrl; else if (updates.previewUrl === null) dbUpdates.preview_url = null;
+      if (updates.youtubeUrl !== undefined) dbUpdates.youtube_url = updates.youtubeUrl; else if (updates.youtubeUrl === null) dbUpdates.youtube_url = null;
+      if (updates.ugUrl !== undefined) dbUpdates.ug_url = updates.ugUrl; else if (updates.ugUrl === null) dbUpdates.ug_url = null;
+      if (updates.appleMusicUrl !== undefined) dbUpdates.apple_music_url = updates.appleMusicUrl; else if (updates.appleMusicUrl === null) dbUpdates.apple_music_url = null;
+      if (updates.pdfUrl !== undefined) dbUpdates.pdf_url = updates.pdfUrl; else if (updates.pdfUrl === null) dbUpdates.pdf_url = null;
+      if (updates.leadsheetUrl !== undefined) dbUpdates.leadsheet_url = updates.leadsheetUrl; else if (updates.leadsheetUrl === null) dbUpdates.leadsheet_url = null;
+      if (updates.originalKey !== undefined) dbUpdates.original_key = updates.originalKey; else if (updates.originalKey === null) dbUpdates.original_key = null;
+      if (updates.targetKey !== undefined) dbUpdates.target_key = updates.targetKey; else if (updates.targetKey === null) dbUpdates.target_key = null;
+      if (updates.pitch !== undefined) dbUpdates.pitch = updates.pitch; else if (updates.pitch === null) dbUpdates.pitch = 0; // pitch is NOT NULL with default 0
+      if (updates.bpm !== undefined) dbUpdates.bpm = updates.bpm; else if (updates.bpm === null) dbUpdates.bpm = null;
+      if (updates.genre !== undefined) dbUpdates.genre = updates.genre; else if (updates.genre === null) dbUpdates.genre = null;
+      if (updates.isMetadataConfirmed !== undefined) dbUpdates.is_metadata_confirmed = updates.isMetadataConfirmed; else if (updates.isMetadataConfirmed === null) dbUpdates.is_metadata_confirmed = false;
+      if (updates.isKeyConfirmed !== undefined) dbUpdates.is_key_confirmed = updates.isKeyConfirmed; else if (updates.isKeyConfirmed === null) dbUpdates.is_key_confirmed = false;
+      if (updates.notes !== undefined) dbUpdates.notes = updates.notes; else if (updates.notes === null) dbUpdates.notes = null;
+      if (updates.lyrics !== undefined) dbUpdates.lyrics = updates.lyrics; else if (updates.lyrics === null) dbUpdates.lyrics = null;
+      if (updates.resources !== undefined) dbUpdates.resources = updates.resources; else if (updates.resources === null) dbUpdates.resources = [];
+      if (updates.user_tags !== undefined) dbUpdates.user_tags = updates.user_tags; else if (updates.user_tags === null) dbUpdates.user_tags = [];
+      if (updates.is_pitch_linked !== undefined) dbUpdates.is_pitch_linked = updates.is_pitch_linked; else if (updates.is_pitch_linked === null) dbUpdates.is_pitch_linked = true;
+      if (updates.duration_seconds !== undefined) dbUpdates.duration_seconds = Math.round(updates.duration_seconds || 0); else if (updates.duration_seconds === null) dbUpdates.duration_seconds = 0;
+      if (updates.is_active !== undefined) dbUpdates.is_active = updates.is_active; else if (updates.is_active === null) dbUpdates.is_active = true;
+      if (updates.isApproved !== undefined) dbUpdates.is_approved = updates.isApproved; else if (updates.isApproved === null) dbUpdates.is_approved = false;
+      if (updates.preferred_reader !== undefined) dbUpdates.preferred_reader = updates.preferred_reader; else if (updates.preferred_reader === null) dbUpdates.preferred_reader = null;
+      if (updates.ug_chords_text !== undefined) dbUpdates.ug_chords_text = updates.ug_chords_text; else if (updates.ug_chords_text === null) dbUpdates.ug_chords_text = null;
+      if (updates.ug_chords_config !== undefined) dbUpdates.ug_chords_config = updates.ug_chords_config; else if (updates.ug_chords_config === null) dbUpdates.ug_chords_config = null; // Send null if not explicitly set
+      if (updates.is_ug_chords_present !== undefined) dbUpdates.is_ug_chords_present = updates.is_ug_chords_present; else if (updates.is_ug_chords_present === null) dbUpdates.is_ug_chords_present = false;
+      if (updates.highest_note_original !== undefined) dbUpdates.highest_note_original = updates.highest_note_original; else if (updates.highest_note_original === null) dbUpdates.highest_note_original = null;
+      if (updates.metadata_source !== undefined) dbUpdates.metadata_source = updates.metadata_source; else if (updates.metadata_source === null) dbUpdates.metadata_source = null;
+      if (updates.sync_status !== undefined) dbUpdates.sync_status = updates.sync_status; else if (updates.sync_status === null) dbUpdates.sync_status = 'IDLE';
+      if (updates.last_sync_log !== undefined) dbUpdates.last_sync_log = updates.last_sync_log; else if (updates.last_sync_log === null) dbUpdates.last_sync_log = null;
+      if (updates.auto_synced !== undefined) dbUpdates.auto_synced = updates.auto_synced; else if (updates.auto_synced === null) dbUpdates.auto_synced = false;
+      if (updates.sheet_music_url !== undefined) dbUpdates.sheet_music_url = updates.sheet_music_url; else if (updates.sheet_music_url === null) dbUpdates.sheet_music_url = null;
+      if (updates.is_sheet_verified !== undefined) dbUpdates.is_sheet_verified = updates.is_sheet_verified; else if (updates.is_sheet_verified === null) dbUpdates.is_sheet_verified = false;
+      if (updates.extraction_status !== undefined) dbUpdates.extraction_status = updates.extraction_status; else if (updates.extraction_status === null) dbUpdates.extraction_status = 'idle'; // NEW: Default to 'idle'
       
       // Always update `updated_at`
       dbUpdates.updated_at = new Date().toISOString();
