@@ -81,8 +81,14 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
 
     try {
       lastPendingUpdatesRef.current = {};
-      const updatedFullSong = { ...targetSong, ...formData, ...currentUpdates };
-      const syncedSongs = await syncToMasterRepertoire(user.id, [updatedFullSong]);
+      // Pass only the delta plus identifying fields for upsert consistency
+      const identifyingUpdates = {
+        ...currentUpdates,
+        name: currentUpdates.name || targetSong.name,
+        artist: currentUpdates.artist || targetSong.artist
+      };
+      
+      const syncedSongs = await syncToMasterRepertoire(user.id, [identifyingUpdates]);
       const syncedSong = syncedSongs[0];
 
       setSong(syncedSong);
@@ -180,6 +186,10 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
         sync_status: data.sync_status,
         last_sync_log: data.last_sync_log,
         audio_url: data.audio_url,
+        lyrics_updated_at: data.lyrics_updated_at,
+        chords_updated_at: data.chords_updated_at,
+        ug_link_updated_at: data.ug_link_updated_at,
+        highest_note_updated_at: data.highest_note_updated_at,
       };
       
       setSong(targetSong);

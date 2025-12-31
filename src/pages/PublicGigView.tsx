@@ -7,7 +7,7 @@ import { Loader2, Music2, MapPin, Calendar, ArrowLeft, User, Waves } from 'lucid
 import { Button } from '@/components/ui/button';
 import { SetlistSong } from '@/components/SetlistManager';
 import { cn } from '@/lib/utils';
-import { MadeWithDyad } from '@/components/made-with-dyad';
+import { MadeWithDyad } from '@/components/SupportBanner';
 
 // NEW: Define THEMES here or import from a shared constants file
 const THEMES = [

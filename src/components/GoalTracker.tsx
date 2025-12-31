@@ -28,20 +28,24 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
   const stats = useMemo(() => {
     // Get YYYY-MM-DD in local time
     const today = new Date().toLocaleDateString('en-CA');
+    console.log("[GoalTracker] Calculating progress for local date:", today);
 
-    const isToday = (timestamp: string | undefined | null) => {
+    const isToday = (timestamp: string | undefined | null, fieldName: string) => {
       if (!timestamp) return false;
-      // Convert stored UTC timestamp to local date string for comparison
       const localDate = new Date(timestamp).toLocaleDateString('en-CA');
-      return localDate === today;
+      const match = localDate === today;
+      if (match) console.log(`[GoalTracker] Match found for ${fieldName} at ${timestamp}`);
+      return match;
     };
 
     const counts = {
-      lyrics: repertoire.filter(s => (s.lyrics || "").length > 20 && isToday((s as any).lyrics_updated_at)).length,
-      chords: repertoire.filter(s => (s.ug_chords_text || "").length > 10 && isToday((s as any).chords_updated_at)).length,
-      links: repertoire.filter(s => !!s.ugUrl && isToday((s as any).ug_link_updated_at)).length,
-      highestNote: repertoire.filter(s => !!s.highest_note_original && isToday((s as any).highest_note_updated_at)).length
+      lyrics: repertoire.filter(s => (s.lyrics || "").length > 20 && isToday((s as any).lyrics_updated_at, 'lyrics')).length,
+      chords: repertoire.filter(s => (s.ug_chords_text || "").length > 10 && isToday((s as any).chords_updated_at, 'chords')).length,
+      links: repertoire.filter(s => !!s.ugUrl && isToday((s as any).ug_link_updated_at, 'links')).length,
+      highestNote: repertoire.filter(s => !!s.highest_note_original && isToday((s as any).highest_note_updated_at, 'highestNote')).length
     };
+
+    console.log("[GoalTracker] Active Counts:", counts);
 
     const goals = [
       { 

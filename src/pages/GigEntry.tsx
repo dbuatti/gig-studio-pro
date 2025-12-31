@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Music2, ArrowRight, Waves } from 'lucide-react';
-import { MadeWithDyad } from '@/components/made-with-dyad';
+import { MadeWithDyad } from '@/components/SupportBanner';
 
 const GigEntry = () => {
   const [code, setCode] = useState("");

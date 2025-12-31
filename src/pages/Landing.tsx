@@ -9,7 +9,7 @@ import {
   Zap, Headphones, Mic2, Star, Check
 } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
-import { MadeWithDyad } from '@/components/made-with-dyad';
+import { MadeWithDyad } from '@/components/SupportBanner';
 import { useTheme } from '@/hooks/use-theme';
 
 const Landing = () => {

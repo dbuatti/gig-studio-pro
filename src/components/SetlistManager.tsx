@@ -76,6 +76,11 @@ export interface SetlistSong {
   last_extracted_at?: string;
   source_type?: string;
   is_in_library?: boolean;
+  // Goal Tracking Timestamps
+  lyrics_updated_at?: string;
+  chords_updated_at?: string;
+  ug_link_updated_at?: string;
+  highest_note_updated_at?: string;
 }
 
 // Define the Setlist interface here

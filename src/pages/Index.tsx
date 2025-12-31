@@ -161,7 +161,6 @@ const Index = () => {
     return songs;
   }, [activeSetlist, searchTerm, sortMode, activeFilters]);
 
-  // NEW: Added isInitial parameter to prevent full-page refresh on data updates
   const fetchSetlistsAndRepertoire = useCallback(async (isInitial = false) => {
     if (!userId) return;
     if (isInitial) setLoading(true);
@@ -229,6 +228,10 @@ const Index = () => {
         extraction_status: d.extraction_status,
         extraction_error: d.extraction_error,
         audio_url: d.audio_url,
+        lyrics_updated_at: d.lyrics_updated_at,
+        chords_updated_at: d.chords_updated_at,
+        ug_link_updated_at: d.ug_link_updated_at,
+        highest_note_updated_at: d.highest_note_updated_at,
       }));
       setMasterRepertoire(mappedRepertoire);
 
@@ -492,7 +495,6 @@ const Index = () => {
 
   const handleImportNewSong = async (previewUrl: string, name: string, artist: string, youtubeUrl?: string, ugUrl?: string, appleMusicUrl?: string, genre?: string, pitch?: number, audioUrl?: string, extractionStatus?: 'idle' | 'PENDING' | 'queued' | 'processing' | 'completed' | 'failed') => {
     if (!userId) return;
-    console.log("[Import] Starting song import pipeline for:", name);
     
     try {
       const newSongData: Partial<SetlistSong> = {
@@ -511,7 +513,6 @@ const Index = () => {
         is_pitch_linked: true
       };
       
-      console.log("[Import] Syncing to master repertoire database...");
       const syncedSongs = await syncToMasterRepertoire(userId, [newSongData]);
       const syncedSong = syncedSongs[0];
       
@@ -519,10 +520,7 @@ const Index = () => {
         throw new Error("Master sync failed to return a valid song ID.");
       }
       
-      console.log("[Import] Master sync complete. ID:", syncedSong.master_id);
-
       if (activeSetlist) {
-        console.log("[Import] Binding to active setlist:", activeSetlist.id);
         const { error: junctionError } = await supabase.from('setlist_songs').insert({
           setlist_id: activeSetlist.id,
           song_id: syncedSong.master_id,
@@ -533,17 +531,13 @@ const Index = () => {
 
         if (junctionError) throw junctionError;
         
-        console.log("[Import] Refreshing dashboard data (background)...");
-        await fetchSetlistsAndRepertoire(false); // Background refresh
+        await fetchSetlistsAndRepertoire(false); 
         showSuccess(`"${name}" added to gig.`);
       } else {
-        console.log("[Import] Refreshing dashboard data (background)...");
-        await fetchSetlistsAndRepertoire(false); // Background refresh
+        await fetchSetlistsAndRepertoire(false); 
         showSuccess(`"${name}" added to master repertoire.`);
       }
-      // REMOVED: setIsAudioTransposerModalOpen(false); -> Keeping modal open for workflow
     } catch (err: any) {
-      console.error("[Import] Pipeline failed:", err);
       showError(`Import failed: ${err.message || 'Database connection error'}`);
     }
   };
@@ -571,8 +565,6 @@ const Index = () => {
     }
   };
 
-  // --- RESTORED: Automation Handlers ---
-  
   const handleBulkAutoLink = async () => {
     const missing = masterRepertoire.filter(s => !s.youtubeUrl || s.youtubeUrl.trim() === '');
     if (missing.length === 0) {
@@ -648,13 +640,11 @@ const Index = () => {
     }
   };
 
-  // NEW: Handler for the "Queue Audio" button in Automation Hub
   const handleBulkRefreshAudio = async () => {
     const songsToQueue = masterRepertoire.filter(s => {
       const hasLink = !!s.youtubeUrl;
       const hasAudio = !!s.audio_url;
       const status = (s.extraction_status || "").toLowerCase();
-      // Only queue tracks with a link that aren't already done, processing, or queued
       return hasLink && (!hasAudio || status !== 'completed') && status !== 'processing' && status !== 'queued';
     });
 

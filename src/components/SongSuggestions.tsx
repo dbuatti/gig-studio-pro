@@ -56,7 +56,6 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
     if (repertoire.length === 0) return;
     
     setIsLoading(true);
-    if (isRefresh) console.log(`[Discover] Fetching fresh suggestions. Mode: ${preserveExisting ? 'Replenish' : 'Full Refresh'}`);
     
     try {
       const { data, error } = await supabase.functions.invoke('suggest-songs', {
@@ -70,17 +69,14 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
       if (error) throw error;
       
       const newBatch = data || [];
-      console.log(`[Discover] AI returned ${newBatch.length} results.`);
 
       if (preserveExisting) {
-        // Keep existing non-duplicates and non-ignored, then fill gaps with new ones
         setRawSuggestions(prev => {
           const combined = [...prev, ...newBatch];
           const uniqueMap = new Map();
           
           combined.forEach(s => {
             const key = getSongKey(s);
-            // Only add if not in repertoire and not ignored and not already in map
             const isIgnored = sessionIgnoredCache.some(i => getSongKey(i) === key);
             if (!existingKeys.has(key) && !isIgnored && !uniqueMap.has(key)) {
               uniqueMap.set(key, s);
@@ -98,7 +94,6 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
       
       sessionInitialLoadAttempted = true;
     } catch (err: any) {
-      console.error("[Discover] Failed to fetch suggestions:", err);
       showError("Song suggestions temporarily unavailable.");
     } finally {
       setIsLoading(false);
@@ -113,7 +108,6 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
 
   const handleDismissSuggestion = async (song: any) => {
     const key = getSongKey(song);
-    console.log(`[Discover] Dismissing: ${song.name}.`);
     
     const newIgnored = [...ignoredSuggestions, song];
     setIgnoredSuggestions(newIgnored);
@@ -125,19 +119,15 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
     
     showSuccess(`Removed "${song.name}"`);
     
-    // Replenish if we dip below a threshold
     if (filtered.length < 7) {
       fetchSuggestions(true, true);
     }
   };
 
   const handleClearDuplicates = () => {
-    console.log(`[Discover] Filtering ${duplicateCount} duplicates from current view.`);
-    
     const duplicates = rawSuggestions.filter(s => existingKeys.has(getSongKey(s)));
     const filtered = rawSuggestions.filter(s => !existingKeys.has(getSongKey(s)));
     
-    // Add duplicates to ignored cache so they don't cycle back
     const newIgnored = [...ignoredSuggestions, ...duplicates];
     setIgnoredSuggestions(newIgnored);
     sessionIgnoredCache = newIgnored;
@@ -146,7 +136,6 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
     sessionSuggestionsCache = filtered;
     
     showInfo(`Cleaned duplicates. Replenishing list...`);
-    // Pass true for preserveExisting to keep the good suggestions
     fetchSuggestions(true, true);
   };
 
