@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Search, Library, Music, Settings2, Plus, Check, ShieldCheck,
-  Star, Filter, AlertTriangle, Loader2, CloudDownload, Edit3, ListMusic, ArrowRight
+  Star, Filter, AlertTriangle, Loader2, CloudDownload, Edit3, ListMusic, ArrowRight, Download, Clock
 } from 'lucide-react';
 import { SetlistSong } from './SetlistManager';
 import { cn } from "@/lib/utils";
@@ -17,6 +17,8 @@ import SetlistMultiSelector from './SetlistMultiSelector';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { showSuccess } from '@/utils/toast';
+import { hasFullAudio } from '@/utils/audioUtils';
+import { Badge } from './ui/badge';
 
 interface RepertoireViewProps {
   repertoire: SetlistSong[];
@@ -63,8 +65,6 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
 
     return songs;
   }, [repertoire, searchTerm, sortMode, filterReady]);
-
-  const isItunesPreview = (url?: string) => url && (url.includes('apple.com') || url.includes('itunes-assets'));
 
   const handleAddNewSong = () => {
     const newSong: SetlistSong = {
@@ -200,6 +200,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                   const displayTargetKey = formatKey(song.targetKey || song.originalKey, currentPref);
                   const isProcessing = song.extraction_status === 'processing' || song.extraction_status === 'queued';
                   const isExtractionFailed = song.extraction_status === 'failed';
+                  const audioDownloaded = hasFullAudio(song); // NEW: Check for downloaded audio
 
                   return (
                     <tr
@@ -221,15 +222,25 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                               {isFullyReady && <Check className="w-4 h-4 text-emerald-500 fill-emerald-500/20" />}
                               {isProcessing && <CloudDownload className="w-4 h-4 text-indigo-500 animate-bounce" />}
                               {isExtractionFailed && <AlertTriangle className="w-4 h-4 text-red-500" />}
+                              {audioDownloaded && ( // NEW: Audio Downloaded Badge
+                                <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-500 text-[8px] font-black uppercase flex items-center gap-1 px-2 py-0.5 rounded-full">
+                                  <Download className="w-2.5 h-2.5" />
+                                </Badge>
+                              )}
                             </h4>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 ml-[32px]">
                             <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest leading-none">
                               {song.artist || "Unknown Artist"}
                             </span>
+                            <span className="text-muted-foreground text-[8px]">•</span>
+                            <span className="text-[9px] font-mono font-bold text-muted-foreground flex items-center gap-1.5">
+                              <Clock className="w-3 h-3" />
+                              {Math.floor((song.duration_seconds || 0) / 60)}:{(Math.floor((song.duration_seconds || 0) % 60)).toString().padStart(2, '0')}
+                            </span>
                           </div>
                           {isExtractionFailed && song.last_sync_log && (
-                            <p className="text-[8px] text-red-400 mt-1 truncate max-w-[200px]">Error: {song.last_sync_log}</p>
+                            <p className="text-[8px] text-red-400 ml-[32px] mt-1 truncate max-w-[200px]">Error: {song.last_sync_log}</p>
                           )}
                         </div>
                       </td>
@@ -279,10 +290,10 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                       </td>
                     </tr>
                   );
-                })
-              )}
-            </tbody>
-          </table>
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
