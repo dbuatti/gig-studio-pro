@@ -8,6 +8,7 @@ import { showSuccess } from '@/utils/toast';
 import { Badge } from '@/components/ui/badge';
 import { formatKey } from '@/utils/keyUtils';
 import { useSettings } from '@/hooks/use-settings';
+import { cn } from '@/lib/utils'; // Added missing import
 
 interface ActiveSongBannerProps {
   song: SetlistSong | null;
