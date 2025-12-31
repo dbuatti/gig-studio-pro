@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { SetlistSong } from '@/components/SetlistManager';
 import { Button } from '@/components/ui/button';
-import { Music, Loader2, AlertCircle, X, ExternalLink, ShieldCheck, FileText, Layout, Guitar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Music, Loader2, AlertCircle, X, ExternalLink, ShieldCheck, FileText, Layout, Guitar, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { useSettings } from '@/hooks/use-settings';
@@ -413,39 +413,42 @@ const SheetReaderMode: React.FC = () => {
       );
     }
 
-    // FIX: Direct iframe rendering for PDFs
-    // We remove the Google Viewer wrapper as it causes CORS issues and timeouts.
-    // We rely on the browser's native PDF viewer.
+    // --- FIX START: Force PDF Download Instead of Iframe ---
     if (chartType === 'pdf' || chartType === 'leadsheet') {
+      // We assume the URL is a direct link to Supabase Storage.
+      // We will render a prominent download button that forces the file to download.
+      // This bypasses the browser's PDF viewer and CORS issues entirely.
       return (
-        <div className="h-full w-full flex flex-col bg-slate-950 relative">
-          <iframe
-            src={url}
-            className="w-full h-full flex-1 bg-white"
-            title="Chart Viewer"
-            onLoad={() => {
-              console.log(`[SheetReaderMode] Iframe loaded successfully for ${chartType}`);
+        <div className="h-full w-full flex flex-col items-center justify-center bg-slate-950 p-8 text-center animate-in fade-in duration-500">
+          <div className="bg-indigo-600/10 p-8 rounded-full border border-indigo-500/20 mb-8">
+            <FileText className="w-12 h-12 text-indigo-400" />
+          </div>
+          <h3 className="text-3xl font-black uppercase tracking-tight mb-2">PDF Ready</h3>
+          <p className="text-slate-400 mb-8 max-w-md">
+            Due to browser security policies, PDFs must be downloaded to your device for viewing.
+            Click the button below to save the file.
+          </p>
+          <a 
+            href={url} 
+            download={`${song.name.replace(/[^a-z0-9]/gi, '_')}_${chartType}.pdf`}
+            className="inline-flex items-center gap-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest px-8 py-4 rounded-2xl shadow-2xl shadow-indigo-600/30 transition-all hover:scale-105 active:scale-95"
+            onClick={() => {
+              showSuccess("Download started...");
+              // Mark as loaded to hide the spinner
               onChartLoad(song.id, chartType);
             }}
-            onError={() => {
-              console.error(`[SheetReaderMode] Iframe failed to load for ${url}`);
-              // We don't set isLoaded here to keep the loading spinner, 
-              // but the timeout will handle the fallback UI.
-            }}
-            sandbox="allow-scripts allow-same-origin allow-popups allow-forms" // Allow necessary permissions
-          />
-          {/* Fallback Button Overlay (Visible if loading takes too long or user wants to open externally) */}
-          <div className="absolute bottom-4 right-4 z-20">
-             <Button 
-                onClick={() => window.open(url, '_blank')}
-                className="bg-slate-900/80 backdrop-blur border border-white/10 text-white hover:bg-slate-800 shadow-2xl h-10 px-4 gap-2"
-              >
-                <ExternalLink className="w-4 h-4" /> Open Externally
-             </Button>
+          >
+            <Download className="w-5 h-5" /> Download {chartType === 'pdf' ? 'Score' : 'Leadsheet'}
+          </a>
+          <div className="mt-8 flex gap-4 text-xs text-slate-500 font-mono">
+            <span className="bg-white/5 px-2 py-1 rounded">.PDF</span>
+            <span className="bg-white/5 px-2 py-1 rounded">Direct Link</span>
+            <span className="bg-white/5 px-2 py-1 rounded">Native Viewer</span>
           </div>
         </div>
       );
     }
+    // --- FIX END ---
 
     // Fallback for other types (shouldn't happen given availableChartTypes logic, but kept for safety)
     return (
@@ -478,7 +481,7 @@ const SheetReaderMode: React.FC = () => {
       return [{
         id: currentSong.id,
         content: renderChartForSong(currentSong, selectedChartType, handleChartLoad),
-        isLoaded: false,
+        isLoaded: false, // We will treat PDFs as "loaded" immediately in the render function
         opacity: 1,
         zIndex: 10,
         type: selectedChartType,
