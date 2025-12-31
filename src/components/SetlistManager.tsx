@@ -187,6 +187,13 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
         console.warn(`[SetlistManager] Duplicate detected and filtered out: ${song.name} (${key})`);
         return false;
       }
+      // Debugging for the specific song
+      if (song.id === "582ded79-5b51-45e1-8260-72de214fbff1") {
+        const readiness = calculateReadiness(song);
+        console.log(`[SetlistManager Debug] Song: ${song.name}, ID: ${song.id}`);
+        console.log(`[SetlistManager Debug] readiness: ${readiness}`);
+        console.log(`[SetlistManager Debug] Song object for readiness calculation:`, song);
+      }
       seen.add(key);
       return true;
     });

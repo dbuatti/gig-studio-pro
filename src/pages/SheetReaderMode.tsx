@@ -242,6 +242,16 @@ const SheetReaderMode: React.FC = () => {
         // REMOVED: s.ugUrl from hasChart condition
         const hasChart = s.pdfUrl || s.leadsheetUrl || s.ug_chords_text; 
         const meetsReadiness = readiness >= 40 || forceReaderResource === 'simulation' || ignoreConfirmedGate;
+
+        // Debugging for the specific song
+        if (s.id === "582ded79-5b51-45e1-8260-72de214fbff1") {
+          console.log(`[SheetReaderMode Debug] Song: ${s.name}, ID: ${s.id}`);
+          console.log(`[SheetReaderMode Debug] readiness: ${readiness}`);
+          console.log(`[SheetReaderMode Debug] hasChart (pdfUrl: ${s.pdfUrl}, leadsheetUrl: ${s.leadsheetUrl}, ug_chords_text: ${!!s.ug_chords_text && s.ug_chords_text.trim().length > 0}): ${hasChart}`);
+          console.log(`[SheetReaderMode Debug] meetsReadiness: ${meetsReadiness}`);
+          console.log(`[SheetReaderMode Debug] Filter result: ${hasChart && meetsReadiness}`);
+        }
+
         return hasChart && meetsReadiness;
       });
 

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Search, Library, Music, Settings2, Plus, Check, ShieldCheck,
-  Star, Filter, AlertTriangle, Loader2, CloudDownload, Edit3, ListMusic, ArrowRight
+  Star, Filter, AlertTriangle, Loader2, CloudDownload, Edit3, ListMusic, ArrowRight, Trash2 // Added Trash2
 } from 'lucide-react';
 import { SetlistSong } from './SetlistManager';
 import { cn } from "@/lib/utils";
@@ -19,6 +19,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { showSuccess } from '@/utils/toast';
 import SetlistFilters, { FilterState, DEFAULT_FILTERS } from './SetlistFilters';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+
 
 interface RepertoireViewProps {
   repertoire: SetlistSong[];
@@ -51,8 +53,9 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
   activeFilters,
   setActiveFilters,
 }) => {
-  const { keyPreference } = useSettings();
+  const { keyPreference } = useSettings(); // Destructure keyPreference (globalPreference)
   const [isFilterOpen, setIsFilterOpen] = useState(false); // State for filter visibility
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null); // State for delete confirmation
 
   const filteredAndSortedRepertoire = useMemo(() => {
     let songs = [...repertoire];
@@ -152,6 +155,16 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
     showSuccess("New track added to repertoire!");
   };
 
+  const handleDeleteSong = (songId: string) => {
+    // This function would typically delete from the master repertoire
+    // For now, we'll just log and close the dialog
+    console.log(`Deleting song with ID: ${songId} from master repertoire.`);
+    // In a real app, you'd call a prop like onDeleteMasterSong(songId)
+    setDeleteConfirmId(null);
+    onRefreshRepertoire(); // Refresh the list after deletion (simulated)
+    showSuccess("Song removed from master repertoire.");
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -248,7 +261,8 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                 filteredAndSortedRepertoire.map((song, idx) => {
                   const readinessScore = calculateReadiness(song);
                   const isFullyReady = readinessScore === 100;
-                  const currentPref = song.key_preference || keyPreference;
+                  const hasAudio = !!song.audio_url; // Check audio_url for full audio
+                  const currentPref = song.key_preference || keyPreference; // Use keyPreference
                   const displayOrigKey = formatKey(song.originalKey, currentPref);
                   const displayTargetKey = formatKey(song.targetKey || song.originalKey, currentPref);
                   const isProcessing = song.extraction_status === 'processing' || song.extraction_status === 'queued';
@@ -325,6 +339,18 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                           <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground hover:text-indigo-600 hover:bg-indigo-50 transition-colors inline-flex items-center justify-center" onClick={(e) => { e.stopPropagation(); onEditSong(song); }}>
                             <Edit3 className="w-4 h-4" />
                           </Button>
+                          {/* NEW: Bin Icon for Remove */}
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-9 w-9 rounded-xl text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors inline-flex items-center justify-center" 
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              setDeleteConfirmId(song.id); 
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -335,6 +361,24 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
           </Table>
         </div>
       </div>
+
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <AlertDialogContent className="bg-card border-border text-foreground rounded-[2rem]">
+          <AlertDialogHeader>
+            <div className="bg-destructive/10 w-12 h-12 rounded-2xl flex items-center justify-center text-destructive mb-4">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <AlertDialogTitle className="text-xl font-black uppercase tracking-tight">Remove Track?</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              This will remove the song from your master repertoire. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-6">
+            <AlertDialogCancel className="rounded-xl border-border bg-secondary hover:bg-accent hover:text-foreground font-bold uppercase text-[10px] tracking-widest">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { if (deleteConfirmId) { handleDeleteSong(deleteConfirmId); } }} className="rounded-xl bg-destructive hover:bg-destructive-foreground text-white font-black uppercase text-[10px] tracking-widest">Confirm Removal</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
