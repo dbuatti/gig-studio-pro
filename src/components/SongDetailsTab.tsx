@@ -4,7 +4,7 @@ import React, { useState, useCallback } from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { CheckCircle2, ShieldCheck, Link2, FileText, ExternalLink, Check, UploadCloud, Loader2, AlertCircle, Layout } from 'lucide-react'; // Added Layout
+import { CheckCircle2, ShieldCheck, Link2, FileText, ExternalLink, Check, UploadCloud, Loader2, AlertCircle, Layout } from 'lucide-react'; 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -100,7 +100,7 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const file = e.dataTransfer.files[0];
       if (file.type === "application/pdf") {
-        setPendingUpload({ file, type: 'pdf' }); // Default to PDF, user will confirm type
+        setPendingUpload({ file, type: 'pdf' }); 
       } else {
         showError("Only PDF files are allowed.");
       }
@@ -120,21 +120,38 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
 
   // --- Upload Logic ---
   const confirmUpload = async (designation: 'pdf' | 'leadsheet') => {
-    if (!user || !pendingUpload || !formData.name) return;
+    if (!user || !pendingUpload || !formData.name) {
+      console.error("[Upload] Missing required data:", { user: !!user, pending: !!pendingUpload, name: !!formData.name });
+      return;
+    }
 
     setIsUploading(true);
     try {
       const fileExt = pendingUpload.file.name.split('.').pop();
-      // Sanitize filename
       const sanitizedName = formData.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
       const fileName = `${user.id}/${formData.id || 'temp'}_${sanitizedName}_${designation}.${fileExt}`;
       
+      console.log("[Upload] Starting PDF upload...", {
+        bucket: 'public_audio',
+        path: fileName,
+        size: `${(pendingUpload.file.size / 1024 / 1024).toFixed(2)} MB`,
+        type: pendingUpload.file.type
+      });
+
       const { data, error } = await supabase.storage
-        .from('public_audio') // Using existing bucket, could create 'charts' if preferred
-        .upload(fileName, pendingUpload.file, { upsert: true, contentType: 'application/pdf' });
+        .from('public_audio')
+        .upload(fileName, pendingUpload.file, { 
+          upsert: true, 
+          contentType: 'application/pdf',
+          cacheControl: '3600'
+        });
 
-      if (error) throw error;
+      if (error) {
+        console.error("[Upload] Supabase Storage Error:", error);
+        throw error;
+      }
 
+      console.log("[Upload] Upload success. Generating public URL...");
       const { data: { publicUrl } } = supabase.storage.from('public_audio').getPublicUrl(fileName);
 
       const updates: any = { 
@@ -153,7 +170,11 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
       setPendingUpload(null);
 
     } catch (err: any) {
-      showError(`Upload failed: ${err.message}`);
+      console.error("[Upload] Fatal Upload Exception:", err);
+      // Extra check for 400 errors which usually contain details in the error object
+      const errorMsg = err.message || "Unknown storage error";
+      const errorDetail = err.error || err.statusCode || "";
+      showError(`Upload failed: ${errorMsg} ${errorDetail}`);
     } finally {
       setIsUploading(false);
     }
