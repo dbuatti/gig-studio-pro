@@ -118,6 +118,7 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       payload.is_in_library = Boolean(song.is_in_library ?? true);
       payload.sheet_music_url = song.sheet_music_url !== undefined ? String(song.sheet_music_url) : null;
       payload.is_sheet_verified = Boolean(song.is_sheet_verified ?? false);
+      payload.extraction_error = song.extraction_error !== undefined ? String(song.extraction_error) : null; // Explicitly handle extraction_error
       
       if (isValidUuid(song.master_id)) {
         payload.id = song.master_id;
@@ -129,7 +130,8 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
     const hasIds = payloads.some(p => p.id);
     const conflictTarget = hasIds ? 'id' : 'user_id,title,artist';
 
-    console.log("[syncToMasterRepertoire] Sending payload:", JSON.stringify(payloads, null, 2)); // Log the payload
+    // Log the payload here, before the upsert call
+    console.log("[syncToMasterRepertoire] Final payload for upsert:", JSON.stringify(payloads, null, 2));
 
     const { data, error } = await supabase
       .from('repertoire')
@@ -151,6 +153,7 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       return matchedDbSong ? { ...originalSong, master_id: matchedDbSong.id, id: originalSong.id } : originalSong;
     });
   } catch (err) {
+    console.error("[syncToMasterRepertoire] Top-level error during sync:", err);
     throw err;
   }
 };
