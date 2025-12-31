@@ -899,6 +899,7 @@ const Index = () => {
   }, [fetchSetlistsAndRepertoire]);
 
   const handleOpenReader = useCallback((initialSongId?: string) => {
+    sessionStorage.setItem('from_dashboard', 'true');
     const params = new URLSearchParams();
     if (initialSongId) {
       params.set('id', initialSongId);

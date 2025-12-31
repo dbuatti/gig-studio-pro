@@ -4,8 +4,8 @@ import React from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { SetlistSong } from '@/components/SetlistManager';
 import { cn } from '@/lib/utils';
-import { Music, CheckCircle2, Loader2, CloudDownload, AlertTriangle } from 'lucide-react'; // NEW: Import AlertTriangle
-import { calculateReadiness } from '@/utils/repertoireSync'; // Fixed: Added import for calculateReadiness
+import { Music, CheckCircle2, Loader2, CloudDownload, AlertTriangle } from 'lucide-react';
+import { calculateReadiness } from '@/utils/repertoireSync';
 
 interface SheetReaderSidebarProps {
   songs: SetlistSong[];
@@ -27,8 +27,8 @@ const SheetReaderSidebar: React.FC<SheetReaderSidebarProps> = ({ songs, currentI
             const isSelected = index === currentIndex;
             const readiness = calculateReadiness(song);
             const isReady = readiness === 100;
-            const isProcessing = song.extraction_status === 'processing' || song.extraction_status === 'queued'; // NEW: Check for queued status
-            const isExtractionFailed = song.extraction_status === 'failed'; // NEW: Check for failed status
+            const isProcessing = song.extraction_status === 'processing' || song.extraction_status === 'queued';
+            const isExtractionFailed = song.extraction_status === 'failed';
 
             return (
               <button
@@ -43,8 +43,8 @@ const SheetReaderSidebar: React.FC<SheetReaderSidebarProps> = ({ songs, currentI
               >
                 <div className="shrink-0">
                   {isProcessing ? (
-                    <CloudDownload className="w-4 h-4 animate-bounce text-indigo-300" /> // NEW: Use CloudDownload icon
-                  ) : isExtractionFailed ? ( // NEW: Display AlertTriangle for failed status
+                    <CloudDownload className="w-4 h-4 animate-bounce text-indigo-300" />
+                  ) : isExtractionFailed ? (
                     <AlertTriangle className="w-4 h-4 text-red-400" />
                   ) : isReady ? (
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />

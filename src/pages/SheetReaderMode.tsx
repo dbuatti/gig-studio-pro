@@ -186,6 +186,7 @@ const SheetReaderMode: React.FC = () => {
         .eq('user_id', user.id)
         .order('title');
 
+      // Apply 'confirmed for gig' filter if coming from gig mode
       const filterApproved = searchParams.get('filterApproved');
       if (filterApproved === 'true') {
         query = query.eq('is_approved', true);
@@ -212,7 +213,6 @@ const SheetReaderMode: React.FC = () => {
         targetKey: d.target_key,
         pitch: d.pitch ?? 0,
         previewUrl: d.extraction_status === 'completed' && d.audio_url ? d.audio_url : d.preview_url,
-        youtubeUrl: d.youtube_url,
         ug_chords_text: d.ug_chords_text,
         ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
         isApproved: d.is_approved,
@@ -231,13 +231,14 @@ const SheetReaderMode: React.FC = () => {
       }));
 
       const readableAndApprovedSongs = mappedSongs.filter(s => {
-        const readiness = calculateReadiness(s);
+        // REMOVED: readiness >= 40 from meetsReadiness
         const hasChart = s.pdfUrl || s.leadsheetUrl || s.ug_chords_text || s.sheet_music_url; 
-        const meetsReadiness = readiness >= 40 || forceReaderResource === 'simulation' || ignoreConfirmedGate;
+        const meetsReadiness = true || forceReaderResource === 'simulation' || ignoreConfirmedGate; // Always true now
 
+        // Debugging for the specific song
         if (s.id === "582ded79-5b51-45e1-8260-72de214fbff1") {
           console.log(`[SheetReaderMode Debug] Song: ${s.name}, ID: ${s.id}`);
-          console.log(`[SheetReaderMode Debug] readiness: ${readiness}`);
+          console.log(`[SheetReaderMode Debug] readiness: ${calculateReadiness(s)}`); // Log actual readiness
           console.log(`[SheetReaderMode Debug] hasChart (pdfUrl: ${s.pdfUrl}, leadsheetUrl: ${s.leadsheetUrl}, ug_chords_text: ${!!s.ug_chords_text && s.ug_chords_text.trim().length > 0}, sheet_music_url: ${s.sheet_music_url}): ${hasChart}`);
           console.log(`[SheetReaderMode Debug] meetsReadiness: ${meetsReadiness}`);
           console.log(`[SheetReaderMode Debug] Filter result: ${hasChart && meetsReadiness}`);
@@ -266,6 +267,7 @@ const SheetReaderMode: React.FC = () => {
 
       setCurrentIndex(initialIndex);
     } catch (err) {
+      // Error already handled above
     } finally {
       setInitialLoading(false);
     }
@@ -297,9 +299,17 @@ const SheetReaderMode: React.FC = () => {
   }, [user]);
 
   useEffect(() => {
+    const fromDashboard = sessionStorage.getItem('from_dashboard');
+    if (!fromDashboard) {
+      console.log("[SheetReaderMode] Not navigated from dashboard, redirecting to /");
+      navigate('/', { replace: true });
+      return;
+    }
+    sessionStorage.removeItem('from_dashboard');
+
     fetchSongs();
     fetchAllSetlists();
-  }, [fetchSongs, fetchAllSetlists]);
+  }, [fetchSongs, fetchAllSetlists, navigate]);
 
   useEffect(() => {
     if (!currentSong?.previewUrl) {
@@ -488,7 +498,7 @@ const SheetReaderMode: React.FC = () => {
 
   const renderChartForSong = useCallback((song: SetlistSong, chartType: ChartType, onChartLoad: (id: string, type: ChartType) => void): React.ReactNode => {
     const readiness = calculateReadiness(song);
-    const isReadyGatePassed = readiness >= 40 || forceReaderResource === 'simulation' || ignoreConfirmedGate;
+    const isReadyGatePassed = true || forceReaderResource === 'simulation' || ignoreConfirmedGate; // Always true now
 
     if (!isReadyGatePassed) {
       setTimeout(() => onChartLoad(song.id, chartType), 50);
@@ -700,6 +710,7 @@ const SheetReaderMode: React.FC = () => {
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-white">
       
+      {/* Sidebar */}
       <motion.div
         initial={{ x: isSidebarOpen ? 0 : -300 }}
         animate={{ x: isSidebarOpen ? 0 : -300 }}
