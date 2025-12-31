@@ -192,7 +192,15 @@ const Index = () => {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (setlistsError) throw setlistsError;
+      if (setlistsError) {
+        console.error("[Index] Supabase Setlists Fetch Error:", setlistsError);
+        if (setlistsError.message.includes("new row violates row-level-security")) {
+          showError("Database Security Error: You don't have permission to read setlist data. Check RLS policies.");
+        } else {
+          showError(`Failed to load setlists: ${setlistsError.message}`);
+        }
+        throw setlistsError;
+      }
 
       // 2. Fetch Master Repertoire
       const { data: repertoireData, error: repertoireError } = await supabase
@@ -201,7 +209,15 @@ const Index = () => {
         .eq('user_id', user.id)
         .order('title');
 
-      if (repertoireError) throw repertoireError;
+      if (repertoireError) {
+        console.error("[Index] Supabase Repertoire Fetch Error:", repertoireError);
+        if (repertoireError.message.includes("new row violates row-level-security")) {
+          showError("Database Security Error: You don't have permission to read repertoire data. Check RLS policies.");
+        } else {
+          showError(`Failed to load repertoire: ${repertoireError.message}`);
+        }
+        throw repertoireError;
+      }
 
       const mappedRepertoire: SetlistSong[] = (repertoireData || []).map(d => ({
         id: d.id,
@@ -210,6 +226,7 @@ const Index = () => {
         artist: d.artist,
         originalKey: d.original_key,
         targetKey: d.target_key,
+        pitch: d.pitch ?? 0,
         previewUrl: d.extraction_status === 'completed' && d.audio_url ? d.audio_url : d.preview_url,
         youtubeUrl: d.youtube_url,
         ugUrl: d.ug_url,
@@ -248,7 +265,6 @@ const Index = () => {
         extraction_status: d.extraction_status,
         extraction_error: d.extraction_error,
         audio_url: d.audio_url,
-        pitch: d.pitch ?? 0,
       }));
       setMasterRepertoire(mappedRepertoire);
 
@@ -491,7 +507,7 @@ const Index = () => {
 
     // First, update the master repertoire and get the fully synced song back
     const syncedMasterSongs = await syncToMasterRepertoire(user.id, [mergedUpdatesForMaster]);
-    const fullySyncedMasterSong = syncedMasterSongs[0]; // This now has the latest audio_url, extraction_status etc.
+    const fullySyncedMasterSong = syncedMasterSongs[0];
 
     setMasterRepertoire(prev => prev.map(s => s.id === fullySyncedMasterSong.id ? fullySyncedMasterSong : s));
 
@@ -876,8 +892,8 @@ const Index = () => {
 
     try {
       // 1. Update the master repertoire and get the fully synced song back
-      const syncedMasterSongs = await syncToMasterRepertoire(user.id, [mergedUpdatesForMaster]);
-      const fullySyncedMasterSong = syncedMasterSongs[0];
+      const syncedSongs = await syncToMasterRepertoire(user.id, [mergedUpdatesForMaster]);
+      const fullySyncedMasterSong = syncedSongs[0];
 
       // 2. Update local master repertoire state
       setMasterRepertoire(prev => prev.map(s => s.id === songId ? fullySyncedMasterSong : s));
