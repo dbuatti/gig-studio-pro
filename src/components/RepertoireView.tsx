@@ -204,7 +204,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                   return (
                     <tr
                       key={song.id}
-                      onClick={() => onEditSong(song)} // Make entire row clickable
+                      onClick={() => onEditSong(song, 'details')} // Make entire row clickable and open to 'details'
                       className={cn(
                         "transition-all group relative cursor-pointer h-[80px]",
                         "hover:bg-accent dark:hover:bg-secondary"
@@ -272,6 +272,9 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                             songToAssign={song}
                             onUpdateSetlistSongs={onUpdateSetlistSongs}
                           />
+                          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground hover:text-indigo-600 hover:bg-indigo-50 transition-colors inline-flex items-center justify-center" onClick={(e) => { e.stopPropagation(); onEditSong(song, 'details'); }}>
+                            <Edit3 className="w-4 h-4" />
+                          </Button>
                         </div>
                       </td>
                     </tr>

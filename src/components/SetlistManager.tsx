@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, CircleDashed, CheckCircle2, Volume2, ChevronUp, ChevronDown, Search, LayoutList, SortAsc, SortDesc, ClipboardList, Clock, ShieldCheck, Check, MoreVertical, Settings2, FileText, Filter, AlertTriangle, Loader2, Guitar, CloudDownload } from 'lucide-react';
+import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, CircleDashed, CheckCircle2, Volume2, ChevronUp, ChevronDown, Search, LayoutList, SortAsc, SortDesc, ClipboardList, Clock, ShieldCheck, Check, MoreVertical, Settings2, FileText, Filter, AlertTriangle, Loader2, Guitar, CloudDownload, Edit3 } from 'lucide-react';
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, formatKey, transposeKey, calculateSemitones } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
 import { showSuccess } from '@/utils/toast';
@@ -14,6 +14,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import SetlistFilters, { FilterState } from './SetlistFilters';
 import { calculateReadiness } from '@/utils/repertoireSync';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import SetlistMultiSelector from './SetlistMultiSelector'; // Import SetlistMultiSelector
 
 export interface UGChordsConfig {
   fontFamily: string;
@@ -72,6 +73,14 @@ export interface SetlistSong {
   extraction_error?: string;
 }
 
+// Define the Setlist interface here
+export interface Setlist {
+  id: string;
+  name: string;
+  songs: SetlistSong[];
+  time_goal?: number;
+}
+
 interface SetlistManagerProps {
   songs: SetlistSong[]; 
   onRemove: (id: string) => void;
@@ -92,6 +101,8 @@ interface SetlistManagerProps {
   searchTerm: string;
   setSearchTerm: (term: string) => void;
   showHeatmap: boolean;
+  allSetlists: Setlist[]; // Add allSetlists prop
+  onUpdateSetlistSongs: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>; // Add onUpdateSetlistSongs prop
 }
 
 const SetlistManager: React.FC<SetlistManagerProps> = ({
@@ -112,7 +123,9 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   setActiveFilters,
   searchTerm,
   setSearchTerm,
-  showHeatmap
+  showHeatmap,
+  allSetlists, // Destructure allSetlists
+  onUpdateSetlistSongs // Destructure onUpdateSetlistSongs
 }) => {
   const isMobile = useIsMobile();
   const { keyPreference: globalPreference } = useSettings();
@@ -477,12 +490,14 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       </td>
                       <td className="px-6 text-right pr-10">
                         <div className="flex items-center justify-end gap-2 h-full">
-                          <Button size="sm" className={cn("h-9 px-4 text-[10px] font-black uppercase tracking-[0.1em] gap-2 rounded-xl transition-all", !song.previewUrl ? "bg-secondary text-muted-foreground dark:bg-secondary hover:bg-secondary dark:hover:bg-secondary" : isSelected ? "bg-indigo-100 text-indigo-600 border border-indigo-200" : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-xl shadow-indigo-500/20")} disabled={!song.previewUrl} onClick={(e) => { e.stopPropagation(); onSelect(song); }}>
-                            {isSelected ? "Active" : "Perform"}
-                            <Play className={cn("w-3 h-3 fill-current", isSelected && "fill-indigo-600")} />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors inline-flex items-center justify-center" onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(song.id); }}>
-                            <Trash2 className="w-4 h-4" />
+                          <SetlistMultiSelector
+                            songMasterId={song.id}
+                            allSetlists={allSetlists}
+                            songToAssign={song}
+                            onUpdateSetlistSongs={onUpdateSetlistSongs}
+                          />
+                          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground hover:text-indigo-600 hover:bg-indigo-50 transition-colors inline-flex items-center justify-center" onClick={(e) => { e.stopPropagation(); onEdit(song); }}>
+                            <Edit3 className="w-4 h-4" />
                           </Button>
                         </div>
                       </td>

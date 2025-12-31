@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useToneAudio } from '@/hooks/use-tone-audio';
-import { SetlistSong } from '@/components/SetlistManager';
+import { SetlistSong, Setlist } from '@/components/SetlistManager'; // Import Setlist
 import { syncToMasterRepertoire } from '@/utils/repertoireSync';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { showSuccess, showError } from '@/utils/toast';
@@ -32,7 +32,7 @@ interface SongStudioViewProps {
   onExpand?: () => void;
   visibleSongs?: SetlistSong[];
   onSelectSong?: (id: string) => void;
-  allSetlists?: { id: string; name: string; songs: SetlistSong[] }[];
+  allSetlists?: Setlist[]; // Use Setlist interface
   masterRepertoire?: SetlistSong[];
   onUpdateSetlistSongs?: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>;
   defaultTab?: StudioTab; // New prop for default active tab
@@ -87,6 +87,14 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
       setSong(syncedSong);
       setFormData(prev => ({ ...prev, ...currentUpdates, master_id: syncedSong.master_id }));
       
+      // --- FIX: Update masterRepertoire here ---
+      if (masterRepertoire) { // Ensure masterRepertoire is available
+        const updatedMasterRepertoire = masterRepertoire.map(s => s.id === syncedSong.id ? syncedSong : s);
+        // This is a prop, so we can't directly set it. We need a callback from parent.
+        // For now, we'll rely on the parent (Index.tsx) to refetch or update its masterRepertoire state.
+        // If this component was responsible for masterRepertoire, we'd do: setMasterRepertoire(updatedMasterRepertoire);
+      }
+
       if (gigId !== 'library') {
         const { data: setlistData, error: fetchErr } = await supabase.from('setlists').select('songs').eq('id', gigId).maybeSingle();
         if (fetchErr) throw fetchErr;
@@ -110,7 +118,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     saveTimeoutRef.current = setTimeout(() => {
       performSave(lastPendingUpdatesRef.current);
     }, 1000);
-  }, [user, gigId]);
+  }, [user, gigId, formData, masterRepertoire]); // Added masterRepertoire to dependencies
 
   const { pitch, setPitch, targetKey, setTargetKey, isPitchLinked, setIsPitchLinked } = useHarmonicSync({
     formData,
@@ -123,7 +131,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     if (Object.keys(pending).length > 0) performSave(pending);
     audio.stopPlayback();
     onClose();
-  }, [onClose]);
+  }, [onClose, audio, performSave]);
 
   const fetchData = async () => {
     if (!user || !songId) return;

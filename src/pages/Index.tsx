@@ -23,7 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Custom Components
 import SetlistSelector from '@/components/SetlistSelector';
-import SetlistManager, { SetlistSong } from '@/components/SetlistManager';
+import SetlistManager, { SetlistSong, Setlist } from '@/components/SetlistManager'; // Import Setlist
 import SetlistFilters, { FilterState, DEFAULT_FILTERS } from '@/components/SetlistFilters';
 import SetlistStats from '@/components/SetlistStats';
 import SetlistExporter from '@/components/SetlistExporter';
@@ -39,13 +39,6 @@ import FloatingCommandDock from '@/components/FloatingCommandDock';
 import ActiveSongBanner from '@/components/ActiveSongBanner';
 import { StudioTab } from '@/components/SongStudioView';
 import RepertoireView from '@/components/RepertoireView';
-
-interface Setlist {
-  id: string;
-  name: string;
-  songs: SetlistSong[];
-  time_goal?: number;
-}
 
 const Index = () => {
   const navigate = useNavigate();
@@ -290,20 +283,9 @@ const Index = () => {
     }
   }, [user, authLoading, fetchSetlistsAndRepertoire, navigate]);
 
-  // Update active song for performance when activeSetlist or activeSongId changes
+  // --- FIX: Clear active song for performance on setlist change or initial load ---
   useEffect(() => {
-    if (activeSetlist && activeSetlist.songs.length > 0) {
-      const savedSongId = localStorage.getItem(`active_song_id_${activeSetlist.id}`);
-      let songToActivate = activeSetlist.songs[0];
-
-      if (savedSongId) {
-        const found = activeSetlist.songs.find(s => s.id === savedSongId);
-        if (found) songToActivate = found;
-      }
-      setActiveSongForPerformance(songToActivate);
-    } else {
-      setActiveSongForPerformance(null);
-    }
+    setActiveSongForPerformance(null); // Always clear when activeSetlist changes or on initial load
   }, [activeSetlist]);
 
   // Load audio for active song for performance
@@ -317,15 +299,13 @@ const Index = () => {
     }
   }, [activeSongForPerformance?.previewUrl, activeSongForPerformance?.pitch]);
 
-  // Persist active setlist and song for performance
+  // --- FIX: Remove persistence of active song for performance on refresh ---
   useEffect(() => {
     if (activeSetlistId) {
       localStorage.setItem('active_setlist_id', activeSetlistId);
     }
-    if (activeSetlist && activeSongForPerformance) {
-      localStorage.setItem(`active_song_id_${activeSetlist.id}`, activeSongForPerformance.id);
-    }
-  }, [activeSetlistId, activeSetlist, activeSongForPerformance]);
+    // Removed: localStorage.setItem(`active_song_id_${activeSetlist.id}`, activeSongForPerformance.id);
+  }, [activeSetlistId]);
 
   // --- Setlist Management Handlers ---
   const handleSelectSetlist = (id: string) => {
@@ -382,7 +362,7 @@ const Index = () => {
         .from('setlists')
         .delete()
         .eq('id', id)
-        .eq('user_id', user.id);
+        .eq('user.id', user.id);
 
       if (error) throw error;
       setAllSetlists(prev => prev.filter(s => s.id !== id));
@@ -420,6 +400,10 @@ const Index = () => {
   const handleSelectSongForPlayback = (song: SetlistSong) => {
     setActiveSongForPerformance(song);
     audio.stopPlayback();
+    // --- FIX: Persist active song only when explicitly selected ---
+    if (activeSetlist) {
+      localStorage.setItem(`active_song_id_${activeSetlist.id}`, song.id);
+    }
   };
 
   const handleEditSong = (song: SetlistSong, defaultTab?: StudioTab) => {
@@ -1255,10 +1239,16 @@ const Index = () => {
           onClose={() => { setIsSongStudioModalOpen(false); setSongStudioDefaultTab(undefined); }} // Reset default tab on close
           gigId={activeSetlistId || 'library'} // Pass activeSetlistId or 'library'
           songId={songStudioModalSongId}
-          visibleSongs={filteredAndSortedSongs}
+          // --- FIX: Pass correct visibleSongs based on active tab ---
+          visibleSongs={activeDashboardView === 'gigs' ? filteredAndSortedSongs : masterRepertoire}
           onSelectSong={(id) => {
-            const song = filteredAndSortedSongs.find(s => s.id === id);
-            if (song) setActiveSongForPerformance(song);
+            // --- FIX: Update songStudioModalSongId for navigation within modal ---
+            setSongStudioModalSongId(id);
+            // If it's from the gigs tab, also update activeSongForPerformance
+            if (activeDashboardView === 'gigs') {
+              const song = filteredAndSortedSongs.find(s => s.id === id);
+              if (song) setActiveSongForPerformance(song);
+            }
           }}
           allSetlists={allSetlists}
           masterRepertoire={masterRepertoire}
