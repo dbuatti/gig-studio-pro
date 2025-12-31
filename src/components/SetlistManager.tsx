@@ -200,7 +200,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
             onClick={() => setIsFilterOpen(!isFilterOpen)}
             className={cn(
               "h-8 px-4 text-[10px] font-black uppercase tracking-widest rounded-xl gap-2 transition-all",
-              isFilterOpen ? "bg-indigo-50 text-indigo-600" : "text-slate-500 hover:bg-slate-100"
+              isFilterOpen ? "bg-indigo-50 text-indigo-600" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
             )}
           >
             <Filter className="w-3.5 h-3.5" /> Filter Matrix
@@ -243,8 +243,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                 key={song.id}
                 onClick={() => onEdit(song)}
                 className={cn(
-                  "bg-slate-950 rounded-2xl border-2 transition-all p-4 flex flex-col gap-3 shadow-sm",
-                  isSelected ? "border-indigo-500 shadow-md ring-1 ring-indigo-500/20" : "border-slate-900",
+                  "bg-white dark:bg-slate-950 rounded-2xl border-2 transition-all p-4 flex flex-col gap-3 shadow-sm",
+                  isSelected ? "border-indigo-500 shadow-md ring-1 ring-indigo-500/20" : "border-slate-200 dark:border-slate-900",
                   song.isPlayed && "opacity-50 grayscale-[0.2]",
                   getHeatmapClass(song)
                 )}
@@ -263,17 +263,17 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                           <CheckCircle2 className="w-3.5 h-3.5" />
                         </div>
                       ) : (
-                        <div className="h-5 w-5 rounded-full border-2 border-slate-800" />
+                        <div className="h-5 w-5 rounded-full border-2 border-slate-400 dark:border-slate-800" />
                       )}
                     </button>
                     <div>
-                      <h4 className={cn("text-sm font-black tracking-tight flex items-center gap-1.5", song.isPlayed && "line-through text-slate-400")}>
+                      <h4 className={cn("text-sm font-black tracking-tight flex items-center gap-1.5 text-slate-900 dark:text-white", song.isPlayed && "line-through text-slate-400")}>
                         {song.name}
                         {isFullyReady && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 fill-emerald-500/20" />}
                         {isProcessing && <CloudDownload className="w-3.5 h-3.5 text-indigo-500 animate-bounce" />}
                         {isExtractionFailed && <AlertTriangle className="w-3.5 h-3.5 text-red-500" />}
                       </h4>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-0.5">
                         {song.artist || "Unknown Artist"}
                       </p>
                       {isExtractionFailed && song.last_sync_log && (
@@ -292,7 +292,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                     )}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">
                           <MoreVertical className="w-4 h-4" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -313,10 +313,10 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                     </DropdownMenu>
                   </div>
                 </div>
-                <div className="flex items-center justify-between border-t border-slate-900 pt-3">
+                <div className="flex items-center justify-between border-t border-slate-200 dark:border-slate-900 pt-3">
                   <div className="flex items-center gap-4">
                     <div className="flex flex-col">
-                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-0.5">Key</span>
+                      <span className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] mb-0.5">Key</span>
                       <div className={cn(
                         "font-mono font-black text-[10px] px-2 py-0.5 rounded-lg text-white flex items-center gap-1",
                         song.isKeyConfirmed ? "bg-emerald-600" : "bg-indigo-600"
@@ -326,8 +326,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       </div>
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-0.5">Tempo</span>
-                      <span className="text-[10px] font-mono font-bold text-slate-500">{song.bpm || "--"} BPM</span>
+                      <span className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] mb-0.5">Tempo</span>
+                      <span className="text-[10px] font-mono font-bold text-slate-600">{song.bpm || "--"} BPM</span>
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -336,7 +336,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       size="sm"
                       className={cn(
                         "h-8 px-4 text-[9px] font-black uppercase tracking-widest rounded-xl gap-2",
-                        !song.previewUrl ? "bg-slate-900 text-slate-600" : isSelected ? "bg-indigo-100 text-indigo-600 border border-indigo-200" : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-xl shadow-indigo-500/20"
+                        !song.previewUrl ? "bg-slate-200 text-slate-600 dark:bg-slate-900" : isSelected ? "bg-indigo-100 text-indigo-600 border border-indigo-200" : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-xl shadow-indigo-500/20"
                       )}
                       disabled={!song.previewUrl}
                       onClick={(e) => {
@@ -354,19 +354,19 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
           })}
         </div>
       ) : (
-        <div className="bg-slate-950 rounded-[2rem] border-4 border-slate-900 shadow-2xl overflow-hidden">
+        <div className="bg-white dark:bg-slate-950 rounded-[2rem] border-4 border-slate-200 dark:border-slate-900 shadow-2xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse min-w-[900px]">
               <thead>
-                <tr className="bg-slate-900/50 border-b dark:border-slate-800">
-                  <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 w-16 text-center">Sts</th>
-                  <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-left">Song / Resource Matrix</th>
-                  <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 w-24 text-center">Move</th>
-                  <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 w-48 text-center">Harmonic Map</th>
-                  <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 w-40 text-right pr-10">Command</th>
+                <tr className="bg-slate-100 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800">
+                  <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-16 text-center">Sts</th>
+                  <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 text-left">Song / Resource Matrix</th>
+                  <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-24 text-center">Move</th>
+                  <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-48 text-center">Harmonic Map</th>
+                  <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 w-40 text-right pr-10">Command</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-900">
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-900">
                 {processedSongs.map((song, idx) => {
                   const isSelected = currentSongId === song.id;
                   const readinessScore = calculateReadiness(song);
@@ -384,7 +384,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       onClick={() => onEdit(song)}
                       className={cn(
                         "transition-all group relative cursor-pointer h-[80px]",
-                        isSelected ? "bg-indigo-900/10" : "hover:bg-slate-800/50",
+                        isSelected ? "bg-indigo-100 dark:bg-indigo-900/10" : "hover:bg-slate-50 dark:hover:bg-slate-800/50",
                         song.isPlayed && "opacity-40 grayscale-[0.5]",
                         getHeatmapClass(song)
                       )}
@@ -402,7 +402,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                               <CheckCircle2 className="w-4 h-4" />
                             </div>
                           ) : (
-                            <div className="h-6 w-6 rounded-full border-2 border-slate-700 flex items-center justify-center text-slate-300 group-hover:border-indigo-300 transition-colors">
+                            <div className="h-6 w-6 rounded-full border-2 border-slate-400 dark:border-slate-700 flex items-center justify-center text-slate-500 group-hover:border-indigo-300 transition-colors">
                               <CircleDashed className="w-4 h-4" />
                             </div>
                           )}
@@ -411,8 +411,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       <td className="px-6 text-left">
                         <div className="flex flex-col gap-1">
                           <div className="flex items-center gap-3">
-                            <span className="text-[10px] font-mono font-black text-slate-300 min-w-[20px]">{(idx + 1).toString().padStart(2, '0')}</span>
-                            <h4 className={cn("text-base font-black tracking-tight leading-none flex items-center gap-2", song.isPlayed && "line-through text-slate-400")}>
+                            <span className="text-[10px] font-mono font-black text-slate-600 dark:text-slate-300 min-w-[20px]">{(idx + 1).toString().padStart(2, '0')}</span>
+                            <h4 className={cn("text-base font-black tracking-tight leading-none flex items-center gap-2 text-slate-900 dark:text-white", song.isPlayed && "line-through text-slate-400")}>
                               {song.name}
                               {isFullyReady && <CheckCircle2 className="w-4 h-4 text-emerald-500 fill-emerald-500/20" />}
                               {isProcessing && <CloudDownload className="w-4 h-4 text-indigo-500 animate-bounce" />}
@@ -429,11 +429,11 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                             )}
                           </div>
                           <div className="flex items-center gap-2 ml-[32px]">
-                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">
+                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none">
                               {song.artist || "Unknown Artist"}
                             </span>
-                            <span className="text-slate-800 text-[8px]">•</span>
-                            <span className="text-[9px] font-mono font-bold text-slate-400 flex items-center gap-1.5">
+                            <span className="text-slate-400 dark:text-slate-800 text-[8px]">•</span>
+                            <span className="text-[9px] font-mono font-bold text-slate-500 flex items-center gap-1.5">
                               <Clock className="w-3 h-3" />
                               {Math.floor((song.duration_seconds || 0) / 60)}:{(Math.floor((song.duration_seconds || 0) % 60)).toString().padStart(2, '0')}
                             </span>
@@ -445,10 +445,10 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       </td>
                       <td className="px-6 text-center">
                         <div className="flex flex-col items-center justify-center gap-0.5 h-full">
-                          <Button variant="ghost" size="icon" className={cn("h-7 w-7 transition-all flex items-center justify-center", isReorderingEnabled ? "text-slate-300 hover:text-indigo-600 hover:bg-indigo-50" : "text-slate-100 opacity-20 cursor-not-allowed")} onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'up'); }} disabled={!isReorderingEnabled || idx === 0}>
+                          <Button variant="ghost" size="icon" className={cn("h-7 w-7 transition-all flex items-center justify-center", isReorderingEnabled ? "text-slate-500 hover:text-indigo-600 hover:bg-indigo-50" : "text-slate-300 opacity-20 cursor-not-allowed")} onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'up'); }} disabled={!isReorderingEnabled || idx === 0}>
                             <ChevronUp className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className={cn("h-7 w-7 transition-all flex items-center justify-center", isReorderingEnabled ? "text-slate-300 hover:text-indigo-600 hover:bg-indigo-50" : "text-slate-100 opacity-20 cursor-not-allowed")} onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'down'); }} disabled={!isReorderingEnabled || idx === processedSongs.length - 1}>
+                          <Button variant="ghost" size="icon" className={cn("h-7 w-7 transition-all flex items-center justify-center", isReorderingEnabled ? "text-slate-500 hover:text-indigo-600 hover:bg-indigo-50" : "text-slate-300 opacity-20 cursor-not-allowed")} onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'down'); }} disabled={!isReorderingEnabled || idx === processedSongs.length - 1}>
                             <ChevronDown className="w-4 h-4" />
                           </Button>
                         </div>
@@ -456,15 +456,15 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       <td className="px-6 text-center">
                         <div className="flex items-center justify-center gap-4 h-full">
                           <div className="text-center min-w-[32px]">
-                            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Orig</p>
-                            <span className="text-xs font-mono font-bold text-slate-500 block leading-none">{displayOrigKey}</span>
+                            <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Orig</p>
+                            <span className="text-xs font-mono font-bold text-slate-600 dark:text-slate-500 block leading-none">{displayOrigKey}</span>
                           </div>
                           <div className="flex flex-col items-center justify-center opacity-30">
-                            <ArrowRight className="w-3 h-3 text-slate-300 mb-0.5" />
-                            <div className="h-px w-6 bg-slate-800" />
+                            <ArrowRight className="w-3 h-3 text-slate-500 dark:text-slate-300 mb-0.5" />
+                            <div className="h-px w-6 bg-slate-400 dark:bg-slate-800" />
                           </div>
                           <div className="text-center min-w-[32px] relative">
-                            <p className="text-[8px] font-black text-indigo-50 uppercase tracking-widest mb-0.5">Stage</p>
+                            <p className="text-[8px] font-black text-indigo-500 uppercase tracking-widest mb-0.5">Stage</p>
                             <div className={cn(
                               "font-mono font-black text-xs px-2.5 py-1 rounded-lg shadow-lg flex items-center justify-center gap-1.5 leading-none",
                               song.isKeyConfirmed ? "bg-emerald-600 text-white shadow-emerald-500/20" : "bg-indigo-600 text-white shadow-indigo-500/20"
@@ -477,11 +477,11 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       </td>
                       <td className="px-6 text-right pr-10">
                         <div className="flex items-center justify-end gap-2 h-full">
-                          <Button size="sm" className={cn("h-9 px-4 text-[10px] font-black uppercase tracking-[0.1em] gap-2 rounded-xl transition-all", !song.previewUrl ? "bg-slate-900 text-slate-600 hover:bg-slate-900" : isSelected ? "bg-indigo-100 text-indigo-600 border border-indigo-200" : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-xl shadow-indigo-500/20")} disabled={!song.previewUrl} onClick={(e) => { e.stopPropagation(); onSelect(song); }}>
+                          <Button size="sm" className={cn("h-9 px-4 text-[10px] font-black uppercase tracking-[0.1em] gap-2 rounded-xl transition-all", !song.previewUrl ? "bg-slate-200 text-slate-600 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-900" : isSelected ? "bg-indigo-100 text-indigo-600 border border-indigo-200" : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-xl shadow-indigo-500/20")} disabled={!song.previewUrl} onClick={(e) => { e.stopPropagation(); onSelect(song); }}>
                             {isSelected ? "Active" : "Perform"}
                             <Play className={cn("w-3 h-3 fill-current", isSelected && "fill-indigo-600")} />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors inline-flex items-center justify-center" onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(song.id); }}>
+                          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-slate-500 hover:text-red-500 hover:bg-red-50 transition-colors inline-flex items-center justify-center" onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(song.id); }}>
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
@@ -496,18 +496,18 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       )}
 
       <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
-        <AlertDialogContent className="bg-slate-900 border-white/10 text-white rounded-[2rem]">
+        <AlertDialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white rounded-[2rem]">
           <AlertDialogHeader>
             <div className="bg-red-500/10 w-12 h-12 rounded-2xl flex items-center justify-center text-red-500 mb-4">
               <AlertTriangle className="w-6 h-6" />
             </div>
             <AlertDialogTitle className="text-xl font-black uppercase tracking-tight">Remove Track?</AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-400">
+            <AlertDialogDescription className="text-slate-500">
               This will remove the song from your active setlist. The master record will remain in your library.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-6">
-            <AlertDialogCancel className="rounded-xl border-white/10 bg-white/5 hover:bg-white/10 hover:text-white font-bold uppercase text-[10px] tracking-widest">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="rounded-xl border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white font-bold uppercase text-[10px] tracking-widest">Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={() => { if (deleteConfirmId) { onRemove(deleteConfirmId); setDeleteConfirmId(null); showSuccess("Track Removed"); } }} className="rounded-xl bg-red-600 hover:bg-red-700 text-white font-black uppercase text-[10px] tracking-widest">Confirm Removal</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

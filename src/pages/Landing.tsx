@@ -10,10 +10,12 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { MadeWithDyad } from '@/components/made-with-dyad';
+import { useTheme } from '@/hooks/use-theme'; // NEW: Import useTheme
 
 const Landing = () => {
   const navigate = useNavigate();
   const { session } = useAuth();
+  const { theme } = useTheme(); // NEW: Use theme hook
 
   const features = [
     {
@@ -49,9 +51,9 @@ const Landing = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white selection:bg-indigo-500/30">
+    <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-white selection:bg-indigo-500/30">
       {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 bg-slate-950/80 backdrop-blur-xl border-b border-white/5 px-6 h-20 flex items-center justify-between">
+      <nav className="fixed top-0 w-full z-50 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-b border-slate-200 dark:border-white/5 px-6 h-20 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="bg-indigo-600 p-1.5 rounded-lg">
             <Waves className="w-5 h-5 text-white" />
@@ -59,8 +61,8 @@ const Landing = () => {
           <span className="font-black uppercase tracking-tighter text-xl">Gig Studio <span className="text-indigo-600">Pro</span></span>
         </div>
         <div className="flex items-center gap-6">
-          <button className="text-sm font-bold text-slate-400 hover:text-white transition-colors hidden md:block">Features</button>
-          <button className="text-sm font-bold text-slate-400 hover:text-white transition-colors hidden md:block">Pricing</button>
+          <button className="text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors hidden md:block">Features</button>
+          <button className="text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors hidden md:block">Pricing</button>
           <Button 
             onClick={() => navigate(session ? '/dashboard' : '/login')}
             className="bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] h-10 px-6 rounded-xl shadow-lg shadow-indigo-600/20"
@@ -85,7 +87,7 @@ const Landing = () => {
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-pink-500">Master your craft.</span>
           </h1>
           
-          <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto mb-12 font-medium leading-relaxed animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-200">
+          <p className="text-lg md:text-xl text-slate-500 dark:text-slate-400 max-w-2xl mx-auto mb-12 font-medium leading-relaxed animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-200">
             The all-in-one studio for professional musicians. AI-powered setlists, real-time transposition, and high-fidelity stage tools.
           </p>
           
@@ -100,7 +102,7 @@ const Landing = () => {
             <Button 
               size="lg"
               variant="outline"
-              className="w-full sm:w-auto h-16 px-10 rounded-2xl border-white/10 bg-white/5 hover:bg-white/10 font-black uppercase tracking-widest text-xs"
+              className="w-full sm:w-auto h-16 px-10 rounded-2xl border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 font-black uppercase tracking-widest text-xs text-slate-900 dark:text-white"
             >
               Watch Demo
             </Button>
@@ -109,8 +111,8 @@ const Landing = () => {
 
         {/* Dashboard Preview */}
         <div className="max-w-6xl mx-auto mt-24 px-4 animate-in fade-in zoom-in duration-1000 delay-500">
-          <div className="bg-slate-900 rounded-[3rem] border-8 border-white/5 shadow-2xl overflow-hidden aspect-video relative group">
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 to-transparent" />
+          <div className="bg-slate-100 dark:bg-slate-900 rounded-[3rem] border-8 border-slate-200 dark:border-white/5 shadow-2xl overflow-hidden aspect-video relative group">
+            <div className="absolute inset-0 bg-slate-100/80 dark:bg-slate-950/80 to-transparent" />
             <img 
               src="https://images.unsplash.com/photo-1514525253361-bee8718a74a2?q=80&w=2000&auto=format&fit=crop" 
               alt="Live Performance" 
@@ -122,13 +124,13 @@ const Landing = () => {
                   <Mic2 className="w-8 h-8 text-white" />
                 </div>
                 <div>
-                  <h4 className="text-2xl font-black uppercase tracking-tight">Stage Ready</h4>
-                  <p className="text-slate-400 text-sm font-bold uppercase tracking-widest">Optimized for iPad & Desktop</p>
+                  <h4 className="text-2xl font-black uppercase tracking-tight text-slate-900 dark:text-white">Stage Ready</h4>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm font-bold uppercase tracking-widest">Optimized for iPad & Desktop</p>
                 </div>
               </div>
               <div className="hidden md:flex gap-4">
-                <div className="h-12 w-32 bg-white/10 backdrop-blur-md rounded-xl border border-white/10" />
-                <div className="h-12 w-32 bg-white/10 backdrop-blur-md rounded-xl border border-white/10" />
+                <div className="h-12 w-32 bg-slate-200/50 dark:bg-white/10 backdrop-blur-md rounded-xl border border-slate-200 dark:border-white/10" />
+                <div className="h-12 w-32 bg-slate-200/50 dark:bg-white/10 backdrop-blur-md rounded-xl border border-slate-200 dark:border-white/10" />
               </div>
             </div>
           </div>
@@ -136,21 +138,21 @@ const Landing = () => {
       </section>
 
       {/* Features Grid */}
-      <section className="py-40 px-6 bg-slate-950 relative">
+      <section className="py-40 px-6 bg-slate-100 dark:bg-slate-950 relative">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-24">
             <h2 className="text-[10px] font-black uppercase tracking-[0.5em] text-indigo-500 mb-4">Professional Ecosystem</h2>
-            <h3 className="text-4xl md:text-6xl font-black uppercase tracking-tight">Built for the Stage</h3>
+            <h3 className="text-4xl md:text-6xl font-black uppercase tracking-tight text-slate-900 dark:text-white">Built for the Stage</h3>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((f, i) => (
-              <div key={i} className="group p-10 bg-white/5 border border-white/5 rounded-[3rem] hover:bg-indigo-600/10 hover:border-indigo-500/20 transition-all duration-500">
-                <div className="bg-slate-900 w-14 h-14 rounded-2xl flex items-center justify-center mb-8 shadow-xl group-hover:scale-110 transition-transform">
+              <div key={i} className="group p-10 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/5 rounded-[3rem] hover:bg-indigo-50 dark:hover:bg-indigo-600/10 hover:border-indigo-200 dark:hover:border-indigo-500/20 transition-all duration-500">
+                <div className="bg-slate-100 dark:bg-slate-900 w-14 h-14 rounded-2xl flex items-center justify-center mb-8 shadow-xl group-hover:scale-110 transition-transform">
                   {f.icon}
                 </div>
-                <h4 className="text-xl font-black uppercase tracking-tight mb-4">{f.title}</h4>
-                <p className="text-slate-400 font-medium leading-relaxed">{f.description}</p>
+                <h4 className="text-xl font-black uppercase tracking-tight text-slate-900 dark:text-white mb-4">{f.title}</h4>
+                <p className="text-slate-500 dark:text-slate-400 font-medium leading-relaxed">{f.description}</p>
               </div>
             ))}
           </div>
@@ -158,7 +160,7 @@ const Landing = () => {
       </section>
 
       {/* Social Proof / Stats */}
-      <section className="py-40 px-6 border-y border-white/5">
+      <section className="py-40 px-6 border-y border-slate-200 dark:border-white/5 bg-white dark:bg-black/20">
         <div className="max-w-7xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-12 text-center">
           <div>
             <p className="text-5xl font-black text-indigo-500 mb-2">12K+</p>
@@ -184,8 +186,8 @@ const Landing = () => {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-600/30 blur-[150px] rounded-full pointer-events-none" />
         
         <div className="max-w-3xl mx-auto relative z-10">
-          <h3 className="text-4xl md:text-7xl font-black uppercase tracking-tight mb-8">Ready to play?</h3>
-          <p className="text-xl text-slate-400 mb-12 font-medium">Join thousands of musicians who have already transformed their live workflow with Gig Studio Pro.</p>
+          <h3 className="text-4xl md:text-7xl font-black uppercase tracking-tight text-slate-900 dark:text-white mb-8">Ready to play?</h3>
+          <p className="text-xl text-slate-500 dark:text-slate-400 mb-12 font-medium">Join thousands of musicians who have already transformed their live workflow with Gig Studio Pro.</p>
           <Button 
             size="lg"
             onClick={() => navigate(session ? '/dashboard' : '/login')}
@@ -197,14 +199,14 @@ const Landing = () => {
       </section>
 
       {/* Footer */}
-      <footer className="py-20 px-6 border-t border-white/5 bg-black/20">
+      <footer className="py-20 px-6 border-t border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-black/20">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-12">
           <div className="flex flex-col items-center md:items-start gap-4">
             <div className="flex items-center gap-2">
               <div className="bg-indigo-600 p-1 rounded-md">
                 <Waves className="w-4 h-4 text-white" />
               </div>
-              <span className="font-black uppercase tracking-tighter">Gig Studio Pro</span>
+              <span className="font-black uppercase tracking-tighter text-slate-900 dark:text-white">Gig Studio Pro</span>
             </div>
             <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">© 2024 Gig Studio Technologies Inc.</p>
           </div>

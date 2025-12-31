@@ -92,13 +92,13 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
         <div className="py-6 space-y-6 overflow-y-auto max-h-[60vh] custom-scrollbar px-1">
           <div className="space-y-4">
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Integrations</h4>
-            <div className="p-4 bg-white/5 rounded-2xl border border-white/5 space-y-3">
+            <div className="p-4 bg-white dark:bg-white/5 rounded-2xl border border-slate-200 dark:border-white/5 space-y-3">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-red-600/10 rounded-lg">
+                <div className="p-2 bg-red-100 dark:bg-red-600/10 rounded-lg">
                   <Youtube className="w-4 h-4 text-red-500" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold">YouTube Data API</p>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">YouTube Data API</p>
                   <p className="text-[9px] text-slate-500 uppercase font-black">Enable Master Record Discovery</p>
                 </div>
               </div>
@@ -110,7 +110,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
                     placeholder="AIza..."
                     value={ytKey}
                     onChange={(e) => setYtKey(e.target.value)}
-                    className="h-10 pl-9 bg-black/20 border-white/5 text-xs font-mono"
+                    className="h-10 pl-9 bg-slate-100 dark:bg-black/20 border-slate-200 dark:border-white/5 text-xs font-mono text-slate-900 dark:text-white"
                   />
                 </div>
                 <Button 
@@ -127,13 +127,13 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
 
           <div className="space-y-4">
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Stage Safety</h4>
-            <div className="p-4 bg-indigo-600/5 rounded-2xl border border-indigo-600/20 space-y-4">
+            <div className="p-4 bg-indigo-50 dark:bg-indigo-600/5 rounded-2xl border border-indigo-100 dark:border-indigo-600/20 space-y-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-600/10 rounded-lg">
+                <div className="p-2 bg-indigo-100 dark:bg-indigo-600/10 rounded-lg">
                   <ShieldAlert className="w-4 h-4 text-indigo-400" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold">Safe Pitch Mode Target</p>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">Safe Pitch Mode Target</p>
                   <p className="text-[9px] text-slate-500 uppercase font-black">Max Allowable Ceiling Note</p>
                 </div>
               </div>
@@ -142,10 +142,10 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
                   value={safePitchMaxNote.slice(0, -1)} 
                   onValueChange={(note) => setSafePitchMaxNote(`${note}${safePitchMaxNote.slice(-1) || '3'}`)}
                 >
-                  <SelectTrigger className="bg-black/20 border-white/5 text-xs font-mono font-bold h-10">
+                  <SelectTrigger className="bg-slate-100 dark:bg-black/20 border-slate-200 dark:border-white/5 text-xs font-mono font-bold h-10 text-slate-900 dark:text-white">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-900 border-white/10 text-white z-[300]">
+                  <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white z-[300]">
                     {pureNotes.map(n => <SelectItem key={n} value={n} className="font-mono">{n}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -153,10 +153,10 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
                   value={safePitchMaxNote.slice(-1)} 
                   onValueChange={(oct) => setSafePitchMaxNote(`${safePitchMaxNote.slice(0, -1) || 'G'}${oct}`)}
                 >
-                  <SelectTrigger className="w-24 bg-black/20 border-white/5 text-xs font-mono font-bold h-10">
+                  <SelectTrigger className="w-24 bg-slate-100 dark:bg-black/20 border-slate-200 dark:border-white/5 text-xs font-mono font-bold h-10 text-slate-900 dark:text-white">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-900 border-white/10 text-white z-[300]">
+                  <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white z-[300]">
                     {[...Array(9)].map((_, i) => <SelectItem key={i} value={`${i}`}>{i}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -171,14 +171,14 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Public Presence</h4>
             <Button 
               variant="outline" 
-              className="w-full justify-between h-14 bg-white/5 border-white/10 rounded-2xl group hover:bg-white/10 transition-all"
+              className="w-full justify-between h-14 bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-2xl group hover:bg-slate-100 dark:hover:bg-white/10 transition-all text-slate-900 dark:text-white"
               onClick={() => {
                 navigate('/profile');
                 onClose();
               }}
             >
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-600/10 rounded-lg group-hover:bg-indigo-600/20">
+                <div className="p-2 bg-indigo-100 dark:bg-indigo-600/10 rounded-lg group-hover:bg-indigo-200 dark:group-hover:bg-indigo-600/20">
                   <Globe className="w-4 h-4 text-indigo-400" />
                 </div>
                 <div className="text-left">
@@ -186,20 +186,20 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
                   <p className="text-[9px] text-slate-500 uppercase font-black">Configure your public page</p>
                 </div>
               </div>
-              <User className="w-4 h-4 text-slate-600" />
+              <User className="w-4 h-4 text-slate-600 dark:text-slate-600" />
             </Button>
           </div>
 
           <div className="space-y-4">
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Display Engine</h4>
             
-            <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+            <div className="flex items-center justify-between p-4 bg-white dark:bg-white/5 rounded-2xl border border-slate-200 dark:border-white/5">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-600/10 rounded-lg">
+                <div className="p-2 bg-indigo-100 dark:bg-indigo-600/10 rounded-lg">
                   {keyPreference === 'sharps' ? <Hash className="w-4 h-4 text-indigo-400" /> : <Music2 className="w-4 h-4 text-indigo-400" />}
                 </div>
                 <div>
-                  <p className="text-sm font-bold">Key Notation</p>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">Key Notation</p>
                   <p className="text-[10px] text-slate-500 uppercase font-black">Current: {keyPreference}</p>
                 </div>
               </div>
@@ -214,13 +214,13 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
             </div>
 
             {/* NEW: Dark Mode Toggle */}
-            <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+            <div className="flex items-center justify-between p-4 bg-white dark:bg-white/5 rounded-2xl border border-slate-200 dark:border-white/5">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-600/10 rounded-lg">
+                <div className="p-2 bg-indigo-100 dark:bg-indigo-600/10 rounded-lg">
                   {theme === 'dark' ? <Moon className="w-4 h-4 text-indigo-400" /> : <Sun className="w-4 h-4 text-indigo-400" />}
                 </div>
                 <div>
-                  <p className="text-sm font-bold">App Theme</p>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">App Theme</p>
                   <p className="text-[10px] text-slate-500 uppercase font-black">Current: {theme}</p>
                 </div>
               </div>
@@ -236,7 +236,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
           </div>
 
           {/* NEW: DEBUG & OVERRIDE Section */}
-          <div className="space-y-4 border-t border-white/10 pt-6">
+          <div className="space-y-4 border-t border-slate-200 dark:border-white/10 pt-6">
             <div className="flex items-center gap-3">
               <Bug className="w-5 h-5 text-red-400" />
               <h4 className="text-xl font-black uppercase tracking-tight text-red-400">DEBUG & OVERRIDE</h4>
@@ -244,13 +244,13 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
             <p className="text-xs text-slate-500">Advanced settings for debugging and testing reader behavior.</p>
 
             {/* Reader Resource Force */}
-            <div className="p-4 bg-red-950/10 rounded-2xl border border-red-900/50 space-y-3">
+            <div className="p-4 bg-red-50 dark:bg-red-950/10 rounded-2xl border border-red-100 dark:border-red-900/50 space-y-3">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-red-600/10 rounded-lg">
+                <div className="p-2 bg-red-100 dark:bg-red-600/10 rounded-lg">
                   <FileText className="w-4 h-4 text-red-500" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold">Reader Resource Force</p>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">Reader Resource Force</p>
                   <p className="text-[9px] text-slate-500 uppercase font-black">Override default chart logic</p>
                 </div>
               </div>
@@ -258,10 +258,10 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
                 value={forceReaderResource} 
                 onValueChange={(value: ReaderResourceForce) => updateSetting('forceReaderResource', value)}
               >
-                <SelectTrigger className="bg-black/20 border-white/5 text-xs font-mono font-bold h-10">
+                <SelectTrigger className="bg-slate-100 dark:bg-black/20 border-slate-200 dark:border-white/5 text-xs font-mono font-bold h-10 text-slate-900 dark:text-white">
                   <SelectValue placeholder="Default (Auto)" />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-900 border-white/10 text-white z-[300]">
+                <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white z-[300]">
                   <SelectItem value="default" className="font-mono">Default (Auto)</SelectItem>
                   <SelectItem value="force-pdf" className="font-mono">Force PDF Only</SelectItem>
                   <SelectItem value="force-ug" className="font-mono">Force UG Only</SelectItem>
@@ -272,13 +272,13 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
             </div>
 
             {/* Always Show All Toasts */}
-            <div className="p-4 bg-red-950/10 rounded-2xl border border-red-900/50 flex items-center justify-between">
+            <div className="p-4 bg-red-50 dark:bg-red-950/10 rounded-2xl border border-red-100 dark:border-red-900/50 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-red-600/10 rounded-lg">
+                <div className="p-2 bg-red-100 dark:bg-red-600/10 rounded-lg">
                   <Zap className="w-4 h-4 text-red-500" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold">Always Show All Toasts</p>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">Always Show All Toasts</p>
                   <p className="text-[9px] text-slate-500 uppercase font-black">Disable toast suppression</p>
                 </div>
               </div>
@@ -290,13 +290,13 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
             </div>
 
             {/* Ignore Confirmed Gate */}
-            <div className="p-4 bg-red-950/10 rounded-2xl border border-red-900/50 flex items-center justify-between">
+            <div className="p-4 bg-red-50 dark:bg-red-950/10 rounded-2xl border border-red-100 dark:border-red-900/50 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-red-600/10 rounded-lg">
+                <div className="p-2 bg-red-100 dark:bg-red-600/10 rounded-lg">
                   <ShieldCheck className="w-4 h-4 text-red-500" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold">Ignore Confirmed Gate</p>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">Ignore Confirmed Gate</p>
                   <p className="text-[9px] text-slate-500 uppercase font-black">Cycle through all songs in Reader</p>
                 </div>
               </div>
@@ -308,13 +308,13 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
             </div>
 
             {/* Force Desktop View */}
-            <div className="p-4 bg-red-950/10 rounded-2xl border border-red-900/50 flex items-center justify-between">
+            <div className="p-4 bg-red-50 dark:bg-red-950/10 rounded-2xl border border-red-100 dark:border-red-900/50 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-red-600/10 rounded-lg">
+                <div className="p-2 bg-red-100 dark:bg-red-600/10 rounded-lg">
                   <Monitor className="w-4 h-4 text-red-500" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold">Force Desktop View</p>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">Force Desktop View</p>
                   <p className="text-[9px] text-slate-500 uppercase font-black">Disable mobile optimizations</p>
                 </div>
               </div>
@@ -328,9 +328,9 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
 
           <div className="space-y-4">
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Account</h4>
-            <div className="p-4 bg-slate-900 rounded-2xl border border-white/5">
+            <div className="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/5">
               <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Active User</p>
-              <p className="text-sm font-bold mt-1">{user?.email}</p>
+              <p className="text-sm font-bold mt-1 text-slate-900 dark:text-white">{user?.email}</p>
               <Button 
                 variant="ghost" 
                 size="sm" 
@@ -343,7 +343,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="border-t border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-slate-900">
           <Button onClick={() => { handleSaveSettings(); onClose(); }} className="w-full bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] h-12 rounded-2xl">
             Apply Settings
           </Button>

@@ -6,12 +6,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Loader2, UserCircle2 } from 'lucide-react';
 import PublicRepertoireView from '@/components/PublicRepertoireView';
+import { useTheme } from '@/hooks/use-theme'; // NEW: Import useTheme
 
 const PublicRepertoire = () => {
   const { slug } = useParams();
   const [profile, setProfile] = useState<any>(null);
   const [songs, setSongs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { theme } = useTheme(); // NEW: Use theme hook
 
   const fetchPublicData = useCallback(async () => {
     try {
@@ -69,17 +71,17 @@ const PublicRepertoire = () => {
   }, [slug, fetchPublicData]);
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950">
+    <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950">
       <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
     </div>
   );
 
   if (!profile) return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 text-white p-8 text-center">
-      <div className="bg-slate-900 p-12 rounded-[3rem] border border-white/5 space-y-6">
-        <UserCircle2 className="w-24 h-24 text-slate-700 mx-auto" />
+    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white p-8 text-center">
+      <div className="bg-white dark:bg-slate-900 p-12 rounded-[3rem] border border-slate-200 dark:border-white/5 space-y-6">
+        <UserCircle2 className="w-24 h-24 text-slate-400 dark:text-slate-700 mx-auto" />
         <h1 className="text-4xl font-black uppercase tracking-tight">Studio Link Offline</h1>
-        <p className="text-slate-500 max-w-sm">This repertoire is currently private or does not exist.</p>
+        <p className="text-slate-500 font-medium">This repertoire is currently private or does not exist.</p>
         <Button onClick={() => window.location.href = '/'} className="bg-indigo-600 hover:bg-indigo-700 font-bold uppercase tracking-widest px-8">Return to Gig Studio</Button>
       </div>
     </div>

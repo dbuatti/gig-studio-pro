@@ -71,7 +71,7 @@ const GlobalLibrary: React.FC<GlobalLibraryProps> = ({ onImport }) => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <Input 
             placeholder="Search verified community tracks..." 
-            className="pl-9 h-10 border-slate-800 bg-transparent text-xs focus-visible:ring-emerald-500"
+            className="pl-9 h-10 border-slate-200 dark:border-slate-800 bg-white dark:bg-transparent text-xs focus-visible:ring-emerald-500"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -90,26 +90,26 @@ const GlobalLibrary: React.FC<GlobalLibraryProps> = ({ onImport }) => {
               return (
                 <div 
                   key={song.id}
-                  className="group p-4 bg-slate-900 border border-slate-800 rounded-2xl hover:border-emerald-200 transition-all shadow-sm"
+                  className="group p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl hover:border-emerald-200 transition-all shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <h4 className="text-sm font-black uppercase tracking-tight truncate">{song.title}</h4>
+                        <h4 className="text-sm font-black uppercase tracking-tight truncate text-slate-900 dark:text-white">{song.title}</h4>
                         {readiness >= 90 && <ShieldCheck className="w-3 h-3 text-emerald-500" />}
                         {isProcessing && <CloudDownload className="w-3.5 h-3.5 text-indigo-500 animate-bounce" />}
                         {isExtractionFailed && <AlertTriangle className="w-3.5 h-3.5 text-red-500" />}
                       </div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{song.artist}</p>
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-0.5">{song.artist}</p>
                       
                       <div className="flex items-center gap-3 mt-3">
-                        <div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-800 rounded-md border border-slate-700">
-                          <User className="w-2.5 h-2.5 text-slate-400" />
-                          <span className="text-[9px] font-bold text-slate-500 uppercase">{song.profiles?.first_name || 'Artist'}</span>
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-md border border-slate-200 dark:border-slate-700">
+                          <User className="w-2.5 h-2.5 text-slate-500" />
+                          <span className="text-[9px] font-bold text-slate-600 dark:text-slate-500 uppercase">{song.profiles?.first_name || 'Artist'}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <Star className="w-2.5 h-2.5 text-amber-500 fill-amber-500" />
-                          <span className="text-[9px] font-black text-slate-500">{readiness}% READY</span>
+                          <span className="text-[9px] font-black text-slate-600 dark:text-slate-500">{readiness}% READY</span>
                         </div>
                         {song.pdf_url && <FileText className="w-2.5 h-2.5 text-indigo-400" />}
                       </div>

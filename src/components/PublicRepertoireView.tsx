@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, User, Music, ArrowUpDown, UserCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTheme } from '@/hooks/use-theme'; // NEW: Import useTheme
 
 interface PublicRepertoireViewProps {
   profile: any;
@@ -15,6 +16,7 @@ interface PublicRepertoireViewProps {
 const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, songs, isPreview }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortMode, setSortMode] = useState<'artist' | 'alphabetical'>('artist');
+  const { theme } = useTheme(); // NEW: Use theme hook
 
   // Deduplicate and filter songs
   const processedSongs = useMemo(() => {
@@ -81,7 +83,14 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
 
   if (!profile) return null;
 
-  const colors = profile.custom_colors || { primary: '#9333ea', background: '#ffffff', text: '#1e1b4b', border: '#9333ea' };
+  // Use profile custom colors, but provide sensible defaults for light/dark mode
+  const profileColors = profile.custom_colors || {};
+  const colors = {
+    primary: profileColors.primary || (theme === 'dark' ? '#4f46e5' : '#9333ea'),
+    background: profileColors.background || (theme === 'dark' ? '#020617' : '#ffffff'),
+    text: profileColors.text || (theme === 'dark' ? '#ffffff' : '#1e1b4b'),
+    border: profileColors.border || (theme === 'dark' ? '#4f46e5' : '#9333ea'),
+  };
 
   return (
     <div 
@@ -120,17 +129,17 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
       <main className={cn("max-w-7xl mx-auto px-6 pb-20", isPreview ? "py-6" : "py-12")}>
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-12">
           <div className="relative w-full md:w-64">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 opacity-40" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 opacity-40" style={{ color: colors.text }} />
             <Input 
               placeholder="Search..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-white/5 border-white/10 h-10 pl-10 rounded-xl focus-visible:ring-indigo-500 text-sm"
-              style={{ color: colors.text }}
+              className="bg-white/5 border-white/10 h-10 pl-10 rounded-xl focus-visible:ring-indigo-500"
+              style={{ backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: colors.text }}
             />
           </div>
           
-          <div className="flex bg-white/5 p-1 rounded-xl border border-white/5 w-full md:w-auto">
+          <div className="flex bg-white/5 p-1 rounded-xl border border-white/5 w-full md:w-auto" style={{ backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }}>
             <Button 
               variant="ghost" 
               onClick={() => setSortMode('artist')}
@@ -138,7 +147,7 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
                 "flex-1 md:flex-none h-8 px-4 rounded-lg text-[9px] font-black uppercase tracking-widest gap-2 transition-all",
                 sortMode === 'artist' ? "bg-white/10 shadow-lg" : "opacity-40"
               )}
-              style={{ color: sortMode === 'artist' ? colors.primary : colors.text }}
+              style={{ color: sortMode === 'artist' ? colors.primary : colors.text, backgroundColor: sortMode === 'artist' ? (theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)') : 'transparent' }}
             >
               <User className="w-3 h-3" /> Artist
             </Button>
@@ -149,7 +158,7 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
                 "flex-1 md:flex-none h-8 px-4 rounded-lg text-[9px] font-black uppercase tracking-widest gap-2 transition-all",
                 sortMode === 'alphabetical' ? "bg-white/10 shadow-lg" : "opacity-40"
               )}
-              style={{ color: sortMode === 'alphabetical' ? colors.primary : colors.text }}
+              style={{ color: sortMode === 'alphabetical' ? colors.primary : colors.text, backgroundColor: sortMode === 'alphabetical' ? (theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)') : 'transparent' }}
             >
               <ArrowUpDown className="w-3 h-3" /> A-Z
             </Button>
@@ -158,29 +167,29 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
 
         <div>
           {processedSongs.length === 0 ? (
-            <div className="text-center py-20 opacity-30 border border-dashed border-white/10 rounded-[3rem]">
-              <Music className="w-12 h-12 mx-auto mb-4" />
-              <p className="text-[10px] font-black uppercase tracking-[0.3em]">No Public Tracks Available</p>
+            <div className="text-center py-20 opacity-30 border border-white/10 rounded-[3rem]" style={{ borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}>
+              <Music className="w-12 h-12 mx-auto mb-4" style={{ color: colors.text }} />
+              <p className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: colors.text }}>No Public Tracks Available</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-16">
               {(groupedSongs as any[]).map((group) => (
                 <section key={sortMode === 'artist' ? group.artist : group.letter} className="space-y-4">
-                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40 border-b border-white/5 pb-2" style={{ color: colors.primary }}>
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40 border-b border-white/5 pb-2" style={{ color: colors.primary, borderColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }}>
                     {sortMode === 'artist' ? group.artist : group.letter}
                   </h3>
                   <div className="flex flex-col gap-2.5">
                     {group.songs.map((song: any) => (
                       <div key={song.id} className="flex items-center justify-between group py-0.5">
                         <div className="flex flex-col min-w-0">
-                          <span className="text-[13px] font-bold tracking-tight group-hover:translate-x-1 transition-transform truncate">
+                          <span className="text-[13px] font-bold tracking-tight group-hover:translate-x-1 transition-transform truncate" style={{ color: colors.text }}>
                             {song.title || song.name}
                           </span>
                           {sortMode === 'alphabetical' && song.artist && song.artist !== 'Unknown Artist' && (
-                            <span className="text-[8px] font-black uppercase opacity-20 tracking-widest truncate">{song.artist}</span>
+                            <span className="text-[8px] font-black uppercase opacity-20 tracking-widest truncate" style={{ color: colors.text }}>{song.artist}</span>
                           )}
                         </div>
-                        {song.genre && <span className="text-[8px] font-black uppercase opacity-20 ml-4 shrink-0">{song.genre}</span>}
+                        {song.genre && <span className="text-[8px] font-black uppercase opacity-20 ml-4 shrink-0" style={{ color: colors.text }}>{song.genre}</span>}
                       </div>
                     ))}
                   </div>

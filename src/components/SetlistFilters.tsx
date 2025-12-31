@@ -82,22 +82,22 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
 
   return (
     <TooltipProvider>
-      <div className="space-y-6 animate-in fade-in slide-in-from-top-2 duration-500 bg-slate-900/30 p-4 rounded-2xl border border-slate-800">
+      <div className="space-y-6 animate-in fade-in slide-in-from-top-2 duration-500 bg-slate-100 dark:bg-slate-900/30 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
         <div className="flex flex-wrap items-center gap-3">
           {/* Presets Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9 px-4 rounded-xl border-slate-800 bg-slate-900 text-indigo-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-sm">
+              <Button variant="outline" size="sm" className="h-9 px-4 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-indigo-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-sm">
                 <Star className="w-3.5 h-3.5 fill-indigo-600" /> <span className="hidden sm:inline">Views</span> <ChevronDown className="w-3 h-3 opacity-50" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-56 p-2 rounded-2xl bg-slate-950 border-white/10 text-white">
+            <DropdownMenuContent align="start" className="w-56 p-2 rounded-2xl bg-white dark:bg-slate-950 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white">
               <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-slate-500 px-3 py-2">Quick Toggles</DropdownMenuLabel>
               {presets.map(p => (
                 <DropdownMenuItem 
                   key={p.id} 
                   onClick={() => onFilterChange(p.filters)}
-                  className="flex items-center justify-between rounded-xl h-10 px-3 cursor-pointer hover:bg-white/10"
+                  className="flex items-center justify-between rounded-xl h-10 px-3 cursor-pointer hover:bg-slate-100 dark:hover:bg-white/10"
                 >
                   <span className="text-xs font-bold uppercase">{p.name}</span>
                   <button onClick={(e) => deletePreset(p.id, e)} className="p-1 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -105,20 +105,20 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                   </button>
                 </DropdownMenuItem>
               ))}
-              <DropdownMenuSeparator className="bg-white/5" />
-              <DropdownMenuItem onClick={savePreset} className="text-indigo-400 font-black uppercase text-[9px] tracking-widest h-10 px-3 cursor-pointer hover:bg-white/10 gap-2">
+              <DropdownMenuSeparator className="bg-slate-200 dark:bg-white/5" />
+              <DropdownMenuItem onClick={savePreset} className="text-indigo-400 font-black uppercase text-[9px] tracking-widest h-10 px-3 cursor-pointer hover:bg-slate-100 dark:hover:bg-white/10 gap-2">
                 <Save className="w-3.5 h-3.5" /> Save Current View
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <div className="h-6 w-px bg-slate-800 mx-1 hidden md:block" />
+          <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden md:block" />
 
           {/* Readiness Slider - Expanded */}
-          <div className="flex items-center gap-4 bg-slate-900 px-4 py-1.5 rounded-xl border border-slate-800 flex-1 min-w-[300px]">
+          <div className="flex items-center gap-4 bg-white dark:bg-slate-900 px-4 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 flex-1 min-w-[300px]">
             <div className="flex items-center gap-2 shrink-0">
                <AlertCircle className="w-3.5 h-3.5 text-orange-500" />
-               <span className="text-[10px] font-black uppercase text-slate-400 whitespace-nowrap">Readiness: <span className="text-indigo-600 font-mono">≥{activeFilters.readiness}%</span></span>
+               <span className="text-[10px] font-black uppercase text-slate-500 whitespace-nowrap">Readiness: <span className="text-indigo-600 font-mono">≥{activeFilters.readiness}%</span></span>
             </div>
             <Slider 
               value={[activeFilters.readiness]} 
@@ -129,7 +129,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
             />
           </div>
 
-          <div className="h-6 w-px bg-slate-800 mx-1 hidden lg:block" />
+          <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden lg:block" />
 
           {/* Confirmed Toggle (Icon only) */}
           <DropdownMenu>
@@ -141,7 +141,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                     size="icon" 
                     className={cn(
                       "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.isConfirmed !== 'all' ? "bg-emerald-600 text-white shadow-lg" : "bg-slate-900 border-slate-800 text-slate-500"
+                      activeFilters.isConfirmed !== 'all' ? "bg-emerald-600 text-white shadow-lg" : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500"
                     )}
                   >
                     <ShieldCheck className="w-4 h-4" />
@@ -150,7 +150,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
               </TooltipTrigger>
               <TooltipContent className="text-[10px] font-black uppercase">Key Verified</TooltipContent>
             </Tooltip>
-            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-slate-950 border-white/10 text-white">
+            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-white dark:bg-slate-950 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white">
               <DropdownMenuRadioGroup value={activeFilters.isConfirmed} onValueChange={(v) => onFilterChange({ ...activeFilters, isConfirmed: v as any })}>
                 <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Status</DropdownMenuRadioItem>
                 <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Verified Only</DropdownMenuRadioItem>
@@ -169,7 +169,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                     size="icon" 
                     className={cn(
                       "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.isApproved !== 'all' ? "bg-indigo-600 text-white shadow-lg" : "bg-slate-900 border-slate-800 text-slate-500"
+                      activeFilters.isApproved !== 'all' ? "bg-indigo-600 text-white shadow-lg" : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500"
                     )}
                   >
                     <Check className="w-4 h-4" />
@@ -178,7 +178,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
               </TooltipTrigger>
               <TooltipContent className="text-[10px] font-black uppercase">Performance Approved</TooltipContent>
             </Tooltip>
-            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-slate-950 border-white/10 text-white">
+            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-white dark:bg-slate-950 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white">
               <DropdownMenuRadioGroup value={activeFilters.isApproved} onValueChange={(v) => onFilterChange({ ...activeFilters, isApproved: v as any })}>
                 <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
                 <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Approved Only</DropdownMenuRadioItem>
@@ -197,7 +197,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                     size="icon" 
                     className={cn(
                       "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.hasAudio !== 'all' ? "bg-indigo-600 text-white shadow-lg" : "bg-slate-900 border-slate-800 text-slate-500"
+                      activeFilters.hasAudio !== 'all' ? "bg-indigo-600 text-white shadow-lg" : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500"
                     )}
                   >
                     <Music className="w-4 h-4" />
@@ -206,7 +206,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
               </TooltipTrigger>
               <TooltipContent className="text-[10px] font-black uppercase">Audio Status</TooltipContent>
             </Tooltip>
-            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-slate-950 border-white/10 text-white">
+            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-white dark:bg-slate-950 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white">
               <DropdownMenuRadioGroup value={activeFilters.hasAudio} onValueChange={(v) => onFilterChange({ ...activeFilters, hasAudio: v as any })}>
                 <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
                 <DropdownMenuRadioItem value="full" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Master Audio Only</DropdownMenuRadioItem>
@@ -226,7 +226,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                     size="icon" 
                     className={cn(
                       "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.hasVideo !== 'all' ? "bg-red-600 text-white shadow-lg" : "bg-slate-900 border-slate-800 text-slate-500"
+                      activeFilters.hasVideo !== 'all' ? "bg-red-600 text-white shadow-lg" : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500"
                     )}
                   >
                     <Youtube className="w-4 h-4" />
@@ -235,7 +235,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
               </TooltipTrigger>
               <TooltipContent className="text-[10px] font-black uppercase">Video Link</TooltipContent>
             </Tooltip>
-            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-slate-950 border-white/10 text-white">
+            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-white dark:bg-slate-950 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white">
               <DropdownMenuRadioGroup value={activeFilters.hasVideo} onValueChange={(v) => onFilterChange({ ...activeFilters, hasVideo: v as any })}>
                 <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
                 <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Has Video</DropdownMenuRadioItem>
@@ -254,7 +254,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                     size="icon" 
                     className={cn(
                       "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.hasPdf !== 'all' ? "bg-emerald-600 text-white shadow-lg" : "bg-slate-900 border-slate-800 text-slate-500"
+                      activeFilters.hasPdf !== 'all' ? "bg-emerald-600 text-white shadow-lg" : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500"
                     )}
                   >
                     <FileText className="w-4 h-4" />
@@ -263,7 +263,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
               </TooltipTrigger>
               <TooltipContent className="text-[10px] font-black uppercase">Sheet Music</TooltipContent>
             </Tooltip>
-            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-slate-950 border-white/10 text-white">
+            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-white dark:bg-slate-950 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white">
               <DropdownMenuRadioGroup value={activeFilters.hasPdf} onValueChange={(v) => onFilterChange({ ...activeFilters, hasPdf: v as any })}>
                 <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
                 <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Has PDF</DropdownMenuRadioItem>
@@ -282,7 +282,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                     size="icon" 
                     className={cn(
                       "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.hasUg !== 'all' ? "bg-orange-600 text-white shadow-lg" : "bg-slate-900 border-slate-800 text-slate-500"
+                      activeFilters.hasUg !== 'all' ? "bg-orange-600 text-white shadow-lg" : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500"
                     )}
                   >
                     <FileSearch className="w-4 h-4" />
@@ -291,7 +291,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
               </TooltipTrigger>
               <TooltipContent className="text-[10px] font-black uppercase">Ultimate Guitar</TooltipContent>
             </Tooltip>
-            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-slate-950 border-white/10 text-white">
+            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-white dark:bg-slate-950 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white">
               <DropdownMenuRadioGroup value={activeFilters.hasUg} onValueChange={(v) => onFilterChange({ ...activeFilters, hasUg: v as any })}>
                 <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
                 <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Has UG Link</DropdownMenuRadioItem>
@@ -310,7 +310,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                     size="icon" 
                     className={cn(
                       "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.hasUgChords !== 'all' ? "bg-purple-600 text-white shadow-lg" : "bg-slate-900 border-slate-800 text-slate-500"
+                      activeFilters.hasUgChords !== 'all' ? "bg-purple-600 text-white shadow-lg" : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500"
                     )}
                   >
                     <Guitar className="w-4 h-4" />
@@ -319,7 +319,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
               </TooltipTrigger>
               <TooltipContent className="text-[10px] font-black uppercase">UG Chords Text</TooltipContent>
             </Tooltip>
-            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-slate-950 border-white/10 text-white">
+            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-white dark:bg-slate-950 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white">
               <DropdownMenuRadioGroup value={activeFilters.hasUgChords} onValueChange={(v) => onFilterChange({ ...activeFilters, hasUgChords: v as any })}>
                 <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
                 <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Has Chords Text</DropdownMenuRadioItem>
@@ -343,7 +343,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
         {/* Active Filter Badges */}
         {!isDefault && (
           <div className="flex flex-wrap gap-2 px-1">
-            <span className="text-[9px] font-black uppercase text-slate-400 flex items-center gap-2 mr-2">
+            <span className="text-[9px] font-black uppercase text-slate-500 flex items-center gap-2 mr-2">
               <ListFilter className="w-3 h-3" /> Active Criteria:
             </span>
             {activeFilters.readiness > 0 && ( // Changed condition to > 0

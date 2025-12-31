@@ -14,6 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import PublicRepertoireView from '@/components/PublicRepertoireView';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useTheme } from '@/hooks/use-theme'; // NEW: Import useTheme
 
 const THEMES = [
   { name: 'Vibrant Light', primary: '#9333ea', background: '#ffffff', text: '#1e1b4b', border: '#9333ea' },
@@ -22,7 +23,8 @@ const THEMES = [
   { name: 'Purple Energy', primary: '#c084fc', background: '#2e1065', text: '#f5f3ff', border: '#c084fc' },
 ];
 
-const DEFAULT_COLORS = { primary: '#9333ea', background: '#ffffff', text: '#1e1b4b', border: '#9333ea' };
+const DEFAULT_COLORS_LIGHT = { primary: '#9333ea', background: '#ffffff', text: '#1e1b4b', border: '#9333ea' };
+const DEFAULT_COLORS_DARK = { primary: '#4f46e5', background: '#020617', text: '#ffffff', border: '#4f46e5' };
 
 const Profile = () => {
   const { user } = useAuth();
@@ -31,6 +33,7 @@ const Profile = () => {
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<any>(null);
   const [songs, setSongs] = useState<any[]>([]);
+  const { theme } = useTheme(); // NEW: Use theme hook
 
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -43,9 +46,10 @@ const Profile = () => {
         .maybeSingle();
 
       if (!profileData && !pError) {
+        const initialColors = theme === 'dark' ? DEFAULT_COLORS_DARK : DEFAULT_COLORS_LIGHT;
         const { data: newData, error: iError } = await supabase
           .from('profiles')
-          .insert([{ id: user.id, first_name: user.email?.split('@')[0], repertoire_threshold: 0, custom_colors: DEFAULT_COLORS }])
+          .insert([{ id: user.id, first_name: user.email?.split('@')[0], repertoire_threshold: 0, custom_colors: initialColors }])
           .select()
           .single();
         
@@ -71,7 +75,7 @@ const Profile = () => {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, theme]); // Add theme to dependencies
 
   useEffect(() => {
     fetchData();
@@ -107,20 +111,25 @@ const Profile = () => {
   };
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950">
+    <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950">
       <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
     </div>
   );
 
   const thresholdFilteredSongs = songs.filter(s => (s.readiness_score || 0) >= (profile?.repertoire_threshold || 0));
 
+  // Determine default colors based on current theme if profile.custom_colors is not set
+  const currentDefaultColors = theme === 'dark' ? DEFAULT_COLORS_DARK : DEFAULT_COLORS_LIGHT;
+  const profileColors = profile?.custom_colors || currentDefaultColors;
+
+
   return (
-    <div className="h-screen bg-slate-950 text-white flex overflow-hidden">
-      <div className="w-full lg:w-[450px] flex flex-col border-r border-white/10 shrink-0 bg-slate-900/50">
-        <div className="p-6 border-b border-white/10 bg-black/20 flex items-center justify-between shrink-0">
+    <div className="h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white flex overflow-hidden">
+      <div className="w-full lg:w-[450px] flex flex-col border-r border-slate-200 dark:border-white/10 shrink-0 bg-white dark:bg-slate-900/50">
+        <div className="p-6 border-b border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-black/20 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="rounded-full hover:bg-white/10">
-              <ArrowLeft className="w-5 h-5" />
+            <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="rounded-full hover:bg-slate-100 dark:hover:bg-white/10">
+              <ArrowLeft className="w-5 h-5 text-slate-500 dark:text-slate-400" />
             </Button>
             <div>
               <h1 className="text-xl font-black uppercase tracking-tight">Public Presence</h1>
@@ -137,9 +146,9 @@ const Profile = () => {
               <span className="text-[10px] font-black text-indigo-500 uppercase">{songs.length} Tracks Live</span>
             </div>
             
-            <div className="flex flex-col items-center gap-6 p-6 bg-white/5 rounded-[2rem] border border-white/5">
-              <div className="w-28 h-28 rounded-full border-4 flex items-center justify-center overflow-hidden bg-slate-800 shadow-2xl" style={{ borderColor: profile?.custom_colors?.primary || DEFAULT_COLORS.primary }}>
-                <User className="w-12 h-12 text-slate-700" />
+            <div className="flex flex-col items-center gap-6 p-6 bg-slate-100 dark:bg-white/5 rounded-[2rem] border border-slate-200 dark:border-white/5">
+              <div className="w-28 h-28 rounded-full border-4 flex items-center justify-center overflow-hidden bg-slate-200 dark:bg-slate-800 shadow-2xl" style={{ borderColor: profileColors.primary }}>
+                <User className="w-12 h-12 text-slate-500 dark:text-slate-700" />
               </div>
 
               <div className="w-full space-y-4">
@@ -150,7 +159,7 @@ const Profile = () => {
                       defaultValue={profile?.first_name}
                       onBlur={(e) => saveToDatabase({ first_name: e.target.value })}
                       onChange={(e) => handleUpdateLocal({ first_name: e.target.value })}
-                      className="h-9 text-xs bg-black/20 border-white/10"
+                      className="h-9 text-xs bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -159,7 +168,7 @@ const Profile = () => {
                       defaultValue={profile?.last_name}
                       onBlur={(e) => saveToDatabase({ last_name: e.target.value })}
                       onChange={(e) => handleUpdateLocal({ last_name: e.target.value })}
-                      className="h-9 text-xs bg-black/20 border-white/10"
+                      className="h-9 text-xs bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
                     />
                   </div>
                 </div>
@@ -168,19 +177,19 @@ const Profile = () => {
           </section>
 
           <section className="space-y-4">
-            <div className="flex items-center justify-between p-5 bg-white/5 rounded-[2rem] border border-white/10">
+            <div className="flex items-center justify-between p-5 bg-white dark:bg-white/5 rounded-[2rem] border border-slate-200 dark:border-white/10">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-600/10 rounded-xl">
+                <div className="p-2 bg-indigo-100 dark:bg-indigo-600/10 rounded-xl">
                   <Globe className="w-4 h-4 text-indigo-400" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold">Public Status</p>
-                  <p className="text-[9px] text-slate-500 font-black uppercase">Clients can view list</p>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">Public Status</p>
+                  <p className="text-[9px] text-slate-500 uppercase font-black">Clients can view list</p>
                 </div>
               </div>
               <Switch 
                 checked={profile?.is_repertoire_public} 
-                className="data-[state=checked]:bg-indigo-600 border border-white/10"
+                className="data-[state=checked]:bg-indigo-600 border border-slate-200 dark:border-white/10"
                 onCheckedChange={(checked) => {
                   if (checked && songs.length === 0) {
                     showError("Add songs to library first");
@@ -194,13 +203,13 @@ const Profile = () => {
             </div>
 
             <div className="space-y-4">
-              <div className="p-6 bg-emerald-500/5 border border-emerald-500/20 rounded-[2rem] flex items-center justify-between">
+              <div className="p-6 bg-emerald-50 dark:bg-emerald-500/5 border border-emerald-100 dark:border-emerald-500/20 rounded-[2rem] flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-emerald-500/10 rounded-xl">
+                  <div className="p-2 bg-emerald-100 dark:bg-emerald-500/10 rounded-xl">
                     <Check className="w-4 h-4 text-emerald-500" />
                   </div>
                   <div>
-                    <p className="text-xs font-black uppercase tracking-tight">Sync Engine Online</p>
+                    <p className="text-xs font-black uppercase tracking-tight text-slate-900 dark:text-white">Sync Engine Online</p>
                     <p className="text-[10px] text-slate-500 font-bold uppercase mt-0.5">Automated Background Updates Active</p>
                   </div>
                 </div>
@@ -222,7 +231,7 @@ const Profile = () => {
                         "h-10 text-[10px] font-black border uppercase rounded-xl transition-all",
                         profile?.repertoire_threshold === val 
                           ? "bg-indigo-600 border-indigo-500 text-white shadow-lg" 
-                          : "bg-white/5 border-white/5 text-slate-500 hover:text-white"
+                          : "bg-white dark:bg-white/5 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-900 dark:hover:text-white"
                       )}
                     >
                       {val === 0 ? 'ALL' : `>${val}%`}
@@ -247,7 +256,7 @@ const Profile = () => {
                         saveToDatabase({ repertoire_slug: slug });
                       }}
                       onChange={(e) => handleUpdateLocal({ repertoire_slug: e.target.value })}
-                      className="h-10 pl-24 text-xs bg-white/5 border-white/10 font-bold"
+                      className="h-10 pl-24 text-xs bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 font-bold text-slate-900 dark:text-white"
                     />
                   </div>
                 </div>
@@ -259,47 +268,47 @@ const Profile = () => {
                   defaultValue={profile?.repertoire_bio}
                   onBlur={(e) => saveToDatabase({ repertoire_bio: e.target.value })}
                   onChange={(e) => handleUpdateLocal({ repertoire_bio: e.target.value })}
-                  className="bg-white/5 border-white/10 min-h-[100px] text-xs resize-none rounded-xl"
+                  className="bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 min-h-[100px] text-xs resize-none rounded-xl text-slate-900 dark:text-white"
                   placeholder="Tell clients about your vibe..."
                 />
               </div>
             </div>
           </section>
 
-          <section className="space-y-6 pt-4 border-t border-white/10">
+          <section className="space-y-6 pt-4 border-t border-slate-200 dark:border-white/10">
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Branding & Style</h4>
             
             <div className="grid grid-cols-2 gap-3">
-              {THEMES.map(theme => (
+              {THEMES.map(themeOption => (
                 <Button 
-                  key={theme.name}
+                  key={themeOption.name}
                   variant="ghost" 
                   onClick={() => {
-                    const colors = { primary: theme.primary, background: theme.background, text: theme.text, border: theme.border };
+                    const colors = { primary: themeOption.primary, background: themeOption.background, text: themeOption.text, border: themeOption.border };
                     handleUpdateLocal({ custom_colors: colors });
                     saveToDatabase({ custom_colors: colors });
                   }}
-                  className="h-14 bg-white/5 border border-white/5 hover:border-indigo-500/50 justify-start px-4 rounded-xl gap-3 group transition-all"
+                  className="h-14 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/5 hover:border-indigo-500/50 justify-start px-4 rounded-xl gap-3 group transition-all text-slate-900 dark:text-white"
                 >
-                  <div className="w-4 h-4 rounded-full border border-white/10" style={{ background: theme.primary }} />
-                  <span className="text-[10px] font-bold uppercase tracking-tight">{theme.name}</span>
+                  <div className="w-4 h-4 rounded-full border border-slate-200 dark:border-white/10" style={{ background: themeOption.primary }} />
+                  <span className="text-[10px] font-bold uppercase tracking-tight">{themeOption.name}</span>
                 </Button>
               ))}
             </div>
 
-            <div className="space-y-4 bg-white/5 p-6 rounded-[2rem] border border-white/5">
+            <div className="space-y-4 bg-white dark:bg-white/5 p-6 rounded-[2rem] border border-slate-200 dark:border-white/5">
               {[
                 { label: 'Primary Accent', key: 'primary' },
                 { label: 'Background', key: 'background' },
                 { label: 'Text Color', key: 'text' },
               ].map(color => (
                 <div key={color.key} className="flex items-center justify-between">
-                  <Label className="text-[10px] font-black uppercase text-slate-400">{color.label}</Label>
+                  <Label className="text-[10px] font-black uppercase text-slate-500">{color.label}</Label>
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg border-2 border-white/10 shadow-inner overflow-hidden relative">
+                    <div className="w-8 h-8 rounded-lg border-2 border-slate-200 dark:border-white/10 shadow-inner overflow-hidden relative">
                       <Input 
                         type="color" 
-                        value={profile?.custom_colors?.[color.key] || DEFAULT_COLORS[color.key]} 
+                        value={profileColors[color.key]} 
                         onChange={(e) => {
                           const newColors = { ...profile.custom_colors, [color.key]: e.target.value };
                           handleUpdateLocal({ custom_colors: newColors });
@@ -308,7 +317,7 @@ const Profile = () => {
                         className="absolute inset-0 w-[200%] h-[200%] -translate-x-1/4 -translate-y-1/4 cursor-pointer"
                       />
                     </div>
-                    <span className="text-[10px] font-mono font-bold text-slate-500 uppercase">{profile?.custom_colors?.[color.key]}</span>
+                    <span className="text-[10px] font-mono font-bold text-slate-600 dark:text-slate-500 uppercase">{profileColors[color.key]}</span>
                   </div>
                 </div>
               ))}
@@ -317,10 +326,11 @@ const Profile = () => {
                 variant="ghost" 
                 size="sm" 
                 onClick={() => {
-                  handleUpdateLocal({ custom_colors: DEFAULT_COLORS });
-                  saveToDatabase({ custom_colors: DEFAULT_COLORS });
+                  const resetColors = theme === 'dark' ? DEFAULT_COLORS_DARK : DEFAULT_COLORS_LIGHT;
+                  handleUpdateLocal({ custom_colors: resetColors });
+                  saveToDatabase({ custom_colors: resetColors });
                 }}
-                className="w-full mt-2 text-[9px] font-black uppercase text-slate-500 hover:text-white gap-2"
+                className="w-full mt-2 text-[9px] font-black uppercase text-slate-500 hover:text-slate-900 dark:hover:text-white gap-2"
               >
                 <RotateCcw className="w-3 h-3" /> Reset to Defaults
               </Button>
@@ -329,10 +339,10 @@ const Profile = () => {
         </div>
       </div>
 
-      <div className="flex-1 bg-slate-950 flex flex-col p-10 relative overflow-hidden">
+      <div className="flex-1 bg-slate-100 dark:bg-slate-950 flex flex-col p-10 relative overflow-hidden">
         <div 
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] blur-[150px] opacity-20 pointer-events-none rounded-full"
-          style={{ background: profile?.custom_colors?.primary || DEFAULT_COLORS.primary }}
+          style={{ background: profileColors.primary }}
         />
 
         <div className="relative z-10 h-full flex flex-col gap-6">
@@ -348,8 +358,8 @@ const Profile = () => {
             </div>
 
             <div className="flex items-center gap-2">
-              <div className="bg-slate-900 border border-white/10 rounded-xl px-4 py-2 flex items-center gap-4 shadow-xl">
-                 <span className="text-[10px] font-mono text-slate-400 truncate max-w-[200px]">{publicUrl}</span>
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2 flex items-center gap-4 shadow-xl">
+                 <span className="text-[10px] font-mono text-slate-500 truncate max-w-[200px]">{publicUrl}</span>
                  <Button onClick={copyLink} size="sm" className="bg-indigo-600 hover:bg-indigo-700 h-8 px-4 text-[10px] font-black uppercase rounded-lg">
                    <Copy className="w-3.5 h-3.5 mr-2" /> Copy Link
                  </Button>
@@ -357,7 +367,7 @@ const Profile = () => {
               <a 
                 href={publicUrl} 
                 target="_child" 
-                className="h-10 w-10 bg-white/5 border border-white/10 flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all"
+                className="h-10 w-10 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 flex items-center justify-center rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-all"
                 title="Open in new tab"
               >
                 <ExternalLink className="w-4 h-4" />
@@ -365,15 +375,15 @@ const Profile = () => {
             </div>
           </div>
 
-          <div className="flex-1 bg-slate-900 rounded-[2.5rem] border-4 border-white/10 shadow-2xl overflow-hidden relative">
+          <div className="flex-1 bg-white dark:bg-slate-900 rounded-[2.5rem] border-4 border-slate-200 dark:border-white/10 shadow-2xl overflow-hidden relative">
             {profile?.is_repertoire_public ? (
               <PublicRepertoireView profile={profile} songs={thresholdFilteredSongs} isPreview />
             ) : (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-md text-center p-12">
-                <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-6">
-                  <Globe className="w-10 h-10 text-slate-700" />
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950/80 backdrop-blur-md text-center p-12">
+                <div className="w-20 h-20 rounded-full bg-slate-200 dark:bg-white/5 flex items-center justify-center mb-6">
+                  <Globe className="w-10 h-10 text-slate-500 dark:text-slate-700" />
                 </div>
-                <h2 className="text-2xl font-black uppercase tracking-tight mb-3">Preview Offline</h2>
+                <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900 dark:text-white mb-3">Preview Offline</h2>
                 <p className="text-slate-500 max-w-sm font-medium">Your repertoire is currently private. Toggle the Public Status switch to enable the live link and see the preview.</p>
                 <Button 
                   variant="outline" 
@@ -381,7 +391,7 @@ const Profile = () => {
                     handleUpdateLocal({ is_repertoire_public: true });
                     saveToDatabase({ is_repertoire_public: true });
                   }}
-                  className="mt-8 border-indigo-500/50 text-indigo-400 font-black uppercase tracking-widest text-[10px] h-12 px-8 rounded-2xl"
+                  className="mt-8 border-indigo-500/50 text-indigo-600 dark:text-indigo-400 font-black uppercase tracking-widest text-[10px] h-12 px-8 rounded-2xl"
                 >
                   Go Live Now
                 </Button>

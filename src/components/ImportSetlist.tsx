@@ -128,14 +128,14 @@ const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport, isOpen, onClose
         
         <div className="p-8 space-y-6">
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-slate-900 border border-white/10 rounded-2xl p-5 flex items-center justify-between shadow-sm">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl p-5 flex items-center justify-between shadow-sm">
               <div className="flex items-center gap-3">
-                <div className="bg-red-900/30 p-2.5 rounded-xl">
+                <div className="bg-red-100 dark:bg-red-900/30 p-2.5 rounded-xl">
                   <Youtube className="w-5 h-5 text-red-600" />
                 </div>
                 <div>
                   <Label htmlFor="yt-toggle" className="text-xs font-black uppercase tracking-widest text-slate-500">Audio Discovery</Label>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Auto-link Reference Media</p>
+                  <p className="text-[10px] text-slate-600 dark:text-slate-400 font-bold uppercase mt-0.5">Auto-link Reference Media</p>
                 </div>
               </div>
               <Switch 
@@ -146,43 +146,43 @@ const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport, isOpen, onClose
               />
             </div>
 
-            <div className="bg-slate-900 border border-white/10 rounded-2xl p-5 flex items-center gap-4 shadow-sm">
-              <div className="bg-emerald-900/30 p-2.5 rounded-xl">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl p-5 flex items-center gap-4 shadow-sm">
+              <div className="bg-emerald-100 dark:bg-emerald-900/30 p-2.5 rounded-xl">
                 <Music className="w-5 h-5 text-emerald-600" />
               </div>
               <div>
                 <Label className="text-xs font-black uppercase tracking-widest text-slate-500">Auto-Metadata</Label>
-                <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">AI Engine Level 2 Active</p>
+                <p className="text-[10px] text-slate-600 dark:text-slate-400 font-bold uppercase mt-0.5">AI Engine Level 2 Active</p>
               </div>
             </div>
           </div>
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Pasted Content Buffer</Label>
+              <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Pasted Content Buffer</Label>
               <span className="text-[10px] font-black text-indigo-500 uppercase">Pro Tip: Use 'Artist - Title'</span>
             </div>
             <Textarea 
               placeholder="Paste your OnSong list, Markdown table, or plain song list here..." 
-              className="min-h-[300px] font-mono text-sm bg-slate-900 border-white/10 focus-visible:ring-indigo-500 rounded-2xl p-6 shadow-inner resize-none"
+              className="min-h-[300px] font-mono text-sm bg-white dark:bg-slate-900 border-slate-200 dark:border-white/10 focus-visible:ring-indigo-500 rounded-2xl p-6 shadow-inner resize-none text-slate-900 dark:text-white"
               value={text}
               onChange={(e) => setText(e.target.value)}
             />
           </div>
 
-          <div className="flex items-start gap-4 p-5 bg-indigo-950/30 rounded-2xl border border-indigo-900/50">
+          <div className="flex items-start gap-4 p-5 bg-indigo-50 dark:bg-indigo-950/30 rounded-2xl border border-indigo-100 dark:border-indigo-900/50">
             <AlertCircle className="w-6 h-6 text-indigo-600 shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-black text-indigo-300 uppercase tracking-tight">Intelligence Report</p>
-              <p className="text-[11px] text-indigo-400/80 mt-1 leading-relaxed">
+              <p className="text-sm font-black text-indigo-900 dark:text-indigo-300 uppercase tracking-tight">Intelligence Report</p>
+              <p className="text-[11px] text-indigo-700/80 dark:text-indigo-400/80 mt-1 leading-relaxed">
                 The engine will attempt to extract the song name, artist, and musical key automatically. After import, the AI background worker will verify these details and link professional reference audio.
               </p>
             </div>
           </div>
         </div>
 
-        <div className="p-8 bg-slate-900/50 border-t flex flex-col sm:flex-row gap-4">
-          <Button variant="ghost" onClick={onClose} className="flex-1 font-black uppercase tracking-widest text-xs h-12 rounded-xl">Discard</Button>
+        <div className="p-8 bg-slate-100 dark:bg-slate-900/50 border-t border-slate-200 dark:border-white/5 flex flex-col sm:flex-row gap-4">
+          <Button variant="ghost" onClick={onClose} className="flex-1 font-black uppercase tracking-widest text-xs h-12 rounded-xl text-slate-900 dark:text-white hover:bg-slate-200 dark:hover:bg-white/10">Discard</Button>
           <Button 
             onClick={handleImport} 
             className="flex-[2] bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-[0.2em] text-xs h-12 rounded-xl shadow-xl shadow-indigo-500/20 gap-3"
