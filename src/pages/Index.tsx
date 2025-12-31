@@ -235,6 +235,8 @@ const Index = () => {
           master_id: d.id,
           name: d.title,
           artist: d.artist,
+          originalKey: d.original_key, // Mapped original_key
+          targetKey: d.target_key,     // Mapped target_key
           // Use audio_url if extraction is completed, otherwise fallback to preview_url
           previewUrl: d.extraction_status === 'completed' && d.audio_url ? d.audio_url : d.preview_url,
           youtubeUrl: d.youtube_url,
