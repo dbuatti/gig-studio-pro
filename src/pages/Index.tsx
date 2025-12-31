@@ -17,9 +17,10 @@ import { calculateSemitones, transposeKey } from '@/utils/keyUtils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Plus, ListMusic, Settings2, BookOpen, Search, LayoutDashboard, X, AlertCircle, CloudDownload, AlertTriangle, Library, Hash } from 'lucide-react';
+import { Loader2, Plus, ListMusic, Settings2, BookOpen, Search, LayoutDashboard, X, AlertCircle, CloudDownload, AlertTriangle, Library, Hash, Music } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'; // Added Dialog imports
 
 // Custom Components
 import SetlistSelector from '@/components/SetlistSelector';
@@ -41,6 +42,7 @@ import { StudioTab } from '@/components/SongStudioView';
 import RepertoireView from '@/components/RepertoireView';
 import KeyManagementModal from '@/components/KeyManagementModal';
 import PerformanceOverlay from '@/components/PerformanceOverlay';
+import AudioTransposer, { AudioTransposerRef } from '@/components/AudioTransposer'; // Added AudioTransposer import
 
 const Index = () => {
   const navigate = useNavigate();
@@ -69,6 +71,8 @@ const Index = () => {
   const [songStudioDefaultTab, setSongStudioDefaultTab] = useState<StudioTab | undefined>(undefined);
   const [isKeyManagementOpen, setIsKeyManagementOpen] = useState(false);
   const [isPerformanceOverlayOpen, setIsPerformanceOverlayOpen] = useState(false);
+  const [isAudioTransposerModalOpen, setIsAudioTransposerModalOpen] = useState(false); // New state for AudioTransposer
+  const audioTransposerRef = useRef<AudioTransposerRef>(null); // Ref for AudioTransposer
 
   const [newSetlistName, setNewSetlistName] = useState("");
   const [isCreatingSetlist, setIsCreatingSetlist] = useState(false);
@@ -1143,16 +1147,7 @@ const Index = () => {
       </div>
 
       <FloatingCommandDock
-        onOpenSearch={() => {
-          console.log("[Index] FloatingCommandDock: onOpenSearch triggered.");
-          setSongStudioModalSongId(null);
-          setIsSongStudioModalOpen(true);
-          setSongStudioDefaultTab('library');
-          // Corrected: Explicitly set gigId to 'library' for search mode
-          // This ensures the SongStudioModal renders correctly when no specific song is selected.
-          setSongStudioModalGigId('library'); 
-          console.log("[Index] Setting isSongStudioModalOpen to true, songStudioModalSongId to null, defaultTab to 'library', gigId to 'library'.");
-        }}
+        onOpenSearch={() => setIsAudioTransposerModalOpen(true)} // Updated to open AudioTransposer
         onOpenPractice={() => {}}
         onOpenReader={handleOpenReader}
         onOpenAdmin={() => setIsAdminPanelOpen(true)}
@@ -1411,6 +1406,42 @@ const Index = () => {
           gigId={activeSetlist.id}
           isLoadingAudio={audio.isLoadingAudio}
         />
+      )}
+
+      {/* AudioTransposer Modal */}
+      {isAudioTransposerModalOpen && (
+        <Dialog open={isAudioTransposerModalOpen} onOpenChange={setIsAudioTransposerModalOpen}>
+          <DialogContent className="max-w-4xl w-[95vw] h-[90vh] bg-slate-950 border-white/10 text-white rounded-[2rem] p-0 overflow-hidden flex flex-col shadow-2xl">
+            <DialogHeader className="p-6 bg-indigo-600 shrink-0 relative">
+                <button 
+                    onClick={() => setIsAudioTransposerModalOpen(false)}
+                    className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 text-white/70 hover:text-white transition-colors"
+                >
+                    <X className="w-5 h-5" />
+                </button>
+                <div className="flex items-center gap-3 mb-2">
+                    <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">
+                        <Music className="w-6 h-6 text-white" />
+                    </div>
+                    <DialogTitle className="text-2xl font-black uppercase tracking-tight text-white">Audio Transposer</DialogTitle>
+                </div>
+                <DialogDescription className="text-indigo-100 font-medium">
+                    Load audio, transpose key, adjust tempo, and manage links.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="flex-1 overflow-hidden">
+                <AudioTransposer
+                    ref={audioTransposerRef}
+                    onAddToSetlist={undefined} // As per user request: No interaction with setlists
+                    onAddExistingSong={undefined} // As per user request: No interaction with existing songs
+                    repertoire={[]} // As per user request: No filtering/song IDs
+                    currentSong={null} // As per user request: No specific song context
+                    onOpenAdmin={undefined} // Not relevant for this standalone tool
+                    currentList={undefined} // Not relevant for this standalone tool
+                />
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
