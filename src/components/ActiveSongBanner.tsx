@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { SetlistSong } from './SetlistManager';
-import { Music, Youtube, Copy, Play, Pause, Activity, Gauge, Sparkles, Tag, Apple, ExternalLink, X } from 'lucide-react';
+import { Music, Youtube, Copy, Play, Pause, Activity, Gauge, Sparkles, Tag, Apple, ExternalLink, X, CloudDownload, AlertTriangle } from 'lucide-react'; // NEW: Import CloudDownload and AlertTriangle
 import { Button } from '@/components/ui/button';
 import { showSuccess } from '@/utils/toast';
 import { Badge } from '@/components/ui/badge';
@@ -29,6 +29,9 @@ const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song, isPlaying, on
 
   const currentPref = song.key_preference || globalPreference;
   const displayKey = formatKey(song.targetKey || song.originalKey, currentPref);
+
+  const isProcessing = song.extraction_status === 'processing' || song.extraction_status === 'queued'; // NEW: Check for queued status
+  const isExtractionFailed = song.extraction_status === 'failed'; // NEW: Check for failed status
 
   return (
     <div className="sticky top-0 z-20 mb-6 animate-in slide-in-from-top duration-500">
@@ -74,7 +77,12 @@ const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song, isPlaying, on
                 <span className="text-sm font-bold text-slate-400 uppercase tracking-wider">{song.artist || "Unknown Artist"}</span>
                 <div className="w-1.5 h-1.5 rounded-full bg-slate-700" />
                 <span className="text-sm font-mono font-bold text-indigo-400 bg-indigo-400/10 px-2 rounded">{displayKey}</span>
+                {isProcessing && <CloudDownload className="w-4 h-4 text-indigo-300 animate-bounce" />}
+                {isExtractionFailed && <AlertTriangle className="w-4 h-4 text-red-400" />}
               </div>
+              {isExtractionFailed && song.last_sync_log && (
+                <p className="text-[10px] text-red-400 mt-1 truncate max-w-[200px]">{song.last_sync_log}</p>
+              )}
             </div>
           </div>
 

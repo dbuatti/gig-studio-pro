@@ -36,7 +36,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
   const [ytApiKey, setYtApiKey] = useState("");
   const [isSearchingYoutube, setIsSearchingYoutube] = useState(false);
   const [ytResults, setYtResults] = useState<any[]>([]);
-  const [isTriggering, setIsTriggering] = useState(false);
+  const [isQueuingExtraction, setIsQueuingExtraction] = useState(false); // Renamed from isTriggering
   const [lastQuery, setLastQuery] = useState("");
 
   const currentVideoId = useMemo(() => {
@@ -189,47 +189,48 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
     handleAutoSave({ youtubeUrl: cleanYoutubeUrl(url) });
   };
 
-  const handleBackgroundExtraction = async (videoUrlToDownload?: string) => {
-    const targetVideoUrl = cleanYoutubeUrl(videoUrlToDownload || formData.youtubeUrl || '');
+  const handleQueueExtraction = async (videoUrlToQueue?: string) => { // Renamed function
+    const targetVideoUrl = cleanYoutubeUrl(videoUrlToQueue || formData.youtubeUrl || '');
 
-    console.log("[YoutubeMediaManager] Initiating background extraction for:", targetVideoUrl);
+    console.log("[YoutubeMediaManager] Queuing background extraction for:", targetVideoUrl);
 
     if (!targetVideoUrl) {
       showError("Link a YouTube URL first.");
-      console.error("[YoutubeMediaManager] No target video URL for extraction.");
+      console.error("[YoutubeMediaManager] No target video URL for queuing extraction.");
       return;
     }
     if (!user?.id || !song?.id) {
       showError("Session data missing. Please log in.");
-      console.error("[YoutubeMediaManager] User ID or Song ID missing for extraction.");
+      console.error("[YoutubeMediaManager] User ID or Song ID missing for queuing extraction.");
       return;
     }
 
     handleAutoSave({ youtubeUrl: targetVideoUrl });
-    setIsTriggering(true);
-    console.log("[YoutubeMediaManager] Invoking 'download-audio' edge function...");
+    setIsQueuingExtraction(true); // Use new state variable
+    console.log("[YoutubeMediaManager] Updating Supabase to queue extraction...");
 
     try {
-      const { data, error } = await supabase.functions.invoke('download-audio', {
-        body: { 
-          videoUrl: targetVideoUrl,
-          songId: song.id,
-          userId: user.id
-        }
-      });
+      const { error } = await supabase
+        .from('repertoire')
+        .update({ 
+          youtube_url: targetVideoUrl,
+          extraction_status: 'queued', // Set status to 'queued'
+          last_sync_log: 'Queued for background audio extraction.'
+        })
+        .eq('id', song.id);
 
       if (error) throw error;
 
-      showInfo("Background extraction started. You can close this window; the audio will update automatically.");
+      showInfo("Background extraction queued. You can close this window; the audio will update automatically.");
       showSuccess("Task Queued Successfully");
-      console.log("[YoutubeMediaManager] 'download-audio' edge function invoked successfully. Response:", data);
+      console.log("[YoutubeMediaManager] Supabase updated successfully. Extraction job queued.");
       
     } catch (err: any) {
-      showError(`Trigger failed: ${err.message}`);
-      console.error("[YoutubeMediaManager] 'download-audio' edge function invocation failed:", err);
+      showError(`Failed to queue extraction: ${err.message}`);
+      console.error("[YoutubeMediaManager] Supabase update failed for queuing extraction:", err);
     } finally {
-      setIsTriggering(false);
-      console.log("[YoutubeMediaManager] Background extraction process finished.");
+      setIsQueuingExtraction(false); // Use new state variable
+      console.log("[YoutubeMediaManager] Queuing process finished.");
     }
   };
 
@@ -257,18 +258,18 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
           <Button
             variant="default"
             onClick={handleYoutubeSearch}
-            disabled={isSearchingYoutube || isTriggering}
+            disabled={isSearchingYoutube || isQueuingExtraction}
             className="bg-red-600 hover:bg-red-700 text-white h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg shadow-red-600/20"
           >
             {isSearchingYoutube ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-4 h-4" />} SEARCH
           </Button>
           <Button
-            onClick={() => handleBackgroundExtraction()}
-            disabled={isSearchingYoutube || isTriggering || !formData.youtubeUrl}
+            onClick={() => handleQueueExtraction()} // Call new queuing function
+            disabled={isSearchingYoutube || isQueuingExtraction || !formData.youtubeUrl}
             className="bg-indigo-600 hover:bg-indigo-700 text-white h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg shadow-indigo-600/20"
           >
-            {isTriggering ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-4 h-4" />} 
-            {isTriggering ? 'TRIGGERING...' : 'START BACKGROUND EXTRACT'}
+            {isQueuingExtraction ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-4 h-4" />} 
+            {isQueuingExtraction ? 'QUEUING...' : 'QUEUE BACKGROUND EXTRACT'}
           </Button>
         </div>
       </div>
@@ -278,14 +279,14 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
           results={ytResults}
           currentVideoId={currentVideoId}
           onSelect={handleSelectYoutubeVideo}
-          onDownloadAudio={handleBackgroundExtraction}
+          onDownloadAudio={handleQueueExtraction} // Call new queuing function
           onPreviewVideo={(url) => {
             handleAutoSave({ youtubeUrl: cleanYoutubeUrl(url) });
             onSwitchTab('visual');
           }}
           isLoading={isSearchingYoutube}
-          isDownloading={isTriggering}
-          downloadStatus={isTriggering ? 'processing' : 'idle'}
+          isDownloading={isQueuingExtraction} // Use new state variable
+          downloadStatus={isQueuingExtraction ? 'processing' : 'idle'} // Use new state variable
         />
       )}
     </div>

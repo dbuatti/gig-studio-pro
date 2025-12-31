@@ -9,7 +9,7 @@ import { SetlistSong } from './SetlistManager';
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, calculateSemitones, formatKey, transposeKey, transposeNote, PURE_NOTES_SHARP, PURE_NOTES_FLAT } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
 import { useSettings } from '@/hooks/use-settings';
-import { Check, Hash, Music2, Link as LinkIcon, Play, Pause, RotateCcw, Music } from 'lucide-react';
+import { Check, Hash, Music2, Link as LinkIcon, Play, Pause, RotateCcw, Music, CloudDownload, AlertTriangle } from 'lucide-react'; // NEW: Import CloudDownload and AlertTriangle
 import SongAssetMatrix from './SongAssetMatrix';
 import SongTagManager from './SongTagManager';
 import SheetMusicRecommender from './SheetMusicRecommender';
@@ -97,15 +97,30 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const isProcessing = formData.extraction_status === 'processing' || formData.extraction_status === 'queued';
+  const isExtractionFailed = formData.extraction_status === 'failed';
+
   return (
     <div className={cn("flex-1 p-6 md:p-8 space-y-8 md:space-y-10 overflow-y-auto")}>
       {/* Mini Audio Playback Controls */}
-      {formData.previewUrl && (
+      {formData.previewUrl ? (
         <div className="bg-slate-900/50 border border-white/10 rounded-3xl p-6 space-y-6 shadow-xl">
           <div className="flex items-center justify-between">
             <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400">
               Audio Control Center
             </Label>
+            {isProcessing && (
+              <div className="flex items-center gap-2 text-indigo-400">
+                <CloudDownload className="w-4 h-4 animate-bounce" />
+                <span className="text-[9px] font-black uppercase">Extracting Audio...</span>
+              </div>
+            )}
+            {isExtractionFailed && (
+              <div className="flex items-center gap-2 text-red-400">
+                <AlertTriangle className="w-4 h-4" />
+                <span className="text-[9px] font-black uppercase">Extraction Failed</span>
+              </div>
+            )}
           </div>
 
           <div className="space-y-4">
@@ -141,6 +156,11 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
               <div className="w-10" />
             </div>
           </div>
+        </div>
+      ) : (
+        <div className="bg-slate-900/50 border border-white/10 rounded-3xl p-6 space-y-6 shadow-xl text-center">
+          <Music className="w-12 h-12 text-slate-700 mx-auto" />
+          <p className="text-sm text-slate-500">No audio linked. Use the 'Visual' tab to link a YouTube video and queue extraction.</p>
         </div>
       )}
 

@@ -31,24 +31,26 @@ interface SetlistExporterProps {
   songs: SetlistSong[];
   onAutoLink?: () => Promise<void>;
   onGlobalAutoSync?: () => Promise<void>;
-  onBulkRefreshAudio?: () => Promise<void>;
+  onBulkRefreshAudio?: () => Promise<void>; // This will now queue extraction
   onClearAutoLinks?: () => Promise<void>;
-  isBulkDownloading?: boolean;
+  isBulkDownloading?: boolean; // Renamed from isBulkDownloading to isQueuingBulkExtraction
   missingAudioCount?: number;
+  onOpenAdmin?: () => void; // Fixed: Added onOpenAdmin prop
 }
 
 const SetlistExporter: React.FC<SetlistExporterProps> = ({ 
   songs, 
   onAutoLink, 
   onGlobalAutoSync,
-  onBulkRefreshAudio,
+  onBulkRefreshAudio, // This will now queue extraction
   onClearAutoLinks,
-  isBulkDownloading, 
-  missingAudioCount = 0 
+  isBulkDownloading, // Use new state variable
+  missingAudioCount = 0,
+  onOpenAdmin // Destructure new prop
 }) => {
   const [isLinking, setIsLinking] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false); // This state is for the "Force Refresh All Audio" in dropdown
   const [isClearing, setIsClearing] = useState(false);
 
   const isMissingLink = (url?: string) => {
@@ -112,7 +114,7 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
             <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-slate-500">Maintenance Tools</DropdownMenuLabel>
             <DropdownMenuSeparator className="bg-white/5" />
             <DropdownMenuItem 
-              onClick={() => handleAction(onBulkRefreshAudio!, setIsRefreshing, "Global Audio Refresh Triggered")}
+              onClick={() => onOpenAdmin?.()} // Direct to Admin Panel for full refresh
               className="text-red-400 focus:text-red-400 focus:bg-red-500/10 cursor-pointer"
             >
               <RefreshCcw className="w-4 h-4 mr-2" /> Force Refresh All Audio
@@ -176,12 +178,12 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
         <Button 
           variant="ghost" 
           size="sm" 
-          onClick={onBulkRefreshAudio}
-          disabled={isBulkDownloading || missingAudioCount === 0}
+          onClick={onBulkRefreshAudio} // This now queues extraction
+          disabled={isBulkDownloading || missingAudioCount === 0} // Use new state variable
           className="h-9 justify-start text-[10px] font-black uppercase tracking-widest text-emerald-600 hover:bg-emerald-50 rounded-xl gap-3 relative overflow-hidden"
         >
           {isBulkDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-          Download Audio ({missingAudioCount} Missing)
+          Queue Audio ({missingAudioCount} Missing)
         </Button>
       </div>
     </div>

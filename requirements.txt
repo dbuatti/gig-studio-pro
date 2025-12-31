@@ -1,4 +1,4 @@
-flask
-flask-cors
+supabase-py
+Flask
+Flask-Cors
 yt-dlp
-requests

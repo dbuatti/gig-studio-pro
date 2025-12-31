@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Globe, Music, Loader2, Plus, ShieldCheck, User, Star, FileText } from 'lucide-react';
+import { Search, Globe, Music, Loader2, Plus, ShieldCheck, User, Star, FileText, CloudDownload, AlertTriangle } from 'lucide-react'; // NEW: Import CloudDownload and AlertTriangle
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SetlistSong } from './SetlistManager';
 import { supabase } from '@/integrations/supabase/client';
@@ -84,6 +84,8 @@ const GlobalLibrary: React.FC<GlobalLibraryProps> = ({ onImport }) => {
             results.map((song) => {
               const displayKey = formatKey(song.target_key || song.original_key, keyPreference);
               const readiness = song.readiness_score || 0;
+              const isProcessing = song.extraction_status === 'processing' || song.extraction_status === 'queued'; // NEW: Check for queued status
+              const isExtractionFailed = song.extraction_status === 'failed'; // NEW: Check for failed status
               
               return (
                 <div 
@@ -95,6 +97,8 @@ const GlobalLibrary: React.FC<GlobalLibraryProps> = ({ onImport }) => {
                       <div className="flex items-center gap-2">
                         <h4 className="text-sm font-black uppercase tracking-tight truncate">{song.title}</h4>
                         {readiness >= 90 && <ShieldCheck className="w-3 h-3 text-emerald-500" />}
+                        {isProcessing && <CloudDownload className="w-3.5 h-3.5 text-indigo-500 animate-bounce" />}
+                        {isExtractionFailed && <AlertTriangle className="w-3.5 h-3.5 text-red-500" />}
                       </div>
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{song.artist}</p>
                       
@@ -109,6 +113,9 @@ const GlobalLibrary: React.FC<GlobalLibraryProps> = ({ onImport }) => {
                         </div>
                         {song.pdf_url && <FileText className="w-2.5 h-2.5 text-indigo-400" />}
                       </div>
+                      {isExtractionFailed && song.last_sync_log && (
+                        <p className="text-[8px] text-red-400 mt-1 truncate max-w-[150px]">Error: {song.last_sync_log}</p>
+                      )}
                     </div>
 
                     <div className="flex flex-col items-end gap-2 shrink-0">
@@ -131,7 +138,9 @@ const GlobalLibrary: React.FC<GlobalLibraryProps> = ({ onImport }) => {
                           pdfUrl: song.pdf_url,
                           user_tags: song.user_tags,
                           duration_seconds: song.duration_seconds,
-                          isMetadataConfirmed: true
+                          isMetadataConfirmed: true,
+                          extraction_status: song.extraction_status, // NEW: Pass extraction_status
+                          last_sync_log: song.last_sync_log // NEW: Pass last_sync_log
                         })}
                         className="h-8 px-3 text-[9px] font-black uppercase bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-xl gap-1.5 transition-all"
                       >

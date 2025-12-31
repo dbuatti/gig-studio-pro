@@ -7,8 +7,8 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Search, Library, Plus, Check, Music, 
-  ShieldCheck, Star, X, Filter 
-} from 'lucide-react';
+  ShieldCheck, Star, X, Filter, CloudDownload, AlertTriangle 
+} from 'lucide-react'; // NEW: Import CloudDownload and AlertTriangle
 import { SetlistSong } from './SetlistManager';
 import { cn } from "@/lib/utils";
 import { formatKey } from '@/utils/keyUtils';
@@ -101,6 +101,8 @@ const RepertoirePicker: React.FC<RepertoirePickerProps> = ({
                   const isAdded = existingIds.has(song.master_id || song.id);
                   const readiness = calculateReadiness(song);
                   const displayKey = formatKey(song.targetKey || song.originalKey, keyPreference);
+                  const isProcessing = song.extraction_status === 'processing' || song.extraction_status === 'queued'; // NEW: Check for queued status
+                  const isExtractionFailed = song.extraction_status === 'failed'; // NEW: Check for failed status
 
                   return (
                     <div 
@@ -120,8 +122,13 @@ const RepertoirePicker: React.FC<RepertoirePickerProps> = ({
                         <div className="flex items-center gap-2">
                           <h4 className="font-black text-sm uppercase tracking-tight truncate">{song.name}</h4>
                           {readiness === 100 && <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />}
+                          {isProcessing && <CloudDownload className="w-3.5 h-3.5 text-indigo-500 animate-bounce" />}
+                          {isExtractionFailed && <AlertTriangle className="w-3.5 h-3.5 text-red-500" />}
                         </div>
                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest truncate">{song.artist}</p>
+                        {isExtractionFailed && song.last_sync_log && (
+                          <p className="text-[8px] text-red-400 mt-1 truncate max-w-[150px]">Error: {song.last_sync_log}</p>
+                        )}
                       </div>
 
                       <div className="flex items-center gap-6 shrink-0">

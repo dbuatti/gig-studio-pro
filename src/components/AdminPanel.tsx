@@ -34,7 +34,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError, showInfo } from '@/utils/toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
-import { cn } from "@/lib/utils";
+import { cn } from '@/lib/utils';
 import { useAuth } from './AuthProvider';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
@@ -61,8 +61,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
   } | null>(null);
 
   // Maintenance / Bulk Extraction State
-  const [isExtracting, setIsExtracting] = useState(false);
-  const [isExtractingMissing, setIsExtractingMissing] = useState(false);
+  const [isQueuingExtraction, setIsQueuingExtraction] = useState(false); // Renamed from isExtracting
+  const [isQueuingMissingExtraction, setIsQueuingMissingExtraction] = useState(false); // Renamed from isExtractingMissing
   const [maintenanceSongs, setMaintenanceSongs] = useState<any[]>([]);
 
   // Automation State
@@ -96,7 +96,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
     try {
       const { data, error } = await supabase
         .from('repertoire')
-        .select('id, title, artist, youtube_url, extraction_status, last_extracted_at, sync_status, metadata_source, preview_url')
+        .select('id, title, artist, youtube_url, extraction_status, last_extracted_at, sync_status, metadata_source, preview_url, last_sync_log') // Fetch new columns
         .eq('user_id', user?.id)
         .order('title', { ascending: true });
       
@@ -254,59 +254,54 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
     }
   };
 
-  const handleBulkBackgroundExtract = async (onlyMissing: boolean = false) => {
+  const handleQueueBackgroundExtract = async (onlyMissing: boolean = false) => { // Renamed function
     const itunesKeywords = ['apple.com', 'itunes-assets', 'mzstatic.com'];
-    const songsToProcess = maintenanceSongs.filter(s => {
-      if (!s.youtube_url) return false;
+    const songsToQueue = maintenanceSongs.filter(s => {
+      if (!s.youtube_url) return false; // Must have a YouTube URL to extract from
       if (onlyMissing) {
         const url = s.preview_url || "";
-        return url === "" || itunesKeywords.some(kw => url.includes(kw));
+        // Filter for songs missing full audio AND not already queued/processing
+        return (url === "" || itunesKeywords.some(kw => url.includes(kw))) && 
+               s.extraction_status !== 'queued' && s.extraction_status !== 'processing';
       }
-      return true;
+      // For 'Force Refresh All', queue all songs with a YouTube URL that are not already processing
+      return s.extraction_status !== 'processing';
     });
 
-    if (songsToProcess.length === 0) {
-      showInfo(onlyMissing ? "No tracks found missing master audio." : "No songs with YouTube links found.");
+    if (songsToQueue.length === 0) {
+      showInfo(onlyMissing ? "No tracks found missing master audio to queue." : "No songs with YouTube links found to refresh.");
       return;
     }
 
     const message = onlyMissing 
-      ? `Initiating background extraction for ${songsToProcess.length} songs missing master audio...`
-      : `Initiating global background refresh for ${songsToProcess.length} tracks...`;
+      ? `Queueing background extraction for ${songsToQueue.length} songs missing master audio...`
+      : `Queueing global background refresh for ${songsToQueue.length} tracks...`;
 
-    if (!confirm(`WARNING: ${message} Continue?`)) return;
+    if (!confirm(`WARNING: ${message} Continue? This will happen even if you close the app.`)) return;
 
-    if (onlyMissing) setIsExtractingMissing(true);
-    else setIsExtracting(true);
+    if (onlyMissing) setIsQueuingMissingExtraction(true);
+    else setIsQueuingExtraction(true);
 
     addLog(message, 'info');
-    showInfo("Task Queued: Extraction occurring in background.");
+    showInfo("Tasks Queued: Extraction will occur in the background.");
 
-    for (let i = 0; i < songsToProcess.length; i++) {
-      const song = songsToProcess[i];
-      try {
-        const targetVideoUrl = cleanYoutubeUrl(song.youtube_url);
-        
-        await supabase.functions.invoke('download-audio', {
-          body: { 
-            videoUrl: targetVideoUrl,
-            songId: song.id,
-            userId: user?.id
-          }
-        });
+    try {
+      const songIdsToQueue = songsToQueue.map(s => s.id);
+      const { error } = await supabase
+        .from('repertoire')
+        .update({ extraction_status: 'queued', last_sync_log: 'Queued for background audio extraction.' })
+        .in('id', songIdsToQueue);
 
-        addLog(`Queued: ${song.title}`, 'success');
-      } catch (err: any) {
-        addLog(`Failed to Queue: ${song.title} - ${err.message}`, 'error');
-      }
-      await new Promise(r => setTimeout(r, 500));
+      if (error) throw error;
+
+      showSuccess(`Queued ${songsToQueue.length} tasks successfully.`);
+      fetchMaintenanceData(); // Refresh to show updated statuses
+    } catch (err: any) {
+      showError(`Failed to queue tasks: ${err.message}`);
+    } finally {
+      if (onlyMissing) setIsQueuingMissingExtraction(false);
+      else setIsQueuingExtraction(false);
     }
-
-    if (onlyMissing) setIsExtractingMissing(false);
-    else setIsExtracting(false);
-
-    showSuccess("Background tasks initialized.");
-    fetchMaintenanceData();
   };
 
   const handleSupabaseUpload = async (file: File) => {
@@ -602,20 +597,20 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
                       </div>
                       <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                         <Button 
-                          onClick={() => handleBulkBackgroundExtract(true)} 
-                          disabled={isExtractingMissing || isExtracting}
+                          onClick={() => handleQueueBackgroundExtract(true)} // Call new queuing function
+                          disabled={isQueuingMissingExtraction || isQueuingExtraction}
                           className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg"
                         >
-                          {isExtractingMissing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                          Download Remaining
+                          {isQueuingMissingExtraction ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                          Queue Remaining
                         </Button>
                         <Button 
-                          onClick={() => handleBulkBackgroundExtract(false)} 
-                          disabled={isExtracting || isExtractingMissing}
+                          onClick={() => handleQueueBackgroundExtract(false)} // Call new queuing function
+                          disabled={isQueuingExtraction || isQueuingMissingExtraction}
                           className="flex-1 sm:flex-none bg-red-600 hover:bg-red-700 h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-lg"
                         >
-                          {isExtracting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
-                          Force Refresh All
+                          {isQueuingExtraction ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
+                          Queue All Refresh
                         </Button>
                       </div>
                    </div>

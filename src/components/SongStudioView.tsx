@@ -119,6 +119,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   const handleClose = useCallback(() => {
     const pending = lastPendingUpdatesRef.current;
     if (Object.keys(pending).length > 0) performSave(pending);
+    audio.stopPlayback();
     onClose();
   }, [onClose]);
 
@@ -162,6 +163,8 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
             is_sheet_verified: data.is_sheet_verified,
             ugUrl: data.ug_url,
             highest_note_original: data.highest_note_original,
+            extraction_status: data.extraction_status, // Include new status
+            last_sync_log: data.last_sync_log // Include new log
           } as SetlistSong;
         }
       } else {

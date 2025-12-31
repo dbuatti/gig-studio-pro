@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Sparkles, Loader2, Music, Search, Target, CheckCircle2, ListPlus } from 'lucide-react';
+import { Sparkles, Loader2, Music, Search, Target, CheckCircle2, ListPlus, CloudDownload, AlertTriangle } from 'lucide-react'; // NEW: Import CloudDownload and AlertTriangle
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
@@ -229,6 +229,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
                               auto_synced: false,
                               is_sheet_verified: false,
                               sheet_music_url: null,
+                              extraction_status: 'idle', // NEW: Default status
                             })}
                             className="h-10 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-[10px] rounded-xl gap-2 shadow-lg"
                           >

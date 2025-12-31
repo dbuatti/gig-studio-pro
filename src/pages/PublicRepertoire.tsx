@@ -29,7 +29,7 @@ const PublicRepertoire = () => {
 
       const { data: songData, error: sError } = await supabase
         .from('repertoire')
-        .select('*')
+        .select('*, extraction_status, last_sync_log') // NEW: Select extraction_status and last_sync_log
         .eq('user_id', profileData.id)
         .eq('is_active', true)
         .gte('readiness_score', threshold);

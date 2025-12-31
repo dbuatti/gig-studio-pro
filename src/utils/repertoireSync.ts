@@ -7,7 +7,7 @@ import { SetlistSong } from "@/components/SetlistManager";
  */
 const isValidUuid = (uuid: string | undefined | null): boolean => {
   if (!uuid) return false;
-  return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(uuid);
+  return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(uuid);
 };
 
 /**
@@ -107,6 +107,8 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       if (song.isApproved !== undefined) payload.is_approved = song.isApproved;
       if (song.sheet_music_url !== undefined) payload.sheet_music_url = song.sheet_music_url;
       if (song.is_sheet_verified !== undefined) payload.is_sheet_verified = song.is_sheet_verified;
+      if (song.extraction_status !== undefined) payload.extraction_status = song.extraction_status; // NEW: Add extraction_status
+      if (song.last_sync_log !== undefined) payload.last_sync_log = song.last_sync_log; // NEW: Add last_sync_log
       
       if (isValidUuid(song.master_id)) {
         payload.id = song.master_id;

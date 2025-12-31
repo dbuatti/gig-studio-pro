@@ -6,7 +6,7 @@ import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Play, Pause, RotateCcw, Volume2, Waves, Settings2, Link as LinkIcon, Globe, Search, Youtube, PlusCircle, Library, Sparkles, Check, FileText, Subtitles, ChevronUp, ChevronDown, Printer, ListPlus } from 'lucide-react';
+import { Play, Pause, RotateCcw, Volume2, Waves, Settings2, Link as LinkIcon, Globe, Search, Youtube, PlusCircle, Library, Sparkles, Check, FileText, Subtitles, ChevronUp, ChevronDown, Printer, ListPlus, CloudDownload, AlertTriangle } from 'lucide-react'; // NEW: Import CloudDownload and AlertTriangle
 import { showSuccess, showError } from '@/utils/toast';
 import AudioVisualizer from './AudioVisualizer';
 import SongSearch from './SongSearch';
@@ -60,7 +60,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
   const isMobile = useIsMobile();
   const audio = useToneAudio();
   
-  const [file, setFile] = useState<{ id?: string; name: string; artist?: string; url?: string; originalKey?: string; ugUrl?: string; youtubeUrl?: string; appleMusicUrl?: string; genre?: string } | null>(null);
+  const [file, setFile] = useState<{ id?: string; name: string; artist?: string; url?: string; originalKey?: string; ugUrl?: string; youtubeUrl?: string; appleMusicUrl?: string; genre?: string; extraction_status?: 'idle' | 'queued' | 'processing' | 'completed' | 'failed'; last_sync_log?: string } | null>(null); // NEW: Add extraction_status and last_sync_log
   const [activeTab, setActiveTab] = useState("search");
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
   const [activeYoutubeUrl, setActiveYoutubeUrl] = useState<string | undefined>();
@@ -94,7 +94,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
     const initialPitch = currentSong?.pitch || 0;
     await hookLoadFromUrl(targetUrl, initialPitch);
     
-    setFile({ id: currentSong?.id, name, artist, url: targetUrl, originalKey, ugUrl, youtubeUrl, appleMusicUrl, genre });
+    setFile({ id: currentSong?.id, name, artist, url: targetUrl, originalKey, ugUrl, youtubeUrl, appleMusicUrl, genre, extraction_status: currentSong?.extraction_status, last_sync_log: currentSong?.last_sync_log }); // NEW: Pass extraction_status and last_sync_log
     
     setActiveYoutubeUrl(youtubeUrl);
     setActiveUgUrl(ugUrl);
@@ -202,6 +202,9 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
     getAnalyzer: () => analyzer,
     getIsPlaying: () => isPlaying
   }));
+
+  const isProcessing = file?.extraction_status === 'processing' || file?.extraction_status === 'queued'; // NEW: Check for queued status
+  const isExtractionFailed = file?.extraction_status === 'failed'; // NEW: Check for failed status
 
   return (
     <div className="flex flex-col h-full relative">

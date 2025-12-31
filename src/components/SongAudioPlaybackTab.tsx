@@ -3,7 +3,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import * as Tone from 'tone';
 import { analyze } from 'web-audio-beat-detector';
-import { Music, Play, Pause, RotateCcw, Loader2 } from 'lucide-react';
+import { Music, Play, Pause, RotateCcw, Loader2, CloudDownload, AlertTriangle } from 'lucide-react'; // NEW: Import CloudDownload and AlertTriangle
 
 import { Button } from "@/components/ui/button";
 import { Slider } from '@/components/ui/slider';
@@ -98,6 +98,9 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
     }
   };
 
+  const isProcessing = formData.extraction_status === 'processing' || formData.extraction_status === 'queued';
+  const isExtractionFailed = formData.extraction_status === 'failed';
+
   return (
     <div className="space-y-6 md:space-y-12 animate-in fade-in duration-500">
       {/* 1. Header */}
@@ -110,6 +113,18 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
             Real-time pitch and time-stretching engine active.
           </p>
         </div>
+        {isProcessing && (
+          <div className="flex items-center gap-2 text-indigo-400">
+            <CloudDownload className="w-4 h-4 animate-bounce" />
+            <span className="text-[9px] font-black uppercase">Extracting Audio...</span>
+          </div>
+        )}
+        {isExtractionFailed && (
+          <div className="flex items-center gap-2 text-red-400">
+            <AlertTriangle className="w-4 h-4" />
+            <span className="text-[9px] font-black uppercase">Extraction Failed</span>
+          </div>
+        )}
       </header>
 
       {/* 2. Visualizer & Transport */}
