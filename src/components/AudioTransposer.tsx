@@ -110,6 +110,11 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
       } else {
         setActiveVideoId(null);
       }
+
+      // Automatically start playback for search previews
+      console.log("[Transposer] Auto-starting playback...");
+      await hookTogglePlayback();
+      
     } catch (err) {
       console.error("[Transposer] Error in loadFromUrl:", err);
     }
