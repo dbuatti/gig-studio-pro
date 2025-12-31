@@ -68,7 +68,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   return (
     <div className="fixed top-0 left-0 right-0 z-60 bg-slate-900/80 backdrop-blur-xl border-b border-white/10 px-6 py-3 flex items-center justify-between shadow-lg animate-in slide-in-from-top duration-300">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={onClose} className="h-10 w-10 rounded-xl bg-white/5"><ArrowLeft className="w-5 h-5 text-slate-400" /></Button>
+        <Button variant="ghost" size="icon" onClick={onClose} className="h-10 w-10 rounded-xl bg-white/5" title="Back to Dashboard"><ArrowLeft className="w-5 h-5 text-slate-400" /></Button>
         
         <Button 
           variant="ghost" 
@@ -90,6 +90,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
             onClick={onPrevSong} 
             disabled={isLoading}
             className="h-9 w-9 rounded-lg hover:bg-white/10 text-slate-400"
+            title="Previous Song"
           >
             <ChevronLeft className="w-4 h-4" />
           </Button>
@@ -113,6 +114,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
             onClick={onNextSong} 
             disabled={isLoading}
             className="h-9 w-9 rounded-lg hover:bg-white/10 text-slate-400"
+            title="Next Song"
           >
             <ChevronRight className="w-4 h-4" />
           </Button>
@@ -135,6 +137,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
               size="sm"
               onClick={onPullKey}
               className="bg-emerald-600/10 text-emerald-500 hover:bg-emerald-600 hover:text-white border border-emerald-600/20 h-10 px-3 rounded-xl font-black text-[10px] uppercase tracking-widest gap-2"
+              title="Pull Key from Chords"
             >
               <Sparkles className="w-3.5 h-3.5" />
               Pull Key
@@ -148,6 +151,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
                   onPointerDown={(e) => e.stopPropagation()}
                   className="bg-white/5 border-white/10 text-xs font-black font-mono h-10 px-3 rounded-xl text-indigo-400 gap-2 min-w-[60px]"
                   disabled={isLoading}
+                  title="Key Notation Preference"
                 >
                   <span className="flex items-center gap-1.5">
                     {readerKeyPreference === 'sharps' ? <Hash className="w-3 h-3" /> : <Music className="w-3 h-3" />}
@@ -175,6 +179,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
                   onPointerDown={(e) => e.stopPropagation()}
                   className="bg-white/5 border-white/10 text-xs font-black font-mono h-10 px-4 rounded-xl text-indigo-400 gap-2 min-w-[80px]"
                   disabled={isLoading}
+                  title="Change Stage Key"
                 >
                   <span className="flex items-center gap-2">
                     <Music className="w-3.5 h-3.5" />
@@ -201,6 +206,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
           size="icon" 
           onClick={onSearchClick}
           className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
+          title="Open Studio (I)"
         >
           <Search className="w-5 h-5" />
         </Button>
@@ -210,6 +216,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
           size="icon" 
           onClick={onToggleFullScreen}
           className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
+          title={isFullScreen ? "Exit Fullscreen" : "Enter Fullscreen"}
         >
           {isFullScreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
         </Button>
