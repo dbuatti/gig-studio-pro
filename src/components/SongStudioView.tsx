@@ -215,17 +215,19 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           const setlistSongs = (data.songs as SetlistSong[]) || [];
           console.log("[SongStudioView] fetchData: Setlist songs found:", setlistSongs);
           
-          // Add this loop to inspect each song's IDs
-          setlistSongs.forEach((s, index) => {
-            console.log(`[SongStudioView] Song ${index}: id=${s.id}, master_id=${s.master_id}`);
-          });
-
-          // FIX: When opening from a setlist, songId is the master_id. So search by master_id.
-          targetSong = setlistSongs.find(s => s.master_id === songId);
+          // First, try to find by the unique ID of the setlist entry (s.id)
+          targetSong = setlistSongs.find(s => s.id === songId);
+          
           if (!targetSong) {
-            console.log("[SongStudioView] fetchData: Song not found in setlist for master ID:", songId);
+            // If not found by s.id, try finding by master_id (repertoire.id)
+            targetSong = setlistSongs.find(s => s.master_id === songId);
+            if (!targetSong) {
+              console.log("[SongStudioView] fetchData: Song not found in setlist by either setlist_song.id or master_id for ID:", songId);
+            } else {
+              console.log("[SongStudioView] fetchData: Song found in setlist by master_id:", targetSong);
+            }
           } else {
-            console.log("[SongStudioView] fetchData: Song found in setlist:", targetSong);
+            console.log("[SongStudioView] fetchData: Song found in setlist by setlist_song.id:", targetSong);
           }
         } else {
           console.log("[SongStudioView] fetchData: No setlist data found for ID:", gigId);
