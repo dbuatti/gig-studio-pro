@@ -56,19 +56,23 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
       await Tone.start(); // This is the critical line that needs user gesture
     }
     if (!analyzerRef.current) {
+      console.log('[useToneAudio] Initializing Analyzer');
       analyzerRef.current = new Tone.Analyser("fft", 256);
     }
+    console.log('[useToneAudio] initEngine completed');
     return true;
   }, []);
 
   const resetEngine = useCallback(() => {
     console.log('[useToneAudio] resetEngine called');
     if (playerRef.current) {
+      console.log('[useToneAudio] Disposing existing player.');
       playerRef.current.stop();
       playerRef.current.dispose();
       playerRef.current = null;
     }
     if (requestRef.current) {
+      console.log('[useToneAudio] Cancelling animation frame.');
       cancelAnimationFrame(requestRef.current);
     }
     setIsPlaying(false);
@@ -78,11 +82,14 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     currentBufferRef.current = null;
     setCurrentUrl("");
     setIsLoadingAudio(false);
+    console.log('[useToneAudio] resetEngine completed.');
     // Do NOT dispose analyzer here, it's reused.
   }, []);
 
   useEffect(() => {
+    console.log('[useToneAudio] Component mounted. Setting up cleanup for unmount.');
     return () => {
+      console.log('[useToneAudio] Component unmounting. Calling resetEngine.');
       resetEngine();
       // analyzerRef.current?.dispose(); // Keep analyzer for potential reuse
     };
@@ -91,6 +98,7 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
   useEffect(() => {
     if (playerRef.current) {
       playerRef.current.volume.value = volume;
+      console.log(`[useToneAudio] Volume updated to: ${volume}`);
     }
   }, [volume]);
 
@@ -103,6 +111,7 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     playerRef.current = new Tone.GrainPlayer(audioBuffer).toDestination();
     // Ensure analyzer is initialized before connecting
     if (!analyzerRef.current) { // Defensive check, should be initialized by initEngine on first play
+      console.log('[useToneAudio] Initializing Analyzer (defensive check in loadAudioBuffer)');
       analyzerRef.current = new Tone.Analyser("fft", 256);
     }
     playerRef.current.connect(analyzerRef.current!);
@@ -155,6 +164,7 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
       const arrayBuffer = await response.arrayBuffer();
       const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
       loadAudioBuffer(audioBuffer, initialPitch); // This will set isLoadingAudio to false
+      console.log(`[useToneAudio] Successfully loaded audio from URL: ${url}`);
     } catch (err) {
       console.error("Audio load failed from URL:", url, "Error:", err);
       showError("Audio load failed.");
@@ -170,24 +180,29 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
       console.warn('[useToneAudio] togglePlayback: No playerRef. Attempting to load audio if URL exists.');
       // If no player, but a URL is set, try to load it first.
       if (currentUrl && !isLoadingAudio) {
+        console.log('[useToneAudio] togglePlayback: currentUrl exists, attempting to load from URL.');
         await loadFromUrl(currentUrl, pitch, true); // Force reload if needed
         if (!playerRef.current) { // Still no player after attempting to load
           showError("No audio loaded to play.");
+          console.error('[useToneAudio] togglePlayback: Still no player after attempting to load from URL.');
           return;
         }
       } else {
         showError("No audio loaded to play.");
+        console.error('[useToneAudio] togglePlayback: No currentUrl or already loading, cannot play.');
         return;
       }
     }
 
     if (isPlaying) {
+      console.log('[useToneAudio] Pausing playback.');
       playerRef.current.stop();
       const elapsed = (Tone.now() - playbackStartTimeRef.current) * tempo;
       playbackOffsetRef.current += elapsed;
       setIsPlaying(false);
       console.log('[useToneAudio] Paused');
     } else {
+      console.log('[useToneAudio] Starting playback.');
       const startTime = (progress / 100) * duration;
       playbackOffsetRef.current = startTime;
       playbackStartTimeRef.current = Tone.now();
@@ -200,10 +215,14 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
   const stopPlayback = useCallback(() => {
     console.log('[useToneAudio] stopPlayback called');
     if (playerRef.current) {
+      console.log('[useToneAudio] Stopping player.');
       playerRef.current.stop();
       setIsPlaying(false);
       setProgress(0);
       playbackOffsetRef.current = 0;
+      console.log('[useToneAudio] Playback stopped and reset.');
+    } else {
+      console.log('[useToneAudio] stopPlayback: No player to stop.');
     }
   }, []);
 
@@ -215,6 +234,7 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
       const newProgress = (currentSeconds / duration) * 100;
       
       if (currentSeconds >= duration) {
+        console.log('[useToneAudio] Playback reached end. Calling stopPlayback.');
         stopPlayback();
         return;
       }
@@ -226,9 +246,11 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
 
   useEffect(() => {
     if (isPlaying) {
+      console.log('[useToneAudio] isPlaying is true. Requesting animation frame.');
       requestRef.current = requestAnimationFrame(animateProgress);
     }
     else if (requestRef.current) {
+      console.log('[useToneAudio] isPlaying is false. Cancelling animation frame.');
       cancelAnimationFrame(requestRef.current);
     }
     return () => { if (requestRef.current) cancelAnimationFrame(requestRef.current); };
@@ -237,12 +259,14 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
   useEffect(() => {
     if (playerRef.current) {
       playerRef.current.detune = (pitch * 100) + fineTune;
+      console.log(`[useToneAudio] Detune updated to: ${(pitch * 100) + fineTune} (pitch: ${pitch}, fineTune: ${fineTune})`);
     }
   }, [pitch, fineTune]);
 
   useEffect(() => {
     if (playerRef.current) {
       playerRef.current.playbackRate = tempo;
+      console.log(`[useToneAudio] Playback rate updated to: ${tempo}`);
     }
   }, [tempo]);
 
@@ -277,9 +301,12 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
       const offset = (p / 100) * duration;
       playbackOffsetRef.current = offset;
       if (isPlaying) {
+        console.log('[useToneAudio] setProgress: Player is playing, stopping and restarting at new offset.');
         playerRef.current.stop();
         playbackStartTimeRef.current = Tone.now();
         playerRef.current.start(0, offset);
+      } else {
+        console.log('[useToneAudio] setProgress: Player is paused, just updating offset.');
       }
     }
   }, [duration, isPlaying]);
