@@ -26,6 +26,7 @@ import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { extractKeyFromChords } from '@/utils/chordUtils';
+import SongStudioView from '@/components/SongStudioView'; // Import SongStudioView directly
 
 type ChartType = 'pdf' | 'leadsheet' | 'chords';
 
@@ -851,14 +852,15 @@ const SheetReaderMode: React.FC = () => {
             </div>
             <div className="flex-1 overflow-hidden">
               {currentSong && (
-                <SongStudioModal
-                  isOpen={true}
-                  onClose={() => setIsStudioPanelOpen(false)}
-                  gigId="library"
+                <SongStudioView
+                  gigId="library" // Assuming 'library' context for the panel
                   songId={currentSong.id}
+                  onClose={() => setIsStudioPanelOpen(false)} // Close the panel
+                  isModal={false} // It's a panel, not a modal dialog
                   allSetlists={allSetlists}
                   masterRepertoire={allSongs}
                   onUpdateSetlistSongs={handleUpdateSetlistSongs}
+                  defaultTab="details" // Default tab for the panel
                 />
               )}
             </div>
