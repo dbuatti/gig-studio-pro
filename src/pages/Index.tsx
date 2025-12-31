@@ -85,6 +85,7 @@ const Index = () => {
   const [activeFilters, setActiveFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [showHeatmap, setShowHeatmap] = useState(false);
 
+  // Automation States
   const [isRepertoireAutoLinking, setIsRepertoireAutoLinking] = useState(false);
   const [isRepertoireGlobalAutoSyncing, setIsRepertoireGlobalAutoSyncing] = useState(false);
   const [isRepertoireBulkQueuingAudio, setIsRepertoireBulkQueuingAudio] = useState(false);
@@ -548,6 +549,89 @@ const Index = () => {
     }
   };
 
+  // --- RESTORED: Automation Handlers ---
+  
+  const handleBulkAutoLink = async () => {
+    const missing = masterRepertoire.filter(s => !s.youtubeUrl || s.youtubeUrl.trim() === '');
+    if (missing.length === 0) {
+      showInfo("All tracks already have YouTube links bound.");
+      return;
+    }
+
+    setIsRepertoireAutoLinking(true);
+    console.log(`[Dashboard] Initiating Smart-Link Discovery for ${missing.length} tracks...`);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('bulk-populate-youtube-links', {
+        body: { songIds: missing.map(s => s.id) }
+      });
+
+      if (error) throw error;
+      console.log("[Dashboard] Smart-Link Results:", data.results);
+      await fetchSetlistsAndRepertoire();
+      showSuccess(`AI Discovery Complete: ${data.results.filter((r:any) => r.status === 'SUCCESS').length} links bound.`);
+    } catch (err: any) {
+      console.error("[Dashboard] Smart-Link Discovery FAILED:", err);
+      showError(`Discovery Failed: ${err.message}`);
+    } finally {
+      setIsRepertoireAutoLinking(false);
+    }
+  };
+
+  const handleBulkGlobalAutoSync = async () => {
+    if (masterRepertoire.length === 0) return;
+    
+    setIsRepertoireGlobalAutoSyncing(true);
+    console.log(`[Dashboard] Initiating Global Auto-Sync for ${masterRepertoire.length} tracks...`);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('global-auto-sync', {
+        body: { songIds: masterRepertoire.map(s => s.id), overwrite: false }
+      });
+
+      if (error) throw error;
+      console.log("[Dashboard] Global Auto-Sync Results:", data.results);
+      await fetchSetlistsAndRepertoire();
+      showSuccess("Metadata Sync Pipeline Finished.");
+    } catch (err: any) {
+      console.error("[Dashboard] Global Auto-Sync FAILED:", err);
+      showError(`Sync Failed: ${err.message}`);
+    } finally {
+      setIsRepertoireGlobalAutoSyncing(false);
+    }
+  };
+
+  const handleBulkClearAutoLinks = async () => {
+    const autoPopulated = masterRepertoire.filter(s => s.metadata_source === 'auto_populated');
+    if (autoPopulated.length === 0) {
+      showInfo("No auto-populated links found to clear.");
+      return;
+    }
+
+    if (!confirm(`Clear ${autoPopulated.length} auto-populated links?`)) return;
+
+    setIsRepertoireClearingAutoLinks(true);
+    try {
+      const { error } = await supabase
+        .from('repertoire')
+        .update({ 
+          youtube_url: null, 
+          metadata_source: null,
+          sync_status: 'IDLE' 
+        })
+        .eq('metadata_source', 'auto_populated')
+        .eq('user_id', userId);
+
+      if (error) throw error;
+      await fetchSetlistsAndRepertoire();
+      showSuccess("Auto-populated links cleared.");
+    } catch (err: any) {
+      showError(`Clear Failed: ${err.message}`);
+    } finally {
+      setIsRepertoireClearingAutoLinks(false);
+    }
+  };
+
   const handleOpenReader = useCallback((initialSongId?: string) => {
     sessionStorage.setItem('from_dashboard', 'true');
     const params = new URLSearchParams();
@@ -577,7 +661,9 @@ const Index = () => {
   const hasReadableChart = !!activeSongForPerformance && (!!activeSongForPerformance.pdfUrl || !!activeSongForPerformance.leadsheetUrl || !!activeSongForPerformance.ugUrl || !!activeSongForPerformance.ug_chords_text || !!activeSongForPerformance.sheet_music_url);
 
   // Filter missing audio for repertoire automation
-  const missingAudioCount = masterRepertoire.filter(s => !s.audio_url || s.extraction_status !== 'completed').length;
+  const missingAudioCount = useMemo(() => 
+    masterRepertoire.filter(s => !s.audio_url || s.extraction_status !== 'completed').length,
+  [masterRepertoire]);
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col relative">
@@ -632,15 +718,14 @@ const Index = () => {
               setSortMode={setSortMode} 
               activeFilters={activeFilters} 
               setActiveFilters={setActiveFilters}
-              // Automation Hub handlers
-              onAutoLink={async () => { /* Add logic if needed */ }}
-              onGlobalAutoSync={async () => { /* Add logic if needed */ }}
-              onBulkRefreshAudio={async () => { /* Add logic if needed */ }}
-              onClearAutoLinks={async () => { /* Add logic if needed */ }}
-              isBulkDownloading={false}
+              onAutoLink={handleBulkAutoLink}
+              onGlobalAutoSync={handleBulkGlobalAutoSync}
+              onBulkRefreshAudio={async () => setIsAdminPanelOpen(true)}
+              onClearAutoLinks={handleBulkClearAutoLinks}
+              isBulkDownloading={isRepertoireAutoLinking || isRepertoireGlobalAutoSyncing}
               missingAudioCount={missingAudioCount}
               onOpenAdmin={() => setIsAdminPanelOpen(true)}
-              onDeleteSong={handleDeleteMasterSong} // NEW: Pass the deletion handler
+              onDeleteSong={handleDeleteMasterSong}
             />
           </TabsContent>
         </Tabs>
