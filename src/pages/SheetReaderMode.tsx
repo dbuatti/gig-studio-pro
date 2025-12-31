@@ -191,11 +191,19 @@ const SheetReaderMode: React.FC = () => {
     if (!user) return;
     setInitialLoading(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('repertoire')
         .select('*')
         .eq('user_id', user.id)
         .order('title');
+
+      // Apply 'confirmed for gig' filter if coming from gig mode
+      const filterApproved = searchParams.get('filterApproved');
+      if (filterApproved === 'true') {
+        query = query.eq('is_approved', true);
+      }
+
+      const { data, error } = await query;
 
       // Add robust error logging for Supabase fetches
       if (error) {
@@ -239,15 +247,15 @@ const SheetReaderMode: React.FC = () => {
 
       const readableAndApprovedSongs = mappedSongs.filter(s => {
         const readiness = calculateReadiness(s);
-        // REMOVED: s.ugUrl from hasChart condition
-        const hasChart = s.pdfUrl || s.leadsheetUrl || s.ug_chords_text; 
+        // UPDATED: hasChart condition to include sheet_music_url
+        const hasChart = s.pdfUrl || s.leadsheetUrl || s.ug_chords_text || s.sheet_music_url; 
         const meetsReadiness = readiness >= 40 || forceReaderResource === 'simulation' || ignoreConfirmedGate;
 
         // Debugging for the specific song
         if (s.id === "582ded79-5b51-45e1-8260-72de214fbff1") {
           console.log(`[SheetReaderMode Debug] Song: ${s.name}, ID: ${s.id}`);
           console.log(`[SheetReaderMode Debug] readiness: ${readiness}`);
-          console.log(`[SheetReaderMode Debug] hasChart (pdfUrl: ${s.pdfUrl}, leadsheetUrl: ${s.leadsheetUrl}, ug_chords_text: ${!!s.ug_chords_text && s.ug_chords_text.trim().length > 0}): ${hasChart}`);
+          console.log(`[SheetReaderMode Debug] hasChart (pdfUrl: ${s.pdfUrl}, leadsheetUrl: ${s.leadsheetUrl}, ug_chords_text: ${!!s.ug_chords_text && s.ug_chords_text.trim().length > 0}, sheet_music_url: ${s.sheet_music_url}): ${hasChart}`);
           console.log(`[SheetReaderMode Debug] meetsReadiness: ${meetsReadiness}`);
           console.log(`[SheetReaderMode Debug] Filter result: ${hasChart && meetsReadiness}`);
         }

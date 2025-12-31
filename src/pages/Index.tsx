@@ -961,16 +961,16 @@ const Index = () => {
 
   const handleOpenReader = useCallback((initialSongId?: string) => {
     sessionStorage.setItem('from_dashboard', 'true');
+    const params = new URLSearchParams();
     if (initialSongId) {
-      navigate(`/sheet-reader/${initialSongId}`);
-    } else if (activeSongForPerformance) {
-      navigate(`/sheet-reader/${activeSongForPerformance.id}`);
-    } else if (filteredAndSortedSongs.length > 0) {
-      navigate(`/sheet-reader/${filteredAndSortedSongs[0].id}`);
-    } else {
-      showError("No songs available to open in reader mode.");
+      params.set('id', initialSongId);
     }
-  }, [navigate, activeSongForPerformance, filteredAndSortedSongs]);
+    // NEW: Add filterApproved parameter if in 'gigs' view
+    if (activeDashboardView === 'gigs') {
+      params.set('filterApproved', 'true');
+    }
+    navigate(`/sheet-reader/${initialSongId ? initialSongId : ''}?${params.toString()}`);
+  }, [navigate, activeSongForPerformance, filteredAndSortedSongs, activeDashboardView]);
 
   // NEW: Handle opening Performance Overlay
   const handleOpenPerformanceOverlay = useCallback(() => {
@@ -1024,7 +1024,7 @@ const Index = () => {
   }
 
   const hasPlayableSong = !!activeSongForPerformance?.audio_url || !!activeSongForPerformance?.previewUrl;
-  const hasReadableChart = !!activeSongForPerformance && (!!activeSongForPerformance.pdfUrl || !!activeSongForPerformance.leadsheetUrl || !!activeSongForPerformance.ugUrl || !!activeSongForPerformance.ug_chords_text);
+  const hasReadableChart = !!activeSongForPerformance && (!!activeSongForPerformance.pdfUrl || !!activeSongForPerformance.leadsheetUrl || !!activeSongForPerformance.ugUrl || !!activeSongForPerformance.ug_chords_text || !!activeSongForPerformance.sheet_music_url);
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col relative">
