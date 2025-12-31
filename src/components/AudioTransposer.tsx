@@ -85,20 +85,33 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
   };
 
   const loadFromUrl = async (targetUrl: string, name: string, artist: string, youtubeUrl?: string, originalKey?: string, ugUrl?: string, appleMusicUrl?: string, genre?: string, audioUrl?: string, extractionStatus?: 'idle' | 'PENDING' | 'queued' | 'processing' | 'completed' | 'failed') => {
+    console.log("[Transposer] Received request to load audio:", { targetUrl, name, artist });
+    
     resetEngine();
     const initialPitch = currentSong?.pitch || 0;
     const urlToLoad = (extractionStatus === 'completed' && audioUrl) ? audioUrl : targetUrl;
 
-    await hookLoadFromUrl(urlToLoad, initialPitch);
-    
-    setFile({ id: currentSong?.id, name, artist, url: targetUrl, originalKey, ugUrl, youtubeUrl, appleMusicUrl, genre, extraction_status: extractionStatus, last_sync_log: currentSong?.last_sync_log, audio_url: audioUrl });
-    
-    setActiveYoutubeUrl(youtubeUrl);
-    setActiveUgUrl(ugUrl);
-    if (youtubeUrl) {
-      setActiveVideoId(getYoutubeId(youtubeUrl));
-    } else {
-      setActiveVideoId(null);
+    if (!urlToLoad) {
+      console.warn("[Transposer] No valid URL provided for loading.");
+      showError("No audio preview available for this track.");
+      return;
+    }
+
+    try {
+      console.log("[Transposer] Invoking hookLoadFromUrl with:", urlToLoad);
+      await hookLoadFromUrl(urlToLoad, initialPitch);
+      
+      setFile({ id: currentSong?.id, name, artist, url: targetUrl, originalKey, ugUrl, youtubeUrl, appleMusicUrl, genre, extraction_status: extractionStatus, last_sync_log: currentSong?.last_sync_log, audio_url: audioUrl });
+      
+      setActiveYoutubeUrl(youtubeUrl);
+      setActiveUgUrl(ugUrl);
+      if (youtubeUrl) {
+        setActiveVideoId(getYoutubeId(youtubeUrl));
+      } else {
+        setActiveVideoId(null);
+      }
+    } catch (err) {
+      console.error("[Transposer] Error in loadFromUrl:", err);
     }
   };
 

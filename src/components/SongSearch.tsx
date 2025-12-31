@@ -145,6 +145,15 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
     );
   };
 
+  const handlePreviewClick = (song: any) => {
+    console.log("[Search] Preview button clicked:", {
+      name: song.trackName,
+      artist: song.artistName,
+      previewUrl: song.previewUrl
+    });
+    onSelectSong(song.previewUrl, song.trackName, song.artistName);
+  };
+
   return (
     <div className="space-y-4">
       <form onSubmit={handleSearch} className="flex gap-2">
@@ -209,7 +218,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <button
-                              onClick={() => onSelectSong(song.previewUrl, song.trackName, song.artistName)}
+                              onClick={() => handlePreviewClick(song)}
                               className="p-2 hover:bg-indigo-600 hover:text-white text-indigo-400 rounded-md transition-all"
                             >
                               <Music className="w-4 h-4" />

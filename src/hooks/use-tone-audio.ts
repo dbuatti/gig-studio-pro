@@ -94,6 +94,8 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
   }, [volume]);
 
   const loadAudioBuffer = useCallback((audioBuffer: AudioBuffer, initialPitch: number = 0) => {
+    console.log("[AudioEngine] Loading AudioBuffer into player...");
+    
     // Reset player but keep loading status for a moment
     if (playerRef.current) {
       playerRef.current.stop();
@@ -127,16 +129,22 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     if (!suppressToasts) {
       showSuccess("Audio Loaded");
     }
+    console.log("[AudioEngine] Audio ready for playback. Duration:", audioBuffer.duration);
   }, [suppressToasts]);
 
   const loadFromUrl = useCallback(async (url: string, initialPitch: number = 0, force: boolean = false) => {
-    if (!url) return;
-
-    // Use refs to bail early if already loading or same URL is loaded
-    if (!force && (isLoadingAudioRef.current || (url === currentUrlRef.current && currentBufferRef.current))) {
+    if (!url) {
+      console.warn("[AudioEngine] Received empty URL in loadFromUrl.");
       return;
     }
 
+    // Use refs to bail early if already loading or same URL is loaded
+    if (!force && (isLoadingAudioRef.current || (url === currentUrlRef.current && currentBufferRef.current))) {
+      console.log("[AudioEngine] Bailing on load: URL already processing or loaded.");
+      return;
+    }
+
+    console.log("[AudioEngine] Fetching audio from URL:", url);
     currentUrlRef.current = url;
     setCurrentUrlState(url);
     isLoadingAudioRef.current = true;
@@ -144,11 +152,17 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     
     try {
       const response = await fetch(url);
-      if (!response.ok) throw new Error(`Fetch error: ${response.status}`);
+      if (!response.ok) {
+        console.error("[AudioEngine] Fetch failed with status:", response.status, response.statusText);
+        throw new Error(`Fetch error: ${response.status}`);
+      }
+      
+      console.log("[AudioEngine] Fetch successful. Decoding audio data...");
       const arrayBuffer = await response.arrayBuffer();
       const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
       loadAudioBuffer(audioBuffer, initialPitch);
     } catch (err) {
+      console.error("[AudioEngine] Fatal error during loadFromUrl:", err);
       showError("Audio load failed.");
       currentUrlRef.current = "";
       setCurrentUrlState("");
