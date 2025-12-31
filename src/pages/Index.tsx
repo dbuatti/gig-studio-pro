@@ -285,6 +285,33 @@ const Index = () => {
     }
   }, [user, authLoading, fetchSetlistsAndRepertoire, navigate]);
 
+  // NEW: Supabase Realtime Subscription for repertoire changes
+  useEffect(() => {
+    if (!user) return;
+
+    const repertoireChannel = supabase
+      .channel('repertoire_changes')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'repertoire', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          const updatedSong = payload.new as SetlistSong;
+          // Fix 1 & 2: Add null/undefined check for extraction_status
+          // Fix 3: Use updatedSong.name instead of updatedSong.title
+          if (updatedSong.extraction_status && (updatedSong.extraction_status === 'COMPLETED' || updatedSong.extraction_status === 'FAILED')) {
+            showSuccess(`Repertoire updated for "${updatedSong.name}"`);
+            fetchSetlistsAndReRepertoire(); // Re-fetch all data to ensure consistency
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(repertoireChannel);
+    };
+  }, [user, fetchSetlistsAndRepertoire]);
+
+
   // --- FIX: Clear active song for performance on setlist change or initial load ---
   useEffect(() => {
     setActiveSongForPerformance(null); // Always clear when activeSetlist changes or on initial load
@@ -424,7 +451,7 @@ const Index = () => {
     const syncedSongs = await syncToMasterRepertoire(user.id, [updatedMasterSong]);
     const syncedMasterSong = syncedSongs[0];
 
-    setMasterRepertoire(prev => prev.map(s => s.id === syncedMasterSong.id ? syncedMasterSong : s));
+    setMasterRepertoire(prev => prev.map(s => s.id === updatedMasterSong.id ? updatedMasterSong : s));
 
     // Then, update the song in the active setlist
     const updatedSetlistSongs = activeSetlist.songs.map(s =>
