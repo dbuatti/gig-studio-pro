@@ -12,66 +12,80 @@ interface UseHarmonicSyncProps {
 }
 
 export function useHarmonicSync({ formData, handleAutoSave, globalKeyPreference }: UseHarmonicSyncProps) {
-  // Internal state for pitch, targetKey, and linking, derived from formData
-  const [isPitchLinked, setIsPitchLinkedState] = useState(formData.is_pitch_linked ?? true);
-  const [pitch, setPitchState] = useState(formData.pitch ?? 0);
-  const [targetKeyState, setTargetKeyState] = useState(formData.targetKey || formData.originalKey || 'C');
+  // Directly derive linked status from formData
+  const isPitchLinkedFromData = formData.is_pitch_linked ?? true;
+  const originalKeyFromData = formData.originalKey || 'C';
 
-  // Sync internal state with formData changes
+  // Internal state for local overrides when not linked
+  // Initialize with formData values, but these will only be used if isPitchLinkedFromData is false
+  const [localPitch, setLocalPitch] = useState(formData.pitch ?? 0);
+  const [localTargetKey, setLocalTargetKey] = useState(formData.targetKey || originalKeyFromData);
+
+  // Update local state when formData changes, but only if not linked
   useEffect(() => {
-    console.log(`[useHarmonicSync] useEffect triggered for song: ${formData.name || 'N/A'}`);
-    console.log(`[useHarmonicSync] Received formData: originalKey=${formData.originalKey}, targetKey=${formData.targetKey}, pitch=${formData.pitch}, is_pitch_linked=${formData.is_pitch_linked}`);
+    if (!isPitchLinkedFromData) {
+      setLocalPitch(formData.pitch ?? 0);
+      setLocalTargetKey(formData.targetKey || originalKeyFromData);
+    }
+  }, [formData.pitch, formData.targetKey, originalKeyFromData, isPitchLinkedFromData]);
 
-    const safePitch = typeof formData.pitch === 'number' ? formData.pitch : 0;
-    const safeLink = typeof formData.is_pitch_linked === 'boolean' ? formData.is_pitch_linked : true;
+  // Determine active pitch and targetKey based on linking status
+  const activePitch = isPitchLinkedFromData
+    ? (formData.pitch ?? 0)
+    : localPitch;
 
-    setPitchState(safePitch);
-    setIsPitchLinkedState(safeLink);
-    setTargetKeyState(formData.targetKey || formData.originalKey || 'C');
-    console.log(`[useHarmonicSync] Internal state set: targetKeyState=${formData.targetKey || formData.originalKey || 'C'}, pitch=${safePitch}`);
-  }, [formData.pitch, formData.is_pitch_linked, formData.originalKey, formData.targetKey, formData.name]); // Added formData.name for logging
+  const activeTargetKey = isPitchLinkedFromData
+    ? (formData.targetKey || originalKeyFromData)
+    : localTargetKey;
 
   // --- Setters that interact with handleAutoSave ---
 
   const setPitch = useCallback((newPitch: number) => {
-    const updates: Partial<SetlistSong> = { pitch: newPitch };
-    const effectiveOriginalKey = formData.originalKey || 'C';
-    if (isPitchLinked) {
-      const newTarget = transposeKey(effectiveOriginalKey, newPitch);
+    if (isPitchLinkedFromData) {
+      const updates: Partial<SetlistSong> = { pitch: newPitch };
+      const newTarget = transposeKey(originalKeyFromData, newPitch);
       updates.targetKey = newTarget;
+      handleAutoSave(updates);
+    } else {
+      setLocalPitch(newPitch);
     }
-    handleAutoSave(updates);
-  }, [isPitchLinked, formData.originalKey, handleAutoSave]);
+  }, [isPitchLinkedFromData, originalKeyFromData, handleAutoSave]);
 
   const setTargetKey = useCallback((newTargetKey: string) => {
-    const updates: Partial<SetlistSong> = { targetKey: newTargetKey };
-    const effectiveOriginalKey = formData.originalKey || 'C';
-    if (isPitchLinked) {
-      const newPitch = calculateSemitones(effectiveOriginalKey, newTargetKey);
+    if (isPitchLinkedFromData) {
+      const updates: Partial<SetlistSong> = { targetKey: newTargetKey };
+      const newPitch = calculateSemitones(originalKeyFromData, newTargetKey);
       updates.pitch = newPitch;
+      handleAutoSave(updates);
+    } else {
+      setLocalTargetKey(newTargetKey);
     }
-    handleAutoSave(updates);
-  }, [isPitchLinked, formData.originalKey, handleAutoSave]);
+  }, [isPitchLinkedFromData, originalKeyFromData, handleAutoSave]);
 
   const setIsPitchLinked = useCallback((linked: boolean) => {
     const updates: Partial<SetlistSong> = { is_pitch_linked: linked };
     if (!linked) {
+      // When unlinking, reset pitch to 0 and targetKey to originalKey in DB
       updates.pitch = 0;
-      updates.targetKey = formData.originalKey;
+      updates.targetKey = originalKeyFromData;
+      // Also reset local state for immediate UI reflection
+      setLocalPitch(0);
+      setLocalTargetKey(originalKeyFromData);
     } else {
-      const currentOriginalKey = formData.originalKey || 'C';
-      const currentTargetKey = formData.targetKey || currentOriginalKey;
-      updates.pitch = calculateSemitones(currentOriginalKey, currentTargetKey);
+      // When linking, calculate pitch based on current local targetKey and originalKey
+      const currentTargetKey = localTargetKey; // Use local state if it was previously unlinked
+      updates.pitch = calculateSemitones(originalKeyFromData, currentTargetKey);
+      updates.targetKey = currentTargetKey; // Ensure targetKey is also saved
     }
     handleAutoSave(updates);
-  }, [formData.originalKey, formData.targetKey, handleAutoSave]);
+  }, [originalKeyFromData, localTargetKey, handleAutoSave]);
 
   return {
-    pitch,
+    pitch: activePitch,
     setPitch,
-    targetKey: targetKeyState,
+    targetKey: activeTargetKey,
     setTargetKey,
-    isPitchLinked,
+    isPitchLinked: isPitchLinkedFromData, // Always reflect formData for this
     setIsPitchLinked,
   };
 }
