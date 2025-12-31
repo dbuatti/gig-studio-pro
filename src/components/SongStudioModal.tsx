@@ -9,7 +9,7 @@ import { SetlistSong } from './SetlistManager';
 interface SongStudioModalProps {
   isOpen: boolean;
   onClose: () => void;
-  gigId: string | null;
+  gigId: string | 'library' | null;
   songId: string | null;
   visibleSongs?: SetlistSong[];
   onSelectSong?: (id: string) => void;
@@ -47,28 +47,30 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogHeader className="sr-only">
-        <DialogTitle>Song Studio - Editing Song</DialogTitle>
-        <DialogDescription>
-          Configure audio processing, metadata, and charts for the selected track.
-        </DialogDescription>
-      </DialogHeader>
+      <DialogContent className="max-w-[95vw] w-[1200px] h-[90vh] p-0 bg-slate-950 border-white/10 overflow-hidden rounded-[2rem] shadow-2xl">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Song Studio - Editing Song</DialogTitle>
+          <DialogDescription>
+            Configure audio processing, metadata, and charts for the selected track.
+          </DialogDescription>
+        </DialogHeader>
 
-      <SongStudioView 
-        gigId={gigId} 
-        songId={songId} 
-        onClose={onClose} 
-        isModal 
-        onExpand={handleExpand}
-        visibleSongs={visibleSongs}
-        onSelectSong={onSelectSong}
-        allSetlists={allSetlists}
-        masterRepertoire={masterRepertoire}
-        onUpdateSetlistSongs={onUpdateSetlistSongs}
-        defaultTab={defaultTab}
-        // Pass the handleAutoSave function to enable auto-saving within the modal
-        handleAutoSave={handleAutoSave}
-      />
+        <SongStudioView 
+          gigId={gigId || 'library'} 
+          songId={songId} 
+          onClose={onClose} 
+          isModal 
+          onExpand={handleExpand}
+          visibleSongs={visibleSongs}
+          onSelectSong={onSelectSong}
+          allSetlists={allSetlists}
+          masterRepertoire={masterRepertoire}
+          onUpdateSetlistSongs={onUpdateSetlistSongs}
+          defaultTab={defaultTab}
+          // Pass the handleAutoSave function to enable auto-saving within the modal
+          handleAutoSave={handleAutoSave}
+        />
+      </DialogContent>
     </Dialog>
   );
 };

@@ -447,6 +447,7 @@ const Index = () => {
   const handleEditSong = (song: SetlistSong, defaultTab?: StudioTab) => {
     audio.stopPlayback();
     setSongStudioModalSongId(song.master_id || song.id);
+    setSongStudioModalGigId(activeDashboardView === 'gigs' ? activeSetlistId : 'library');
     setIsSongStudioModalOpen(true);
     setSongStudioDefaultTab(defaultTab || 'audio');
   };
@@ -756,7 +757,7 @@ const Index = () => {
       <AlertDialog open={isCreatingSetlist} onOpenChange={setIsCreatingSetlist}>
         <AlertDialogContent className="bg-slate-900 border-white/10 text-white rounded-[2rem]">
           <AlertDialogHeader><div className="bg-indigo-600/10 w-12 h-12 rounded-2xl flex items-center justify-center text-indigo-500 mb-4"><ListMusic className="w-6 h-6" /></div><AlertDialogTitle className="text-xl font-black uppercase tracking-tight">Create New Setlist</AlertDialogTitle><AlertDialogDescription className="text-slate-400">Enter a name for your new gig setlist.</AlertDialogDescription></AlertDialogHeader>
-          <div className="py-4"><Input placeholder="E.g., Wedding Gig" value={newSetlistName} onChange={(e) => setNewSetlistName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleCreateSetlist()} className="bg-white/5 border-white/10 h-12 rounded-xl" /></div>
+          <div className="py-4"><Input placeholder="E.G. Wedding Gig" value={newSetlistName} onChange={(e) => setNewSetlistName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleCreateSetlist()} className="bg-white/5 border-white/10 h-12 rounded-xl" /></div>
           <AlertDialogFooter className="mt-6"><AlertDialogCancel className="rounded-xl bg-white/5 font-bold uppercase text-[10px]">Cancel</AlertDialogCancel><AlertDialogAction onClick={handleCreateSetlist} disabled={!newSetlistName.trim()} className="rounded-xl bg-indigo-600 font-black uppercase text-[10px]">Create</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
