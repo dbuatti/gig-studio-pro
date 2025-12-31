@@ -6,7 +6,7 @@ import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Play, Pause, RotateCcw, Volume2, Waves, Settings2, Link as LinkIcon, Globe, Search, Youtube, PlusCircle, Library, Sparkles, Check, FileText, Subtitles, ChevronUp, ChevronDown, Printer, ListPlus, CloudDownload, AlertTriangle } from 'lucide-react'; // NEW: Import CloudDownload and AlertTriangle
+import { Play, Pause, RotateCcw, Volume2, Waves, Settings2, Link as LinkIcon, Globe, Search, Youtube, PlusCircle, Library, Sparkles, Check, FileText, Subtitles, ChevronUp, ChevronDown, Printer, ListPlus, CloudDownload, AlertTriangle } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import AudioVisualizer from './AudioVisualizer';
 import SongSearch from './SongSearch';
@@ -60,7 +60,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
   const isMobile = useIsMobile();
   const audio = useToneAudio();
   
-  const [file, setFile] = useState<{ id?: string; name: string; artist?: string; url?: string; originalKey?: string; ugUrl?: string; youtubeUrl?: string; appleMusicUrl?: string; genre?: string; extraction_status?: 'idle' | 'queued' | 'processing' | 'completed' | 'failed'; last_sync_log?: string } | null>(null); // NEW: Add extraction_status and last_sync_log
+  const [file, setFile] = useState<{ id?: string; name: string; artist?: string; url?: string; originalKey?: string; ugUrl?: string; youtubeUrl?: string; appleMusicUrl?: string; genre?: string; extraction_status?: 'idle' | 'PENDING' | 'queued' | 'processing' | 'completed' | 'failed'; last_sync_log?: string } | null>(null); // NEW: Add extraction_status and last_sync_log
   const [activeTab, setActiveTab] = useState("search");
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
   const [activeYoutubeUrl, setActiveYoutubeUrl] = useState<string | undefined>();
@@ -215,7 +215,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
         </div>
       </div>
       
-      <div className={cn("p-6 space-y-6 pb-24 md:pb-6")}>
+      <div className="p-6 space-y-6 pb-24 md:pb-6">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="flex items-center gap-2 text-xl font-black uppercase tracking-tight text-slate-900 dark:text-white">
@@ -322,7 +322,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
                     </button>
                   </Label>
                   <Input 
-                    placeholder="Paste YouTube Link..." 
+                    placeholder="Paste video URL..." 
                     className="h-8 text-[10px] bg-white border-slate-100" 
                     value={activeYoutubeUrl || ""} 
                     onChange={(e) => {

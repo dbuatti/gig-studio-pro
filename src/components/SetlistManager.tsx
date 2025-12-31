@@ -69,7 +69,7 @@ export interface SetlistSong {
   auto_synced?: boolean;
   is_sheet_verified?: boolean;
   sheet_music_url?: string;
-  extraction_status?: 'idle' | 'queued' | 'processing' | 'completed' | 'failed';
+  extraction_status?: 'idle' | 'PENDING' | 'queued' | 'processing' | 'completed' | 'failed'; // Added 'PENDING'
   extraction_error?: string;
   // NEWLY ADDED PROPERTIES
   comfort_level?: number;
