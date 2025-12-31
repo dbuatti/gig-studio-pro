@@ -228,7 +228,8 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     {
       id: 'search',
       icon: <Search className="w-5 h-5" />,
-      onClick: onOpenSearch,
+      // onClick: onOpenSearch, // Removed this line
+      disabled: true, // Added this line to make it visually disabled
       tooltip: "Discovery",
       className: "bg-slate-800 text-white border-white/10 hover:bg-indigo-600",
     },
@@ -307,8 +308,9 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => { btn.onClick(); if (btn.id !== 'practice') handleToggleMenu(); }}
+                        onClick={() => { btn.onClick?.(); if (btn.id !== 'practice') handleToggleMenu(); }}
                         className={cn("h-12 w-12 rounded-full border transition-all active:scale-90 disabled:opacity-10", btn.className)}
+                        disabled={btn.disabled}
                       >
                         {btn.icon}
                       </Button>
