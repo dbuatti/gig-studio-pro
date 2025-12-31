@@ -28,13 +28,12 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
   if (!isGoalTrackerEnabled) return null;
 
   const stats = useMemo(() => {
-    // Standardize "Today" to local midnight for robust tracking
-    const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    // Robust local date check
+    const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
 
     const isToday = (timestamp: string | undefined | null) => {
       if (!timestamp) return false;
-      return new Date(timestamp).getTime() >= startOfToday;
+      return new Date(timestamp).toLocaleDateString('en-CA') === today;
     };
 
     const counts = {
@@ -46,16 +45,15 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
       targetKey: repertoire.filter(s => isToday(s.target_key_updated_at)).length
     };
 
-    // Diagnostics Log
-    console.log("[GoalTracker] Active Counts (Today):", counts);
-
+    // Mapping to full goal array
     return [
       { 
         label: 'Lyrics Transcribed', 
         icon: <Type className="w-3 h-3" />, 
         current: counts.lyrics, 
         target: goalLyricsCount, 
-        color: 'bg-pink-500',
+        barColor: 'bg-pink-500',
+        textColor: 'text-pink-500',
         lightBg: 'bg-pink-500/10'
       },
       { 
@@ -63,7 +61,8 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
         icon: <Music2 className="w-3 h-3" />, 
         current: counts.chords, 
         target: goalUgChordsCount, 
-        color: 'bg-indigo-500',
+        barColor: 'bg-indigo-500',
+        textColor: 'text-indigo-500',
         lightBg: 'bg-indigo-500/10'
       },
       { 
@@ -71,7 +70,8 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
         icon: <LinkIcon className="w-3 h-3" />, 
         current: counts.links, 
         target: goalUgLinksCount, 
-        color: 'bg-orange-500',
+        barColor: 'bg-orange-500',
+        textColor: 'text-orange-500',
         lightBg: 'bg-orange-500/10'
       },
       { 
@@ -79,7 +79,8 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
         icon: <Music className="w-3 h-3" />, 
         current: counts.highestNote, 
         target: goalHighestNoteCount, 
-        color: 'bg-emerald-500',
+        barColor: 'bg-emerald-500',
+        textColor: 'text-emerald-500',
         lightBg: 'bg-emerald-500/10'
       },
       { 
@@ -87,7 +88,8 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
         icon: <Hash className="w-3 h-3" />, 
         current: counts.originalKey, 
         target: goalOriginalKeyCount, 
-        color: 'bg-amber-500',
+        barColor: 'bg-amber-500',
+        textColor: 'text-amber-500',
         lightBg: 'bg-amber-500/10'
       },
       { 
@@ -95,7 +97,8 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
         icon: <Target className="w-3 h-3" />, 
         current: counts.targetKey, 
         target: goalTargetKeyCount, 
-        color: 'bg-blue-500',
+        barColor: 'bg-blue-500',
+        textColor: 'text-blue-500',
         lightBg: 'bg-blue-500/10'
       }
     ];
@@ -139,8 +142,8 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
           return (
             <div key={i} className="p-4 bg-secondary/50 rounded-2xl border border-border/50 space-y-3 group hover:border-indigo-500/30 transition-all">
               <div className="flex items-center justify-between">
-                <div className={cn("p-2 rounded-lg", goal.lightBg)}>
-                  <div className={cn(goal.color.replace('bg-', 'text-'))}>{goal.icon}</div>
+                <div className={cn("p-2 rounded-lg", goal.lightBg, goal.textColor)}>
+                  {goal.icon}
                 </div>
                 <span className={cn(
                   "text-[10px] font-black font-mono",
@@ -157,7 +160,7 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
                 <CustomProgress 
                   value={Math.min(100, progress)} 
                   className="h-1.5 bg-background"
-                  indicatorClassName={isComplete ? "bg-emerald-500" : goal.color}
+                  indicatorClassName={isComplete ? "bg-emerald-500" : goal.barColor}
                 />
               </div>
             </div>

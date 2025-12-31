@@ -40,7 +40,8 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
     dbUpdates.artist = cleanMetadata(song.artist) || 'Unknown Artist';
 
     const now = new Date().toISOString();
-    // Only update timestamps if the content is provided in the update package
+    
+    // Explicitly update timestamps for goals when fields are present in the update object
     if (song.lyrics !== undefined) {
       dbUpdates.lyrics = song.lyrics;
       dbUpdates.lyrics_updated_at = now;
