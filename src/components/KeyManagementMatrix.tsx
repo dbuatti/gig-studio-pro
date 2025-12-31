@@ -7,7 +7,7 @@ import { formatKey, ALL_KEYS_SHARP, ALL_KEYS_FLAT, calculateSemitones } from '@/
 import { KeyPreference } from '@/hooks/use-settings';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Music, Hash, ArrowRight, Loader2 } from 'lucide-react';
+import { Music, Hash, ArrowRight, Loader2, Search } from 'lucide-react';
 import SearchHighlight from './SearchHighlight';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
