@@ -499,44 +499,70 @@ const Index = () => {
     setSongStudioDefaultTab(defaultTab || 'audio');
   };
 
-  const handleUpdateSongInSetlist = async (songIdToUpdate: string, updates: Partial<SetlistSong>) => {
+  const handleUpdateSongInSetlist = async (junctionIdToUpdate: string, updates: Partial<SetlistSong>) => {
     if (!user || !activeSetlist) return;
 
-    // Find the current song in master repertoire to get its full state
-    const currentMasterSong = masterRepertoire.find(s => s.id === songIdToUpdate || s.master_id === songIdToUpdate);
-    // Merge current master song state with new updates
+    // 1. Find the junction song in the current active setlist
+    const junctionSong = activeSetlist.songs.find(s => s.id === junctionIdToUpdate);
+    if (!junctionSong) {
+      console.error("[Index] handleUpdateSongInSetlist: Junction song not found for ID:", junctionIdToUpdate);
+      showError("Failed to update song: Junction entry not found.");
+      return;
+    }
+
+    // 2. Get the master_id from the junction song
+    const masterSongId = junctionSong.master_id;
+    if (!masterSongId) {
+      console.error("[Index] handleUpdateSongInSetlist: Master ID missing for junction song:", junctionIdToUpdate);
+      showError("Failed to update song: Master record ID is missing.");
+      return;
+    }
+
+    // 3. Find the current master song from the masterRepertoire
+    const currentMasterSong = masterRepertoire.find(s => s.id === masterSongId);
+    if (!currentMasterSong) {
+      console.error("[Index] handleUpdateSongInSetlist: Master song not found in repertoire for ID:", masterSongId);
+      showError("Failed to update song: Master record not found in library.");
+      return;
+    }
+
+    // 4. Merge current master song state with new updates
     const mergedUpdatesForMaster = { ...currentMasterSong, ...updates } as SetlistSong;
 
-    // First, update the master repertoire and get the fully synced song back
-    const syncedMasterSongs = await syncToMasterRepertoire(user.id, [mergedUpdatesForMaster]);
-    const fullySyncedMasterSong = syncedMasterSongs[0];
-
-    setMasterRepertoire(prev => prev.map(s => s.id === fullySyncedMasterSong.id ? fullySyncedMasterSong : s));
-
-    // Then, update the song in the active setlist using the fully synced master song's data
-    const updatedSetlistSongs = activeSetlist.songs.map(s =>
-      (s.master_id === fullySyncedMasterSong.id) ? { ...s, ...fullySyncedMasterSong } : s
-    );
-
     try {
-      // Update the setlist_songs table for the specific entry
-      const junctionSong = activeSetlist.songs.find(s => s.id === songIdToUpdate);
-      if (junctionSong) {
-        const { error } = await supabase
-          .from('setlist_songs')
-          .update({ 
-            // Update any junction-specific fields if needed, e.g., isPlayed
-            isPlayed: updates.isPlayed !== undefined ? updates.isPlayed : junctionSong.isPlayed
-          })
-          .eq('id', junctionSong.id);
+      // 5. Update the master repertoire and get the fully synced song back
+      // This will correctly trigger an UPDATE in 'repertoire' because mergedUpdatesForMaster.master_id is present.
+      const syncedMasterSongs = await syncToMasterRepertoire(user.id, [mergedUpdatesForMaster]);
+      const fullySyncedMasterSong = syncedMasterSongs[0];
 
-        if (error) throw error;
-      }
+      // 6. Update local master repertoire state
+      setMasterRepertoire(prev => prev.map(s => s.id === fullySyncedMasterSong.id ? fullySyncedMasterSong : s));
 
+      // 7. Update the song in the active setlist using the fully synced master song's data
+      const updatedSetlistSongs = activeSetlist.songs.map(s =>
+        s.id === junctionIdToUpdate ? { ...s, ...fullySyncedMasterSong } : s // Update the specific junction entry
+      );
+
+      // 8. Update the setlist_songs table for any junction-specific fields (like isPlayed)
+      const { error: junctionUpdateError } = await supabase
+        .from('setlist_songs')
+        .update({ 
+          isPlayed: updates.isPlayed !== undefined ? updates.isPlayed : junctionSong.isPlayed
+        })
+        .eq('id', junctionIdToUpdate);
+
+      if (junctionUpdateError) throw junctionUpdateError;
+
+      // 9. Update local allSetlists state
       setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: updatedSetlistSongs } : s));
-      if (activeSongForPerformance?.id === songIdToUpdate) setActiveSongForPerformance(fullySyncedMasterSong);
+      
+      // 10. Update active song for performance if it matches
+      if (activeSongForPerformance?.id === junctionIdToUpdate) {
+        setActiveSongForPerformance(prev => ({ ...prev!, ...fullySyncedMasterSong }));
+      }
       showSuccess("Song updated.");
     } catch (err: any) {
+      console.error("[Index] Failed to update song:", err);
       showError(`Failed to update song: ${err.message}`);
     }
   };
@@ -933,6 +959,8 @@ const Index = () => {
       navigate(`/sheet-reader/${initialSongId}`);
     } else if (activeSongForPerformance) {
       navigate(`/sheet-reader/${activeSongForPerformance.id}`);
+    } else if (filteredAndSortedSongs.length > 0) {
+      navigate(`/sheet-reader/${filteredAndSortedSongs[0].id}`);
     } else {
       showError("No songs available to open in reader mode.");
     }
