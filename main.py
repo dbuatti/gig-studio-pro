@@ -29,6 +29,7 @@ def log(message):
 
 def process_song_task(song_id, video_url, user_id):
     """The core logic that handles the heavy lifting."""
+    log(f"[TASK {song_id}] Starting process_song_task for video: {video_url}") # Added log
     log(f"[TASK {song_id}] Starting Extraction for video: {video_url}")
     try:
         # 1. Mark as Processing
@@ -115,7 +116,7 @@ def job_poller():
                 # Process the job in a new thread to not block the poller, but respect semaphore
                 threading.Thread(target=lambda: process_song_task(song['id'], song['youtube_url'], song['user_id'])).start()
             else:
-                # No work to do, sleep
+                log("[POLLER] No queued jobs found. Sleeping...") # Added log
                 time.sleep(30)
         except Exception as e:
             log(f"[POLLER ERROR] Poller encountered error: {e}")
