@@ -75,52 +75,49 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
     const payloads = songsArray.map(song => {
       const payload: { [key: string]: any } = {
         user_id: userId,
-        // Ensure title and artist are never null
-        title: cleanMetadata(song.name) || 'Untitled Track',
-        artist: cleanMetadata(song.artist) || 'Unknown Artist',
+        title: String(cleanMetadata(song.name) || 'Untitled Track'),
+        artist: String(cleanMetadata(song.artist) || 'Unknown Artist'),
         updated_at: new Date().toISOString(),
-        readiness_score: calculateReadiness(song),
-        is_active: song.is_active ?? true, // Default to true if undefined/null
+        readiness_score: Number(calculateReadiness(song)),
+        is_active: Boolean(song.is_active ?? true),
       };
 
-      // Explicitly map SetlistSong properties to repertoire table columns
-      // and ensure nullable fields are explicitly null if undefined.
-      payload.original_key = song.originalKey ?? null;
-      payload.target_key = song.targetKey ?? null;
-      payload.pitch = song.pitch ?? 0; // Default to 0 if undefined/null
-      payload.bpm = song.bpm ?? null;
-      payload.lyrics = song.lyrics ?? null;
-      payload.notes = song.notes ?? null;
-      payload.ug_url = song.ugUrl ?? null;
-      payload.pdf_url = song.pdfUrl ?? null;
-      payload.leadsheet_url = song.leadsheetUrl ?? null;
-      payload.youtube_url = song.youtubeUrl ?? null;
-      payload.preview_url = song.previewUrl ?? null;
-      payload.apple_music_url = song.appleMusicUrl ?? null;
-      payload.is_metadata_confirmed = song.isMetadataConfirmed ?? false; // Default to false
-      payload.is_key_confirmed = song.isKeyConfirmed ?? false; // Default to false
-      payload.duration_seconds = Math.round(song.duration_seconds || 0); // Default to 0
-      payload.genre = song.genre ?? null;
-      payload.user_tags = song.user_tags ?? []; // Default to empty array
-      payload.resources = song.resources ?? []; // Default to empty array
-      payload.comfort_level = song.comfort_level ?? 0; // Default to 0 as per schema
-      payload.preferred_reader = song.preferred_reader ?? null;
-      payload.ug_chords_text = song.ug_chords_text ?? null;
-      payload.ug_chords_config = song.ug_chords_config ?? DEFAULT_UG_CHORDS_CONFIG; // Explicitly set default if undefined/null
-      payload.is_ug_chords_present = song.is_ug_chords_present ?? false; // Explicitly set default if undefined/null
-      payload.is_pitch_linked = song.is_pitch_linked ?? true; // Default to true
-      payload.highest_note_original = song.highest_note_original ?? null;
-      payload.extraction_status = song.extraction_status ?? 'idle'; // Default to 'idle'
-      payload.last_extracted_at = song.last_extracted_at ?? null; // Explicitly set to null if undefined
-      payload.source_type = song.source_type ?? 'YOUTUBE'; // Default to 'YOUTUBE' as per schema
-      payload.sync_status = song.sync_status ?? 'IDLE'; // Default to 'IDLE' as per schema
-      payload.last_sync_log = song.last_sync_log ?? null;
-      payload.auto_synced = song.auto_synced ?? false; // Default to false
-      payload.metadata_source = song.metadata_source ?? null; // Explicitly set to null if undefined
-      payload.is_approved = song.isApproved ?? false; // Default to false
-      payload.is_in_library = song.is_in_library ?? true; // Default to true as per schema
-      payload.sheet_music_url = song.sheet_music_url ?? null;
-      payload.is_sheet_verified = song.is_sheet_verified ?? false; // Default to false
+      payload.original_key = song.originalKey !== undefined ? String(song.originalKey) : null;
+      payload.target_key = song.targetKey !== undefined ? String(song.targetKey) : null;
+      payload.pitch = Number(song.pitch ?? 0);
+      payload.bpm = song.bpm !== undefined ? String(song.bpm) : null;
+      payload.lyrics = song.lyrics !== undefined ? String(song.lyrics) : null;
+      payload.notes = song.notes !== undefined ? String(song.notes) : null;
+      payload.ug_url = song.ugUrl !== undefined ? String(song.ugUrl) : null;
+      payload.pdf_url = song.pdfUrl !== undefined ? String(song.pdfUrl) : null;
+      payload.leadsheet_url = song.leadsheetUrl !== undefined ? String(song.leadsheetUrl) : null;
+      payload.youtube_url = song.youtubeUrl !== undefined ? String(song.youtubeUrl) : null;
+      payload.preview_url = song.previewUrl !== undefined ? String(song.previewUrl) : null;
+      payload.apple_music_url = song.appleMusicUrl !== undefined ? String(song.appleMusicUrl) : null;
+      payload.is_metadata_confirmed = Boolean(song.isMetadataConfirmed ?? false);
+      payload.is_key_confirmed = Boolean(song.isKeyConfirmed ?? false);
+      payload.duration_seconds = Number(Math.round(song.duration_seconds || 0));
+      payload.genre = song.genre !== undefined ? String(song.genre) : null;
+      payload.user_tags = song.user_tags ?? []; 
+      payload.resources = song.resources ?? []; 
+      payload.comfort_level = Number(song.comfort_level ?? 0);
+      payload.preferred_reader = song.preferred_reader !== undefined ? String(song.preferred_reader) : null;
+      payload.ug_chords_text = song.ug_chords_text !== undefined ? String(song.ug_chords_text) : null;
+      payload.ug_chords_config = song.ug_chords_config ?? DEFAULT_UG_CHORDS_CONFIG; 
+      payload.is_ug_chords_present = Boolean(song.is_ug_chords_present ?? false);
+      payload.is_pitch_linked = Boolean(song.is_pitch_linked ?? true);
+      payload.highest_note_original = song.highest_note_original !== undefined ? String(song.highest_note_original) : null;
+      payload.extraction_status = String(song.extraction_status ?? 'idle');
+      payload.last_extracted_at = song.last_extracted_at !== undefined ? String(song.last_extracted_at) : null;
+      payload.source_type = String(song.source_type ?? 'YOUTUBE');
+      payload.sync_status = String(song.sync_status ?? 'IDLE');
+      payload.last_sync_log = song.last_sync_log !== undefined ? String(song.last_sync_log) : null;
+      payload.auto_synced = Boolean(song.auto_synced ?? false);
+      payload.metadata_source = song.metadata_source !== undefined ? String(song.metadata_source) : null;
+      payload.is_approved = Boolean(song.isApproved ?? false);
+      payload.is_in_library = Boolean(song.is_in_library ?? true);
+      payload.sheet_music_url = song.sheet_music_url !== undefined ? String(song.sheet_music_url) : null;
+      payload.is_sheet_verified = Boolean(song.is_sheet_verified ?? false);
       
       if (isValidUuid(song.master_id)) {
         payload.id = song.master_id;
@@ -129,8 +126,6 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       return payload;
     });
     
-    // Logic: Use 'id' for conflict resolution if we have it (allows renaming).
-    // If no ID is present (new song), default to metadata to match existing entries.
     const hasIds = payloads.some(p => p.id);
     const conflictTarget = hasIds ? 'id' : 'user_id,title,artist';
 
