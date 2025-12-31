@@ -65,7 +65,7 @@ export interface SetlistSong {
   is_ug_link_verified?: boolean; 
   metadata_source?: string; 
   sync_status?: 'IDLE' | 'SYNCING' | 'COMPLETED' | 'ERROR'; 
-  last_sync_log?: string;
+  last_sync_log?: string; // Added this field
   auto_synced?: boolean;
   is_sheet_verified?: boolean;
   sheet_music_url?: string;
@@ -205,7 +205,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                 sortMode === 'work' && "bg-background dark:bg-secondary shadow-sm text-orange-600"
               )}
             >
-              <SortDesc className="w-3 h-3" /> <span className="hidden sm:inline">Work Needed</span>
+              <AlertTriangle className="w-3 h-3" /> <span className="hidden sm:inline">Work Needed</span>
             </Button>
           </div>
           <Button 

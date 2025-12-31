@@ -517,7 +517,7 @@ const Index = () => {
 
     const newSetlistSong: SetlistSong = {
       ...songToAdd,
-      id: Math.random().toString(36).substr(2, 9), // Generate new ID for setlist entry
+      id: crypto.randomUUID(), // Generate new ID for setlist entry
       master_id: songToAdd.master_id || songToAdd.id,
       isPlayed: false,
       isApproved: false,
@@ -740,7 +740,7 @@ const Index = () => {
       if (!isAlreadyInList) {
         const newSetlistSong: SetlistSong = {
           ...songToUpdate,
-          id: Math.random().toString(36).substr(2, 9), // Generate new ID for setlist entry
+          id: crypto.randomUUID(), // Generate new ID for setlist entry
           master_id: songToUpdate.master_id || songToUpdate.id,
           isPlayed: false,
           isApproved: false,
@@ -906,7 +906,7 @@ const Index = () => {
                       const newSongsWithMasterIds = await syncToMasterRepertoire(user.id, songs);
                       const updatedSongs = [...activeSetlist.songs, ...newSongsWithMasterIds.map(s => ({
                         ...s,
-                        id: Math.random().toString(36).substr(2, 9), // Generate new ID for setlist entry
+                        id: crypto.randomUUID(), // Generate new ID for setlist entry
                         master_id: s.master_id || s.id,
                         isPlayed: false,
                         isApproved: false,
@@ -990,6 +990,8 @@ const Index = () => {
               activeFilters={activeFilters}
               setActiveFilters={setActiveFilters}
               showHeatmap={showHeatmap}
+              allSetlists={allSetlists}
+              onUpdateSetlistSongs={handleUpdateSetlistSongs}
             />
           </TabsContent>
 
@@ -1169,7 +1171,7 @@ const Index = () => {
             const newSongsWithMasterIds = await syncToMasterRepertoire(user.id, songs);
             const updatedSongs = [...activeSetlist.songs, ...newSongsWithMasterIds.map(s => ({
               ...s,
-              id: Math.random().toString(36).substr(2, 9), // Generate new ID for setlist entry
+              id: crypto.randomUUID(), // Generate new ID for setlist entry
               master_id: s.master_id || s.id,
               isPlayed: false,
               isApproved: false,

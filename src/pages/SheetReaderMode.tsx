@@ -462,7 +462,7 @@ const SheetReaderMode: React.FC = () => {
       if (!isAlreadyInList) {
         const newSetlistSong: SetlistSong = {
           ...songToUpdate,
-          id: Math.random().toString(36).substr(2, 9), // Generate new ID for setlist entry
+          id: crypto.randomUUID(), // Generate new ID for setlist entry
           master_id: songToUpdate.master_id || songToUpdate.id,
           isPlayed: false,
           isApproved: false,

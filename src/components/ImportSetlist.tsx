@@ -78,7 +78,7 @@ const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport, isOpen, onClose
         }
 
         newSongs.push({
-          id: Math.random().toString(36).substr(2, 9),
+          id: crypto.randomUUID(),
           name: title,
           artist: artist,
           previewUrl: "", 
