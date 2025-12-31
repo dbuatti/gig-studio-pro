@@ -216,6 +216,7 @@ const SheetReaderMode: React.FC = () => {
         pdfUrl: d.pdf_url,
         leadsheetUrl: d.leadsheet_url,
         bpm: d.bpm,
+        ug_chords_text: d.ug_chords_text, // ADDED THIS LINE
         is_ug_chords_present: d.is_ug_chords_present,
         is_ug_link_verified: d.is_ug_link_verified,
         is_pitch_linked: d.is_pitch_linked ?? true,
