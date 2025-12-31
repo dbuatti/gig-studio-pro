@@ -1,7 +1,7 @@
 "use client";
 import { supabase } from "@/integrations/supabase/client";
 import { SetlistSong } from "@/components/SetlistManager";
-import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants'; // Import DEFAULT_UG_CHORDS_CONFIG
+import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 
 /**
  * Checks if a given string is a valid UUID.
@@ -61,8 +61,6 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
 
 /**
  * Syncs an array of SetlistSong objects with the master 'repertoire' table in Supabase.
- * Creates new entries if master_id is missing/invalid, updates existing ones otherwise.
- * Returns the synced SetlistSong objects with their master_ids.
  */
 export const syncToMasterRepertoire = async (userId: string, songsToSync: Partial<SetlistSong>[]): Promise<SetlistSong[]> => {
   const syncedSongs: SetlistSong[] = [];
@@ -73,57 +71,53 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
       updated_at: new Date().toISOString(),
     };
 
-    // Map SetlistSong properties to repertoire table columns
-    // Ensure title and artist are always present and not null
     dbUpdates.title = cleanMetadata(song.name) || 'Untitled Track';
     dbUpdates.artist = cleanMetadata(song.artist) || 'Unknown Artist';
 
-    if (song.previewUrl !== undefined) dbUpdates.preview_url = song.previewUrl; else if (song.previewUrl === null) dbUpdates.preview_url = null;
-    if (song.youtubeUrl !== undefined) dbUpdates.youtube_url = song.youtubeUrl; else if (song.youtubeUrl === null) dbUpdates.youtube_url = null;
-    if (song.ugUrl !== undefined) dbUpdates.ug_url = song.ugUrl; else if (song.ugUrl === null) dbUpdates.ug_url = null;
-    if (song.appleMusicUrl !== undefined) dbUpdates.apple_music_url = song.appleMusicUrl; else if (song.appleMusicUrl === null) dbUpdates.apple_music_url = null;
-    if (song.pdfUrl !== undefined) dbUpdates.pdf_url = song.pdfUrl; else if (song.pdfUrl === null) dbUpdates.pdf_url = null;
-    if (song.leadsheetUrl !== undefined) dbUpdates.leadsheet_url = song.leadsheetUrl; else if (song.leadsheetUrl === null) dbUpdates.leadsheet_url = null;
-    // Ensure original_key and target_key are always strings, defaulting to 'TBC'
+    if (song.previewUrl !== undefined) dbUpdates.preview_url = song.previewUrl;
+    if (song.youtubeUrl !== undefined) dbUpdates.youtube_url = song.youtubeUrl;
+    if (song.ugUrl !== undefined) dbUpdates.ug_url = song.ugUrl;
+    if (song.appleMusicUrl !== undefined) dbUpdates.apple_music_url = song.appleMusicUrl;
+    if (song.pdfUrl !== undefined) dbUpdates.pdf_url = song.pdfUrl;
+    if (song.leadsheetUrl !== undefined) dbUpdates.leadsheet_url = song.leadsheetUrl;
     dbUpdates.original_key = song.originalKey !== undefined && song.originalKey !== null ? song.originalKey : 'TBC';
     dbUpdates.target_key = song.targetKey !== undefined && song.targetKey !== null ? song.targetKey : dbUpdates.original_key;
-    if (song.pitch !== undefined) dbUpdates.pitch = song.pitch; else if (song.pitch === null) dbUpdates.pitch = 0;
-    if (song.bpm !== undefined) dbUpdates.bpm = song.bpm; else if (song.bpm === null) dbUpdates.bpm = null;
-    if (song.genre !== undefined) dbUpdates.genre = song.genre; else if (song.genre === null) dbUpdates.genre = null;
-    if (song.isMetadataConfirmed !== undefined) dbUpdates.is_metadata_confirmed = song.isMetadataConfirmed; else if (song.isMetadataConfirmed === null) dbUpdates.is_metadata_confirmed = false;
-    if (song.isKeyConfirmed !== undefined) dbUpdates.is_key_confirmed = song.isKeyConfirmed; else if (song.isKeyConfirmed === null) dbUpdates.is_key_confirmed = false;
-    if (song.notes !== undefined) dbUpdates.notes = song.notes; else if (song.notes === null) dbUpdates.notes = null;
-    if (song.lyrics !== undefined) dbUpdates.lyrics = song.lyrics; else if (song.lyrics === null) dbUpdates.lyrics = null;
-    if (song.resources !== undefined) dbUpdates.resources = song.resources; else if (song.resources === null) dbUpdates.resources = [];
-    if (song.user_tags !== undefined) dbUpdates.user_tags = song.user_tags; else if (song.user_tags === null) dbUpdates.user_tags = [];
-    if (song.is_pitch_linked !== undefined) dbUpdates.is_pitch_linked = song.is_pitch_linked; else if (song.is_pitch_linked === null) dbUpdates.is_pitch_linked = true;
-    if (song.duration_seconds !== undefined) dbUpdates.duration_seconds = Math.round(song.duration_seconds || 0); else if (song.duration_seconds === null) dbUpdates.duration_seconds = 0;
-    if (song.is_active !== undefined) dbUpdates.is_active = song.is_active; else if (song.is_active === null) dbUpdates.is_active = true;
-    if (song.isApproved !== undefined) dbUpdates.is_approved = song.isApproved; else if (song.isApproved === null) dbUpdates.is_approved = false;
-    if (song.preferred_reader !== undefined) dbUpdates.preferred_reader = song.preferred_reader; else if (song.preferred_reader === null) dbUpdates.preferred_reader = null;
-    if (song.ug_chords_text !== undefined) dbUpdates.ug_chords_text = song.ug_chords_text; else if (song.ug_chords_text === null) dbUpdates.ug_chords_text = null;
-    if (song.ug_chords_config !== undefined) dbUpdates.ug_chords_config = song.ug_chords_config; else if (song.ug_chords_config === null) dbUpdates.ug_chords_config = DEFAULT_UG_CHORDS_CONFIG;
-    if (song.is_ug_chords_present !== undefined) dbUpdates.is_ug_chords_present = song.is_ug_chords_present; else if (song.is_ug_chords_present === null) dbUpdates.is_ug_chords_present = false;
-    if (song.highest_note_original !== undefined) dbUpdates.highest_note_original = song.highest_note_original; else if (song.highest_note_original === null) dbUpdates.highest_note_original = null;
-    if (song.metadata_source !== undefined) dbUpdates.metadata_source = song.metadata_source; else if (song.metadata_source === null) dbUpdates.metadata_source = null;
-    if (song.sync_status !== undefined) dbUpdates.sync_status = song.sync_status; else if (song.sync_status === null) dbUpdates.sync_status = 'IDLE';
-    if (song.last_sync_log !== undefined) dbUpdates.last_sync_log = song.last_sync_log; else if (song.last_sync_log === null) dbUpdates.last_sync_log = null;
-    if (song.auto_synced !== undefined) dbUpdates.auto_synced = song.auto_synced; else if (song.auto_synced === null) dbUpdates.auto_synced = false;
-    if (song.is_sheet_verified !== undefined) dbUpdates.is_sheet_verified = song.is_sheet_verified; else if (song.is_sheet_verified === null) dbUpdates.is_sheet_verified = false;
-    if (song.sheet_music_url !== undefined) dbUpdates.sheet_music_url = song.sheet_music_url; else if (song.sheet_music_url === null) dbUpdates.sheet_music_url = null;
-    if (song.extraction_status !== undefined) dbUpdates.extraction_status = song.extraction_status; else if (song.extraction_status === null) dbUpdates.extraction_status = 'idle';
-    if (song.extraction_error !== undefined) dbUpdates.extraction_error = song.extraction_error; else if (song.extraction_error === null) dbUpdates.extraction_error = null;
-    if (song.audio_url !== undefined) dbUpdates.audio_url = song.audio_url; else if (song.audio_url === null) dbUpdates.audio_url = null;
-    if (song.comfort_level !== undefined) dbUpdates.comfort_level = song.comfort_level; else if (song.comfort_level === null) dbUpdates.comfort_level = 0;
-    if (song.last_extracted_at !== undefined) dbUpdates.last_extracted_at = song.last_extracted_at; else if (song.last_extracted_at === null) dbUpdates.last_extracted_at = null;
-    if (song.source_type !== undefined) dbUpdates.source_type = song.source_type; else if (song.source_type === null) dbUpdates.source_type = null;
-    if (song.is_in_library !== undefined) dbUpdates.is_in_library = song.is_in_library; else if (song.is_in_library === null) dbUpdates.is_in_library = true;
-    
-    // console.log("[syncToMasterRepertoire] dbUpdates payload:", dbUpdates); // Added for debugging
+    if (song.pitch !== undefined) dbUpdates.pitch = song.pitch;
+    if (song.bpm !== undefined) dbUpdates.bpm = song.bpm;
+    if (song.genre !== undefined) dbUpdates.genre = song.genre;
+    if (song.isMetadataConfirmed !== undefined) dbUpdates.is_metadata_confirmed = song.isMetadataConfirmed;
+    if (song.isKeyConfirmed !== undefined) dbUpdates.is_key_confirmed = song.isKeyConfirmed;
+    if (song.notes !== undefined) dbUpdates.notes = song.notes;
+    if (song.lyrics !== undefined) dbUpdates.lyrics = song.lyrics;
+    if (song.resources !== undefined) dbUpdates.resources = song.resources;
+    if (song.user_tags !== undefined) dbUpdates.user_tags = song.user_tags;
+    if (song.is_pitch_linked !== undefined) dbUpdates.is_pitch_linked = song.is_pitch_linked;
+    if (song.duration_seconds !== undefined) dbUpdates.duration_seconds = Math.round(song.duration_seconds || 0);
+    if (song.is_active !== undefined) dbUpdates.is_active = song.is_active;
+    if (song.isApproved !== undefined) dbUpdates.is_approved = song.isApproved;
+    if (song.preferred_reader !== undefined) dbUpdates.preferred_reader = song.preferred_reader;
+    if (song.ug_chords_text !== undefined) dbUpdates.ug_chords_text = song.ug_chords_text;
+    if (song.ug_chords_config !== undefined) dbUpdates.ug_chords_config = song.ug_chords_config;
+    if (song.is_ug_chords_present !== undefined) dbUpdates.is_ug_chords_present = song.is_ug_chords_present;
+    if (song.highest_note_original !== undefined) dbUpdates.highest_note_original = song.highest_note_original;
+    if (song.metadata_source !== undefined) dbUpdates.metadata_source = song.metadata_source;
+    if (song.sync_status !== undefined) dbUpdates.sync_status = song.sync_status;
+    if (song.last_sync_log !== undefined) dbUpdates.last_sync_log = song.last_sync_log;
+    if (song.auto_synced !== undefined) dbUpdates.auto_synced = song.auto_synced;
+    if (song.is_sheet_verified !== undefined) dbUpdates.is_sheet_verified = song.is_sheet_verified;
+    if (song.sheet_music_url !== undefined) dbUpdates.sheet_music_url = song.sheet_music_url;
+    if (song.extraction_status !== undefined) dbUpdates.extraction_status = song.extraction_status;
+    if (song.extraction_error !== undefined) dbUpdates.extraction_error = song.extraction_error;
+    if (song.audio_url !== undefined) dbUpdates.audio_url = song.audio_url;
+    if (song.comfort_level !== undefined) dbUpdates.comfort_level = song.comfort_level;
+    if (song.last_extracted_at !== undefined) dbUpdates.last_extracted_at = song.last_extracted_at;
+    if (song.source_type !== undefined) dbUpdates.source_type = song.source_type;
+    if (song.is_in_library !== undefined) dbUpdates.is_in_library = song.is_in_library;
+    // Map key_preference for persistence
+    if (song.key_preference !== undefined) dbUpdates.key_preference = song.key_preference;
 
     let result;
     if (song.master_id && isValidUuid(song.master_id)) {
-      // Update existing repertoire entry
       const { data, error } = await supabase
         .from('repertoire')
         .update(dbUpdates)
@@ -134,7 +128,6 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
       if (error) throw error;
       result = data;
     } else {
-      // Insert new repertoire entry
       const { data, error } = await supabase
         .from('repertoire')
         .insert([dbUpdates])
@@ -144,10 +137,9 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
       result = data;
     }
 
-    // Map the database result back to a SetlistSong object
     const mappedResult: SetlistSong = {
-      id: song.id || result.id, // Keep client-side ID if present, otherwise use DB ID
-      master_id: result.id, // Always use DB ID as master_id
+      id: song.id || result.id,
+      master_id: result.id,
       name: result.title,
       artist: result.artist,
       previewUrl: result.preview_url,
@@ -161,7 +153,7 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
       pitch: result.pitch ?? 0,
       bpm: result.bpm,
       genre: result.genre,
-      isSyncing: false, // Client-side only
+      isSyncing: false,
       isMetadataConfirmed: result.is_metadata_confirmed,
       isKeyConfirmed: result.is_key_confirmed,
       notes: result.notes,
@@ -170,7 +162,7 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
       user_tags: result.user_tags || [],
       is_pitch_linked: result.is_pitch_linked ?? true,
       duration_seconds: result.duration_seconds,
-      key_preference: result.key_preference,
+      key_preference: result.key_preference, // Map back from DB
       is_active: result.is_active,
       fineTune: result.fineTune,
       tempo: result.tempo,
