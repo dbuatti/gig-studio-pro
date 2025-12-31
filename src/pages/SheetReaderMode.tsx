@@ -359,6 +359,15 @@ const SheetReaderMode: React.FC = () => {
     return !blocked.some(site => url.includes(site));
   }, []);
 
+  // NEW: Callback to signal chart is ready
+  const handleChartReady = useCallback(() => {
+    if (currentSong && selectedChartType === 'chords') {
+      setRenderedCharts(prev => prev.map(rc =>
+        rc.id === currentSong.id && rc.type === selectedChartType ? { ...rc, isLoaded: true } : rc
+      ));
+    }
+  }, [currentSong, selectedChartType]);
+
   const handleChartLoad = useCallback((id: string, type: ChartType) => {
     setRenderedCharts(prev => prev.map(rc =>
       rc.id === id && rc.type === type ? { ...rc, isLoaded: true } : rc
@@ -384,6 +393,7 @@ const SheetReaderMode: React.FC = () => {
           progress={progress}
           duration={duration}
           readerKeyPreference={readerKeyPreference}
+          onChartReady={handleChartReady} // NEW: Pass callback
         />
       );
     }
@@ -422,7 +432,7 @@ const SheetReaderMode: React.FC = () => {
         </Button>
       </div>
     );
-  }, [isFramable, harmonicTargetKey, isPlaying, progress, duration, readerKeyPreference]);
+  }, [isFramable, harmonicTargetKey, isPlaying, progress, duration, readerKeyPreference, handleChartReady]);
 
   // Update rendered charts when song or type changes
   useEffect(() => {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useRef } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { formatChordText, transposeChords } from '@/utils/chordUtils';
 import { calculateSemitones } from '@/utils/keyUtils';
@@ -23,6 +23,8 @@ interface UGChordsReaderProps {
   progress: number;
   duration: number;
   readerKeyPreference?: 'sharps' | 'flats';
+  // NEW: Callback to signal when chart is ready
+  onChartReady?: () => void;
 }
 
 const UGChordsReader = React.memo(({
@@ -35,6 +37,7 @@ const UGChordsReader = React.memo(({
   progress,
   duration,
   readerKeyPreference,
+  onChartReady,
 }: UGChordsReaderProps) => {
   const { keyPreference: globalKeyPreference } = useSettings();
   const activeKeyPreference = readerKeyPreference || globalKeyPreference;
@@ -65,6 +68,15 @@ const UGChordsReader = React.memo(({
     }), 
     [transposedChordsText, config, readableChordColor]
   );
+
+  // NEW: Signal that the chart is ready immediately after render
+  useEffect(() => {
+    if (chordsText && onChartReady) {
+      // Use a tiny timeout to ensure DOM is ready, then signal completion
+      const timer = setTimeout(() => onChartReady(), 10);
+      return () => clearTimeout(timer);
+    }
+  }, [chordsText, onChartReady]);
 
   return (
     <div 
