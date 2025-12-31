@@ -207,7 +207,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
                               pitch: 0,
                               originalKey: "C",
                               targetKey: "C",
-                              isplayed: false, // <-- Fixed here
+                              isPlayed: false,
                               isSyncing: true,
                               isMetadataConfirmed: false,
                               isKeyConfirmed: false,

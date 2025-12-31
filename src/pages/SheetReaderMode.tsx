@@ -133,8 +133,8 @@ const SheetReaderMode: React.FC = () => {
       if (updates.sync_status !== undefined) dbUpdates.sync_status = updates.sync_status; else if (updates.sync_status === null) dbUpdates.sync_status = 'IDLE';
       if (updates.last_sync_log !== undefined) dbUpdates.last_sync_log = updates.last_sync_log; else if (updates.last_sync_log === null) dbUpdates.last_sync_log = null;
       if (updates.auto_synced !== undefined) dbUpdates.auto_synced = updates.auto_synced; else if (updates.auto_synced === null) dbUpdates.auto_synced = false;
-      if (updates.is_sheet_verified !== undefined) dbUpdates.is_sheet_verified = updates.is_sheet_verified; else if (updates.is_sheet_verified === null) dbUpdates.is_sheet_verified = false;
       if (updates.sheet_music_url !== undefined) dbUpdates.sheet_music_url = updates.sheet_music_url; else if (updates.sheet_music_url === null) dbUpdates.sheet_music_url = null;
+      if (updates.is_sheet_verified !== undefined) dbUpdates.is_sheet_verified = updates.is_sheet_verified; else if (updates.is_sheet_verified === null) dbUpdates.is_sheet_verified = false;
       if (updates.extraction_status !== undefined) dbUpdates.extraction_status = updates.extraction_status; else if (updates.extraction_status === null) dbUpdates.extraction_status = 'idle'; // NEW: Default to 'idle'
       
       // Always update `updated_at`
@@ -209,7 +209,7 @@ const SheetReaderMode: React.FC = () => {
         throw error;
       }
 
-      const mappedRepertoire: SetlistSong[] = (data || []).map((d) => ({
+      const mappedSongs: SetlistSong[] = (data || []).map((d) => ({
         id: d.id,
         master_id: d.id,
         name: d.title,
@@ -217,48 +217,26 @@ const SheetReaderMode: React.FC = () => {
         originalKey: d.original_key,
         targetKey: d.target_key,
         pitch: d.pitch ?? 0,
-        previewUrl: d.extraction_status === 'completed' && d.audio_url ? d.audio_url : d.preview_url,
-        youtubeUrl: d.youtube_url,
-        ugUrl: d.ug_url,
-        appleMusicUrl: d.apple_music_url,
-        pdfUrl: d.pdf_url,
-        leadsheetUrl: d.leadsheet_url,
-        bpm: d.bpm,
-        genre: d.genre,
-        isSyncing: false,
-        isMetadataConfirmed: d.is_metadata_confirmed,
-        isKeyConfirmed: d.is_key_confirmed,
-        notes: d.notes,
-        lyrics: d.lyrics,
-        resources: d.resources || [],
-        user_tags: d.user_tags || [],
-        is_pitch_linked: d.is_pitch_linked ?? true,
-        duration_seconds: d.duration_seconds,
-        key_preference: d.key_preference,
-        is_active: d.is_active,
-        fineTune: d.fineTune,
-        tempo: d.tempo,
-        volume: d.volume,
-        isApproved: d.is_approved,
-        preferred_reader: d.preferred_reader,
+        previewUrl: d.preview_url,
         ug_chords_text: d.ug_chords_text,
         ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
+        isApproved: d.is_approved,
+        pdfUrl: d.pdf_url,
+        leadsheetUrl: d.leadsheet_url,
+        ugUrl: d.ug_url,
+        bpm: d.bpm,
         is_ug_chords_present: d.is_ug_chords_present,
-        highest_note_original: d.highest_note_original,
         is_ug_link_verified: d.is_ug_link_verified,
-        metadata_source: d.metadata_source,
-        sync_status: d.sync_status,
-        last_sync_log: d.last_sync_log,
-        auto_synced: d.auto_synced,
-        is_sheet_verified: d.is_sheet_verified,
+        is_pitch_linked: d.is_pitch_linked ?? true,
         sheet_music_url: d.sheet_music_url,
-        extraction_status: d.extraction_status,
-        extraction_error: d.extraction_error,
-        audio_url: d.audio_url,
-        pitch: d.pitch ?? 0,
+        is_sheet_verified: d.is_sheet_verified,
+        // FIX: Ensure highest_note_original is mapped
+        highest_note_original: d.highest_note_original,
+        extraction_status: d.extraction_status, // NEW: Map extraction_status
+        last_sync_log: d.last_sync_log // NEW: Map last_sync_log
       }));
 
-      const readableAndApprovedSongs = mappedRepertoire.filter(s => {
+      const readableAndApprovedSongs = mappedSongs.filter(s => {
         const readiness = calculateReadiness(s);
         const hasChart = s.ugUrl || s.pdfUrl || s.leadsheetUrl || s.ug_chords_text;
         const meetsReadiness = readiness >= 40 || forceReaderResource === 'simulation' || ignoreConfirmedGate;
@@ -486,7 +464,7 @@ const SheetReaderMode: React.FC = () => {
           ...songToUpdate,
           id: crypto.randomUUID(), // Generate new ID for setlist entry
           master_id: songToUpdate.master_id || songToUpdate.id,
-          isplayed: false, // <-- Fixed here
+          isPlayed: false,
           isApproved: false,
         };
         updatedSongsArray.push(newSetlistSong);
