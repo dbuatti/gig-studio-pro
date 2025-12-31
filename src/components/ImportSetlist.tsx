@@ -100,7 +100,7 @@ const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport, isOpen, onClose
     const songs = parseText(text);
     if (songs.length > 0) {
       onImport(songs);
-      onClose(); // Use onClose prop
+      onClose();
       setText("");
     }
   };
@@ -112,7 +112,7 @@ const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport, isOpen, onClose
           <ClipboardPaste className="w-4 h-4" /> Smart Import
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-3xl bg-slate-950 border-none shadow-2xl rounded-[2rem] p-0 overflow-hidden">
+      <DialogContent className="max-w-3xl bg-popover border-none shadow-2xl rounded-[2rem] p-0 overflow-hidden">
         <div className="bg-indigo-600 p-8 flex items-center justify-between text-white shrink-0">
           <div className="flex items-center gap-4">
             <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-md">
@@ -128,14 +128,14 @@ const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport, isOpen, onClose
         
         <div className="p-8 space-y-6">
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl p-5 flex items-center justify-between shadow-sm">
+            <div className="bg-card border border-border rounded-2xl p-5 flex items-center justify-between shadow-sm">
               <div className="flex items-center gap-3">
-                <div className="bg-red-100 dark:bg-red-900/30 p-2.5 rounded-xl">
-                  <Youtube className="w-5 h-5 text-red-600" />
+                <div className="bg-red-100 dark:bg-red-600/10 p-2.5 rounded-xl">
+                  <Youtube className="w-5 h-5 text-destructive" />
                 </div>
                 <div>
-                  <Label htmlFor="yt-toggle" className="text-xs font-black uppercase tracking-widest text-slate-500">Audio Discovery</Label>
-                  <p className="text-[10px] text-slate-600 dark:text-slate-400 font-bold uppercase mt-0.5">Auto-link Reference Media</p>
+                  <Label htmlFor="yt-toggle" className="text-xs font-black uppercase tracking-widest text-muted-foreground">Audio Discovery</Label>
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase mt-0.5">Auto-link Reference Media</p>
                 </div>
               </div>
               <Switch 
@@ -146,25 +146,25 @@ const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport, isOpen, onClose
               />
             </div>
 
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl p-5 flex items-center gap-4 shadow-sm">
-              <div className="bg-emerald-100 dark:bg-emerald-900/30 p-2.5 rounded-xl">
+            <div className="bg-card border border-border rounded-2xl p-5 flex items-center gap-4 shadow-sm">
+              <div className="bg-emerald-100 dark:bg-emerald-600/10 p-2.5 rounded-xl">
                 <Music className="w-5 h-5 text-emerald-600" />
               </div>
               <div>
-                <Label className="text-xs font-black uppercase tracking-widest text-slate-500">Auto-Metadata</Label>
-                <p className="text-[10px] text-slate-600 dark:text-slate-400 font-bold uppercase mt-0.5">AI Engine Level 2 Active</p>
+                <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Auto-Metadata</Label>
+                <p className="text-[10px] text-muted-foreground font-bold uppercase mt-0.5">AI Engine Level 2 Active</p>
               </div>
             </div>
           </div>
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Pasted Content Buffer</Label>
+              <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Pasted Content Buffer</Label>
               <span className="text-[10px] font-black text-indigo-500 uppercase">Pro Tip: Use 'Artist - Title'</span>
             </div>
             <Textarea 
               placeholder="Paste your OnSong list, Markdown table, or plain song list here..." 
-              className="min-h-[300px] font-mono text-sm bg-white dark:bg-slate-900 border-slate-200 dark:border-white/10 focus-visible:ring-indigo-500 rounded-2xl p-6 shadow-inner resize-none text-slate-900 dark:text-white"
+              className="min-h-[300px] font-mono text-sm bg-card border-border focus-visible:ring-indigo-500 rounded-2xl p-6 shadow-inner resize-none text-foreground"
               value={text}
               onChange={(e) => setText(e.target.value)}
             />
@@ -181,8 +181,8 @@ const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport, isOpen, onClose
           </div>
         </div>
 
-        <div className="p-8 bg-slate-100 dark:bg-slate-900/50 border-t border-slate-200 dark:border-white/5 flex flex-col sm:flex-row gap-4">
-          <Button variant="ghost" onClick={onClose} className="flex-1 font-black uppercase tracking-widest text-xs h-12 rounded-xl text-slate-900 dark:text-white hover:bg-slate-200 dark:hover:bg-white/10">Discard</Button>
+        <div className="p-8 bg-secondary border-t border-border flex flex-col sm:flex-row gap-4">
+          <Button variant="ghost" onClick={onClose} className="flex-1 font-black uppercase tracking-widest text-xs h-12 rounded-xl text-foreground hover:bg-accent dark:hover:bg-secondary">Discard</Button>
           <Button 
             onClick={handleImport} 
             className="flex-[2] bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-[0.2em] text-xs h-12 rounded-xl shadow-xl shadow-indigo-500/20 gap-3"

@@ -19,7 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, Plus, ListMusic, Settings2, BookOpen, Search, LayoutDashboard, X, AlertCircle, CloudDownload, AlertTriangle, Library } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"; // NEW: Import Tabs components
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Custom Components
 import SetlistSelector from '@/components/SetlistSelector';
@@ -38,7 +38,7 @@ import SongStudioModal from '@/components/SongStudioModal';
 import FloatingCommandDock from '@/components/FloatingCommandDock';
 import ActiveSongBanner from '@/components/ActiveSongBanner';
 import { StudioTab } from '@/components/SongStudioView';
-import RepertoireView from '@/components/RepertoireView'; // NEW: Import RepertoireView
+import RepertoireView from '@/components/RepertoireView';
 
 interface Setlist {
   id: string;
@@ -58,9 +58,9 @@ const Index = () => {
   const [allSetlists, setAllSetlists] = useState<Setlist[]>([]);
   const [masterRepertoire, setMasterRepertoire] = useState<SetlistSong[]>([]);
   const [activeSetlistId, setActiveSetlistId] = useState<string | null>(null);
-  const [activeSong, setActiveSong] = useState<SetlistSong | null>(null);
+  const [activeSongForPerformance, setActiveSongForPerformance] = useState<SetlistSong | null>(null); // Renamed for clarity
   const [loading, setLoading] = useState(true);
-  const [activeDashboardView, setActiveDashboardView] = useState<'gigs' | 'repertoire'>('gigs'); // NEW: Dashboard view state
+  const [activeDashboardView, setActiveDashboardView] = useState<'gigs' | 'repertoire'>('gigs');
 
   // Modals
   const [isSetlistSettingsOpen, setIsSetlistSettingsOpen] = useState(false);
@@ -71,6 +71,7 @@ const Index = () => {
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [isUserGuideOpen, setIsUserGuideOpen] = useState(false);
   const [isSongStudioModalOpen, setIsSongStudioModalOpen] = useState(false);
+  const [songStudioModalSongId, setSongStudioModalSongId] = useState<string | null>(null); // Track song for modal
   const [songStudioDefaultTab, setSongStudioDefaultTab] = useState<StudioTab | undefined>(undefined);
 
   // Setlist Management
@@ -86,11 +87,11 @@ const Index = () => {
   const [activeFilters, setActiveFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [showHeatmap, setShowHeatmap] = useState(false);
 
-  // SetlistExporter states
-  const [isAutoLinking, setIsAutoLinking] = useState(false);
-  const [isGlobalAutoSyncing, setIsGlobalAutoSyncing] = useState(false);
-  const [isBulkQueuingAudio, setIsBulkQueuingAudio] = useState(false);
-  const [isClearingAutoLinks, setIsClearingAutoLinks] = useState(false);
+  // Repertoire Exporter states (NEW: for Repertoire tab)
+  const [isRepertoireAutoLinking, setIsRepertoireAutoLinking] = useState(false);
+  const [isRepertoireGlobalAutoSyncing, setIsRepertoireGlobalAutoSyncing] = useState(false);
+  const [isRepertoireBulkQueuingAudio, setIsRepertoireBulkQueuingAudio] = useState(false);
+  const [isRepertoireClearingAutoLinks, setIsRepertoireClearingAutoLinks] = useState(false);
 
   const [floatingDockMenuOpen, setFloatingDockMenuOpen] = useState(false);
 
@@ -172,10 +173,19 @@ const Index = () => {
     ).length;
   }, [activeSetlist]);
 
+  const repertoireMissingAudioCount = useMemo(() => {
+    const itunesKeywords = ['apple.com', 'itunes-assets', 'mzstatic.com'];
+    return masterRepertoire.filter(s =>
+      s.youtubeUrl && // Must have a YouTube link to extract from
+      (s.previewUrl === "" || itunesKeywords.some(kw => s.previewUrl?.includes(kw))) && // Missing full audio or only has iTunes preview
+      s.extraction_status !== 'queued' && s.extraction_status !== 'processing' // Not already queued/processing
+    ).length;
+  }, [masterRepertoire]);
+
   const currentSongHighestNote = useMemo(() => {
-    if (!activeSong?.highest_note_original) return undefined;
-    return activeSong.highest_note_original;
-  }, [activeSong]);
+    if (!activeSongForPerformance?.highest_note_original) return undefined;
+    return activeSongForPerformance.highest_note_original;
+  }, [activeSongForPerformance]);
 
   // --- Data Fetching ---
   const fetchSetlistsAndRepertoire = useCallback(async () => {
@@ -280,7 +290,7 @@ const Index = () => {
     }
   }, [user, authLoading, fetchSetlistsAndRepertoire, navigate]);
 
-  // Update active song when activeSetlist or activeSongId changes
+  // Update active song for performance when activeSetlist or activeSongId changes
   useEffect(() => {
     if (activeSetlist && activeSetlist.songs.length > 0) {
       const savedSongId = localStorage.getItem(`active_song_id_${activeSetlist.id}`);
@@ -290,31 +300,31 @@ const Index = () => {
         const found = activeSetlist.songs.find(s => s.id === savedSongId);
         if (found) songToActivate = found;
       }
-      setActiveSong(songToActivate);
+      setActiveSongForPerformance(songToActivate);
     } else {
-      setActiveSong(null);
+      setActiveSongForPerformance(null);
     }
   }, [activeSetlist]);
 
-  // Load audio for active song
+  // Load audio for active song for performance
   useEffect(() => {
-    if (activeSong?.previewUrl) {
-      audio.loadFromUrl(activeSong.previewUrl, activeSong.pitch || 0, true);
+    if (activeSongForPerformance?.previewUrl) {
+      audio.loadFromUrl(activeSongForPerformance.previewUrl, activeSongForPerformance.pitch || 0, true);
     } else {
       audio.stopPlayback();
       audio.resetEngine();
     }
-  }, [activeSong?.previewUrl, activeSong?.pitch]);
+  }, [activeSongForPerformance?.previewUrl, activeSongForPerformance?.pitch]);
 
-  // Persist active setlist and song
+  // Persist active setlist and song for performance
   useEffect(() => {
     if (activeSetlistId) {
       localStorage.setItem('active_setlist_id', activeSetlistId);
     }
-    if (activeSetlist && activeSong) {
-      localStorage.setItem(`active_song_id_${activeSetlist.id}`, activeSong.id);
+    if (activeSetlist && activeSongForPerformance) {
+      localStorage.setItem(`active_song_id_${activeSetlist.id}`, activeSongForPerformance.id);
     }
-  }, [activeSetlistId, activeSetlist, activeSong]);
+  }, [activeSetlistId, activeSetlist, activeSongForPerformance]);
 
   // --- Setlist Management Handlers ---
   const handleSelectSetlist = (id: string) => {
@@ -395,11 +405,11 @@ const Index = () => {
         .from('setlists')
         .update({ songs: updatedSongs, updated_at: new Date().toISOString() })
         .eq('id', activeSetlist.id)
-        .eq('user.id', user.id);
+        .eq('user_id', user.id);
 
       if (error) throw error;
       setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: updatedSongs } : s));
-      if (activeSong?.id === songIdToRemove) setActiveSong(null);
+      if (activeSongForPerformance?.id === songIdToRemove) setActiveSongForPerformance(null);
       showSuccess("Track removed from setlist.");
     } catch (err: any) {
       showError(`Failed to remove song: ${err.message}`);
@@ -407,12 +417,12 @@ const Index = () => {
   };
 
   const handleSelectSongForPlayback = (song: SetlistSong) => {
-    setActiveSong(song);
+    setActiveSongForPerformance(song);
     audio.stopPlayback();
   };
 
   const handleEditSong = (song: SetlistSong, defaultTab?: StudioTab) => {
-    setActiveSong(song); // Ensure the studio modal opens with the correct song
+    setSongStudioModalSongId(song.id); // Set the song ID for the modal
     setIsSongStudioModalOpen(true);
     setSongStudioDefaultTab(defaultTab || 'audio'); // Default to audio tab when editing a song
   };
@@ -441,7 +451,7 @@ const Index = () => {
 
       if (error) throw error;
       setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: updatedSetlistSongs } : s));
-      if (activeSong?.id === songIdToUpdate) setActiveSong(prev => ({ ...prev!, ...updates }));
+      if (activeSongForPerformance?.id === songIdToUpdate) setActiveSongForPerformance(prev => ({ ...prev!, ...updates }));
       showSuccess("Song updated.");
     } catch (err: any) {
       showError(`Failed to update song: ${err.message}`);
@@ -475,7 +485,7 @@ const Index = () => {
 
       if (error) throw error;
       setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: updatedSetlistSongs } : s));
-      if (activeSong?.id === songIdToUpdate) setActiveSong(prev => ({ ...prev!, targetKey: newTargetKey, pitch: newPitch }));
+      if (activeSongForPerformance?.id === songIdToUpdate) setActiveSongForPerformance(prev => ({ ...prev!, targetKey: newTargetKey, pitch: newPitch }));
       showSuccess(`Key updated to ${newTargetKey}`);
     } catch (err: any) {
       showError(`Failed to update key: ${err.message}`);
@@ -500,7 +510,7 @@ const Index = () => {
 
       if (error) throw error;
       setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: updatedSongs } : s));
-      if (activeSong?.id === songIdToToggle) setActiveSong(prev => ({ ...prev!, isPlayed: !prev?.isPlayed }));
+      if (activeSongForPerformance?.id === songIdToToggle) setActiveSongForPerformance(prev => ({ ...prev!, isPlayed: !prev?.isPlayed }));
       showSuccess("Played status updated.");
     } catch (err: any) {
       showError(`Failed to update played status: ${err.message}`);
@@ -562,28 +572,33 @@ const Index = () => {
     }
   };
 
-  // --- Setlist Exporter Handlers ---
-  const handleAutoLink = async () => {
-    if (!user || !activeSetlist) return;
-    setIsAutoLinking(true);
-    showInfo("Initiating AI discovery for missing YouTube links...");
+  // --- Setlist Exporter Handlers (for Gigs tab) ---
+  // These handlers are no longer needed in Index.tsx for the Gigs tab
+  // as SetlistExporter is now in the Repertoire tab and manages its own state.
+  // The errors were caused by these functions trying to use undeclared state setters.
 
-    const songsToProcess = activeSetlist.songs.filter(s => !s.youtubeUrl || s.youtubeUrl.trim() === '');
+  // --- Repertoire Exporter Handlers (for Repertoire tab) ---
+  const handleRepertoireAutoLink = async () => {
+    if (!user) return;
+    setIsRepertoireAutoLinking(true);
+    showInfo("Initiating AI discovery for missing YouTube links in repertoire...");
+
+    const songsToProcess = masterRepertoire.filter(s => !s.youtubeUrl || s.youtubeUrl.trim() === '');
     if (songsToProcess.length === 0) {
-      showInfo("All songs already have YouTube links.");
-      setIsAutoLinking(false);
+      showInfo("All repertoire songs already have YouTube links.");
+      setIsRepertoireAutoLinking(false);
       return;
     }
 
     try {
       const { data, error } = await supabase.functions.invoke('bulk-populate-youtube-links', {
-        body: { songIds: songsToProcess.map(s => s.master_id || s.id) }
+        body: { songIds: songsToProcess.map(s => s.id) }
       });
 
       if (error) throw error;
 
-      const updatedSongs = activeSetlist.songs.map(s => {
-        const result = data.results.find((r: any) => r.song_id === (s.master_id || s.id));
+      const updatedRepertoire = masterRepertoire.map(s => {
+        const result = data.results.find((r: any) => r.song_id === s.id);
         if (result && result.status === 'SUCCESS') {
           return {
             ...s,
@@ -595,36 +610,29 @@ const Index = () => {
         return s;
       });
 
-      const { error: updateError } = await supabase
-        .from('setlists')
-        .update({ songs: updatedSongs, updated_at: new Date().toISOString() })
-        .eq('id', activeSetlist.id);
-
-      if (updateError) throw updateError;
-
-      setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: updatedSongs } : s));
-      showSuccess("AI Discovery Complete!");
+      setMasterRepertoire(updatedRepertoire);
+      showSuccess("AI Discovery Complete for Repertoire!");
     } catch (err: any) {
-      showError(`AI Discovery Failed: ${err.message}`);
+      showError(`AI Discovery Failed for Repertoire: ${err.message}`);
     } finally {
-      setIsAutoLinking(false);
+      setIsRepertoireAutoLinking(false);
     }
   };
 
-  const handleGlobalAutoSync = async () => {
-    if (!user || !activeSetlist) return;
-    setIsGlobalAutoSyncing(true);
-    showInfo("Initiating global metadata sync with iTunes...");
+  const handleRepertoireGlobalAutoSync = async () => {
+    if (!user) return;
+    setIsRepertoireGlobalAutoSyncing(true);
+    showInfo("Initiating global metadata sync with iTunes for repertoire...");
 
     try {
       const { data, error } = await supabase.functions.invoke('global-auto-sync', {
-        body: { songIds: activeSetlist.songs.map(s => s.master_id || s.id) }
+        body: { songIds: masterRepertoire.map(s => s.id) }
       });
 
       if (error) throw error;
 
-      const updatedSongs = activeSetlist.songs.map(s => {
-        const result = data.results.find((r: any) => r.id === (s.master_id || s.id));
+      const updatedRepertoire = masterRepertoire.map(s => {
+        const result = data.results.find((r: any) => r.id === s.id);
         if (result && result.status === 'SUCCESS') {
           return {
             ...s,
@@ -639,41 +647,35 @@ const Index = () => {
         return s;
       });
 
-      const { error: updateError } = await supabase
-        .from('setlists')
-        .update({ songs: updatedSongs, updated_at: new Date().toISOString() })
-        .eq('id', activeSetlist.id);
-
-      if (updateError) throw updateError;
-
-      setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: updatedSongs } : s));
-      showSuccess("Global Auto-Sync Complete!");
+      setMasterRepertoire(updatedRepertoire);
+      showSuccess("Global Auto-Sync Complete for Repertoire!");
     } catch (err: any) {
-      showError(`Global Auto-Sync Failed: ${err.message}`);
+      showError(`Global Auto-Sync Failed for Repertoire: ${err.message}`);
     } finally {
-      setIsGlobalAutoSyncing(false);
+      setIsRepertoireGlobalAutoSyncing(false);
     }
   };
 
-  const handleBulkRefreshAudio = async () => {
-    if (!user || !activeSetlist) return;
-    setIsBulkQueuingAudio(true);
-    showInfo("Queueing background audio extraction for missing tracks...");
+  const handleRepertoireBulkRefreshAudio = async () => {
+    if (!user) return;
+    setIsRepertoireBulkQueuingAudio(true);
+    showInfo("Queueing background audio extraction for missing repertoire tracks...");
 
-    const songsToQueue = activeSetlist.songs.filter(s =>
+    const itunesKeywords = ['apple.com', 'itunes-assets', 'mzstatic.com'];
+    const songsToQueue = masterRepertoire.filter(s =>
       s.youtubeUrl && // Must have a YouTube link to extract from
-      (s.previewUrl === "" || (s.previewUrl?.includes('apple.com') || s.previewUrl?.includes('itunes-assets'))) && // Missing full audio or only has iTunes preview
+      (s.previewUrl === "" || itunesKeywords.some(kw => s.previewUrl?.includes(kw))) && // Missing full audio or only has iTunes preview
       s.extraction_status !== 'queued' && s.extraction_status !== 'processing' // Not already queued/processing
     );
 
     if (songsToQueue.length === 0) {
-      showInfo("No tracks found missing master audio to queue.");
-      setIsBulkQueuingAudio(false);
+      showInfo("No repertoire tracks found missing master audio to queue.");
+      setIsRepertoireBulkQueuingAudio(false);
       return;
     }
 
     try {
-      const songIdsToQueue = songsToQueue.map(s => s.master_id || s.id);
+      const songIdsToQueue = songsToQueue.map(s => s.id);
       const { error } = await supabase
         .from('repertoire')
         .update({ extraction_status: 'queued' as SetlistSong['extraction_status'], last_sync_log: 'Queued for background audio extraction.' })
@@ -681,34 +683,34 @@ const Index = () => {
 
       if (error) throw error;
 
-      // Update local setlist state to reflect queued status
-      const updatedSetlistSongs = activeSetlist.songs.map(s =>
-        songIdsToQueue.includes(s.master_id || s.id) ? { ...s, extraction_status: 'queued' as SetlistSong['extraction_status'], last_sync_log: 'Queued for background audio extraction.' } : s
+      // Update local repertoire state to reflect queued status
+      const updatedRepertoire = masterRepertoire.map(s =>
+        songIdsToQueue.includes(s.id) ? { ...s, extraction_status: 'queued' as SetlistSong['extraction_status'], last_sync_log: 'Queued for background audio extraction.' } : s
       );
-      setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: updatedSetlistSongs } : s));
+      setMasterRepertoire(updatedRepertoire);
 
-      showSuccess(`Queued ${songsToQueue.length} audio extraction tasks.`);
+      showSuccess(`Queued ${songsToQueue.length} repertoire audio extraction tasks.`);
     } catch (err: any) {
-      showError(`Failed to queue audio extraction: ${err.message}`);
+      showError(`Failed to queue repertoire audio extraction: ${err.message}`);
     } finally {
-      setIsBulkQueuingAudio(false);
+      setIsRepertoireBulkQueuingAudio(false);
     }
   };
 
-  const handleClearAutoLinks = async () => {
-    if (!user || !activeSetlist) return;
-    setIsClearingAutoLinks(true);
-    showInfo("Clearing auto-populated YouTube links...");
+  const handleRepertoireClearAutoLinks = async () => {
+    if (!user) return;
+    setIsRepertoireClearingAutoLinks(true);
+    showInfo("Clearing auto-populated YouTube links in repertoire...");
 
-    const autoPopulatedSongs = activeSetlist.songs.filter(s => s.metadata_source === 'auto_populated');
+    const autoPopulatedSongs = masterRepertoire.filter(s => s.metadata_source === 'auto_populated');
     if (autoPopulatedSongs.length === 0) {
-      showInfo("No auto-populated links found in this setlist.");
-      setIsClearingAutoLinks(false);
+      showInfo("No auto-populated links found in repertoire.");
+      setIsRepertoireClearingAutoLinks(false);
       return;
     }
 
     try {
-      const songIdsToClear = autoPopulatedSongs.map(s => s.master_id || s.id);
+      const songIdsToClear = autoPopulatedSongs.map(s => s.id);
       const { error } = await supabase
         .from('repertoire')
         .update({
@@ -721,17 +723,17 @@ const Index = () => {
 
       if (error) throw error;
 
-      // Update local setlist state
-      const updatedSetlistSongs = activeSetlist.songs.map(s =>
-        songIdsToClear.includes(s.master_id || s.id) ? { ...s, youtubeUrl: undefined, metadata_source: null, sync_status: 'IDLE' as SetlistSong['sync_status'], last_sync_log: 'Cleared auto-populated link' } : s
+      // Update local repertoire state
+      const updatedRepertoire = masterRepertoire.map(s =>
+        songIdsToClear.includes(s.id) ? { ...s, youtubeUrl: undefined, metadata_source: null, sync_status: 'IDLE' as SetlistSong['sync_status'], last_sync_log: 'Cleared auto-populated link' } : s
       );
-      setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: updatedSetlistSongs } : s));
+      setMasterRepertoire(updatedRepertoire);
 
-      showSuccess("Auto-populated links cleared!");
+      showSuccess("Repertoire auto-populated links cleared!");
     } catch (err: any) {
-      showError(`Failed to clear auto-links: ${err.message}`);
+      showError(`Failed to clear repertoire auto-links: ${err.message}`);
     } finally {
-      setIsClearingAutoLinks(false);
+      setIsRepertoireClearingAutoLinks(false);
     }
   };
 
@@ -797,32 +799,29 @@ const Index = () => {
     sessionStorage.setItem('from_dashboard', 'true');
     if (initialSongId) {
       navigate(`/sheet-reader/${initialSongId}`);
-    } else if (activeSong) {
-      navigate(`/sheet-reader/${activeSong.id}`);
+    } else if (activeSongForPerformance) {
+      navigate(`/sheet-reader/${activeSongForPerformance.id}`);
     } else if (filteredAndSortedSongs.length > 0) {
       navigate(`/sheet-reader/${filteredAndSortedSongs[0].id}`);
     } else {
       showError("No songs available to open in reader mode.");
     }
-  }, [navigate, activeSong, filteredAndSortedSongs]);
+  }, [navigate, activeSongForPerformance, filteredAndSortedSongs]);
 
   const handleSafePitchToggle = useCallback((active: boolean, safePitch: number) => {
-    if (!activeSong) return;
+    if (!activeSongForPerformance) return;
     if (active) {
-      const currentPitch = activeSong.pitch || 0;
+      const currentPitch = activeSongForPerformance.pitch || 0;
       if (currentPitch > safePitch) {
         const newPitch = safePitch;
-        const newTargetKey = activeSong.originalKey ? transposeKey(activeSong.originalKey, newPitch) : activeSong.targetKey;
-        handleUpdateSongInSetlist(activeSong.id, { pitch: newPitch, targetKey: newTargetKey });
+        const newTargetKey = activeSongForPerformance.originalKey ? transposeKey(activeSongForPerformance.originalKey, newPitch) : activeSongForPerformance.targetKey;
+        handleUpdateSongInSetlist(activeSongForPerformance.id, { pitch: newPitch, targetKey: newTargetKey });
         showInfo(`Pitch adjusted to ${newPitch} ST to stay within safe range.`);
       }
     } else {
-      // When deactivating, reset pitch to original if it was changed by safe pitch mode
-      // This requires storing the original pitch before safe pitch mode was activated,
-      // which is not currently implemented. For now, just deactivate.
-      showInfo("Safe Pitch Mode Deactivated.");
+      // No toast needed for deactivation
     }
-  }, [activeSong, handleUpdateSongInSetlist]);
+  }, [activeSongForPerformance, handleUpdateSongInSetlist]);
 
   if (loading || authLoading) {
     return (
@@ -832,11 +831,11 @@ const Index = () => {
     );
   }
 
-  const hasPlayableSong = !!activeSong?.previewUrl;
-  const hasReadableChart = !!activeSong && (!!activeSong.pdfUrl || !!activeSong.leadsheetUrl || !!activeSong.ugUrl || !!activeSong.ug_chords_text);
+  const hasPlayableSong = !!activeSongForPerformance?.previewUrl;
+  const hasReadableChart = !!activeSongForPerformance && (!!activeSongForPerformance.pdfUrl || !!activeSongForPerformance.leadsheetUrl || !!activeSongForPerformance.ugUrl || !!activeSongForPerformance.ug_chords_text);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col relative">
+    <div className="min-h-screen bg-background text-foreground flex flex-col relative">
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col p-6 md:p-10 overflow-y-auto custom-scrollbar">
         <div className="flex items-center justify-between mb-8">
@@ -872,13 +871,15 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Active Song Banner */}
-        <ActiveSongBanner
-          song={activeSong}
-          isPlaying={audio.isPlaying}
-          onTogglePlayback={audio.togglePlayback}
-          onClear={() => { setActiveSong(null); audio.stopPlayback(); }}
-        />
+        {/* Active Song Banner (only for Gigs tab) */}
+        {activeDashboardView === 'gigs' && activeSongForPerformance && (
+          <ActiveSongBanner
+            song={activeSongForPerformance}
+            isPlaying={audio.isPlaying}
+            onTogglePlayback={audio.togglePlayback}
+            onClear={() => { setActiveSongForPerformance(null); audio.stopPlayback(); }}
+          />
+        )}
 
         {/* NEW: Tabs for Gigs and Repertoire */}
         <Tabs value={activeDashboardView} onValueChange={(value) => setActiveDashboardView(value as 'gigs' | 'repertoire')} className="w-full mt-8">
@@ -933,7 +934,7 @@ const Index = () => {
                         .from('setlists')
                         .update({ songs: updatedSongs, updated_at: new Date().toISOString() })
                         .eq('id', activeSetlist.id)
-                        .eq('user_id', user.id);
+                        .eq('user.id', user.id);
 
                       if (error) throw error;
                       setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: updatedSongs } : s));
@@ -968,18 +969,6 @@ const Index = () => {
               }}
             />
 
-            {/* Setlist Exporter */}
-            <SetlistExporter
-              songs={activeSetlist?.songs || []}
-              onAutoLink={handleAutoLink}
-              onGlobalAutoSync={handleGlobalAutoSync}
-              onBulkRefreshAudio={handleBulkRefreshAudio}
-              onClearAutoLinks={handleClearAutoLinks}
-              isBulkDownloading={isBulkQueuingAudio}
-              missingAudioCount={missingAudioCount}
-              onOpenAdmin={() => setIsAdminPanelOpen(true)}
-            />
-
             {/* Setlist Manager */}
             <SetlistManager
               songs={filteredAndSortedSongs}
@@ -1010,7 +999,7 @@ const Index = () => {
                 }
               }}
               onReorder={handleReorderSongs}
-              currentSongId={activeSong?.id}
+              currentSongId={activeSongForPerformance?.id}
               onOpenAdmin={() => setIsAdminPanelOpen(true)}
               searchTerm={searchTerm}
               setSearchTerm={setSearchTerm}
@@ -1023,6 +1012,18 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="repertoire" className="mt-0 space-y-8">
+            {/* Automation Hub (Moved here) */}
+            <SetlistExporter
+              songs={masterRepertoire}
+              onAutoLink={handleRepertoireAutoLink}
+              onGlobalAutoSync={handleRepertoireGlobalAutoSync}
+              onBulkRefreshAudio={handleRepertoireBulkRefreshAudio}
+              onClearAutoLinks={handleRepertoireClearAutoLinks}
+              isBulkDownloading={isRepertoireBulkQueuingAudio}
+              missingAudioCount={repertoireMissingAudioCount}
+              onOpenAdmin={() => setIsAdminPanelOpen(true)}
+            />
+
             <RepertoireView
               repertoire={masterRepertoire}
               onEditSong={handleEditSong}
@@ -1047,7 +1048,7 @@ const Index = () => {
       {/* Floating Command Dock */}
       <FloatingCommandDock
         onOpenSearch={() => {
-          setActiveSong(null); // Clear active song if opening to search
+          setSongStudioModalSongId(null); // Clear active song if opening to search
           setIsSongStudioModalOpen(true);
           setSongStudioDefaultTab('library'); // Open to library tab for search
         }}
@@ -1058,15 +1059,15 @@ const Index = () => {
         onToggleHeatmap={() => setShowHeatmap(prev => !prev)}
         onOpenUserGuide={() => setIsUserGuideOpen(true)}
         showHeatmap={showHeatmap}
-        viewMode={activeDashboardView} // Pass current view mode
+        viewMode={activeDashboardView}
         hasPlayableSong={hasPlayableSong}
         hasReadableChart={hasReadableChart}
         isPlaying={audio.isPlaying}
         onTogglePlayback={audio.togglePlayback}
         currentSongHighestNote={currentSongHighestNote}
-        currentSongPitch={activeSong?.pitch}
+        currentSongPitch={activeSongForPerformance?.pitch}
         onSafePitchToggle={handleSafePitchToggle}
-        activeSongId={activeSong?.id}
+        activeSongId={activeSongForPerformance?.id}
         onSetMenuOpen={setFloatingDockMenuOpen}
         isMenuOpen={floatingDockMenuOpen}
       />
@@ -1155,7 +1156,7 @@ const Index = () => {
                 id="rename-setlist-name"
                 placeholder="New Setlist Name"
                 value={renameSetlistName}
-                onChange={(e) => setRenameSetlistName(e.target.value)}
+                onChange={(e) => setNewSetlistName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleRenameSetlist(renameSetlistId)}
                 className="bg-white/5 border-white/10 text-white h-12 rounded-xl"
               />
@@ -1226,7 +1227,7 @@ const Index = () => {
           }
         }}
         onOpenStudio={(id) => {
-          setActiveSong(masterRepertoire.find(s => s.id === id) || null);
+          setSongStudioModalSongId(id);
           setIsSongStudioModalOpen(true);
           setIsResourceAuditOpen(false);
           setSongStudioDefaultTab('details'); // Open to details tab for audit
@@ -1250,16 +1251,16 @@ const Index = () => {
         onClose={() => setIsUserGuideOpen(false)}
       />
 
-      {activeSong && (
+      {songStudioModalSongId && (
         <SongStudioModal
           isOpen={isSongStudioModalOpen}
           onClose={() => { setIsSongStudioModalOpen(false); setSongStudioDefaultTab(undefined); }} // Reset default tab on close
           gigId={activeSetlistId || 'library'} // Pass activeSetlistId or 'library'
-          songId={activeSong.id}
+          songId={songStudioModalSongId}
           visibleSongs={filteredAndSortedSongs}
           onSelectSong={(id) => {
             const song = filteredAndSortedSongs.find(s => s.id === id);
-            if (song) setActiveSong(song);
+            if (song) setActiveSongForPerformance(song);
           }}
           allSetlists={allSetlists}
           masterRepertoire={masterRepertoire}

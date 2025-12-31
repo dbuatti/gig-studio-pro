@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, User, Music, ArrowUpDown, UserCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useTheme } from '@/hooks/use-theme'; // NEW: Import useTheme
+import { useTheme } from '@/hooks/use-theme';
 
 interface PublicRepertoireViewProps {
   profile: any;
@@ -16,7 +16,7 @@ interface PublicRepertoireViewProps {
 const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, songs, isPreview }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortMode, setSortMode] = useState<'artist' | 'alphabetical'>('artist');
-  const { theme } = useTheme(); // NEW: Use theme hook
+  const { theme } = useTheme();
 
   // Deduplicate and filter songs
   const processedSongs = useMemo(() => {
@@ -83,13 +83,12 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
 
   if (!profile) return null;
 
-  // Use profile custom colors, but provide sensible defaults for light/dark mode
   const profileColors = profile.custom_colors || {};
   const colors = {
-    primary: profileColors.primary || (theme === 'dark' ? '#4f46e5' : '#9333ea'),
-    background: profileColors.background || (theme === 'dark' ? '#020617' : '#ffffff'),
-    text: profileColors.text || (theme === 'dark' ? '#ffffff' : '#1e1b4b'),
-    border: profileColors.border || (theme === 'dark' ? '#4f46e5' : '#9333ea'),
+    primary: profileColors.primary || (theme === 'dark' ? 'hsl(var(--primary))' : 'hsl(var(--primary))'),
+    background: profileColors.background || 'hsl(var(--background))',
+    text: profileColors.text || 'hsl(var(--foreground))',
+    border: profileColors.border || (theme === 'dark' ? 'hsl(var(--primary))' : 'hsl(var(--primary))'),
   };
 
   return (
@@ -100,11 +99,11 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
       )} 
       style={{ backgroundColor: colors.background, color: colors.text }}
     >
-      <header className={cn("px-4 text-center border-b border-white/5 bg-gradient-to-b from-black/20 to-transparent", isPreview ? "py-8" : "py-20")}>
+      <header className={cn("px-4 text-center border-b border-border bg-gradient-to-b from-black/20 to-transparent", isPreview ? "py-8" : "py-20")}>
         <div className="max-w-7xl mx-auto space-y-6">
           <div 
             className={cn(
-              "rounded-full mx-auto border-4 bg-slate-800 flex items-center justify-center overflow-hidden shadow-2xl transition-all",
+              "rounded-full mx-auto border-4 bg-secondary flex items-center justify-center overflow-hidden shadow-2xl transition-all",
               isPreview ? "w-24 h-24" : "w-32 h-32 md:w-40 md:h-40"
             )}
             style={{ borderColor: colors.border }}
@@ -112,7 +111,7 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
             {profile.avatar_url ? (
               <img src={profile.avatar_url} alt={profile.first_name} className="w-full h-full object-cover" />
             ) : (
-              <User className="w-12 h-12 text-slate-700" />
+              <User className="w-12 h-12 text-muted-foreground" />
             )}
           </div>
           <div className="space-y-2">
@@ -134,20 +133,20 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
               placeholder="Search..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-white/5 border-white/10 h-10 pl-10 rounded-xl focus-visible:ring-indigo-500"
-              style={{ backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: colors.text }}
+              className="bg-secondary border-border h-10 pl-10 rounded-xl focus-visible:ring-indigo-500"
+              style={{ backgroundColor: theme === 'dark' ? 'hsl(var(--secondary))' : 'hsl(var(--secondary))', borderColor: 'hsl(var(--border))', color: colors.text }}
             />
           </div>
           
-          <div className="flex bg-white/5 p-1 rounded-xl border border-white/5 w-full md:w-auto" style={{ backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }}>
+          <div className="flex bg-secondary p-1 rounded-xl border border-border w-full md:w-auto" style={{ backgroundColor: 'hsl(var(--secondary))', borderColor: 'hsl(var(--border))' }}>
             <Button 
               variant="ghost" 
               onClick={() => setSortMode('artist')}
               className={cn(
                 "flex-1 md:flex-none h-8 px-4 rounded-lg text-[9px] font-black uppercase tracking-widest gap-2 transition-all",
-                sortMode === 'artist' ? "bg-white/10 shadow-lg" : "opacity-40"
+                sortMode === 'artist' ? "bg-accent shadow-lg" : "opacity-40"
               )}
-              style={{ color: sortMode === 'artist' ? colors.primary : colors.text, backgroundColor: sortMode === 'artist' ? (theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)') : 'transparent' }}
+              style={{ color: sortMode === 'artist' ? colors.primary : colors.text, backgroundColor: sortMode === 'artist' ? 'hsl(var(--accent))' : 'transparent' }}
             >
               <User className="w-3 h-3" /> Artist
             </Button>
@@ -156,9 +155,9 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
               onClick={() => setSortMode('alphabetical')}
               className={cn(
                 "flex-1 md:flex-none h-8 px-4 rounded-lg text-[9px] font-black uppercase tracking-widest gap-2 transition-all",
-                sortMode === 'alphabetical' ? "bg-white/10 shadow-lg" : "opacity-40"
+                sortMode === 'alphabetical' ? "bg-accent shadow-lg" : "opacity-40"
               )}
-              style={{ color: sortMode === 'alphabetical' ? colors.primary : colors.text, backgroundColor: sortMode === 'alphabetical' ? (theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)') : 'transparent' }}
+              style={{ color: sortMode === 'alphabetical' ? colors.primary : colors.text, backgroundColor: sortMode === 'alphabetical' ? 'hsl(var(--accent))' : 'transparent' }}
             >
               <ArrowUpDown className="w-3 h-3" /> A-Z
             </Button>
@@ -167,7 +166,7 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
 
         <div>
           {processedSongs.length === 0 ? (
-            <div className="text-center py-20 opacity-30 border border-white/10 rounded-[3rem]" style={{ borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}>
+            <div className="text-center py-20 opacity-30 border border-border rounded-[3rem]" style={{ borderColor: 'hsl(var(--border))' }}>
               <Music className="w-12 h-12 mx-auto mb-4" style={{ color: colors.text }} />
               <p className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: colors.text }}>No Public Tracks Available</p>
             </div>
@@ -175,7 +174,7 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-16">
               {(groupedSongs as any[]).map((group) => (
                 <section key={sortMode === 'artist' ? group.artist : group.letter} className="space-y-4">
-                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40 border-b border-white/5 pb-2" style={{ color: colors.primary, borderColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }}>
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40 border-b border-border pb-2" style={{ color: colors.primary, borderColor: 'hsl(var(--border))' }}>
                     {sortMode === 'artist' ? group.artist : group.letter}
                   </h3>
                   <div className="flex flex-col gap-2.5">

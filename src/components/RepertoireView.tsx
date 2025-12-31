@@ -24,7 +24,7 @@ interface RepertoireViewProps {
   allSetlists: { id: string; name: string; songs: SetlistSong[] }[];
   onUpdateSetlistSongs: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>;
   onRefreshRepertoire: () => void;
-  onAddSong: (song: SetlistSong) => void; // For adding new songs
+  onAddSong: (song: SetlistSong) => void;
 }
 
 const RepertoireView: React.FC<RepertoireViewProps> = ({
@@ -109,13 +109,13 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-full sm:w-auto overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-1 bg-secondary p-1 rounded-xl w-full sm:w-auto overflow-x-auto no-scrollbar">
             <Button
               variant="ghost" size="sm"
               onClick={() => setSortMode('none')}
               className={cn(
                 "h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg",
-                sortMode === 'none' && "bg-white dark:bg-slate-700 shadow-sm"
+                sortMode === 'none' && "bg-background dark:bg-secondary shadow-sm"
               )}
             >
               <ListMusic className="w-3 h-3" /> <span className="hidden sm:inline">Alphabetical</span>
@@ -125,7 +125,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
               onClick={() => setSortMode('ready')}
               className={cn(
                 "h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg",
-                sortMode === 'ready' && "bg-white dark:bg-slate-700 shadow-sm text-indigo-600"
+                sortMode === 'ready' && "bg-background dark:bg-secondary shadow-sm text-indigo-600"
               )}
             >
               <Star className="w-3 h-3" /> <span className="hidden sm:inline">Readiness</span>
@@ -135,7 +135,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
               onClick={() => setSortMode('work')}
               className={cn(
                 "h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg",
-                sortMode === 'work' && "bg-white dark:bg-slate-700 shadow-sm text-orange-600"
+                sortMode === 'work' && "bg-background dark:bg-secondary shadow-sm text-orange-600"
               )}
             >
               <AlertTriangle className="w-3 h-3" /> <span className="hidden sm:inline">Work Needed</span>
@@ -146,7 +146,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
             onClick={() => setFilterReady(!filterReady)}
             className={cn(
               "h-8 px-4 text-[10px] font-black uppercase tracking-widest rounded-xl gap-2 transition-all",
-              filterReady ? "bg-emerald-50 text-emerald-600" : "text-slate-500 hover:bg-slate-100"
+              filterReady ? "bg-emerald-50 text-emerald-600" : "text-muted-foreground hover:bg-accent dark:hover:bg-secondary"
             )}
           >
             <Filter className="w-3.5 h-3.5" /> {filterReady ? "Ready Only" : "All Tracks"}
@@ -154,12 +154,12 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <div className="relative flex-1 sm:w-64 group">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground group-focus-within:text-indigo-500 transition-colors" />
             <Input
               placeholder="Search master repertoire..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-10 sm:h-9 pl-9 text-[11px] font-bold bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-xl focus-visible:ring-indigo-500"
+              className="h-10 sm:h-9 pl-9 text-[11px] font-bold bg-card dark:bg-card border-border dark:border-border rounded-xl focus-visible:ring-indigo-500"
             />
           </div>
           <Button
@@ -171,19 +171,19 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
         </div>
       </div>
 
-      <div className="bg-slate-950 rounded-[2rem] border-4 border-slate-900 shadow-2xl overflow-hidden">
+      <div className="bg-card rounded-[2rem] border-4 border-border shadow-2xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse min-w-[900px]">
             <thead>
-              <tr className="bg-slate-900/50 border-b dark:border-slate-800">
-                <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 w-16 text-center">#</th>
-                <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-left">Song / Artist</th>
-                <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 w-24 text-center">Readiness</th>
-                <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 w-48 text-center">Harmonic Data</th>
-                <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 w-40 text-right pr-10">Actions</th>
+              <tr className="bg-secondary dark:bg-secondary border-b border-border">
+                <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-16 text-center">#</th>
+                <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground text-left">Song / Artist</th>
+                <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-24 text-center">Readiness</th>
+                <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-48 text-center">Harmonic Data</th>
+                <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-40 text-right pr-10">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-900">
+            <tbody className="divide-y divide-border">
               {filteredAndSortedRepertoire.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="py-20 text-center opacity-30">
@@ -206,11 +206,11 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                       key={song.id}
                       className={cn(
                         "transition-all group relative cursor-pointer h-[80px]",
-                        "hover:bg-slate-800/50"
+                        "hover:bg-accent dark:hover:bg-secondary"
                       )}
                     >
                       <td className="px-6 text-center">
-                        <span className="text-[10px] font-mono font-black text-slate-300">{(idx + 1).toString().padStart(2, '0')}</span>
+                        <span className="text-[10px] font-mono font-black text-muted-foreground">{(idx + 1).toString().padStart(2, '0')}</span>
                       </td>
                       <td className="px-6 text-left">
                         <div className="flex flex-col gap-1">
@@ -223,7 +223,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                             </h4>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">
+                            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest leading-none">
                               {song.artist || "Unknown Artist"}
                             </span>
                           </div>
@@ -244,15 +244,15 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                       <td className="px-6 text-center">
                         <div className="flex items-center justify-center gap-4 h-full">
                           <div className="text-center min-w-[32px]">
-                            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Orig</p>
-                            <span className="text-xs font-mono font-bold text-slate-500 block leading-none">{displayOrigKey}</span>
+                            <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mb-0.5">Orig</p>
+                            <span className="text-xs font-mono font-bold text-muted-foreground block leading-none">{displayOrigKey}</span>
                           </div>
                           <div className="flex flex-col items-center justify-center opacity-30">
-                            <ArrowRight className="w-3 h-3 text-slate-300 mb-0.5" />
-                            <div className="h-px w-6 bg-slate-800" />
+                            <ArrowRight className="w-3 h-3 text-muted-foreground mb-0.5" />
+                            <div className="h-px w-6 bg-border" />
                           </div>
                           <div className="text-center min-w-[32px] relative">
-                            <p className="text-[8px] font-black text-indigo-50 uppercase tracking-widest mb-0.5">Stage</p>
+                            <p className="text-[8px] font-black text-indigo-500 uppercase tracking-widest mb-0.5">Stage</p>
                             <div className={cn(
                               "font-mono font-black text-xs px-2.5 py-1 rounded-lg shadow-lg flex items-center justify-center gap-1.5 leading-none",
                               song.isKeyConfirmed ? "bg-emerald-600 text-white shadow-emerald-500/20" : "bg-indigo-600 text-white shadow-indigo-500/20"

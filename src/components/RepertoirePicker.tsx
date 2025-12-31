@@ -8,7 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Search, Library, Plus, Check, Music, 
   ShieldCheck, Star, X, Filter, CloudDownload, AlertTriangle 
-} from 'lucide-react'; // NEW: Import CloudDownload and AlertTriangle
+} from 'lucide-react';
 import { SetlistSong } from './SetlistManager';
 import { cn } from "@/lib/utils";
 import { formatKey } from '@/utils/keyUtils';
@@ -53,12 +53,10 @@ const RepertoirePicker: React.FC<RepertoirePickerProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-3xl w-[95vw] max-h-[85vh] bg-slate-950 border-white/10 text-white rounded-[2rem] p-0 overflow-hidden flex flex-col shadow-2xl"> {/* NEW: max-h-[85vh] */}
+      <DialogContent className="max-w-3xl w-[95vw] max-h-[85vh] bg-popover border-border text-foreground rounded-[2rem] p-0 overflow-hidden flex flex-col shadow-2xl">
         <div className="p-8 bg-indigo-600 shrink-0 relative">
-          {/* Removed redundant close button here */}
-          
-          <DialogHeader className="text-center"> {/* Added text-center */}
-            <div className="flex items-center justify-center gap-3 mb-2"> {/* Added justify-center */}
+          <DialogHeader className="text-center">
+            <div className="flex items-center justify-center gap-3 mb-2">
               <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">
                 <Library className="w-6 h-6 text-white" />
               </div>
@@ -93,7 +91,7 @@ const RepertoirePicker: React.FC<RepertoirePickerProps> = ({
           </div>
         </div>
 
-        <div className="flex-1 overflow-hidden bg-slate-100 dark:bg-slate-900/50 flex flex-col"> {/* Added flex flex-col */}
+        <div className="flex-1 overflow-hidden bg-secondary flex flex-col">
           <ScrollArea className="h-full">
             <div className="p-6 space-y-2">
               {filteredItems.length > 0 ? (
@@ -111,40 +109,40 @@ const RepertoirePicker: React.FC<RepertoirePickerProps> = ({
                         "w-full flex items-center gap-4 p-4 rounded-2xl transition-all border group",
                         isAdded 
                           ? "bg-indigo-100 dark:bg-indigo-600/5 border-indigo-200 dark:border-indigo-500/20 opacity-60" 
-                          : "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-white/10 hover:bg-slate-50 dark:hover:bg-white/10"
+                          : "bg-card border border-border hover:border-border/50 hover:bg-accent dark:hover:bg-secondary"
                       )}
                     >
-                      <div className="bg-slate-100 dark:bg-slate-800 p-2.5 rounded-xl text-slate-500 shrink-0">
+                      <div className="bg-secondary p-2.5 rounded-xl text-muted-foreground shrink-0">
                         <Music className="w-5 h-5" />
                       </div>
                       
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <h4 className="font-black text-sm uppercase tracking-tight truncate text-slate-900 dark:text-white">{song.name}</h4>
+                          <h4 className="font-black text-sm uppercase tracking-tight truncate text-foreground">{song.name}</h4>
                           {readiness === 100 && <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />}
                           {isProcessing && <CloudDownload className="w-3.5 h-3.5 text-indigo-500 animate-bounce" />}
-                          {isExtractionFailed && <AlertTriangle className="w-3.5 h-3.5 text-red-500" />}
+                          {isExtractionFailed && <AlertTriangle className="w-3.5 h-3.5 text-destructive" />}
                         </div>
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest truncate">{song.artist}</p>
+                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest truncate">{song.artist}</p>
                         {isExtractionFailed && song.last_sync_log && (
-                          <p className="text-[8px] text-red-400 mt-1 truncate max-w-[150px]">Error: {song.last_sync_log}</p>
+                          <p className="text-[8px] text-destructive mt-1 truncate max-w-[150px]">Error: {song.last_sync_log}</p>
                         )}
                       </div>
 
                       <div className="flex items-center gap-6 shrink-0">
                         <div className="text-right hidden sm:block">
-                          <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest mb-0.5">Readiness</p>
+                          <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mb-0.5">Readiness</p>
                           <p className={cn(
                             "text-[10px] font-mono font-black",
                             readiness >= 90 ? "text-emerald-400" : "text-indigo-400"
                           )}>{readiness}%</p>
                         </div>
                         
-                        <div className="h-8 w-px bg-slate-200 dark:bg-white/5 hidden sm:block" />
+                        <div className="h-8 w-px bg-border hidden sm:block" />
                         
                         <div className="text-center min-w-[40px]">
-                           <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest mb-0.5">Key</p>
-                           <span className="text-[10px] font-mono font-bold text-slate-600 dark:text-slate-400">{displayKey}</span>
+                           <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mb-0.5">Key</p>
+                           <span className="text-[10px] font-mono font-bold text-muted-foreground">{displayKey}</span>
                         </div>
 
                         <Button 
@@ -167,19 +165,19 @@ const RepertoirePicker: React.FC<RepertoirePickerProps> = ({
               ) : (
                 <div className="py-20 text-center opacity-30">
                   <Library className="w-12 h-12 mx-auto mb-4" />
-                  <p className="text-sm font-black uppercase tracking-widest text-slate-500">No Library Matches</p>
+                  <p className="text-sm font-black uppercase tracking-widest text-muted-foreground">No Library Matches</p>
                 </div>
               )}
             </div>
           </ScrollArea>
         </div>
         
-        <div className="p-6 border-t border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-slate-900 flex items-center justify-between shrink-0">
+        <div className="p-6 border-t border-border bg-secondary flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
             <Star className="w-3.5 h-3.5 text-indigo-500 fill-indigo-500" />
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Master Repertoire Engine v4.0</span>
+            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Master Repertoire Engine v4.0</span>
           </div>
-          <p className="text-[9px] font-mono text-slate-600 dark:text-slate-600 uppercase">Selected: {existingIds.size} Tracks</p>
+          <p className="text-[9px] font-mono text-muted-foreground uppercase">Selected: {existingIds.size} Tracks</p>
         </div>
       </DialogContent>
     </Dialog>

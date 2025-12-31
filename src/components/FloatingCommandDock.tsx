@@ -23,7 +23,7 @@ interface FloatingCommandDockProps {
   onToggleHeatmap: () => void;
   onOpenUserGuide: () => void;
   showHeatmap: boolean;
-  viewMode: 'repertoire' | 'gigs'; // Changed 'setlist' to 'gigs'
+  viewMode: 'repertoire' | 'gigs';
   hasPlayableSong: boolean;
   hasReadableChart: boolean;
   isPlaying: boolean;
@@ -166,7 +166,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
       if (currentPitch > safePitchLimit) {
         onSafePitchToggle?.(false, 0);
         setIsSafePitchActive(false);
-        showError("Pitch exceeds safe limit.");
+        // Removed: showError("Pitch exceeds safe limit.");
         return;
       }
       onSafePitchToggle?.(true, safePitchLimit);
@@ -228,7 +228,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
         onDragEnd={handleDragEnd}
         style={{ x: position.x, y: position.y }}
         className={cn(
-          "fixed bottom-8 left-8 z-[300] flex items-center gap-3 touch-none cursor-grab active:cursor-grabbing", // Changed right-8 to left-8
+          "fixed bottom-8 left-8 z-[300] flex items-center gap-3 touch-none cursor-grab active:cursor-grabbing",
           direction === 'up' && "flex-col-reverse",
           direction === 'down' && "flex-col",
           direction === 'left' && "flex-row-reverse",
@@ -236,7 +236,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
         )}
       >
         {/* Hub Trigger Button */}
-        <div className="bg-slate-950/90 backdrop-blur-2xl p-2 rounded-full border border-white/20 shadow-2xl">
+        <div className="bg-card/90 backdrop-blur-2xl p-2 rounded-full border border-border/20 shadow-2xl">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -245,7 +245,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                 onClick={handleToggleMenu}
                 className={cn(
                   "h-14 w-14 rounded-full transition-all duration-500 border-2 shadow-xl",
-                  internalIsMenuOpen ? "bg-slate-100 text-slate-950 border-white rotate-90" : "bg-slate-900 text-indigo-400 border-white/10"
+                  internalIsMenuOpen ? "bg-secondary text-secondary-foreground border-border rotate-90" : "bg-card text-indigo-400 border-border/10"
                 )}
               >
                 {internalIsMenuOpen ? <X className="w-6 h-6" /> : <LayoutDashboard className="w-6 h-6" />}
@@ -265,7 +265,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
             >
               {/* Primary Slot Container */}
               <div className={cn(
-                "flex items-center gap-3 p-3 bg-slate-950/90 rounded-[2.5rem] border border-white/10 shadow-2xl backdrop-blur-xl",
+                "flex items-center gap-3 p-3 bg-card/90 rounded-[2.5rem] border border-border/10 shadow-2xl backdrop-blur-xl",
                 (direction === 'up' || direction === 'down') ? "flex-col" : "flex-row"
               )}>
                 {primaryButtons.map((btn) => (
@@ -293,7 +293,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                       onClick={() => setIsSubMenuOpen(!isSubMenuOpen)}
                       className={cn(
                         "h-12 w-12 rounded-full border transition-all",
-                        isSubMenuOpen ? "bg-white text-slate-950 border-white" : "bg-slate-800 text-slate-400 border-white/5"
+                        isSubMenuOpen ? "bg-secondary text-secondary-foreground border-border" : "bg-card text-slate-400 border-border/5"
                       )}
                     >
                       {isSubMenuOpen ? <X className="w-5 h-5" /> : <Wrench className="w-5 h-5" />}
@@ -311,7 +311,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.5 }}
                     className={cn(
-                      "grid grid-cols-2 gap-2 p-3 bg-slate-900/90 rounded-[2rem] border border-white/10 shadow-2xl backdrop-blur-xl",
+                      "grid grid-cols-2 gap-2 p-3 bg-card/90 rounded-[2rem] border border-border/10 shadow-2xl backdrop-blur-xl",
                       (direction === 'left' || direction === 'right') && "grid-flow-col"
                     )}
                   >

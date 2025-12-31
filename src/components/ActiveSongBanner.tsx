@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { SetlistSong } from './SetlistManager';
-import { Music, Youtube, Copy, Play, Pause, Activity, Gauge, Sparkles, Tag, Apple, ExternalLink, X, CloudDownload, AlertTriangle } from 'lucide-react'; // NEW: Import CloudDownload and AlertTriangle
+import { Music, Youtube, Copy, Play, Pause, Activity, Gauge, Sparkles, Tag, Apple, ExternalLink, X, CloudDownload, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { showSuccess } from '@/utils/toast';
 import { Badge } from '@/components/ui/badge';
@@ -30,12 +30,12 @@ const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song, isPlaying, on
   const currentPref = song.key_preference || globalPreference;
   const displayKey = formatKey(song.targetKey || song.originalKey, currentPref);
 
-  const isProcessing = song.extraction_status === 'processing' || song.extraction_status === 'queued'; // NEW: Check for queued status
-  const isExtractionFailed = song.extraction_status === 'failed'; // NEW: Check for failed status
+  const isProcessing = song.extraction_status === 'processing' || song.extraction_status === 'queued';
+  const isExtractionFailed = song.extraction_status === 'failed';
 
   return (
     <div className="sticky top-0 z-20 mb-6 animate-in slide-in-from-top duration-500">
-      <div className="bg-slate-900 rounded-[2rem] shadow-2xl overflow-hidden border-4 border-indigo-600/20">
+      <div className="bg-card rounded-[2rem] shadow-2xl overflow-hidden border-4 border-indigo-600/20">
         <div className="bg-indigo-600 px-6 py-2 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Activity className="w-4 h-4 text-indigo-200 animate-pulse" />
@@ -57,7 +57,7 @@ const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song, isPlaying, on
           </div>
         </div>
         
-        <div className="p-8 flex items-center justify-between gap-8 bg-gradient-to-br from-slate-900 to-indigo-950/30">
+        <div className="p-8 flex items-center justify-between gap-8 bg-gradient-to-br from-card to-indigo-950/30">
           <div className="flex items-center gap-6 min-w-0">
             <Button 
               onClick={onTogglePlayback}
@@ -70,11 +70,11 @@ const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song, isPlaying, on
               )}
             </Button>
             <div className="min-w-0">
-              <h2 className="text-3xl font-black text-white uppercase tracking-tighter truncate leading-none">
+              <h2 className="text-3xl font-black text-foreground uppercase tracking-tighter truncate leading-none">
                 {song.name}
               </h2>
               <div className="flex items-center gap-3 mt-2">
-                <span className="text-sm font-bold text-slate-400 uppercase tracking-wider">{song.artist || "Unknown Artist"}</span>
+                <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider">{song.artist || "Unknown Artist"}</span>
                 <div className="w-1.5 h-1.5 rounded-full bg-slate-700" />
                 <span className="text-sm font-mono font-bold text-indigo-400 bg-indigo-400/10 px-2 rounded">{displayKey}</span>
                 {isProcessing && <CloudDownload className="w-4 h-4 text-indigo-300 animate-bounce" />}
@@ -87,26 +87,26 @@ const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song, isPlaying, on
           </div>
 
           <div className="flex items-center gap-10 shrink-0">
-            <div className="flex gap-8 border-l border-white/5 pl-8">
+            <div className="flex gap-8 border-l border-border/5 pl-8">
               <div className="flex flex-col items-center">
-                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1.5 font-mono">
+                <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1 flex items-center gap-1.5 font-mono">
                   <Gauge className="w-3 h-3" /> Tempo
                 </span>
-                <span className="text-xl font-black text-white font-mono">{song.bpm || "--"} <span className="text-[10px] text-slate-500">BPM</span></span>
+                <span className="text-xl font-black text-foreground font-mono">{song.bpm || "--"} <span className="text-[10px] text-muted-foreground">BPM</span></span>
               </div>
 
               <div className="flex flex-col items-center">
-                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1.5 font-mono">
+                <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1 flex items-center gap-1.5 font-mono">
                   <Sparkles className="w-3 h-3" /> Vibe
                 </span>
-                <span className="text-xl font-black text-white font-mono uppercase truncate max-w-[120px]">{song.genre || "Standard"}</span>
+                <span className="text-xl font-black text-foreground font-mono uppercase truncate max-w-[120px]">{song.genre || "Standard"}</span>
               </div>
 
               <div className="flex flex-col items-center">
-                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1.5 font-mono">
+                <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1 flex items-center gap-1.5 font-mono">
                   <Activity className="w-3 h-3" /> Pitch
                 </span>
-                <span className="text-xl font-black text-white font-mono">{song.pitch > 0 ? '+' : ''}{song.pitch} <span className="text-[10px] text-slate-500">ST</span></span>
+                <span className="text-xl font-black text-foreground font-mono">{song.pitch > 0 ? '+' : ''}{song.pitch} <span className="text-[10px] text-muted-foreground">ST</span></span>
               </div>
             </div>
 

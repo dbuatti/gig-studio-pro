@@ -31,26 +31,26 @@ interface SetlistExporterProps {
   songs: SetlistSong[];
   onAutoLink?: () => Promise<void>;
   onGlobalAutoSync?: () => Promise<void>;
-  onBulkRefreshAudio?: () => Promise<void>; // This will now queue extraction
+  onBulkRefreshAudio?: () => Promise<void>;
   onClearAutoLinks?: () => Promise<void>;
-  isBulkDownloading?: boolean; // Renamed from isBulkDownloading to isQueuingBulkExtraction
+  isBulkDownloading?: boolean;
   missingAudioCount?: number;
-  onOpenAdmin?: () => void; // Fixed: Added onOpenAdmin prop
+  onOpenAdmin?: () => void;
 }
 
 const SetlistExporter: React.FC<SetlistExporterProps> = ({ 
   songs, 
   onAutoLink, 
   onGlobalAutoSync,
-  onBulkRefreshAudio, // This will now queue extraction
+  onBulkRefreshAudio,
   onClearAutoLinks,
-  isBulkDownloading, // Use new state variable
+  isBulkDownloading,
   missingAudioCount = 0,
-  onOpenAdmin // Destructure new prop
+  onOpenAdmin
 }) => {
   const [isLinking, setIsLinking] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false); // This state is for the "Force Refresh All Audio" in dropdown
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
 
   const isMissingLink = (url?: string) => {
@@ -95,27 +95,27 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
   };
 
   return (
-    <div className="bg-slate-900 p-6 rounded-[2rem] border border-white/10 shadow-sm flex flex-col justify-center gap-4 transition-transform hover:scale-[1.02]">
+    <div className="bg-card p-6 rounded-[2rem] border border-border shadow-sm flex flex-col justify-center gap-4 transition-transform hover:scale-[1.02]">
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center text-indigo-600">
             <Wand2 className="w-4 h-4" />
           </div>
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Automation Hub</p>
+          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Automation Hub</p>
         </div>
         
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 rounded-lg">
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground rounded-lg">
               <Settings2 className="w-4 h-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 bg-slate-950 border-white/10 text-white rounded-xl">
-            <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-slate-500">Maintenance Tools</DropdownMenuLabel>
-            <DropdownMenuSeparator className="bg-white/5" />
+          <DropdownMenuContent align="end" className="w-56 bg-popover border-border text-foreground rounded-xl">
+            <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Maintenance Tools</DropdownMenuLabel>
+            <DropdownMenuSeparator className="bg-border" />
             <DropdownMenuItem 
-              onClick={() => onOpenAdmin?.()} // Direct to Admin Panel for full refresh
-              className="text-red-400 focus:text-red-400 focus:bg-red-500/10 cursor-pointer"
+              onClick={() => onOpenAdmin?.()}
+              className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"
             >
               <RefreshCcw className="w-4 h-4 mr-2" /> Force Refresh All Audio
             </DropdownMenuItem>
@@ -139,7 +139,7 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
           disabled={isSyncing || songs.length === 0}
           className={cn(
             "h-9 w-full justify-start text-[10px] font-black uppercase tracking-widest rounded-xl gap-3 relative overflow-hidden transition-all",
-            isSyncing ? "bg-purple-50 text-purple-600" : "text-purple-600 hover:bg-purple-50"
+            isSyncing ? "bg-purple-50 text-purple-600" : "text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20"
           )}
         >
           {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
@@ -158,7 +158,7 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
                   disabled={isLinking || missingMetadataCount === 0}
                   className={cn(
                     "h-9 w-full justify-start text-[10px] font-black uppercase tracking-widest rounded-xl gap-3 relative overflow-hidden transition-all",
-                    isLinking ? "bg-indigo-50 text-indigo-400" : "text-indigo-600 hover:bg-indigo-50"
+                    isLinking ? "bg-indigo-50 text-indigo-400" : "text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
                   )}
                 >
                   {isLinking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Youtube className="w-4 h-4" />}
@@ -167,7 +167,7 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
               </div>
             </TooltipTrigger>
             {missingMetadataCount === 0 && (
-              <TooltipContent className="bg-slate-900 text-white border-white/10 text-[10px] font-black uppercase">
+              <TooltipContent className="bg-popover text-foreground border-border text-[10px] font-black uppercase">
                 All songs already have links bound.
               </TooltipContent>
             )}
@@ -178,9 +178,9 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
         <Button 
           variant="ghost" 
           size="sm" 
-          onClick={onBulkRefreshAudio} // This now queues extraction
-          disabled={isBulkDownloading || missingAudioCount === 0} // Use new state variable
-          className="h-9 justify-start text-[10px] font-black uppercase tracking-widest text-emerald-600 hover:bg-emerald-50 rounded-xl gap-3 relative overflow-hidden"
+          onClick={onBulkRefreshAudio}
+          disabled={isBulkDownloading || missingAudioCount === 0}
+          className="h-9 justify-start text-[10px] font-black uppercase tracking-widest text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-xl gap-3 relative overflow-hidden"
         >
           {isBulkDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
           Queue Audio ({missingAudioCount} Missing)

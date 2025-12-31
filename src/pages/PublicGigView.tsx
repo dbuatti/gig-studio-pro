@@ -62,7 +62,7 @@ const PublicGigView = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center">
         <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
       </div>
     );
@@ -70,13 +70,13 @@ const PublicGigView = () => {
 
   if (!gigSession || !setlist) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-8 text-center">
-        <div className="bg-slate-900 p-12 rounded-[3rem] border border-white/5 space-y-6 max-w-md">
-          <div className="bg-red-500/10 w-16 h-16 rounded-2xl flex items-center justify-center text-red-500 mx-auto">
+      <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-8 text-center">
+        <div className="bg-card p-12 rounded-[3rem] border border-border space-y-6 max-w-md">
+          <div className="bg-destructive/10 w-16 h-16 rounded-2xl flex items-center justify-center text-destructive mx-auto">
             <Calendar className="w-8 h-8" />
           </div>
           <h1 className="text-3xl font-black uppercase tracking-tight">Code Expired</h1>
-          <p className="text-slate-500 font-medium">This gig code is no longer active or was entered incorrectly.</p>
+          <p className="text-muted-foreground font-medium">This gig code is no longer active or was entered incorrectly.</p>
           <Button onClick={() => navigate('/gig')} className="w-full bg-indigo-600 h-14 rounded-2xl font-black uppercase tracking-widest">Try Another Code</Button>
         </div>
       </div>
@@ -84,14 +84,14 @@ const PublicGigView = () => {
   }
 
   const songs = (setlist.songs as SetlistSong[]) || [];
-  const colors = performer?.custom_colors || { primary: '#4f46e5', background: '#020617', text: '#ffffff', border: '#4f46e5' };
+  const colors = performer?.custom_colors || { primary: 'hsl(var(--primary))', background: 'hsl(var(--background))', text: 'hsl(var(--foreground))', border: 'hsl(var(--border))' };
 
   return (
     <div 
       className="min-h-screen font-sans selection:bg-indigo-500/30 flex flex-col"
       style={{ backgroundColor: colors.background, color: colors.text }}
     >
-      <header className="px-6 py-12 md:py-20 text-center relative overflow-hidden border-b border-white/5">
+      <header className="px-6 py-12 md:py-20 text-center relative overflow-hidden border-b border-border">
         <div 
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] blur-[120px] opacity-20 pointer-events-none rounded-full"
           style={{ background: colors.primary }}
@@ -100,13 +100,13 @@ const PublicGigView = () => {
         <div className="max-w-4xl mx-auto relative z-10 space-y-8">
           <div className="flex flex-col items-center gap-6">
             <div 
-              className="w-24 h-24 md:w-32 md:h-32 rounded-full border-4 flex items-center justify-center overflow-hidden bg-slate-800 shadow-2xl"
+              className="w-24 h-24 md:w-32 md:h-32 rounded-full border-4 flex items-center justify-center overflow-hidden bg-secondary shadow-2xl"
               style={{ borderColor: colors.border }}
             >
               {performer?.avatar_url ? (
                 <img src={performer.avatar_url} className="w-full h-full object-cover" />
               ) : (
-                <User className="w-12 h-12 text-slate-700" />
+                <User className="w-12 h-12 text-muted-foreground" />
               )}
             </div>
             <div className="space-y-2">
@@ -115,7 +115,7 @@ const PublicGigView = () => {
               </h1>
               <div className="flex items-center justify-center gap-3">
                 <span 
-                  className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/10"
+                  className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-border"
                   style={{ backgroundColor: `${colors.primary}20`, color: colors.primary }}
                 >
                   Code: {code}
@@ -124,7 +124,7 @@ const PublicGigView = () => {
             </div>
           </div>
 
-          <div className="bg-black/20 backdrop-blur-md rounded-[2.5rem] p-6 md:p-8 border border-white/5 inline-flex flex-col items-center gap-2">
+          <div className="bg-card/20 backdrop-blur-md rounded-[2.5rem] p-6 md:p-8 border border-border inline-flex flex-col items-center gap-2">
             <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight">{setlist.name}</h2>
             <p className="text-sm font-medium opacity-60">Tonight's Official Set Selection</p>
           </div>
@@ -142,7 +142,7 @@ const PublicGigView = () => {
             {songs.map((song, idx) => (
               <div 
                 key={song.id}
-                className="group relative p-6 rounded-[1.5rem] bg-white/5 border border-white/5 hover:bg-white/10 transition-all flex items-center justify-between"
+                className="group relative p-6 rounded-[1.5rem] bg-card/5 border border-border hover:bg-card/10 transition-all flex items-center justify-between"
               >
                 <div className="flex items-center gap-5 min-w-0">
                   <span className="text-lg font-mono font-black opacity-20 w-8">
@@ -160,7 +160,7 @@ const PublicGigView = () => {
                 
                 {song.genre && (
                   <span 
-                    className="hidden sm:inline-block text-[8px] font-black uppercase px-2 py-1 rounded-md border border-white/5"
+                    className="hidden sm:inline-block text-[8px] font-black uppercase px-2 py-1 rounded-md border border-border"
                     style={{ color: colors.primary, borderColor: `${colors.primary}20` }}
                   >
                     {song.genre}
@@ -172,7 +172,7 @@ const PublicGigView = () => {
         </div>
       </main>
 
-      <footer className="py-12 border-t border-white/5 mt-auto">
+      <footer className="py-12 border-t border-border mt-auto">
         <div className="text-center space-y-6">
           <div className="flex items-center justify-center gap-2">
             <Waves className="w-5 h-5" style={{ color: colors.primary }} />
