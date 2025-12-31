@@ -22,8 +22,9 @@ interface UGChordsReaderProps {
   isPlaying: boolean;
   progress: number;
   duration: number;
-  chordAutoScrollEnabled: boolean;
-  chordScrollSpeed: number;
+  // Removed auto-scroll props
+  // chordAutoScrollEnabled: boolean;
+  // chordScrollSpeed: number;
   readerKeyPreference?: 'sharps' | 'flats';
 }
 
@@ -36,8 +37,9 @@ const UGChordsReader = React.memo(({
   isPlaying,
   progress,
   duration,
-  chordAutoScrollEnabled,
-  chordScrollSpeed,
+  // Removed auto-scroll props
+  // chordAutoScrollEnabled,
+  // chordScrollSpeed,
   readerKeyPreference,
 }: UGChordsReaderProps) => {
   const { keyPreference: globalKeyPreference } = useSettings();
@@ -45,9 +47,10 @@ const UGChordsReader = React.memo(({
   
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLPreElement>(null);
-  const isUserScrolling = useRef(false);
-  const scrollTimeoutRef = useRef<NodeJS.Timeout>();
-  const autoScrollRaf = useRef<number | null>(null);
+  // Removed auto-scroll refs
+  // const isUserScrolling = useRef(false);
+  // const scrollTimeoutRef = useRef<NodeJS.Timeout>();
+  // const autoScrollRaf = useRef<number | null>(null);
 
   const transposedChordsText = useMemo(() => {
     if (!chordsText) return chordsText;
@@ -71,6 +74,8 @@ const UGChordsReader = React.memo(({
     [transposedChordsText, config, readableChordColor]
   );
 
+  // Removed auto-scroll useEffects and event listeners
+  /*
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
@@ -139,6 +144,7 @@ const UGChordsReader = React.memo(({
       if (autoScrollRaf.current) cancelAnimationFrame(autoScrollRaf.current);
     };
   }, [progress, duration, chordAutoScrollEnabled, chordScrollSpeed, isPlaying]);
+  */
 
   return (
     <div 

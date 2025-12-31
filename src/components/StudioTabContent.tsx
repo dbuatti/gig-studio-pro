@@ -12,14 +12,14 @@ import YoutubeMediaManager from './YoutubeMediaManager';
 import { transposeKey } from '@/utils/keyUtils';
 import { cn } from '@/lib/utils';
 import { Youtube } from 'lucide-react';
-import { KeyPreference } from '@/hooks/use-settings'; // Import KeyPreference
+import { KeyPreference } from '@/hooks/use-settings';
 
 interface StudioTabContentProps {
   activeTab: 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library';
   song: SetlistSong | null;
   formData: Partial<SetlistSong>;
   handleAutoSave: (updates: Partial<SetlistSong>) => void;
-  onUpdateKey: (newTargetKey: string) => void; // Changed to accept only newTargetKey
+  onUpdateKey: (newTargetKey: string) => void;
   audioEngine: AudioEngineControls;
   isMobile: boolean;
   onLoadAudioFromUrl: (url: string, initialPitch: number) => Promise<void>;
@@ -46,9 +46,9 @@ interface StudioTabContentProps {
   duration: number;
   togglePlayback: () => void;
   stopPlayback: () => void;
-  // NEW: Chord auto-scroll props
-  chordAutoScrollEnabled: boolean;
-  chordScrollSpeed: number;
+  // Removed auto-scroll props
+  // chordAutoScrollEnabled: boolean;
+  // chordScrollSpeed: number;
 }
 
 const StudioTabContent: React.FC<StudioTabContentProps> = ({
@@ -83,9 +83,9 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
   duration,
   togglePlayback,
   stopPlayback,
-  // NEW: Chord auto-scroll props
-  chordAutoScrollEnabled,
-  chordScrollSpeed,
+  // Removed auto-scroll props
+  // chordAutoScrollEnabled,
+  // chordScrollSpeed,
 }) => {
   switch (activeTab) {
     case 'config':
@@ -108,7 +108,7 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
           isPlaying={isPlaying}
           progress={progress}
           duration={duration}
-          setProgress={audioEngine.setProgress} // Pass setProgress from audioEngine
+          setProgress={audioEngine.setProgress}
           togglePlayback={togglePlayback}
           stopPlayback={stopPlayback}
           isMobile={isMobile}
@@ -122,8 +122,8 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
           audioEngine={audioEngine}
           isMobile={isMobile}
           onLoadAudioFromUrl={onLoadAudioFromUrl}
-          onSave={handleAutoSave} // Pass handleAutoSave directly
-          onUpdateKey={setTargetKey} // Use setTargetKey from useHarmonicSync
+          onSave={handleAutoSave}
+          onUpdateKey={setTargetKey}
           transposeKey={transposeKey}
           // Pass harmonic sync props
           pitch={pitch}
@@ -153,12 +153,6 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
           activeChartType={activeChartType}
           setActiveChartType={setActiveChartType}
           handleUgPrint={handleUgPrint}
-          // NEW: Pass auto-scroll props
-          isPlaying={isPlaying}
-          progress={progress}
-          duration={duration}
-          chordAutoScrollEnabled={chordAutoScrollEnabled}
-          chordScrollSpeed={chordScrollSpeed}
           // Pass harmonic sync props to UGChordsEditor
           pitch={pitch}
           setPitch={setPitch}
@@ -185,7 +179,7 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
             song={song}
             formData={formData}
             handleAutoSave={handleAutoSave}
-            onOpenAdmin={() => {}} // Placeholder
+            onOpenAdmin={() => {}}
             onLoadAudioFromUrl={audioEngine.loadFromUrl}
             onSwitchTab={onSwitchTab}
           />

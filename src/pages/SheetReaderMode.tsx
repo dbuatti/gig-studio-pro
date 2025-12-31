@@ -80,9 +80,6 @@ const SheetReaderMode: React.FC = () => {
     isLoadingAudio
   } = audioEngine;
 
-  const [chordAutoScrollEnabled, setChordAutoScrollEnabled] = useState(true);
-  const [chordScrollSpeed, setChordScrollSpeed] = useState(1.0);
-
   const currentSong = allSongs[currentIndex];
 
   const harmonicSync = useHarmonicSync({
@@ -164,20 +161,6 @@ const SheetReaderMode: React.FC = () => {
   useEffect(() => {
     setAudioPitch(pitch);
   }, [pitch, setAudioPitch]);
-
-  // === Force harmonic sync when currentSong changes ===
-  // REMOVED: This useEffect was causing redundant and conflicting state updates.
-  // The useHarmonicSync hook is designed to manage its own state based on the formData prop.
-  /*
-  useEffect(() => {
-    if (currentSong) {
-      setTargetKey(currentSong.targetKey || currentSong.originalKey || 'C');
-      setPitch(currentSong.pitch ?? 0);
-      console.log(`[SheetReaderMode] currentSong changed: ${currentSong.name}, Original Key: ${currentSong.originalKey}, Target Key: ${currentSong.targetKey}, Pitch: ${currentSong.pitch}`);
-      console.log(`[SheetReaderMode] Harmonic Sync State after update: Target Key: ${harmonicTargetKey}, Pitch: ${pitch}`);
-    }
-  }, [currentSong, setTargetKey, setPitch, harmonicTargetKey, pitch]);
-  */
 
   const fetchSongs = useCallback(async () => {
     if (!user) return;
@@ -469,7 +452,7 @@ const SheetReaderMode: React.FC = () => {
       showSuccess(`Setlist "${targetSetlist.name}" updated.`);
     } catch (err: any) {
       console.error("[SheetReaderMode] Failed to update setlist songs:", err);
-      showError(`Failed to update setlist: ${err.message}`);
+      showError("Failed to load all setlists.");
     }
   }, [allSetlists]);
 
@@ -520,8 +503,6 @@ const SheetReaderMode: React.FC = () => {
             isPlaying={isPlaying}
             progress={progress}
             duration={duration}
-            chordAutoScrollEnabled={chordAutoScrollEnabled}
-            chordScrollSpeed={chordScrollSpeed}
             readerKeyPreference={readerKeyPreference}
           />
         );
@@ -590,7 +571,7 @@ const SheetReaderMode: React.FC = () => {
         </Button>
       </div>
     );
-  }, [forceReaderResource, ignoreConfirmedGate, navigate, harmonicTargetKey, isFramable, setIsStudioModalOpen, isPlaying, progress, duration, chordAutoScrollEnabled, chordScrollSpeed, readerKeyPreference]);
+  }, [forceReaderResource, ignoreConfirmedGate, navigate, harmonicTargetKey, isFramable, setIsStudioModalOpen, isPlaying, progress, duration, readerKeyPreference]);
 
   useEffect(() => {
     if (!currentSong) {
@@ -723,8 +704,6 @@ const SheetReaderMode: React.FC = () => {
           onSearchClick={() => setIsStudioModalOpen(true)}
           onPrevSong={handlePrev}
           onNextSong={handleNext}
-          currentSongIndex={currentIndex}
-          totalSongs={allSongs.length}
           isLoading={!currentSong}
           keyPreference={globalKeyPreference}
           onUpdateKey={handleUpdateKey}
@@ -822,10 +801,6 @@ const SheetReaderMode: React.FC = () => {
             volume={volume}
             setVolume={setVolume}
             keyPreference={globalKeyPreference}
-            chordAutoScrollEnabled={chordAutoScrollEnabled}
-            setChordAutoScrollEnabled={setChordAutoScrollEnabled}
-            chordScrollSpeed={chordScrollSpeed}
-            setChordScrollSpeed={setChordScrollSpeed}
             isLoadingAudio={isLoadingAudio}
           />
         )}

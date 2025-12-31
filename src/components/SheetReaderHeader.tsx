@@ -16,8 +16,6 @@ interface SheetReaderHeaderProps {
   onSearchClick: () => void;
   onPrevSong: () => void;
   onNextSong: () => void;
-  currentSongIndex: number;
-  totalSongs: number;
   isLoading: boolean;
   keyPreference: KeyPreference;
   onUpdateKey: (newTargetKey: string) => void;

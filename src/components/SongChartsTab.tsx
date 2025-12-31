@@ -8,7 +8,7 @@ import { showError, showSuccess } from '@/utils/toast';
 import UGChordsEditor from './UGChordsEditor';
 import UGChordsReader from './UGChordsReader';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
-import { KeyPreference } from '@/hooks/use-settings'; // Import KeyPreference
+import { KeyPreference } from '@/hooks/use-settings';
 
 interface SongChartsTabProps {
   formData: Partial<SetlistSong>;
@@ -19,12 +19,6 @@ interface SongChartsTabProps {
   activeChartType: 'pdf' | 'leadsheet' | 'web' | 'ug';
   setActiveChartType: (type: 'pdf' | 'leadsheet' | 'web' | 'ug') => void;
   handleUgPrint: () => void;
-  // Auto-scroll props are no longer passed to UGChordsReader, but kept here if needed elsewhere in SongChartsTab
-  isPlaying: boolean;
-  progress: number;
-  duration: number;
-  chordAutoScrollEnabled: boolean;
-  chordScrollSpeed: number;
   // Harmonic Sync Props
   pitch: number;
   setPitch: (pitch: number) => void;
@@ -43,12 +37,6 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
   activeChartType,
   setActiveChartType,
   handleUgPrint,
-  // Auto-scroll props are no longer passed to UGChordsReader, but kept here if needed elsewhere in SongChartsTab
-  isPlaying,
-  progress,
-  duration,
-  chordAutoScrollEnabled,
-  chordScrollSpeed,
   // Harmonic Sync Props
   pitch,
   setPitch,
@@ -82,7 +70,6 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
     return isFramable(currentChartUrl);
   }, [activeChartType, formData.ugUrl, currentChartUrl, isFramable]);
 
-  // Auto-switch to UG tab if UG URL is saved and no PDF is present
   React.useEffect(() => {
     if (formData.ugUrl && !formData.pdfUrl && activeChartType !== 'ug') {
       setActiveChartType('ug');
@@ -162,12 +149,11 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
                 config={formData.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
                 isMobile={isMobile}
                 originalKey={formData.originalKey}
-                targetKey={targetKey} // Use targetKey from hook
-                isPlaying={isPlaying}
-                progress={progress}
-                duration={duration}
-                chordAutoScrollEnabled={chordAutoScrollEnabled}
-                chordScrollSpeed={chordScrollSpeed}
+                targetKey={targetKey}
+                // Removed auto-scroll props
+                isPlaying={false} // Pass a default value
+                progress={0} // Pass a default value
+                duration={0} // Pass a default value
               />
             ) : currentChartUrl ? (
               canEmbedUg ? (

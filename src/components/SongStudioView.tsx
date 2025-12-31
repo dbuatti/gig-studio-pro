@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useToneAudio } from '@/hooks/use-tone-audio';
+import { useSettings } from '@/hooks/use-settings';
 import { SetlistSong, Setlist } from '@/components/SetlistManager'; // Import Setlist
 import { syncToMasterRepertoire } from '@/utils/repertoireSync';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
@@ -18,7 +19,6 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useKeyboardNavigation } from '@/hooks/use-keyboard-navigation';
 import SetlistMultiSelector from './SetlistMultiSelector';
-import { useSettings } from '@/hooks/use-settings';
 import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
 import { extractKeyFromChords } from '@/utils/chordUtils';
 
@@ -54,7 +54,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   const isMobile = useIsMobile();
   const { user } = useAuth();
   const { keyPreference: globalKeyPreference } = useSettings();
-  const audio = useToneAudio(true);
+  const audio = useToneAudio();
   
   const [song, setSong] = useState<SetlistSong | null>(null);
   const [formData, setFormData] = useState<Partial<SetlistSong>>({});
@@ -63,8 +63,9 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   const [isVerifying, setIsVerifying] = useState(false);
   const [activeChartType, setActiveChartType] = useState<'pdf' | 'leadsheet' | 'web' | 'ug'>('pdf');
   
-  const [chordAutoScrollEnabled, setChordAutoScrollEnabled] = useState(true);
-  const [chordScrollSpeed, setChordScrollSpeed] = useState(1.0);
+  // Removed auto-scroll states
+  // const [chordAutoScrollEnabled, setChordAutoScrollEnabled] = useState(true);
+  // const [chordScrollSpeed, setChordScrollSpeed] = useState(1.0);
   
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
   const lastPendingUpdatesRef = useRef<Partial<SetlistSong>>({});
@@ -327,8 +328,6 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           duration={audio.duration}
           togglePlayback={audio.togglePlayback}
           stopPlayback={audio.stopPlayback}
-          chordAutoScrollEnabled={chordAutoScrollEnabled}
-          chordScrollSpeed={chordScrollSpeed}
         />
       </div>
     </div>

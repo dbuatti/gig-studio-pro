@@ -25,12 +25,7 @@ interface SheetReaderFooterProps {
   volume: number;
   setVolume: (value: number) => void;
   keyPreference: KeyPreference;
-  // NEW: Auto-scroll props
-  chordAutoScrollEnabled: boolean;
-  setChordAutoScrollEnabled: (enabled: boolean) => void;
-  chordScrollSpeed: number;
-  setChordScrollSpeed: (speed: number) => void;
-  isLoadingAudio: boolean; // NEW PROP
+  isLoadingAudio: boolean;
 }
 
 const SheetReaderFooter: React.FC<SheetReaderFooterProps> = ({
@@ -47,12 +42,7 @@ const SheetReaderFooter: React.FC<SheetReaderFooterProps> = ({
   volume,
   setVolume,
   keyPreference,
-  // NEW: Auto-scroll props
-  chordAutoScrollEnabled,
-  setChordAutoScrollEnabled,
-  chordScrollSpeed,
-  setChordScrollSpeed,
-  isLoadingAudio, // Destructure new prop
+  isLoadingAudio,
 }) => {
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -103,38 +93,6 @@ const SheetReaderFooter: React.FC<SheetReaderFooterProps> = ({
       </div>
 
       <div className="flex items-center gap-6">
-        {/* NEW: Chord Auto-Scroll Controls */}
-        {currentSong?.ug_chords_text && (
-          <div className="flex items-center gap-4 bg-white/5 p-2 rounded-xl border border-white/10">
-            <div className="flex flex-col items-center">
-              <Label htmlFor="chord-autoscroll" className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1.5 font-mono">
-                <Guitar className="w-3 h-3" /> Auto-Scroll
-              </Label>
-              <Switch 
-                id="chord-autoscroll" 
-                checked={chordAutoScrollEnabled} 
-                onCheckedChange={setChordAutoScrollEnabled}
-                className="data-[state=checked]:bg-indigo-600"
-              />
-            </div>
-            
-            <div className="flex flex-col items-center">
-              <Label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1.5 font-mono">
-                Speed
-              </Label>
-              <Slider 
-                value={[chordScrollSpeed]} 
-                min={0.5} 
-                max={2.0} 
-                step={0.05} 
-                onValueChange={([v]) => setChordScrollSpeed(v)} 
-                className="w-20"
-                disabled={!chordAutoScrollEnabled}
-              />
-              <span className="text-[10px] font-mono font-bold text-slate-500 mt-1">{chordScrollSpeed.toFixed(2)}x</span>
-            </div>
-          </div>
-        )}
         
         <div className="flex flex-col items-center">
           <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1.5 font-mono">
