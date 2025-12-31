@@ -30,8 +30,8 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({
   const totalMetadataVerifiedSongs = songs.filter(song => song.isMetadataConfirmed).length;
 
   const totalSeconds = approvedSongs.reduce((acc, song) => {
-    const isItunes = song.previewUrl?.includes('apple.com') || song.previewUrl?.includes('itunes-assets');
-    const hasFullAudio = !!song.previewUrl && !isItunes;
+    // FIX: Use song.audio_url to determine if it has full audio
+    const hasFullAudio = !!song.audio_url;
     if (hasFullAudio) {
       return acc + (song.duration_seconds || 210);
     }
@@ -44,7 +44,8 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({
     return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
   };
 
-  const readinessPercent = totalApprovedSongs > 0 ? (approvedSongs.filter(s => s.previewUrl && !s.previewUrl.includes('apple.com')).length / totalApprovedSongs) * 100 : 0;
+  // FIX: Use song.audio_url for readiness percentage calculation
+  const readinessPercent = totalApprovedSongs > 0 ? (approvedSongs.filter(s => !!s.audio_url).length / totalApprovedSongs) * 100 : 0;
   
   const goalProgress = goalSeconds > 0 ? (totalSeconds / goalSeconds) * 100 : 0;
   const remainingSeconds = Math.max(0, goalSeconds - totalSeconds);
