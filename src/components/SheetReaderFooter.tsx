@@ -71,19 +71,18 @@ const SheetReaderFooter: React.FC<SheetReaderFooterProps> = ({
         
         <Button 
           onClick={onTogglePlayback} 
-          disabled={isLoadingAudio} // Disable button when loading
+          disabled={isLoadingAudio}
           className={cn(
-            "h-14 w-14 rounded-full shadow-2xl transition-all hover:scale-105 active:scale-95",
-            isPlaying 
-              ? "bg-red-600 hover:bg-red-700 shadow-red-600/30" 
-              : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/30",
-            isLoadingAudio && "opacity-50 cursor-not-allowed" // Style when loading
+            "h-14 w-14 rounded-full shadow-2xl transition-all hover:scale-105 active:scale-95 flex items-center justify-center",
+            isLoadingAudio ? "bg-slate-600 cursor-not-allowed" : isPlaying ? "bg-red-600 hover:bg-red-700 shadow-red-600/20" : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20"
           )}
         >
-          {isLoadingAudio ? ( // Show spinner when loading
+          {isLoadingAudio ? (
             <Loader2 className="w-7 h-7 animate-spin text-white" />
+          ) : isPlaying ? (
+            <Pause className="w-7 h-7 text-white fill-current" />
           ) : (
-            isPlaying ? <Pause className="w-7 h-7 text-white" /> : <Play className="w-7 h-7 ml-1 text-white" />
+            <Play className="w-7 h-7 text-white fill-current ml-1" />
           )}
         </Button>
       </div>

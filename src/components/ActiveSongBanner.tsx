@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { SetlistSong } from './SetlistManager';
-import { Music, Youtube, Copy, Play, Pause, Activity, Gauge, Sparkles, Tag, Apple, ExternalLink, X, CloudDownload, AlertTriangle } from 'lucide-react';
+import { Music, Youtube, Copy, Play, Pause, Activity, Gauge, Sparkles, Tag, Apple, ExternalLink, X, CloudDownload, AlertTriangle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { showSuccess } from '@/utils/toast';
 import { Badge } from '@/components/ui/badge';
@@ -14,9 +14,10 @@ interface ActiveSongBannerProps {
   isPlaying?: boolean;
   onTogglePlayback?: () => void;
   onClear?: () => void;
+  isLoadingAudio?: boolean; // NEW PROP
 }
 
-const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song, isPlaying, onTogglePlayback, onClear }) => {
+const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song, isPlaying, onTogglePlayback, onClear, isLoadingAudio }) => {
   const { keyPreference: globalPreference } = useSettings();
   if (!song) return null;
 
@@ -61,9 +62,15 @@ const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song, isPlaying, on
           <div className="flex items-center gap-6 min-w-0">
             <Button 
               onClick={onTogglePlayback}
-              className="h-16 w-16 bg-indigo-600 hover:bg-indigo-700 rounded-2xl flex items-center justify-center shrink-0 shadow-lg shadow-indigo-600/20 p-0 transition-all active:scale-95"
+              disabled={isLoadingAudio}
+              className={cn(
+                "h-16 w-16 rounded-2xl flex items-center justify-center shrink-0 shadow-lg transition-all active:scale-95",
+                isLoadingAudio ? "bg-slate-600 cursor-not-allowed" : isPlaying ? "bg-red-600 hover:bg-red-700 shadow-red-600/20" : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20"
+              )}
             >
-              {isPlaying ? (
+              {isLoadingAudio ? (
+                <Loader2 className="w-8 h-8 animate-spin text-white" />
+              ) : isPlaying ? (
                 <Pause className="w-8 h-8 text-white fill-current" />
               ) : (
                 <Play className="w-8 h-8 text-white fill-current ml-1" />

@@ -204,6 +204,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
       if (targetSong.audio_url || targetSong.previewUrl) {
         const urlToLoad = targetSong.audio_url || targetSong.previewUrl;
         console.log("[SongStudioView] fetchData: Loading audio from URL:", urlToLoad);
+        // FIX: Pass the pitch from the song data to loadFromUrl
         await audio.loadFromUrl(urlToLoad, targetSong.pitch ?? 0, true);
       }
       console.log("[SongStudioView] fetchData: Fetch successful for songId:", songId);

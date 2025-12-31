@@ -5,7 +5,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { SetlistSong } from '@/components/SetlistManager';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/button'; // Fixed: Corrected import syntax
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Music, Loader2, AlertCircle, X, Settings, ExternalLink, ShieldCheck, FileText, Layout, Guitar, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -21,6 +21,7 @@ import PreferencesModal from '@/components/PreferencesModal';
 import SongStudioModal from '@/components/SongStudioModal';
 import SheetReaderHeader from '@/components/SheetReaderHeader';
 import SheetReaderFooter from '@/components/SheetReaderFooter';
+import SheetReaderSidebar from '@/components/SheetReaderSidebar'; // NEW: Import Sidebar
 import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
 import { motion } from 'framer-motion';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -55,6 +56,7 @@ const SheetReaderMode: React.FC = () => {
   const [isImmersive, setIsImmersive] = useState(false);
   const [isStudioModalOpen, setIsStudioModalOpen] = useState(false);
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // NEW: Sidebar state
 
   const [readerKeyPreference, setReaderKeyPreference] = useState<'sharps' | 'flats'>(globalKeyPreference);
 
@@ -99,40 +101,41 @@ const SheetReaderMode: React.FC = () => {
       const dbUpdates: { [key: string]: any } = {};
       
       // Explicitly map SetlistSong properties to repertoire table columns
-      if (updates.name !== undefined) dbUpdates.title = updates.name;
-      if (updates.artist !== undefined) dbUpdates.artist = updates.artist;
-      if (updates.previewUrl !== undefined) dbUpdates.preview_url = updates.previewUrl;
-      if (updates.youtubeUrl !== undefined) dbUpdates.youtube_url = updates.youtubeUrl;
-      if (updates.ugUrl !== undefined) dbUpdates.ug_url = updates.ugUrl;
-      if (updates.appleMusicUrl !== undefined) dbUpdates.apple_music_url = updates.appleMusicUrl;
-      if (updates.pdfUrl !== undefined) dbUpdates.pdf_url = updates.pdfUrl;
-      if (updates.leadsheetUrl !== undefined) dbUpdates.leadsheet_url = updates.leadsheetUrl;
-      if (updates.originalKey !== undefined) dbUpdates.original_key = updates.originalKey; else dbUpdates.original_key = null;
-      if (updates.targetKey !== undefined) dbUpdates.target_key = updates.targetKey; else dbUpdates.target_key = null;
-      if (updates.pitch !== undefined) dbUpdates.pitch = updates.pitch; else dbUpdates.pitch = 0; // pitch is NOT NULL with default 0
-      if (updates.bpm !== undefined) dbUpdates.bpm = updates.bpm; else dbUpdates.bpm = null;
-      if (updates.genre !== undefined) dbUpdates.genre = updates.genre; else dbUpdates.genre = null;
-      if (updates.isMetadataConfirmed !== undefined) dbUpdates.is_metadata_confirmed = updates.isMetadataConfirmed; else dbUpdates.is_metadata_confirmed = false;
-      if (updates.isKeyConfirmed !== undefined) dbUpdates.is_key_confirmed = updates.isKeyConfirmed; else dbUpdates.is_key_confirmed = false;
-      if (updates.notes !== undefined) dbUpdates.notes = updates.notes; else dbUpdates.notes = null;
-      if (updates.lyrics !== undefined) dbUpdates.lyrics = updates.lyrics; else dbUpdates.lyrics = null;
-      if (updates.resources !== undefined) dbUpdates.resources = updates.resources; else dbUpdates.resources = [];
-      if (updates.user_tags !== undefined) dbUpdates.user_tags = updates.user_tags; else dbUpdates.user_tags = [];
-      if (updates.is_pitch_linked !== undefined) dbUpdates.is_pitch_linked = updates.is_pitch_linked; else dbUpdates.is_pitch_linked = true;
-      if (updates.duration_seconds !== undefined) dbUpdates.duration_seconds = Math.round(updates.duration_seconds || 0); else dbUpdates.duration_seconds = 0;
-      if (updates.is_active !== undefined) dbUpdates.is_active = updates.is_active; else dbUpdates.is_active = true;
-      if (updates.isApproved !== undefined) dbUpdates.is_approved = updates.isApproved; else dbUpdates.is_approved = false;
-      if (updates.preferred_reader !== undefined) dbUpdates.preferred_reader = updates.preferred_reader; else dbUpdates.preferred_reader = null;
-      if (updates.ug_chords_text !== undefined) dbUpdates.ug_chords_text = updates.ug_chords_text; else dbUpdates.ug_chords_text = null;
-      if (updates.ug_chords_config !== undefined) dbUpdates.ug_chords_config = updates.ug_chords_config; else dbUpdates.ug_chords_config = null; // Send null if not explicitly set
-      if (updates.is_ug_chords_present !== undefined) dbUpdates.is_ug_chords_present = updates.is_ug_chords_present; else dbUpdates.is_ug_chords_present = false;
-      if (updates.highest_note_original !== undefined) dbUpdates.highest_note_original = updates.highest_note_original; else dbUpdates.highest_note_original = null;
-      if (updates.metadata_source !== undefined) dbUpdates.metadata_source = updates.metadata_source; else dbUpdates.metadata_source = null;
-      if (updates.sync_status !== undefined) dbUpdates.sync_status = updates.sync_status; else dbUpdates.sync_status = 'IDLE';
-      if (updates.last_sync_log !== undefined) dbUpdates.last_sync_log = updates.last_sync_log; else dbUpdates.last_sync_log = null;
-      if (updates.auto_synced !== undefined) dbUpdates.auto_synced = updates.auto_synced; else dbUpdates.auto_synced = false;
-      if (updates.sheet_music_url !== undefined) dbUpdates.sheet_music_url = updates.sheet_music_url; else dbUpdates.sheet_music_url = null;
-      if (updates.is_sheet_verified !== undefined) dbUpdates.is_sheet_verified = updates.is_sheet_verified; else dbUpdates.is_sheet_verified = false;
+      if (updates.name !== undefined) dbUpdates.title = updates.name || 'Untitled Track'; // Ensure title is never null
+      if (updates.artist !== undefined) dbUpdates.artist = updates.artist || 'Unknown Artist'; // Ensure artist is never null
+      if (updates.previewUrl !== undefined) dbUpdates.preview_url = updates.previewUrl; else if (updates.previewUrl === null) dbUpdates.preview_url = null;
+      if (updates.youtubeUrl !== undefined) dbUpdates.youtube_url = updates.youtubeUrl; else if (updates.youtubeUrl === null) dbUpdates.youtube_url = null;
+      if (updates.ugUrl !== undefined) dbUpdates.ug_url = updates.ugUrl; else if (updates.ugUrl === null) dbUpdates.ug_url = null;
+      if (updates.appleMusicUrl !== undefined) dbUpdates.apple_music_url = updates.appleMusicUrl; else if (updates.appleMusicUrl === null) dbUpdates.apple_music_url = null;
+      if (updates.pdfUrl !== undefined) dbUpdates.pdf_url = updates.pdfUrl; else if (updates.pdfUrl === null) dbUpdates.pdf_url = null;
+      if (updates.leadsheetUrl !== undefined) dbUpdates.leadsheet_url = updates.leadsheetUrl; else if (updates.leadsheetUrl === null) dbUpdates.leadsheet_url = null;
+      if (updates.originalKey !== undefined) dbUpdates.original_key = updates.originalKey; else if (updates.originalKey === null) dbUpdates.original_key = null;
+      if (updates.targetKey !== undefined) dbUpdates.target_key = updates.targetKey; else if (updates.targetKey === null) dbUpdates.target_key = null;
+      if (updates.pitch !== undefined) dbUpdates.pitch = updates.pitch; else if (updates.pitch === null) dbUpdates.pitch = 0; // pitch is NOT NULL with default 0
+      if (updates.bpm !== undefined) dbUpdates.bpm = updates.bpm; else if (updates.bpm === null) dbUpdates.bpm = null;
+      if (updates.genre !== undefined) dbUpdates.genre = updates.genre; else if (updates.genre === null) dbUpdates.genre = null;
+      if (updates.isMetadataConfirmed !== undefined) dbUpdates.is_metadata_confirmed = updates.isMetadataConfirmed; else if (updates.isMetadataConfirmed === null) dbUpdates.is_metadata_confirmed = false;
+      if (updates.isKeyConfirmed !== undefined) dbUpdates.is_key_confirmed = updates.isKeyConfirmed; else if (updates.isKeyConfirmed === null) dbUpdates.is_key_confirmed = false;
+      if (updates.notes !== undefined) dbUpdates.notes = updates.notes; else if (updates.notes === null) dbUpdates.notes = null;
+      if (updates.lyrics !== undefined) dbUpdates.lyrics = updates.lyrics; else if (updates.lyrics === null) dbUpdates.lyrics = null;
+      if (updates.resources !== undefined) dbUpdates.resources = updates.resources; else if (updates.resources === null) dbUpdates.resources = [];
+      if (updates.user_tags !== undefined) dbUpdates.user_tags = updates.user_tags; else if (updates.user_tags === null) dbUpdates.user_tags = [];
+      if (updates.is_pitch_linked !== undefined) dbUpdates.is_pitch_linked = updates.is_pitch_linked; else if (updates.is_pitch_linked === null) dbUpdates.is_pitch_linked = true;
+      if (updates.duration_seconds !== undefined) dbUpdates.duration_seconds = Math.round(updates.duration_seconds || 0); else if (updates.duration_seconds === null) dbUpdates.duration_seconds = 0;
+      if (updates.is_active !== undefined) dbUpdates.is_active = updates.is_active; else if (updates.is_active === null) dbUpdates.is_active = true;
+      if (updates.isApproved !== undefined) dbUpdates.is_approved = updates.isApproved; else if (updates.isApproved === null) dbUpdates.is_approved = false;
+      if (updates.preferred_reader !== undefined) dbUpdates.preferred_reader = updates.preferred_reader; else if (updates.preferred_reader === null) dbUpdates.preferred_reader = null;
+      if (updates.ug_chords_text !== undefined) dbUpdates.ug_chords_text = updates.ug_chords_text; else if (updates.ug_chords_text === null) dbUpdates.ug_chords_text = null;
+      if (updates.ug_chords_config !== undefined) dbUpdates.ug_chords_config = updates.ug_chords_config; else if (updates.ug_chords_config === null) dbUpdates.ug_chords_config = null; // Send null if not explicitly set
+      if (updates.is_ug_chords_present !== undefined) dbUpdates.is_ug_chords_present = updates.is_ug_chords_present; else if (updates.is_ug_chords_present === null) dbUpdates.is_ug_chords_present = false;
+      if (updates.highest_note_original !== undefined) dbUpdates.highest_note_original = updates.highest_note_original; else if (updates.highest_note_original === null) dbUpdates.highest_note_original = null;
+      if (updates.metadata_source !== undefined) dbUpdates.metadata_source = updates.metadata_source; else if (updates.metadata_source === null) dbUpdates.metadata_source = null;
+      if (updates.sync_status !== undefined) dbUpdates.sync_status = updates.sync_status; else if (updates.sync_status === null) dbUpdates.sync_status = 'IDLE';
+      if (updates.last_sync_log !== undefined) dbUpdates.last_sync_log = updates.last_sync_log; else if (updates.last_sync_log === null) dbUpdates.last_sync_log = null;
+      if (updates.auto_synced !== undefined) dbUpdates.auto_synced = updates.auto_synced; else if (updates.auto_synced === null) dbUpdates.auto_synced = false;
+      if (updates.sheet_music_url !== undefined) dbUpdates.sheet_music_url = updates.sheet_music_url; else if (updates.sheet_music_url === null) dbUpdates.sheet_music_url = null;
+      if (updates.is_sheet_verified !== undefined) dbUpdates.is_sheet_verified = updates.is_sheet_verified; else if (updates.is_sheet_verified === null) dbUpdates.is_sheet_verified = false;
+      if (updates.extraction_status !== undefined) dbUpdates.extraction_status = updates.extraction_status; else if (updates.extraction_status === null) dbUpdates.extraction_status = 'idle'; // NEW: Default to 'idle'
       
       // Always update `updated_at`
       dbUpdates.updated_at = new Date().toISOString();
@@ -149,9 +152,12 @@ const SheetReaderMode: React.FC = () => {
         .then(({ error }) => {
           if (error) {
             console.error("[SheetReaderMode] Supabase Auto-save failed:", error);
-            if (error.message) console.error("Supabase Error Message:", error.message);
-            if (error.details) console.error("Supabase Error Details:", error.details);
-            showError('Auto-save failed');
+            // Check for RLS specific error message
+            if (error.message.includes("new row violates row-level-security")) {
+              showError("Database Security Error: You don't have permission to update this data. Check RLS policies.");
+            } else {
+              showError(`Failed to save: ${error.message}`);
+            }
           }
           else {
             setAllSongs(prev => prev.map(s =>
@@ -226,6 +232,8 @@ const SheetReaderMode: React.FC = () => {
         is_sheet_verified: d.is_sheet_verified,
         // FIX: Ensure highest_note_original is mapped
         highest_note_original: d.highest_note_original,
+        extraction_status: d.extraction_status, // NEW: Map extraction_status
+        last_sync_log: d.last_sync_log // NEW: Map last_sync_log
       }));
 
       const readableAndApprovedSongs = mappedSongs.filter(s => {
@@ -454,7 +462,7 @@ const SheetReaderMode: React.FC = () => {
       if (!isAlreadyInList) {
         const newSetlistSong: SetlistSong = {
           ...songToUpdate,
-          id: Math.random().toString(36).substr(2, 9), // Generate new ID for setlist entry
+          id: crypto.randomUUID(), // Generate new ID for setlist entry
           master_id: songToUpdate.master_id || songToUpdate.id,
           isPlayed: false,
           isApproved: false,
@@ -698,6 +706,14 @@ const SheetReaderMode: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentSong]);
 
+  // Fixed: Define handleSelectSongByIndex
+  const handleSelectSongByIndex = useCallback((index: number) => {
+    if (index >= 0 && index < allSongs.length) {
+      setCurrentIndex(index);
+      stopPlayback();
+    }
+  }, [allSongs.length, stopPlayback]);
+
   if (initialLoading) {
     return (
       <div className="h-screen bg-slate-950 flex items-center justify-center">
@@ -710,32 +726,45 @@ const SheetReaderMode: React.FC = () => {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-white">
-      <main className="flex-1 flex flex-col overflow-hidden">
-<SheetReaderHeader
-  currentSong={currentSong}
-  onClose={() => navigate('/')}
-  onSearchClick={() => setIsStudioModalOpen(true)}
-  onPrevSong={handlePrev}
-  onNextSong={handleNext}
-  currentSongIndex={currentIndex}
-  totalSongs={allSongs.length}
-  isLoading={!currentSong}
-  keyPreference={globalKeyPreference}
-  onUpdateKey={handleUpdateKey}
-  isFullScreen={isImmersive}
-  onToggleFullScreen={() => setIsImmersive(!isImmersive)}
-  setIsOverlayOpen={setIsOverlayOpen}
-  isOverrideActive={forceReaderResource !== 'default'}
-  pitch={pitch}
-  setPitch={setPitch}
-  readerKeyPreference={readerKeyPreference}
-  setReaderKeyPreference={setReaderKeyPreference}
-  onPullKey={handlePullKey}
-  
-  // ADD THESE TWO LINES:
-  isSidebarOpen={false}
-  onToggleSidebar={() => {}} // no-op, or optionally show a message
-/>
+      
+      {/* Sidebar */}
+      <motion.div
+        initial={{ x: isSidebarOpen ? 0 : -300 }}
+        animate={{ x: isSidebarOpen ? 0 : -300 }}
+        transition={{ duration: 0.3 }}
+        className="h-full w-[300px] shrink-0 z-50"
+      >
+        <SheetReaderSidebar 
+          songs={allSongs} 
+          currentIndex={currentIndex} 
+          onSelectSong={handleSelectSongByIndex} 
+        />
+      </motion.div>
+
+      <main className="flex-1 flex flex-col overflow-hidden relative">
+        <SheetReaderHeader
+          currentSong={currentSong}
+          onClose={() => navigate('/')}
+          onSearchClick={() => setIsStudioModalOpen(true)}
+          onPrevSong={handlePrev}
+          onNextSong={handleNext}
+          currentSongIndex={currentIndex}
+          totalSongs={allSongs.length}
+          isLoading={!currentSong}
+          keyPreference={globalKeyPreference}
+          onUpdateKey={handleUpdateKey}
+          isFullScreen={isImmersive}
+          onToggleFullScreen={() => setIsImmersive(!isImmersive)}
+          setIsOverlayOpen={setIsOverlayOpen}
+          isOverrideActive={forceReaderResource !== 'default'}
+          pitch={pitch}
+          setPitch={setPitch}
+          readerKeyPreference={readerKeyPreference}
+          setReaderKeyPreference={setReaderKeyPreference}
+          onPullKey={handlePullKey}
+          isSidebarOpen={isSidebarOpen}
+          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+        />
 
         {isOriginalKeyMissing && (
           <div className="fixed top-16 left-0 right-0 bg-red-950/30 border-b border-red-900/50 p-3 flex items-center justify-center gap-3 shrink-0 z-50 h-10">

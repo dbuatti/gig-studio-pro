@@ -23,7 +23,6 @@ interface StudioTabContentProps {
   audioEngine: AudioEngineControls;
   isMobile: boolean;
   onLoadAudioFromUrl: (url: string, initialPitch: number) => Promise<void>;
-  onOpenAdmin?: () => void;
   setPreviewPdfUrl: (url: string | null) => void;
   isFramable: (url: string | null) => boolean;
   activeChartType: 'pdf' | 'leadsheet' | 'web' | 'ug';
@@ -57,11 +56,10 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
   song,
   formData,
   handleAutoSave,
-  onUpdateKey, // This is now setTargetKey from useHarmonicSync
+  onUpdateKey,
   audioEngine,
   isMobile,
   onLoadAudioFromUrl,
-  onOpenAdmin,
   setPreviewPdfUrl,
   isFramable,
   activeChartType,
@@ -140,7 +138,7 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
       return (
         <SongDetailsTab 
           formData={formData} 
-          handleAutoSave={handleAutoSave} // Pass handleAutoSave directly
+          handleAutoSave={handleAutoSave} 
           isMobile={isMobile} 
         />
       );
@@ -161,7 +159,7 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
           duration={duration}
           chordAutoScrollEnabled={chordAutoScrollEnabled}
           chordScrollSpeed={chordScrollSpeed}
-          // Pass harmonic sync props to UGChordsEditor via SongChartsTab
+          // Pass harmonic sync props to UGChordsEditor
           pitch={pitch}
           setPitch={setPitch}
           targetKey={targetKey}
@@ -187,7 +185,7 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
             song={song}
             formData={formData}
             handleAutoSave={handleAutoSave}
-            onOpenAdmin={onOpenAdmin}
+            onOpenAdmin={() => {}} // Placeholder
             onLoadAudioFromUrl={audioEngine.loadFromUrl}
             onSwitchTab={onSwitchTab}
           />

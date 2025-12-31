@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useState, useRef, useMemo } from 'react';
-import * as Tone from 'tone';
+import React, { useState } from 'react';
 import { analyze } from 'web-audio-beat-detector';
-import { Music, Play, Pause, RotateCcw, Loader2, CloudDownload, AlertTriangle } from 'lucide-react'; // NEW: Import CloudDownload and AlertTriangle
+import { Music, Play, Pause, RotateCcw, Loader2, CloudDownload, AlertTriangle } from 'lucide-react';
 
 import { Button } from "@/components/ui/button";
 import { Slider } from '@/components/ui/slider';
@@ -15,7 +14,6 @@ import SongAnalysisTools from './SongAnalysisTools';
 import SongAudioControls from './SongAudioControls';
 import { SetlistSong } from './SetlistManager';
 import { AudioEngineControls } from '@/hooks/use-tone-audio';
-import { KeyPreference } from '@/hooks/use-settings'; // Import KeyPreference
 
 interface SongAudioPlaybackTabProps {
   song: SetlistSong | null;
@@ -23,8 +21,8 @@ interface SongAudioPlaybackTabProps {
   audioEngine: AudioEngineControls;
   isMobile: boolean;
   onLoadAudioFromUrl: (url: string, initialPitch: number) => Promise<void>;
-  onSave: (updates: Partial<SetlistSong>) => void; // Changed from (id: string, updates: Partial<SetlistSong>)
-  onUpdateKey: (newTargetKey: string) => void; // Changed to accept only newTargetKey
+  onSave: (updates: Partial<SetlistSong>) => void;
+  onUpdateKey: (newTargetKey: string) => void;
   transposeKey: (key: string, semitones: number) => string;
   // Harmonic Sync Props
   pitch: number;
@@ -41,8 +39,8 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
   audioEngine,
   isMobile,
   onLoadAudioFromUrl,
-  onSave, // Now expects (updates: Partial<SetlistSong>)
-  onUpdateKey, // This is now setTargetKey from useHarmonicSync
+  onSave,
+  onUpdateKey,
   transposeKey,
   // Harmonic Sync Props
   pitch,
@@ -56,14 +54,11 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
     isPlaying, progress, duration, analyzer, currentBuffer,
     setTempo, setVolume, setFineTune,
     setProgress, togglePlayback, stopPlayback,
+    isLoadingAudio, // Destructure isLoadingAudio
   } = audioEngine;
 
-  // --- State & Refs ---
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const metronomeSynth = useRef<Tone.MembraneSynth | null>(null);
-  const metronomeLoop = useRef<Tone.Loop | null>(null);
 
-  // --- Helpers ---
   const formatTime = (seconds: number) => 
     new Date(seconds * 1000).toISOString().substr(14, 5);
 
@@ -71,15 +66,13 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
   const audioSourceUrl = formData.extraction_status === 'completed' && formData.audio_url ? formData.audio_url : formData.previewUrl;
 
   const handleAutoSave = (updates: Partial<SetlistSong>) => {
-    // This component's handleAutoSave should call the onSave prop
-    // The parent (StudioTabContent/SongStudioModal) will handle the song.id
-    onSave(updates); 
+    onSave(updates);
   };
 
-  // --- Handlers ---
   const handleLoadAudio = async () => {
     if (!audioSourceUrl) return showError("No audio URL available.");
-    await onLoadAudioFromUrl(audioSourceUrl, pitch || 0); // Use pitch from useHarmonicSync
+    // Pass the current pitch from the harmonic sync hook
+    await onLoadAudioFromUrl(audioSourceUrl, pitch || 0);
   };
 
   const handleDetectBPM = async () => {
@@ -111,18 +104,20 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
             Real-time pitch and time-stretching engine active.
           </p>
         </div>
-        {isProcessing && (
-          <div className="flex items-center gap-2 text-indigo-400">
-            <CloudDownload className="w-4 h-4 animate-bounce" />
-            <span className="text-[9px] font-black uppercase">Extracting Audio...</span>
-          </div>
-        )}
-        {isExtractionFailed && (
-          <div className="flex items-center gap-2 text-red-400">
-            <AlertTriangle className="w-4 h-4" />
-            <span className="text-[9px] font-black uppercase">Extraction Failed</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {isProcessing && (
+            <div className="flex items-center gap-2 text-indigo-400">
+              <CloudDownload className="w-4 h-4 animate-bounce" />
+              <span className="text-[9px] font-black uppercase">Extracting Audio...</span>
+            </div>
+          )}
+          {isExtractionFailed && (
+            <div className="flex items-center gap-2 text-red-400">
+              <AlertTriangle className="w-4 h-4" />
+              <span className="text-[9px] font-black uppercase">Extraction Failed</span>
+            </div>
+          )}
+        </div>
       </header>
 
       {/* 2. Visualizer & Transport */}
@@ -149,9 +144,25 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
               <Button variant="ghost" size="icon" onClick={stopPlayback} className="h-12 w-12 md:h-20 md:w-20 rounded-full border border-white/5">
                 <RotateCcw className="w-5 h-5 md:w-8 md:h-8" />
               </Button>
-              <Button size="lg" onClick={togglePlayback} className="h-20 w-20 md:h-32 md:w-32 rounded-full bg-indigo-600 hover:bg-indigo-700 shadow-2xl">
-                {isPlaying ? <Pause className="w-8 h-8 md:w-12 md:h-12" /> : <Play className="w-8 h-8 md:w-12 md:h-12 ml-1 md:ml-2 fill-current" />}
+              
+              <Button 
+                size="lg" 
+                onClick={togglePlayback} 
+                disabled={isLoadingAudio}
+                className={cn(
+                  "h-20 w-20 md:h-32 md:w-32 rounded-full shadow-2xl flex items-center justify-center transition-all",
+                  isLoadingAudio ? "bg-slate-600 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700"
+                )}
+              >
+                {isLoadingAudio ? (
+                  <Loader2 className="w-8 h-8 md:w-12 md:h-12 animate-spin text-white" />
+                ) : isPlaying ? (
+                  <Pause className="w-8 h-8 md:w-12 md:h-12 text-white fill-current" />
+                ) : (
+                  <Play className="w-8 h-8 md:w-12 md:h-12 text-white fill-current ml-1 md:ml-2" />
+                )}
               </Button>
+
               <div className="h-12 w-12 md:h-20 md:w-20" /> {/* Spacer */}
             </div>
           </div>
@@ -163,9 +174,14 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
             <p className="text-sm text-slate-500 max-w-sm px-4">
               Upload a master file or load the iTunes preview to start transposing.
             </p>
-            {formData.previewUrl && ( // Only show button if iTunes preview is available
-              <Button onClick={handleLoadAudio} className="bg-indigo-600 font-black uppercase text-[10px] h-10 px-6 rounded-xl gap-2">
-                <Play className="w-3.5 h-3.5" /> Load iTunes Preview
+            {formData.previewUrl && (
+              <Button 
+                onClick={handleLoadAudio} 
+                disabled={isLoadingAudio}
+                className="bg-indigo-600 font-black uppercase text-[10px] h-10 px-6 rounded-xl gap-2"
+              >
+                {isLoadingAudio ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />} 
+                {isLoadingAudio ? "Loading..." : "Load iTunes Preview"}
               </Button>
             )}
           </div>
