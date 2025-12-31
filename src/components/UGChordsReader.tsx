@@ -70,7 +70,7 @@ const UGChordsReader = React.memo(({
     <div 
       ref={scrollContainerRef}
       className={cn(
-        "flex-1 bg-slate-950 p-4 md:p-8 overflow-y-auto border border-white/10 font-mono custom-scrollbar flex flex-col h-full",
+        "h-full w-full bg-slate-950 p-4 md:p-12 overflow-y-auto border border-white/10 font-mono custom-scrollbar block",
         isMobile ? "text-sm" : "text-base"
       )}
       style={{ 
@@ -85,7 +85,7 @@ const UGChordsReader = React.memo(({
       {chordsText ? (
         <pre 
           ref={contentRef}
-          className="whitespace-pre font-inherit"
+          className="whitespace-pre font-inherit inline-block min-w-full"
           dangerouslySetInnerHTML={{ __html: formattedHtml }}
         />
       ) : (

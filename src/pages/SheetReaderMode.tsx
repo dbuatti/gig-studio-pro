@@ -23,7 +23,6 @@ import SheetReaderFooter from '@/components/SheetReaderFooter';
 import SheetReaderSidebar from '@/components/SheetReaderSidebar';
 import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { extractKeyFromChords } from '@/utils/chordUtils';
 
 type ChartType = 'pdf' | 'leadsheet' | 'chords';
@@ -372,7 +371,7 @@ const SheetReaderMode: React.FC = () => {
 
       <main className={cn("flex-1 flex flex-col overflow-hidden transition-all duration-300", isSidebarOpen && "ml-[300px]")}>
         <SheetReaderHeader
-          currentSong={currentSong}
+          currentSong={currentSong!}
           onClose={() => navigate('/')}
           onSearchClick={() => setIsStudioPanelOpen(true)}
           onPrevSong={handlePrev}
