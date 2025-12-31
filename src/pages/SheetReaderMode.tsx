@@ -457,7 +457,7 @@ const SheetReaderMode: React.FC = () => {
         // We need to update the parent state to switch to 'chords'
         // We do this by returning a special signal or handling it in the parent.
         // To keep it simple, we will render the ChordsReader directly here 
-        // and trigger a state update in a useEffect to sync the UI dropdown.
+        // and trigger a state update in the parent to sync the UI dropdown.
         console.log(`[SheetReaderMode] Fallback: ${chartType} missing, rendering Chords instead.`);
         
         // Trigger a state update to sync the dropdown (debounced to avoid loops)

@@ -110,7 +110,7 @@ const UGChordsReader = React.memo(({
         lineHeight: config.lineSpacing,
         textAlign: config.textAlign as any,
         color: readableChordColor || "#ffffff",
-        touchAction: 'pan-y'
+        touchAction: 'pan-y' // Allows vertical scrolling on touch devices
       }}
     >
       {chordsText ? (
