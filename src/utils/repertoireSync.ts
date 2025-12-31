@@ -108,6 +108,7 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       payload.is_pitch_linked = Boolean(song.is_pitch_linked ?? true);
       payload.highest_note_original = song.highest_note_original !== undefined ? String(song.highest_note_original) : null;
       payload.extraction_status = String(song.extraction_status ?? 'idle');
+      // Ensure last_extracted_at is always a string or null
       payload.last_extracted_at = song.last_extracted_at !== undefined ? String(song.last_extracted_at) : null;
       payload.source_type = String(song.source_type ?? 'YOUTUBE');
       payload.sync_status = String(song.sync_status ?? 'IDLE');
@@ -128,6 +129,8 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
     
     const hasIds = payloads.some(p => p.id);
     const conflictTarget = hasIds ? 'id' : 'user_id,title,artist';
+
+    console.log("[syncToMasterRepertoire] Sending payload:", JSON.stringify(payloads, null, 2)); // Log the payload
 
     const { data, error } = await supabase
       .from('repertoire')
