@@ -29,7 +29,7 @@ def log(message):
 
 def process_song_task(song_id, video_url, user_id):
     """The core logic that handles the heavy lifting."""
-    log(f"[TASK {song_id}] Starting process_song_task for video: {video_url}") # Added log
+    log(f"[TASK {song_id}] Starting process_song_task for video: {video_url}")
     log(f"[TASK {song_id}] Starting Extraction for video: {video_url}")
     try:
         # 1. Mark as Processing
@@ -102,25 +102,33 @@ def process_song_task(song_id, video_url, user_id):
         gc.collect() # Force garbage collection to free memory
 
 def job_poller():
-    """Checks the DB for new work every 30 seconds."""
-    log("Poller Thread Started. Looking for 'queued' jobs...")
+    """Checks the DB for new work every 20 seconds."""
+    log("Job Poller initialized.")
     while True:
         try:
-            # Look for one song that is 'queued'
-            # Use .limit(1) and .order('created_at', ascending=True) to process oldest first
-            res = supabase.table("repertoire").select("id, youtube_url, user_id").eq("extraction_status", "queued").order('created_at', ascending=True).limit(1).execute()
+            # HEARTBEAT LOG: This proves the worker is checking the DB
+            log("Poller: Checking Supabase for 'queued' jobs...") 
             
+            res = supabase.table("repertoire")\
+                .select("id, youtube_url, user_id, title")\
+                .eq("extraction_status", "queued")\
+                .limit(1)\
+                .execute()
+            
+            # Print the raw response for debugging
+            # log(f"Poller DB Response: {res.data}")
+
             if res.data and len(res.data) > 0:
-                song = res.data[0]
-                log(f"[POLLER] Found queued job for song ID: {song['id']}")
-                # Process the job in a new thread to not block the poller, but respect semaphore
-                threading.Thread(target=lambda: process_song_task(song['id'], song['youtube_url'], song['user_id'])).start()
+                log(f"Poller: Found job! Starting {res.data[0].get('title')}")
+                # Ensure process_song_task is called with correct arguments
+                song_data = res.data[0]
+                threading.Thread(target=lambda: process_song_task(song_data['id'], song_data['youtube_url'], song_data['user_id'])).start()
             else:
-                log("[POLLER] No queued jobs found. Sleeping...") # Added log
-                time.sleep(30)
+                # No work to do, wait 20s
+                time.sleep(20)
         except Exception as e:
-            log(f"[POLLER ERROR] Poller encountered error: {e}")
-            time.sleep(30) # Still sleep on error to prevent busy-looping
+            log(f"Poller Critical Error: {e}")
+            time.sleep(30)
 
 # Start the poller in the background
 threading.Thread(target=job_poller, daemon=True).start()
