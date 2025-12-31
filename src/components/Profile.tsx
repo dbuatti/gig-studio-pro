@@ -15,6 +15,7 @@ import PublicRepertoireView from '@/components/PublicRepertoireView';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useTheme } from '@/hooks/use-theme';
+import { useSettings } from '@/hooks/use-settings'; // Import useSettings
 
 const THEMES = [
   { name: 'Vibrant Light', primary: '#9333ea', background: '#ffffff', text: '#1e1b4b', border: '#9333ea' },
@@ -34,6 +35,7 @@ const Profile = () => {
   const [profile, setProfile] = useState<any>(null);
   const [songs, setSongs] = useState<any[]>([]);
   const { theme } = useTheme();
+  const { isFetchingSettings } = useSettings(); // Use loading state from useSettings
 
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -78,8 +80,11 @@ const Profile = () => {
   }, [user, theme]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    // Only fetch profile data if useSettings is not already fetching global settings
+    if (!isFetchingSettings) {
+      fetchData();
+    }
+  }, [fetchData, isFetchingSettings]);
 
   const handleUpdateLocal = (updates: any) => {
     setProfile((prev: any) => ({ ...prev, ...updates }));
@@ -110,7 +115,7 @@ const Profile = () => {
     showSuccess("Share Link Copied!");
   };
 
-  if (loading) return (
+  if (loading || isFetchingSettings) return ( // Show loading if useSettings is still fetching
     <div className="min-h-screen flex items-center justify-center bg-background">
       <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
     </div>
@@ -380,7 +385,7 @@ const Profile = () => {
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-md text-center p-12">
                 <div className="w-20 h-20 rounded-full bg-secondary flex items-center justify-center mb-6">
-                  <Globe className="w-10 h-10 text-muted-foreground" />
+                  <Globe className="w-10 h-1- text-muted-foreground" />
                 </div>
                 <h2 className="text-2xl font-black uppercase tracking-tight text-foreground mb-3">Preview Offline</h2>
                 <p className="text-muted-foreground max-w-sm font-medium">Your repertoire is currently private. Toggle the Public Status switch to enable the live link and see the preview.</p>

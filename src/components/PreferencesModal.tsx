@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { useSettings } from '@/hooks/use-settings';
-import { Settings2, Hash, Music2, LogOut, ShieldCheck, Zap, Coffee, Heart, Globe, User, Youtube, Key, ShieldAlert, Bug, FileText, Monitor, Sun, Moon } from 'lucide-react';
+import { Settings2, Hash, Music2, LogOut, ShieldCheck, Zap, Coffee, Heart, Globe, User, Youtube, Key, ShieldAlert, Bug, FileText, Monitor, Sun, Moon, Loader2 } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { cn } from "@/lib/utils";
 import { useNavigate } from 'react-router-dom';
@@ -24,67 +24,65 @@ interface PreferencesModalProps {
 }
 
 const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) => {
-  const { keyPreference, setKeyPreference, safePitchMaxNote: globalSafePitchMaxNote, setSafePitchMaxNote: setGlobalSafePitchMaxNote, isSafePitchEnabled: globalIsSafePitchEnabled, setIsSafePitchEnabled: setGlobalIsSafePitchEnabled } = useSettings();
+  const { 
+    keyPreference, setKeyPreference, 
+    safePitchMaxNote, setSafePitchMaxNote, 
+    isSafePitchEnabled, setIsSafePitchEnabled,
+    isFetchingSettings // Use loading state from hook
+  } = useSettings();
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const [ytKey, setYtKey] = useState("");
-  const [safePitchMaxNote, setSafePitchMaxNote] = useState(globalSafePitchMaxNote);
-  const [isSafePitchEnabled, setIsSafePitchEnabled] = useState(globalIsSafePitchEnabled);
-  const [isSaving, setIsSaving] = useState(false);
+  const [ytApiKey, setYtApiKey] = useState("");
+  const [isSavingYtKey, setIsSavingYtKey] = useState(false);
 
   const {
     forceReaderResource,
     alwaysShowAllToasts,
     ignoreConfirmedGate,
     forceDesktopView,
-    updateSetting,
+    updateSetting: updateReaderSetting,
   } = useReaderSettings();
 
   const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     if (isOpen && user) {
-      fetchProfile();
+      fetchYtKey();
     }
   }, [isOpen, user]);
 
-  // Sync local state with global state when modal opens or global state changes
-  useEffect(() => {
-    setSafePitchMaxNote(globalSafePitchMaxNote);
-    setIsSafePitchEnabled(globalIsSafePitchEnabled);
-  }, [globalSafePitchMaxNote, globalIsSafePitchEnabled]);
-
-  const fetchProfile = async () => {
-    const { data } = await supabase.from('profiles').select('youtube_api_key, safe_pitch_max_note, is_safe_pitch_enabled').eq('id', user?.id).single();
-    if (data?.youtube_api_key) setYtKey(data.youtube_api_key);
-    if (data?.safe_pitch_max_note) setSafePitchMaxNote(data.safe_pitch_max_note);
-    if (data?.is_safe_pitch_enabled !== undefined) setIsSafePitchEnabled(data.is_safe_pitch_enabled);
+  const fetchYtKey = async () => {
+    const { data } = await supabase.from('profiles').select('youtube_api_key').eq('id', user?.id).single();
+    if (data?.youtube_api_key) setYtApiKey(data.youtube_api_key);
   };
 
-  const handleSaveSettings = async () => {
+  const handleSaveYtKey = async () => {
     if (!user) return;
-    setIsSaving(true);
+    setIsSavingYtKey(true);
     try {
       const { error } = await supabase.from('profiles').update({ 
-        youtube_api_key: ytKey,
-        safe_pitch_max_note: safePitchMaxNote,
-        is_safe_pitch_enabled: isSafePitchEnabled, // NEW: Save isSafePitchEnabled
+        youtube_api_key: ytApiKey,
       }).eq('id', user.id);
       if (error) throw error;
-      
-      // Update global state after successful save
-      setGlobalSafePitchMaxNote(safePitchMaxNote);
-      setGlobalIsSafePitchEnabled(isSafePitchEnabled);
-
-      showSuccess("Preferences Updated");
+      showSuccess("YouTube API Key Updated");
     } catch (err) {
-      showError("Failed to save settings");
+      showError("Failed to save YouTube API key");
     } finally {
-      setIsSaving(false);
+      setIsSavingYtKey(false);
     }
   };
 
   const pureNotes = keyPreference === 'sharps' ? PURE_NOTES_SHARP : PURE_NOTES_FLAT;
+
+  if (isFetchingSettings) {
+    return (
+      <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+        <DialogContent className="max-w-md bg-popover text-foreground border-border rounded-[2rem] flex items-center justify-center h-60">
+          <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -120,18 +118,18 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
                   <Input 
                     type="password"
                     placeholder="AIza..."
-                    value={ytKey}
-                    onChange={(e) => setYtKey(e.target.value)}
+                    value={ytApiKey}
+                    onChange={(e) => setYtApiKey(e.target.value)}
                     className="h-10 pl-9 bg-secondary border-border text-xs font-mono text-foreground"
                   />
                 </div>
                 <Button 
                   size="sm" 
-                  onClick={handleSaveSettings}
-                  disabled={isSaving}
+                  onClick={handleSaveYtKey}
+                  disabled={isSavingYtKey}
                   className="bg-indigo-600 hover:bg-indigo-700 h-10 px-4 font-black uppercase text-[9px] rounded-xl"
                 >
-                  {isSaving ? "..." : "Save"}
+                  {isSavingYtKey ? "..." : "Save"}
                 </Button>
               </div>
             </div>
@@ -289,7 +287,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
               </div>
               <Select 
                 value={forceReaderResource} 
-                onValueChange={(value: ReaderResourceForce) => updateSetting('forceReaderResource', value)}
+                onValueChange={(value: ReaderResourceForce) => updateReaderSetting('forceReaderResource', value)}
               >
                 <SelectTrigger className="bg-secondary border-border text-xs font-mono font-bold h-10 text-foreground">
                   <SelectValue placeholder="Default (Auto)" />
@@ -317,7 +315,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
               </div>
               <Switch 
                 checked={alwaysShowAllToasts} 
-                onCheckedChange={(checked) => updateSetting('alwaysShowAllToasts', checked)}
+                onCheckedChange={(checked) => updateReaderSetting('alwaysShowAllToasts', checked)}
                 className="data-[state=checked]:bg-destructive"
               />
             </div>
@@ -335,7 +333,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
               </div>
               <Switch 
                 checked={ignoreConfirmedGate} 
-                onCheckedChange={(checked) => updateSetting('ignoreConfirmedGate', checked)}
+                onCheckedChange={(checked) => updateReaderSetting('ignoreConfirmedGate', checked)}
                 className="data-[state=checked]:bg-destructive"
               />
             </div>
@@ -353,7 +351,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
               </div>
               <Switch 
                 checked={forceDesktopView} 
-                onCheckedChange={(checked) => updateSetting('forceDesktopView', checked)}
+                onCheckedChange={(checked) => updateReaderSetting('forceDesktopView', checked)}
                 className="data-[state=checked]:bg-destructive"
               />
             </div>
@@ -377,7 +375,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
         </div>
 
         <DialogFooter className="border-t border-border bg-secondary">
-          <Button onClick={() => { handleSaveSettings(); onClose(); }} className="w-full bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] h-12 rounded-2xl">
+          <Button onClick={onClose} className="w-full bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] h-12 rounded-2xl">
             Apply Settings
           </Button>
         </DialogFooter>

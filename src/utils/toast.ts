@@ -21,3 +21,7 @@ export const dismissToast = (toastId: string) => {
 export const showInfo = (message: string, options?: any) => {
   toast.info(message, options);
 };
+
+export const showWarning = (message: string, options?: any) => {
+  toast.warning(message, options);
+};

@@ -7,7 +7,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useToneAudio } from '@/hooks/use-tone-audio';
 import { useSettings } from '@/hooks/use-settings';
-import { showSuccess, showError, showInfo } from '@/utils/toast';
+import { showSuccess, showError, showInfo, showWarning } from '@/utils/toast'; // Added showWarning
 import { cn } from '@/lib/utils';
 import { calculateReadiness, syncToMasterRepertoire } from '@/utils/repertoireSync';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
@@ -40,12 +40,13 @@ import ActiveSongBanner from '@/components/ActiveSongBanner';
 import { StudioTab } from '@/components/SongStudioView';
 import RepertoireView from '@/components/RepertoireView';
 import KeyManagementModal from '@/components/KeyManagementModal';
+import PerformanceOverlay from '@/components/PerformanceOverlay'; // Import PerformanceOverlay
 
 const Index = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const isMobile = useIsMobile();
-  const { keyPreference: globalKeyPreference, safePitchMaxNote, isSafePitchEnabled } = useSettings();
+  const { keyPreference: globalKeyPreference, safePitchMaxNote, isSafePitchEnabled, isFetchingSettings } = useSettings(); // Use loading state from useSettings
   const audio = useToneAudio();
 
   // --- State Management ---
@@ -68,6 +69,7 @@ const Index = () => {
   const [songStudioModalSongId, setSongStudioModalSongId] = useState<string | null>(null);
   const [songStudioDefaultTab, setSongStudioDefaultTab] = useState<StudioTab | undefined>(undefined);
   const [isKeyManagementOpen, setIsKeyManagementOpen] = useState(false);
+  const [isPerformanceOverlayOpen, setIsPerformanceOverlayOpen] = useState(false); // NEW: State for PerformanceOverlay
 
   // Setlist Management
   const [newSetlistName, setNewSetlistName] = useState("");
@@ -966,6 +968,19 @@ const Index = () => {
     }
   }, [navigate, activeSongForPerformance, filteredAndSortedSongs]);
 
+  // NEW: Handle opening Performance Overlay
+  const handleOpenPerformanceOverlay = useCallback(() => {
+    if (!activeSetlist || activeSetlist.songs.length === 0) {
+      showWarning("Please select a setlist with songs to enter performance mode.");
+      return;
+    }
+    // Set the first song as active for performance if none is already selected
+    if (!activeSongForPerformance) {
+      setActiveSongForPerformance(activeSetlist.songs[0]);
+    }
+    setIsPerformanceOverlayOpen(true);
+  }, [activeSetlist, activeSongForPerformance]);
+
   const handleSafePitchToggle = useCallback((active: boolean, safePitch: number) => {
     // NEW: Only apply safe pitch logic if the feature is enabled in preferences
     if (!isSafePitchEnabled) {
@@ -986,7 +1001,7 @@ const Index = () => {
     }
   }, [activeSongForPerformance, handleUpdateSongInSetlist, isSafePitchEnabled]);
 
-  if (loading || authLoading) {
+  if (loading || authLoading || isFetchingSettings) { // Show loading if useSettings is still fetching
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-16 h-16 animate-spin text-indigo-500" />
@@ -1049,6 +1064,7 @@ const Index = () => {
             isPlaying={audio.isPlaying}
             onTogglePlayback={audio.togglePlayback}
             onClear={() => { setActiveSongForPerformance(null); audio.stopPlayback(); }}
+            isLoadingAudio={audio.isLoadingAudio}
           />
         )}
 
@@ -1131,7 +1147,7 @@ const Index = () => {
                     .from('setlists')
                     .update({ time_goal: newGoal })
                     .eq('id', activeSetlist.id)
-                    .eq('user_id', user.id);
+                    .eq('user.id', user.id); // Corrected to user.id
                   if (error) throw error;
                   setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, time_goal: newGoal } : s));
                   showSuccess("Performance goal updated!");
@@ -1251,6 +1267,7 @@ const Index = () => {
         activeSongId={activeSongForPerformance?.id}
         onSetMenuOpen={setFloatingDockMenuOpen}
         isMenuOpen={floatingDockMenuOpen}
+        onOpenPerformance={handleOpenPerformanceOverlay} // Pass the new handler
       />
 
       {/* Modals */}
@@ -1462,6 +1479,40 @@ const Index = () => {
           masterRepertoire={masterRepertoire}
           onUpdateSetlistSongs={handleUpdateSetlistSongs}
           defaultTab={songStudioDefaultTab}
+        />
+      )}
+
+      {/* NEW: Performance Overlay */}
+      {isPerformanceOverlayOpen && activeSetlist && activeSongForPerformance && (
+        <PerformanceOverlay
+          songs={activeSetlist.songs}
+          currentIndex={activeSetlist.songs.findIndex(s => s.id === activeSongForPerformance.id)}
+          isPlaying={audio.isPlaying}
+          progress={audio.progress}
+          duration={audio.duration}
+          onTogglePlayback={audio.togglePlayback}
+          onNext={() => {
+            const nextIndex = (activeSetlist.songs.findIndex(s => s.id === activeSongForPerformance.id) + 1) % activeSetlist.songs.length;
+            setActiveSongForPerformance(activeSetlist.songs[nextIndex]);
+          }}
+          onPrevious={() => {
+            const prevIndex = (activeSetlist.songs.findIndex(s => s.id === activeSongForPerformance.id) - 1 + activeSetlist.songs.length) % activeSetlist.songs.length;
+            setActiveSongForPerformance(activeSetlist.songs[prevIndex]);
+          }}
+          onShuffle={() => {
+            const shuffledSongs = [...activeSetlist.songs].sort(() => Math.random() - 0.5);
+            setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: shuffledSongs } : s));
+            setActiveSongForPerformance(shuffledSongs[0]);
+          }}
+          onClose={() => {
+            setIsPerformanceOverlayOpen(false);
+            audio.stopPlayback();
+          }}
+          onUpdateSong={handleUpdateSongInSetlist}
+          onUpdateKey={handleUpdateSongKey}
+          analyzer={audio.analyzer}
+          gigId={activeSetlist.id}
+          isLoadingAudio={audio.isLoadingAudio}
         />
       )}
     </div>

@@ -35,6 +35,7 @@ interface FloatingCommandDockProps {
   activeSongId?: string | null;
   onSetMenuOpen?: (open: boolean) => void;
   isMenuOpen?: boolean;
+  onOpenPerformance: () => void; // NEW: Add onOpenPerformance prop
 }
 
 type MenuDirection = 'up' | 'down' | 'left' | 'right';
@@ -60,6 +61,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   activeSongId,
   onSetMenuOpen,
   isMenuOpen: isMenuOpenProp,
+  onOpenPerformance, // Destructure new prop
 }) => {
   const [isOpen, setIsOpen] = useState<boolean>(() => {
     if (typeof window !== 'undefined') return localStorage.getItem('floating_dock_open') === 'true';
@@ -148,6 +150,33 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
   }, [internalIsMenuOpen, handleToggleMenu]);
+
+  // NEW: Global keyboard shortcuts for P and R
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Ignore if user is typing in an input or textarea
+      if (
+        e.target instanceof HTMLInputElement || 
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target as HTMLElement).isContentEditable
+      ) {
+        return;
+      }
+
+      if (e.key.toLowerCase() === 'p') {
+        e.preventDefault();
+        onOpenPerformance();
+      }
+      if (e.key.toLowerCase() === 'r') {
+        e.preventDefault();
+        onOpenReader();
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [onOpenPerformance, onOpenReader]);
+
 
   const handleDragEnd = (_: any, info: any) => {
     const newPos = { x: position.x + info.offset.x, y: position.y + info.offset.y };
