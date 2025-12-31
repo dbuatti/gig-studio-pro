@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Check, Sparkles, Loader2, AlertCircle, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, Check, Sparkles, Loader2, AlertCircle, ShieldAlert, Globe } from 'lucide-react'; // Added Globe
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -11,7 +11,7 @@ import { useSettings } from '@/hooks/use-settings';
 import { SetlistSong, Setlist } from '@/components/SetlistManager';
 import { syncToMasterRepertoire } from '@/utils/repertoireSync';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
-import { showError } from '@/utils/toast';
+import { showError, showSuccess } from '@/utils/toast';
 import StudioTabContent from '@/components/StudioTabContent';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -21,6 +21,8 @@ import { useKeyboardNavigation } from '@/hooks/use-keyboard-navigation';
 import SetlistMultiSelector from './SetlistMultiSelector';
 import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
 import { extractKeyFromChords } from '@/utils/chordUtils';
+import ProSyncSearch from './ProSyncSearch'; // Import ProSyncSearch
+import { formatKey } from '@/utils/keyUtils';
 
 export type StudioTab = 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library';
 
@@ -63,6 +65,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   const [activeTab, setActiveTab] = useState<StudioTab>(defaultTab || 'audio');
   const [loading, setLoading] = useState(true);
   const [activeChartType, setActiveChartType] = useState<'pdf' | 'leadsheet' | 'web' | 'ug'>('pdf');
+  const [isProSyncOpen, setIsProSyncOpen] = useState(false); // State for Pro Sync
   
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
   const lastPendingUpdatesRef = useRef<Partial<SetlistSong>>({});
@@ -72,12 +75,9 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     currentSongRef.current = song;
   }, [song]);
 
-  // Define the performSave function
   const performSave = async (currentUpdates: Partial<SetlistSong>) => {
     const targetSong = currentSongRef.current;
-    if (!targetSong || !user) {
-      return;
-    }
+    if (!targetSong || !user) return;
 
     try {
       lastPendingUpdatesRef.current = {};
@@ -87,16 +87,11 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
 
       setSong(syncedSong);
       setFormData(prev => ({ ...prev, ...currentUpdates, master_id: syncedSong.master_id }));
-      
-      if (masterRepertoire) { 
-        const updatedMasterRepertoire = masterRepertoire.map(s => s.id === syncedSong.id ? syncedSong : s);
-      }
     } catch (err: any) {
-      console.error("[SongStudioView] performSave 400 Failure:", err.message, err.details);
+      console.error("[SongStudioView] performSave Failure:", err.message);
     }
   };
 
-  // Define the handleAutoSave function
   const handleAutoSave = useCallback((updates: Partial<SetlistSong>) => {
     setFormData(prev => ({ ...prev, ...updates }));
     lastPendingUpdatesRef.current = { ...lastPendingUpdatesRef.current, ...updates };
@@ -105,9 +100,8 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     saveTimeoutRef.current = setTimeout(() => {
       performSave(lastPendingUpdatesRef.current);
     }, 1000);
-  }, [user, gigId, formData, masterRepertoire]);
+  }, [user, gigId, formData]);
 
-  // Use externalAutoSave if provided, otherwise use the internal handleAutoSave
   const activeAutoSave = externalAutoSave || handleAutoSave;
 
   const handleClose = useCallback(() => {
@@ -120,16 +114,10 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   }, [onClose, audio, performSave]);
 
   const fetchData = async () => {
-    if (!user) {
-      console.log("[SongStudioView] fetchData: User not authenticated.");
-      return;
-    }
+    if (!user) return;
     setLoading(true);
-    console.log(`[SongStudioView] fetchData: Starting fetch for gigId: ${gigId}, songId: ${songId}`);
 
-    // Handle the case where we're opening the studio for general search/library access
     if (gigId === 'library' && !songId) {
-      console.log("[SongStudioView] fetchData: Detected library search mode (gigId='library' and no songId). Setting loading to false and returning.");
       setSong(null);
       setFormData({});
       setLoading(false);
@@ -138,21 +126,15 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     }
 
     if (!songId) {
-      console.error("[SongStudioView] fetchData: Error: No song ID provided, but not in library search mode.");
       showError("Error: No song ID provided.");
       onClose();
       return;
     }
 
     try {
-      console.log(`[SongStudioView] fetchData: Attempting to fetch song from 'repertoire' with ID: ${songId}`);
       const { data, error } = await supabase.from('repertoire').select('*').eq('id', songId).maybeSingle();
-      if (error) {
-        console.error("[SongStudioView] fetchData: Supabase 'repertoire' query error:", error);
-        throw error;
-      }
+      if (error) throw error;
       if (!data) {
-        console.error("[SongStudioView] fetchData: Error: The requested track could not be found for ID:", songId);
         showError("Error: The requested track could not be found.");
         throw new Error("Track not found.");
       }
@@ -200,21 +182,17 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
         audio_url: data.audio_url,
       };
       
-      console.log("[SongStudioView] fetchData: Song data fetched successfully:", targetSong.name);
       setSong(targetSong);
       setFormData(targetSong);
       
       if (targetSong.audio_url || targetSong.previewUrl) {
         const urlToLoad = targetSong.audio_url || targetSong.previewUrl;
-        console.log(`[SongStudioView] fetchData: Loading audio from URL: ${urlToLoad}`);
         await audio.loadFromUrl(urlToLoad, targetSong.pitch ?? 0, true);
       }
     } catch (err: any) {
-      console.error("[SongStudioView] fetchData: Caught error during fetch process:", err);
       onClose();
     } finally {
       setLoading(false);
-      console.log("[SongStudioView] fetchData: Loading set to false.");
     }
   };
 
@@ -230,17 +208,6 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     };
   }, [songId, gigId]);
 
-  useKeyboardNavigation({
-    onNext: () => visibleSongs.length > 1 && onSelectSong?.(visibleSongs[(visibleSongs.findIndex(s => s.id === songId) + 1) % visibleSongs.length].id),
-    onPrev: () => visibleSongs.length > 1 && onSelectSong?.(visibleSongs[(visibleSongs.findIndex(s => s.id === songId) - 1 + visibleSongs.length) % visibleSongs.length].id),
-    onClose: handleClose,
-    onPlayPause: audio.togglePlayback,
-    disabled: loading
-  });
-
-  // --- HARMONIC SYNC LOGIC ---
-  // This hook manages pitch, targetKey, and isPitchLinked state, and provides setters
-  // that handle both local state updates and database persistence via handleAutoSave.
   const {
     pitch,
     setPitch,
@@ -254,10 +221,41 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     globalKeyPreference: globalKeyPreference,
   });
 
-  // Sync audio engine pitch with the pitch from harmonic sync
   useEffect(() => {
     audio.setPitch(pitch);
   }, [pitch, audio]);
+
+  const handleProSyncSelect = async (itunesSong: any) => {
+    const updates: Partial<SetlistSong> = {
+      name: itunesSong.trackName,
+      artist: itunesSong.artistName,
+      genre: itunesSong.primaryGenreName,
+      appleMusicUrl: itunesSong.trackViewUrl,
+      previewUrl: itunesSong.previewUrl,
+      duration_seconds: Math.floor(itunesSong.trackTimeMillis / 1000),
+      isMetadataConfirmed: true,
+      metadata_source: 'itunes_sync'
+    };
+
+    try {
+      const { data, error } = await supabase.functions.invoke('enrich-metadata', {
+        body: { queries: [`${itunesSong.trackName} by ${itunesSong.artistName}`] }
+      });
+      
+      if (!error && data) {
+        const result = Array.isArray(data) ? data[0] : data;
+        if (result?.originalKey) {
+          updates.originalKey = formatKey(result.originalKey, globalKeyPreference === 'neutral' ? 'sharps' : globalKeyPreference);
+          updates.isKeyConfirmed = true;
+          updates.bpm = result.bpm?.toString() || updates.bpm;
+        }
+      }
+    } catch (e) {}
+
+    activeAutoSave(updates);
+    setIsProSyncOpen(false);
+    showSuccess("Pro Metadata Synced");
+  };
 
   if (loading) return <div className="h-full flex items-center justify-center bg-slate-950"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
 
@@ -274,6 +272,17 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           </div>
         </div>
         <div className="flex items-center gap-4">
+          {/* RESTORED: Pro Sync Button */}
+          {songId && (
+            <Button 
+              variant="outline" 
+              onClick={() => setIsProSyncOpen(true)}
+              className="h-11 px-4 rounded-xl border-indigo-500/20 bg-indigo-600/10 text-indigo-400 font-black uppercase text-[10px] tracking-widest gap-2 shadow-lg hover:bg-indigo-600 hover:text-white transition-all"
+            >
+              <Globe className="w-4 h-4" /> Pro Sync
+            </Button>
+          )}
+
           {gigId === 'library' && song ? (
             <SetlistMultiSelector songMasterId={songId || ''} allSetlists={allSetlists} songToAssign={song} onUpdateSetlistSongs={onUpdateSetlistSongs!} />
           ) : (
@@ -285,6 +294,13 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
         </div>
       </header>
       
+      <ProSyncSearch 
+        isOpen={isProSyncOpen} 
+        onClose={() => setIsProSyncOpen(false)} 
+        onSelect={handleProSyncSelect}
+        initialQuery={`${formData.artist} ${formData.name}`}
+      />
+
       {(!formData.originalKey || formData.originalKey === 'TBC') && (
         <div className="bg-red-950/30 border-b border-red-900/50 p-3 flex items-center justify-center gap-3 shrink-0 h-10">
           <AlertCircle className="w-4 h-4 text-red-400" />

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Search, Library, Music, Settings2, Plus, Check, ShieldCheck,
-  Star, Filter, AlertTriangle, Loader2, CloudDownload, Edit3, ListMusic, ArrowRight, Trash2 // Added Trash2
+  Star, Filter, AlertTriangle, Loader2, CloudDownload, Edit3, ListMusic, ArrowRight, Trash2, Wand2
 } from 'lucide-react';
 import { SetlistSong } from './SetlistManager';
 import { cn } from "@/lib/utils";
@@ -18,9 +18,9 @@ import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { showSuccess } from '@/utils/toast';
 import SetlistFilters, { FilterState, DEFAULT_FILTERS } from './SetlistFilters';
+import SetlistExporter from './SetlistExporter'; // Import SetlistExporter (Automation Hub)
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-
 
 interface RepertoireViewProps {
   repertoire: SetlistSong[];
@@ -29,13 +29,20 @@ interface RepertoireViewProps {
   onUpdateSetlistSongs: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>;
   onRefreshRepertoire: () => void;
   onAddSong: (song: SetlistSong) => void;
-  // NEW PROPS
   searchTerm: string;
   setSearchTerm: (term: string) => void;
   sortMode: 'none' | 'ready' | 'work';
   setSortMode: (mode: 'none' | 'ready' | 'work') => void;
   activeFilters: FilterState;
   setActiveFilters: (filters: FilterState) => void;
+  // Automation Hub Props
+  onAutoLink?: () => Promise<void>;
+  onGlobalAutoSync?: () => Promise<void>;
+  onBulkRefreshAudio?: () => Promise<void>;
+  onClearAutoLinks?: () => Promise<void>;
+  isBulkDownloading?: boolean;
+  missingAudioCount?: number;
+  onOpenAdmin?: () => void;
 }
 
 const RepertoireView: React.FC<RepertoireViewProps> = ({
@@ -45,17 +52,23 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
   onUpdateSetlistSongs,
   onRefreshRepertoire,
   onAddSong,
-  // NEW PROPS
   searchTerm,
   setSearchTerm,
   sortMode,
   setSortMode,
   activeFilters,
   setActiveFilters,
+  onAutoLink,
+  onGlobalAutoSync,
+  onBulkRefreshAudio,
+  onClearAutoLinks,
+  isBulkDownloading,
+  missingAudioCount,
+  onOpenAdmin
 }) => {
-  const { keyPreference } = useSettings(); // Destructure keyPreference (globalPreference)
-  const [isFilterOpen, setIsFilterOpen] = useState(false); // State for filter visibility
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null); // State for delete confirmation
+  const { keyPreference } = useSettings();
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const filteredAndSortedRepertoire = useMemo(() => {
     let songs = [...repertoire];
@@ -67,7 +80,6 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                             s.user_tags?.some(tag => tag.toLowerCase().includes(q));
       if (!matchesSearch) return false;
       
-      // Apply filters from activeFilters
       const readiness = calculateReadiness(s);
       const hasAudio = !!s.audio_url;
       const hasItunesPreview = !!s.previewUrl && (s.previewUrl.includes('apple.com') || s.previewUrl.includes('itunes-assets'));
@@ -81,23 +93,17 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
       if (activeFilters.isConfirmed === 'no' && s.isKeyConfirmed) return false;
       if (activeFilters.isApproved === 'yes' && !s.isApproved) return false;
       if (activeFilters.isApproved === 'no' && s.isApproved) return false;
-
       if (activeFilters.hasAudio === 'full' && !hasAudio) return false;
       if (activeFilters.hasAudio === 'itunes' && !hasItunesPreview) return false;
       if (activeFilters.hasAudio === 'none' && (hasAudio || hasItunesPreview)) return false;
-
       if (activeFilters.hasVideo === 'yes' && !hasVideo) return false;
       if (activeFilters.hasVideo === 'no' && hasVideo) return false;
-
       if (activeFilters.hasChart === 'yes' && !(hasPdf || hasUg || hasUgChords)) return false;
       if (activeFilters.hasChart === 'no' && (hasPdf || hasUg || hasUgChords)) return false;
-
       if (activeFilters.hasPdf === 'yes' && !hasPdf) return false;
       if (activeFilters.hasPdf === 'no' && hasPdf) return false;
-
       if (activeFilters.hasUg === 'yes' && !hasUg) return false;
       if (activeFilters.hasUg === 'no' && hasUg) return false;
-
       if (activeFilters.hasUgChords === 'yes' && !hasUgChords) return false;
       if (activeFilters.hasUgChords === 'no' && hasUgChords) return false;
       
@@ -117,11 +123,11 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
 
   const handleAddNewSong = () => {
     const newSong: SetlistSong = {
-      id: Math.random().toString(36).substr(2, 9), // Temporary client-side ID
+      id: Math.random().toString(36).substr(2, 9),
       name: "New Track",
       artist: "Unknown Artist",
       previewUrl: "",
-      audio_url: "", // Initialize audio_url
+      audio_url: "",
       pitch: 0,
       originalKey: "C",
       targetKey: "C",
@@ -151,92 +157,105 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
       extraction_error: null,
     };
     onAddSong(newSong);
-    onEditSong(newSong, 'details'); // Open studio to details tab for new song
+    onEditSong(newSong, 'details');
     showSuccess("New track added to repertoire!");
   };
 
   const handleDeleteSong = (songId: string) => {
-    // This function would typically delete from the master repertoire
-    // For now, we'll just log and close the dialog
-    // console.log(`Deleting song with ID: ${songId} from master repertoire.`); // Removed console.log
-    // In a real app, you'd call a prop like onDeleteMasterSong(songId)
     setDeleteConfirmId(null);
-    onRefreshRepertoire(); // Refresh the list after deletion (simulated)
+    onRefreshRepertoire();
     showSuccess("Song removed from master repertoire.");
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
-          <div className="flex items-center gap-1 bg-secondary p-1 rounded-xl w-full sm:w-auto overflow-x-auto no-scrollbar">
-            <Button
-              variant="ghost" size="sm"
-              onClick={() => setSortMode('none')}
-              className={cn(
-                "h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg",
-                sortMode === 'none' && "bg-background dark:bg-secondary shadow-sm"
-              )}
-            >
-              <ListMusic className="w-3 h-3" /> <span className="hidden sm:inline">Alphabetical</span>
-            </Button>
-            <Button
-              variant="ghost" size="sm"
-              onClick={() => setSortMode('ready')}
-              className={cn(
-                "h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg",
-                sortMode === 'ready' && "bg-background dark:bg-secondary shadow-sm text-indigo-600"
-              )}
-            >
-              <Star className="w-3 h-3" /> <span className="hidden sm:inline">Readiness</span>
-            </Button>
-            <Button
-              variant="ghost" size="sm"
-              onClick={() => setSortMode('work')}
-              className={cn(
-                "h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg",
-                sortMode === 'work' && "bg-background dark:bg-secondary shadow-sm text-orange-600"
-              )}
-            >
-              <AlertTriangle className="w-3 h-3" /> <span className="hidden sm:inline">Work Needed</span>
-            </Button>
+    <div className="space-y-8">
+      {/* RESTORED: Automation Hub at the top of Repertoire View */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="lg:col-span-3 space-y-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
+              <div className="flex items-center gap-1 bg-secondary p-1 rounded-xl w-full sm:w-auto overflow-x-auto no-scrollbar">
+                <Button
+                  variant="ghost" size="sm"
+                  onClick={() => setSortMode('none')}
+                  className={cn(
+                    "h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg",
+                    sortMode === 'none' && "bg-background dark:bg-secondary shadow-sm"
+                  )}
+                >
+                  <ListMusic className="w-3 h-3" /> <span className="hidden sm:inline">Alphabetical</span>
+                </Button>
+                <Button
+                  variant="ghost" size="sm"
+                  onClick={() => setSortMode('ready')}
+                  className={cn(
+                    "h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg",
+                    sortMode === 'ready' && "bg-background dark:bg-secondary shadow-sm text-indigo-600"
+                  )}
+                >
+                  <Star className="w-3 h-3" /> <span className="hidden sm:inline">Readiness</span>
+                </Button>
+                <Button
+                  variant="ghost" size="sm"
+                  onClick={() => setSortMode('work')}
+                  className={cn(
+                    "h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg",
+                    sortMode === 'work' && "bg-background dark:bg-secondary shadow-sm text-orange-600"
+                  )}
+                >
+                  <AlertTriangle className="w-3 h-3" /> <span className="hidden sm:inline">Work Needed</span>
+                </Button>
+              </div>
+              <Button
+                variant="ghost" size="sm"
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+                className={cn(
+                  "h-8 px-4 text-[10px] font-black uppercase tracking-widest rounded-xl gap-2 transition-all",
+                  isFilterOpen ? "bg-indigo-50 text-indigo-600" : "text-muted-foreground hover:bg-accent dark:hover:bg-secondary"
+                )}
+              >
+                <Filter className="w-3.5 h-3.5" /> Filter Matrix
+              </Button>
+            </div>
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-64 group">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground group-focus-within:text-indigo-500 transition-colors" />
+                <Input
+                  placeholder="Search master repertoire..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="h-10 sm:h-9 pl-9 text-[11px] font-bold bg-card dark:bg-card border-border dark:border-border rounded-xl focus-visible:ring-indigo-500"
+                />
+              </div>
+              <Button
+                onClick={handleAddNewSong}
+                className="h-10 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] tracking-widest gap-2 shadow-lg shadow-indigo-600/20"
+              >
+                <Plus className="w-3.5 h-3.5" /> New Track
+              </Button>
+            </div>
           </div>
-          <Button
-            variant="ghost" size="sm"
-            onClick={() => setIsFilterOpen(!isFilterOpen)}
-            className={cn(
-              "h-8 px-4 text-[10px] font-black uppercase tracking-widest rounded-xl gap-2 transition-all",
-              isFilterOpen ? "bg-indigo-50 text-indigo-600" : "text-muted-foreground hover:bg-accent dark:hover:bg-secondary"
-            )}
-          >
-            <Filter className="w-3.5 h-3.5" /> Filter Matrix
-          </Button>
-        </div>
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <div className="relative flex-1 sm:w-64 group">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground group-focus-within:text-indigo-500 transition-colors" />
-            <Input
-              placeholder="Search master repertoire..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-10 sm:h-9 pl-9 text-[11px] font-bold bg-card dark:bg-card border-border dark:border-border rounded-xl focus-visible:ring-indigo-500"
+          
+          {isFilterOpen && (
+            <SetlistFilters 
+              activeFilters={activeFilters} 
+              onFilterChange={setActiveFilters} 
             />
-          </div>
-          <Button
-            onClick={handleAddNewSong}
-            className="h-10 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] tracking-widest gap-2 shadow-lg shadow-indigo-600/20"
-          >
-            <Plus className="w-3.5 h-3.5" /> New Track
-          </Button>
+          )}
+        </div>
+        <div className="lg:col-span-1">
+          <SetlistExporter 
+            songs={repertoire}
+            onAutoLink={onAutoLink}
+            onGlobalAutoSync={onGlobalAutoSync}
+            onBulkRefreshAudio={onBulkRefreshAudio}
+            onClearAutoLinks={onClearAutoLinks}
+            isBulkDownloading={isBulkDownloading}
+            missingAudioCount={missingAudioCount}
+            onOpenAdmin={onOpenAdmin}
+          />
         </div>
       </div>
-      
-      {isFilterOpen && (
-        <SetlistFilters 
-          activeFilters={activeFilters} 
-          onFilterChange={setActiveFilters} 
-        />
-      )}
 
       <div className="bg-card rounded-[2rem] border-4 border-border shadow-2xl overflow-hidden">
         <div className="overflow-x-auto">
@@ -258,11 +277,10 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredAndSortedRepertoire.map((song, idx) => {
+                filteredAndSortedRepertoire.map((song) => {
                   const readinessScore = calculateReadiness(song);
                   const isFullyReady = readinessScore === 100;
-                  const hasAudio = !!song.audio_url; // Check audio_url for full audio
-                  const currentPref = song.key_preference || keyPreference; // Use keyPreference
+                  const currentPref = song.key_preference || keyPreference;
                   const displayOrigKey = formatKey(song.originalKey, currentPref);
                   const displayTargetKey = formatKey(song.targetKey || song.originalKey, currentPref);
                   const isProcessing = song.extraction_status === 'processing' || song.extraction_status === 'queued';
@@ -271,7 +289,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                   return (
                     <TableRow
                       key={song.id}
-                      onClick={() => onEditSong(song, 'details')} // Make entire row clickable and open to 'details'
+                      onClick={() => onEditSong(song, 'details')}
                       className={cn(
                         "transition-all group relative cursor-pointer h-[80px]",
                         "hover:bg-accent dark:hover:bg-secondary"
@@ -339,7 +357,6 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                           <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground hover:text-indigo-600 hover:bg-indigo-50 transition-colors inline-flex items-center justify-center" onClick={(e) => { e.stopPropagation(); onEditSong(song); }}>
                             <Edit3 className="w-4 h-4" />
                           </Button>
-                          {/* NEW: Bin Icon for Remove */}
                           <Button 
                             variant="ghost" 
                             size="icon" 
