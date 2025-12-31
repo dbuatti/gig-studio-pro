@@ -195,7 +195,10 @@ const Index = () => {
       const fetchedSetlists: Setlist[] = (setlistsData || []).map(d => ({
         id: d.id,
         name: d.name,
-        songs: (d.songs as SetlistSong[]) || [],
+        songs: ((d.songs as any[]) || []).map(s => ({
+          ...s,
+          duration_seconds: Number(s.duration_seconds || 0) // Ensure duration_seconds is a number
+        })) as SetlistSong[],
         time_goal: d.time_goal
       }));
       setAllSetlists(fetchedSetlists);
@@ -445,14 +448,20 @@ const Index = () => {
   const handleUpdateSongInSetlist = async (songIdToUpdate: string, updates: Partial<SetlistSong>) => {
     if (!user || !activeSetlist) return;
 
-    // First, update the master repertoire
-    const updatedMasterSong = { ...masterRepertoire.find(s => s.id === songIdToUpdate), ...updates } as SetlistSong;
-    await syncToMasterRepertoire(user.id, [updatedMasterSong]);
-    setMasterRepertoire(prev => prev.map(s => s.id === songIdToUpdate ? updatedMasterSong : s));
+    // Find the current song in master repertoire to get its full state
+    const currentMasterSong = masterRepertoire.find(s => s.id === songIdToUpdate);
+    // Merge current master song state with new updates
+    const mergedUpdatesForMaster = { ...currentMasterSong, ...updates } as SetlistSong;
 
-    // Then, update the song in the active setlist
+    // First, update the master repertoire and get the fully synced song back
+    const syncedMasterSongs = await syncToMasterRepertoire(user.id, [mergedUpdatesForMaster]);
+    const fullySyncedMasterSong = syncedMasterSongs[0]; // This now has the latest audio_url, extraction_status etc.
+
+    setMasterRepertoire(prev => prev.map(s => s.id === songIdToUpdate ? fullySyncedMasterSong : s));
+
+    // Then, update the song in the active setlist using the fully synced master song's data
     const updatedSetlistSongs = activeSetlist.songs.map(s =>
-      (s.master_id === songIdToUpdate || s.id === songIdToUpdate) ? { ...s, ...updates } : s
+      (s.master_id === songIdToUpdate || s.id === songIdToUpdate) ? { ...s, ...fullySyncedMasterSong } : s
     );
 
     try {
@@ -460,11 +469,11 @@ const Index = () => {
         .from('setlists')
         .update({ songs: updatedSetlistSongs, updated_at: new Date().toISOString() })
         .eq('id', activeSetlist.id)
-        .eq('user_id', user.id); // FIX: Changed to user.id
+        .eq('user_id', user.id);
 
       if (error) throw error;
       setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: updatedSetlistSongs } : s));
-      if (activeSongForPerformance?.id === songIdToUpdate) setActiveSongForPerformance(prev => ({ ...prev!, ...updates }));
+      if (activeSongForPerformance?.id === songIdToUpdate) setActiveSongForPerformance(fullySyncedMasterSong); // Update active song with full data
       showSuccess("Song updated.");
     } catch (err: any) {
       showError(`Failed to update song: ${err.message}`);
@@ -541,10 +550,14 @@ const Index = () => {
       return;
     }
 
+    // Ensure songToAdd is the latest from masterRepertoire
+    const masterVersion = masterRepertoire.find(s => s.id === songToAdd.id || s.master_id === songToAdd.master_id);
+    const songToUse = masterVersion || songToAdd; // Use master version if found
+
     const newSetlistSong: SetlistSong = {
-      ...songToAdd,
+      ...songToUse, // Use the potentially more complete songToUse
       id: crypto.randomUUID(), // Generate new ID for setlist entry
-      master_id: songToAdd.master_id || songToAdd.id,
+      master_id: songToUse.master_id || songToUse.id,
       isPlayed: false,
       isApproved: false,
     };
