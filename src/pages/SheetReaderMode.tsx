@@ -702,10 +702,10 @@ const SheetReaderMode: React.FC = () => {
         "flex-1 flex flex-col overflow-hidden relative transition-all duration-300",
         isSidebarOpen ? "ml-[300px]" : "ml-0" // Shift main content when sidebar is open
       )}>
-        <SheetReaderHeader
+<SheetReaderHeader
   currentSong={currentSong}
   onClose={() => navigate('/')}
-  onSearchClick={() => { // Updated onSearchClick handler
+  onSearchClick={() => {
     setIsStudioModalOpen(true);
     setSearchParams({ id: 'new', tab: 'library' }, { replace: true });
   }}
@@ -725,7 +725,7 @@ const SheetReaderMode: React.FC = () => {
   onPullKey={handlePullKey}
   isSidebarOpen={isSidebarOpen}
   onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-  headerLeftOffset={headerLeftOffset} 
+  // ← MISSING PROP HERE
 />
 
         {isOriginalKeyMissing && (
