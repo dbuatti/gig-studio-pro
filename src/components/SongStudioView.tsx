@@ -230,6 +230,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
       
       if (!targetSong) {
         console.error("[SongStudioView] fetchData: Final check - targetSong is undefined.");
+        showError("Error: The requested track could not be found in this setlist."); // Added error toast
         throw new Error("Track not found in current context.");
       }
       setSong(targetSong);
