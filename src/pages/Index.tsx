@@ -92,7 +92,6 @@ const Index = () => {
 
   const [floatingDockMenuOpen, setFloatingDockMenuOpen] = useState(false);
 
-  // Track the userId specifically to avoid effects running on whole user object changes
   const userId = user?.id;
 
   const activeSetlist = useMemo(() =>
@@ -152,7 +151,6 @@ const Index = () => {
   const fetchSetlistsAndRepertoire = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
-    console.log("[Dashboard] Triggering fetchSetlistsAndRepertoire...");
     try {
       const { data: setlistsData, error: setlistsError } = await supabase
         .from('setlists')
@@ -262,7 +260,6 @@ const Index = () => {
     }
   }, [userId]);
 
-  // Use the fetch effect but depend on userId rather than the whole user object
   useEffect(() => {
     if (!authLoading && userId) {
       fetchSetlistsAndRepertoire();
@@ -270,76 +267,6 @@ const Index = () => {
       navigate('/landing');
     }
   }, [userId, authLoading, fetchSetlistsAndRepertoire, navigate]);
-
-  useEffect(() => {
-    if (!userId) return;
-    console.log("[Dashboard] Setting up Repertoire Realtime Channel");
-    const repertoireChannel = supabase
-      .channel('repertoire_changes')
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'repertoire', filter: `user_id=eq.${userId}` },
-        (payload) => {
-          const updatedSong = payload.new as SetlistSong;
-          if (updatedSong.extraction_status && (updatedSong.extraction_status === 'completed' || updatedSong.extraction_status === 'failed')) {
-            showSuccess(`Repertoire updated for "${updatedSong.name}"`);
-            fetchSetlistsAndRepertoire();
-          }
-        }
-      )
-      .subscribe();
-    return () => { 
-      supabase.removeChannel(repertoireChannel); 
-    };
-  }, [userId, fetchSetlistsAndRepertoire]);
-
-  useEffect(() => {
-    if (activeSetlist) {
-      const lastActiveSongId = localStorage.getItem(`active_song_id_${activeSetlist.id}`);
-      let songToActivate = null;
-      if (lastActiveSongId) {
-        songToActivate = activeSetlist.songs.find(s => s.id === lastActiveSongId);
-      }
-      if (!songToActivate && activeSetlist.songs.length > 0) {
-        songToActivate = activeSetlist.songs[0];
-      }
-      setActiveSongForPerformance(songToActivate || null);
-    } else {
-      setActiveSongForPerformance(null);
-    }
-  }, [activeSetlistId, allSetlists]);
-
-  useEffect(() => {
-    if (activeSetlist && activeSongForPerformance) {
-      localStorage.setItem(`active_song_id_${activeSetlist.id}`, activeSongForPerformance.id);
-    }
-  }, [activeSetlistId, activeSongForPerformance?.id]);
-
-  // STABILIZED AUDIO LOAD EFFECT
-  const { loadFromUrl, stopPlayback, resetEngine } = audio;
-  const lastLoadedUrl = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (activeSongForPerformance && (activeSongForPerformance.audio_url || activeSongForPerformance.previewUrl)) {
-      const urlToLoad = activeSongForPerformance.audio_url || activeSongForPerformance.previewUrl;
-      // Prevent reloading if the URL is the same and already loaded
-      if (urlToLoad && urlToLoad !== lastLoadedUrl.current) {
-        console.log("[Dashboard] Audio Load Triggered", { song: activeSongForPerformance.name });
-        lastLoadedUrl.current = urlToLoad;
-        loadFromUrl(urlToLoad, activeSongForPerformance.pitch || 0, true);
-      }
-    } else {
-      lastLoadedUrl.current = null;
-      stopPlayback();
-      resetEngine();
-    }
-  }, [activeSongForPerformance?.audio_url, activeSongForPerformance?.previewUrl, activeSongForPerformance?.pitch, loadFromUrl, stopPlayback, resetEngine]);
-
-  useEffect(() => {
-    if (activeSetlistId) {
-      localStorage.setItem('active_setlist_id', activeSetlistId);
-    }
-  }, [activeSetlistId]);
 
   const handleSelectSetlist = (id: string) => {
     setActiveSetlistId(id);
@@ -365,26 +292,6 @@ const Index = () => {
       showError(`Failed to create setlist: ${err.message}`);
     } finally {
       setIsCreatingSetlist(false);
-    }
-  };
-
-  const handleRenameSetlist = async (id: string) => {
-    if (!userId || !renameSetlistName.trim() || !renameSetlistId) return;
-    try {
-      const { error } = await supabase
-        .from('setlists')
-        .update({ name: renameSetlistName.trim() })
-        .eq('id', id)
-        .eq('user_id', userId);
-
-      if (error) throw error;
-      setAllSetlists(prev => prev.map(s => s.id === id ? { ...s, name: renameSetlistName } : s));
-      showSuccess("Setlist Renamed!");
-      setRenameSetlistId(null);
-      setNewSetlistNameForRename("");
-      setIsSetlistSettingsOpen(false);
-    } catch (err: any) {
-      showError(`Failed to rename setlist: ${err.message}`);
     }
   };
 
@@ -472,26 +379,26 @@ const Index = () => {
     }
   };
 
-  const handleUpdateSongKey = async (songIdToUpdate: string, newTargetKey: string) => {
-    if (!userId || !activeSetlist) return;
-    const songToUpdate = activeSetlist.songs.find(s => s.id === songIdToUpdate);
-    if (!songToUpdate) return;
-    const newPitch = calculateSemitones(songToUpdate.originalKey || 'C', newTargetKey);
-    const updatedMasterSong = { ...masterRepertoire.find(s => s.id === songToUpdate.master_id), targetKey: newTargetKey, pitch: newPitch };
-    await syncToMasterRepertoire(userId, [updatedMasterSong as SetlistSong]);
-    setMasterRepertoire(prev => prev.map(s => s.id === songToUpdate.master_id ? updatedMasterSong as SetlistSong : s));
-    const updatedSetlistSongs = activeSetlist.songs.map(s =>
-      s.id === songIdToUpdate ? { ...s, targetKey: newTargetKey, pitch: newPitch } : s
-    );
+  const handleUpdateSongKey = (id: string, targetKey: string) => {
+    handleUpdateSongInSetlist(id, { targetKey });
+  };
+
+  const handleUpdateMasterKey = async (songId: string, updates: { originalKey?: string | null, targetKey?: string | null, pitch?: number }) => {
+    if (!userId) return;
+    const current = masterRepertoire.find(s => s.id === songId);
+    if (!current) return;
     try {
-      const { error } = await supabase.from('setlists').update({ songs: updatedSetlistSongs, updated_at: new Date().toISOString() }).eq('id', activeSetlist.id).eq('user_id', userId);
-      if (error) throw error;
-      setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: updatedSetlistSongs } : s));
-      if (activeSongForPerformance?.id === songIdToUpdate) setActiveSongForPerformance(prev => ({ ...prev!, targetKey: newTargetKey, pitch: newPitch }));
-      showSuccess(`Key updated to ${newTargetKey}`);
+      const updated = { ...current, ...updates };
+      await syncToMasterRepertoire(userId, [updated as SetlistSong]);
+      await fetchSetlistsAndRepertoire();
     } catch (err: any) {
-      showError(`Failed to update key: ${err.message}`);
+      showError(`Failed to update master key: ${err.message}`);
     }
+  };
+
+  const handleSafePitchToggle = (active: boolean, limit: number) => {
+    // This is managed within FloatingCommandDock, but we can log it
+    console.log(`[Dashboard] Safe Pitch Toggled: ${active}, Limit: ${limit}`);
   };
 
   const handleTogglePlayed = async (songIdToToggle: string) => {
@@ -569,22 +476,53 @@ const Index = () => {
     await fetchSetlistsAndRepertoire();
   }, [allSetlists, fetchSetlistsAndRepertoire, userId]);
 
-  const handleUpdateMasterKey = useCallback(async (songId: string, updates: { originalKey?: string | null, targetKey?: string | null, pitch?: number }) => {
+  const handleImportNewSong = async (previewUrl: string, name: string, artist: string, youtubeUrl?: string, ugUrl?: string, appleMusicUrl?: string, genre?: string, pitch?: number, audioUrl?: string, extractionStatus?: 'idle' | 'PENDING' | 'queued' | 'processing' | 'completed' | 'failed') => {
     if (!userId) return;
-    const currentMasterSong = masterRepertoire.find(s => s.id === songId);
-    if (!currentMasterSong) return;
+    console.log("[Dashboard] handleImportNewSong initiated for:", name);
     try {
-      const mergedUpdatesForMaster = { ...currentMasterSong, ...updates };
-      const syncedMasterSongs = await syncToMasterRepertoire(userId, [mergedUpdatesForMaster as SetlistSong]);
-      const fullySyncedMasterSong = syncedMasterSongs[0];
-      setMasterRepertoire(prev => prev.map(s => s.id === songId ? fullySyncedMasterSong : s));
-      await fetchSetlistsAndRepertoire();
-    } catch (err: any) {
-      showError(`Failed to update key: ${err.message}`);
-    }
-  }, [userId, masterRepertoire, fetchSetlistsAndRepertoire]);
+      const newSongData: Partial<SetlistSong> = {
+        name,
+        artist,
+        previewUrl,
+        youtubeUrl,
+        ugUrl,
+        appleMusicUrl,
+        genre,
+        pitch: pitch || 0,
+        audio_url: audioUrl,
+        extraction_status: extractionStatus || 'idle',
+        isMetadataConfirmed: true,
+        isPlayed: false,
+        is_pitch_linked: true
+      };
+      
+      console.log("[Dashboard] Syncing new track to master repertoire...");
+      const syncedSongs = await syncToMasterRepertoire(userId, [newSongData]);
+      const syncedSong = syncedSongs[0];
+      console.log("[Dashboard] Master sync successful. ID:", syncedSong.id);
 
-  const handleRefreshRepertoire = useCallback(() => { fetchSetlistsAndRepertoire(); }, [fetchSetlistsAndRepertoire]);
+      setMasterRepertoire(prev => [...prev, syncedSong]);
+
+      if (activeSetlist) {
+        console.log("[Dashboard] Adding track to active setlist:", activeSetlist.name);
+        await supabase.from('setlist_songs').insert({
+          setlist_id: activeSetlist.id,
+          song_id: syncedSong.master_id,
+          sort_order: activeSetlist.songs.length,
+          isPlayed: false,
+          is_confirmed: false
+        });
+        await fetchSetlistsAndRepertoire();
+        showSuccess(`"${name}" added to repertoire and setlist.`);
+      } else {
+        showSuccess(`"${name}" added to master repertoire.`);
+      }
+      setIsAudioTransposerModalOpen(false);
+    } catch (err: any) {
+      console.error("[Dashboard] Import failed:", err);
+      showError(`Import failed: ${err.message}`);
+    }
+  };
 
   const handleOpenReader = useCallback((initialSongId?: string) => {
     sessionStorage.setItem('from_dashboard', 'true');
@@ -602,19 +540,6 @@ const Index = () => {
     if (!activeSongForPerformance) setActiveSongForPerformance(activeSetlist.songs[0]);
     setIsPerformanceOverlayOpen(true);
   }, [activeSetlist, activeSongForPerformance]);
-
-  const handleSafePitchToggle = useCallback((active: boolean, safePitch: number) => {
-    if (!isSafePitchEnabled || !activeSongForPerformance) return;
-    if (active) {
-      const currentPitch = activeSongForPerformance.pitch || 0;
-      if (currentPitch > safePitch) {
-        const newPitch = safePitch;
-        const newTargetKey = activeSongForPerformance.originalKey ? transposeKey(activeSongForPerformance.originalKey, newPitch) : activeSongForPerformance.targetKey;
-        handleUpdateSongInSetlist(activeSongForPerformance.id, { pitch: newPitch, targetKey: newTargetKey });
-        showInfo(`Pitch adjusted to ${newPitch} ST for safety.`);
-      }
-    }
-  }, [activeSongForPerformance, handleUpdateSongInSetlist, isSafePitchEnabled]);
 
   if (loading || authLoading || isFetchingSettings) {
     return (
@@ -667,7 +592,7 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="repertoire" className="mt-0 space-y-8">
-            <RepertoireView repertoire={masterRepertoire} onEditSong={handleEditSong} allSetlists={allSetlists} onUpdateSetlistSongs={handleUpdateSetlistSongs} onRefreshRepertoire={handleRefreshRepertoire} onAddSong={async (newSong) => { if (!userId) return; try { const synced = await syncToMasterRepertoire(userId, [newSong]); setMasterRepertoire(prev => [...prev, synced[0]]); } catch (err: any) { showError(`Failed: ${err.message}`); } }} searchTerm={searchTerm} setSearchTerm={setSearchTerm} sortMode={sortMode} setSortMode={setSortMode} activeFilters={activeFilters} setActiveFilters={setActiveFilters} />
+            <RepertoireView repertoire={masterRepertoire} onEditSong={handleEditSong} allSetlists={allSetlists} onUpdateSetlistSongs={handleUpdateSetlistSongs} onRefreshRepertoire={() => fetchSetlistsAndRepertoire()} onAddSong={async (newSong) => { if (!userId) return; try { const synced = await syncToMasterRepertoire(userId, [newSong]); setMasterRepertoire(prev => [...prev, synced[0]]); } catch (err: any) { showError(`Failed: ${err.message}`); } }} searchTerm={searchTerm} setSearchTerm={setSearchTerm} sortMode={sortMode} setSortMode={setSortMode} activeFilters={activeFilters} setActiveFilters={setActiveFilters} />
           </TabsContent>
         </Tabs>
       </div>
@@ -692,8 +617,8 @@ const Index = () => {
       {activeSetlist && <SetlistSettingsModal isOpen={isSetlistSettingsOpen} onClose={() => setIsSetlistSettingsOpen(false)} setlistId={activeSetlist.id} setlistName={activeSetlist.name} onDelete={(id) => { setDeleteSetlistConfirmId(id); setIsSetlistSettingsOpen(false); }} onRename={(id) => { setRenameSetlistId(id); setNewSetlistNameForRename(activeSetlist.name); }} />}
 
       <RepertoirePicker isOpen={isRepertoirePickerOpen} onClose={() => setIsRepertoirePickerOpen(false)} repertoire={masterRepertoire} currentSetlistSongs={activeSetlist?.songs || []} onAdd={handleAddSongToSetlist} />
-      <ResourceAuditModal isOpen={isResourceAuditOpen} onClose={() => setIsResourceAuditOpen(false)} songs={masterRepertoire} onVerify={async (songId, updates) => { if (!userId) return; const current = masterRepertoire.find(s => s.id === songId); if (!current) return; const updated = { ...current, ...updates }; await syncToMasterRepertoire(userId, [updated as SetlistSong]); await fetchSetlistsAndRepertoire(); }} onRefreshRepertoire={handleRefreshRepertoire} />
-      <AdminPanel isOpen={isAdminPanelOpen} onClose={() => setIsAdminPanelOpen(false)} onRefreshRepertoire={handleRefreshRepertoire} />
+      <ResourceAuditModal isOpen={isResourceAuditOpen} onClose={() => setIsResourceAuditOpen(false)} songs={masterRepertoire} onVerify={async (songId, updates) => { if (!userId) return; const current = masterRepertoire.find(s => s.id === songId); if (!current) return; const updated = { ...current, ...updates }; await syncToMasterRepertoire(userId, [updated as SetlistSong]); await fetchSetlistsAndRepertoire(); }} onRefreshRepertoire={() => fetchSetlistsAndRepertoire()} />
+      <AdminPanel isOpen={isAdminPanelOpen} onClose={() => setIsAdminPanelOpen(false)} onRefreshRepertoire={() => fetchSetlistsAndRepertoire()} />
       <PreferencesModal isOpen={isPreferencesOpen} onClose={() => setIsPreferencesOpen(false)} />
       <UserGuideModal isOpen={isUserGuideOpen} onClose={() => setIsUserGuideOpen(false)} />
       <KeyManagementModal isOpen={isKeyManagementOpen} onClose={() => setIsKeyManagementOpen(false)} repertoire={masterRepertoire} onUpdateKey={handleUpdateMasterKey} keyPreference={globalKeyPreference} />
@@ -712,7 +637,17 @@ const Index = () => {
             <DialogHeader className="p-6 bg-indigo-600 shrink-0 relative"><button onClick={() => setIsAudioTransposerModalOpen(false)} className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 text-white/70"><X className="w-5 h-5" /></button>
                 <div className="flex items-center gap-3 mb-2"><div className="bg-white/20 p-2 rounded-xl backdrop-blur-md"><Music className="w-6 h-6 text-white" /></div><DialogTitle className="text-2xl font-black uppercase tracking-tight text-white">Audio Transposer</DialogTitle></div>
                 <DialogDescription className="text-indigo-100 font-medium">Load audio and adjust parameters.</DialogDescription></DialogHeader>
-            <div className="flex-1 overflow-hidden"><AudioTransposer repertoire={masterRepertoire} currentSong={null} /></div>
+            <div className="flex-1 overflow-hidden">
+              <AudioTransposer 
+                repertoire={masterRepertoire} 
+                currentSong={null} 
+                onAddToSetlist={handleImportNewSong}
+                onAddExistingSong={(song) => {
+                   handleAddSongToSetlist(song);
+                   setIsAudioTransposerModalOpen(false);
+                }}
+              />
+            </div>
           </DialogContent>
         </Dialog>
       )}

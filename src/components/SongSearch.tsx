@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Search, Music, Loader2, Youtube, ExternalLink, Link as LinkIcon, Check, PlayCircle, AlertCircle, RefreshCw, Plus, FileText, CloudDownload, AlertTriangle } from 'lucide-react'; // NEW: Import CloudDownload and AlertTriangle
+import { Search, Music, Loader2, Youtube, ExternalLink, Link as LinkIcon, Check, PlayCircle, AlertCircle, RefreshCw, Plus, FileText, CloudDownload, AlertTriangle } from 'lucide-react'; 
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
@@ -38,14 +38,16 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
   const performSearch = async (searchTerm: string) => {
     if (!searchTerm.trim()) return;
 
+    console.log("[SongSearch] Performing iTunes search for:", searchTerm);
     setIsLoading(true);
     setExpandingId(null);
     try {
       const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(searchTerm)}&entity=song&limit=15`);
       const data = await response.json();
+      console.log("[SongSearch] iTunes results received:", data.results?.length || 0);
       setResults(data.results || []);
     } catch (err) {
-      // Silent failure
+      console.error("[SongSearch] iTunes search error:", err);
     } finally {
       setIsLoading(false);
     }
@@ -132,6 +134,19 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
     }
   };
 
+  const handleAddClick = (song: any) => {
+    console.log("[SongSearch] 'Add to Gig' clicked for:", song.trackName, "by", song.artistName);
+    onAddToSetlist(
+      song.previewUrl, 
+      song.trackName, 
+      song.artistName, 
+      manualYtUrl, 
+      manualUgUrl, 
+      song.trackViewUrl, 
+      song.primaryGenreName
+    );
+  };
+
   return (
     <div className="space-y-4">
       <form onSubmit={handleSearch} className="flex gap-2">
@@ -162,7 +177,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
                   <div key={song.trackId} className="flex flex-col border-b last:border-0 border-slate-200 dark:border-slate-800">
                     <div className="w-full flex items-center gap-3 p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all group">
                       <button
-                        onClick={() => onAddToSetlist(song.previewUrl, song.trackName, song.artistName, manualYtUrl, manualUgUrl, song.trackViewUrl, song.primaryGenreName)}
+                        onClick={() => handleAddClick(song)}
                         className="flex flex-1 items-center gap-3 text-left min-w-0"
                       >
                         <img 
@@ -269,7 +284,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
                             </div>
 
                             <Button 
-                              onClick={() => onAddToSetlist(song.previewUrl, song.trackName, song.artistName, manualYtUrl, manualUgUrl, song.trackViewUrl, song.primaryGenreName)}
+                              onClick={() => handleAddClick(song)}
                               className="w-full bg-indigo-600 hover:bg-indigo-700 h-9 font-black uppercase tracking-widest text-[10px] gap-2 shadow-lg shadow-indigo-600/20"
                             >
                               <Plus className="w-3.5 h-3.5" /> Add to Gig with Links

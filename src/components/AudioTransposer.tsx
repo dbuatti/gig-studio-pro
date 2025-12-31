@@ -16,7 +16,7 @@ import SongSuggestions from './SongSuggestions';
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SetlistSong } from './SetlistManager';
-import { transposeKey } from '@/utils/keyUtils';
+import { transposeKey, calculateSemitones } from '@/utils/keyUtils';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { useToneAudio } from '@/hooks/use-tone-audio';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -58,7 +58,6 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
   currentList
 }, ref) => {
   const isMobile = useIsMobile();
-  // MODIFICATION: Pass suppressToasts=true to prevent "Audio Loaded" toasts
   const audio = useToneAudio(true);
   
   const [file, setFile] = useState<{ id?: string; name: string; artist?: string; url?: string; originalKey?: string; ugUrl?: string; youtubeUrl?: string; appleMusicUrl?: string; genre?: string; extraction_status?: 'idle' | 'PENDING' | 'queued' | 'processing' | 'completed' | 'failed'; last_sync_log?: string; audio_url?: string } | null>(null);
@@ -67,6 +66,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
   const [activeYoutubeUrl, setActiveYoutubeUrl] = useState<string | undefined>();
   const [activeUgUrl, setActiveUgUrl] = useState<string | undefined>();
   const [searchQuery, setSearchQuery] = useState("");
+  const [suggestedKey, setSuggestedKey] = useState<string | null>(null);
 
   const { 
     isPlaying, progress, duration, pitch, tempo, volume, fineTune, analyzer,
@@ -78,12 +78,6 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
     if (onPlaybackChange) onPlaybackChange(isPlaying);
   }, [isPlaying, onPlaybackChange]);
 
-  useEffect(() => {
-    if (duration > 0 && progress >= 100) {
-      if (onSongEnded) onSongEnded();
-    }
-  }, [progress, duration, onSongEnded]);
-
   const getYoutubeId = (url: string) => {
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
     const match = url.match(regExp);
@@ -91,11 +85,12 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
   };
 
   const loadFromUrl = async (targetUrl: string, name: string, artist: string, youtubeUrl?: string, originalKey?: string, ugUrl?: string, appleMusicUrl?: string, genre?: string, audioUrl?: string, extractionStatus?: 'idle' | 'PENDING' | 'queued' | 'processing' | 'completed' | 'failed') => {
+    console.log("[AudioTransposer] loadFromUrl called for:", name);
     resetEngine();
     const initialPitch = currentSong?.pitch || 0;
     
-    // Prioritize audioUrl if extraction is completed
     const urlToLoad = (extractionStatus === 'completed' && audioUrl) ? audioUrl : targetUrl;
+    console.log("[AudioTransposer] Loading audio resource:", urlToLoad);
 
     await hookLoadFromUrl(urlToLoad, initialPitch);
     
@@ -110,56 +105,20 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
     }
   };
 
-  const togglePlayback = async () => {
-    await hookTogglePlayback();
-  };
-
-  const stopPlayback = () => {
-    hookStopPlayback();
-  };
-
-  const suggestedKey = useMemo(() => {
-    const activeKey = file?.originalKey || currentSong?.originalKey;
-    if (!activeKey || activeKey === "TBC") return null;
-    return transposeKey(activeKey, pitch);
-  }, [file?.originalKey, currentSong?.originalKey, pitch]);
-
-  const handleApplyKey = () => {
-    if (currentSong && suggestedKey && onUpdateSongKey) {
-      onUpdateSongKey(currentSong.id, suggestedKey);
-      showSuccess(`Applied ${suggestedKey}`);
-    }
-  };
-
-  const handleOctaveShift = (direction: 'up' | 'down') => {
-    const shift = direction === 'up' ? 12 : -12;
-    const newPitch = pitch + shift;
-    if (newPitch > 24 || newPitch < -24) {
-      showError("Range limit reached.");
-      return;
-    }
-    setPitch(newPitch);
-    if (currentSong && onUpdateSongKey) {
-      const activeKey = file?.originalKey || currentSong?.originalKey;
-      if (activeKey && activeKey !== "TBC") {
-        const newTarget = transposeKey(activeKey, newPitch);
-        onUpdateSongKey(currentSong.id, newTarget);
-      }
-    }
-  };
-
-  const handleUgPrint = () => {
-    const ugUrl = activeUgUrl || currentSong?.ugUrl;
-    if (!ugUrl) {
-      showError("No tab linked.");
-      return;
-    }
-    const printUrl = ugUrl.includes('?') ? ugUrl.replace('?', '/print?') : `${ugUrl}/print`;
-    window.open(printUrl, '_blank');
-  };
-
   const handleAddToGig = () => {
-    if (!file) return;
+    console.log("[AudioTransposer] handleAddToGig initiated.");
+    if (!file) {
+      console.warn("[AudioTransposer] Cannot add: 'file' is null.");
+      return;
+    }
+    
+    if (!onAddToSetlist) {
+      console.error("[AudioTransposer] onAddToSetlist prop is UNDEFINED. Import will fail.");
+      showError("Configuration error: Handlers missing.");
+      return;
+    }
+
+    console.log("[AudioTransposer] Dispatching onAddToSetlist with data:", file.name);
     onAddToSetlist?.(
       file.url || '', 
       file.name, 
@@ -169,10 +128,10 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
       file.appleMusicUrl, 
       file.genre, 
       pitch,
-      file.audio_url, // Pass audio_url
-      file.extraction_status // Pass extraction_status
+      file.audio_url, 
+      file.extraction_status 
     );
-    setFile(null); // Clear after add
+    setFile(null); 
   };
 
   const handleSelectSuggestion = (query: string) => {
@@ -181,6 +140,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
   };
 
   const handleImportGlobal = (songData: Partial<SetlistSong>) => {
+    console.log("[AudioTransposer] handleImportGlobal called for:", songData.name);
     if (onAddExistingSong) {
       const { id, master_id, ...dataToClone } = songData;
       const newSong = {
@@ -189,6 +149,24 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
         isPlayed: false
       } as SetlistSong;
       onAddExistingSong(newSong);
+    } else {
+      console.error("[AudioTransposer] onAddExistingSong prop is missing!");
+    }
+  };
+
+  const handleUgPrint = () => {
+    if (activeUgUrl) window.open(activeUgUrl, '_blank');
+  };
+
+  const handleOctaveShift = (direction: 'up' | 'down') => {
+    setPitch(direction === 'up' ? pitch + 12 : pitch - 12);
+  };
+
+  const handleApplyKey = () => {
+    if (suggestedKey && file?.originalKey) {
+      const diff = calculateSemitones(file.originalKey, suggestedKey);
+      setPitch(diff);
+      showSuccess(`Applied suggested key: ${suggestedKey}`);
     }
   };
 
@@ -202,16 +180,13 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
       setSearchQuery(query);
       setActiveTab("search");
     },
-    togglePlayback,
-    stopPlayback,
+    togglePlayback: () => hookTogglePlayback(),
+    stopPlayback: () => hookStopPlayback(),
     resetEngine,
     getProgress: () => ({ progress, duration }),
     getAnalyzer: () => analyzer,
     getIsPlaying: () => isPlaying
   }));
-
-  const isProcessing = file?.extraction_status === 'processing' || file?.extraction_status === 'queued';
-  const isExtractionFailed = file?.extraction_status === 'failed';
 
   return (
     <div className="flex flex-col h-full relative">
@@ -253,9 +228,14 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
           <TabsContent value="search" className="mt-0 space-y-4">
             <SongSearch 
               onSelectSong={(url, name, artist, yt) => { loadFromUrl(url, name, artist, yt); }} 
-              onAddToSetlist={(url, name, artist, yt, ug, apple, gen) => 
-                onAddToSetlist?.(url, name, artist, yt, ug, apple, gen, 0)
-              }
+              onAddToSetlist={(url, name, artist, yt, ug, apple, gen) => {
+                console.log("[AudioTransposer] SongSearch onAddToSetlist triggered for:", name);
+                if (onAddToSetlist) {
+                   onAddToSetlist(url, name, artist, yt, ug, apple, gen, 0);
+                } else {
+                   console.error("[AudioTransposer] Inner onAddToSetlist handler missing!");
+                }
+              }}
               externalQuery={searchQuery}
             />
           </TabsContent>
@@ -271,7 +251,10 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
           <TabsContent value="repertoire" className="mt-0 space-y-4">
             <MyLibrary 
               repertoire={repertoire} 
-              onAddSong={(song) => onAddExistingSong?.(song)}
+              onAddSong={(song) => {
+                console.log("[AudioTransposer] MyLibrary add triggered for:", song.name);
+                onAddExistingSong?.(song);
+              }}
             />
           </TabsContent>
         </Tabs>
@@ -290,10 +273,10 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
               </div>
               
               <div className="flex items-center justify-center gap-6">
-                <Button variant="outline" size="icon" onClick={stopPlayback} className="rounded-full h-10 w-10">
+                <Button variant="outline" size="icon" onClick={() => hookStopPlayback()} className="rounded-full h-10 w-10">
                   <RotateCcw className="w-4 h-4" />
                 </Button>
-                <Button size="lg" onClick={togglePlayback} className="w-16 h-16 rounded-full shadow-xl bg-indigo-600 hover:bg-indigo-700">
+                <Button size="lg" onClick={hookTogglePlayback} className="w-16 h-16 rounded-full shadow-xl bg-indigo-600 hover:bg-indigo-700">
                   {isPlaying ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8 ml-0.5" />}
                 </Button>
                 <div className="w-10" />
@@ -397,7 +380,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
                   <div className="flex-1">
                     <Slider value={[pitch]} min={-24} max={24} step={1} onValueChange={([v]) => setPitch(v)} />
                   </div>
-                  {suggestedKey && (
+                  {suggestedKey && suggestedKey !== "TBC" && (
                     <Button onClick={handleApplyKey} size="sm" className="bg-indigo-50 text-indigo-600 h-9 px-3 text-[10px] uppercase font-black gap-1">
                       <Sparkles className="w-3 h-3" /> Apply {suggestedKey}
                     </Button>
