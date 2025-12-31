@@ -95,6 +95,17 @@ const Index = () => {
 
   const userId = user?.id;
 
+  // --- REFINED AUDIO CALCULATION LOGIC (Moved up to satisfy Hooks rules) ---
+  const missingAudioCount = useMemo(() => {
+    // Only count tracks that HAVE a YouTube URL but LACK extracted audio (or extraction failed/queued)
+    const count = masterRepertoire.filter(s => 
+      !!s.youtubeUrl && (!s.audio_url || s.extraction_status !== 'completed')
+    ).length;
+    
+    console.log(`[Dashboard] Audio Audit: ${count} tracks are currently missing full extracted audio but have YouTube links.`);
+    return count;
+  }, [masterRepertoire]);
+
   const activeSetlist = useMemo(() =>
     allSetlists.find(list => list.id === activeSetlistId),
   [allSetlists, activeSetlistId]);
@@ -148,19 +159,6 @@ const Index = () => {
     }
     return songs;
   }, [activeSetlist, searchTerm, sortMode, activeFilters]);
-
-  // --- REFINED AUDIO CALCULATION LOGIC ---
-  const missingAudioCount = useMemo(() => {
-    // A song is "Missing Full Audio" if:
-    // 1. It has a YouTube URL bound to it.
-    // 2. It doesn't have an audio_url OR its status is not 'completed'.
-    const count = masterRepertoire.filter(s => 
-      !!s.youtubeUrl && (!s.audio_url || s.extraction_status !== 'completed')
-    ).length;
-    
-    console.log(`[Dashboard] Audio Audit: ${count} tracks missing full extracted audio.`);
-    return count;
-  }, [masterRepertoire]);
 
   const fetchSetlistsAndRepertoire = useCallback(async () => {
     if (!userId) return;
@@ -562,7 +560,7 @@ const Index = () => {
     }
   };
 
-  // --- REFINED: Automation Handlers ---
+  // --- RESTORED: Automation Handlers ---
   
   const handleBulkAutoLink = async () => {
     const missing = masterRepertoire.filter(s => !s.youtubeUrl || s.youtubeUrl.trim() === '');
@@ -572,7 +570,6 @@ const Index = () => {
     }
 
     setIsRepertoireAutoLinking(true);
-    console.log(`[Dashboard] Initiating Smart-Link Discovery for ${missing.length} tracks...`);
     
     try {
       const { data, error } = await supabase.functions.invoke('bulk-populate-youtube-links', {
@@ -580,11 +577,9 @@ const Index = () => {
       });
 
       if (error) throw error;
-      console.log("[Dashboard] Smart-Link Discovery results bound successfully.");
       await fetchSetlistsAndRepertoire();
       showSuccess(`AI Discovery Complete: ${data.results.filter((r:any) => r.status === 'SUCCESS').length} links bound.`);
     } catch (err: any) {
-      console.error("[Dashboard] Smart-Link Discovery failure:", err);
       showError(`Discovery Failed: ${err.message}`);
     } finally {
       setIsRepertoireAutoLinking(false);
@@ -595,7 +590,6 @@ const Index = () => {
     if (masterRepertoire.length === 0) return;
     
     setIsRepertoireGlobalAutoSyncing(true);
-    console.log(`[Dashboard] Initiating Global Auto-Sync for ${masterRepertoire.length} tracks...`);
 
     try {
       const { data, error } = await supabase.functions.invoke('global-auto-sync', {
@@ -603,14 +597,43 @@ const Index = () => {
       });
 
       if (error) throw error;
-      console.log("[Dashboard] Global Auto-Sync pipeline completed.");
       await fetchSetlistsAndRepertoire();
       showSuccess("Metadata Sync Pipeline Finished.");
     } catch (err: any) {
-      console.error("[Dashboard] Global Auto-Sync failure:", err);
       showError(`Sync Failed: ${err.message}`);
     } finally {
       setIsRepertoireGlobalAutoSyncing(false);
+    }
+  };
+
+  const handleBulkClearAutoLinks = async () => {
+    const autoPopulated = masterRepertoire.filter(s => s.metadata_source === 'auto_populated');
+    if (autoPopulated.length === 0) {
+      showInfo("No auto-populated links found to clear.");
+      return;
+    }
+
+    if (!confirm(`Clear ${autoPopulated.length} auto-populated links?`)) return;
+
+    setIsRepertoireClearingAutoLinks(true);
+    try {
+      const { error } = await supabase
+        .from('repertoire')
+        .update({ 
+          youtube_url: null, 
+          metadata_source: null,
+          sync_status: 'IDLE' 
+        })
+        .eq('metadata_source', 'auto_populated')
+        .eq('user_id', userId);
+
+      if (error) throw error;
+      await fetchSetlistsAndRepertoire();
+      showSuccess("Auto-populated links cleared.");
+    } catch (err: any) {
+      showError(`Clear Failed: ${err.message}`);
+    } finally {
+      setIsRepertoireClearingAutoLinks(false);
     }
   };
 
@@ -650,37 +673,6 @@ const Index = () => {
     }
   };
 
-  const handleBulkClearAutoLinks = async () => {
-    const autoPopulated = masterRepertoire.filter(s => s.metadata_source === 'auto_populated');
-    if (autoPopulated.length === 0) {
-      showInfo("No auto-populated links found to clear.");
-      return;
-    }
-
-    if (!confirm(`Clear ${autoPopulated.length} auto-populated links?`)) return;
-
-    setIsRepertoireClearingAutoLinks(true);
-    try {
-      const { error } = await supabase
-        .from('repertoire')
-        .update({ 
-          youtube_url: null, 
-          metadata_source: null,
-          sync_status: 'IDLE' 
-        })
-        .eq('metadata_source', 'auto_populated')
-        .eq('user_id', userId);
-
-      if (error) throw error;
-      await fetchSetlistsAndRepertoire();
-      showSuccess("Auto-populated links cleared.");
-    } catch (err: any) {
-      showError(`Clear Failed: ${err.message}`);
-    } finally {
-      setIsRepertoireClearingAutoLinks(false);
-    }
-  };
-
   const handleOpenReader = useCallback((initialSongId?: string) => {
     sessionStorage.setItem('from_dashboard', 'true');
     const params = new URLSearchParams();
@@ -698,6 +690,9 @@ const Index = () => {
     setIsPerformanceOverlayOpen(true);
   }, [activeSetlist, activeSongForPerformance]);
 
+  const hasPlayableSong = !!activeSongForPerformance?.audio_url || !!activeSongForPerformance?.previewUrl;
+  const hasReadableChart = !!activeSongForPerformance && (!!activeSongForPerformance.pdfUrl || !!activeSongForPerformance.leadsheetUrl || !!activeSongForPerformance.ugUrl || !!activeSongForPerformance.ug_chords_text || !!activeSongForPerformance.sheet_music_url);
+
   if (loading || authLoading || isFetchingSettings) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -705,9 +700,6 @@ const Index = () => {
       </div>
     );
   }
-
-  const hasPlayableSong = !!activeSongForPerformance?.audio_url || !!activeSongForPerformance?.previewUrl;
-  const hasReadableChart = !!activeSongForPerformance && (!!activeSongForPerformance.pdfUrl || !!activeSongForPerformance.leadsheetUrl || !!activeSongForPerformance.ugUrl || !!activeSongForPerformance.ug_chords_text || !!activeSongForPerformance.sheet_music_url);
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col relative">
