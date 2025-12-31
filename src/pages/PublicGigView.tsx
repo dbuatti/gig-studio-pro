@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react'; // Added useMemo import
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Music2, MapPin, Calendar, ArrowLeft, User, Waves } from 'lucide-react';
@@ -8,6 +8,14 @@ import { Button } from '@/components/ui/button';
 import { SetlistSong } from '@/components/SetlistManager';
 import { cn } from '@/lib/utils';
 import { MadeWithDyad } from '@/components/made-with-dyad';
+
+// NEW: Define THEMES here or import from a shared constants file
+const THEMES = [
+  { name: 'Vibrant Light', primary: '#9333ea', background: '#ffffff', text: '#1e1b4b', border: '#9333ea' },
+  { name: 'Dark Pro', primary: '#4f46e5', background: '#020617', text: '#ffffff', border: '#4f46e5' },
+  { name: 'Classic Black', primary: '#000000', background: '#000000', text: '#ffffff', border: '#ffffff' },
+  { name: 'Purple Energy', primary: '#c084fc', background: '#2e1065', text: '#f5f3ff', border: '#c084fc' },
+];
 
 const PublicGigView = () => {
   const { code } = useParams();
@@ -84,7 +92,21 @@ const PublicGigView = () => {
   }
 
   const songs = (setlist.songs as SetlistSong[]) || [];
-  const colors = performer?.custom_colors || { primary: 'hsl(var(--primary))', background: 'hsl(var(--background))', text: 'hsl(var(--foreground))', border: 'hsl(var(--border))' };
+  
+  // NEW: Derive colors based on custom_theme or fallback to dynamic CSS variables
+  const colors = useMemo(() => {
+    if (performer?.custom_theme) {
+      const preset = THEMES.find(t => t.name === performer.custom_theme);
+      if (preset) return preset;
+    }
+    // Fallback to dynamic CSS variables if no custom theme or preset found
+    return {
+      primary: 'hsl(var(--primary))',
+      background: 'hsl(var(--background))',
+      text: 'hsl(var(--foreground))',
+      border: 'hsl(var(--border))',
+    };
+  }, [performer?.custom_theme]);
 
   return (
     <div 

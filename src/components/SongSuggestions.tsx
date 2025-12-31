@@ -17,6 +17,7 @@ let sessionSuggestionsCache: any[] | null = null;
 let sessionInitialLoadAttempted = false;
 
 const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectSuggestion, onAddExistingSong }) => {
+  console.log("[SongSuggestions] Repertoire prop received:", repertoire); // ADDED LOG
   const [rawSuggestions, setRawSuggestions] = useState<any[]>(sessionSuggestionsCache || []);
   const [isLoading, setIsLoading] = useState(false);
   const [seedSongId, setSeedSongId] = useState<string | null>(null);

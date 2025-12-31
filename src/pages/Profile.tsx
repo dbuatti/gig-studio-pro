@@ -24,8 +24,9 @@ const THEMES = [
   { name: 'Purple Energy', primary: '#c084fc', background: '#2e1065', text: '#f5f3ff', border: '#c084fc' },
 ];
 
-const DEFAULT_COLORS_LIGHT = { primary: '#9333ea', background: '#ffffff', text: '#1e1b4b', border: '#9333ea' };
-const DEFAULT_COLORS_DARK = { primary: '#4f46e5', background: '#020617', text: '#ffffff', border: '#4f46e5' };
+// Use CSS variables for dynamic defaults
+const DEFAULT_COLORS_LIGHT = { primary: 'hsl(var(--primary))', background: 'hsl(var(--background))', text: 'hsl(var(--foreground))', border: 'hsl(var(--primary))' };
+const DEFAULT_COLORS_DARK = { primary: 'hsl(var(--primary))', background: 'hsl(var(--background))', text: 'hsl(var(--foreground))', border: 'hsl(var(--primary))' };
 
 const Profile = () => {
   const { user } = useAuth();
@@ -48,10 +49,17 @@ const Profile = () => {
         .maybeSingle();
 
       if (!profileData && !pError) {
-        const initialColors = theme === 'dark' ? DEFAULT_COLORS_DARK : DEFAULT_COLORS_LIGHT;
+        const initialThemeName = theme === 'dark' ? 'Dark Pro' : 'Vibrant Light';
+        const initialThemePreset = THEMES.find(t => t.name === initialThemeName) || THEMES[0]; // Fallback to first theme
         const { data: newData, error: iError } = await supabase
           .from('profiles')
-          .insert([{ id: user.id, first_name: user.email?.split('@')[0], repertoire_threshold: 0, custom_colors: initialColors }])
+          .insert([{ 
+            id: user.id, 
+            first_name: user.email?.split('@')[0], 
+            repertoire_threshold: 0, 
+            custom_colors: initialThemePreset, // Store the preset colors
+            custom_theme: initialThemeName // Store the theme name
+          }])
           .select()
           .single();
         
@@ -72,7 +80,6 @@ const Profile = () => {
       if (sError) throw sError;
       setSongs(songData || []);
     } catch (err) {
-      // console.error("Profile Fetch Error:", err); // Removed console.error
       showError("Connection lost. Please refresh.");
     } finally {
       setLoading(false);
@@ -124,7 +131,8 @@ const Profile = () => {
   const thresholdFilteredSongs = songs.filter(s => (s.readiness_score || 0) >= (profile?.repertoire_threshold || 0));
 
   const currentDefaultColors = theme === 'dark' ? DEFAULT_COLORS_DARK : DEFAULT_COLORS_LIGHT;
-  const profileColors = profile?.custom_colors || currentDefaultColors;
+  // This will now be the actual colors from the selected preset, or the dynamic CSS variables
+  const profileColors = profile?.custom_colors || currentDefaultColors; 
 
 
   return (
@@ -288,9 +296,9 @@ const Profile = () => {
                   key={themeOption.name}
                   variant="ghost" 
                   onClick={() => {
-                    const colors = { primary: themeOption.primary, background: themeOption.background, text: themeOption.text, border: themeOption.border };
-                    handleUpdateLocal({ custom_colors: colors });
-                    saveToDatabase({ custom_colors: colors });
+                    // When a preset is clicked, update both custom_colors (hex values) and custom_theme (name)
+                    handleUpdateLocal({ custom_colors: themeOption, custom_theme: themeOption.name });
+                    saveToDatabase({ custom_colors: themeOption, custom_theme: themeOption.name });
                   }}
                   className="h-14 bg-card border border-border hover:border-indigo-500/50 justify-start px-4 rounded-xl gap-3 group transition-all text-foreground"
                 >
@@ -312,12 +320,12 @@ const Profile = () => {
                     <div className="w-8 h-8 rounded-lg border-2 border-border shadow-inner overflow-hidden relative">
                       <Input 
                         type="color" 
-                        value={profileColors[color.key]} 
+                        value={profileColors[color.key]} // Use profileColors directly
                         onChange={(e) => {
                           const newColors = { ...profile.custom_colors, [color.key]: e.target.value };
-                          handleUpdateLocal({ custom_colors: newColors });
+                          handleUpdateLocal({ custom_colors: newColors, custom_theme: null }); // Clear custom_theme if manually adjusting colors
                         }}
-                        onBlur={() => saveToDatabase({ custom_colors: profile.custom_colors })}
+                        onBlur={() => saveToDatabase({ custom_colors: profile.custom_colors, custom_theme: null })} // Clear custom_theme on blur
                         className="absolute inset-0 w-[200%] h-[200%] -translate-x-1/4 -translate-y-1/4 cursor-pointer"
                       />
                     </div>
@@ -331,8 +339,8 @@ const Profile = () => {
                 size="sm" 
                 onClick={() => {
                   const resetColors = theme === 'dark' ? DEFAULT_COLORS_DARK : DEFAULT_COLORS_LIGHT;
-                  handleUpdateLocal({ custom_colors: resetColors });
-                  saveToDatabase({ custom_colors: resetColors });
+                  handleUpdateLocal({ custom_colors: resetColors, custom_theme: null }); // Reset to dynamic defaults
+                  saveToDatabase({ custom_colors: resetColors, custom_theme: null });
                 }}
                 className="w-full mt-2 text-[9px] font-black uppercase text-muted-foreground hover:text-foreground gap-2"
               >
@@ -346,7 +354,7 @@ const Profile = () => {
       <div className="flex-1 bg-background flex flex-col p-10 relative overflow-hidden">
         <div 
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] blur-[150px] opacity-20 pointer-events-none rounded-full"
-          style={{ background: profileColors.primary }}
+          style={{ background: profileColors.primary }} // Use profileColors directly
         />
 
         <div className="relative z-10 h-full flex flex-col gap-6">
@@ -381,7 +389,7 @@ const Profile = () => {
 
           <div className="flex-1 bg-card rounded-[2.5rem] border-4 border-border shadow-2xl overflow-hidden relative">
             {profile?.is_repertoire_public ? (
-              <PublicRepertoireView profile={profile} songs={thresholdFilteredSongs} isPreview />
+              <PublicRepertoireView profile={profile} songs={thresholdFilteredSongs} isPreview themes={THEMES} />
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-md text-center p-12">
                 <div className="w-20 h-20 rounded-full bg-secondary flex items-center justify-center mb-6">

@@ -11,9 +11,10 @@ interface PublicRepertoireViewProps {
   profile: any;
   songs: any[];
   isPreview?: boolean;
+  themes: { name: string; primary: string; background: string; text: string; border: string }[]; // NEW: Add themes prop
 }
 
-const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, songs, isPreview }) => {
+const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, songs, isPreview, themes }) => { // NEW: Accept themes
   const [searchTerm, setSearchTerm] = useState("");
   const [sortMode, setSortMode] = useState<'artist' | 'alphabetical'>('artist');
   const { theme } = useTheme();
@@ -83,13 +84,20 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
 
   if (!profile) return null;
 
-  const profileColors = profile.custom_colors || {};
-  const colors = {
-    primary: profileColors.primary || (theme === 'dark' ? 'hsl(var(--primary))' : 'hsl(var(--primary))'),
-    background: profileColors.background || 'hsl(var(--background))',
-    text: profileColors.text || 'hsl(var(--foreground))',
-    border: profileColors.border || (theme === 'dark' ? 'hsl(var(--primary))' : 'hsl(var(--primary))'),
-  };
+  // NEW: Derive colors based on custom_theme or fallback to dynamic CSS variables
+  const colors = useMemo(() => {
+    if (profile.custom_theme) {
+      const preset = themes.find(t => t.name === profile.custom_theme);
+      if (preset) return preset;
+    }
+    // Fallback to dynamic CSS variables if no custom theme or preset found
+    return {
+      primary: 'hsl(var(--primary))',
+      background: 'hsl(var(--background))',
+      text: 'hsl(var(--foreground))',
+      border: 'hsl(var(--border))',
+    };
+  }, [profile.custom_theme, themes, theme]); // Added theme to dependencies for fallback
 
   return (
     <div 
@@ -134,11 +142,11 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="bg-secondary border-border h-10 pl-10 rounded-xl focus-visible:ring-indigo-500"
-              style={{ backgroundColor: theme === 'dark' ? 'hsl(var(--secondary))' : 'hsl(var(--secondary))', borderColor: 'hsl(var(--border))', color: colors.text }}
+              style={{ backgroundColor: 'hsl(var(--secondary))', borderColor: 'hsl(var(--border))', color: colors.text }} // Keep dynamic for input
             />
           </div>
           
-          <div className="flex bg-secondary p-1 rounded-xl border border-border w-full md:w-auto" style={{ backgroundColor: 'hsl(var(--secondary))', borderColor: 'hsl(var(--border))' }}>
+          <div className="flex bg-secondary p-1 rounded-xl border border-border w-full md:w-auto" style={{ backgroundColor: 'hsl(var(--secondary))', borderColor: 'hsl(var(--border))' }}> {/* Keep dynamic for buttons */}
             <Button 
               variant="ghost" 
               onClick={() => setSortMode('artist')}
