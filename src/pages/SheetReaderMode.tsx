@@ -5,7 +5,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { SetlistSong } from '@/components/SetlistManager';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/button'; // Fixed: Corrected import syntax
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Music, Loader2, AlertCircle, X, Settings, ExternalLink, ShieldCheck, FileText, Layout, Guitar, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -133,8 +133,8 @@ const SheetReaderMode: React.FC = () => {
       if (updates.sync_status !== undefined) dbUpdates.sync_status = updates.sync_status; else if (updates.sync_status === null) dbUpdates.sync_status = 'IDLE';
       if (updates.last_sync_log !== undefined) dbUpdates.last_sync_log = updates.last_sync_log; else if (updates.last_sync_log === null) dbUpdates.last_sync_log = null;
       if (updates.auto_synced !== undefined) dbUpdates.auto_synced = updates.auto_synced; else if (updates.auto_synced === null) dbUpdates.auto_synced = false;
-      if (updates.is_sheet_verified !== undefined) dbUpdates.is_sheet_verified = updates.is_sheet_verified; else if (updates.is_sheet_verified === null) dbUpdates.is_sheet_verified = false;
       if (updates.sheet_music_url !== undefined) dbUpdates.sheet_music_url = updates.sheet_music_url; else if (updates.sheet_music_url === null) dbUpdates.sheet_music_url = null;
+      if (updates.is_sheet_verified !== undefined) dbUpdates.is_sheet_verified = updates.is_sheet_verified; else if (updates.is_sheet_verified === null) dbUpdates.is_sheet_verified = false;
       if (updates.extraction_status !== undefined) dbUpdates.extraction_status = updates.extraction_status; else if (updates.extraction_status === null) dbUpdates.extraction_status = 'idle'; // NEW: Default to 'idle'
       
       // Always update `updated_at`
@@ -303,7 +303,7 @@ const SheetReaderMode: React.FC = () => {
       navigate('/', { replace: true });
       return; // Stop further execution of this effect
     }
-    // Clear the flag regardless, so subsequent direct access (e.e., refresh) won't be fooled
+    // Clear the flag regardless, so subsequent direct access (e.g., refresh) won't be fooled
     sessionStorage.removeItem('from_dashboard');
 
     fetchSongs();

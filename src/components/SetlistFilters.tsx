@@ -34,7 +34,6 @@ export interface FilterState {
   isApproved: 'all' | 'yes' | 'no';
   readiness: number; 
   hasUgChords: 'all' | 'yes' | 'no';
-  isTbcKey: 'all' | 'yes' | 'no'; // NEW: Added isTbcKey filter
 }
 
 export const DEFAULT_FILTERS: FilterState = {
@@ -46,8 +45,7 @@ export const DEFAULT_FILTERS: FilterState = {
   isConfirmed: 'all',
   isApproved: 'all',
   readiness: 0,
-  hasUgChords: 'all',
-  isTbcKey: 'all' // NEW: Default for isTbcKey
+  hasUgChords: 'all'
 };
 
 interface SetlistFiltersProps {
@@ -330,34 +328,6 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* NEW: TBC Key Toggle (Icon only) */}
-          <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className={cn(
-                      "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.isTbcKey !== 'all' ? "bg-amber-600 text-white shadow-lg" : "bg-card border-border text-muted-foreground"
-                    )}
-                  >
-                    <Hash className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent className="text-[10px] font-black uppercase">TBC Key Status</TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-popover border-border text-foreground">
-              <DropdownMenuRadioGroup value={activeFilters.isTbcKey} onValueChange={(v) => onFilterChange({ ...activeFilters, isTbcKey: v as any })}>
-                <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Keys</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-amber-400">TBC Only</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Confirmed Only</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
           {!isDefault && (
             <Button 
               variant="ghost" 
@@ -446,15 +416,6 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                 onClick={() => onFilterChange({ ...activeFilters, hasUgChords: 'all' })}
               >
                 UG Chords: {activeFilters.hasUgChords} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
-              </Badge>
-            )}
-            {activeFilters.isTbcKey !== 'all' && (
-              <Badge 
-                variant="secondary" 
-                className="bg-amber-50 text-amber-600 border-amber-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
-                onClick={() => onFilterChange({ ...activeFilters, isTbcKey: 'all' })}
-              >
-                TBC Key: {activeFilters.isTbcKey} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
               </Badge>
             )}
           </div>
