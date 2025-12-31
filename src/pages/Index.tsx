@@ -117,6 +117,7 @@ const Index = () => {
       const hasPdf = !!s.pdfUrl || !!s.leadsheetUrl || !!s.sheet_music_url;
       const hasUg = !!s.ugUrl;
       const hasUgChords = !!s.ug_chords_text && s.ug_chords_text.trim().length > 0;
+      const isTbcKey = !s.originalKey || s.originalKey === "TBC"; // NEW: Check for TBC key
 
       if (activeFilters.readiness > 0 && readiness < activeFilters.readiness) return false;
       if (activeFilters.isConfirmed === 'yes' && !s.isKeyConfirmed) return false;
@@ -142,6 +143,10 @@ const Index = () => {
 
       if (activeFilters.hasUgChords === 'yes' && !hasUgChords) return false;
       if (activeFilters.hasUgChords === 'no' && hasUgChords) return false;
+
+      // NEW: Apply isTbcKey filter
+      if (activeFilters.isTbcKey === 'yes' && !isTbcKey) return false;
+      if (activeFilters.isTbcKey === 'no' && isTbcKey) return false;
 
       return true;
     });
@@ -400,7 +405,7 @@ const Index = () => {
         .from('setlists')
         .delete()
         .eq('id', id)
-        .eq('user_id', user.id);
+        .eq('user.id', user.id);
 
       if (error) throw error;
       setAllSetlists(prev => prev.filter(s => s.id !== id));
@@ -1260,11 +1265,11 @@ const Index = () => {
             setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: updatedSetlistSongs } : s));
           }
         }}
-        onOpenStudio={(id) => {
+        onOpenStudio={(id, defaultTab) => { // Pass defaultTab
           setSongStudioModalSongId(id);
           setIsSongStudioModalOpen(true);
           setIsResourceAuditOpen(false);
-          setSongStudioDefaultTab('details'); // Open to details tab for audit
+          setSongStudioDefaultTab(defaultTab || 'details'); // Open to details tab for audit
         }}
         onRefreshRepertoire={handleRefreshRepertoire}
       />
