@@ -86,7 +86,7 @@ const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport, isOpen, onClose
           originalKey: originalKey,
           targetKey: originalKey,
           pitch: 0,
-          isPlayed: false,
+          isplayed: false, // <-- Fixed here
           isSyncing: true,
           isMetadataConfirmed: false
         });

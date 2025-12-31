@@ -39,7 +39,7 @@ export interface SetlistSong {
   originalKey?: string;
   targetKey?: string;
   pitch: number;
-  isPlayed?: boolean;
+  isplayed?: boolean; /* Changed from isPlayed to isplayed */
   bpm?: string;
   genre?: string;
   isSyncing?: boolean;
@@ -278,7 +278,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                 className={cn(
                   "bg-card rounded-2xl border-2 transition-all p-4 flex flex-col gap-3 shadow-sm",
                   isSelected ? "border-indigo-500 shadow-md ring-1 ring-indigo-500/20" : "border-border",
-                  song.isPlayed && "opacity-50 grayscale-[0.2]",
+                  song.isplayed && "opacity-50 grayscale-[0.2]", /* Changed from isPlayed to isplayed */
                   getHeatmapClass(song)
                 )}
               >
@@ -291,7 +291,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       }}
                       className="mt-1"
                     >
-                      {song.isPlayed ? (
+                      {song.isplayed ? ( /* Changed from isPlayed to isplayed */
                         <div className="h-5 w-5 rounded-full bg-emerald-500 flex items-center justify-center text-white">
                           <CheckCircle2 className="w-3.5 h-3.5" />
                         </div>
@@ -300,7 +300,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       )}
                     </button>
                     <div>
-                      <h4 className={cn("text-sm font-black tracking-tight flex items-center gap-1.5 text-foreground", song.isPlayed && "line-through text-muted-foreground")}>
+                      <h4 className={cn("text-sm font-black tracking-tight flex items-center gap-1.5 text-foreground", song.isplayed && "line-through text-muted-foreground")}> /* Changed from isPlayed to isplayed */
                         {song.name}
                         {isFullyReady && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 fill-emerald-500/20" />}
                         {isProcessing && <CloudDownload className="w-3.5 h-3.5 text-indigo-500 animate-bounce" />}
@@ -423,7 +423,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       className={cn(
                         "transition-all group relative cursor-pointer h-[80px]",
                         isSelected ? "bg-indigo-100 dark:bg-indigo-900/10" : "hover:bg-accent dark:hover:bg-secondary",
-                        song.isPlayed && "opacity-40 grayscale-[0.5]",
+                        song.isplayed && "opacity-40 grayscale-[0.5]", /* Changed from isPlayed to isplayed */
                         getHeatmapClass(song)
                       )}
                     >
@@ -435,7 +435,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                           }}
                           className="transition-transform active:scale-90 inline-flex items-center justify-center"
                         >
-                          {song.isPlayed ? (
+                          {song.isplayed ? ( /* Changed from isPlayed to isplayed */
                             <div className="h-6 w-6 rounded-full bg-emerald-500 flex items-center justify-center text-white">
                               <CheckCircle2 className="w-4 h-4" />
                             </div>
@@ -450,7 +450,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         <div className="flex flex-col gap-1">
                           <div className="flex items-center gap-3">
                             <span className="text-[10px] font-mono font-black text-muted-foreground min-w-[20px]">{(idx + 1).toString().padStart(2, '0')}</span>
-                            <h4 className={cn("text-base font-black tracking-tight leading-none flex items-center gap-2 text-foreground", song.isPlayed && "line-through text-muted-foreground")}>
+                            <h4 className={cn("text-base font-black tracking-tight leading-none flex items-center gap-2 text-foreground", song.isplayed && "line-through text-muted-foreground")}> /* Changed from isPlayed to isplayed */
                               {song.name}
                               {isFullyReady && <CheckCircle2 className="w-4 h-4 text-emerald-500 fill-emerald-500/20" />}
                               {isProcessing && <CloudDownload className="w-4 h-4 text-indigo-500 animate-bounce" />}

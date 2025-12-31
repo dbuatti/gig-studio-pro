@@ -122,7 +122,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
       pitch: 0,
       originalKey: "C",
       targetKey: "C",
-      isPlayed: false,
+      isplayed: false, // <-- Fixed here
       isSyncing: true,
       isMetadataConfirmed: false,
       isKeyConfirmed: false,
