@@ -82,12 +82,12 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
 
   return (
     <TooltipProvider>
-      <div className="space-y-6 animate-in fade-in slide-in-from-top-2 duration-500 bg-slate-50/50 dark:bg-slate-900/30 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
+      <div className="space-y-6 animate-in fade-in slide-in-from-top-2 duration-500 bg-slate-900/30 p-4 rounded-2xl border border-slate-800">
         <div className="flex flex-wrap items-center gap-3">
           {/* Presets Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9 px-4 rounded-xl border-indigo-100 dark:border-slate-800 bg-white dark:bg-slate-950 text-indigo-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-sm">
+              <Button variant="outline" size="sm" className="h-9 px-4 rounded-xl border-indigo-100 dark:border-slate-800 bg-slate-900 text-indigo-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-sm">
                 <Star className="w-3.5 h-3.5 fill-indigo-600" /> <span className="hidden sm:inline">Views</span> <ChevronDown className="w-3 h-3 opacity-50" />
               </Button>
             </DropdownMenuTrigger>
@@ -115,7 +115,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
           <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden md:block" />
 
           {/* Readiness Slider - Expanded */}
-          <div className="flex items-center gap-4 bg-white dark:bg-slate-900 px-4 py-1.5 rounded-xl border border-slate-100 dark:border-slate-800 flex-1 min-w-[300px]">
+          <div className="flex items-center gap-4 bg-slate-900 px-4 py-1.5 rounded-xl border border-slate-800 flex-1 min-w-[300px]">
             <div className="flex items-center gap-2 shrink-0">
                <AlertCircle className="w-3.5 h-3.5 text-orange-500" />
                <span className="text-[10px] font-black uppercase text-slate-400 whitespace-nowrap">Readiness: <span className="text-indigo-600 font-mono">≥{activeFilters.readiness}%</span></span>
@@ -141,7 +141,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                     size="icon" 
                     className={cn(
                       "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.isConfirmed !== 'all' ? "bg-emerald-600 text-white shadow-lg" : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-500"
+                      activeFilters.isConfirmed !== 'all' ? "bg-emerald-600 text-white shadow-lg" : "bg-slate-900 border-slate-800 text-slate-500"
                     )}
                   >
                     <ShieldCheck className="w-4 h-4" />
@@ -169,7 +169,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                     size="icon" 
                     className={cn(
                       "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.isApproved !== 'all' ? "bg-indigo-600 text-white shadow-lg" : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-500"
+                      activeFilters.isApproved !== 'all' ? "bg-indigo-600 text-white shadow-lg" : "bg-slate-900 border-slate-800 text-slate-500"
                     )}
                   >
                     <Check className="w-4 h-4" />
@@ -197,7 +197,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                     size="icon" 
                     className={cn(
                       "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.hasAudio !== 'all' ? "bg-indigo-600 text-white shadow-lg" : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-500"
+                      activeFilters.hasAudio !== 'all' ? "bg-indigo-600 text-white shadow-lg" : "bg-slate-900 border-slate-800 text-slate-500"
                     )}
                   >
                     <Music className="w-4 h-4" />
@@ -226,7 +226,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                     size="icon" 
                     className={cn(
                       "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.hasVideo !== 'all' ? "bg-red-600 text-white shadow-lg" : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-500"
+                      activeFilters.hasVideo !== 'all' ? "bg-red-600 text-white shadow-lg" : "bg-slate-900 border-slate-800 text-slate-500"
                     )}
                   >
                     <Youtube className="w-4 h-4" />
@@ -254,7 +254,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                     size="icon" 
                     className={cn(
                       "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.hasPdf !== 'all' ? "bg-emerald-600 text-white shadow-lg" : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-500"
+                      activeFilters.hasPdf !== 'all' ? "bg-emerald-600 text-white shadow-lg" : "bg-slate-900 border-slate-800 text-slate-500"
                     )}
                   >
                     <FileText className="w-4 h-4" />
@@ -282,7 +282,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                     size="icon" 
                     className={cn(
                       "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.hasUg !== 'all' ? "bg-orange-600 text-white shadow-lg" : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-500"
+                      activeFilters.hasUg !== 'all' ? "bg-orange-600 text-white shadow-lg" : "bg-slate-900 border-slate-800 text-slate-500"
                     )}
                   >
                     <FileSearch className="w-4 h-4" />
@@ -310,7 +310,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                     size="icon" 
                     className={cn(
                       "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.hasUgChords !== 'all' ? "bg-purple-600 text-white shadow-lg" : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-500"
+                      activeFilters.hasUgChords !== 'all' ? "bg-purple-600 text-white shadow-lg" : "bg-slate-900 border-slate-800 text-slate-500"
                     )}
                   >
                     <Guitar className="w-4 h-4" />

@@ -112,7 +112,7 @@ const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport, isOpen, onClose
           <ClipboardPaste className="w-4 h-4" /> Smart Import
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-3xl bg-slate-50 dark:bg-slate-950 border-none shadow-2xl rounded-[2rem] p-0 overflow-hidden">
+      <DialogContent className="max-w-3xl bg-slate-950 border-none shadow-2xl rounded-[2rem] p-0 overflow-hidden">
         <div className="bg-indigo-600 p-8 flex items-center justify-between text-white shrink-0">
           <div className="flex items-center gap-4">
             <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-md">
@@ -128,7 +128,7 @@ const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport, isOpen, onClose
         
         <div className="p-8 space-y-6">
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white dark:bg-slate-900 border rounded-2xl p-5 flex items-center justify-between shadow-sm">
+            <div className="bg-slate-900 border border-white/10 rounded-2xl p-5 flex items-center justify-between shadow-sm">
               <div className="flex items-center gap-3">
                 <div className="bg-red-100 dark:bg-red-900/30 p-2.5 rounded-xl">
                   <Youtube className="w-5 h-5 text-red-600" />
@@ -146,7 +146,7 @@ const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport, isOpen, onClose
               />
             </div>
 
-            <div className="bg-white dark:bg-slate-900 border rounded-2xl p-5 flex items-center gap-4 shadow-sm">
+            <div className="bg-slate-900 border border-white/10 rounded-2xl p-5 flex items-center gap-4 shadow-sm">
               <div className="bg-emerald-100 dark:bg-emerald-900/30 p-2.5 rounded-xl">
                 <Music className="w-5 h-5 text-emerald-600" />
               </div>
@@ -164,7 +164,7 @@ const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport, isOpen, onClose
             </div>
             <Textarea 
               placeholder="Paste your OnSong list, Markdown table, or plain song list here..." 
-              className="min-h-[300px] font-mono text-sm bg-white dark:bg-slate-900 border-indigo-100 dark:border-slate-800 focus-visible:ring-indigo-500 rounded-2xl p-6 shadow-inner resize-none"
+              className="min-h-[300px] font-mono text-sm bg-slate-900 border-white/10 focus-visible:ring-indigo-500 rounded-2xl p-6 shadow-inner resize-none"
               value={text}
               onChange={(e) => setText(e.target.value)}
             />

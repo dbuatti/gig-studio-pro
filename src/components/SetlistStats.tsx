@@ -136,7 +136,7 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border shadow-sm flex items-center gap-5 transition-transform hover:scale-[1.02]">
+        <div className="bg-slate-900 p-6 rounded-[2rem] border border-white/10 shadow-sm flex items-center gap-5 transition-transform hover:scale-[1.02]">
           <div className="h-12 w-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-600/20">
             <Music className="w-6 h-6" />
           </div>
@@ -150,9 +150,9 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-slate-900/5 dark:bg-white/5 border border-slate-200 dark:border-white/5 p-6 rounded-[2rem] flex items-center justify-between">
+        <div className="bg-slate-900/5 border border-white/5 p-6 rounded-[2rem] flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="h-10 w-10 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center text-indigo-600">
+            <div className="h-10 w-10 bg-slate-800 rounded-xl flex items-center justify-center text-indigo-600">
               <PieChart className="w-5 h-5" />
             </div>
             <div>
@@ -170,8 +170,8 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({
           </div>
         </div>
 
-        <div className="bg-slate-900/5 dark:bg-white/5 border border-slate-200 dark:border-white/5 p-6 rounded-[2rem] flex items-center gap-4">
-          <div className="h-10 w-10 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center text-indigo-600">
+        <div className="bg-slate-900/5 border border-white/5 p-6 rounded-[2rem] flex items-center gap-4">
+          <div className="h-10 w-10 bg-slate-800 rounded-xl flex items-center justify-center text-indigo-600">
             <BarChart3 className="w-5 h-5" />
           </div>
           <div className="flex-1">

@@ -111,7 +111,7 @@ const RepertoirePicker: React.FC<RepertoirePickerProps> = ({
                         "w-full flex items-center gap-4 p-4 rounded-2xl transition-all border group",
                         isAdded 
                           ? "bg-indigo-600/5 border-indigo-500/20 opacity-60" 
-                          : "bg-white/5 border-white/5 hover:border-white/10 hover:bg-white/10"
+                          : "bg-slate-900 border border-slate-800 hover:border-white/10 hover:bg-white/10"
                       )}
                     >
                       <div className="bg-slate-800 p-2.5 rounded-xl text-slate-500 shrink-0">

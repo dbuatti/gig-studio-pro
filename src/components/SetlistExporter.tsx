@@ -95,7 +95,7 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
   };
 
   return (
-    <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border shadow-sm flex flex-col justify-center gap-4 transition-transform hover:scale-[1.02]">
+    <div className="bg-slate-900 p-6 rounded-[2rem] border border-white/10 shadow-sm flex flex-col justify-center gap-4 transition-transform hover:scale-[1.02]">
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center text-indigo-600">

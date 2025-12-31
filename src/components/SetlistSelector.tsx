@@ -16,14 +16,14 @@ interface SetlistSelectorProps {
 
 const SetlistSelector: React.FC<SetlistSelectorProps> = ({ setlists, currentId, onSelect, onCreate, onDelete }) => {
   return (
-    <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-1.5 rounded-lg border shadow-sm">
-      <div className="flex items-center gap-2 pl-2 border-r pr-3">
+    <div className="flex items-center gap-2 bg-slate-900 p-1.5 rounded-lg border border-white/10 shadow-sm">
+      <div className="flex items-center gap-2 pl-2 border-r border-white/10 pr-3">
         <ListMusic className="w-4 h-4 text-indigo-600" />
         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest hidden sm:inline">Active Gig</span>
       </div>
       
       <Select value={currentId} onValueChange={onSelect}>
-        <SelectTrigger className="h-8 min-w-[180px] border-none shadow-none focus:ring-0 text-sm font-bold bg-transparent">
+        <SelectTrigger className="h-8 min-w-[180px] border-none shadow-none focus:ring-0 text-sm font-bold bg-transparent text-white">
           <SelectValue placeholder="Select Setlist" />
         </SelectTrigger>
         <SelectContent>
@@ -35,7 +35,7 @@ const SetlistSelector: React.FC<SetlistSelectorProps> = ({ setlists, currentId, 
         </SelectContent>
       </Select>
 
-      <div className="flex items-center gap-1 border-l pl-2">
+      <div className="flex items-center gap-1 border-l border-white/10 pl-2">
         <Button 
           variant="ghost" 
           size="icon" 

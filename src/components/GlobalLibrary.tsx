@@ -90,7 +90,7 @@ const GlobalLibrary: React.FC<GlobalLibraryProps> = ({ onImport }) => {
               return (
                 <div 
                   key={song.id}
-                  className="group p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl hover:border-emerald-200 transition-all shadow-sm"
+                  className="group p-4 bg-slate-900 border border-slate-800 rounded-2xl hover:border-emerald-200 transition-all shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0 flex-1">
@@ -103,7 +103,7 @@ const GlobalLibrary: React.FC<GlobalLibraryProps> = ({ onImport }) => {
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{song.artist}</p>
                       
                       <div className="flex items-center gap-3 mt-3">
-                        <div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-50 dark:bg-slate-800 rounded-md border border-slate-100 dark:border-slate-700">
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-800 rounded-md border border-slate-700">
                           <User className="w-2.5 h-2.5 text-slate-400" />
                           <span className="text-[9px] font-bold text-slate-500 uppercase">{song.profiles?.first_name || 'Artist'}</span>
                         </div>

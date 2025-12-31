@@ -60,7 +60,7 @@ const MyLibrary: React.FC<MyLibraryProps> = ({ repertoire, onAddSong }) => {
                 <button 
                   key={song.id} 
                   onClick={() => onAddSong(song)}
-                  className="w-full flex items-center justify-between p-3 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors text-left group"
+                  className="w-full flex items-center justify-between p-3 bg-slate-900 hover:bg-slate-900/50 transition-colors text-left group"
                 >
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     <Music className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-500 shrink-0" />
