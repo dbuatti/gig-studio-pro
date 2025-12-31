@@ -3,17 +3,25 @@
 import { KeyPreference } from '@/hooks/use-settings';
 import { transposeKey, formatKey, MAPPING_TO_SHARP, MAPPING_TO_FLAT } from './keyUtils';
 
-// Regex for matching chords with word boundaries and optional bass notes
-const CHORD_REGEX = /\b([A-G](?:#|b)?)(m|maj|dim|aug|sus\d?|add\d?|\d+)?(\/[A-G](?:#|b)?)?\b/g;
+// Robust musical chord regex that handles sharps/flats and common extensions without relying on \b
+const CHORD_REGEX = /([A-G](?:#|b)?)(m|maj|dim|aug|sus\d?|add\d?|\d+)?(\/[A-G](?:#|b)?)?/g;
 
 /**
- * Determines if a line contains chords
+ * Determines if a line likely contains chords rather than just lyrics.
  */
 export const isChordLine = (line: string): boolean => {
   const trimmed = line.trim();
-  if (!trimmed) return false;
-  CHORD_REGEX.lastIndex = 0;
-  return CHORD_REGEX.test(trimmed);
+  if (!trimmed || trimmed.length > 100) return false;
+  
+  // Count matches vs words. Chord lines usually have a high match-to-text ratio
+  const matches = trimmed.match(CHORD_REGEX);
+  if (!matches) return false;
+
+  // Heuristic: If it looks like a section header, it's not a chord line
+  if (trimmed.startsWith('[') && trimmed.endsWith(']')) return false;
+
+  // If we have at least one valid chord match
+  return matches.length > 0;
 };
 
 /**
@@ -26,11 +34,10 @@ export const transposeChords = (text: string, semitones: number, keyPref: KeyPre
   const lines = text.split('\n');
   
   return lines.map(line => {
-    if (!line.trim()) return line;
+    // If it's a section header, skip it
+    if (line.trim().startsWith('[') && line.trim().endsWith(']')) return line;
     
-    CHORD_REGEX.lastIndex = 0;
-    
-    // Process each chord in the line
+    // Process each match in the line
     return line.replace(CHORD_REGEX, (match, rootNote, chordType = '', bassNote = '') => {
       // Transpose the root note (handles 0 semitones for notation conversion)
       const transposedRoot = transposeKey(rootNote, semitones, keyPref);
@@ -64,9 +71,8 @@ export const formatChordText = (text: string, config?: {
   return lines.map(line => {
     if (!line.trim()) return line;
     let formattedLine = line;
-    if (config?.chordBold && isChordLine(line)) {
-      formattedLine = `<strong>${line}</strong>`;
-    }
+    // We don't use <strong> tags here anymore as we handle it in the CSS/Pre style,
+    // but the logic remains for line-level identification if needed.
     return formattedLine;
   }).join('\n');
 };
@@ -79,11 +85,11 @@ export const extractKeyFromChords = (text: string): string | null => {
   const lines = text.split('\n');
   for (const line of lines) {
     if (line.trim().startsWith('[') && line.trim().endsWith(']')) continue;
-    CHORD_REGEX.lastIndex = 0;
     const match = line.match(CHORD_REGEX);
     if (match && match[0]) {
-      const fullChord = match[0];
-      const rootMatch = fullChord.match(/^([A-G][#b]?)(m|maj|dim|aug|sus\d?|add\d?|\d+)?/);
+      const fullMatch = match[0];
+      // Extract the root and minor status
+      const rootMatch = fullMatch.match(/^([A-G][#b]?)(m|maj|dim|aug|sus\d?|add\d?|\d+)?/);
       if (rootMatch && rootMatch[1]) {
         let key = rootMatch[1];
         const chordType = rootMatch[2];

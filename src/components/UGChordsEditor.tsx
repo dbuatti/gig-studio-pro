@@ -57,7 +57,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
 
   const transposedText = useMemo(() => {
     if (!chordsText) return chordsText;
-    // Removed the "if offset === 0" check here to allow notation conversion at 0 pitch shift
+    // Explicitly allow transposition/conversion even at 0 semitones
     return transposeChords(chordsText, activeTransposeOffset, activeKeyPreference);
   }, [chordsText, activeTransposeOffset, activeKeyPreference]);
 
@@ -598,7 +598,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
           {/* Preview */}
           <div className="bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-3xl p-6 flex flex-col flex-1">
             <div className="flex items-center justify-between mb-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400" htmlFor="preview-area">
                 Live Preview
               </Label>
               <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">
@@ -606,6 +606,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
               </span>
             </div>
             <div 
+              id="preview-area"
               className="flex-1 bg-slate-950 rounded-xl p-4 overflow-auto border border-white/10 font-mono"
               style={{ 
                 fontFamily: config.fontFamily, 
