@@ -100,16 +100,10 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
         // If this component was responsible for masterRepertoire, we'd do: setMasterRepertoire(updatedMasterRepertoire);
       }
 
-      if (gigId !== 'library') {
-        const { data: setlistData, error: fetchErr } = await supabase.from('setlists').select('songs').eq('id', gigId).maybeSingle();
-        if (fetchErr) throw fetchErr;
+      // Removed the redundant setlist.songs JSONB update here.
+      // The parent component (Index.tsx) is responsible for keeping its setlist state in sync
+      // via the repertoire_changes subscription and fetchSetlistsAndRepertoire.
 
-        if (setlistData) {
-          const setlistSongs = (setlistData.songs as SetlistSong[]) || [];
-          const updatedList = setlistSongs.map(s => s.id === targetSong.id ? syncedSong : s);
-          await supabase.from('setlists').update({ songs: updatedList }).eq('id', gigId);
-        }
-      }
       console.log("[SongStudioView] performSave: Save successful for song:", targetSong.id);
     } catch (err: any) {
       console.error("[SongStudioView] performSave 400 Failure:", err.message, err.details);
@@ -151,94 +145,59 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
       console.log("[SongStudioView] fetchData: Skipping fetch, no user or songId.");
       return;
     }
-    console.log("[SongStudioView] fetchData: Starting fetch for songId:", songId, "gigId:", gigId);
+    console.log("[SongStudioView] fetchData: Starting fetch for songId (repertoire.id):", songId);
     setLoading(true);
     try {
-      let targetSong: SetlistSong | undefined;
-      if (gigId === 'library') {
-        console.log(`[SongStudioView] fetchData: Querying 'repertoire' for ID: ${songId}`);
-        const { data, error } = await supabase.from('repertoire').select('*').eq('id', songId).maybeSingle();
-        if (error) {
-          console.error("[SongStudioView] fetchData: Supabase 'repertoire' query error:", error);
-          throw error;
-        }
-        if (data) {
-          console.log("[SongStudioView] fetchData: 'repertoire' data found:", data);
-          targetSong = {
-            id: data.id,
-            master_id: data.id,
-            name: data.title,
-            artist: data.artist,
-            // Use audio_url if extraction is completed, otherwise fallback to preview_url
-            previewUrl: data.extraction_status === 'completed' && data.audio_url ? data.audio_url : data.preview_url,
-            youtubeUrl: data.youtube_url,
-            originalKey: data.original_key,
-            targetKey: data.target_key,
-            pitch: data.pitch ?? 0,
-            bpm: data.bpm,
-            lyrics: data.lyrics,
-            notes: data.notes,
-            is_pitch_linked: data.is_pitch_linked ?? true,
-            isApproved: data.is_approved,
-            isMetadataConfirmed: data.is_metadata_confirmed,
-            ug_chords_text: data.ug_chords_text,
-            ug_chords_config: data.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
-            user_tags: data.user_tags || [],
-            resources: data.resources || [],
-            pdfUrl: data.pdf_url,
-            leadsheetUrl: data.leadsheet_url,
-            apple_music_url: data.apple_music_url,
-            duration_seconds: data.duration_seconds,
-            genre: data.genre,
-            is_ug_chords_present: data.is_ug_chords_present,
-            is_ug_link_verified: data.is_ug_link_verified,
-            sheet_music_url: data.sheet_music_url,
-            is_sheet_verified: data.is_sheet_verified,
-            ugUrl: data.ug_url,
-            highest_note_original: data.highest_note_original,
-            extraction_status: data.extraction_status, // Include new status
-            extraction_error: data.extraction_error,
-            last_sync_log: data.last_sync_log, // Include new log
-            audio_url: data.audio_url, // Map audio_url
-          } as SetlistSong;
-        } else {
-          console.log("[SongStudioView] fetchData: No 'repertoire' data found for ID:", songId);
-        }
-      } else {
-        console.log(`[SongStudioView] fetchData: Querying 'setlists' for ID: ${gigId}`);
-        const { data, error } = await supabase.from('setlists').select('songs').eq('id', gigId).maybeSingle();
-        if (error) {
-          console.error("[SongStudioView] fetchData: Supabase 'setlists' query error:", error);
-          throw error;
-        }
-        if (data) {
-          const setlistSongs = (data.songs as SetlistSong[]) || [];
-          console.log("[SongStudioView] fetchData: Setlist songs found:", setlistSongs);
-          
-          // First, try to find by the unique ID of the setlist entry (s.id)
-          targetSong = setlistSongs.find(s => s.id === songId);
-          
-          if (!targetSong) {
-            // If not found by s.id, try finding by master_id (repertoire.id)
-            targetSong = setlistSongs.find(s => s.master_id === songId);
-            if (!targetSong) {
-              console.log("[SongStudioView] fetchData: Song not found in setlist by either setlist_song.id or master_id for ID:", songId);
-            } else {
-              console.log("[SongStudioView] fetchData: Song found in setlist by master_id:", targetSong);
-            }
-          } else {
-            console.log("[SongStudioView] fetchData: Song found in setlist by setlist_song.id:", targetSong);
-          }
-        } else {
-          console.log("[SongStudioView] fetchData: No setlist data found for ID:", gigId);
-        }
+      // Always fetch the master song record from the 'repertoire' table
+      const { data, error } = await supabase.from('repertoire').select('*').eq('id', songId).maybeSingle();
+      if (error) {
+        console.error("[SongStudioView] fetchData: Supabase 'repertoire' query error:", error);
+        throw error;
       }
+      if (!data) {
+        console.error("[SongStudioView] fetchData: No 'repertoire' data found for ID:", songId);
+        showError("Error: The requested track could not be found.");
+        throw new Error("Track not found.");
+      }
+
+      console.log("[SongStudioView] fetchData: 'repertoire' data found:", data);
+      const targetSong: SetlistSong = {
+        id: data.id, // This is the repertoire.id
+        master_id: data.id,
+        name: data.title,
+        artist: data.artist,
+        previewUrl: data.extraction_status === 'completed' && data.audio_url ? data.audio_url : data.preview_url,
+        youtubeUrl: data.youtube_url,
+        originalKey: data.original_key,
+        targetKey: data.target_key,
+        pitch: data.pitch ?? 0,
+        bpm: data.bpm,
+        lyrics: data.lyrics,
+        notes: data.notes,
+        is_pitch_linked: data.is_pitch_linked ?? true,
+        isApproved: data.is_approved,
+        isMetadataConfirmed: data.is_metadata_confirmed,
+        ug_chords_text: data.ug_chords_text,
+        ug_chords_config: data.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
+        user_tags: data.user_tags || [],
+        resources: data.resources || [],
+        pdfUrl: data.pdf_url,
+        leadsheetUrl: data.leadsheet_url,
+        appleMusicUrl: data.apple_music_url, // Corrected property name
+        duration_seconds: data.duration_seconds,
+        genre: data.genre,
+        is_ug_chords_present: data.is_ug_chords_present,
+        is_ug_link_verified: data.is_ug_link_verified,
+        sheet_music_url: data.sheet_music_url,
+        is_sheet_verified: data.is_sheet_verified,
+        ugUrl: data.ug_url,
+        highest_note_original: data.highest_note_original,
+        extraction_status: data.extraction_status,
+        extraction_error: data.extraction_error,
+        last_sync_log: data.last_sync_log,
+        audio_url: data.audio_url,
+      };
       
-      if (!targetSong) {
-        console.error("[SongStudioView] fetchData: Final check - targetSong is undefined.");
-        showError("Error: The requested track could not be found in this setlist."); // Added error toast
-        throw new Error("Track not found in current context.");
-      }
       setSong(targetSong);
       setFormData(targetSong);
       
