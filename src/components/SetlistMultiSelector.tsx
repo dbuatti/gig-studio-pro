@@ -20,7 +20,7 @@ interface SetlistMultiSelectorProps {
   songMasterId: string; // This prop is currently song.id, which can be temporary.
                         // We should rely on songToAssign.master_id for DB operations.
   allSetlists: { id: string; name: string; songs: SetlistSong[] }[];
-  songToAssign: SetlistSong; // The full song object from the studio
+  songToAssign: SetlistSong | null; // Allow songToAssign to be null
   onUpdateSetlistSongs: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>;
 }
 
@@ -40,23 +40,35 @@ const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
   const [assignedSetlistIds, setAssignedSetlistIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
 
+  // If no song is assigned, render a disabled button
+  if (!songToAssign) {
+    return (
+      <Button
+        disabled={true}
+        className={cn(
+          "h-11 rounded-xl font-black uppercase text-[9px] tracking-widest gap-2 px-6 transition-all shadow-lg",
+          "opacity-50 cursor-not-allowed bg-white/5 text-slate-400 border border-white/10"
+        )}
+      >
+        <AlertTriangle className="w-4 h-4" />
+        NO SONG SELECTED
+      </Button>
+    );
+  }
+
+  // Now, songToAssign is guaranteed to be not null below this point
   // Use songToAssign.master_id for database operations, as it's the actual UUID from 'repertoire'
-  // Fallback to songToAssign.id only if master_id is missing, but this should ideally be a UUID too if it's a synced song.
-  // The core issue is that songToAssign.id might be a temporary client-side ID.
-  // So, we MUST use songToAssign.master_id for the foreign key reference.
-  const repertoireDbId = songToAssign.master_id; // This should be the UUID from the 'repertoire' table
+  const repertoireDbId = songToAssign.master_id; 
   const isRepertoireSongValid = isValidUuid(repertoireDbId);
 
   const fetchAssignments = useCallback(async () => {
     if (!isRepertoireSongValid) {
-      // console.warn("[SetlistMultiSelector] Repertoire song ID is not a valid UUID, skipping fetchAssignments."); // Removed console.warn
       setAssignedSetlistIds(new Set()); // Clear assignments if song is not valid
       setLoading(false);
       return;
     }
     setLoading(true);
     try {
-      // console.log(`[SetlistMultiSelector] Fetching assignments for repertoireDbId: ${repertoireDbId}`); // Removed console.log
       const { data, error } = await supabase
         .from('setlist_songs')
         .select('setlist_id')
