@@ -49,7 +49,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   allSetlists = [],
   masterRepertoire = [],
   onUpdateSetlistSongs,
-  defaultTab // Destructure new prop
+  defaultTab
 }) => {
   const isMobile = useIsMobile();
   const { user } = useAuth();
@@ -127,12 +127,15 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
 
   const fetchData = async () => {
     if (!user) {
+      console.log("[SongStudioView] fetchData: User not authenticated.");
       return;
     }
     setLoading(true);
+    console.log(`[SongStudioView] fetchData: Starting fetch for gigId: ${gigId}, songId: ${songId}`);
 
     // Handle the case where we're opening the studio for general search/library access
     if (gigId === 'library' && !songId) {
+      console.log("[SongStudioView] fetchData: Detected library search mode (gigId='library' and no songId). Setting loading to false and returning.");
       setSong(null);
       setFormData({});
       setLoading(false);
@@ -141,18 +144,21 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     }
 
     if (!songId) {
+      console.error("[SongStudioView] fetchData: Error: No song ID provided, but not in library search mode.");
       showError("Error: No song ID provided.");
       onClose();
       return;
     }
 
     try {
+      console.log(`[SongStudioView] fetchData: Attempting to fetch song from 'repertoire' with ID: ${songId}`);
       const { data, error } = await supabase.from('repertoire').select('*').eq('id', songId).maybeSingle();
       if (error) {
         console.error("[SongStudioView] fetchData: Supabase 'repertoire' query error:", error);
         throw error;
       }
       if (!data) {
+        console.error("[SongStudioView] fetchData: Error: The requested track could not be found for ID:", songId);
         showError("Error: The requested track could not be found.");
         throw new Error("Track not found.");
       }
@@ -200,17 +206,21 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
         audio_url: data.audio_url,
       };
       
+      console.log("[SongStudioView] fetchData: Song data fetched successfully:", targetSong.name);
       setSong(targetSong);
       setFormData(targetSong);
       
       if (targetSong.audio_url || targetSong.previewUrl) {
         const urlToLoad = targetSong.audio_url || targetSong.previewUrl;
+        console.log(`[SongStudioView] fetchData: Loading audio from URL: ${urlToLoad}`);
         await audio.loadFromUrl(urlToLoad, targetSong.pitch ?? 0, true);
       }
     } catch (err: any) {
+      console.error("[SongStudioView] fetchData: Caught error during fetch process:", err);
       onClose();
     } finally {
       setLoading(false);
+      console.log("[SongStudioView] fetchData: Loading set to false.");
     }
   };
 

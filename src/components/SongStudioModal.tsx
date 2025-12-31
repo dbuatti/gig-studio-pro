@@ -33,10 +33,16 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
 }) => {
   const navigate = useNavigate();
 
+  console.log(`[SongStudioModal] Rendered. isOpen: ${isOpen}, gigId: ${gigId}, songId: ${songId}, defaultTab: ${defaultTab}`);
+
   // Allow songId to be null if gigId is 'library' for the search view
-  if (!gigId || (gigId !== 'library' && !songId)) return null;
+  if (!gigId || (gigId !== 'library' && !songId)) {
+    console.warn(`[SongStudioModal] Not rendering due to invalid gigId or songId. gigId: ${gigId}, songId: ${songId}`);
+    return null;
+  }
 
   const handleExpand = () => {
+    console.log("[SongStudioModal] handleExpand triggered.");
     onClose();
     // Only navigate if a songId is actually present
     if (gigId && songId) {
@@ -48,30 +54,31 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-[95vw] h-[90vh] p-0 overflow-hidden bg-slate-950 border-white/10 rounded-[2.5rem] shadow-2xl">
-        {/* Accessible Header (Hidden visually) */}
-        <DialogHeader className="sr-only">
-          <DialogTitle>Song Studio - Editing Song</DialogTitle>
-          <DialogDescription>
-            Configure audio processing, metadata, and charts for the selected track.
-          </DialogDescription>
-        </DialogHeader>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      console.log(`[SongStudioModal] Dialog onOpenChange: ${open}`);
+      !open && onClose();
+    }}>
+      {/* Accessible Header (Hidden visually) */}
+      <DialogHeader className="sr-only">
+        <DialogTitle>Song Studio - Editing Song</DialogTitle>
+        <DialogDescription>
+          Configure audio processing, metadata, and charts for the selected track.
+        </DialogDescription>
+      </DialogHeader>
 
-        <SongStudioView 
-          gigId={gigId} 
-          songId={songId} 
-          onClose={onClose} 
-          isModal 
-          onExpand={handleExpand}
-          visibleSongs={visibleSongs}
-          onSelectSong={onSelectSong}
-          allSetlists={allSetlists} // Pass new prop
-          masterRepertoire={masterRepertoire} // Pass new prop
-          onUpdateSetlistSongs={onUpdateSetlistSongs} // Pass the new callback
-          defaultTab={defaultTab} // Pass the default tab
-        />
-      </DialogContent>
+      <SongStudioView 
+        gigId={gigId} 
+        songId={songId} 
+        onClose={onClose} 
+        isModal 
+        onExpand={handleExpand}
+        visibleSongs={visibleSongs}
+        onSelectSong={onSelectSong}
+        allSetlists={allSetlists}
+        masterRepertoire={masterRepertoire}
+        onUpdateSetlistSongs={onUpdateSetlistSongs}
+        defaultTab={defaultTab}
+      />
     </Dialog>
   );
 };

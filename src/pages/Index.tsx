@@ -499,11 +499,11 @@ const Index = () => {
       return;
     }
 
-    const mergedUpdatesForMaster = { ...currentMasterSong, ...updates } as SetlistSong;
+    const mergedUpdatesForMaster = { ...currentMasterSong, ...updates };
 
     try {
-      const syncedMasterSongs = await syncToMasterRepertoire(user.id, [mergedUpdatesForMaster]);
-      const fullySyncedMasterSong = syncedMasterSongs[0];
+      const syncedSongs = await syncToMasterRepertoire(user.id, [mergedUpdatesForMaster]);
+      const fullySyncedMasterSong = syncedSongs[0];
 
       setMasterRepertoire(prev => prev.map(s => s.id === fullySyncedMasterSong.id ? fullySyncedMasterSong : s));
 
@@ -540,7 +540,7 @@ const Index = () => {
 
     const newPitch = calculateSemitones(songToUpdate.originalKey || 'C', newTargetKey);
 
-    const updatedMasterSong = { ...masterRepertoire.find(s => s.id === songToUpdate.master_id), targetKey: newTargetKey, pitch: newPitch } as SetlistSong;
+    const updatedMasterSong = { ...masterRepertoire.find(s => s.id === songToUpdate.master_id), targetKey: newTargetKey, pitch: newPitch };
     await syncToMasterRepertoire(user.id, [updatedMasterSong]);
     setMasterRepertoire(prev => prev.map(s => s.id === songToUpdate.master_id ? updatedMasterSong : s));
 
@@ -640,7 +640,7 @@ const Index = () => {
       }
 
       setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: newSongs } : s));
-      showSuccess("Setlist reordered.");
+      showSuccess("Setlist reordered!"); // Success toast for reordering
     } catch (err: any) {
       showError(`Failed to reorder songs: ${err.message}`);
     }
@@ -665,20 +665,7 @@ const Index = () => {
 
       if (error) throw error;
 
-      const updatedRepertoire = masterRepertoire.map(s => {
-        const result = data.results.find((r: any) => r.song_id === s.id);
-        if (result && result.status === 'SUCCESS') {
-          return {
-            ...s,
-            youtubeUrl: result.youtube_url as string | undefined,
-            metadata_source: 'auto_populated',
-            sync_status: 'COMPLETED' as SetlistSong['sync_status']
-          };
-        }
-        return s;
-      });
-
-      setMasterRepertoire(updatedRepertoire);
+      await fetchSetlistsAndRepertoire(); // Re-fetch to ensure correct types and data
       showSuccess("AI Discovery Complete for Repertoire!");
     } catch (err: any) {
       showError(`AI Discovery Failed for Repertoire: ${err.message}`);
@@ -699,24 +686,7 @@ const Index = () => {
 
       if (error) throw error;
 
-      const updatedRepertoire = masterRepertoire.map(s => {
-        const result = data.results.find((r: any) => r.id === s.id);
-        if (result && result.status === 'SUCCESS') {
-          return {
-            ...s,
-            name: result.title as string,
-            artist: result.artist as string,
-            genre: result.primaryGenreName as string | undefined,
-            appleMusicUrl: result.trackViewUrl as string | undefined,
-            metadata_source: 'itunes_autosync',
-            auto_synced: true,
-            sync_status: 'COMPLETED' as SetlistSong['sync_status']
-          };
-        }
-        return s;
-      });
-
-      setMasterRepertoire(updatedRepertoire);
+      await fetchSetlistsAndRepertoire(); // Re-fetch to ensure correct types and data
       showSuccess("Global Auto-Sync Complete for Repertoire!");
     } catch (err: any) {
       showError(`Global Auto-Sync Failed for Repertoire: ${err.message}`);
@@ -746,16 +716,12 @@ const Index = () => {
       const songIdsToQueue = songsToQueue.map(s => s.id);
       const { error } = await supabase
         .from('repertoire')
-        .update({ extraction_status: 'queued' as SetlistSong['extraction_status'], last_sync_log: 'Queued for background audio extraction.' })
+        .update({ extraction_status: 'queued', last_sync_log: 'Queued for background audio extraction.' })
         .in('id', songIdsToQueue);
 
       if (error) throw error;
 
-      const updatedRepertoire = masterRepertoire.map(s =>
-        songIdsToQueue.includes(s.id) ? { ...s, extraction_status: 'queued' as SetlistSong['extraction_status'], last_sync_log: 'Queued for background audio extraction.' } : s
-      );
-      setMasterRepertoire(updatedRepertoire);
-
+      await fetchSetlistsAndRepertoire(); // Re-fetch to ensure correct types and data
       showSuccess(`Queued ${songsToQueue.length} repertoire audio extraction tasks.`);
     } catch (err: any) {
       showError(`Failed to queue repertoire audio extraction: ${err.message}`);
@@ -783,18 +749,14 @@ const Index = () => {
         .update({
           youtube_url: null,
           metadata_source: null,
-          sync_status: 'IDLE' as SetlistSong['sync_status'],
+          sync_status: 'IDLE',
           last_sync_log: 'Cleared auto-populated link'
         })
         .in('id', songIdsToClear);
 
       if (error) throw error;
 
-      const updatedRepertoire = masterRepertoire.map(s =>
-        songIdsToClear.includes(s.id) ? { ...s, youtubeUrl: undefined, metadata_source: null, sync_status: 'IDLE' as SetlistSong['sync_status'], last_sync_log: 'Cleared auto-populated link' } : s
-      );
-      setMasterRepertoire(updatedRepertoire);
-
+      await fetchSetlistsAndRepertoire(); // Re-fetch to ensure correct types and data
       showSuccess("Repertoire auto-populated links cleared!");
     } catch (err: any) {
       showError(`Failed to clear repertoire auto-links: ${err.message}`);
@@ -836,7 +798,8 @@ const Index = () => {
       }
     } else if (action === 'remove') {
       const junctionSong = targetSetlist.songs.find(s =>
-        (s.master_id && s.master_id === songToUpdate.master_id) || s.id === songToUpdate.id
+        (s.master_id && s.master_id === songToUpdate.master_id) ||
+        (!s.master_id && s.id === songToUpdate.id) // Also check by client-side ID if master_id is missing
       );
       if (junctionSong) {
         const { error } = await supabase
@@ -863,7 +826,7 @@ const Index = () => {
       return;
     }
 
-    const mergedUpdatesForMaster = { ...currentMasterSong, ...updates } as SetlistSong;
+    const mergedUpdatesForMaster = { ...currentMasterSong, ...updates };
 
     try {
       const syncedMasterSongs = await syncToMasterRepertoire(user.id, [mergedUpdatesForMaster]);
@@ -1127,12 +1090,12 @@ const Index = () => {
               onReorder={handleReorderSongs}
               currentSongId={activeSongForPerformance?.id}
               onOpenAdmin={() => setIsAdminPanelOpen(true)}
-              searchTerm={searchTerm}
-              setSearchTerm={setSearchTerm}
               sortMode={sortMode}
               setSortMode={setSortMode}
               activeFilters={activeFilters}
               setActiveFilters={setActiveFilters}
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
               showHeatmap={showHeatmap}
               allSetlists={allSetlists}
               onUpdateSetlistSongs={handleUpdateSetlistSongs}
@@ -1180,9 +1143,11 @@ const Index = () => {
 
       <FloatingCommandDock
         onOpenSearch={() => {
+          console.log("[Index] FloatingCommandDock: onOpenSearch triggered.");
           setSongStudioModalSongId(null);
           setIsSongStudioModalOpen(true);
           setSongStudioDefaultTab('library');
+          console.log("[Index] Setting isSongStudioModalOpen to true, songStudioModalSongId to null, defaultTab to 'library'.");
         }}
         onOpenPractice={() => {}}
         onOpenReader={handleOpenReader}
@@ -1346,7 +1311,7 @@ const Index = () => {
         songs={masterRepertoire}
         onVerify={async (songId, updates) => {
           if (!user) return;
-          const updatedMasterSong = { ...masterRepertoire.find(s => s.id === songId), ...updates } as SetlistSong;
+          const updatedMasterSong = { ...masterRepertoire.find(s => s.id === songId), ...updates };
           await syncToMasterRepertoire(user.id, [updatedMasterSong]);
           setMasterRepertoire(prev => prev.map(s => s.id === songId ? updatedMasterSong : s));
           if (activeSetlist) {
@@ -1389,7 +1354,7 @@ const Index = () => {
         keyPreference={globalKeyPreference}
       />
 
-      {songStudioModalSongId && (
+      {isSongStudioModalOpen && (
         <SongStudioModal
           isOpen={isSongStudioModalOpen}
           onClose={() => { setIsSongStudioModalOpen(false); setSongStudioDefaultTab(undefined); }}
@@ -1397,6 +1362,7 @@ const Index = () => {
           songId={songStudioModalSongId}
           visibleSongs={activeDashboardView === 'gigs' ? filteredAndSortedSongs : masterRepertoire}
           onSelectSong={(id) => {
+            console.log(`[Index] SongStudioModal: onSelectSong triggered for ID: ${id}`);
             setSongStudioModalSongId(id);
             if (activeDashboardView === 'gigs') {
               const song = filteredAndSortedSongs.find(s => s.id === id);

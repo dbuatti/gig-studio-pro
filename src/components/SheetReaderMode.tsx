@@ -80,10 +80,6 @@ const SheetReaderMode: React.FC = () => {
     isLoadingAudio
   } = audioEngine;
 
-  // Removed auto-scroll states
-  // const [chordAutoScrollEnabled, setChordAutoScrollEnabled] = useState(true);
-  // const [chordScrollSpeed, setChordScrollSpeed] = useState(1.0);
-
   const currentSong = allSongs[currentIndex];
 
   const harmonicSync = useHarmonicSync({
@@ -507,9 +503,6 @@ const SheetReaderMode: React.FC = () => {
             isPlaying={isPlaying}
             progress={progress}
             duration={duration}
-            // Removed auto-scroll props
-            // chordAutoScrollEnabled={chordAutoScrollEnabled}
-            // chordScrollSpeed={chordScrollSpeed}
             readerKeyPreference={readerKeyPreference}
           />
         );
@@ -686,6 +679,7 @@ const SheetReaderMode: React.FC = () => {
   }
 
   const isChartLoading = !currentChartState?.isLoaded;
+  const headerLeftOffset = isSidebarOpen ? 300 : 0; // Calculate offset here
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-white">
@@ -704,16 +698,19 @@ const SheetReaderMode: React.FC = () => {
         />
       </motion.div>
 
-      <main className="flex-1 flex flex-col overflow-hidden relative">
+      <main className={cn(
+        "flex-1 flex flex-col overflow-hidden relative transition-all duration-300",
+        isSidebarOpen ? "ml-0" : "ml-0" // Sidebar is absolutely positioned, main content doesn't need margin-left
+      )}>
         <SheetReaderHeader
           currentSong={currentSong}
           onClose={() => navigate('/')}
-          onSearchClick={() => setIsStudioModalOpen(true)}
+          onSearchClick={() => { // Updated onSearchClick handler
+            setIsStudioModalOpen(true);
+            setSearchParams({ id: 'new', tab: 'library' }, { replace: true });
+          }}
           onPrevSong={handlePrev}
           onNextSong={handleNext}
-          // Removed currentSongIndex and totalSongs as they are not used in header
-          // currentSongIndex={currentIndex}
-          // totalSongs={allSongs.length}
           isLoading={!currentSong}
           keyPreference={globalKeyPreference}
           onUpdateKey={handleUpdateKey}
@@ -728,10 +725,11 @@ const SheetReaderMode: React.FC = () => {
           onPullKey={handlePullKey}
           isSidebarOpen={isSidebarOpen}
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+          headerLeftOffset={headerLeftOffset}
         />
 
         {isOriginalKeyMissing && (
-          <div className="fixed top-16 left-0 right-0 bg-red-950/30 border-b border-red-900/50 p-3 flex items-center justify-center gap-3 shrink-0 z-50 h-10">
+          <div className="fixed top-16 left-0 right-0 bg-red-950/30 border-b border-red-900/50 p-3 flex items-center justify-center gap-3 shrink-0 z-50 h-10" style={{ left: `${headerLeftOffset}px` }}>
             <AlertCircle className="w-4 h-4 text-red-400" />
             <p className="text-xs font-bold uppercase tracking-widest text-red-400">
               CRITICAL: Original Key is missing. Transposition is currently relative to 'C'. Use the Studio (I) to set it.

@@ -700,33 +700,33 @@ const SheetReaderMode: React.FC = () => {
 
       <main className={cn(
         "flex-1 flex flex-col overflow-hidden relative transition-all duration-300",
-        isSidebarOpen ? "ml-[300px]" : "ml-0" // Shift main content when sidebar is open
+        isSidebarOpen ? "ml-0" : "ml-0" // Sidebar is absolutely positioned, main content doesn't need margin-left
       )}>
-<SheetReaderHeader
-  currentSong={currentSong}
-  onClose={() => navigate('/')}
-  onSearchClick={() => {
-    setIsStudioModalOpen(true);
-    setSearchParams({ id: 'new', tab: 'library' }, { replace: true });
-  }}
-  onPrevSong={handlePrev}
-  onNextSong={handleNext}
-  isLoading={!currentSong}
-  keyPreference={globalKeyPreference}
-  onUpdateKey={handleUpdateKey}
-  isFullScreen={isImmersive}
-  onToggleFullScreen={() => setIsImmersive(!isImmersive)}
-  setIsOverlayOpen={setIsOverlayOpen}
-  isOverrideActive={forceReaderResource !== 'default'}
-  pitch={pitch}
-  setPitch={setPitch}
-  readerKeyPreference={readerKeyPreference}
-  setReaderKeyPreference={setReaderKeyPreference}
-  onPullKey={handlePullKey}
-  isSidebarOpen={isSidebarOpen}
-  onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-  headerLeftOffset={headerLeftOffset}
-/>
+        <SheetReaderHeader
+          currentSong={currentSong}
+          onClose={() => navigate('/')}
+          onSearchClick={() => { // Updated onSearchClick handler
+            setIsStudioModalOpen(true);
+            setSearchParams({ id: 'new', tab: 'library' }, { replace: true });
+          }}
+          onPrevSong={handlePrev}
+          onNextSong={handleNext}
+          isLoading={!currentSong}
+          keyPreference={globalKeyPreference}
+          onUpdateKey={handleUpdateKey}
+          isFullScreen={isImmersive}
+          onToggleFullScreen={() => setIsImmersive(!isImmersive)}
+          setIsOverlayOpen={setIsOverlayOpen}
+          isOverrideActive={forceReaderResource !== 'default'}
+          pitch={pitch}
+          setPitch={setPitch}
+          readerKeyPreference={readerKeyPreference}
+          setReaderKeyPreference={setReaderKeyPreference}
+          onPullKey={handlePullKey}
+          isSidebarOpen={isSidebarOpen}
+          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+          headerLeftOffset={headerLeftOffset}
+        />
 
         {isOriginalKeyMissing && (
           <div className="fixed top-16 left-0 right-0 bg-red-950/30 border-b border-red-900/50 p-3 flex items-center justify-center gap-3 shrink-0 z-50 h-10" style={{ left: `${headerLeftOffset}px` }}>
