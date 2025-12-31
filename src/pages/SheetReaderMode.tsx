@@ -217,7 +217,8 @@ const SheetReaderMode: React.FC = () => {
         originalKey: d.original_key,
         targetKey: d.target_key,
         pitch: d.pitch ?? 0,
-        previewUrl: d.preview_url,
+        // FIX: Prioritize audio_url if extraction is completed, otherwise fallback to preview_url
+        previewUrl: d.extraction_status === 'completed' && d.audio_url ? d.audio_url : d.preview_url,
         ug_chords_text: d.ug_chords_text,
         ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
         isApproved: d.is_approved,
