@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, CircleDashed, CheckCircle2, Volume2, ChevronUp, ChevronDown, Search, LayoutList, SortAsc, SortDesc, ClipboardList, Clock, ShieldCheck, Check, MoreVertical, Settings2, FileText, Filter, AlertTriangle, Loader2, Guitar, CloudDownload, Edit3 } from 'lucide-react';
+import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, CircleDashed, CheckCircle2, Volume2, ChevronUp, ChevronDown, Search, LayoutList, SortAsc, AlertTriangle, Loader2, Guitar, CloudDownload, Edit3 } from 'lucide-react';
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, formatKey, transposeKey, calculateSemitones } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
 import { showSuccess } from '@/utils/toast';
@@ -69,10 +69,9 @@ export interface SetlistSong {
   auto_synced?: boolean;
   is_sheet_verified?: boolean;
   sheet_music_url?: string;
-  extraction_status?: 'idle' | 'PENDING' | 'queued' | 'processing' | 'completed' | 'failed'; // Added 'PENDING'
+  extraction_status?: 'idle' | 'PENDING' | 'queued' | 'processing' | 'completed' | 'failed';
   extraction_error?: string;
-  audio_url?: string; // ADDED THIS LINE
-  // NEWLY ADDED PROPERTIES
+  audio_url?: string;
   comfort_level?: number;
   last_extracted_at?: string;
   source_type?: string;
@@ -179,6 +178,20 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     return "";
   };
 
+  // --- SAFEGUARD: Deduplicate songs for rendering ---
+  const uniqueRenderedSongs = useMemo(() => {
+    const seen = new Set();
+    return processedSongs.filter(song => {
+      const key = song.master_id || song.id;
+      if (seen.has(key)) {
+        console.warn(`[SetlistManager] Duplicate detected and filtered out: ${song.name} (${key})`);
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+  }, [processedSongs]);
+
   return (
     <div className="space-y-4 md:space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-2">
@@ -248,7 +261,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
       {isMobile ? (
         <div className="space-y-3 px-1 pb-4">
-          {processedSongs.map((song, idx) => {
+          {uniqueRenderedSongs.map((song, idx) => {
             const isSelected = currentSongId === song.id;
             const readinessScore = calculateReadiness(song);
             const isFullyReady = readinessScore === 100;
@@ -323,7 +336,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'up'); }} disabled={!isReorderingEnabled || idx === 0}>
                           <ChevronUp className="w-4 h-4 mr-2" /> Move Up
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'down'); }} disabled={!isReorderingEnabled || idx === processedSongs.length - 1}>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'down'); }} disabled={!isReorderingEnabled || idx === uniqueRenderedSongs.length - 1}>
                           <ChevronDown className="w-4 h-4 mr-2" /> Move Down
                         </DropdownMenuItem>
                         <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(song.id); }}>
@@ -387,7 +400,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {processedSongs.map((song, idx) => {
+                {uniqueRenderedSongs.map((song, idx) => {
                   const isSelected = currentSongId === song.id;
                   const readinessScore = calculateReadiness(song);
                   const isFullyReady = readinessScore === 100;
@@ -468,7 +481,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                           <Button variant="ghost" size="icon" className={cn("h-7 w-7 transition-all flex items-center justify-center", isReorderingEnabled ? "text-muted-foreground hover:text-indigo-600 hover:bg-indigo-50" : "text-muted-foreground opacity-20 cursor-not-allowed")} onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'up'); }} disabled={!isReorderingEnabled || idx === 0}>
                             <ChevronUp className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className={cn("h-7 w-7 transition-all flex items-center justify-center", isReorderingEnabled ? "text-muted-foreground hover:text-indigo-600 hover:bg-indigo-50" : "text-muted-foreground opacity-20 cursor-not-allowed")} onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'down'); }} disabled={!isReorderingEnabled || idx === processedSongs.length - 1}>
+                          <Button variant="ghost" size="icon" className={cn("h-7 w-7 transition-all flex items-center justify-center", isReorderingEnabled ? "text-muted-foreground hover:text-indigo-600 hover:bg-indigo-50" : "text-muted-foreground opacity-20 cursor-not-allowed")} onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'down'); }} disabled={!isReorderingEnabled || idx === uniqueRenderedSongs.length - 1}>
                             <ChevronDown className="w-4 h-4" />
                           </Button>
                         </div>

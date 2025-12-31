@@ -23,7 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Custom Components
 import SetlistSelector from '@/components/SetlistSelector';
-import SetlistManager, { SetlistSong, Setlist } from '@/components/SetlistManager'; // Import Setlist
+import SetlistManager, { SetlistSong, Setlist } from '@/components/SetlistManager';
 import SetlistFilters, { FilterState, DEFAULT_FILTERS } from '@/components/SetlistFilters';
 import SetlistStats from '@/components/SetlistStats';
 import SetlistExporter from '@/components/SetlistExporter';
@@ -45,14 +45,14 @@ const Index = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const isMobile = useIsMobile();
-  const { keyPreference: globalKeyPreference, safePitchMaxNote, isSafePitchEnabled } = useSettings(); // NEW: Get isSafePitchEnabled
+  const { keyPreference: globalKeyPreference, safePitchMaxNote, isSafePitchEnabled } = useSettings();
   const audio = useToneAudio();
 
   // --- State Management ---
   const [allSetlists, setAllSetlists] = useState<Setlist[]>([]);
   const [masterRepertoire, setMasterRepertoire] = useState<SetlistSong[]>([]);
   const [activeSetlistId, setActiveSetlistId] = useState<string | null>(null);
-  const [activeSongForPerformance, setActiveSongForPerformance] = useState<SetlistSong | null>(null); // Renamed for clarity
+  const [activeSongForPerformance, setActiveSongForPerformance] = useState<SetlistSong | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeDashboardView, setActiveDashboardView] = useState<'gigs' | 'repertoire'>('gigs');
 
@@ -65,15 +65,15 @@ const Index = () => {
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [isUserGuideOpen, setIsUserGuideOpen] = useState(false);
   const [isSongStudioModalOpen, setIsSongStudioModalOpen] = useState(false);
-  const [songStudioModalSongId, setSongStudioModalSongId] = useState<string | null>(null); // Track song for modal
+  const [songStudioModalSongId, setSongStudioModalSongId] = useState<string | null>(null);
   const [songStudioDefaultTab, setSongStudioDefaultTab] = useState<StudioTab | undefined>(undefined);
-  const [isKeyManagementOpen, setIsKeyManagementOpen] = useState(false); // NEW state
+  const [isKeyManagementOpen, setIsKeyManagementOpen] = useState(false);
 
   // Setlist Management
   const [newSetlistName, setNewSetlistName] = useState("");
   const [isCreatingSetlist, setIsCreatingSetlist] = useState(false);
   const [renameSetlistId, setRenameSetlistId] = useState<string | null>(null);
-  const [renameSetlistName, setNewSetlistNameForRename] = useState(""); // Renamed to avoid conflict
+  const [renameSetlistName, setNewSetlistNameForRename] = useState("");
   const [deleteSetlistConfirmId, setDeleteSetlistConfirmId] = useState<string | null>(null);
 
   // SetlistManager Filters & Search
@@ -82,7 +82,7 @@ const Index = () => {
   const [activeFilters, setActiveFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [showHeatmap, setShowHeatmap] = useState(false);
 
-  // Repertoire Exporter states (NEW: for Repertoire tab)
+  // Repertoire Exporter states
   const [isRepertoireAutoLinking, setIsRepertoireAutoLinking] = useState(false);
   const [isRepertoireGlobalAutoSyncing, setIsRepertoireGlobalAutoSyncing] = useState(false);
   const [isRepertoireBulkQueuingAudio, setIsRepertoireBulkQueuingAudio] = useState(false);
@@ -113,7 +113,7 @@ const Index = () => {
     // Apply filters
     songs = songs.filter(s => {
       const readiness = calculateReadiness(s);
-      const hasAudio = !!s.audio_url; // Check audio_url for full audio
+      const hasAudio = !!s.audio_url;
       const hasItunesPreview = !!s.previewUrl && (s.previewUrl.includes('apple.com') || s.previewUrl.includes('itunes-assets'));
       const hasVideo = !!s.youtubeUrl;
       const hasPdf = !!s.pdfUrl || !!s.leadsheetUrl || !!s.sheet_music_url;
@@ -161,17 +161,17 @@ const Index = () => {
   const missingAudioCount = useMemo(() => {
     if (!activeSetlist) return 0;
     return activeSetlist.songs.filter(s =>
-      s.youtubeUrl && // Must have a YouTube link to extract from
-      (!s.audio_url) && // Missing extracted audio
-      s.extraction_status !== 'queued' && s.extraction_status !== 'processing' // Not already queued/processing
+      s.youtubeUrl &&
+      (!s.audio_url) &&
+      s.extraction_status !== 'queued' && s.extraction_status !== 'processing'
     ).length;
   }, [activeSetlist]);
 
   const repertoireMissingAudioCount = useMemo(() => {
     return masterRepertoire.filter(s =>
-      s.youtubeUrl && // Must have a YouTube link to extract from
-      (!s.audio_url) && // Missing extracted audio
-      s.extraction_status !== 'queued' && s.extraction_status !== 'processing' // Not already queued/processing
+      s.youtubeUrl &&
+      (!s.audio_url) &&
+      s.extraction_status !== 'queued' && s.extraction_status !== 'processing'
     ).length;
   }, [masterRepertoire]);
 
@@ -185,7 +185,7 @@ const Index = () => {
     if (!user) return;
     setLoading(true);
     try {
-      // Fetch Setlists
+      // 1. Fetch Setlists (just the metadata)
       const { data: setlistsData, error: setlistsError } = await supabase
         .from('setlists')
         .select('*')
@@ -194,33 +194,7 @@ const Index = () => {
 
       if (setlistsError) throw setlistsError;
 
-      const fetchedSetlists: Setlist[] = (setlistsData || []).map(d => ({
-        id: d.id,
-        name: d.name,
-        songs: ((d.songs as any[]) || []).map(s => {
-          const mappedSong: SetlistSong = {
-            ...s,
-            duration_seconds: Number(s.duration_seconds || 0) // Ensure duration_seconds is a number
-          };
-          // If audio_url is missing but previewUrl looks like an extracted audio, use previewUrl for audio_url
-          if (!mappedSong.audio_url && mappedSong.previewUrl && mappedSong.previewUrl.includes('supabase.co/storage/v1/object/public/audio_tracks')) {
-            mappedSong.audio_url = mappedSong.previewUrl;
-          }
-          return mappedSong;
-        }) as SetlistSong[],
-        time_goal: d.time_goal
-      }));
-      setAllSetlists(fetchedSetlists);
-
-      // Set active setlist
-      let initialSetlistId = fetchedSetlists[0]?.id || null;
-      const savedSetlistId = localStorage.getItem('active_setlist_id');
-      if (savedSetlistId && fetchedSetlists.some(s => s.id === savedSetlistId)) {
-        initialSetlistId = savedSetlistId;
-      }
-      setActiveSetlistId(initialSetlistId);
-
-      // Fetch Master Repertoire
+      // 2. Fetch Master Repertoire
       const { data: repertoireData, error: repertoireError } = await supabase
         .from('repertoire')
         .select('*')
@@ -229,57 +203,107 @@ const Index = () => {
 
       if (repertoireError) throw repertoireError;
 
-      const mappedRepertoire: SetlistSong[] = (repertoireData || []).map(d => {
-        return {
-          id: d.id,
-          master_id: d.id,
-          name: d.title,
-          artist: d.artist,
-          originalKey: d.original_key, // Mapped original_key
-          targetKey: d.target_key,     // Mapped target_key
-          // Use audio_url if extraction is completed, otherwise fallback to preview_url
-          previewUrl: d.extraction_status === 'completed' && d.audio_url ? d.audio_url : d.preview_url,
-          youtubeUrl: d.youtube_url,
-          ugUrl: d.ug_url,
-          appleMusicUrl: d.apple_music_url,
-          pdfUrl: d.pdf_url,
-          leadsheetUrl: d.leadsheet_url,
-          bpm: d.bpm,
-          genre: d.genre,
-          isSyncing: false, // Client-side only
-          isMetadataConfirmed: d.is_metadata_confirmed,
-          isKeyConfirmed: d.is_key_confirmed,
-          notes: d.notes,
-          lyrics: d.lyrics,
-          resources: d.resources || [],
-          user_tags: d.user_tags || [],
-          is_pitch_linked: d.is_pitch_linked ?? true,
-          duration_seconds: d.duration_seconds,
-          key_preference: d.key_preference,
-          is_active: d.is_active,
-          fineTune: d.fineTune,
-          tempo: d.tempo,
-          volume: d.volume,
-          isApproved: d.is_approved,
-          preferred_reader: d.preferred_reader,
-          ug_chords_text: d.ug_chords_text, // Fixed typo here
-          ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
-          is_ug_chords_present: d.is_ug_chords_present,
-          highest_note_original: d.highest_note_original,
-          is_ug_link_verified: d.is_ug_link_verified,
-          metadata_source: d.metadata_source,
-          sync_status: d.sync_status,
-          last_sync_log: d.last_sync_log,
-          auto_synced: d.auto_synced,
-          is_sheet_verified: d.is_sheet_verified,
-          sheet_music_url: d.sheet_music_url,
-          extraction_status: d.extraction_status,
-          extraction_error: d.extraction_error,
-          audio_url: d.audio_url, // Map audio_url
-          pitch: d.pitch ?? 0, // Ensure pitch is mapped
-        };
-      });
+      const mappedRepertoire: SetlistSong[] = (repertoireData || []).map(d => ({
+        id: d.id,
+        master_id: d.id,
+        name: d.title,
+        artist: d.artist,
+        originalKey: d.original_key,
+        targetKey: d.target_key,
+        previewUrl: d.extraction_status === 'completed' && d.audio_url ? d.audio_url : d.preview_url,
+        youtubeUrl: d.youtube_url,
+        ugUrl: d.ug_url,
+        appleMusicUrl: d.apple_music_url,
+        pdfUrl: d.pdf_url,
+        leadsheetUrl: d.leadsheet_url,
+        bpm: d.bpm,
+        genre: d.genre,
+        isSyncing: false,
+        isMetadataConfirmed: d.is_metadata_confirmed,
+        isKeyConfirmed: d.is_key_confirmed,
+        notes: d.notes,
+        lyrics: d.lyrics,
+        resources: d.resources || [],
+        user_tags: d.user_tags || [],
+        is_pitch_linked: d.is_pitch_linked ?? true,
+        duration_seconds: d.duration_seconds,
+        key_preference: d.key_preference,
+        is_active: d.is_active,
+        fineTune: d.fineTune,
+        tempo: d.tempo,
+        volume: d.volume,
+        isApproved: d.is_approved,
+        preferred_reader: d.preferred_reader,
+        ug_chords_text: d.ug_chords_text,
+        ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
+        is_ug_chords_present: d.is_ug_chords_present,
+        highest_note_original: d.highest_note_original,
+        is_ug_link_verified: d.is_ug_link_verified,
+        metadata_source: d.metadata_source,
+        sync_status: d.sync_status,
+        last_sync_log: d.last_sync_log,
+        auto_synced: d.auto_synced,
+        is_sheet_verified: d.is_sheet_verified,
+        sheet_music_url: d.sheet_music_url,
+        extraction_status: d.extraction_status,
+        extraction_error: d.extraction_error,
+        audio_url: d.audio_url,
+        pitch: d.pitch ?? 0,
+      }));
       setMasterRepertoire(mappedRepertoire);
+
+      // 3. Fetch Setlist Songs (Junction Table) and Merge
+      const setlistsWithSongs: Setlist[] = [];
+
+      for (const setlist of setlistsData || []) {
+        // Fetch songs for this setlist from the junction table
+        const { data: junctionData, error: junctionError } = await supabase
+          .from('setlist_songs')
+          .select('*')
+          .eq('setlist_id', setlist.id)
+          .order('sort_order', { ascending: true });
+
+        if (junctionError) {
+          console.warn(`Failed to fetch songs for setlist ${setlist.id}:`, junctionError);
+          continue; // Skip this setlist if junction fetch fails
+        }
+
+        // Map junction data to full song objects using masterRepertoire
+        const songs: SetlistSong[] = junctionData.map(junction => {
+          const masterSong = mappedRepertoire.find(r => r.id === junction.song_id);
+          
+          if (!masterSong) {
+            console.warn(`Master song not found for junction entry: ${junction.song_id}`);
+            return null; // Will be filtered out
+          }
+
+          // Return a merged object: properties from master, but with the junction's ID
+          return {
+            ...masterSong,
+            id: junction.id, // Use the junction ID for the setlist entry
+            master_id: masterSong.id, // Keep reference to master
+            isPlayed: junction.isPlayed || false, // Use junction-specific data if available
+            // Ensure other junction-specific fields are mapped if they exist
+          };
+        }).filter(Boolean) as SetlistSong[]; // Filter out nulls
+
+        setlistsWithSongs.push({
+          id: setlist.id,
+          name: setlist.name,
+          songs: songs,
+          time_goal: setlist.time_goal
+        });
+      }
+
+      setAllSetlists(setlistsWithSongs);
+
+      // Set active setlist
+      let initialSetlistId = setlistsWithSongs[0]?.id || null;
+      const savedSetlistId = localStorage.getItem('active_setlist_id');
+      if (savedSetlistId && setlistsWithSongs.some(s => s.id === savedSetlistId)) {
+        initialSetlistId = savedSetlistId;
+      }
+      setActiveSetlistId(initialSetlistId);
 
     } catch (err: any) {
       console.error("Error fetching data:", err);
@@ -308,8 +332,6 @@ const Index = () => {
         { event: 'UPDATE', schema: 'public', table: 'repertoire', filter: `user_id=eq.${user.id}` },
         (payload) => {
           const updatedSong = payload.new as SetlistSong;
-          // Fix 1 & 2: Add null/undefined check for extraction_status
-          // Fix 3: Use updatedSong.name instead of updatedSong.title
           if (updatedSong.extraction_status && (updatedSong.extraction_status === 'completed' || updatedSong.extraction_status === 'failed')) {
             showSuccess(`Repertoire updated for "${updatedSong.name}"`);
             fetchSetlistsAndRepertoire(); // Re-fetch all data to ensure consistency
@@ -423,15 +445,18 @@ const Index = () => {
   const handleRemoveSongFromSetlist = async (songIdToRemove: string) => {
     if (!user || !activeSetlist) return;
     try {
-      const updatedSongs = activeSetlist.songs.filter(s => s.id !== songIdToRemove);
+      // Delete from junction table
       const { error } = await supabase
-        .from('setlists')
-        .update({ songs: updatedSongs, updated_at: new Date().toISOString() })
-        .eq('id', activeSetlist.id)
-        .eq('user.id', user.id);
+        .from('setlist_songs')
+        .delete()
+        .eq('id', songIdToRemove);
 
       if (error) throw error;
+      
+      // Update local state
+      const updatedSongs = activeSetlist.songs.filter(s => s.id !== songIdToRemove);
       setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: updatedSongs } : s));
+      
       if (activeSongForPerformance?.id === songIdToRemove) setActiveSongForPerformance(null);
       showSuccess("Track removed from setlist.");
     } catch (err: any) {
@@ -451,16 +476,16 @@ const Index = () => {
   const handleEditSong = (song: SetlistSong, defaultTab?: StudioTab) => {
     // Stop audio playback when opening the studio
     audio.stopPlayback();
-    setSongStudioModalSongId(song.id); // Set the song ID for the modal
+    setSongStudioModalSongId(song.master_id || song.id); // Use master_id for studio
     setIsSongStudioModalOpen(true);
-    setSongStudioDefaultTab(defaultTab || 'audio'); // Default to audio tab when editing a song
+    setSongStudioDefaultTab(defaultTab || 'audio');
   };
 
   const handleUpdateSongInSetlist = async (songIdToUpdate: string, updates: Partial<SetlistSong>) => {
     if (!user || !activeSetlist) return;
 
     // Find the current song in master repertoire to get its full state
-    const currentMasterSong = masterRepertoire.find(s => s.id === songIdToUpdate);
+    const currentMasterSong = masterRepertoire.find(s => s.id === songIdToUpdate || s.master_id === songIdToUpdate);
     // Merge current master song state with new updates
     const mergedUpdatesForMaster = { ...currentMasterSong, ...updates } as SetlistSong;
 
@@ -468,23 +493,30 @@ const Index = () => {
     const syncedMasterSongs = await syncToMasterRepertoire(user.id, [mergedUpdatesForMaster]);
     const fullySyncedMasterSong = syncedMasterSongs[0]; // This now has the latest audio_url, extraction_status etc.
 
-    setMasterRepertoire(prev => prev.map(s => s.id === songIdToUpdate ? fullySyncedMasterSong : s));
+    setMasterRepertoire(prev => prev.map(s => s.id === fullySyncedMasterSong.id ? fullySyncedMasterSong : s));
 
     // Then, update the song in the active setlist using the fully synced master song's data
     const updatedSetlistSongs = activeSetlist.songs.map(s =>
-      (s.master_id === songIdToUpdate || s.id === songIdToUpdate) ? { ...s, ...fullySyncedMasterSong } : s
+      (s.master_id === fullySyncedMasterSong.id) ? { ...s, ...fullySyncedMasterSong } : s
     );
 
     try {
-      const { error } = await supabase
-        .from('setlists')
-        .update({ songs: updatedSetlistSongs, updated_at: new Date().toISOString() })
-        .eq('id', activeSetlist.id)
-        .eq('user_id', user.id);
+      // Update the setlist_songs table for the specific entry
+      const junctionSong = activeSetlist.songs.find(s => s.id === songIdToUpdate);
+      if (junctionSong) {
+        const { error } = await supabase
+          .from('setlist_songs')
+          .update({ 
+            // Update any junction-specific fields if needed, e.g., isPlayed
+            isPlayed: updates.isPlayed !== undefined ? updates.isPlayed : junctionSong.isPlayed
+          })
+          .eq('id', junctionSong.id);
 
-      if (error) throw error;
+        if (error) throw error;
+      }
+
       setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: updatedSetlistSongs } : s));
-      if (activeSongForPerformance?.id === songIdToUpdate) setActiveSongForPerformance(fullySyncedMasterSong); // Update active song with full data
+      if (activeSongForPerformance?.id === songIdToUpdate) setActiveSongForPerformance(fullySyncedMasterSong);
       showSuccess("Song updated.");
     } catch (err: any) {
       showError(`Failed to update song: ${err.message}`);
@@ -535,11 +567,11 @@ const Index = () => {
     );
 
     try {
+      // Update junction table
       const { error } = await supabase
-        .from('setlists')
-        .update({ songs: updatedSongs, updated_at: new Date().toISOString() })
-        .eq('id', activeSetlist.id)
-        .eq('user_id', user.id);
+        .from('setlist_songs')
+        .update({ isPlayed: !song.isPlayed })
+        .eq('id', songIdToToggle);
 
       if (error) throw error;
       setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: updatedSongs } : s));
@@ -563,45 +595,50 @@ const Index = () => {
 
     // Ensure songToAdd is the latest from masterRepertoire
     const masterVersion = masterRepertoire.find(s => s.id === songToAdd.id || s.master_id === songToAdd.master_id);
-    const songToUse = masterVersion || songToAdd; // Use master version if found
+    const songToUse = masterVersion || songToAdd;
 
-    const newSetlistSong: SetlistSong = {
-      ...songToUse, // Use the potentially more complete songToUse
-      id: crypto.randomUUID(), // Generate new ID for setlist entry
-      master_id: songToUse.master_id || songToUse.id,
-      isPlayed: false,
-      isApproved: false,
-    };
+    // Insert into junction table
+    const { error } = await supabase
+      .from('setlist_songs')
+      .insert({
+        setlist_id: activeSetlist.id,
+        song_id: songToUse.master_id || songToUse.id,
+        sort_order: activeSetlist.songs.length,
+        isPlayed: false,
+        is_confirmed: false
+      });
 
-    const updatedSongs = [...activeSetlist.songs, newSetlistSong];
-
-    try {
-      const { error } = await supabase
-        .from('setlists')
-        .update({ songs: updatedSongs, updated_at: new Date().toISOString() })
-        .eq('id', activeSetlist.id)
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-      setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: updatedSongs } : s));
-      showSuccess(`Added "${songToAdd.name}" to setlist.`);
-      setIsRepertoirePickerOpen(false);
-      setIsImportSetlistOpen(false);
-    } catch (err: any) {
-      showError(`Failed to add song: ${err.message}`);
+    if (error) {
+      showError(`Failed to add song: ${error.message}`);
+      return;
     }
+
+    // Refetch to get the new junction ID and ensure consistency
+    await fetchSetlistsAndRepertoire();
+    showSuccess(`Added "${songToAdd.name}" to setlist.`);
+    setIsRepertoirePickerOpen(false);
+    setIsImportSetlistOpen(false);
   };
 
   const handleReorderSongs = async (newSongs: SetlistSong[]) => {
     if (!user || !activeSetlist) return;
     try {
-      const { error } = await supabase
-        .from('setlists')
-        .update({ songs: newSongs, updated_at: new Date().toISOString() })
-        .eq('id', activeSetlist.id)
-        .eq('user_id', user.id);
+      // Update sort_order for each song in the junction table
+      const updates = newSongs.map((song, index) => ({
+        id: song.id,
+        sort_order: index
+      }));
 
-      if (error) throw error;
+      // We can't do a bulk update easily with supabase-js for multiple rows with different IDs
+      // So we'll do sequential updates or a loop
+      for (const update of updates) {
+        const { error } = await supabase
+          .from('setlist_songs')
+          .update({ sort_order: update.sort_order })
+          .eq('id', update.id);
+        if (error) throw error;
+      }
+
       setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: newSongs } : s));
       showSuccess("Setlist reordered.");
     } catch (err: any) {
@@ -634,9 +671,9 @@ const Index = () => {
         if (result && result.status === 'SUCCESS') {
           return {
             ...s,
-            youtubeUrl: result.youtube_url as string | undefined, // Explicitly cast
+            youtubeUrl: result.youtube_url as string | undefined,
             metadata_source: 'auto_populated',
-            sync_status: 'COMPLETED' as SetlistSong['sync_status'] // Explicitly cast
+            sync_status: 'COMPLETED' as SetlistSong['sync_status']
           };
         }
         return s;
@@ -668,13 +705,13 @@ const Index = () => {
         if (result && result.status === 'SUCCESS') {
           return {
             ...s,
-            name: result.title as string, // Explicitly cast
-            artist: result.artist as string, // Explicitly cast
-            genre: result.primaryGenreName as string | undefined, // Explicitly cast
-            appleMusicUrl: result.trackViewUrl as string | undefined, // Explicitly cast
+            name: result.title as string,
+            artist: result.artist as string,
+            genre: result.primaryGenreName as string | undefined,
+            appleMusicUrl: result.trackViewUrl as string | undefined,
             metadata_source: 'itunes_autosync',
             auto_synced: true,
-            sync_status: 'COMPLETED' as SetlistSong['sync_status'] // Explicitly cast
+            sync_status: 'COMPLETED' as SetlistSong['sync_status']
           };
         }
         return s;
@@ -695,9 +732,9 @@ const Index = () => {
     showInfo("Queueing background audio extraction for missing repertoire tracks...");
 
     const songsToQueue = masterRepertoire.filter(s =>
-      s.youtubeUrl && // Must have a YouTube link to extract from
-      (!s.audio_url) && // Missing extracted audio
-      s.extraction_status !== 'queued' && s.extraction_status !== 'processing' // Not already queued/processing
+      s.youtubeUrl &&
+      (!s.audio_url) &&
+      s.extraction_status !== 'queued' && s.extraction_status !== 'processing'
     );
 
     if (songsToQueue.length === 0) {
@@ -780,48 +817,50 @@ const Index = () => {
       return;
     }
 
-    let updatedSongsArray = [...targetSetlist.songs];
-
     if (action === 'add') {
-      const isAlreadyInList = updatedSongsArray.some(s =>
+      const isAlreadyInList = targetSetlist.songs.some(s =>
         (s.master_id && s.master_id === songToUpdate.master_id) ||
         s.id === songToUpdate.id
       );
       if (!isAlreadyInList) {
-        const newSetlistSong: SetlistSong = {
-          ...songToUpdate,
-          id: crypto.randomUUID(), // Generate new ID for setlist entry
-          master_id: songToUpdate.master_id || songToUpdate.id,
-          isPlayed: false,
-          isApproved: false,
-        };
-        updatedSongsArray.push(newSetlistSong);
+        // Insert into junction table
+        const { error } = await supabase
+          .from('setlist_songs')
+          .insert({
+            setlist_id: setlistId,
+            song_id: songToUpdate.master_id || songToUpdate.id,
+            sort_order: targetSetlist.songs.length,
+            isPlayed: false,
+            is_confirmed: false
+          });
+        if (error) {
+          console.error("Failed to add to setlist:", error);
+          showError(`Failed to add to setlist: ${error.message}`);
+          return;
+        }
       }
     } else if (action === 'remove') {
-      updatedSongsArray = updatedSongsArray.filter(s =>
-        (s.master_id && s.master_id !== songToUpdate.master_id) || // Filter by master_id if present
-        (!s.master_id && s.id !== songToUpdate.id) // Fallback to local ID if no master_id
+      // Find the junction ID for this song in this setlist
+      const junctionSong = targetSetlist.songs.find(s =>
+        (s.master_id && s.master_id === songToUpdate.master_id) || s.id === songToUpdate.id
       );
+      if (junctionSong) {
+        const { error } = await supabase
+          .from('setlist_songs')
+          .delete()
+          .eq('id', junctionSong.id);
+        if (error) {
+          console.error("Failed to remove from setlist:", error);
+          showError(`Failed to remove from setlist: ${error.message}`);
+          return;
+        }
+      }
     }
 
-    try {
-      const { error } = await supabase
-        .from('setlists')
-        .update({ songs: updatedSongsArray, updated_at: new Date().toISOString() })
-        .eq('id', setlistId);
-
-      if (error) throw error;
-
-      // Update local state
-      setAllSetlists(prev => prev.map(l =>
-        l.id === setlistId ? { ...l, songs: updatedSongsArray } : l
-      ));
-      showSuccess(`Setlist "${targetSetlist.name}" updated.`);
-    } catch (err: any) {
-      console.error("[Index] Failed to update setlist songs:", err);
-      showError(`Failed to update setlist: ${err.message}`);
-    }
-  }, [allSetlists]);
+    // Refetch to ensure consistency
+    await fetchSetlistsAndRepertoire();
+    showSuccess(`Setlist "${targetSetlist.name}" updated.`);
+  }, [allSetlists, fetchSetlistsAndRepertoire]);
 
   const handleUpdateMasterKey = useCallback(async (songId: string, updates: { originalKey?: string | null, targetKey?: string | null, pitch?: number }) => {
     if (!user) return;
@@ -901,7 +940,7 @@ const Index = () => {
     } else {
       // No toast needed for deactivation
     }
-  }, [activeSongForPerformance, handleUpdateSongInSetlist, isSafePitchEnabled]); // NEW: Added isSafePitchEnabled to dependencies
+  }, [activeSongForPerformance, handleUpdateSongInSetlist, isSafePitchEnabled]);
 
   if (loading || authLoading) {
     return (
@@ -1010,22 +1049,23 @@ const Index = () => {
                     showInfo(`Importing ${songs.length} songs...`);
                     try {
                       const newSongsWithMasterIds = await syncToMasterRepertoire(user.id, songs);
-                      const updatedSongs = [...activeSetlist.songs, ...newSongsWithMasterIds.map(s => ({
-                        ...s,
-                        id: crypto.randomUUID(), // Generate new ID for setlist entry
-                        master_id: s.master_id || s.id,
+                      
+                      // Insert into junction table
+                      const junctionInserts = newSongsWithMasterIds.map((s, index) => ({
+                        setlist_id: activeSetlist.id,
+                        song_id: s.master_id || s.id,
+                        sort_order: activeSetlist.songs.length + index,
                         isPlayed: false,
-                        isApproved: false,
-                      }))];
+                        is_confirmed: false
+                      }));
 
                       const { error } = await supabase
-                        .from('setlists')
-                        .update({ songs: updatedSongs, updated_at: new Date().toISOString() })
-                        .eq('id', activeSetlist.id)
-                        .eq('user_id', user.id);
+                        .from('setlist_songs')
+                        .insert(junctionInserts);
 
                       if (error) throw error;
-                      setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: updatedSongs } : s));
+                      
+                      await fetchSetlistsAndRepertoire();
                       showSuccess("Songs imported and synced!");
                       setIsImportSetlistOpen(false);
                     } catch (err: any) {
@@ -1145,9 +1185,9 @@ const Index = () => {
       {/* Floating Command Dock */}
       <FloatingCommandDock
         onOpenSearch={() => {
-          setSongStudioModalSongId(null); // Clear active song if opening to search
+          setSongStudioModalSongId(null);
           setIsSongStudioModalOpen(true);
-          setSongStudioDefaultTab('library'); // Open to library tab for search
+          setSongStudioDefaultTab('library');
         }}
         onOpenPractice={() => {}} // Placeholder
         onOpenReader={handleOpenReader}
@@ -1284,22 +1324,23 @@ const Index = () => {
           showInfo(`Importing ${songs.length} songs...`);
           try {
             const newSongsWithMasterIds = await syncToMasterRepertoire(user.id, songs);
-            const updatedSongs = [...activeSetlist.songs, ...newSongsWithMasterIds.map(s => ({
-              ...s,
-              id: crypto.randomUUID(), // Generate new ID for setlist entry
-              master_id: s.master_id || s.id,
+            
+            // Insert into junction table
+            const junctionInserts = newSongsWithMasterIds.map((s, index) => ({
+              setlist_id: activeSetlist.id,
+              song_id: s.master_id || s.id,
+              sort_order: activeSetlist.songs.length + index,
               isPlayed: false,
-              isApproved: false,
-            }))];
+              is_confirmed: false
+            }));
 
             const { error } = await supabase
-              .from('setlists')
-              .update({ songs: updatedSongs, updated_at: new Date().toISOString() })
-              .eq('id', activeSetlist.id)
-              .eq('user_id', user.id);
+              .from('setlist_songs')
+              .insert(junctionInserts);
 
             if (error) throw error;
-            setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: updatedSongs } : s));
+            
+            await fetchSetlistsAndRepertoire();
             showSuccess("Songs imported and synced!");
             setIsImportSetlistOpen(false);
           } catch (err: any) {
@@ -1329,7 +1370,7 @@ const Index = () => {
           setSongStudioModalSongId(id);
           setIsSongStudioModalOpen(true);
           setIsResourceAuditOpen(false);
-          setSongStudioDefaultTab('details'); // Open to details tab for audit
+          setSongStudioDefaultTab('details');
         }}
         onRefreshRepertoire={handleRefreshRepertoire}
       />
@@ -1362,15 +1403,12 @@ const Index = () => {
       {songStudioModalSongId && (
         <SongStudioModal
           isOpen={isSongStudioModalOpen}
-          onClose={() => { setIsSongStudioModalOpen(false); setSongStudioDefaultTab(undefined); }} // Reset default tab on close
+          onClose={() => { setIsSongStudioModalOpen(false); setSongStudioDefaultTab(undefined); }}
           gigId={activeDashboardView === 'repertoire' ? 'library' : (activeSetlistId || 'library')}
           songId={songStudioModalSongId}
-          // --- FIX: Pass correct visibleSongs based on active tab ---
           visibleSongs={activeDashboardView === 'gigs' ? filteredAndSortedSongs : masterRepertoire}
           onSelectSong={(id) => {
-            // --- FIX: Update songStudioModalSongId for navigation within modal ---
             setSongStudioModalSongId(id);
-            // If it's from the gigs tab, also update activeSongForPerformance
             if (activeDashboardView === 'gigs') {
               const song = filteredAndSortedSongs.find(s => s.id === id);
               if (song) setActiveSongForPerformance(song);
@@ -1379,7 +1417,7 @@ const Index = () => {
           allSetlists={allSetlists}
           masterRepertoire={masterRepertoire}
           onUpdateSetlistSongs={handleUpdateSetlistSongs}
-          defaultTab={songStudioDefaultTab} // Pass the default tab
+          defaultTab={songStudioDefaultTab}
         />
       )}
     </div>
