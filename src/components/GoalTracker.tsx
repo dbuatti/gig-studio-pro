@@ -67,6 +67,22 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
         bg: 'bg-indigo-500/10'
       },
       { 
+        label: 'UG Links Bound', 
+        icon: <LinkIcon className="w-3 h-3" />, 
+        current: counts.links, 
+        target: goalUgLinksCount, 
+        color: 'text-orange-500',
+        bg: 'bg-orange-500/10'
+      },
+      { 
+        label: 'Voice Range Analyzed', 
+        icon: <Music className="w-3 h-3" />, 
+        current: counts.highestNote, 
+        target: goalHighestNoteCount, 
+        color: 'text-emerald-500',
+        bg: 'bg-emerald-500/10'
+      },
+      { 
         label: 'Original Keys Set', 
         icon: <Hash className="w-3 h-3" />, 
         current: counts.originalKey, 
@@ -85,7 +101,7 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
     ];
 
     return goals;
-  }, [repertoire, goalLyricsCount, goalUgChordsCount, goalOriginalKeyCount, goalTargetKeyCount]);
+  }, [repertoire, goalLyricsCount, goalUgChordsCount, goalUgLinksCount, goalHighestNoteCount, goalOriginalKeyCount, goalTargetKeyCount]);
 
   const overallProgress = useMemo(() => {
     const totalCurrent = stats.reduce((acc, g) => acc + Math.min(g.current, g.target), 0);
@@ -117,7 +133,7 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 relative z-10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 relative z-10">
         {stats.map((goal, i) => {
           const progress = goal.target > 0 ? (goal.current / goal.target) * 100 : 0;
           const isComplete = goal.current >= goal.target;

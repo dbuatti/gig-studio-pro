@@ -81,6 +81,8 @@ export interface SetlistSong {
   chords_updated_at?: string;
   ug_link_updated_at?: string;
   highest_note_updated_at?: string;
+  original_key_updated_at?: string;
+  target_key_updated_at?: string;
 }
 
 // Define the Setlist interface here
