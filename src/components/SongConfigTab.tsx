@@ -9,7 +9,7 @@ import { SetlistSong } from './SetlistManager';
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, calculateSemitones, formatKey, transposeKey, transposeNote, PURE_NOTES_SHARP, PURE_NOTES_FLAT } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
 import { useSettings } from '@/hooks/use-settings';
-import { Check, Hash, Music2, Link as LinkIcon, Play, Pause, RotateCcw, Music, CloudDownload, AlertTriangle } from 'lucide-react'; // NEW: Import CloudDownload and AlertTriangle
+import { Check, Hash, Music2, Link as LinkIcon, Play, Pause, RotateCcw, Music, CloudDownload, AlertTriangle } from 'lucide-react';
 import SongAssetMatrix from './SongAssetMatrix';
 import SongTagManager from './SongTagManager';
 import SheetMusicRecommender from './SheetMusicRecommender';
@@ -18,14 +18,12 @@ interface SongConfigTabProps {
   song: SetlistSong | null;
   formData: Partial<SetlistSong>;
   handleAutoSave: (updates: Partial<SetlistSong>) => void;
-  // Harmonic Sync Props
   pitch: number;
   setPitch: (pitch: number) => void;
   targetKey: string;
   setTargetKey: (targetKey: string) => void;
   isPitchLinked: boolean;
   setIsPitchLinked: (linked: boolean) => void;
-  // Other props
   setTempo: (tempo: number) => void;
   setVolume: (volume: number) => void;
   setFineTune: (fineTune: number) => void;
@@ -33,7 +31,7 @@ interface SongConfigTabProps {
   isPlaying: boolean;
   progress: number;
   duration: number;
-  setProgress: (p: number) => void; // Added setProgress prop
+  setProgress: (p: number) => void;
   togglePlayback: () => void;
   stopPlayback: () => void;
   isMobile: boolean;
@@ -44,14 +42,12 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
   song,
   formData,
   handleAutoSave,
-  // Harmonic Sync Props
   pitch,
   setPitch,
   targetKey,
   setTargetKey,
   isPitchLinked,
   setIsPitchLinked,
-  // Other props
   setTempo,
   setVolume,
   setFineTune,
@@ -59,18 +55,22 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
   isPlaying,
   progress,
   duration,
-  setProgress, // Destructured setProgress
+  setProgress,
   togglePlayback,
   stopPlayback,
   isMobile,
   onOpenInApp
 }) => {
   const { keyPreference: globalPreference } = useSettings();
-  const currentKeyPreference = formData.key_preference || globalPreference;
-  const keysToUse = currentKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
-  const pureNotes = currentKeyPreference === 'sharps' ? PURE_NOTES_SHARP : PURE_NOTES_FLAT;
+  
+  // Resolve effective notation preference: if global is neutral, use song preference, else global.
+  const resolvedPreference = globalPreference === 'neutral' 
+    ? (formData.key_preference || 'sharps') 
+    : globalPreference;
 
-  // Logic: When Original Key changes, update formData and handle linked logic
+  const keysToUse = resolvedPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
+  const pureNotes = resolvedPreference === 'sharps' ? PURE_NOTES_SHARP : PURE_NOTES_FLAT;
+
   const handleOriginalKeyChange = useCallback((val: string) => {
     const updates: Partial<SetlistSong> = { originalKey: val };
     if (isPitchLinked) {
@@ -100,12 +100,10 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
   const isProcessing = formData.extraction_status === 'processing' || formData.extraction_status === 'queued';
   const isExtractionFailed = formData.extraction_status === 'failed';
 
-  // Determine which URL to use for playback
   const audioSourceUrl = formData.extraction_status === 'completed' && formData.audio_url ? formData.audio_url : formData.previewUrl;
 
   return (
     <div className={cn("flex-1 p-6 md:p-8 space-y-8 md:space-y-10 overflow-y-auto")}>
-      {/* Mini Audio Playback Controls */}
       {audioSourceUrl ? (
         <div className="bg-slate-900/50 border border-white/10 rounded-3xl p-6 space-y-6 shadow-xl">
           <div className="flex items-center justify-between">
@@ -167,7 +165,6 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
         </div>
       )}
 
-      {/* Harmonic Engine Section */}
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Harmonic Engine</Label>
@@ -177,7 +174,7 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
                 <TooltipTrigger asChild>
                   <button 
                     onClick={() => {
-                      const nextPref = currentKeyPreference === 'sharps' ? 'flats' : 'sharps';
+                      const nextPref = resolvedPreference === 'sharps' ? 'flats' : 'sharps';
                       const updates: Partial<SetlistSong> = { key_preference: nextPref };
                       if (formData.originalKey) {
                         updates.originalKey = formatKey(formData.originalKey, nextPref);
@@ -192,8 +189,8 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
                       formData.key_preference ? "bg-indigo-600 border-indigo-500 text-white shadow-lg" : "bg-white/5 border-white/10 text-slate-500"
                     )}
                   >
-                    {currentKeyPreference === 'sharps' ? <Hash className="w-3.5 h-3.5" /> : <Music2 className="w-3.5 h-3.5" />}
-                    <span className="text-[9px] font-black uppercase">{currentKeyPreference}</span>
+                    {resolvedPreference === 'sharps' ? <Hash className="w-3.5 h-3.5" /> : <Music2 className="w-3.5 h-3.5" />}
+                    <span className="text-[9px] font-black uppercase">{resolvedPreference}</span>
                   </button>
                 </TooltipTrigger>
                 <TooltipContent className="text-[10px] font-black uppercase">Notation Preference</TooltipContent>
@@ -233,7 +230,7 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
           <div className="space-y-2">
             <Label className="text-[9px] font-bold text-slate-400 uppercase">Original Key (K_orig)</Label>
             <Select 
-              value={formatKey(formData.originalKey || "C", currentKeyPreference)} 
+              value={formatKey(formData.originalKey || "C", resolvedPreference)} 
               onValueChange={handleOriginalKeyChange}
             >
               <SelectTrigger className="bg-white/5 border-white/10 text-white font-bold font-mono h-12 text-lg">
@@ -250,7 +247,7 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
               <span className="text-[9px] font-mono text-slate-500">Offset: {calculateSemitones(formData.originalKey || "C", targetKey)} ST</span>
             </div>
             <Select 
-              value={formatKey(targetKey, currentKeyPreference)}
+              value={formatKey(targetKey, resolvedPreference)}
               onValueChange={handleTargetKeyChange}
             >
               <SelectTrigger className={cn(
@@ -265,7 +262,6 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
             </Select>
           </div>
 
-          {/* Highest Note Original Tracking */}
           <div className="space-y-2 pt-2 border-t border-white/5">
             <Label className="text-[9px] font-bold text-indigo-400 uppercase">Highest Note (Original)</Label>
             <div className="flex gap-2">
@@ -300,7 +296,7 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
               <div className="flex items-center gap-2 mt-2 px-1">
                 <Music className="w-3 h-3 text-emerald-400" />
                 <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">
-                  Stage Max: <span className="text-white font-mono">{transposeNote(formData.highest_note_original, pitch, currentKeyPreference)}</span>
+                  Stage Max: <span className="text-white font-mono">{transposeNote(formData.highest_note_original, pitch, resolvedPreference)}</span>
                 </p>
               </div>
             )}

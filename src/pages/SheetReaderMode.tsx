@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Music, Loader2, AlertCircle, X, ExternalLink, ShieldCheck, FileText, Layout, Guitar, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
-import { useSettings } from '@/hooks/use-settings';
+import { useSettings, KeyPreference } from '@/hooks/use-settings';
 import { calculateReadiness } from '@/utils/repertoireSync';
 import { showError, showSuccess, showInfo } from '@/utils/toast';
 import UGChordsReader from '@/components/UGChordsReader';
@@ -56,7 +56,7 @@ const SheetReaderMode: React.FC = () => {
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  const [readerKeyPreference, setReaderKeyPreference] = useState<'sharps' | 'flats'>(globalKeyPreference);
+  const [readerKeyPreference, setReaderKeyPreference] = useState<KeyPreference>(globalKeyPreference);
   const [selectedChartType, setSelectedChartType] = useState<ChartType>('pdf');
   const [renderedCharts, setRenderedCharts] = useState<RenderedChart[]>([]);
 
@@ -171,6 +171,7 @@ const SheetReaderMode: React.FC = () => {
         previewUrl: d.extraction_status === 'completed' && d.audio_url ? d.audio_url : d.preview_url,
         youtubeUrl: d.youtube_url,
         ugUrl: d.ug_url,
+        appleMusicUrl: d.apple_music_url,
         pdfUrl: d.pdf_url,
         leadsheetUrl: d.leadsheet_url,
         bpm: d.bpm,
@@ -269,6 +270,11 @@ const SheetReaderMode: React.FC = () => {
   }, []);
 
   const renderChartForSong = useCallback((song: SetlistSong, chartType: ChartType): React.ReactNode => {
+    // Resolve concrete preference for rendering
+    const concretePreference = readerKeyPreference === 'neutral' 
+      ? (song.key_preference || 'sharps') 
+      : readerKeyPreference;
+
     if (chartType === 'chords' && song.ug_chords_text?.trim()) {
       return (
         <UGChordsReader
@@ -281,7 +287,7 @@ const SheetReaderMode: React.FC = () => {
           isPlaying={isPlaying}
           progress={progress}
           duration={duration}
-          readerKeyPreference={readerKeyPreference}
+          readerKeyPreference={concretePreference}
           onChartReady={handleChartReady}
         />
       );

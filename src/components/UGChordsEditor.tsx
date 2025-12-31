@@ -21,7 +21,6 @@ interface UGChordsEditorProps {
   formData: Partial<SetlistSong>;
   handleAutoSave: (updates: Partial<SetlistSong>) => void;
   isMobile: boolean;
-  // Harmonic Sync Props
   pitch: number;
   setPitch: (pitch: number) => void;
   targetKey: string;
@@ -35,7 +34,6 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
   formData, 
   handleAutoSave, 
   isMobile,
-  // Harmonic Sync Props
   pitch,
   setPitch,
   targetKey,
@@ -45,8 +43,10 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
 }) => {
   const { keyPreference: globalPreference } = useSettings(); 
   
-  // Use song-specific preference or fall back to global
-  const activeKeyPreference = formData.key_preference || globalPreference;
+  // Resolve effective notation preference: if global is neutral, use song preference, else global.
+  const resolvedPreference = globalPreference === 'neutral' 
+    ? (formData.key_preference || 'sharps') 
+    : globalPreference;
 
   const [chordsText, setChordsText] = useState(formData.ug_chords_text || "");
   const [localTransposeSemitones, setLocalTransposeSemitones] = useState(0);
@@ -57,9 +57,8 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
 
   const transposedText = useMemo(() => {
     if (!chordsText) return chordsText;
-    // Explicitly allow transposition/conversion even at 0 semitones
-    return transposeChords(chordsText, activeTransposeOffset, activeKeyPreference);
-  }, [chordsText, activeTransposeOffset, activeKeyPreference]);
+    return transposeChords(chordsText, activeTransposeOffset, resolvedPreference);
+  }, [chordsText, activeTransposeOffset, resolvedPreference]);
 
   useEffect(() => {
     if (chordsText !== formData.ug_chords_text) {
@@ -123,7 +122,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
   };
 
   const handleTogglePreference = () => {
-    const next = activeKeyPreference === 'sharps' ? 'flats' : 'sharps';
+    const next = resolvedPreference === 'sharps' ? 'flats' : 'sharps';
     handleAutoSave({ key_preference: next });
     showSuccess(`Notation set to ${next === 'sharps' ? 'Sharps' : 'Flats'}`);
   };
@@ -206,7 +205,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
     }
     const rawExtractedKey = extractKeyFromChords(chordsText);
     if (rawExtractedKey) {
-      const formattedKey = formatKey(rawExtractedKey, activeKeyPreference);
+      const formattedKey = formatKey(rawExtractedKey, resolvedPreference);
       handleAutoSave({ 
         originalKey: formattedKey, 
         targetKey: formattedKey,
@@ -223,7 +222,6 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
 
   return (
     <div className="flex flex-col h-full gap-6 text-white">
-      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h3 className="text-xl font-black uppercase tracking-tight text-white">UG Chords Editor</h3>
@@ -270,12 +268,10 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
         "flex flex-col gap-6 flex-1",
         isMobile ? "flex-col" : "md:flex-row"
       )}>
-        {/* Left Panel - Editor */}
         <div className={cn(
           "flex flex-col gap-4",
           isMobile ? "w-full" : "md:w-1/2"
         )}>
-          {/* UG Link Input */}
           <div className="bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-3xl p-6">
             <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
               Ultimate Guitar Link
@@ -293,7 +289,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
               <Button
                 onClick={handleFetchUgChords}
                 disabled={isFetchingUg || !formData.ugUrl?.trim()}
-                className="h-12 px-6 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] uppercase gap-2 rounded-xl"
+                className="h-12 px-6 bg-indigo-600 hover:bg-indigo-50 text-white font-bold text-[10px] uppercase gap-2 rounded-xl"
               >
                 {isFetchingUg ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
                 Fetch Chords
@@ -301,7 +297,6 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
             </div>
           </div>
 
-          {/* Chords Input */}
           <div className="bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-3xl p-6 flex-1 flex flex-col">
             <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
               Paste Chords & Lyrics
@@ -323,27 +318,24 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
           </div>
         </div>
 
-        {/* Right Panel - Controls and Preview */}
         <div className={cn(
           "flex flex-col gap-4",
           isMobile ? "w-full" : "md:w-1/2"
         )}>
-          {/* Transpose Controls */}
           <div className="bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-3xl p-6">
             <div className="flex items-center justify-between mb-4">
               <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
                 Transpose
               </Label>
               <div className="flex gap-4 items-center">
-                {/* Notation Override Toggle */}
                 <div className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-lg px-2 h-8">
-                  <span className={cn("text-[9px] font-black uppercase", activeKeyPreference === 'flats' ? "text-indigo-400" : "text-slate-500")}>b</span>
+                  <span className={cn("text-[9px] font-black uppercase", resolvedPreference === 'flats' ? "text-indigo-400" : "text-slate-500")}>b</span>
                   <Switch 
-                    checked={activeKeyPreference === 'sharps'} 
+                    checked={resolvedPreference === 'sharps'} 
                     onCheckedChange={handleTogglePreference}
                     className="data-[state=checked]:bg-indigo-600 scale-75"
                   />
-                  <span className={cn("text-[9px] font-black uppercase", activeKeyPreference === 'sharps' ? "text-indigo-400" : "text-slate-500")}>#</span>
+                  <span className={cn("text-[9px] font-black uppercase", resolvedPreference === 'sharps' ? "text-indigo-400" : "text-slate-500")}>#</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-mono font-bold text-indigo-400">
@@ -414,7 +406,6 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
             </div>
           </div>
 
-          {/* Audio Key Link */}
           <div className="bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-3xl p-6">
             <div className="flex items-center gap-2 mb-4">
               <Music className="w-4 h-4 text-emerald-500" />
@@ -427,7 +418,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
                 <Label className="text-[9px] font-bold text-slate-400 uppercase">Original</Label>
                 <div className="flex items-center gap-2">
                   <Input 
-                    value={formatKey(formData.originalKey || "TBC", activeKeyPreference)} 
+                    value={formatKey(formData.originalKey || "TBC", resolvedPreference)} 
                     readOnly 
                     className="h-10 bg-black/20 border-white/10 font-mono font-bold text-slate-500 flex-1"
                   />
@@ -448,14 +439,14 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
               <div className="space-y-1.5">
                 <Label className="text-[9px] font-bold text-emerald-400 uppercase">Target (Linked)</Label>
                 <Select 
-                  value={formatKey(targetKey || formData.originalKey || "C", activeKeyPreference)}
+                  value={formatKey(targetKey || formData.originalKey || "C", resolvedPreference)}
                   onValueChange={setTargetKey}
                 >
                   <SelectTrigger className="h-10 bg-emerald-900/20 border-emerald-500/30 text-emerald-400 font-mono font-bold">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-slate-900 border-white/10 text-white z-[300]">
-                    {(activeKeyPreference === 'sharps' ? 
+                    {(resolvedPreference === 'sharps' ? 
                       ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B", "Cm", "C#m", "Dm", "D#m", "Em", "Fm", "F#m", "Gm", "G#m", "Am", "A#m", "Bm"] : 
                       ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B", "Cm", "Dbm", "Dm", "Ebm", "Em", "Fm", "Gbm", "Gm", "Abm", "Am", "Bbm", "Bm"]
                     ).map(k => (
@@ -467,7 +458,6 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
             </div>
           </div>
 
-          {/* Styling Controls */}
           <div className="bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-3xl p-6">
             <div className="flex items-center gap-2 mb-4">
               <Palette className="w-4 h-4 text-indigo-500" />
@@ -595,7 +585,6 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
             </div>
           </div>
 
-          {/* Preview */}
           <div className="bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-3xl p-6 flex flex-col flex-1">
             <div className="flex items-center justify-between mb-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400" htmlFor="preview-area">

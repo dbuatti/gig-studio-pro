@@ -1,5 +1,8 @@
 "use client";
 
+// Define locally to avoid circular dependency with hooks
+type KeyPreference = 'flats' | 'sharps' | 'neutral';
+
 const SHARP_KEYS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const FLAT_KEYS = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
 
@@ -46,15 +49,18 @@ export const normalizeKeyString = (key: string | undefined | null): string => {
 /**
  * Normalizes any key string to its standard sharp or flat version based on preference.
  */
-export const formatKey = (key: string | undefined, preference: 'flats' | 'sharps'): string => {
+export const formatKey = (key: string | undefined, preference: KeyPreference): string => {
   const normKey = normalizeKeyString(key);
   if (normKey === "TBC") return "TBC";
 
   const isMinor = normKey.endsWith('m');
   const root = isMinor ? normKey.slice(0, -1) : normKey;
   
+  // Resolve neutral to sharps if it makes it to this level
+  const concretePref = preference === 'neutral' ? 'sharps' : preference;
+  
   let newRoot = root;
-  if (preference === 'flats') {
+  if (concretePref === 'flats') {
     newRoot = MAPPING_TO_FLAT[root] || root;
   } else {
     newRoot = MAPPING_TO_SHARP[root] || root;
@@ -87,7 +93,7 @@ export const calculateSemitones = (original: string | undefined, target: string 
   return diff;
 };
 
-export const transposeKey = (key: string | undefined, semitones: number, preference: 'flats' | 'sharps' = 'sharps'): string => {
+export const transposeKey = (key: string | undefined, semitones: number, preference: KeyPreference = 'sharps'): string => {
   const normKey = normalizeKeyString(key);
   if (normKey === "TBC") return "TBC";
   
@@ -104,8 +110,11 @@ export const transposeKey = (key: string | undefined, semitones: number, prefere
   
   const newRootSharp = SHARP_KEYS[newIdx];
   
+  // Resolve neutral to sharps if it makes it to this level
+  const concretePref = preference === 'neutral' ? 'sharps' : preference;
+  
   // Now format the new root based on the preference
-  const newRootFormatted = preference === 'flats' ? (MAPPING_TO_FLAT[newRootSharp] || newRootSharp) : newRootSharp;
+  const newRootFormatted = concretePref === 'flats' ? (MAPPING_TO_FLAT[newRootSharp] || newRootSharp) : newRootSharp;
 
   return isMinor ? `${newRootFormatted}m` : newRootFormatted;
 };
@@ -113,16 +122,19 @@ export const transposeKey = (key: string | undefined, semitones: number, prefere
 /**
  * Transposes a specific note (e.g. "G5") by a number of semitones.
  */
-export function transposeNote(noteStr: string, semitones: number, pref: 'sharps' | 'flats' = 'sharps'): string {
-  const notes = pref === 'sharps' ? SHARP_KEYS : FLAT_KEYS;
+export function transposeNote(noteStr: string | undefined | null, semitones: number, preference: KeyPreference = 'sharps'): string {
+  if (!noteStr) return "";
+  const notes = preference === 'flats' ? FLAT_KEYS : SHARP_KEYS;
   const match = noteStr.match(/^([A-G][#b]?)([0-8])$/);
   if (!match) return noteStr;
   
   const note = match[1];
   const octave = parseInt(match[2]);
   
+  const concretePref = preference === 'neutral' ? 'sharps' : preference;
+  
   // Normalize the input note to handle mismatching sharp/flat input vs array
-  const normalizedInputNote = (pref === 'sharps' ? (MAPPING_TO_SHARP[note] || note) : (MAPPING_TO_FLAT[note] || note));
+  const normalizedInputNote = (concretePref === 'sharps' ? (MAPPING_TO_SHARP[note] || note) : (MAPPING_TO_FLAT[note] || note));
   
   let index = notes.indexOf(normalizedInputNote);
   if (index === -1) return noteStr;
