@@ -625,15 +625,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="space-y-1.5">
                               <label className="text-[9px] font-black uppercase text-slate-500">Repository</label>
-                              <input type="text" value={githubRepo} onChange={(e) => startTransition(() => setGithubRepo(e.target.value))} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-white outline-none focus:border-indigo-500/50"/>
+                              <input type="text" value={githubRepo} autoComplete="username" onChange={(e) => startTransition(() => setGithubRepo(e.target.value))} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-white outline-none focus:border-indigo-500/50"/>
                             </div>
                             <div className="space-y-1.5">
                               <label className="text-[9px] font-black uppercase text-slate-500">File Path</label>
-                              <input type="text" value={githubFile} onChange={(e) => startTransition(() => setGithubFile(e.target.value))} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-white outline-none focus:border-indigo-500/50"/>
+                              <input type="text" value={githubFile} autoComplete="on" onChange={(e) => startTransition(() => setGithubFile(e.target.value))} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-white outline-none focus:border-indigo-500/50"/>
                             </div>
                             <div className="space-y-1.5">
                               <label className="text-[9px] font-black uppercase text-slate-500">Auth Token</label>
-                              <input type="password" value={githubToken} onChange={(e) => startTransition(() => setGithubToken(e.target.value))} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-white outline-none focus:border-indigo-500/50" autoComplete="current-password"/>
+                              <input type="password" value={githubToken} autoComplete="current-password" onChange={(e) => startTransition(() => setGithubToken(e.target.value))} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-white outline-none focus:border-indigo-500/50"/>
                             </div>
                           </div>
                           <div className="space-y-3">
