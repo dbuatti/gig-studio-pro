@@ -17,7 +17,7 @@ import { calculateSemitones, transposeKey } from '@/utils/keyUtils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Plus, ListMusic, Settings2, BookOpen, Search, LayoutDashboard, X, AlertCircle, CloudDownload, AlertTriangle, Library } from 'lucide-react';
+import { Loader2, Plus, ListMusic, Settings2, BookOpen, Search, LayoutDashboard, X, AlertCircle, CloudDownload, AlertTriangle, Library, Hash } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -39,6 +39,7 @@ import FloatingCommandDock from '@/components/FloatingCommandDock';
 import ActiveSongBanner from '@/components/ActiveSongBanner';
 import { StudioTab } from '@/components/SongStudioView';
 import RepertoireView from '@/components/RepertoireView';
+import KeyManagementModal from '@/components/KeyManagementModal';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -66,6 +67,7 @@ const Index = () => {
   const [isSongStudioModalOpen, setIsSongStudioModalOpen] = useState(false);
   const [songStudioModalSongId, setSongStudioModalSongId] = useState<string | null>(null); // Track song for modal
   const [songStudioDefaultTab, setSongStudioDefaultTab] = useState<StudioTab | undefined>(undefined);
+  const [isKeyManagementOpen, setIsKeyManagementOpen] = useState(false); // NEW state
 
   // Setlist Management
   const [newSetlistName, setNewSetlistName] = useState("");
@@ -424,7 +426,7 @@ const Index = () => {
         .from('setlists')
         .update({ songs: updatedSongs, updated_at: new Date().toISOString() })
         .eq('id', activeSetlist.id)
-        .eq('user_id', user.id);
+        .eq('user.id', user.id);
 
       if (error) throw error;
       setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: updatedSongs } : s));
@@ -818,6 +820,49 @@ const Index = () => {
     }
   }, [allSetlists]);
 
+  const handleUpdateMasterKey = useCallback(async (songId: string, updates: { originalKey?: string | null, targetKey?: string | null, pitch?: number }) => {
+    if (!user) return;
+    
+    const currentMasterSong = masterRepertoire.find(s => s.id === songId);
+    if (!currentMasterSong) {
+      showError("Master song record not found.");
+      return;
+    }
+
+    // Merge current master song state with new updates
+    const mergedUpdatesForMaster = { ...currentMasterSong, ...updates } as SetlistSong;
+
+    try {
+      // 1. Update the master repertoire and get the fully synced song back
+      const syncedMasterSongs = await syncToMasterRepertoire(user.id, [mergedUpdatesForMaster]);
+      const fullySyncedMasterSong = syncedMasterSongs[0];
+
+      // 2. Update local master repertoire state
+      setMasterRepertoire(prev => prev.map(s => s.id === songId ? fullySyncedMasterSong : s));
+
+      // 3. Update all setlists that contain this master song
+      const masterId = fullySyncedMasterSong.master_id || fullySyncedMasterSong.id;
+      
+      const updatedSetlists = allSetlists.map(setlist => {
+        const updatedSongs = setlist.songs.map(s =>
+          (s.master_id === masterId || s.id === masterId) ? { ...s, ...fullySyncedMasterSong } : s
+        );
+        return { ...setlist, songs: updatedSongs };
+      });
+      
+      setAllSetlists(updatedSetlists);
+      
+      // 4. Update active song for performance if it matches
+      if (activeSongForPerformance?.master_id === masterId || activeSongForPerformance?.id === masterId) {
+        setActiveSongForPerformance(fullySyncedMasterSong);
+      }
+
+    } catch (err: any) {
+      console.error("Failed to update master key:", err);
+      throw new Error(`Failed to update key: ${err.message}`);
+    }
+  }, [user, masterRepertoire, allSetlists, activeSongForPerformance]);
+
   const handleRefreshRepertoire = useCallback(() => {
     fetchSetlistsAndRepertoire();
   }, [fetchSetlistsAndRepertoire]);
@@ -876,6 +921,14 @@ const Index = () => {
             <h1 className="text-2xl font-black uppercase tracking-tight">Gig Studio Dashboard</h1>
           </div>
           <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsKeyManagementOpen(true)}
+              className="h-9 px-4 rounded-xl border-indigo-100 dark:border-slate-800 bg-white dark:bg-slate-950 text-indigo-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-sm"
+            >
+              <Hash className="w-3.5 h-3.5" /> Key Matrix
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -1107,6 +1160,8 @@ const Index = () => {
       />
 
       {/* Modals */}
+      {/* ... existing AlertDialogs ... */}
+
       <AlertDialog open={isCreatingSetlist} onOpenChange={setIsCreatingSetlist}>
         <AlertDialogContent className="bg-slate-900 border-white/10 text-white rounded-[2rem]">
           <AlertDialogHeader>
@@ -1283,6 +1338,15 @@ const Index = () => {
       <UserGuideModal
         isOpen={isUserGuideOpen}
         onClose={() => setIsUserGuideOpen(false)}
+      />
+
+      {/* NEW: Key Management Modal */}
+      <KeyManagementModal
+        isOpen={isKeyManagementOpen}
+        onClose={() => setIsKeyManagementOpen(false)}
+        repertoire={masterRepertoire}
+        onUpdateKey={handleUpdateMasterKey}
+        keyPreference={globalKeyPreference}
       />
 
       {songStudioModalSongId && (
