@@ -647,7 +647,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
                               <p className="text-xs md:text-sm text-slate-400 mt-1">Force refresh all master audio assets.</p>
                             </div>
                           </div>
-                          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                          <div className="flex flex-wrap justify-center gap-3 w-full">
                             <Button 
                               onClick={() => handleQueueBackgroundExtract('stuck')} // NEW: Call with 'stuck' mode
                               disabled={isQueuingStuckExtraction || isQueuingMissingExtraction || isQueuingAllExtraction || stuckOrFailedCount === 0} // Disable if no stuck tasks
