@@ -217,6 +217,13 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
       return;
     }
 
+    // NEW: Check if audio is already completed for this song
+    if (song?.extraction_status === 'completed' && song?.audio_url) {
+      showInfo("Audio already extracted and available.");
+      setIsQueuingExtraction(false);
+      return;
+    }
+
     handleAutoSave({ youtubeUrl: targetVideoUrl });
     setIsQueuingExtraction(true); // Use new state variable
     console.log("[YoutubeMediaManager] Updating Supabase to queue extraction...");

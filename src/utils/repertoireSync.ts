@@ -90,7 +90,16 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       payload.pdf_url = song.pdfUrl !== undefined ? String(song.pdfUrl) : null;
       payload.leadsheet_url = song.leadsheetUrl !== undefined ? String(song.leadsheetUrl) : null;
       payload.youtube_url = song.youtubeUrl !== undefined ? String(song.youtubeUrl) : null;
-      payload.preview_url = song.previewUrl !== undefined ? String(song.previewUrl) : null;
+      
+      // Determine the correct preview_url for the database
+      let dbPreviewUrl = null;
+      if (song.extraction_status === 'completed' && song.audio_url) {
+        dbPreviewUrl = song.audio_url;
+      } else if (song.previewUrl !== undefined) {
+        dbPreviewUrl = String(song.previewUrl);
+      }
+      payload.preview_url = dbPreviewUrl;
+
       payload.apple_music_url = song.appleMusicUrl !== undefined ? String(song.appleMusicUrl) : null;
       payload.is_metadata_confirmed = Boolean(song.isMetadataConfirmed ?? false);
       payload.is_key_confirmed = Boolean(song.isKeyConfirmed ?? false);

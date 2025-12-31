@@ -79,23 +79,13 @@ def process_queued_song(song):
             mp3_path = os.path.join(DOWNLOAD_DIR, f"{file_id}.mp3")
             
             if os.path.exists(mp3_path):
-                log(f"Audio downloaded. Uploading '{title}' to Supabase Storage...")
-                storage_path = f"{user_id}/{song_id}/{int(time.time())}.mp3"
-                
-                with open(mp3_path, 'rb') as f:
-                    res = supabase.storage.from_("public_audio").upload(
-                        path=storage_path, 
-                        file=f,
-                        file_options={"content-type": "audio/mpeg"}
-                    )
-                    if res.status_code != 200:
-                        raise Exception(f"Supabase Storage Upload Error: {res.text}")
-                
+                log(f"Upload complete. Updating Supabase record for '{title}' with public URL: {public_url}")
                 public_url = supabase.storage.from_("public_audio").get_public_url(storage_path)
                 
                 log(f"Upload complete. Updating Supabase record for '{title}' with public URL: {public_url}")
                 supabase.table("repertoire").update({
-                    "audio_url": public_url, # Changed from preview_url to audio_url
+                    "audio_url": public_url,
+                    "preview_url": public_url, # ADDED THIS LINE
                     "extraction_status": "COMPLETED",
                     "extraction_error": None,
                     "last_extracted_at": time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
