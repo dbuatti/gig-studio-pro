@@ -34,6 +34,7 @@ interface SheetReaderHeaderProps {
   // NEW: Sidebar Toggle
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
+  headerLeftOffset: number; // Re-added this property
 }
 
 const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
@@ -56,6 +57,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   onPullKey,
   isSidebarOpen,
   onToggleSidebar,
+  headerLeftOffset, // Destructure new prop
 }) => {
   // Use the reader specific preference for display
   const rawTargetKey = currentSong?.targetKey || currentSong?.originalKey;
@@ -66,7 +68,10 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   console.log(`[SheetReaderHeader] Raw Target Key: ${rawTargetKey}, Display Key: ${displayKey}, Reader Key Preference: ${readerKeyPreference}`);
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-60 bg-slate-900/80 backdrop-blur-xl border-b border-white/10 px-6 py-3 flex items-center justify-between shadow-lg animate-in slide-in-from-top duration-300">
+    <div 
+      className="fixed top-0 right-0 z-60 bg-slate-900/80 backdrop-blur-xl border-b border-white/10 px-6 py-3 flex items-center justify-between shadow-lg animate-in slide-in-from-top duration-300"
+      style={{ left: `${headerLeftOffset}px` }} // Apply dynamic left
+    >
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={onClose} className="h-10 w-10 rounded-xl bg-white/5" title="Back to Dashboard"><ArrowLeft className="w-5 h-5 text-slate-400" /></Button>
         

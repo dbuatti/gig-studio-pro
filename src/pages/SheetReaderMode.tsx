@@ -679,6 +679,7 @@ const SheetReaderMode: React.FC = () => {
   }
 
   const isChartLoading = !currentChartState?.isLoaded;
+  const headerLeftOffset = isSidebarOpen ? 300 : 0; // Calculate offset here
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-white">
@@ -697,11 +698,18 @@ const SheetReaderMode: React.FC = () => {
         />
       </motion.div>
 
-      <main className="flex-1 flex flex-col overflow-hidden relative">
+      <main className={cn(
+        "flex-1 flex flex-col overflow-hidden relative transition-all duration-300",
+        isSidebarOpen ? "ml-[300px]" : "ml-0" // Shift main content when sidebar is open
+      )}>
         <SheetReaderHeader
           currentSong={currentSong}
           onClose={() => navigate('/')}
-          onSearchClick={() => setIsStudioModalOpen(true)}
+          onSearchClick={() => { // Updated onSearchClick handler
+            setIsStudioModalOpen(true);
+            setSearchParams({ id: 'new', tab: 'library' }, { replace: true }); // Use 'new' as a placeholder songId for search
+            // The SongStudioView will handle the null songId gracefully
+          }}
           onPrevSong={handlePrev}
           onNextSong={handleNext}
           isLoading={!currentSong}
@@ -718,10 +726,11 @@ const SheetReaderMode: React.FC = () => {
           onPullKey={handlePullKey}
           isSidebarOpen={isSidebarOpen}
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+          headerLeftOffset={headerLeftOffset} // Pass dynamic left offset
         />
 
         {isOriginalKeyMissing && (
-          <div className="fixed top-16 left-0 right-0 bg-red-950/30 border-b border-red-900/50 p-3 flex items-center justify-center gap-3 shrink-0 z-50 h-10">
+          <div className="fixed top-16 left-0 right-0 bg-red-950/30 border-b border-red-900/50 p-3 flex items-center justify-center gap-3 shrink-0 z-50 h-10" style={{ left: `${headerLeftOffset}px` }}>
             <AlertCircle className="w-4 h-4 text-red-400" />
             <p className="text-xs font-bold uppercase tracking-widest text-red-400">
               CRITICAL: Original Key is missing. Transposition is currently relative to 'C'. Use the Studio (I) to set it.

@@ -243,7 +243,9 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           <Button variant="ghost" onClick={handleClose} className="h-12 w-12 rounded-2xl bg-white/5"><ArrowLeft className="w-5 h-5 text-slate-400" /></Button>
           <div className="min-w-0">
             <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">{gigId === 'library' ? 'MASTER' : 'GIG'}</p>
-            <h2 className="text-xl font-black uppercase text-white truncate max-w-[250px]">{formData.name || "New Track"}</h2>
+            <h2 className="text-xl font-black uppercase text-white truncate max-w-[250px]">
+              {songId ? formData.name : "Library Search"} {/* Conditional title */}
+            </h2>
           </div>
         </div>
         <div className="flex items-center gap-4">
