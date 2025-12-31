@@ -39,7 +39,7 @@ def process_queued_song(song):
 
     with download_semaphore:
         try:
-            log(f">>> STARTING: {title} ({song_id})")
+            log(f">>> STARTING PROCESSING: {title} (ID: {song_id})")
             supabase.table("repertoire").update({"extraction_status": "PROCESSING", "last_sync_log": "Starting audio extraction..."}).eq("id", song_id).execute()
 
             file_id = str(uuid.uuid4())
@@ -68,14 +68,14 @@ def process_queued_song(song):
                 'logger': log # Direct yt_dlp logs to our function
             }
 
-            log(f"Downloading from YouTube...")
+            log(f"Downloading audio for '{title}' from YouTube URL: {video_url}")
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([video_url])
             
             mp3_path = os.path.join(DOWNLOAD_DIR, f"{file_id}.mp3")
             
             if os.path.exists(mp3_path):
-                log(f"Upload starting...")
+                log(f"Audio downloaded. Uploading '{title}' to Supabase Storage...")
                 storage_path = f"{user_id}/{song_id}/{int(time.time())}.mp3"
                 
                 with open(mp3_path, 'rb') as f:
@@ -89,6 +89,7 @@ def process_queued_song(song):
                 
                 public_url = supabase.storage.from_("public_audio").get_public_url(storage_path)
                 
+                log(f"Upload complete. Updating Supabase record for '{title}' with public URL: {public_url}")
                 supabase.table("repertoire").update({
                     "preview_url": public_url, # Changed from audio_url to preview_url
                     "extraction_status": "COMPLETED", # Changed to COMPLETED
@@ -97,14 +98,14 @@ def process_queued_song(song):
                     "last_sync_log": "Audio extraction and upload completed successfully."
                 }).eq("id", song_id).execute()
                 
-                log(f"SUCCESS: Finished {title}")
+                log(f"SUCCESS: Finished processing '{title}' (ID: {song_id})")
                 os.remove(mp3_path)
             else:
                 raise Exception("MP3 conversion failed: Expected file not found after yt_dlp.")
             
         except Exception as e:
             error_msg = str(e)
-            log(f"FAILED: {title} | Error: {error_msg}")
+            log(f"FAILED PROCESSING: '{title}' (ID: {song_id}) | Error: {error_msg}")
             # Use a simpler update in case columns are still jittery
             try:
                 supabase.table("repertoire").update({
@@ -116,10 +117,12 @@ def process_queued_song(song):
                 log(f"Could not update failure status in Supabase: {db_update_e}")
         finally:
             gc.collect()
+            log(f"<<< FINISHED PROCESSING: {title} (ID: {song_id})")
+
 
 def job_poller():
     """Checks the DB for new work every 20 seconds."""
-    log("Job Poller initialized.")
+    log("Job Poller initialized. Starting to check for queued jobs...")
     while True:
         try:
             # HEARTBEAT LOG: This proves the worker is checking the DB
@@ -132,16 +135,13 @@ def job_poller():
                 .limit(1)\
                 .execute()
             
-            # Print the raw response for debugging
-            # log(f"Poller DB Response: {res.data}") # Uncomment this line if you want to see the raw DB response
-
             if res.data and len(res.data) > 0:
-                log(f"Poller: Found job! Starting {res.data[0].get('title')}")
+                log(f"Poller: Found a new job for '{res.data[0].get('title')}' (ID: {res.data[0].get('id')}). Spawning thread...")
                 # Call the new process_queued_song function
                 song_data = res.data[0]
                 threading.Thread(target=lambda: process_queued_song(song_data)).start()
             else:
-                # No work to do, wait 20s
+                log("Poller: No 'queued' jobs found. Waiting...")
                 time.sleep(20)
         except Exception as e:
             log(f"Poller Critical Error: {e}")
