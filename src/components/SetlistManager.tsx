@@ -10,11 +10,11 @@ import { Input } from "@/components/ui/input";
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
 import { RESOURCE_TYPES, DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import SetlistFilters, { FilterState, DEFAULT_FILTERS } from './SetlistFilters';
 import { calculateReadiness } from '@/utils/repertoireSync';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import SetlistMultiSelector from './SetlistMultiSelector'; // Import SetlistMultiSelector
+// Removed SetlistMultiSelector import as it's no longer used in this component
 
 export interface UGChordsConfig {
   fontFamily: string;
@@ -215,7 +215,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                 sortMode === 'ready' && "bg-background dark:bg-secondary shadow-sm text-indigo-600"
               )}
             >
-              <SortAsc className="w-3 h-3" /> <span className="hidden sm:inline">Readiness</span>
+              <Star className="w-3 h-3" /> <span className="hidden sm:inline">Readiness</span>
             </Button>
             <Button 
               variant="ghost" size="sm" 
@@ -330,6 +330,11 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onUpdateSong(song.id, { isApproved: !song.isApproved }); showSuccess(`Song marked as ${song.isApproved ? 'unapproved' : 'approved'} for gig.`); }}>
+                          {song.isApproved ? <Check className="w-4 h-4 mr-2 text-emerald-500" /> : <ListMusic className="w-4 h-4 mr-2" />}
+                          {song.isApproved ? "Unapprove for Gig" : "Approve for Gig"}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(song); }}>
                           <Settings2 className="w-4 h-4 mr-2" /> Configure Studio
                         </DropdownMenuItem>
@@ -510,12 +515,24 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       </td>
                       <td className="px-6 text-right pr-10">
                         <div className="flex items-center justify-end gap-2 h-full">
-                          <SetlistMultiSelector
-                            songMasterId={song.id}
-                            allSetlists={allSetlists}
-                            songToAssign={song}
-                            onUpdateSetlistSongs={onUpdateSetlistSongs}
-                          />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onUpdateSong(song.id, { isApproved: !song.isApproved });
+                              showSuccess(`Song marked as ${song.isApproved ? 'unapproved' : 'approved'} for gig.`);
+                            }}
+                            className={cn(
+                              "h-9 px-4 rounded-xl font-black uppercase text-[10px] tracking-widest gap-2 transition-all",
+                              song.isApproved
+                                ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20"
+                                : "bg-white/5 hover:bg-white/10 text-slate-400 border border-white/10"
+                            )}
+                          >
+                            {song.isApproved ? <Check className="w-4 h-4" /> : <ListMusic className="w-4 h-4" />}
+                            {song.isApproved ? "APPROVED" : "APPROVE"}
+                          </Button>
                           <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground hover:text-indigo-600 hover:bg-indigo-50 transition-colors inline-flex items-center justify-center" onClick={(e) => { e.stopPropagation(); onEdit(song); }}>
                             <Edit3 className="w-4 h-4" />
                           </Button>
