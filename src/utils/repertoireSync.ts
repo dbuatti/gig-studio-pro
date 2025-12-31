@@ -64,6 +64,7 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
 
 /**
  * Syncs an array of SetlistSong objects with the master 'repertoire' table in Supabase.
+ * Uses upsert logic to handle existing tracks without explicit master_ids.
  */
 export const syncToMasterRepertoire = async (userId: string, songsToSync: Partial<SetlistSong>[]): Promise<SetlistSong[]> => {
   const syncedSongs: SetlistSong[] = [];
@@ -118,27 +119,21 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
     if (song.is_in_library !== undefined) dbUpdates.is_in_library = song.is_in_library;
     if (song.key_preference !== undefined) dbUpdates.key_preference = song.key_preference;
 
-    let result;
-    if (song.master_id && isValidUuid(song.master_id)) {
-      const { data, error } = await supabase
-        .from('repertoire')
-        .update(dbUpdates)
-        .eq('id', song.master_id)
-        .eq('user_id', userId)
-        .select()
-        .single();
-      if (error) throw error;
-      result = data;
-    } else {
-      const { data, error } = await supabase
-        .from('repertoire')
-        .insert([dbUpdates])
-        .select()
-        .single();
-      if (error) throw error;
-      result = data;
+    // Use Upsert to handle potential duplicates by title/artist
+    const { data, error } = await supabase
+      .from('repertoire')
+      .upsert(dbUpdates, { 
+        onConflict: 'user_id,title,artist' 
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("[RepertoireSync] Upsert failed:", error);
+      throw error;
     }
 
+    const result = data;
     const mappedResult: SetlistSong = {
       id: song.id || result.id,
       master_id: result.id,

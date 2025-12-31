@@ -52,11 +52,11 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
     repertoire.find(s => s.id === seedSongId), 
   [seedSongId, repertoire]);
 
-  const fetchSuggestions = useCallback(async (isRefresh = false) => {
+  const fetchSuggestions = useCallback(async (isRefresh = false, preserveExisting = false) => {
     if (repertoire.length === 0) return;
     
     setIsLoading(true);
-    if (isRefresh) console.log("[Discover] Refreshing suggestion pool with current context...");
+    if (isRefresh) console.log(`[Discover] Fetching fresh suggestions. Mode: ${preserveExisting ? 'Replenish' : 'Full Refresh'}`);
     
     try {
       const { data, error } = await supabase.functions.invoke('suggest-songs', {
@@ -69,9 +69,33 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
 
       if (error) throw error;
       
-      console.log("[Discover] AI returned 10 fresh suggestions.");
-      setRawSuggestions(data || []);
-      sessionSuggestionsCache = data || [];
+      const newBatch = data || [];
+      console.log(`[Discover] AI returned ${newBatch.length} results.`);
+
+      if (preserveExisting) {
+        // Keep existing non-duplicates and non-ignored, then fill gaps with new ones
+        setRawSuggestions(prev => {
+          const combined = [...prev, ...newBatch];
+          const uniqueMap = new Map();
+          
+          combined.forEach(s => {
+            const key = getSongKey(s);
+            // Only add if not in repertoire and not ignored and not already in map
+            const isIgnored = sessionIgnoredCache.some(i => getSongKey(i) === key);
+            if (!existingKeys.has(key) && !isIgnored && !uniqueMap.has(key)) {
+              uniqueMap.set(key, s);
+            }
+          });
+
+          const final = Array.from(uniqueMap.values()).slice(0, 10);
+          sessionSuggestionsCache = final;
+          return final;
+        });
+      } else {
+        setRawSuggestions(newBatch);
+        sessionSuggestionsCache = newBatch;
+      }
+      
       sessionInitialLoadAttempted = true;
     } catch (err: any) {
       console.error("[Discover] Failed to fetch suggestions:", err);
@@ -79,7 +103,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
     } finally {
       setIsLoading(false);
     }
-  }, [repertoire, seedSong]);
+  }, [repertoire, seedSong, existingKeys]);
 
   useEffect(() => {
     if (repertoire.length > 0 && !sessionInitialLoadAttempted && rawSuggestions.length === 0) {
@@ -88,39 +112,42 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
   }, [repertoire, fetchSuggestions, rawSuggestions.length]);
 
   const handleDismissSuggestion = async (song: any) => {
-    console.log(`[Discover] Dismissing: ${song.name} - Adding to blacklist.`);
+    const key = getSongKey(song);
+    console.log(`[Discover] Dismissing: ${song.name}.`);
+    
     const newIgnored = [...ignoredSuggestions, song];
     setIgnoredSuggestions(newIgnored);
     sessionIgnoredCache = newIgnored;
     
-    // Remove from UI immediately
-    const filtered = rawSuggestions.filter(s => getSongKey(s) !== getSongKey(song));
+    const filtered = rawSuggestions.filter(s => getSongKey(s) !== key);
     setRawSuggestions(filtered);
     sessionSuggestionsCache = filtered;
     
     showSuccess(`Removed "${song.name}"`);
     
-    // Auto-replenish if list gets small
-    if (filtered.length < 5) {
-      fetchSuggestions(true);
+    // Replenish if we dip below a threshold
+    if (filtered.length < 7) {
+      fetchSuggestions(true, true);
     }
   };
 
   const handleClearDuplicates = () => {
-    console.log(`[Discover] Clearing ${duplicateCount} songs already in your repertoire.`);
+    console.log(`[Discover] Filtering ${duplicateCount} duplicates from current view.`);
+    
+    const duplicates = rawSuggestions.filter(s => existingKeys.has(getSongKey(s)));
     const filtered = rawSuggestions.filter(s => !existingKeys.has(getSongKey(s)));
     
-    // Add these duplicates to ignored list so they don't come back on the next refresh
-    const newDuplicates = rawSuggestions.filter(s => existingKeys.has(getSongKey(s)));
-    const newIgnored = [...ignoredSuggestions, ...newDuplicates];
+    // Add duplicates to ignored cache so they don't cycle back
+    const newIgnored = [...ignoredSuggestions, ...duplicates];
     setIgnoredSuggestions(newIgnored);
     sessionIgnoredCache = newIgnored;
 
     setRawSuggestions(filtered);
     sessionSuggestionsCache = filtered;
     
-    showInfo(`Removed ${duplicateCount} duplicates. Refreshing...`);
-    fetchSuggestions(true);
+    showInfo(`Cleaned duplicates. Replenishing list...`);
+    // Pass true for preserveExisting to keep the good suggestions
+    fetchSuggestions(true, true);
   };
 
   if (repertoire.length === 0) {
@@ -155,7 +182,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
             <Button 
               variant="ghost" 
               size="sm" 
-              onClick={() => fetchSuggestions(true)} 
+              onClick={() => fetchSuggestions(true, false)} 
               disabled={isLoading}
               className="h-7 text-[9px] font-black uppercase hover:bg-indigo-50 text-indigo-600 flex-shrink-0"
             >
@@ -172,14 +199,14 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
             </Label>
             {seedSongId && (
               <button 
-                onClick={() => { setSeedSongId(null); fetchSuggestions(true); }}
+                onClick={() => { setSeedSongId(null); fetchSuggestions(true, false); }}
                 className="text-[8px] font-black text-indigo-500 uppercase hover:text-indigo-600"
               >
                 Clear Seed
               </button>
             )}
           </div>
-          <Select value={seedSongId || "profile"} onValueChange={(val) => { setSeedSongId(val === "profile" ? null : val); fetchSuggestions(true); }}>
+          <Select value={seedSongId || "profile"} onValueChange={(val) => { setSeedSongId(val === "profile" ? null : val); fetchSuggestions(true, false); }}>
             <SelectTrigger className="h-8 text-[10px] font-bold bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800">
               <SelectValue placeholder="Suggest based on entire profile" />
             </SelectTrigger>
@@ -197,7 +224,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
 
       <ScrollArea className="h-[500px]">
         <div className="space-y-2 pr-4 pl-4">
-          {isLoading ? (
+          {isLoading && rawSuggestions.length === 0 ? (
             <div className="py-20 flex flex-col items-center gap-4 text-center">
               <Loader2 className="w-8 h-8 animate-spin text-indigo-500 opacity-20" />
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
@@ -224,7 +251,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
                       </div>
                       <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mt-0.5">{song.artist}</p>
                       {song.isDuplicate ? (
-                        <span className="inline-block mt-2 text-[8px] font-black bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                        <span className="inline-block mt-2 text-[8px] font-black bg-emerald-50/20 text-emerald-600 px-2 py-0.5 rounded-full uppercase tracking-tighter">
                           Already in Set
                         </span>
                       ) : song.reason && (
@@ -299,6 +326,11 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
                       )}
                     </div>
                   </div>
+                  {isLoading && (
+                    <div className="absolute inset-0 bg-black/5 flex items-center justify-center backdrop-blur-[1px]">
+                      <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
+                    </div>
+                  )}
                 </div>
               ))
             ) : (
