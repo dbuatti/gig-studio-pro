@@ -219,52 +219,54 @@ const Index = () => {
 
       if (repertoireError) throw repertoireError;
 
-      const mappedRepertoire: SetlistSong[] = (repertoireData || []).map(d => ({
-        id: d.id,
-        master_id: d.id,
-        name: d.title,
-        artist: d.artist,
-        originalKey: d.original_key,
-        targetKey: d.target_key,
-        pitch: d.pitch ?? 0,
-        previewUrl: d.preview_url,
-        youtubeUrl: d.youtube_url,
-        ugUrl: d.ug_url,
-        appleMusicUrl: d.apple_music_url,
-        pdfUrl: d.pdf_url,
-        leadsheetUrl: d.leadsheet_url,
-        bpm: d.bpm,
-        genre: d.genre,
-        isSyncing: false, // Client-side only
-        isMetadataConfirmed: d.is_metadata_confirmed,
-        isKeyConfirmed: d.is_key_confirmed,
-        notes: d.notes,
-        lyrics: d.lyrics,
-        resources: d.resources || [],
-        user_tags: d.user_tags || [],
-        is_pitch_linked: d.is_pitch_linked ?? true,
-        duration_seconds: d.duration_seconds,
-        key_preference: d.key_preference,
-        is_active: d.is_active,
-        fineTune: d.fineTune,
-        tempo: d.tempo,
-        volume: d.volume,
-        isApproved: d.is_approved,
-        preferred_reader: d.preferred_reader,
-        ug_chords_text: d.ug_chords_text,
-        ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
-        is_ug_chords_present: d.is_ug_chords_present,
-        highest_note_original: d.highest_note_original,
-        is_ug_link_verified: d.is_ug_link_verified,
-        metadata_source: d.metadata_source,
-        sync_status: d.sync_status,
-        last_sync_log: d.last_sync_log,
-        auto_synced: d.auto_synced,
-        is_sheet_verified: d.is_sheet_verified,
-        sheet_music_url: d.sheet_music_url,
-        extraction_status: d.extraction_status,
-        extraction_error: d.extraction_error,
-      }));
+      const mappedRepertoire: SetlistSong[] = (repertoireData || []).map(d => {
+        return {
+          id: d.id,
+          master_id: d.id,
+          name: d.title,
+          artist: d.artist,
+          originalKey: d.original_key,
+          targetKey: d.target_key,
+          pitch: d.pitch ?? 0,
+          previewUrl: d.preview_url,
+          youtubeUrl: d.youtube_url,
+          ugUrl: d.ug_url,
+          appleMusicUrl: d.apple_music_url,
+          pdfUrl: d.pdf_url,
+          leadsheetUrl: d.leadsheet_url,
+          bpm: d.bpm,
+          genre: d.genre,
+          isSyncing: false, // Client-side only
+          isMetadataConfirmed: d.is_metadata_confirmed,
+          isKeyConfirmed: d.is_key_confirmed,
+          notes: d.notes,
+          lyrics: d.lyrics,
+          resources: d.resources || [],
+          user_tags: d.user_tags || [],
+          is_pitch_linked: d.is_pitch_linked ?? true,
+          duration_seconds: d.duration_seconds,
+          key_preference: d.key_preference,
+          is_active: d.is_active,
+          fineTune: d.fineTune,
+          tempo: d.tempo,
+          volume: d.volume,
+          isApproved: d.is_approved,
+          preferred_reader: d.preferred_reader,
+          ug_chords_text: d.ug_chords_text,
+          ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
+          is_ug_chords_present: d.is_ug_chords_present,
+          highest_note_original: d.highest_note_original,
+          is_ug_link_verified: d.is_ug_link_verified,
+          metadata_source: d.metadata_source,
+          sync_status: d.sync_status,
+          last_sync_log: d.last_sync_log,
+          auto_synced: d.auto_synced,
+          is_sheet_verified: d.is_sheet_verified,
+          sheet_music_url: d.sheet_music_url,
+          extraction_status: d.extraction_status,
+          extraction_error: d.extraction_error,
+        };
+      });
       setMasterRepertoire(mappedRepertoire);
 
     } catch (err: any) {
@@ -807,7 +809,7 @@ const Index = () => {
 
   if (loading || authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-16 h-16 animate-spin text-indigo-500" />
       </div>
     );

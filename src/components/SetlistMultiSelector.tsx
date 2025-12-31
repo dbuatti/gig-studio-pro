@@ -10,21 +10,29 @@ import {
   DropdownMenuTrigger,
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
-import { ListMusic, Check, Plus, Loader2 } from 'lucide-react';
+import { ListMusic, Check, Plus, Loader2, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { SetlistSong } from './SetlistManager';
 import { cn } from '@/lib/utils';
 
 interface SetlistMultiSelectorProps {
-  songMasterId: string;
+  songMasterId: string; // This prop is currently song.id, which can be temporary.
+                        // We should rely on songToAssign.master_id for DB operations.
   allSetlists: { id: string; name: string; songs: SetlistSong[] }[];
   songToAssign: SetlistSong; // The full song object from the studio
   onUpdateSetlistSongs: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>;
 }
 
+// Helper to validate UUID
+const isValidUuid = (uuid: string | undefined | null): boolean => {
+  if (!uuid) return false;
+  // Regex for UUID v4 (Supabase generates v4 UUIDs)
+  return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/i.test(uuid);
+};
+
 const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
-  songMasterId,
+  songMasterId, // Keep this prop for now, but primarily use songToAssign.master_id for DB
   allSetlists,
   songToAssign,
   onUpdateSetlistSongs,
@@ -32,19 +40,27 @@ const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
   const [assignedSetlistIds, setAssignedSetlistIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
 
+  // Use songToAssign.master_id for database operations, as it's the actual UUID from 'repertoire'
+  // Fallback to songToAssign.id only if master_id is missing, but this should ideally be a UUID too if it's a synced song.
+  // The core issue is that songToAssign.id might be a temporary client-side ID.
+  // So, we MUST use songToAssign.master_id for the foreign key reference.
+  const repertoireDbId = songToAssign.master_id; // This should be the UUID from the 'repertoire' table
+  const isRepertoireSongValid = isValidUuid(repertoireDbId);
+
   const fetchAssignments = useCallback(async () => {
-    if (!songMasterId) {
-      console.warn("[SetlistMultiSelector] songMasterId is empty, skipping fetchAssignments.");
+    if (!isRepertoireSongValid) {
+      console.warn("[SetlistMultiSelector] Repertoire song ID is not a valid UUID, skipping fetchAssignments.");
+      setAssignedSetlistIds(new Set()); // Clear assignments if song is not valid
       setLoading(false);
       return;
     }
     setLoading(true);
     try {
-      console.log(`[SetlistMultiSelector] Fetching assignments for songMasterId: ${songMasterId}`);
+      console.log(`[SetlistMultiSelector] Fetching assignments for repertoireDbId: ${repertoireDbId}`);
       const { data, error } = await supabase
         .from('setlist_songs')
         .select('setlist_id')
-        .eq('song_id', songMasterId);
+        .eq('song_id', repertoireDbId); // Use repertoireDbId here
 
       if (error) throw error;
 
@@ -56,22 +72,27 @@ const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [songMasterId]);
+  }, [repertoireDbId, isRepertoireSongValid]); // Added isRepertoireSongValid to dependencies
 
   useEffect(() => {
-    if (songMasterId) {
+    if (repertoireDbId) { // Only fetch if repertoireDbId is available
       fetchAssignments();
     }
-  }, [songMasterId, fetchAssignments]);
+  }, [repertoireDbId, fetchAssignments]);
 
   const handleAssignmentChange = async (setlistId: string, isChecked: boolean) => {
+    if (!isRepertoireSongValid) {
+      showError("Cannot assign: Song ID is invalid.");
+      return;
+    }
+
     setLoading(true);
     try {
       if (isChecked) {
         // Add to setlist_songs junction table
         const { error } = await supabase
           .from('setlist_songs')
-          .insert({ setlist_id: setlistId, song_id: songMasterId, sort_order: 0, is_confirmed: false }); // Default values
+          .insert({ setlist_id: setlistId, song_id: repertoireDbId, sort_order: 0, is_confirmed: false }); // Use repertoireDbId here
         if (error) throw error;
         setAssignedSetlistIds(prev => new Set(prev).add(setlistId));
         showSuccess(`Added to "${allSetlists.find(s => s.id === setlistId)?.name}"`);
@@ -82,7 +103,7 @@ const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
           .from('setlist_songs')
           .delete()
           .eq('setlist_id', setlistId)
-          .eq('song_id', songMasterId);
+          .eq('song_id', repertoireDbId); // Use repertoireDbId here
         if (error) throw error;
         setAssignedSetlistIds(prev => {
           const newSet = new Set(prev);
@@ -93,7 +114,7 @@ const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
         await onUpdateSetlistSongs(setlistId, songToAssign, 'remove'); // Update the setlist's songs array
       }
     } catch (err: any) {
-      // console.error("Failed to update setlist assignment:", err);
+      console.error("Failed to update setlist assignment:", err);
       showError(`Failed to update assignment: ${err.message}`);
     } finally {
       setLoading(false);
@@ -106,18 +127,27 @@ const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
-          disabled={loading}
+          disabled={loading || !isRepertoireSongValid}
           className={cn(
             "h-11 rounded-xl font-black uppercase text-[9px] tracking-widest gap-2 px-6 transition-all shadow-lg",
             assignedCount > 0
               ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/20"
-              : "bg-white/5 hover:bg-white/10 text-slate-400 border border-white/10"
+              : "bg-white/5 hover:bg-white/10 text-slate-400 border border-white/10",
+            !isRepertoireSongValid && "opacity-50 cursor-not-allowed" // Visual cue for invalid songs
           )}
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
-            assignedCount > 0 ? <Check className="w-4 h-4" /> : <ListMusic className="w-4 h-4" />
+            isRepertoireSongValid ? (
+              assignedCount > 0 ? <Check className="w-4 h-4" /> : <ListMusic className="w-4 h-4" />
+            ) : (
+              <AlertTriangle className="w-4 h-4" />
+            )
           )}
-          {assignedCount > 0 ? `ASSIGNED TO ${assignedCount} GIGS` : "ADD TO SETLISTS"}
+          {isRepertoireSongValid ? (
+            assignedCount > 0 ? `ASSIGNED TO ${assignedCount} GIGS` : "ADD TO SETLISTS"
+          ) : (
+            "INVALID SONG ID"
+          )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56 bg-slate-950 border-white/10 text-white rounded-xl p-2">
@@ -125,7 +155,9 @@ const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
           Assign to Gigs
         </DropdownMenuLabel>
         <DropdownMenuSeparator className="bg-white/5" />
-        {allSetlists.length === 0 ? (
+        {!isRepertoireSongValid ? (
+          <p className="text-xs text-red-500 px-3 py-2">Cannot assign: Song ID is invalid.</p>
+        ) : allSetlists.length === 0 ? (
           <p className="text-xs text-slate-500 px-3 py-2">No setlists available.</p>
         ) : (
           allSetlists.map((setlist) => (
