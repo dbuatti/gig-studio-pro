@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -47,6 +47,7 @@ import GoalTracker from '@/components/GoalTracker';
 
 const Index = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, loading: authLoading } = useAuth();
   const isMobile = useIsMobile();
   const { keyPreference: globalKeyPreference, safePitchMaxNote, isSafePitchEnabled, isFetchingSettings, isGoalTrackerEnabled } = useSettings();
@@ -57,7 +58,9 @@ const Index = () => {
   const [activeSetlistId, setActiveSetlistId] = useState<string | null>(null);
   const [activeSongForPerformance, setActiveSongForPerformance] = useState<SetlistSong | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeDashboardView, setActiveDashboardView] = useState<'gigs' | 'repertoire'>('gigs');
+  
+  // Persist dashboard view via URL search param
+  const activeDashboardView = (searchParams.get('view') as 'gigs' | 'repertoire') || 'gigs';
 
   const [isSetlistSettingsOpen, setIsSetlistSettingsOpen] = useState(false);
   const [isRepertoirePickerOpen, setIsRepertoirePickerOpen] = useState(false);
@@ -290,6 +293,7 @@ const Index = () => {
 
   const handleSelectSetlist = (id: string) => {
     setActiveSetlistId(id);
+    localStorage.setItem('active_setlist_id', id);
     audio.stopPlayback();
   };
 
@@ -686,6 +690,11 @@ const Index = () => {
     setIsPerformanceOverlayOpen(true);
   }, [activeSetlist, activeSongForPerformance]);
 
+  const handleViewChange = (newView: string) => {
+    setSearchParams({ view: newView });
+    audio.stopPlayback();
+  };
+
   const hasPlayableSong = !!activeSongForPerformance?.audio_url || !!activeSongForPerformance?.previewUrl;
   const hasReadableChart = !!activeSongForPerformance && (!!activeSongForPerformance.pdfUrl || !!activeSongForPerformance.leadsheetUrl || !!activeSongForPerformance.ugUrl || !!activeSongForPerformance.ug_chords_text || !!activeSongForPerformance.sheet_music_url);
 
@@ -719,7 +728,7 @@ const Index = () => {
           <ActiveSongBanner song={activeSongForPerformance} isPlaying={audio.isPlaying} onTogglePlayback={audio.togglePlayback} onClear={() => { setActiveSongForPerformance(null); audio.stopPlayback(); }} isLoadingAudio={audio.isLoadingAudio} />
         )}
 
-        <Tabs value={activeDashboardView} onValueChange={(value) => setActiveDashboardView(value as 'gigs' | 'repertoire')} className="w-full mt-8">
+        <Tabs value={activeDashboardView} onValueChange={handleViewChange} className="w-full mt-8">
           <TabsList className="grid w-full grid-cols-2 h-12 bg-slate-900 p-1 rounded-xl mb-6">
             <TabsTrigger value="gigs" className="text-sm font-black uppercase tracking-tight gap-2 h-10 rounded-lg"><ListMusic className="w-4 h-4" /> Gigs</TabsTrigger>
             <TabsTrigger value="repertoire" className="text-sm font-black uppercase tracking-tight gap-2 h-10 rounded-lg"><Library className="w-4 h-4" /> Repertoire</TabsTrigger>
