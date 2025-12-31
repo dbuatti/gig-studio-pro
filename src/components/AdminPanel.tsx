@@ -30,7 +30,8 @@ import {
   Undo2,
   Download,
   CloudDownload,
-  RefreshCcw
+  RefreshCcw,
+  Activity
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError, showInfo } from '@/utils/toast';
@@ -49,6 +50,8 @@ interface AdminPanelProps {
 }
 
 type AdminTab = 'vault' | 'maintenance' | 'automation';
+
+const RENDER_WORKER_URL = "https://yt-audio-api-1-wedr.onrender.com";
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshRepertoire }) => {
   const { user } = useAuth();
@@ -69,6 +72,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
   const [isQueuingMissingExtraction, setIsQueuingMissingExtraction] = useState(false); 
   const [isQueuingStuckExtraction, setIsQueuingStuckExtraction] = useState(false); 
   const [maintenanceSongs, setMaintenanceSongs] = useState<any[]>([]);
+  const [isWakingServer, setIsWakingServer] = useState(false);
 
   // Automation State
   const [isAutoSyncing, setIsAutoSyncing] = useState(false);
@@ -87,7 +91,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
   const [syncLogs, setSyncLogs] = useState<{ msg: string; type: 'info' | 'success' | 'error'; time: string }[]>([]);
 
   const addLog = (msg: string, type: 'info' | 'success' | 'error' = 'info') => {
-    console.log(`[AdminPanel] ${msg}`); // Also log to real console
+    console.log(`[AdminPanel] ${msg}`); 
     setSyncLogs(prev => [{ msg, type, time: new Date().toLocaleTimeString() }, ...prev].slice(0, 20));
   };
 
@@ -97,6 +101,20 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
       fetchMaintenanceData();
     }
   }, [isOpen]);
+
+  const handleWakeServer = async () => {
+    setIsWakingServer(true);
+    addLog("Sending wake-up signal to Render.com worker...", "info");
+    try {
+      await fetch(RENDER_WORKER_URL, { mode: 'no-cors' });
+      showSuccess("Wake-up signal sent. Service will initialize in 60-90s.");
+      addLog("Signal received by infrastructure gate.", "success");
+    } catch (e) {
+      addLog("Wake signal timeout - service may be initializing.", "info");
+    } finally {
+      setIsWakingServer(false);
+    }
+  };
 
   const fetchMaintenanceData = async () => {
     try {
@@ -319,25 +337,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
     }
   };
 
-  // --- REFINED EXTRACTION HUB LOGIC ---
   const handleQueueBackgroundExtract = async (queueMode: 'all' | 'missing' | 'stuck') => {
     const songsToQueue = maintenanceSongs.filter(s => {
-      // Logic for "Re-queue Stuck/Failed"
       if (queueMode === 'stuck') {
         return s.extraction_status === 'queued' || s.extraction_status === 'failed';
       }
-      
-      // Logic for "Queue Remaining" (Missing Full Audio)
       if (queueMode === 'missing') {
-        // Song must have a YouTube URL to be eligible for extraction
         return !!s.youtube_url && (!s.audio_url || s.extraction_status !== 'completed') && s.extraction_status !== 'processing' && s.extraction_status !== 'queued';
       }
-
-      // Logic for "Queue All Refresh"
       if (queueMode === 'all') {
         return !!s.youtube_url && s.extraction_status !== 'processing';
       }
-
       return false;
     });
 
@@ -452,7 +462,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
     }
   };
 
-  // --- REFINED COUNTERS ---
   const activeExtractionQueue = maintenanceSongs.filter(s => 
     s.extraction_status === 'queued' || s.extraction_status === 'processing'
   );
@@ -478,7 +487,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
               <DialogDescription className="text-red-100 font-medium text-xs md:text-sm">Infrastructure Maintenance</DialogDescription>
             </div>
           </div>
-          <div className="flex bg-black/20 p-1 rounded-xl overflow-x-auto no-scrollbar self-start md:self-center">
+          <div className="flex gap-2 bg-black/20 p-1 rounded-xl overflow-x-auto no-scrollbar self-start md:self-center">
              <Button 
                variant="ghost" 
                size="sm" 
@@ -524,14 +533,25 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
                               <p className="text-xs md:text-sm text-slate-400 mt-1">Automate metadata and audio discovery.</p>
                             </div>
                           </div>
-                          <Button 
-                            onClick={handleGlobalAutoSync} 
-                            disabled={isAutoSyncing || isPending}
-                            className="bg-indigo-600 hover:bg-indigo-700 h-14 md:h-16 px-8 md:px-10 rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] md:text-xs shadow-2xl shadow-indigo-600/30 gap-3"
-                          >
-                            {isAutoSyncing || isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5 fill-current" />}
-                            Trigger Pipeline
-                          </Button>
+                          <div className="flex gap-3">
+                            <Button 
+                              variant="outline"
+                              onClick={handleWakeServer}
+                              disabled={isWakingServer}
+                              className="h-14 md:h-16 px-6 rounded-2xl border-indigo-500/20 bg-indigo-600/5 text-indigo-400 font-black uppercase text-[10px] gap-2"
+                            >
+                              {isWakingServer ? <Loader2 className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4" />}
+                              Wake Up Infrastructure
+                            </Button>
+                            <Button 
+                              onClick={handleGlobalAutoSync} 
+                              disabled={isAutoSyncing || isPending}
+                              className="bg-indigo-600 hover:bg-indigo-700 h-14 md:h-16 px-8 md:px-10 rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] md:text-xs shadow-2xl shadow-indigo-600/30 gap-3"
+                            >
+                              {isAutoSyncing || isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5 fill-current" />}
+                              Trigger Pipeline
+                            </Button>
+                          </div>
                         </div>
 
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-4 border-t border-white/5">

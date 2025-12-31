@@ -4,7 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/components/AuthProvider";
-import Index from "@/pages/Index"; // Corrected import to default
+import Index from "@/pages/Index"; 
 import Login from "@/pages/Login";
 import Landing from "@/pages/Landing";
 import NotFound from "@/pages/NotFound";
@@ -14,13 +14,38 @@ import SheetReaderMode from "@/pages/SheetReaderMode";
 import SongStudio from "@/pages/SongStudio";
 import GigEntry from "@/pages/GigEntry";
 import PublicGigView from "@/pages/PublicGigView";
-import FloatingCommandDock from "@/components/FloatingCommandDock";
-import UserGuideModal from "@/components/UserGuideModal";
-import { MadeWithDyad } from '@/components/made-with-dyad';
 import { useTheme } from '@/hooks/use-theme';
-import React from "react"; // Import React for useEffect
+import React, { useEffect } from "react";
 
 const queryClient = new QueryClient();
+
+const RENDER_WORKER_URL = "https://yt-audio-api-1-wedr.onrender.com";
+
+const KeepAliveWorker = () => {
+  const { session } = useAuth();
+
+  useEffect(() => {
+    if (!session) return;
+
+    // Heartbeat function to keep Render free tier awake
+    const pingWorker = async () => {
+      try {
+        console.log("[App] Sending heartbeat to Python Worker...");
+        await fetch(RENDER_WORKER_URL, { mode: 'no-cors' });
+      } catch (e) {
+        // Silent fail on heartbeat
+      }
+    };
+
+    // Ping on mount and every 10 minutes (Render timeout is 15m)
+    pingWorker();
+    const interval = setInterval(pingWorker, 10 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+  }, [session]);
+
+  return null;
+};
 
 const RootRoute = () => {
   const { session, loading } = useAuth();
@@ -38,9 +63,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const App = () => {
   const { theme } = useTheme();
 
-  // Apply the theme class to the document's root element
-  React.useEffect(() => {
-    console.log("[App] Component Mounted. Current Theme:", theme);
+  useEffect(() => {
     document.documentElement.classList.remove('light', 'dark');
     document.documentElement.classList.add(theme);
   }, [theme]);
@@ -48,20 +71,18 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <KeepAliveWorker />
         <TooltipProvider>
           <Toaster />
           <Sonner position="top-center" />
           <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <Routes>
-              {/* Professional Root Routing */}
               <Route path="/" element={<RootRoute />} />
               <Route path="/login" element={<Login />} />
               <Route path="/repertoire/:slug" element={<PublicRepertoire />} />
               <Route path="/gig" element={<GigEntry />} />
               <Route path="/gig/:code" element={<PublicGigView />} />
-              {/* Specific Setlist Public View */}
               <Route path="/setlist/:id" element={<PublicGigView />} />
-              {/* Legacy dashboard redirect for backward compatibility */}
               <Route path="/dashboard" element={<Navigate to="/" replace />} />
               <Route path="/profile" element={
                 <ProtectedRoute>
