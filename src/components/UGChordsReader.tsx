@@ -52,10 +52,9 @@ const UGChordsReader = React.memo(({
   const transposedChordsText = useMemo(() => {
     if (!chordsText) return chordsText;
     
-    // Calculate distance. If originalKey is missing, semitones will be 0.
-    // 0 semitones is now valid as it will still convert notation styles.
     const n = calculateSemitones(originalKey, targetKey);
     
+    console.log(`[UGChordsReader] Transposing: Original Key: ${originalKey}, Target Key: ${targetKey}, Semitones: ${n}, Active Preference: ${activeKeyPreference}`);
     return transposeChords(chordsText, n, activeKeyPreference);
   }, [chordsText, originalKey, targetKey, activeKeyPreference]);
 

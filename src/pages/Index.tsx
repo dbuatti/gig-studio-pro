@@ -184,8 +184,8 @@ const Index = () => {
         .order('created_at', { ascending: false });
 
       if (setlistsError) {
-        console.error("[Index] Supabase Setlists Fetch Error:", setlistsError);
-        console.error("[Index] Full Setlists Error Object:", JSON.stringify(setlistsError, null, 2));
+        // console.error("[Index] Supabase Setlists Fetch Error:", setlistsError); // Removed console.error
+        // console.error("[Index] Full Setlists Error Object:", JSON.stringify(setlistsError, null, 2)); // Removed console.error
         if (setlistsError.message.includes("new row violates row-level-security")) {
           showError("Database Security Error: You don't have permission to read setlist data. Check RLS policies.");
         } else {
@@ -201,8 +201,8 @@ const Index = () => {
         .order('title');
 
       if (repertoireError) {
-        console.error("[Index] Supabase Repertoire Fetch Error:", repertoireError);
-        console.error("[Index] Full Repertoire Error Object:", JSON.stringify(repertoireError, null, 2));
+        // console.error("[Index] Supabase Repertoire Fetch Error:", repertoireError); // Removed console.error
+        // console.error("[Index] Full Repertoire Error Object:", JSON.stringify(repertoireError, null, 2)); // Removed console.error
         if (repertoireError.message.includes("new row violates row-level-security")) {
           showError("Database Security Error: You don't have permission to read repertoire data. Check RLS policies.");
         } else {
@@ -216,8 +216,8 @@ const Index = () => {
         master_id: d.id,
         name: d.title,
         artist: d.artist,
-        originalKey: d.original_key !== null ? d.original_key : 'TBC', // Default to 'TBC' if null
-        targetKey: d.target_key !== null ? d.target_key : (d.original_key !== null ? d.original_key : 'TBC'), // Default to 'TBC' if null
+        originalKey: d.original_key !== null ? d.original_key : 'TBC',
+        targetKey: d.target_key !== null ? d.target_key : (d.original_key !== null ? d.original_key : 'TBC'),
         pitch: d.pitch ?? 0,
         previewUrl: d.extraction_status === 'completed' && d.audio_url ? d.audio_url : d.preview_url,
         youtubeUrl: d.youtube_url,
@@ -270,7 +270,7 @@ const Index = () => {
           .order('sort_order', { ascending: true });
 
         if (junctionError) {
-          console.warn(`Failed to fetch songs for setlist ${setlist.id}:`, junctionError);
+          // console.warn(`Failed to fetch songs for setlist ${setlist.id}:`, junctionError); // Removed console.warn
           continue;
         }
 
@@ -278,7 +278,7 @@ const Index = () => {
           const masterSong = mappedRepertoire.find(r => r.id === junction.song_id);
           
           if (!masterSong) {
-            console.warn(`Master song not found for junction entry: ${junction.song_id}`);
+            // console.warn(`Master song not found for junction entry: ${junction.song_id}`); // Removed console.warn
             return null;
           }
 
@@ -348,18 +348,18 @@ const Index = () => {
 
 
   useEffect(() => {
-    console.log("[Index] activeSetlist changed or initial load. Clearing activeSongForPerformance.");
+    // console.log("[Index] activeSetlist changed or initial load. Clearing activeSongForPerformance."); // Removed console.log
     setActiveSongForPerformance(null);
   }, [activeSetlist]);
 
   useEffect(() => {
-    console.log("[Index] activeSongForPerformance or its audio properties changed.");
+    // console.log("[Index] activeSongForPerformance or its audio properties changed."); // Removed console.log
     if (activeSongForPerformance && (activeSongForPerformance.audio_url || activeSongForPerformance.previewUrl)) {
       const urlToLoad = activeSongForPerformance.audio_url || activeSongForPerformance.previewUrl;
-      console.log(`[Index] Attempting to load audio for '${activeSongForPerformance.name}' from URL:`, urlToLoad);
+      // console.log(`[Index] Attempting to load audio for '${activeSongForPerformance.name}' from URL:`, urlToLoad); // Removed console.log
       audio.loadFromUrl(urlToLoad, activeSongForPerformance.pitch || 0, true);
     } else {
-      console.log("[Index] No activeSongForPerformance or valid audio URL. Stopping/resetting audio engine.");
+      // console.log("[Index] No activeSongForPerformance or valid audio URL. Stopping/resetting audio engine."); // Removed console.log
       audio.stopPlayback();
       audio.resetEngine();
     }
@@ -480,21 +480,21 @@ const Index = () => {
 
     const junctionSong = activeSetlist.songs.find(s => s.id === junctionIdToUpdate);
     if (!junctionSong) {
-      console.error("[Index] handleUpdateSongInSetlist: Junction song not found for ID:", junctionIdToUpdate);
+      // console.error("[Index] handleUpdateSongInSetlist: Junction song not found for ID:", junctionIdToUpdate); // Removed console.error
       showError("Failed to update song: Junction entry not found.");
       return;
     }
 
     const masterSongId = junctionSong.master_id;
     if (!masterSongId) {
-      console.error("[Index] handleUpdateSongInSetlist: Master ID missing for junction song:", junctionIdToUpdate);
+      // console.error("[Index] handleUpdateSongInSetlist: Master ID missing for junction song:", junctionIdToUpdate); // Removed console.error
       showError("Failed to update song: Master record ID is missing.");
       return;
     }
 
     const currentMasterSong = masterRepertoire.find(s => s.id === masterSongId);
     if (!currentMasterSong) {
-      console.error("[Index] handleUpdateSongInSetlist: Master song not found in repertoire for ID:", masterSongId);
+      // console.error("[Index] handleUpdateSongInSetlist: Master song not found in repertoire for ID:", masterSongId); // Removed console.error
       showError("Failed to update song: Master record not found in library.");
       return;
     }
@@ -527,7 +527,7 @@ const Index = () => {
       }
       showSuccess("Song updated.");
     } catch (err: any) {
-      console.error("[Index] Failed to update song:", err);
+      // console.error("[Index] Failed to update song:", err); // Removed console.error
       showError(`Failed to update song: ${err.message}`);
     }
   };
@@ -810,7 +810,7 @@ const Index = () => {
   ) => {
     const targetSetlist = allSetlists.find(l => l.id === setlistId);
     if (!targetSetlist) {
-      console.error(`[Index] Setlist with ID ${setlistId} not found for update.`);
+      // console.error(`[Index] Setlist with ID ${setlistId} not found for update.`); // Removed console.error
       return;
     }
 
@@ -830,7 +830,6 @@ const Index = () => {
             is_confirmed: false
           });
         if (error) {
-          console.error("Failed to add to setlist:", error);
           showError(`Failed to add to setlist: ${error.message}`);
           return;
         }
@@ -845,7 +844,6 @@ const Index = () => {
           .delete()
           .eq('id', junctionSong.id);
         if (error) {
-          console.error("Failed to remove from setlist:", error);
           showError(`Failed to remove from setlist: ${error.message}`);
           return;
         }
@@ -889,7 +887,7 @@ const Index = () => {
       }
 
     } catch (err: any) {
-      console.error("Failed to update master key:", err);
+      // console.error("Failed to update master key:", err); // Removed console.error
       throw new Error(`Failed to update key: ${err.message}`);
     }
   }, [user, masterRepertoire, allSetlists, activeSongForPerformance]);
@@ -911,24 +909,24 @@ const Index = () => {
   }, [navigate, activeDashboardView]);
 
   const handleOpenPerformanceOverlay = useCallback(() => {
-    console.log("[Index] handleOpenPerformanceOverlay called.");
-    console.log("[Index] Current activeSetlist:", activeSetlist);
-    console.log("[Index] Current activeSongForPerformance:", activeSongForPerformance);
+    // console.log("[Index] handleOpenPerformanceOverlay called."); // Removed console.log
+    // console.log("[Index] Current activeSetlist:", activeSetlist); // Removed console.log
+    // console.log("[Index] Current activeSongForPerformance:", activeSongForPerformance); // Removed console.log
 
     if (!activeSetlist || activeSetlist.songs.length === 0) {
       showWarning("Please select a setlist with songs to enter performance mode.");
-      console.log("[Index] No active setlist or empty setlist. Cannot open performance overlay.");
+      // console.log("[Index] No active setlist or empty setlist. Cannot open performance overlay."); // Removed console.log
       return;
     }
     if (!activeSongForPerformance) {
       const firstSong = activeSetlist.songs[0];
       setActiveSongForPerformance(firstSong);
-      console.log("[Index] No active song for performance, setting first song:", firstSong);
+      // console.log("[Index] No active song for performance, setting first song:", firstSong); // Removed console.log
     } else {
-      console.log("[Index] activeSongForPerformance already set:", activeSongForPerformance);
+      // console.log("[Index] activeSongForPerformance already set:", activeSongForPerformance); // Removed console.log
     }
     setIsPerformanceOverlayOpen(true);
-    console.log("[Index] Setting isPerformanceOverlayOpen to true.");
+    // console.log("[Index] Setting isPerformanceOverlayOpen to true."); // Removed console.log
   }, [activeSetlist, activeSongForPerformance]);
 
   const handleSafePitchToggle = useCallback((active: boolean, safePitch: number) => {

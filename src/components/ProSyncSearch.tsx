@@ -29,7 +29,7 @@ const ProSyncSearch: React.FC<ProSyncSearchProps> = ({ isOpen, onClose, onSelect
       const data = await response.json();
       setResults(data.results || []);
     } catch (err) {
-      // console.error("Search failed", err);
+      // console.error("Search failed", err); // Removed console.error
     } finally {
       setIsLoading(false);
     }

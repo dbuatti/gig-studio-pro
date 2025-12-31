@@ -45,7 +45,7 @@ export function useSettings() {
             .single();
 
           if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows found"
-            console.error("[useSettings] Error fetching user settings:", error);
+            // console.error("[useSettings] Error fetching user settings:", error); // Removed console.error
             // Fallback to local storage if Supabase fetch fails
             const saved = localStorage.getItem('gig_global_settings');
             setSettings(saved ? { ...DEFAULT_GLOBAL_SETTINGS, ...JSON.parse(saved) } : DEFAULT_GLOBAL_SETTINGS);
@@ -69,7 +69,7 @@ export function useSettings() {
             });
           }
         } catch (err) {
-          console.error("[useSettings] Unexpected error during settings fetch:", err);
+          // console.error("[useSettings] Unexpected error during settings fetch:", err); // Removed console.error
           // Fallback to local storage
           const saved = localStorage.getItem('gig_global_settings');
           setSettings(saved ? { ...DEFAULT_GLOBAL_SETTINGS, ...JSON.parse(saved) } : DEFAULT_GLOBAL_SETTINGS);
@@ -116,11 +116,11 @@ export function useSettings() {
           .update({ [dbColumn]: value })
           .eq('id', user.id);
         if (error) {
-          console.error(`[useSettings] Failed to save ${String(key)} to Supabase:`, error);
+          // console.error(`[useSettings] Failed to save ${String(key)} to Supabase:`, error); // Removed console.error
           // Optionally revert local state or show error toast
         }
       } catch (err) {
-        console.error(`[useSettings] Unexpected error saving ${String(key)} to Supabase:`, err);
+        // console.error(`[useSettings] Unexpected error saving ${String(key)} to Supabase:`, err); // Removed console.error
       }
     }
   }, [user]);

@@ -158,7 +158,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
   const handleDeleteSong = (songId: string) => {
     // This function would typically delete from the master repertoire
     // For now, we'll just log and close the dialog
-    console.log(`Deleting song with ID: ${songId} from master repertoire.`);
+    // console.log(`Deleting song with ID: ${songId} from master repertoire.`); // Removed console.log
     // In a real app, you'd call a prop like onDeleteMasterSong(songId)
     setDeleteConfirmId(null);
     onRefreshRepertoire(); // Refresh the list after deletion (simulated)

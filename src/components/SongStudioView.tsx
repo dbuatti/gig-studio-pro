@@ -77,11 +77,11 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   const performSave = async (currentUpdates: Partial<SetlistSong>) => {
     const targetSong = currentSongRef.current;
     if (!targetSong || !user) {
-      console.log("[SongStudioView] performSave: Skipping save, no target song or user.");
+      // console.log("[SongStudioView] performSave: Skipping save, no target song or user."); // Removed console.log
       return;
     }
 
-    console.log("[SongStudioView] performSave: Initiating save for song:", targetSong.id, "Updates:", currentUpdates);
+    // console.log("[SongStudioView] performSave: Initiating save for song:", targetSong.id, "Updates:", currentUpdates); // Removed console.log
 
     try {
       lastPendingUpdatesRef.current = {};
@@ -104,14 +104,14 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
       // The parent component (Index.tsx) is responsible for keeping its setlist state in sync
       // via the repertoire_changes subscription and fetchSetlistsAndRepertoire.
 
-      console.log("[SongStudioView] performSave: Save successful for song:", targetSong.id);
+      // console.log("[SongStudioView] performSave: Save successful for song:", targetSong.id); // Removed console.log
     } catch (err: any) {
       console.error("[SongStudioView] performSave 400 Failure:", err.message, err.details);
     }
   };
 
   const handleAutoSave = useCallback((updates: Partial<SetlistSong>) => {
-    console.log("[SongStudioView] handleAutoSave: Received updates:", updates);
+    // console.log("[SongStudioView] handleAutoSave: Received updates:", updates); // Removed console.log
     setFormData(prev => ({ ...prev, ...updates }));
     lastPendingUpdatesRef.current = { ...lastPendingUpdatesRef.current, ...updates };
 
@@ -134,24 +134,24 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   });
 
   const handleClose = useCallback(() => {
-    console.log("[SongStudioView] handleClose: Initiated.");
+    // console.log("[SongStudioView] handleClose: Initiated."); // Removed console.log
     const pending = lastPendingUpdatesRef.current;
     if (Object.keys(pending).length > 0) {
-      console.log("[SongStudioView] handleClose: Performing final save for pending updates.");
+      // console.log("[SongStudioView] handleClose: Performing final save for pending updates."); // Removed console.log
       performSave(pending);
     }
-    console.log("[SongStudioView] handleClose: Stopping audio playback.");
+    // console.log("[SongStudioView] handleClose: Stopping audio playback."); // Removed console.log
     audio.stopPlayback();
-    console.log("[SongStudioView] handleClose: Calling onClose prop.");
+    // console.log("[SongStudioView] handleClose: Calling onClose prop."); // Removed console.log
     onClose();
   }, [onClose, audio, performSave]);
 
   const fetchData = async () => {
     if (!user || !songId) {
-      console.log("[SongStudioView] fetchData: Skipping fetch, no user or songId.");
+      // console.log("[SongStudioView] fetchData: Skipping fetch, no user or songId."); // Removed console.log
       return;
     }
-    console.log("[SongStudioView] fetchData: Starting fetch for songId (repertoire.id):", songId);
+    // console.log("[SongStudioView] fetchData: Starting fetch for songId (repertoire.id):", songId); // Removed console.log
     setLoading(true);
     try {
       // Always fetch the master song record from the 'repertoire' table
@@ -161,12 +161,12 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
         throw error;
       }
       if (!data) {
-        console.error("[SongStudioView] fetchData: No 'repertoire' data found for ID:", songId);
+        // console.error("[SongStudioView] fetchData: No 'repertoire' data found for ID:", songId); // Removed console.error
         showError("Error: The requested track could not be found.");
         throw new Error("Track not found.");
       }
 
-      console.log("[SongStudioView] fetchData: 'repertoire' data found:", data);
+      // console.log("[SongStudioView] fetchData: 'repertoire' data found:", data); // Removed console.log
       const targetSong: SetlistSong = {
         id: data.id, // This is the repertoire.id
         master_id: data.id,
@@ -215,33 +215,33 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
       
       if (targetSong.audio_url || targetSong.previewUrl) {
         const urlToLoad = targetSong.audio_url || targetSong.previewUrl;
-        console.log("[SongStudioView] fetchData: Loading audio from URL:", urlToLoad);
+        // console.log("[SongStudioView] fetchData: Loading audio from URL:", urlToLoad); // Removed console.log
         // FIX: Pass the pitch from the song data to loadFromUrl
         await audio.loadFromUrl(urlToLoad, targetSong.pitch ?? 0, true);
       }
-      console.log("[SongStudioView] fetchData: Fetch successful for songId:", songId);
+      // console.log("[SongStudioView] fetchData: Fetch successful for songId:", songId); // Removed console.log
     } catch (err: any) {
-      console.error("[SongStudioView] Studio Engine Error: " + err.message);
-      console.log("[SongStudioView] fetchData: Calling onClose due to error.");
+      // console.error("[SongStudioView] Studio Engine Error: " + err.message); // Removed console.error
+      // console.log("[SongStudioView] fetchData: Calling onClose due to error."); // Removed console.log
       onClose();
     } finally {
       setLoading(false);
-      console.log("[SongStudioView] fetchData: Loading set to false.");
+      // console.log("[SongStudioView] fetchData: Loading set to false."); // Removed console.log
     }
   };
 
   useEffect(() => {
-    console.log("[SongStudioView] Component mounted/songId/gigId changed. Calling fetchData.");
+    // console.log("[SongStudioView] Component mounted/songId/gigId changed. Calling fetchData."); // Removed console.log
     fetchData();
     return () => {
-      console.log("[SongStudioView] Component unmounting/songId/gigId changing. Cleanup initiated.");
+      // console.log("[SongStudioView] Component unmounting/songId/gigId changing. Cleanup initiated."); // Removed console.log
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
       const pending = lastPendingUpdatesRef.current;
       if (Object.keys(pending).length > 0) {
-        console.log("[SongStudioView] Cleanup: Performing final save for pending updates.");
+        // console.log("[SongStudioView] Cleanup: Performing final save for pending updates."); // Removed console.log
         performSave(pending);
       }
-      console.log("[SongStudioView] Cleanup: Stopping audio playback.");
+      // console.log("[SongStudioView] Cleanup: Stopping audio playback."); // Removed console.log
       audio.stopPlayback();
     };
   }, [songId, gigId]);

@@ -136,10 +136,6 @@ const SheetReaderMode: React.FC = () => {
       
       dbUpdates.updated_at = new Date().toISOString();
 
-      if (updates.originalKey !== undefined || updates.targetKey !== undefined) {
-        console.log(`[SongStudioView] Saving key data: originalKey=${dbUpdates.original_key}, targetKey=${dbUpdates.target_key}`);
-      }
-
       supabase
         .from('repertoire')
         .update(dbUpdates)
@@ -173,8 +169,10 @@ const SheetReaderMode: React.FC = () => {
     if (currentSong) {
       setTargetKey(currentSong.targetKey || currentSong.originalKey || 'C');
       setPitch(currentSong.pitch ?? 0);
+      console.log(`[SheetReaderMode] currentSong changed: ${currentSong.name}, Original Key: ${currentSong.originalKey}, Target Key: ${currentSong.targetKey}, Pitch: ${currentSong.pitch}`);
+      console.log(`[SheetReaderMode] Harmonic Sync State after update: Target Key: ${harmonicTargetKey}, Pitch: ${pitch}`);
     }
-  }, [currentSong, setTargetKey, setPitch]);
+  }, [currentSong, setTargetKey, setPitch, harmonicTargetKey, pitch]);
 
   const fetchSongs = useCallback(async () => {
     if (!user) return;
@@ -186,7 +184,6 @@ const SheetReaderMode: React.FC = () => {
         .eq('user_id', user.id)
         .order('title');
 
-      // Apply 'confirmed for gig' filter if coming from gig mode
       const filterApproved = searchParams.get('filterApproved');
       if (filterApproved === 'true') {
         query = query.eq('is_approved', true);
@@ -195,7 +192,7 @@ const SheetReaderMode: React.FC = () => {
       const { data, error } = await query;
 
       if (error) {
-        console.error("Supabase Fetch Error:", error);
+        console.error("[SheetReaderMode] Supabase Fetch Error:", error);
         if (error.message.includes("new row violates row-level-security")) {
           showError("Database Security Error: You don't have permission to read this data. Check RLS policies.");
         } else {
@@ -209,16 +206,15 @@ const SheetReaderMode: React.FC = () => {
         master_id: d.id,
         name: d.title,
         artist: d.artist,
-        originalKey: d.original_key !== null ? d.original_key : 'TBC', // Default to 'TBC' if null
-        targetKey: d.target_key !== null ? d.target_key : (d.original_key !== null ? d.original_key : 'TBC'), // Default to 'TBC' if null
+        originalKey: d.original_key !== null ? d.original_key : 'TBC',
+        targetKey: d.target_key !== null ? d.target_key : (d.original_key !== null ? d.original_key : 'TBC'),
         pitch: d.pitch ?? 0,
         previewUrl: d.extraction_status === 'completed' && d.audio_url ? d.audio_url : d.preview_url,
-        ug_chords_text: d.ug_chords_text,
-        ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
-        isApproved: d.is_approved,
+        youtubeUrl: d.youtube_url,
+        ugUrl: d.ug_url, // Keep this one
+        appleMusicUrl: d.apple_music_url,
         pdfUrl: d.pdf_url,
         leadsheetUrl: d.leadsheet_url,
-        ugUrl: d.ug_url,
         bpm: d.bpm,
         is_ug_chords_present: d.is_ug_chords_present,
         is_ug_link_verified: d.is_ug_link_verified,
@@ -231,18 +227,8 @@ const SheetReaderMode: React.FC = () => {
       }));
 
       const readableAndApprovedSongs = mappedSongs.filter(s => {
-        // REMOVED: readiness >= 40 from meetsReadiness
         const hasChart = s.pdfUrl || s.leadsheetUrl || s.ug_chords_text || s.sheet_music_url; 
-        const meetsReadiness = true || forceReaderResource === 'simulation' || ignoreConfirmedGate; // Always true now
-
-        // Debugging for the specific song
-        if (s.id === "582ded79-5b51-45e1-8260-72de214fbff1") {
-          console.log(`[SheetReaderMode Debug] Song: ${s.name}, ID: ${s.id}`);
-          console.log(`[SheetReaderMode Debug] readiness: ${calculateReadiness(s)}`); // Log actual readiness
-          console.log(`[SheetReaderMode Debug] hasChart (pdfUrl: ${s.pdfUrl}, leadsheetUrl: ${s.leadsheetUrl}, ug_chords_text: ${!!s.ug_chords_text && s.ug_chords_text.trim().length > 0}, sheet_music_url: ${s.sheet_music_url}): ${hasChart}`);
-          console.log(`[SheetReaderMode Debug] meetsReadiness: ${meetsReadiness}`);
-          console.log(`[SheetReaderMode Debug] Filter result: ${hasChart && meetsReadiness}`);
-        }
+        const meetsReadiness = true || forceReaderResource === 'simulation' || ignoreConfirmedGate;
 
         return hasChart && meetsReadiness;
       });
@@ -301,7 +287,6 @@ const SheetReaderMode: React.FC = () => {
   useEffect(() => {
     const fromDashboard = sessionStorage.getItem('from_dashboard');
     if (!fromDashboard) {
-      console.log("[SheetReaderMode] Not navigated from dashboard, redirecting to /");
       navigate('/', { replace: true });
       return;
     }
@@ -498,7 +483,7 @@ const SheetReaderMode: React.FC = () => {
 
   const renderChartForSong = useCallback((song: SetlistSong, chartType: ChartType, onChartLoad: (id: string, type: ChartType) => void): React.ReactNode => {
     const readiness = calculateReadiness(song);
-    const isReadyGatePassed = true || forceReaderResource === 'simulation' || ignoreConfirmedGate; // Always true now
+    const isReadyGatePassed = true || forceReaderResource === 'simulation' || ignoreConfirmedGate;
 
     if (!isReadyGatePassed) {
       setTimeout(() => onChartLoad(song.id, chartType), 50);
@@ -517,6 +502,7 @@ const SheetReaderMode: React.FC = () => {
     if (chartType === 'chords') {
       if (song.ug_chords_text?.trim()) {
         setTimeout(() => onChartLoad(song.id, chartType), 50);
+        console.log(`[UGChordsReader] Rendering chords for ${song.name}. Original Key: ${song.originalKey}, Target Key: ${harmonicTargetKey}, Reader Key Preference: ${readerKeyPreference}`);
         return (
           <UGChordsReader
             key={`${song.id}-chords-${harmonicTargetKey}`}
@@ -587,7 +573,7 @@ const SheetReaderMode: React.FC = () => {
       <div className="h-full flex flex-col items-center justify-center bg-slate-950 p-6 md:p-12 text-center">
         <ShieldCheck className="w-12 h-12 md:w-16 md:h-16 text-indigo-400 mb-6 md:mb-10" />
         <h4 className="text-3xl md:text-5xl font-black uppercase tracking-tight mb-4 md:mb-6 text-white">Asset Protected</h4>
-        <p className="text-slate-500 mb-8 md:mb-16 text-lg md:text-xl font-medium leading-relaxed">
+        <p className="text-slate-500 max-xl mb-8 md:mb-16 text-lg md:text-xl font-medium leading-relaxed">
           External security prevents in-app display. Use the button below to launch in a secure dedicated performance window.
         </p>
         <Button 

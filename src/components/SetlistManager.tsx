@@ -14,7 +14,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import SetlistFilters, { FilterState, DEFAULT_FILTERS } from './SetlistFilters';
 import { calculateReadiness } from '@/utils/repertoireSync';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-// Removed SetlistMultiSelector import as it's no longer used in this component
+import SetlistMultiSelector from './SetlistMultiSelector'; // Re-added import for SetlistMultiSelector
 
 export interface UGChordsConfig {
   fontFamily: string;
@@ -184,15 +184,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     return processedSongs.filter(song => {
       const key = song.master_id || song.id;
       if (seen.has(key)) {
-        console.warn(`[SetlistManager] Duplicate detected and filtered out: ${song.name} (${key})`);
         return false;
-      }
-      // Debugging for the specific song
-      if (song.id === "582ded79-5b51-45e1-8260-72de214fbff1") {
-        const readiness = calculateReadiness(song);
-        console.log(`[SetlistManager Debug] Song: ${song.name}, ID: ${song.id}`);
-        console.log(`[SetlistManager Debug] readiness: ${readiness}`);
-        console.log(`[SetlistManager Debug] Song object for readiness calculation:`, song);
       }
       seen.add(key);
       return true;
@@ -522,24 +514,12 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       </td>
                       <td className="px-6 text-right pr-10">
                         <div className="flex items-center justify-end gap-2 h-full">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onUpdateSong(song.id, { isApproved: !song.isApproved });
-                              showSuccess(`Song marked as ${song.isApproved ? 'unapproved' : 'approved'} for gig.`);
-                            }}
-                            className={cn(
-                              "h-9 px-4 rounded-xl font-black uppercase text-[10px] tracking-widest gap-2 transition-all",
-                              song.isApproved
-                                ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20"
-                                : "bg-white/5 hover:bg-white/10 text-slate-400 border border-white/10"
-                            )}
-                          >
-                            {song.isApproved ? <Check className="w-4 h-4" /> : <ListMusic className="w-4 h-4" />}
-                            {song.isApproved ? "APPROVED" : "APPROVE"}
-                          </Button>
+                          <SetlistMultiSelector
+                            songMasterId={song.id}
+                            allSetlists={allSetlists}
+                            songToAssign={song}
+                            onUpdateSetlistSongs={onUpdateSetlistSongs}
+                          />
                           <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground hover:text-indigo-600 hover:bg-indigo-50 transition-colors inline-flex items-center justify-center" onClick={(e) => { e.stopPropagation(); onEdit(song); }}>
                             <Edit3 className="w-4 h-4" />
                           </Button>

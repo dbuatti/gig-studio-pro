@@ -39,7 +39,7 @@ const PublicRepertoire = () => {
       if (sError) throw sError;
       setSongs(songData || []);
     } catch (err) {
-      // console.error("Public Fetch Error:", err);
+      // console.error("Public Fetch Error:", err); // Removed console.error
     } finally {
       setLoading(false);
     }

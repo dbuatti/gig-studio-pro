@@ -64,6 +64,9 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   const displayKey = rawTargetKey ? formatKey(rawTargetKey, readerKeyPreference) : null;
   const keysToUse = readerKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
 
+  console.log(`[SheetReaderHeader] Rendering for song: ${currentSong?.name || 'N/A'}`);
+  console.log(`[SheetReaderHeader] Raw Target Key: ${rawTargetKey}, Display Key: ${displayKey}, Reader Key Preference: ${readerKeyPreference}`);
+
   return (
     <div className="fixed top-0 left-0 right-0 z-60 bg-slate-900/80 backdrop-blur-xl border-b border-white/10 px-6 py-3 flex items-center justify-between shadow-lg animate-in slide-in-from-top duration-300">
       <div className="flex items-center gap-4">

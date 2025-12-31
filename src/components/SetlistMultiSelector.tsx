@@ -49,14 +49,14 @@ const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
 
   const fetchAssignments = useCallback(async () => {
     if (!isRepertoireSongValid) {
-      console.warn("[SetlistMultiSelector] Repertoire song ID is not a valid UUID, skipping fetchAssignments.");
+      // console.warn("[SetlistMultiSelector] Repertoire song ID is not a valid UUID, skipping fetchAssignments."); // Removed console.warn
       setAssignedSetlistIds(new Set()); // Clear assignments if song is not valid
       setLoading(false);
       return;
     }
     setLoading(true);
     try {
-      console.log(`[SetlistMultiSelector] Fetching assignments for repertoireDbId: ${repertoireDbId}`);
+      // console.log(`[SetlistMultiSelector] Fetching assignments for repertoireDbId: ${repertoireDbId}`); // Removed console.log
       const { data, error } = await supabase
         .from('setlist_songs')
         .select('setlist_id')

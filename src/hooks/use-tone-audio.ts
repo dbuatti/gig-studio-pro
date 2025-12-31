@@ -137,7 +137,6 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
       const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
       loadAudioBuffer(audioBuffer, initialPitch);
     } catch (err) {
-      console.error("Audio load failed from URL:", url, "Error:", err);
       showError("Audio load failed.");
       setCurrentUrl("");
       setIsLoadingAudio(false);

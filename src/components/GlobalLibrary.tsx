@@ -43,7 +43,7 @@ const GlobalLibrary: React.FC<GlobalLibraryProps> = ({ onImport }) => {
       if (error) throw error;
       setResults(data || []);
     } catch (err) {
-      // console.error("Global search failed:", err);
+      // console.error("Global search failed:", err); // Removed console.error
     } finally {
       setIsLoading(false);
     }
