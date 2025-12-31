@@ -362,6 +362,7 @@ const SheetReaderMode: React.FC = () => {
   // NEW: Callback to signal chart is ready
   const handleChartReady = useCallback(() => {
     if (currentSong && selectedChartType === 'chords') {
+      console.log(`[SheetReaderMode] Chart Ready Callback Triggered for ${currentSong.name}`);
       setRenderedCharts(prev => prev.map(rc =>
         rc.id === currentSong.id && rc.type === selectedChartType ? { ...rc, isLoaded: true } : rc
       ));
@@ -379,8 +380,12 @@ const SheetReaderMode: React.FC = () => {
     chartType: ChartType,
     onChartLoad: (id: string, type: ChartType) => void
   ): React.ReactNode => {
+    // DEBUG: Log render attempt
+    console.log(`[SheetReaderMode] renderChartForSong called. Song: ${song.name}, Type: ${chartType}`);
+    
     // OPTIMIZATION: Chords are rendered immediately from memory if available
     if (chartType === 'chords' && song.ug_chords_text?.trim()) {
+      console.log(`[SheetReaderMode] Rendering UG Chords for ${song.name}`);
       return (
         <UGChordsReader
           key={`${song.id}-chords-${harmonicTargetKey}`}
@@ -441,11 +446,15 @@ const SheetReaderMode: React.FC = () => {
       return;
     }
 
+    console.log(`[SheetReaderMode] useEffect: Updating rendered charts. Song: ${currentSong.name}, Type: ${selectedChartType}`);
+
     setRenderedCharts(prev => {
       const existing = prev.find(c => c.id === currentSong.id && c.type === selectedChartType);
       if (existing) {
+        console.log(`[SheetReaderMode] Chart already exists, updating opacity/z-index`);
         return prev.map(c => c.id === currentSong.id && c.type === selectedChartType ? { ...c, opacity: 1, zIndex: 10 } : c);
       }
+      console.log(`[SheetReaderMode] Creating new chart entry`);
       return [{
         id: currentSong.id,
         content: renderChartForSong(currentSong, selectedChartType, handleChartLoad),
@@ -462,7 +471,9 @@ const SheetReaderMode: React.FC = () => {
   // Timeout fallback for slow-loading charts
   useEffect(() => {
     if (isChartLoading && currentSong) {
+      console.log(`[SheetReaderMode] Chart loading timeout started for ${currentSong.name}`);
       const timer = setTimeout(() => {
+        console.log(`[SheetReaderMode] Chart loading timeout expired for ${currentSong.name}`);
         setRenderedCharts(prev => prev.map(rc =>
           rc.id === currentSong.id && rc.type === selectedChartType ? { ...rc, isLoaded: true } : rc
         ));

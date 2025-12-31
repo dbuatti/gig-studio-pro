@@ -23,7 +23,6 @@ interface UGChordsReaderProps {
   progress: number;
   duration: number;
   readerKeyPreference?: 'sharps' | 'flats';
-  // NEW: Callback to signal when chart is ready
   onChartReady?: () => void;
 }
 
@@ -45,29 +44,44 @@ const UGChordsReader = React.memo(({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLPreElement>(null);
 
-  // OPTIMIZATION: Use useMemo for transposition to prevent re-calculation on every render
+  // DEBUG: Log incoming props
+  useEffect(() => {
+    console.log(`[UGChordsReader] Props Update:
+      - Has Chords: ${!!chordsText}
+      - Chords Length: ${chordsText?.length || 0}
+      - Original Key: ${originalKey}
+      - Target Key: ${targetKey}
+      - Active Pref: ${activeKeyPreference}
+    `);
+  }, [chordsText, originalKey, targetKey, activeKeyPreference]);
+
+  // OPTIMIZATION: Use useMemo for transposition
   const transposedChordsText = useMemo(() => {
     if (!chordsText) return chordsText;
     
     const n = calculateSemitones(originalKey, targetKey);
     
-    console.log(`[UGChordsReader] Transposing: Original Key: ${originalKey}, Target Key: ${targetKey}, Semitones: ${n}, Active Preference: ${activeKeyPreference}`);
+    // DEBUG: Log transposition calculation
+    console.log(`[UGChordsReader] Transposing: Semitones: ${n}`);
+    
     return transposeChords(chordsText, n, activeKeyPreference);
   }, [chordsText, originalKey, targetKey, activeKeyPreference]);
 
   const readableChordColor = config.chordColor === "#000000" ? "#ffffff" : config.chordColor;
 
-  // OPTIMIZATION: Use useMemo for formatted HTML to prevent re-formatting on every render
-  const formattedHtml = useMemo(() => 
-    formatChordText(transposedChordsText, {
+  // OPTIMIZATION: Use useMemo for formatted HTML
+  const formattedHtml = useMemo(() => {
+    // DEBUG: Log formatting attempt
+    console.log(`[UGChordsReader] Formatting HTML for text length: ${transposedChordsText?.length || 0}`);
+    
+    return formatChordText(transposedChordsText, {
       fontFamily: config.fontFamily,
       fontSize: config.fontSize,
       chordBold: config.chordBold,
       chordColor: readableChordColor,
       lineSpacing: config.lineSpacing
-    }), 
-    [transposedChordsText, config, readableChordColor]
-  );
+    });
+  }, [transposedChordsText, config, readableChordColor]);
 
   // NEW: Signal that the chart is ready immediately after render
   useEffect(() => {
@@ -77,6 +91,11 @@ const UGChordsReader = React.memo(({
       return () => clearTimeout(timer);
     }
   }, [chordsText, onChartReady]);
+
+  // DEBUG: Log render state
+  useEffect(() => {
+    console.log(`[UGChordsReader] Render Triggered. Has Content: ${!!formattedHtml}`);
+  }, [formattedHtml]);
 
   return (
     <div 
