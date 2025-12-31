@@ -70,9 +70,14 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
   };
 
   const performYoutubeDiscovery = async (searchTerm: string) => {
-    if (!searchTerm.trim()) return;
+    console.log("[YoutubeMediaManager] Starting YouTube discovery for:", searchTerm);
+    if (!searchTerm.trim()) {
+      console.log("[YoutubeMediaManager] Search term is empty. Skipping discovery.");
+      return;
+    }
     
     if (searchTerm.startsWith('http')) {
+      console.log("[YoutubeMediaManager] Search term is a URL. Linking directly:", searchTerm);
       handleAutoSave({ youtubeUrl: cleanYoutubeUrl(searchTerm) });
       showSuccess("YouTube URL Linked");
       return;
@@ -83,6 +88,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
     setLastQuery(searchTerm);
 
     if (ytApiKey) {
+      console.log("[YoutubeMediaManager] Using YouTube Data API key for search.");
       try {
         const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(searchTerm)}&type=video&videoCategoryId=10&relevanceLanguage=en&maxResults=12&key=${ytApiKey}`;
         const searchResponse = await fetch(searchUrl);
@@ -110,10 +116,15 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
             setYtResults(resultsWithDurations);
             setIsSearchingYoutube(false);
             showSuccess(`Discovery Match: ${resultsWithDurations.length} records found`);
+            console.log("[YoutubeMediaManager] YouTube Data API search successful. Results:", resultsWithDurations);
             return;
           }
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error("[YoutubeMediaManager] YouTube Data API search failed:", e);
+      }
+    } else {
+      console.warn("[YoutubeMediaManager] No YouTube Data API key found. Falling back to Invidious instances.");
     }
 
     // Fallback search strategy
@@ -146,14 +157,21 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
                 viewCountText: v.viewCountText
               })));
               success = true;
+              console.log("[YoutubeMediaManager] Invidious fallback search successful. Results:", videos);
             }
-          } catch (err) {}
+          } catch (err) {
+            console.error("[YoutubeMediaManager] Invidious instance search failed:", err);
+          }
         }
       }
       
-      if (!success) showError("Global discovery engine congested.");
+      if (!success) {
+        showError("Global discovery engine congested or no results found.");
+        console.warn("[YoutubeMediaManager] All fallback search attempts failed.");
+      }
     } catch (err) {
       showError("Search services offline.");
+      console.error("[YoutubeMediaManager] General search service error:", err);
     } finally {
       setIsSearchingYoutube(false);
     }
@@ -167,23 +185,29 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
   };
 
   const handleSelectYoutubeVideo = (url: string) => {
+    console.log("[YoutubeMediaManager] Selected YouTube video:", url);
     handleAutoSave({ youtubeUrl: cleanYoutubeUrl(url) });
   };
 
   const handleBackgroundExtraction = async (videoUrlToDownload?: string) => {
     const targetVideoUrl = cleanYoutubeUrl(videoUrlToDownload || formData.youtubeUrl || '');
 
+    console.log("[YoutubeMediaManager] Initiating background extraction for:", targetVideoUrl);
+
     if (!targetVideoUrl) {
       showError("Link a YouTube URL first.");
+      console.error("[YoutubeMediaManager] No target video URL for extraction.");
       return;
     }
     if (!user?.id || !song?.id) {
-      showError("Session data missing.");
+      showError("Session data missing. Please log in.");
+      console.error("[YoutubeMediaManager] User ID or Song ID missing for extraction.");
       return;
     }
 
     handleAutoSave({ youtubeUrl: targetVideoUrl });
     setIsTriggering(true);
+    console.log("[YoutubeMediaManager] Invoking 'download-audio' edge function...");
 
     try {
       const { data, error } = await supabase.functions.invoke('download-audio', {
@@ -198,11 +222,14 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
 
       showInfo("Background extraction started. You can close this window; the audio will update automatically.");
       showSuccess("Task Queued Successfully");
+      console.log("[YoutubeMediaManager] 'download-audio' edge function invoked successfully. Response:", data);
       
     } catch (err: any) {
       showError(`Trigger failed: ${err.message}`);
+      console.error("[YoutubeMediaManager] 'download-audio' edge function invocation failed:", err);
     } finally {
       setIsTriggering(false);
+      console.log("[YoutubeMediaManager] Background extraction process finished.");
     }
   };
 
