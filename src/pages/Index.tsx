@@ -150,6 +150,7 @@ const Index = () => {
 
   const fetchSetlistsAndRepertoire = useCallback(async () => {
     if (!userId) return;
+    console.log("[Dashboard] Triggering fetchSetlistsAndRepertoire...");
     setLoading(true);
     try {
       const { data: setlistsData, error: setlistsError } = await supabase
@@ -499,28 +500,44 @@ const Index = () => {
       console.log("[Dashboard] Syncing new track to master repertoire...");
       const syncedSongs = await syncToMasterRepertoire(userId, [newSongData]);
       const syncedSong = syncedSongs[0];
-      console.log("[Dashboard] Master sync successful. ID:", syncedSong.id);
+      
+      if (!syncedSong || !syncedSong.master_id) {
+        throw new Error("Master sync failed to return a valid song ID.");
+      }
+      
+      console.log("[Dashboard] Master sync successful. ID:", syncedSong.master_id);
 
       setMasterRepertoire(prev => [...prev, syncedSong]);
 
       if (activeSetlist) {
-        console.log("[Dashboard] Adding track to active setlist:", activeSetlist.name);
-        await supabase.from('setlist_songs').insert({
+        console.log("[Dashboard] Adding track to active setlist:", activeSetlist.name, "ID:", activeSetlist.id);
+        
+        // Use a more resilient insertion for the junction table
+        const { error: junctionError } = await supabase.from('setlist_songs').insert({
           setlist_id: activeSetlist.id,
           song_id: syncedSong.master_id,
           sort_order: activeSetlist.songs.length,
           isPlayed: false,
           is_confirmed: false
         });
+
+        if (junctionError) {
+          console.error("[Dashboard] Junction table insert error:", junctionError);
+          throw junctionError;
+        }
+
+        console.log("[Dashboard] Junction insert complete. Refreshing UI...");
         await fetchSetlistsAndRepertoire();
-        showSuccess(`"${name}" added to repertoire and setlist.`);
+        showSuccess(`"${name}" added to gig.`);
       } else {
+        console.log("[Dashboard] No active setlist. Track added to library only.");
+        await fetchSetlistsAndRepertoire();
         showSuccess(`"${name}" added to master repertoire.`);
       }
       setIsAudioTransposerModalOpen(false);
     } catch (err: any) {
-      console.error("[Dashboard] Import failed:", err);
-      showError(`Import failed: ${err.message}`);
+      console.error("[Dashboard] handleImportNewSong FAILED:", err);
+      showError(`Import failed: ${err.message || 'Database connection error'}`);
     }
   };
 
