@@ -45,7 +45,7 @@ const SheetReaderMode: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { keyPreference: globalKeyPreference } = useSettings();
-  const { forceReaderResource, ignoreConfirmedGate } = useReaderSettings();
+  const { forceReaderResource } = useReaderSettings();
 
   const [allSongs, setAllSongs] = useState<SetlistSong[]>([]);
   const [allSetlists, setAllSetlists] = useState<{ id: string; name: string; songs: SetlistSong[] }[]>([]);
@@ -61,7 +61,6 @@ const SheetReaderMode: React.FC = () => {
   const [selectedChartType, setSelectedChartType] = useState<ChartType>('pdf');
   const [renderedCharts, setRenderedCharts] = useState<RenderedChart[]>([]);
 
-  // Audio engine with suppressed toasts for background loading
   const audioEngine = useToneAudio(true);
   const {
     isPlaying, progress, duration, loadFromUrl, togglePlayback, stopPlayback,
@@ -70,6 +69,16 @@ const SheetReaderMode: React.FC = () => {
   } = audioEngine;
 
   const currentSong = allSongs[currentIndex];
+
+  const isOriginalKeyMissing = useMemo(() => 
+    !currentSong?.originalKey || currentSong.originalKey === 'TBC',
+    [currentSong]
+  );
+
+  // Helper to update state of a song in the main list
+  const handleLocalSongUpdate = useCallback((songId: string, updates: Partial<SetlistSong>) => {
+    setAllSongs(prev => prev.map(s => s.id === songId ? { ...s, ...updates } : s));
+  }, []);
 
   const harmonicSync = useHarmonicSync({
     formData: {
@@ -81,86 +90,36 @@ const SheetReaderMode: React.FC = () => {
     },
     handleAutoSave: useCallback(async (updates: Partial<SetlistSong>) => {
       if (!currentSong || !user) return;
+      handleLocalSongUpdate(currentSong.id, updates);
 
       const dbUpdates: { [key: string]: any } = {};
-      if (updates.name !== undefined) dbUpdates.title = updates.name || 'Untitled Track';
-      if (updates.artist !== undefined) dbUpdates.artist = updates.artist || 'Unknown Artist';
-      if (updates.previewUrl !== undefined) dbUpdates.preview_url = updates.previewUrl; else if (updates.previewUrl === null) dbUpdates.preview_url = null;
-      if (updates.youtubeUrl !== undefined) dbUpdates.youtube_url = updates.youtubeUrl; else if (updates.youtubeUrl === null) dbUpdates.youtube_url = null;
-      if (updates.ugUrl !== undefined) dbUpdates.ug_url = updates.ugUrl; else if (updates.ugUrl === null) dbUpdates.ug_url = null;
-      if (updates.appleMusicUrl !== undefined) dbUpdates.apple_music_url = updates.appleMusicUrl; else if (updates.appleMusicUrl === null) dbUpdates.apple_music_url = null;
-      if (updates.pdfUrl !== undefined) dbUpdates.pdf_url = updates.pdfUrl; else if (updates.pdfUrl === null) dbUpdates.pdf_url = null;
-      if (updates.leadsheetUrl !== undefined) dbUpdates.leadsheet_url = updates.leadsheetUrl; else if (updates.leadsheetUrl === null) dbUpdates.leadsheet_url = null;
-      if (updates.originalKey !== undefined) dbUpdates.original_key = updates.originalKey; else if (updates.originalKey === null) dbUpdates.original_key = null;
-      if (updates.targetKey !== undefined) dbUpdates.target_key = updates.targetKey; else if (updates.targetKey === null) dbUpdates.target_key = null;
-      if (updates.pitch !== undefined) dbUpdates.pitch = updates.pitch; else if (updates.pitch === null) dbUpdates.pitch = 0;
-      if (updates.bpm !== undefined) dbUpdates.bpm = updates.bpm; else if (updates.bpm === null) dbUpdates.bpm = null;
-      if (updates.genre !== undefined) dbUpdates.genre = updates.genre; else if (updates.genre === null) dbUpdates.genre = null;
-      if (updates.isMetadataConfirmed !== undefined) dbUpdates.is_metadata_confirmed = updates.isMetadataConfirmed; else if (updates.isMetadataConfirmed === null) dbUpdates.is_metadata_confirmed = false;
-      if (updates.isKeyConfirmed !== undefined) dbUpdates.is_key_confirmed = updates.isKeyConfirmed; else if (updates.isKeyConfirmed === null) dbUpdates.is_key_confirmed = false;
-      if (updates.notes !== undefined) dbUpdates.notes = updates.notes; else if (updates.notes === null) dbUpdates.notes = null;
-      if (updates.lyrics !== undefined) dbUpdates.lyrics = updates.lyrics; else if (updates.lyrics === null) dbUpdates.lyrics = null;
-      if (updates.resources !== undefined) dbUpdates.resources = updates.resources; else if (updates.resources === null) dbUpdates.resources = [];
-      if (updates.user_tags !== undefined) dbUpdates.user_tags = updates.user_tags; else if (updates.user_tags === null) dbUpdates.user_tags = [];
-      if (updates.is_pitch_linked !== undefined) dbUpdates.is_pitch_linked = updates.is_pitch_linked; else if (updates.is_pitch_linked === null) dbUpdates.is_pitch_linked = true;
-      if (updates.duration_seconds !== undefined) dbUpdates.duration_seconds = Math.round(updates.duration_seconds || 0); else if (updates.duration_seconds === null) dbUpdates.duration_seconds = 0;
-      if (updates.is_active !== undefined) dbUpdates.is_active = updates.is_active; else if (updates.is_active === null) dbUpdates.is_active = true;
-      if (updates.isApproved !== undefined) dbUpdates.is_approved = updates.isApproved; else if (updates.isApproved === null) dbUpdates.is_approved = false;
-      if (updates.preferred_reader !== undefined) dbUpdates.preferred_reader = updates.preferred_reader; else if (updates.preferred_reader === null) dbUpdates.preferred_reader = null;
-      if (updates.ug_chords_text !== undefined) dbUpdates.ug_chords_text = updates.ug_chords_text; else if (updates.ug_chords_text === null) dbUpdates.ug_chords_text = null;
-      if (updates.ug_chords_config !== undefined) dbUpdates.ug_chords_config = updates.ug_chords_config; else if (updates.ug_chords_config === null) dbUpdates.ug_chords_config = null;
-      if (updates.is_ug_chords_present !== undefined) dbUpdates.is_ug_chords_present = updates.is_ug_chords_present; else if (updates.is_ug_chords_present === null) dbUpdates.is_ug_chords_present = false;
-      if (updates.highest_note_original !== undefined) dbUpdates.highest_note_original = updates.highest_note_original; else if (updates.highest_note_original === null) dbUpdates.highest_note_original = null;
-      if (updates.metadata_source !== undefined) dbUpdates.metadata_source = updates.metadata_source; else if (updates.metadata_source === null) dbUpdates.metadata_source = null;
-      if (updates.sync_status !== undefined) dbUpdates.sync_status = updates.sync_status; else if (updates.sync_status === null) dbUpdates.sync_status = 'IDLE';
-      if (updates.last_sync_log !== undefined) dbUpdates.last_sync_log = updates.last_sync_log; else if (updates.last_sync_log === null) dbUpdates.last_sync_log = null;
-      if (updates.auto_synced !== undefined) dbUpdates.auto_synced = updates.auto_synced; else if (updates.auto_synced === null) dbUpdates.auto_synced = false;
-      if (updates.sheet_music_url !== undefined) dbUpdates.sheet_music_url = updates.sheet_music_url; else if (updates.sheet_music_url === null) dbUpdates.sheet_music_url = null;
-      if (updates.is_sheet_verified !== undefined) dbUpdates.is_sheet_verified = updates.is_sheet_verified; else if (updates.is_sheet_verified === null) dbUpdates.is_sheet_verified = false;
-      if (updates.extraction_status !== undefined) dbUpdates.extraction_status = updates.extraction_status; else if (updates.extraction_status === null) dbUpdates.extraction_status = 'idle';
-      
+      if (updates.name !== undefined) dbUpdates.title = updates.name;
+      if (updates.artist !== undefined) dbUpdates.artist = updates.artist;
+      if (updates.originalKey !== undefined) dbUpdates.original_key = updates.originalKey;
+      if (updates.targetKey !== undefined) dbUpdates.target_key = updates.targetKey;
+      if (updates.pitch !== undefined) dbUpdates.pitch = updates.pitch;
+      if (updates.is_pitch_linked !== undefined) dbUpdates.is_pitch_linked = updates.is_pitch_linked;
+      if (updates.key_preference !== undefined) dbUpdates.key_preference = updates.key_preference;
+      if (updates.preferred_reader !== undefined) dbUpdates.preferred_reader = updates.preferred_reader;
+
       dbUpdates.updated_at = new Date().toISOString();
 
-      supabase
-        .from('repertoire')
-        .update(dbUpdates)
-        .eq('id', currentSong.id)
-        .then(({ error }) => {
-          if (error) {
-            console.error("[SheetReaderMode] Supabase Auto-save failed:", error);
-            showError(`Failed to save: ${error.message}`);
-          }
-          else {
-            setAllSongs(prev => prev.map(s =>
-              s.id === currentSong.id ? { ...s, ...updates } : s
-            ));
-          }
-        });
-    }, [currentSong, user]),
+      await supabase.from('repertoire').update(dbUpdates).eq('id', currentSong.id);
+    }, [currentSong, user, handleLocalSongUpdate]),
     globalKeyPreference,
   });
 
-  const { pitch, setPitch, targetKey: harmonicTargetKey, setTargetKey } = harmonicSync;
+  const { pitch, targetKey: harmonicTargetKey, setTargetKey, setPitch } = harmonicSync;
 
-  // FIX: Moved handleUpdateKey and handlePullKey here, after harmonicSync is defined
   const handleUpdateKey = useCallback(async (newTargetKey: string) => {
     if (!currentSong || !user) return;
     const newPitch = calculateSemitones(currentSong.originalKey || 'C', newTargetKey);
-    try {
-      const { error } = await supabase
-        .from('repertoire')
-        .update({ target_key: newTargetKey, pitch: newPitch })
-        .eq('id', currentSong.id);
-      if (error) throw error;
-
-      setAllSongs(prev => prev.map(s => s.id === currentSong.id ? { ...s, targetKey: newTargetKey, pitch: newPitch } : s));
-      setTargetKey(newTargetKey);
-      setPitch(newPitch);
-      showSuccess(`Stage Key set to ${newTargetKey}`);
-    } catch (err) {
-      showError("Failed to update key.");
-    }
-  }, [currentSong, user, setTargetKey, setPitch]);
+    handleLocalSongUpdate(currentSong.id, { targetKey: newTargetKey, pitch: newPitch });
+    await supabase.from('repertoire').update({ target_key: newTargetKey, pitch: newPitch }).eq('id', currentSong.id);
+    setTargetKey(newTargetKey);
+    setPitch(newPitch);
+    showSuccess(`Stage Key set to ${newTargetKey}`);
+  }, [currentSong, user, handleLocalSongUpdate, setTargetKey, setPitch]);
 
   const handlePullKey = useCallback(async () => {
     if (!currentSong || !currentSong.ug_chords_text) {
@@ -172,45 +131,24 @@ const SheetReaderMode: React.FC = () => {
       showError("Could not extract key.");
       return;
     }
-    try {
-      const { error } = await supabase
-        .from('repertoire')
-        .update({ original_key: extractedKey, target_key: extractedKey, pitch: 0, is_key_confirmed: true })
-        .eq('id', currentSong.id);
-      if (error) throw error;
+    handleLocalSongUpdate(currentSong.id, { originalKey: extractedKey, targetKey: extractedKey, pitch: 0, isKeyConfirmed: true });
+    await supabase.from('repertoire').update({ original_key: extractedKey, target_key: extractedKey, pitch: 0, is_key_confirmed: true }).eq('id', currentSong.id);
+    setTargetKey(extractedKey);
+    setPitch(0);
+    showSuccess(`Key set to ${extractedKey}`);
+  }, [currentSong, handleLocalSongUpdate, setTargetKey, setPitch]);
 
-      setAllSongs(prev => prev.map(s => s.id === currentSong.id ? { ...s, originalKey: extractedKey, targetKey: extractedKey, pitch: 0 } : s));
-      setTargetKey(extractedKey);
-      setPitch(0);
-      showSuccess(`Key set to ${extractedKey}`);
-    } catch (err) {
-      showError("Failed to pull key.");
-    }
-  }, [currentSong, setTargetKey, setPitch]);
-
-  // NEW: Handler to save reader preference
   const handleSaveReaderPreference = useCallback(async (pref: 'sharps' | 'flats') => {
     if (!currentSong || !user) return;
-    try {
-      const { error } = await supabase
-        .from('repertoire')
-        .update({ key_preference: pref })
-        .eq('id', currentSong.id);
-      if (error) throw error;
-      
-      // Update local state to reflect change immediately
-      setAllSongs(prev => prev.map(s => s.id === currentSong.id ? { ...s, key_preference: pref } : s));
-      showSuccess(`Preference saved: ${pref === 'sharps' ? 'Sharps' : 'Flats'}`);
-    } catch (err) {
-      showError("Failed to save preference.");
-    }
-  }, [currentSong, user]);
+    handleLocalSongUpdate(currentSong.id, { key_preference: pref });
+    await supabase.from('repertoire').update({ key_preference: pref }).eq('id', currentSong.id);
+    showSuccess(`Preference saved: ${pref === 'sharps' ? 'Sharps' : 'Flats'}`);
+  }, [currentSong, user, handleLocalSongUpdate]);
 
   useEffect(() => {
     setAudioPitch(pitch);
   }, [pitch, setAudioPitch]);
 
-  // Fetch functions remain unchanged
   const fetchSongs = useCallback(async () => {
     if (!user) return;
     setInitialLoading(true);
@@ -234,21 +172,19 @@ const SheetReaderMode: React.FC = () => {
         previewUrl: d.extraction_status === 'completed' && d.audio_url ? d.audio_url : d.preview_url,
         youtubeUrl: d.youtube_url,
         ugUrl: d.ug_url,
-        appleMusicUrl: d.apple_music_url,
         pdfUrl: d.pdf_url,
         leadsheetUrl: d.leadsheet_url,
         bpm: d.bpm,
         ug_chords_text: d.ug_chords_text,
         is_ug_chords_present: d.is_ug_chords_present,
-        is_ug_link_verified: d.is_ug_link_verified,
         is_pitch_linked: d.is_pitch_linked ?? true,
         sheet_music_url: d.sheet_music_url,
         is_sheet_verified: d.is_sheet_verified,
         highest_note_original: d.highest_note_original,
         extraction_status: d.extraction_status,
         last_sync_log: d.last_sync_log,
-        preferred_reader: d.preferred_reader, // Ensure this is mapped
-        key_preference: d.key_preference, // Ensure this is mapped
+        preferred_reader: d.preferred_reader,
+        key_preference: d.key_preference,
       }));
 
       const readableSongs = mappedSongs.filter(s => 
@@ -262,14 +198,6 @@ const SheetReaderMode: React.FC = () => {
       if (targetId) {
         const idx = readableSongs.findIndex(s => s.id === targetId);
         if (idx !== -1) initialIndex = idx;
-      } else {
-        const saved = localStorage.getItem('reader_last_index');
-        if (saved) {
-          const parsed = parseInt(saved, 10);
-          if (!isNaN(parsed) && parsed >= 0 && parsed < readableSongs.length) {
-            initialIndex = parsed;
-          }
-        }
       }
       setCurrentIndex(initialIndex);
     } catch (err: any) {
@@ -279,56 +207,22 @@ const SheetReaderMode: React.FC = () => {
     }
   }, [user, routeSongId, searchParams]);
 
-  const fetchAllSetlists = useCallback(async () => {
-    if (!user) return;
-    try {
-      const { data, error } = await supabase.from('setlists').select('*').order('updated_at', { ascending: false });
-      if (error) throw error;
-      setAllSetlists(data?.map(d => ({ id: d.id, name: d.name, songs: d.songs || [] })) || []);
-    } catch (err) {
-      showError("Failed to load setlists.");
-    }
-  }, [user]);
-
   useEffect(() => {
     const fromDashboard = sessionStorage.getItem('from_dashboard');
     if (!fromDashboard) {
       navigate('/', { replace: true });
       return;
     }
-    sessionStorage.removeItem('from_dashboard');
     fetchSongs();
-    fetchAllSetlists();
-  }, [fetchSongs, fetchAllSetlists, navigate]);
-
-  // OPTIMIZATION: Prioritize loading chords first, then load audio in background
-  useEffect(() => {
-    if (!currentSong) {
-      stopPlayback();
-      return;
-    }
-
-    // 2. Load audio in the background
-    if (currentSong.previewUrl && (currentUrl !== currentSong.previewUrl || !currentBuffer)) {
-      // Use setTimeout to defer audio loading slightly, allowing chords to render first
-      const audioLoadTimer = setTimeout(() => {
-        loadFromUrl(currentSong.previewUrl, pitch || 0, true);
-      }, 100); // 100ms delay for background loading
-      
-      return () => clearTimeout(audioLoadTimer);
-    } else if (!currentSong.previewUrl) {
-      stopPlayback();
-    } else {
-      setAudioProgress(0);
-    }
-  }, [currentSong, pitch, currentUrl, currentBuffer, loadFromUrl, stopPlayback, setAudioProgress]);
+  }, [fetchSongs, navigate]);
 
   useEffect(() => {
-    if (currentSong) {
-      setSearchParams({ id: currentSong.id }, { replace: true });
-      localStorage.setItem('reader_last_index', currentIndex.toString());
+    if (!currentSong) return;
+    if (currentUrl !== currentSong.previewUrl || !currentBuffer) {
+      const timer = setTimeout(() => loadFromUrl(currentSong.previewUrl, pitch || 0, true), 100);
+      return () => clearTimeout(timer);
     }
-  }, [currentSong, currentIndex, setSearchParams]);
+  }, [currentSong, pitch, currentUrl, currentBuffer, loadFromUrl]);
 
   const handleNext = useCallback(() => {
     if (allSongs.length === 0) return;
@@ -342,90 +236,27 @@ const SheetReaderMode: React.FC = () => {
     stopPlayback();
   }, [allSongs.length, stopPlayback]);
 
-  // NEW: Logic to determine the best chart type based on preference and availability
   const getBestChartType = useCallback((): ChartType => {
     if (!currentSong) return 'pdf';
-
-    const hasPdf = !!currentSong.pdfUrl;
-    const hasLeadsheet = !!currentSong.leadsheetUrl;
-    const hasChords = !!currentSong.ug_chords_text?.trim();
     const pref = currentSong.preferred_reader;
-
-    // 1. Respect the explicit preference if the resource exists
-    if (pref === 'ug' && hasChords) return 'chords';
-    if (pref === 'ls' && hasLeadsheet) return 'leadsheet';
-    if (pref === 'fn' && hasPdf) return 'pdf';
-
-    // 2. If preference is set but resource is missing, fall back to available resources
-    if (pref === 'ug' && !hasChords) {
-        if (hasPdf) return 'pdf';
-        if (hasLeadsheet) return 'leadsheet';
-    }
-    if (pref === 'ls' && !hasLeadsheet) {
-        if (hasPdf) return 'pdf';
-        if (hasChords) return 'chords';
-    }
-    if (pref === 'fn' && !hasPdf) {
-        if (hasLeadsheet) return 'leadsheet';
-        if (hasChords) return 'chords';
-    }
-
-    // 3. Default Fallback Logic (if no preference or all missing)
-    if (hasPdf) return 'pdf';
-    if (hasLeadsheet) return 'leadsheet';
-    if (hasChords) return 'chords';
-
-    return 'pdf'; // Absolute fallback
+    if (pref === 'ug' && currentSong.ug_chords_text?.trim()) return 'chords';
+    if (pref === 'ls' && currentSong.leadsheetUrl) return 'leadsheet';
+    if (pref === 'fn' && currentSong.pdfUrl) return 'pdf';
+    if (currentSong.pdfUrl) return 'pdf';
+    if (currentSong.leadsheetUrl) return 'leadsheet';
+    if (currentSong.ug_chords_text?.trim()) return 'chords';
+    return 'pdf';
   }, [currentSong]);
 
-  // Update selectedChartType when song changes to respect preference
   useEffect(() => {
     if (currentSong) {
       const bestType = getBestChartType();
-      if (selectedChartType !== bestType) {
-        setSelectedChartType(bestType);
-      }
+      if (selectedChartType !== bestType) setSelectedChartType(bestType);
     }
   }, [currentSong, getBestChartType]);
 
-  const availableChartTypes = useMemo((): ChartType[] => {
-    if (!currentSong) return [];
-    const types: ChartType[] = [];
-    if (currentSong.pdfUrl) types.push('pdf');
-    if (currentSong.leadsheetUrl) types.push('leadsheet');
-    if (currentSong.ug_chords_text?.trim()) types.push('chords');
-    return types;
-  }, [currentSong]);
-
-  const currentChartState = useMemo(() =>
-    renderedCharts.find(c => c.id === currentSong?.id && c.type === selectedChartType),
-    [renderedCharts, currentSong, selectedChartType]
-  );
-
-  const isOriginalKeyMissing = useMemo(() =>
-    !currentSong?.originalKey || currentSong.originalKey === 'TBC',
-    [currentSong]
-  );
-
-  const handleUpdateSetlistSongs = useCallback(async (
-    setlistId: string,
-    songToUpdate: SetlistSong,
-    action: 'add' | 'remove'
-  ) => {
-    console.log(`[SheetReaderMode] handleUpdateSetlistSongs called: setlistId=${setlistId}, action=${action}`, songToUpdate);
-    showInfo(`Simulated ${action} action for setlist update.`);
-  }, []);
-
-  const isFramable = useCallback((url?: string | null) => {
-    if (!url) return true;
-    const blocked = ['ultimate-guitar.com', 'musicnotes.com', 'sheetmusicplus.com'];
-    return !blocked.some(site => url.includes(site));
-  }, []);
-
-  // NEW: Callback to signal chart is ready
   const handleChartReady = useCallback(() => {
-    if (currentSong && selectedChartType === 'chords') {
-      console.log(`[SheetReaderMode] Chart Ready Callback Triggered for ${currentSong.name}`);
+    if (currentSong) {
       setRenderedCharts(prev => prev.map(rc =>
         rc.id === currentSong.id && rc.type === selectedChartType ? { ...rc, isLoaded: true } : rc
       ));
@@ -438,17 +269,8 @@ const SheetReaderMode: React.FC = () => {
     ));
   }, []);
 
-  const renderChartForSong = useCallback((
-    song: SetlistSong,
-    chartType: ChartType,
-    onChartLoad: (id: string, type: ChartType) => void
-  ): React.ReactNode => {
-    // DEBUG: Log render attempt
-    console.log(`[SheetReaderMode] renderChartForSong called. Song: ${song.name}, Type: ${chartType}`);
-    
-    // OPTIMIZATION: Chords are rendered immediately from memory if available
+  const renderChartForSong = useCallback((song: SetlistSong, chartType: ChartType): React.ReactNode => {
     if (chartType === 'chords' && song.ug_chords_text?.trim()) {
-      console.log(`[SheetReaderMode] Rendering UG Chords for ${song.name}`);
       return (
         <UGChordsReader
           key={`${song.id}-chords-${harmonicTargetKey}`}
@@ -461,188 +283,98 @@ const SheetReaderMode: React.FC = () => {
           progress={progress}
           duration={duration}
           readerKeyPreference={readerKeyPreference}
-          onChartReady={handleChartReady} // NEW: Pass callback
+          onChartReady={handleChartReady}
         />
       );
     }
 
     const url = chartType === 'pdf' ? song.pdfUrl : song.leadsheetUrl;
-    
-    // --- FIX START: Handle Missing PDF/Leadsheet by Fallback ---
     if (!url) {
-      // If we are trying to show PDF/Leadsheet but it's missing, 
-      // check if Chords exist and switch to them.
       if (song.ug_chords_text?.trim()) {
-        // We need to update the parent state to switch to 'chords'
-        // We do this by returning a special signal or handling it in the parent.
-        // To keep it simple, we will render the ChordsReader directly here 
-        // and trigger a state update in the parent to sync the UI dropdown.
-        console.log(`[SheetReaderMode] Fallback: ${chartType} missing, rendering Chords instead.`);
-        
-        // Trigger a state update to sync the dropdown (debounced to avoid loops)
         setTimeout(() => setSelectedChartType('chords'), 0);
-
-        return (
-          <UGChordsReader
-            key={`${song.id}-chords-fallback-${harmonicTargetKey}`}
-            chordsText={song.ug_chords_text}
-            config={song.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
-            isMobile={false}
-            originalKey={song.originalKey}
-            targetKey={harmonicTargetKey}
-            isPlaying={isPlaying}
-            progress={progress}
-            duration={duration}
-            readerKeyPreference={readerKeyPreference}
-            onChartReady={handleChartReady}
-          />
-        );
+        return null;
       }
-
-      // If absolutely nothing is available
       return (
-        <div className="h-full flex items-center justify-center bg-slate-950">
-          <div className="text-center">
-            <Music className="w-24 h-24 text-slate-600 mx-auto mb-8" />
-            <h3 className="text-2xl font-bold mb-4">No Chart Available</h3>
-            <p className="text-slate-500 mb-4">This song has no PDF, Leadsheet, or Chords linked.</p>
-            <Button onClick={() => setIsStudioPanelOpen(true)}>Open Studio to Link</Button>
-          </div>
+        <div className="h-full flex flex-col items-center justify-center bg-slate-950">
+          <Music className="w-16 h-16 text-slate-700 mb-4" />
+          <h3 className="text-xl font-bold">No Chart Asset Found</h3>
+          <Button onClick={() => setIsStudioPanelOpen(true)} className="mt-4">Open Studio</Button>
         </div>
       );
     }
-    // --- FIX END ---
 
-    // --- PDF/Leadsheet Rendering (Download Button) ---
-    // We keep the download button logic for valid URLs to avoid CORS issues
     return (
-      <div className="h-full w-full flex flex-col items-center justify-center bg-slate-950 p-8 text-center animate-in fade-in duration-500">
-        <div className="bg-indigo-600/10 p-8 rounded-full border border-indigo-500/20 mb-8">
-          <FileText className="w-12 h-12 text-indigo-400" />
-        </div>
-        <h3 className="text-3xl font-black uppercase tracking-tight mb-2">PDF Ready</h3>
-        <p className="text-slate-400 mb-8 max-w-md">
-          Click the button below to download the file for viewing in your native PDF app.
-        </p>
+      <div className="h-full w-full flex flex-col items-center justify-center bg-slate-950 p-8 text-center">
+        <FileText className="w-12 h-12 text-indigo-400 mb-6" />
+        <h3 className="text-2xl font-black uppercase mb-4">PDF Matrix Ready</h3>
         <a 
           href={url} 
-          download={`${song.name.replace(/[^a-z0-9]/gi, '_')}_${chartType}.pdf`}
-          className="inline-flex items-center gap-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest px-8 py-4 rounded-2xl shadow-2xl shadow-indigo-600/30 transition-all hover:scale-105 active:scale-95"
+          download={`${song.name}_${chartType}.pdf`}
+          className="inline-flex items-center gap-3 bg-indigo-600 px-8 py-4 rounded-xl font-black uppercase text-xs shadow-2xl"
           onClick={() => {
-            showSuccess("Download started...");
-            onChartLoad(song.id, chartType);
+            showSuccess("Download started");
+            handleChartLoad(song.id, chartType);
           }}
         >
-          <Download className="w-5 h-5" /> Download {chartType === 'pdf' ? 'Score' : 'Leadsheet'}
+          <Download className="w-4 h-4" /> Download Chart
         </a>
       </div>
     );
-  }, [isFramable, harmonicTargetKey, isPlaying, progress, duration, readerKeyPreference, handleChartReady, setSelectedChartType]);
+  }, [harmonicTargetKey, isPlaying, progress, duration, readerKeyPreference, handleChartReady, handleChartLoad]);
 
-  // Update rendered charts when song or type changes
   useEffect(() => {
     if (!currentSong) {
       setRenderedCharts([]);
       return;
     }
 
-    console.log(`[SheetReaderMode] useEffect: Updating rendered charts. Song: ${currentSong.name}, Type: ${selectedChartType}`);
-
     setRenderedCharts(prev => {
       const existing = prev.find(c => c.id === currentSong.id && c.type === selectedChartType);
       if (existing) {
-        console.log(`[SheetReaderMode] Chart already exists, updating opacity/z-index`);
-        return prev.map(c => c.id === currentSong.id && c.type === selectedChartType ? { ...c, opacity: 1, zIndex: 10 } : c);
+        return prev.map(c => c.id === currentSong.id && c.type === selectedChartType ? { ...c, opacity: 1, zIndex: 10 } : { ...c, opacity: 0, zIndex: 0 });
       }
-      console.log(`[SheetReaderMode] Creating new chart entry`);
       return [{
         id: currentSong.id,
-        content: renderChartForSong(currentSong, selectedChartType, handleChartLoad),
-        isLoaded: false, 
+        content: renderChartForSong(currentSong, selectedChartType),
+        isLoaded: false,
         opacity: 1,
         zIndex: 10,
         type: selectedChartType,
       }];
     });
-  }, [currentSong, selectedChartType, renderChartForSong, handleChartLoad]);
+  }, [currentSong, selectedChartType, renderChartForSong]);
 
-  const isChartLoading = currentChartState && !currentChartState.isLoaded;
+  const isChartLoading = renderedCharts.find(c => c.id === currentSong?.id && c.type === selectedChartType && !c.isLoaded);
 
-  // Timeout fallback for slow-loading charts
-  useEffect(() => {
-    if (isChartLoading && currentSong) {
-      console.log(`[SheetReaderMode] Chart loading timeout started for ${currentSong.name}`);
-      const timer = setTimeout(() => {
-        console.log(`[SheetReaderMode] Chart loading timeout expired for ${currentSong.name}`);
-        setRenderedCharts(prev => prev.map(rc =>
-          rc.id === currentSong.id && rc.type === selectedChartType ? { ...rc, isLoaded: true } : rc
-        ));
-        showInfo("Chart took too long to load. If blank, use 'Open Externally'.", { duration: 8000 });
-      }, CHART_LOAD_TIMEOUT_MS);
-      return () => clearTimeout(timer);
-    }
-  }, [isChartLoading, currentSong, selectedChartType]);
-
-  // ==================== KEYBOARD SHORTCUTS ====================
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || (e.target as HTMLElement).isContentEditable) {
-        return;
-      }
-
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (e.key.toLowerCase() === 'i' && currentSong) {
         e.preventDefault();
-        setIsStudioPanelOpen(prev => !prev); // Toggle panel
+        setIsStudioPanelOpen(prev => !prev);
       }
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentSong]);
 
-  const handleSelectSongByIndex = useCallback((index: number) => {
-    if (index >= 0 && index < allSongs.length) {
-      setCurrentIndex(index);
-      stopPlayback();
-    }
-  }, [allSongs.length, stopPlayback]);
-
-  if (initialLoading) {
-    return (
-      <div className="h-screen bg-slate-950 flex items-center justify-center">
-        <Loader2 className="w-16 h-16 animate-spin text-indigo-500" />
-      </div>
-    );
-  }
-
-  const headerLeftOffset = isSidebarOpen ? 300 : 0;
+  if (initialLoading) return <div className="h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-white relative">
-
-      {/* Left Sidebar */}
       <motion.div
         initial={{ x: isSidebarOpen ? 0 : -300 }}
         animate={{ x: isSidebarOpen ? 0 : -300 }}
-        transition={{ duration: 0.3 }}
         className="fixed left-0 top-0 h-full w-[300px] z-50"
       >
-        <SheetReaderSidebar
-          songs={allSongs}
-          currentIndex={currentIndex}
-          onSelectSong={handleSelectSongByIndex}
-        />
+        <SheetReaderSidebar songs={allSongs} currentIndex={currentIndex} onSelectSong={(idx) => { setCurrentIndex(idx); stopPlayback(); }} />
       </motion.div>
 
-      {/* Main Content */}
       <main className={cn("flex-1 flex flex-col overflow-hidden transition-all duration-300", isSidebarOpen && "ml-[300px]")}>
         <SheetReaderHeader
           currentSong={currentSong}
           onClose={() => navigate('/')}
-          onSearchClick={() => {
-            setIsStudioPanelOpen(true);
-            setSearchParams({ id: 'new', tab: 'library' }, { replace: true });
-          }}
+          onSearchClick={() => setIsStudioPanelOpen(true)}
           onPrevSong={handlePrev}
           onNextSong={handleNext}
           isLoading={!currentSong}
@@ -659,76 +391,17 @@ const SheetReaderMode: React.FC = () => {
           onPullKey={handlePullKey}
           isSidebarOpen={isSidebarOpen}
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-          headerLeftOffset={headerLeftOffset}
-          onSavePreference={handleSaveReaderPreference} // Pass new handler
+          headerLeftOffset={isSidebarOpen ? 300 : 0}
+          onSavePreference={handleSaveReaderPreference}
         />
 
-        {/* Warning Banner */}
-        {isOriginalKeyMissing && (
-          <div className="fixed top-16 left-0 right-0 bg-red-950/30 border-b border-red-900/50 p-3 flex items-center justify-center gap-3 shrink-0 z-50 h-10" style={{ left: `${headerLeftOffset}px` }}>
-            <AlertCircle className="w-4 h-4 text-red-400" />
-            <p className="text-xs font-bold uppercase tracking-widest text-red-400">
-              CRITICAL: Original Key missing. Transposition is currently relative to 'C'. Use the Studio (I) to set it.
-            </p>
-          </div>
-        )}
-
-        <div className={cn(
-          "flex-1 bg-black overflow-hidden relative", 
-          isImmersive ? "mt-0" : isOriginalKeyMissing ? "mt-[104px]" : "mt-16"
-        )}>
+        <div className={cn("flex-1 bg-black relative", isImmersive ? "mt-0" : isOriginalKeyMissing ? "mt-[104px]" : "mt-16")}>
           {renderedCharts.map(rc => (
-            <motion.div
-              key={`${rc.id}-${rc.type}`}
-              className="absolute inset-0"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: rc.opacity }}
-              transition={{ duration: 0.3 }}
-              style={{ zIndex: rc.zIndex }}
-            >
+            <motion.div key={`${rc.id}-${rc.type}`} className="absolute inset-0" animate={{ opacity: rc.opacity }} style={{ zIndex: rc.zIndex }}>
               {rc.content}
             </motion.div>
           ))}
-
-          {isChartLoading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm z-20">
-              <Loader2 className="w-16 h-16 animate-spin text-indigo-500" />
-            </div>
-          )}
-
-          {currentSong && availableChartTypes.length > 1 && !isImmersive && (
-            <div className="absolute top-4 right-4 z-30">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button className="bg-slate-900/80 backdrop-blur border border-white/10 text-white hover:bg-slate-800 shadow-2xl h-12 px-4 gap-2">
-                    {selectedChartType === 'pdf' && <Layout className="w-4 h-4" />}
-                    {selectedChartType === 'leadsheet' && <FileText className="w-4 h-4" />}
-                    {selectedChartType === 'chords' && <Guitar className="w-4 h-4" />}
-                    <span className="font-bold uppercase text-xs tracking-widest">
-                      {selectedChartType === 'pdf' ? 'Full Score' : selectedChartType === 'leadsheet' ? 'Leadsheet' : 'Chords'}
-                    </span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-slate-900 border-white/10 text-white min-w-[180px]">
-                  {availableChartTypes.includes('pdf') && (
-                    <DropdownMenuItem onClick={() => setSelectedChartType('pdf')} className="cursor-pointer font-bold">
-                      <Layout className="w-4 h-4 mr-2" /> Full Score
-                    </DropdownMenuItem>
-                  )}
-                  {availableChartTypes.includes('leadsheet') && (
-                    <DropdownMenuItem onClick={() => setSelectedChartType('leadsheet')} className="cursor-pointer font-bold">
-                      <FileText className="w-4 h-4 mr-2" /> Leadsheet
-                    </DropdownMenuItem>
-                  )}
-                  {availableChartTypes.includes('chords') && (
-                    <DropdownMenuItem onClick={() => setSelectedChartType('chords')} className="cursor-pointer font-bold">
-                      <Guitar className="w-4 h-4 mr-2" /> Chords
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          )}
+          {isChartLoading && <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 z-20"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>}
         </div>
 
         {!isImmersive && currentSong && (
@@ -750,25 +423,17 @@ const SheetReaderMode: React.FC = () => {
         )}
       </main>
 
-      {/* Collapsible Studio Panel - Right Side */}
       <AnimatePresence>
         {isStudioPanelOpen && (
           <motion.div
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
             className="fixed right-0 top-0 h-full w-[480px] bg-slate-900 shadow-2xl z-50 flex flex-col"
           >
             <div className="h-16 flex items-center justify-between px-6 border-b border-slate-800">
               <h2 className="text-xl font-bold">Song Studio</h2>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsStudioPanelOpen(false)}
-              >
-                <X className="w-5 h-5" />
-              </Button>
+              <Button variant="ghost" size="icon" onClick={() => setIsStudioPanelOpen(false)}><X className="w-5 h-5" /></Button>
             </div>
             <div className="flex-1 overflow-hidden">
               {currentSong && (
@@ -777,9 +442,8 @@ const SheetReaderMode: React.FC = () => {
                   onClose={() => setIsStudioPanelOpen(false)}
                   gigId="library"
                   songId={currentSong.id}
-                  allSetlists={allSetlists}
                   masterRepertoire={allSongs}
-                  onUpdateSetlistSongs={handleUpdateSetlistSongs}
+                  handleAutoSave={(updates) => handleLocalSongUpdate(currentSong.id, updates)}
                 />
               )}
             </div>
@@ -787,11 +451,10 @@ const SheetReaderMode: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* Toggle Button for Studio Panel */}
       <Button
         variant="outline"
         size="icon"
-        className="fixed right-4 top-1/2 -translate-y-1/2 z-40 bg-slate-800 border-slate-700 hover:bg-slate-700 rounded-full w-12 h-12 shadow-xl"
+        className="fixed right-4 top-1/2 -translate-y-1/2 z-40 bg-slate-800 border-slate-700 rounded-full w-12 h-12 shadow-xl"
         onClick={() => setIsStudioPanelOpen(!isStudioPanelOpen)}
       >
         {isStudioPanelOpen ? <ChevronRight className="w-6 h-6" /> : <ChevronLeft className="w-6 h-6" />}
