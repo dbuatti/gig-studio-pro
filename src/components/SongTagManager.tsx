@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Plus, Tag, X } from 'lucide-react';
 import { SetlistSong } from './SetlistManager';
+import { showSuccess } from '@/utils/toast'; // Import showSuccess
 
 interface SongTagManagerProps {
   formData: Partial<SetlistSong>;
@@ -19,16 +20,19 @@ const SongTagManager: React.FC<SongTagManagerProps> = ({ formData, handleAutoSav
   const addTag = () => {
     if (!newTag.trim()) return;
     const currentTags = formData.user_tags || [];
-    if (!currentTags.includes(newTag.trim())) {
-      const updated = [...currentTags, newTag.trim()];
+    const tagToAdd = newTag.trim();
+    if (!currentTags.includes(tagToAdd)) {
+      const updated = [...currentTags, tagToAdd];
       handleAutoSave({ user_tags: updated });
+      showSuccess(`Tag '${tagToAdd}' added!`); // Success toast
     }
-    setNewTag("");
+    setNewTag(""); // Clear input after adding
   };
 
   const removeTag = (tag: string) => {
     const updated = (formData.user_tags || []).filter(t => t !== tag);
     handleAutoSave({ user_tags: updated });
+    showSuccess(`Tag '${tag}' removed.`); // Success toast
   };
 
   return (

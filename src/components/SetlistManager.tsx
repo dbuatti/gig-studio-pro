@@ -152,6 +152,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     [newSongs[index], newSongs[targetIndex]] = [newSongs[targetIndex], newSongs[index]];
     onReorder(newSongs);
+    showSuccess("Setlist reordered!"); // Success toast for reordering
   };
 
   const isReorderingEnabled = sortMode === 'none' && !searchTerm;
