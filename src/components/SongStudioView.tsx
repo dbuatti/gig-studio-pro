@@ -156,9 +156,14 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     try {
       let targetSong: SetlistSong | undefined;
       if (gigId === 'library') {
+        console.log(`[SongStudioView] fetchData: Querying 'repertoire' for ID: ${songId}`);
         const { data, error } = await supabase.from('repertoire').select('*').eq('id', songId).maybeSingle();
-        if (error) throw error;
+        if (error) {
+          console.error("[SongStudioView] fetchData: Supabase 'repertoire' query error:", error);
+          throw error;
+        }
         if (data) {
+          console.log("[SongStudioView] fetchData: 'repertoire' data found:", data);
           targetSong = {
             id: data.id,
             master_id: data.id,
@@ -193,14 +198,34 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
             extraction_status: data.extraction_status, // Include new status
             last_sync_log: data.last_sync_log // Include new log
           } as SetlistSong;
+        } else {
+          console.log("[SongStudioView] fetchData: No 'repertoire' data found for ID:", songId);
         }
       } else {
+        console.log(`[SongStudioView] fetchData: Querying 'setlists' for ID: ${gigId}`);
         const { data, error } = await supabase.from('setlists').select('songs').eq('id', gigId).maybeSingle();
-        if (error) throw error;
-        targetSong = (data?.songs as SetlistSong[])?.find(s => s.id === songId);
+        if (error) {
+          console.error("[SongStudioView] fetchData: Supabase 'setlists' query error:", error);
+          throw error;
+        }
+        if (data) {
+          const setlistSongs = (data.songs as SetlistSong[]) || [];
+          console.log("[SongStudioView] fetchData: Setlist songs found:", setlistSongs);
+          targetSong = setlistSongs.find(s => s.id === songId);
+          if (!targetSong) {
+            console.log("[SongStudioView] fetchData: Song not found in setlist for ID:", songId);
+          } else {
+            console.log("[SongStudioView] fetchData: Song found in setlist:", targetSong);
+          }
+        } else {
+          console.log("[SongStudioView] fetchData: No setlist data found for ID:", gigId);
+        }
       }
       
-      if (!targetSong) throw new Error("Track not found in current context.");
+      if (!targetSong) {
+        console.error("[SongStudioView] fetchData: Final check - targetSong is undefined.");
+        throw new Error("Track not found in current context.");
+      }
       setSong(targetSong);
       setFormData(targetSong);
       
