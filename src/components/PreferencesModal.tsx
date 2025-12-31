@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
-import { Settings2, Hash, Music2, LogOut, ShieldCheck, Zap, Globe, User, Youtube, Key, ShieldAlert, Bug, FileText, Monitor, Sun, Moon, Loader2 } from 'lucide-react';
+import { Settings2, Hash, Music2, LogOut, ShieldCheck, Zap, Globe, User, Youtube, Key, ShieldAlert, Bug, FileText, Monitor, Sun, Moon, Loader2, Target, Type, Link as LinkIcon, Music } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { cn } from "@/lib/utils";
 import { useNavigate } from 'react-router-dom';
@@ -29,6 +29,11 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
     keyPreference, setKeyPreference, 
     safePitchMaxNote, setSafePitchMaxNote, 
     isSafePitchEnabled, setIsSafePitchEnabled,
+    isGoalTrackerEnabled, setIsGoalTrackerEnabled,
+    goalLyricsCount, setGoalLyricsCount,
+    goalUgChordsCount, setGoalUgChordsCount,
+    goalUgLinksCount, setGoalUgLinksCount,
+    goalHighestNoteCount, setGoalHighestNoteCount,
     isFetchingSettings 
   } = useSettings();
   const { user, signOut } = useAuth();
@@ -101,6 +106,80 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
         </DialogHeader>
 
         <div className="py-6 space-y-6 overflow-y-auto max-h-[60vh] custom-scrollbar px-1">
+          {/* Goal Tracker Section */}
+          <div className="space-y-4">
+            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Achievement Engine</h4>
+            <div className="p-4 bg-card rounded-2xl border border-border space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-100 dark:bg-indigo-600/10 rounded-lg">
+                    <Target className="w-4 h-4 text-indigo-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-foreground">Goal Tracker</p>
+                    <p className="text-[9px] text-muted-foreground uppercase font-black">Monitor repertoire progress</p>
+                  </div>
+                </div>
+                <Switch 
+                  checked={isGoalTrackerEnabled} 
+                  onCheckedChange={setIsGoalTrackerEnabled}
+                  className="data-[state=checked]:bg-indigo-600"
+                />
+              </div>
+
+              {isGoalTrackerEnabled && (
+                <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-[9px] font-black uppercase text-muted-foreground flex items-center gap-1.5">
+                        <Type className="w-3 h-3" /> Lyrics Goal
+                      </Label>
+                      <Input 
+                        type="number" 
+                        value={goalLyricsCount} 
+                        onChange={(e) => setGoalLyricsCount(parseInt(e.target.value) || 0)}
+                        className="h-9 text-xs bg-secondary border-border"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[9px] font-black uppercase text-muted-foreground flex items-center gap-1.5">
+                        <Music2 className="w-3 h-3" /> Chords Goal
+                      </Label>
+                      <Input 
+                        type="number" 
+                        value={goalUgChordsCount} 
+                        onChange={(e) => setGoalUgChordsCount(parseInt(e.target.value) || 0)}
+                        className="h-9 text-xs bg-secondary border-border"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[9px] font-black uppercase text-muted-foreground flex items-center gap-1.5">
+                        <LinkIcon className="w-3 h-3" /> UG Links Goal
+                      </Label>
+                      <Input 
+                        type="number" 
+                        value={goalUgLinksCount} 
+                        onChange={(e) => setGoalUgLinksCount(parseInt(e.target.value) || 0)}
+                        className="h-9 text-xs bg-secondary border-border"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[9px] font-black uppercase text-muted-foreground flex items-center gap-1.5">
+                        <Music className="w-3 h-3" /> High Note Goal
+                      </Label>
+                      <Input 
+                        type="number" 
+                        value={goalHighestNoteCount} 
+                        onChange={(e) => setGoalHighestNoteCount(parseInt(e.target.value) || 0)}
+                        className="h-9 text-xs bg-secondary border-border"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="space-y-4">
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Integrations</h4>
             <div className="p-4 bg-card rounded-2xl border border-border space-y-3">

@@ -43,12 +43,13 @@ import RepertoireView from '@/components/RepertoireView';
 import KeyManagementModal from '@/components/KeyManagementModal';
 import PerformanceOverlay from '@/components/PerformanceOverlay';
 import AudioTransposer, { AudioTransposerRef } from '@/components/AudioTransposer';
+import GoalTracker from '@/components/GoalTracker';
 
 const Index = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const isMobile = useIsMobile();
-  const { keyPreference: globalKeyPreference, safePitchMaxNote, isSafePitchEnabled, isFetchingSettings } = useSettings();
+  const { keyPreference: globalKeyPreference, safePitchMaxNote, isSafePitchEnabled, isFetchingSettings, isGoalTrackerEnabled } = useSettings();
   const audio = useToneAudio();
 
   const [allSetlists, setAllSetlists] = useState<Setlist[]>([]);
@@ -94,6 +95,8 @@ const Index = () => {
   const [floatingDockMenuOpen, setFloatingDockMenuOpen] = useState(false);
 
   const userId = user?.id;
+
+  const onOpenAdmin = () => setIsAdminPanelOpen(true);
 
   const missingAudioCount = useMemo(() => {
     return masterRepertoire.filter(s => {
@@ -718,6 +721,8 @@ const Index = () => {
           </div>
         </div>
 
+        {isGoalTrackerEnabled && <GoalTracker repertoire={masterRepertoire} />}
+
         {activeDashboardView === 'gigs' && activeSongForPerformance && (
           <ActiveSongBanner song={activeSongForPerformance} isPlaying={audio.isPlaying} onTogglePlayback={audio.togglePlayback} onClear={() => { setActiveSongForPerformance(null); audio.stopPlayback(); }} isLoadingAudio={audio.isLoadingAudio} />
         )}
@@ -761,14 +766,14 @@ const Index = () => {
               onClearAutoLinks={handleBulkClearAutoLinks}
               isBulkDownloading={isRepertoireAutoLinking || isRepertoireGlobalAutoSyncing || isRepertoireBulkQueuingAudio}
               missingAudioCount={missingAudioCount}
-              onOpenAdmin={() => setIsAdminPanelOpen(true)}
+              onOpenAdmin={onOpenAdmin}
               onDeleteSong={handleDeleteMasterSong}
             />
           </TabsContent>
         </Tabs>
       </div>
 
-      <FloatingCommandDock onOpenSearch={() => setIsAudioTransposerModalOpen(true)} onOpenPractice={() => {}} onOpenReader={handleOpenReader} onOpenAdmin={() => setIsAdminPanelOpen(true)} onOpenPreferences={() => setIsPreferencesOpen(true)} onToggleHeatmap={() => setShowHeatmap(prev => !prev)} onOpenUserGuide={() => setIsUserGuideOpen(true)} showHeatmap={showHeatmap} viewMode={activeDashboardView} hasPlayableSong={hasPlayableSong} hasReadableChart={hasReadableChart} isPlaying={audio.isPlaying} onTogglePlayback={audio.togglePlayback} currentSongHighestNote={activeSongForPerformance?.highest_note_original || undefined} currentSongPitch={activeSongForPerformance?.pitch} onSafePitchToggle={handleSafePitchToggle} activeSongId={activeSongForPerformance?.id} onSetMenuOpen={setFloatingDockMenuOpen} isMenuOpen={floatingDockMenuOpen} onOpenPerformance={handleOpenPerformanceOverlay} />
+      <FloatingCommandDock onOpenSearch={() => setIsAudioTransposerModalOpen(true)} onOpenPractice={() => {}} onOpenReader={handleOpenReader} onOpenAdmin={onOpenAdmin} onOpenPreferences={() => setIsPreferencesOpen(true)} onToggleHeatmap={() => setShowHeatmap(prev => !prev)} onOpenUserGuide={() => setIsUserGuideOpen(true)} showHeatmap={showHeatmap} viewMode={activeDashboardView} hasPlayableSong={hasPlayableSong} hasReadableChart={hasReadableChart} isPlaying={audio.isPlaying} onTogglePlayback={audio.togglePlayback} currentSongHighestNote={activeSongForPerformance?.highest_note_original || undefined} currentSongPitch={activeSongForPerformance?.pitch} onSafePitchToggle={handleSafePitchToggle} activeSongId={activeSongForPerformance?.id} onSetMenuOpen={setFloatingDockMenuOpen} isMenuOpen={floatingDockMenuOpen} onOpenPerformance={handleOpenPerformanceOverlay} />
 
       <AlertDialog open={isCreatingSetlist} onOpenChange={setIsCreatingSetlist}>
         <AlertDialogContent className="bg-slate-900 border-white/10 text-white rounded-[2rem]">
