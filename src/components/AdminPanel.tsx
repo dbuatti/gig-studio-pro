@@ -388,6 +388,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
     }
   };
 
+  const handleGithubSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleGithubUpload();
+  };
+
   const handleGithubUpload = async () => {
     if (!githubToken || !githubRepo || !githubFile || !clipboardContent) {
       showError("Please fill in all GitHub fields and provide content.");
@@ -616,27 +621,29 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
                             <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Update Repository Assets</p>
                           </div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div className="space-y-1.5">
-                            <label className="text-[9px] font-black uppercase text-slate-500">Repository</label>
-                            <input type="text" value={githubRepo} onChange={(e) => startTransition(() => setGithubRepo(e.target.value))} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-white outline-none focus:border-indigo-500/50"/>
+                        <form onSubmit={handleGithubSubmit} className="space-y-6">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="space-y-1.5">
+                              <label className="text-[9px] font-black uppercase text-slate-500">Repository</label>
+                              <input type="text" value={githubRepo} onChange={(e) => startTransition(() => setGithubRepo(e.target.value))} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-white outline-none focus:border-indigo-500/50"/>
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-[9px] font-black uppercase text-slate-500">File Path</label>
+                              <input type="text" value={githubFile} onChange={(e) => startTransition(() => setGithubFile(e.target.value))} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-white outline-none focus:border-indigo-500/50"/>
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-[9px] font-black uppercase text-slate-500">Auth Token</label>
+                              <input type="password" value={githubToken} onChange={(e) => startTransition(() => setGithubToken(e.target.value))} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-white outline-none focus:border-indigo-500/50" autoComplete="current-password"/>
+                            </div>
                           </div>
-                          <div className="space-y-1.5">
-                            <label className="text-[9px] font-black uppercase text-slate-500">File Path</label>
-                            <input type="text" value={githubFile} onChange={(e) => startTransition(() => setGithubFile(e.target.value))} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-white outline-none focus:border-indigo-500/50"/>
+                          <div className="space-y-3">
+                            <Textarea value={clipboardContent} onChange={(e) => startTransition(() => setClipboardContent(e.target.value))} placeholder="Paste cookie string or asset content here..." className="min-h-[150px] bg-slate-900 border-white/10 font-mono text-[10px] rounded-2xl text-white resize-none"/>
+                            <Button type="submit" disabled={isGithubUploading || !clipboardContent || isPending} className="w-full bg-indigo-600 hover:bg-indigo-700 h-12 rounded-xl font-black uppercase tracking-widest text-xs gap-3">
+                              {isGithubUploading || isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />} 
+                              {isGithubUploading || isPending ? 'PUSHING...' : 'PUSH TO REPOSITORY'}
+                            </Button>
                           </div>
-                          <div className="space-y-1.5">
-                            <label className="text-[9px] font-black uppercase text-slate-500">Auth Token</label>
-                            <input type="password" value={githubToken} onChange={(e) => startTransition(() => setGithubToken(e.target.value))} className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-white outline-none focus:border-indigo-500/50"/>
-                          </div>
-                        </div>
-                        <div className="space-y-3">
-                          <Textarea value={clipboardContent} onChange={(e) => startTransition(() => setClipboardContent(e.target.value))} placeholder="Paste cookie string or asset content here..." className="min-h-[150px] bg-slate-900 border-white/10 font-mono text-[10px] rounded-2xl text-white resize-none"/>
-                          <Button onClick={handleGithubUpload} disabled={isGithubUploading || !clipboardContent || isPending} className="w-full bg-indigo-600 hover:bg-indigo-700 h-12 rounded-xl font-black uppercase tracking-widest text-xs gap-3">
-                            {isGithubUploading || isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />} 
-                            {isGithubUploading || isPending ? 'PUSHING...' : 'PUSH TO REPOSITORY'}
-                          </Button>
-                        </div>
+                        </form>
                       </div>
 
                       <div className="bg-white/5 border border-white/10 rounded-3xl md:rounded-[2.5rem] p-6 md:p-8">
