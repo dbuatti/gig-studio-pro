@@ -83,8 +83,8 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
         is_active: song.is_active ?? true, // Default to true if undefined/null
       };
 
-      // Handle optional fields, ensuring non-null defaults for NOT NULL columns
-      // Also explicitly set nullable fields to null if undefined, to ensure consistency on updates.
+      // Explicitly map SetlistSong properties to repertoire table columns
+      // and ensure nullable fields are explicitly null if undefined.
       payload.original_key = song.originalKey ?? null;
       payload.target_key = song.targetKey ?? null;
       payload.pitch = song.pitch ?? 0; // Default to 0 if undefined/null
