@@ -95,8 +95,8 @@ def process_queued_song(song):
                 
                 log(f"Upload complete. Updating Supabase record for '{title}' with public URL: {public_url}")
                 supabase.table("repertoire").update({
-                    "preview_url": public_url, # Changed from audio_url to preview_url
-                    "extraction_status": "COMPLETED", # Changed to COMPLETED
+                    "audio_url": public_url, # Changed from preview_url to audio_url
+                    "extraction_status": "COMPLETED",
                     "extraction_error": None,
                     "last_extracted_at": time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
                     "last_sync_log": "Audio extraction and upload completed successfully."
@@ -113,7 +113,7 @@ def process_queued_song(song):
             # Use a simpler update in case columns are still jittery
             try:
                 supabase.table("repertoire").update({
-                    "extraction_status": "FAILED", # Changed to FAILED
+                    "extraction_status": "FAILED",
                     "extraction_error": error_msg[:200], # Truncate long errors
                     "last_sync_log": f"Extraction failed: {error_msg[:100]}" # Add to last_sync_log
                 }).eq("id", song_id).execute()

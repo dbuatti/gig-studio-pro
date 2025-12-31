@@ -25,10 +25,8 @@ const cleanMetadata = (val: string | undefined | null) => {
 export const calculateReadiness = (song: Partial<SetlistSong>): number => {
   let assetScore = 0;
   
-  // 1. Audio Assets (Max 25)
-  const preview = song.previewUrl || "";
-  const isItunes = preview.includes('apple.com') || preview.includes('itunes-assets') || preview.includes('mzstatic.com');
-  if (preview && !isItunes) assetScore += 25;
+  // 1. Audio Assets (Max 25) - Now checks for audio_url
+  if (song.audio_url && song.extraction_status === 'completed') assetScore += 25;
 
   // 2. Chords & Lyrics (Max 20)
   const hasLyrics = (song.lyrics || "").length > 20;
@@ -119,6 +117,7 @@ export const syncToMasterRepertoire = async (userId: string, songs: SetlistSong 
       payload.sheet_music_url = song.sheet_music_url !== undefined ? String(song.sheet_music_url) : null;
       payload.is_sheet_verified = Boolean(song.is_sheet_verified ?? false);
       payload.extraction_error = song.extraction_error !== undefined ? String(song.extraction_error) : null; // Explicitly handle extraction_error
+      payload.audio_url = song.audio_url !== undefined ? String(song.audio_url) : null; // ADDED THIS LINE
       
       if (isValidUuid(song.master_id)) {
         payload.id = song.master_id;

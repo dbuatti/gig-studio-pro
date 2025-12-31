@@ -67,10 +67,8 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
   const formatTime = (seconds: number) => 
     new Date(seconds * 1000).toISOString().substr(14, 5);
 
-  const isItunesPreview = useMemo(() => 
-    formData.previewUrl?.includes('apple.com') || formData.previewUrl?.includes('itunes-assets'),
-    [formData.previewUrl]
-  );
+  // Determine which URL to use for playback
+  const audioSourceUrl = formData.extraction_status === 'completed' && formData.audio_url ? formData.audio_url : formData.previewUrl;
 
   const handleAutoSave = (updates: Partial<SetlistSong>) => {
     // This component's handleAutoSave should call the onSave prop
@@ -80,8 +78,8 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
 
   // --- Handlers ---
   const handleLoadAudio = async () => {
-    if (!formData.previewUrl) return showError("No audio URL available.");
-    await onLoadAudioFromUrl(formData.previewUrl, pitch || 0); // Use pitch from useHarmonicSync
+    if (!audioSourceUrl) return showError("No audio URL available.");
+    await onLoadAudioFromUrl(audioSourceUrl, pitch || 0); // Use pitch from useHarmonicSync
   };
 
   const handleDetectBPM = async () => {
@@ -136,7 +134,7 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
           <AudioVisualizer analyzer={analyzer} isActive={isPlaying} />
         </div>
 
-        {formData.previewUrl ? (
+        {audioSourceUrl ? (
           <div className="space-y-8">
             <div className="space-y-4">
               <div className="flex justify-between text-[10px] md:text-xs font-mono font-black text-slate-500 uppercase tracking-widest">
@@ -165,7 +163,7 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
             <p className="text-sm text-slate-500 max-w-sm px-4">
               Upload a master file or load the iTunes preview to start transposing.
             </p>
-            {isItunesPreview && (
+            {formData.previewUrl && ( // Only show button if iTunes preview is available
               <Button onClick={handleLoadAudio} className="bg-indigo-600 font-black uppercase text-[10px] h-10 px-6 rounded-xl gap-2">
                 <Play className="w-3.5 h-3.5" /> Load iTunes Preview
               </Button>

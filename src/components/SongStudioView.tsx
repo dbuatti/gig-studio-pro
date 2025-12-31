@@ -169,7 +169,8 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
             master_id: data.id,
             name: data.title,
             artist: data.artist,
-            previewUrl: data.preview_url,
+            // Use audio_url if extraction is completed, otherwise fallback to preview_url
+            previewUrl: data.extraction_status === 'completed' && data.audio_url ? data.audio_url : data.preview_url,
             youtubeUrl: data.youtube_url,
             originalKey: data.original_key,
             targetKey: data.target_key,
@@ -196,7 +197,9 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
             ugUrl: data.ug_url,
             highest_note_original: data.highest_note_original,
             extraction_status: data.extraction_status, // Include new status
-            last_sync_log: data.last_sync_log // Include new log
+            extraction_error: data.extraction_error,
+            last_sync_log: data.last_sync_log, // Include new log
+            audio_url: data.audio_url, // Map audio_url
           } as SetlistSong;
         } else {
           console.log("[SongStudioView] fetchData: No 'repertoire' data found for ID:", songId);
@@ -236,9 +239,10 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
       setSong(targetSong);
       setFormData(targetSong);
       
-      if (targetSong.previewUrl) {
-        console.log("[SongStudioView] fetchData: Loading audio from URL:", targetSong.previewUrl);
-        await audio.loadFromUrl(targetSong.previewUrl, targetSong.pitch ?? 0, true);
+      if (targetSong.audio_url || targetSong.previewUrl) {
+        const urlToLoad = targetSong.audio_url || targetSong.previewUrl;
+        console.log("[SongStudioView] fetchData: Loading audio from URL:", urlToLoad);
+        await audio.loadFromUrl(urlToLoad, targetSong.pitch ?? 0, true);
       }
       console.log("[SongStudioView] fetchData: Fetch successful for songId:", songId);
     } catch (err: any) {

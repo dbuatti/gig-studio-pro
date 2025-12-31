@@ -138,11 +138,23 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
         for (const instance of instances) {
           if (success) break;
           try {
-            const target = encodeURIComponent(`${instance}/api/v1/search?q=${encodeURIComponent(searchTerm)}`);
-            const res = await fetch(`${proxy}${target}`);
-            if (!res.ok) continue;
+            // Use formData.artist and formData.name directly for the search query
+            const artistName = (formData.artist || "").replace(/&/g, 'and');
+            const trackName = (formData.name || "").replace(/&/g, 'and');
+            const searchQuery = encodeURIComponent(`${artistName} ${trackName} official music video`);
+            const targetUrl = encodeURIComponent(`${instance}/api/v1/search?q=${encodeURIComponent(searchQuery)}`);
             
-            const raw = await res.json();
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 2500);
+
+            const response = await fetch(`${proxy}${targetUrl}`, {
+              signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+            if (!response.ok) continue;
+            
+            const raw = await response.json();
             const data = typeof raw.contents === 'string' ? JSON.parse(raw.contents) : raw;
             const videos = data?.filter?.((i: any) => i.type === "video").slice(0, 10);
             

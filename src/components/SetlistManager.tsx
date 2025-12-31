@@ -71,6 +71,7 @@ export interface SetlistSong {
   sheet_music_url?: string;
   extraction_status?: 'idle' | 'PENDING' | 'queued' | 'processing' | 'completed' | 'failed'; // Added 'PENDING'
   extraction_error?: string;
+  audio_url?: string; // ADDED THIS LINE
   // NEWLY ADDED PROPERTIES
   comfort_level?: number;
   last_extracted_at?: string;
@@ -161,7 +162,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     if (!showHeatmap) return "";
 
     const readiness = calculateReadiness(song);
-    const hasAudio = !!song.previewUrl && !isItunesPreview(song.previewUrl);
+    const hasAudio = !!song.audio_url; // Check audio_url for full audio
     const hasYoutubeLink = !!song.youtubeUrl && song.youtubeUrl.trim() !== "";
     const hasUgLink = !!song.ugUrl && song.ugUrl.trim() !== "";
     const hasUgChordsText = !!song.ug_chords_text && song.ug_chords_text.trim().length > 0;
@@ -251,7 +252,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
             const isSelected = currentSongId === song.id;
             const readinessScore = calculateReadiness(song);
             const isFullyReady = readinessScore === 100;
-            const hasAudio = !!song.previewUrl && !isItunesPreview(song.previewUrl);
+            const hasAudio = !!song.audio_url; // Check audio_url for full audio
             const currentPref = song.key_preference || globalPreference;
             const displayTargetKey = formatKey(song.targetKey || song.originalKey, currentPref);
             const isProcessing = song.extraction_status === 'processing' || song.extraction_status === 'queued';
@@ -355,9 +356,9 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       size="sm"
                       className={cn(
                         "h-8 px-4 text-[9px] font-black uppercase tracking-widest rounded-xl gap-2",
-                        !song.previewUrl ? "bg-secondary text-muted-foreground dark:bg-secondary hover:bg-secondary dark:hover:bg-secondary" : isSelected ? "bg-indigo-100 text-indigo-600 border border-indigo-200" : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-xl shadow-indigo-500/20"
+                        !song.audio_url ? "bg-secondary text-muted-foreground dark:bg-secondary hover:bg-secondary dark:hover:bg-secondary" : isSelected ? "bg-indigo-100 text-indigo-600 border border-indigo-200" : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-xl shadow-indigo-500/20"
                       )}
-                      disabled={!song.previewUrl}
+                      disabled={!song.audio_url}
                       onClick={(e) => {
                         e.stopPropagation();
                         onSelect(song);
@@ -390,7 +391,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                   const isSelected = currentSongId === song.id;
                   const readinessScore = calculateReadiness(song);
                   const isFullyReady = readinessScore === 100;
-                  const hasAudio = !!song.previewUrl && !isItunesPreview(song.previewUrl);
+                  const hasAudio = !!song.audio_url; // Check audio_url for full audio
                   const currentPref = song.key_preference || globalPreference;
                   const displayOrigKey = formatKey(song.originalKey, currentPref);
                   const displayTargetKey = formatKey(song.targetKey || song.originalKey, currentPref);

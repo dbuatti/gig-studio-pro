@@ -22,7 +22,7 @@ import { useToneAudio } from '@/hooks/use-tone-audio';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 export interface AudioTransposerRef {
-  loadFromUrl: (url: string, name: string, artist: string, youtubeUrl?: string, originalKey?: string, ugUrl?: string, appleMusicUrl?: string, genre?: string) => Promise<void>;
+  loadFromUrl: (url: string, name: string, artist: string, youtubeUrl?: string, originalKey?: string, ugUrl?: string, appleMusicUrl?: string, genre?: string, audioUrl?: string, extractionStatus?: 'idle' | 'PENDING' | 'queued' | 'processing' | 'completed' | 'failed') => Promise<void>;
   setPitch: (pitch: number) => void;
   getPitch: () => number;
   triggerSearch: (query: string) => void;
@@ -35,7 +35,7 @@ export interface AudioTransposerRef {
 }
 
 interface AudioTransposerProps {
-  onAddToSetlist?: (previewUrl: string, name: string, artist: string, youtubeUrl?: string, ugUrl?: string, appleMusicUrl?: string, genre?: string, pitch?: number) => void;
+  onAddToSetlist?: (previewUrl: string, name: string, artist: string, youtubeUrl?: string, ugUrl?: string, appleMusicUrl?: string, genre?: string, pitch?: number, audioUrl?: string, extractionStatus?: 'idle' | 'PENDING' | 'queued' | 'processing' | 'completed' | 'failed') => void;
   onAddExistingSong?: (song: SetlistSong) => void;
   onUpdateSongKey?: (songId: string, newTargetKey: string) => void;
   onSongEnded?: () => void;
@@ -60,7 +60,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
   const isMobile = useIsMobile();
   const audio = useToneAudio();
   
-  const [file, setFile] = useState<{ id?: string; name: string; artist?: string; url?: string; originalKey?: string; ugUrl?: string; youtubeUrl?: string; appleMusicUrl?: string; genre?: string; extraction_status?: 'idle' | 'PENDING' | 'queued' | 'processing' | 'completed' | 'failed'; last_sync_log?: string } | null>(null); // NEW: Add extraction_status and last_sync_log
+  const [file, setFile] = useState<{ id?: string; name: string; artist?: string; url?: string; originalKey?: string; ugUrl?: string; youtubeUrl?: string; appleMusicUrl?: string; genre?: string; extraction_status?: 'idle' | 'PENDING' | 'queued' | 'processing' | 'completed' | 'failed'; last_sync_log?: string; audio_url?: string } | null>(null); // NEW: Add extraction_status, last_sync_log, and audio_url
   const [activeTab, setActiveTab] = useState("search");
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
   const [activeYoutubeUrl, setActiveYoutubeUrl] = useState<string | undefined>();
@@ -89,12 +89,16 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
     return (match && match[2].length === 11) ? match[2] : null;
   };
 
-  const loadFromUrl = async (targetUrl: string, name: string, artist: string, youtubeUrl?: string, originalKey?: string, ugUrl?: string, appleMusicUrl?: string, genre?: string) => {
+  const loadFromUrl = async (targetUrl: string, name: string, artist: string, youtubeUrl?: string, originalKey?: string, ugUrl?: string, appleMusicUrl?: string, genre?: string, audioUrl?: string, extractionStatus?: 'idle' | 'PENDING' | 'queued' | 'processing' | 'completed' | 'failed') => {
     resetEngine();
     const initialPitch = currentSong?.pitch || 0;
-    await hookLoadFromUrl(targetUrl, initialPitch);
     
-    setFile({ id: currentSong?.id, name, artist, url: targetUrl, originalKey, ugUrl, youtubeUrl, appleMusicUrl, genre, extraction_status: currentSong?.extraction_status, last_sync_log: currentSong?.last_sync_log }); // NEW: Pass extraction_status and last_sync_log
+    // Prioritize audioUrl if extraction is completed
+    const urlToLoad = (extractionStatus === 'completed' && audioUrl) ? audioUrl : targetUrl;
+
+    await hookLoadFromUrl(urlToLoad, initialPitch);
+    
+    setFile({ id: currentSong?.id, name, artist, url: targetUrl, originalKey, ugUrl, youtubeUrl, appleMusicUrl, genre, extraction_status: extractionStatus, last_sync_log: currentSong?.last_sync_log, audio_url: audioUrl }); // NEW: Pass extraction_status, last_sync_log, and audio_url
     
     setActiveYoutubeUrl(youtubeUrl);
     setActiveUgUrl(ugUrl);
@@ -163,7 +167,9 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
       activeUgUrl || file.ugUrl, 
       file.appleMusicUrl, 
       file.genre, 
-      pitch
+      pitch,
+      file.audio_url, // Pass audio_url
+      file.extraction_status // Pass extraction_status
     );
     setFile(null); // Clear after add
   };
@@ -186,8 +192,8 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
   };
 
   useImperativeHandle(ref, () => ({
-    loadFromUrl: async (targetUrl, name, artist, youtubeUrl, originalKey, ugUrl, appleMusicUrl, genre) => {
-      await loadFromUrl(targetUrl, name, artist, youtubeUrl, originalKey, ugUrl, appleMusicUrl, genre);
+    loadFromUrl: async (targetUrl, name, artist, youtubeUrl, originalKey, ugUrl, appleMusicUrl, genre, audioUrl, extractionStatus) => {
+      await loadFromUrl(targetUrl, name, artist, youtubeUrl, originalKey, ugUrl, appleMusicUrl, genre, audioUrl, extractionStatus);
     },
     setPitch: (newPitch: number) => setPitch(newPitch),
     getPitch: () => pitch,

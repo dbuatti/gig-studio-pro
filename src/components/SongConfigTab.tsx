@@ -100,10 +100,13 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
   const isProcessing = formData.extraction_status === 'processing' || formData.extraction_status === 'queued';
   const isExtractionFailed = formData.extraction_status === 'failed';
 
+  // Determine which URL to use for playback
+  const audioSourceUrl = formData.extraction_status === 'completed' && formData.audio_url ? formData.audio_url : formData.previewUrl;
+
   return (
     <div className={cn("flex-1 p-6 md:p-8 space-y-8 md:space-y-10 overflow-y-auto")}>
       {/* Mini Audio Playback Controls */}
-      {formData.previewUrl ? (
+      {audioSourceUrl ? (
         <div className="bg-slate-900/50 border border-white/10 rounded-3xl p-6 space-y-6 shadow-xl">
           <div className="flex items-center justify-between">
             <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400">

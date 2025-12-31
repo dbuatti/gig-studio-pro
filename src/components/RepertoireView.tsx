@@ -72,6 +72,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
       name: "New Track",
       artist: "Unknown Artist",
       previewUrl: "",
+      audio_url: "", // Initialize audio_url
       pitch: 0,
       originalKey: "C",
       targetKey: "C",
@@ -146,7 +147,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
             onClick={() => setFilterReady(!filterReady)}
             className={cn(
               "h-8 px-4 text-[10px] font-black uppercase tracking-widest rounded-xl gap-2 transition-all",
-              filterReady ? "bg-emerald-50 text-emerald-600" : "text-muted-foreground hover:bg-accent dark:hover:bg-secondary"
+              filterReady ? "bg-emerald-500 text-emerald-600" : "text-muted-foreground hover:bg-accent dark:hover:bg-secondary"
             )}
           >
             <Filter className="w-3.5 h-3.5" /> {filterReady ? "Ready Only" : "All Tracks"}
@@ -272,7 +273,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                             songToAssign={song}
                             onUpdateSetlistSongs={onUpdateSetlistSongs}
                           />
-                          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground hover:text-indigo-600 hover:bg-indigo-50 transition-colors inline-flex items-center justify-center" onClick={(e) => { e.stopPropagation(); onEditSong(song, 'details'); }}>
+                          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground hover:text-indigo-600 hover:bg-indigo-50 transition-colors inline-flex items-center justify-center" onClick={(e) => { e.stopPropagation(); onEditSong(song); }}>
                             <Edit3 className="w-4 h-4" />
                           </Button>
                         </div>

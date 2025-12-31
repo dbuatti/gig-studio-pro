@@ -132,15 +132,17 @@ const GlobalLibrary: React.FC<GlobalLibraryProps> = ({ onImport }) => {
                           targetKey: song.target_key,
                           bpm: song.bpm,
                           lyrics: song.lyrics,
-                          previewUrl: song.preview_url,
+                          // Prioritize audio_url if extraction is completed, otherwise fallback to preview_url
+                          previewUrl: song.extraction_status === 'completed' && song.audio_url ? song.audio_url : song.preview_url,
                           youtubeUrl: song.youtube_url,
                           ugUrl: song.ug_url,
                           pdfUrl: song.pdf_url,
                           user_tags: song.user_tags,
                           duration_seconds: song.duration_seconds,
                           isMetadataConfirmed: true,
-                          extraction_status: song.extraction_status, // NEW: Pass extraction_status
-                          last_sync_log: song.last_sync_log // NEW: Pass last_sync_log
+                          extraction_status: song.extraction_status,
+                          last_sync_log: song.last_sync_log,
+                          audio_url: song.audio_url, // Map audio_url
                         })}
                         className="h-8 px-3 text-[9px] font-black uppercase bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-xl gap-1.5 transition-all"
                       >

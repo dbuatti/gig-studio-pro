@@ -111,7 +111,7 @@ const Index = () => {
     // Apply filters
     songs = songs.filter(s => {
       const readiness = calculateReadiness(s);
-      const hasAudio = !!s.previewUrl && !(s.previewUrl.includes('apple.com') || s.previewUrl.includes('itunes-assets'));
+      const hasAudio = !!s.audio_url; // Check audio_url for full audio
       const hasItunesPreview = !!s.previewUrl && (s.previewUrl.includes('apple.com') || s.previewUrl.includes('itunes-assets'));
       const hasVideo = !!s.youtubeUrl;
       const hasPdf = !!s.pdfUrl || !!s.leadsheetUrl || !!s.sheet_music_url;
@@ -158,19 +158,17 @@ const Index = () => {
 
   const missingAudioCount = useMemo(() => {
     if (!activeSetlist) return 0;
-    const itunesKeywords = ['apple.com', 'itunes-assets', 'mzstatic.com'];
     return activeSetlist.songs.filter(s =>
       s.youtubeUrl && // Must have a YouTube link to extract from
-      (s.previewUrl === "" || itunesKeywords.some(kw => s.previewUrl?.includes(kw))) && // Missing full audio or only has iTunes preview
+      (!s.audio_url) && // Missing extracted audio
       s.extraction_status !== 'queued' && s.extraction_status !== 'processing' // Not already queued/processing
     ).length;
   }, [activeSetlist]);
 
   const repertoireMissingAudioCount = useMemo(() => {
-    const itunesKeywords = ['apple.com', 'itunes-assets', 'mzstatic.com'];
     return masterRepertoire.filter(s =>
       s.youtubeUrl && // Must have a YouTube link to extract from
-      (s.previewUrl === "" || itunesKeywords.some(kw => s.previewUrl?.includes(kw))) && // Missing full audio or only has iTunes preview
+      (!s.audio_url) && // Missing extracted audio
       s.extraction_status !== 'queued' && s.extraction_status !== 'processing' // Not already queued/processing
     ).length;
   }, [masterRepertoire]);
@@ -225,10 +223,8 @@ const Index = () => {
           master_id: d.id,
           name: d.title,
           artist: d.artist,
-          originalKey: d.original_key,
-          targetKey: d.target_key,
-          pitch: d.pitch ?? 0,
-          previewUrl: d.preview_url,
+          // Use audio_url if extraction is completed, otherwise fallback to preview_url
+          previewUrl: d.extraction_status === 'completed' && d.audio_url ? d.audio_url : d.preview_url,
           youtubeUrl: d.youtube_url,
           ugUrl: d.ug_url,
           appleMusicUrl: d.apple_music_url,
@@ -252,7 +248,7 @@ const Index = () => {
           volume: d.volume,
           isApproved: d.is_approved,
           preferred_reader: d.preferred_reader,
-          ug_chords_text: d.ug_chchords_text,
+          ug_chords_text: d.ug_chords_text, // Fixed typo here
           ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
           is_ug_chords_present: d.is_ug_chords_present,
           highest_note_original: d.highest_note_original,
@@ -265,6 +261,8 @@ const Index = () => {
           sheet_music_url: d.sheet_music_url,
           extraction_status: d.extraction_status,
           extraction_error: d.extraction_error,
+          audio_url: d.audio_url, // Map audio_url
+          pitch: d.pitch ?? 0, // Ensure pitch is mapped
         };
       });
       setMasterRepertoire(mappedRepertoire);
@@ -320,13 +318,14 @@ const Index = () => {
   // Load audio for active song for performance
   useEffect(() => {
     // Only load audio if a song is selected for performance AND it has a preview URL
-    if (activeSongForPerformance && activeSongForPerformance.previewUrl) {
-      audio.loadFromUrl(activeSongForPerformance.previewUrl, activeSongForPerformance.pitch || 0, true);
+    if (activeSongForPerformance && (activeSongForPerformance.audio_url || activeSongForPerformance.previewUrl)) {
+      const urlToLoad = activeSongForPerformance.audio_url || activeSongForPerformance.previewUrl;
+      audio.loadFromUrl(urlToLoad, activeSongForPerformance.pitch || 0, true);
     } else {
       audio.stopPlayback();
       audio.resetEngine();
     }
-  }, [activeSongForPerformance?.previewUrl, activeSongForPerformance?.pitch]);
+  }, [activeSongForPerformance?.audio_url, activeSongForPerformance?.previewUrl, activeSongForPerformance?.pitch]);
 
   // --- FIX: Remove persistence of active song for performance on refresh ---
   useEffect(() => {
@@ -448,10 +447,8 @@ const Index = () => {
 
     // First, update the master repertoire
     const updatedMasterSong = { ...masterRepertoire.find(s => s.id === songIdToUpdate), ...updates } as SetlistSong;
-    const syncedSongs = await syncToMasterRepertoire(user.id, [updatedMasterSong]);
-    const syncedMasterSong = syncedSongs[0];
-
-    setMasterRepertoire(prev => prev.map(s => s.id === updatedMasterSong.id ? updatedMasterSong : s));
+    await syncToMasterRepertoire(user.id, [updatedMasterSong]);
+    setMasterRepertoire(prev => prev.map(s => s.id === songIdToUpdate ? updatedMasterSong : s));
 
     // Then, update the song in the active setlist
     const updatedSetlistSongs = activeSetlist.songs.map(s =>
@@ -463,7 +460,7 @@ const Index = () => {
         .from('setlists')
         .update({ songs: updatedSetlistSongs, updated_at: new Date().toISOString() })
         .eq('id', activeSetlist.id)
-        .eq('user.id', user.id); // FIX: Changed to user.id
+        .eq('user_id', user.id); // FIX: Changed to user.id
 
       if (error) throw error;
       setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: updatedSetlistSongs } : s));
@@ -485,7 +482,7 @@ const Index = () => {
     // Update in master repertoire
     const updatedMasterSong = { ...masterRepertoire.find(s => s.id === songToUpdate.master_id), targetKey: newTargetKey, pitch: newPitch } as SetlistSong;
     await syncToMasterRepertoire(user.id, [updatedMasterSong]);
-    setMasterRepertoire(prev => prev.map(s => s.id === updatedMasterSong.id ? updatedMasterSong : s));
+    setMasterRepertoire(prev => prev.map(s => s.id === songToUpdate.master_id ? updatedMasterSong : s));
 
     // Update in active setlist
     const updatedSetlistSongs = activeSetlist.songs.map(s =>
@@ -672,10 +669,9 @@ const Index = () => {
     setIsRepertoireBulkQueuingAudio(true);
     showInfo("Queueing background audio extraction for missing repertoire tracks...");
 
-    const itunesKeywords = ['apple.com', 'itunes-assets', 'mzstatic.com'];
     const songsToQueue = masterRepertoire.filter(s =>
       s.youtubeUrl && // Must have a YouTube link to extract from
-      (s.previewUrl === "" || itunesKeywords.some(kw => s.previewUrl?.includes(kw))) && // Missing full audio or only has iTunes preview
+      (!s.audio_url) && // Missing extracted audio
       s.extraction_status !== 'queued' && s.extraction_status !== 'processing' // Not already queued/processing
     );
 
@@ -847,7 +843,7 @@ const Index = () => {
     );
   }
 
-  const hasPlayableSong = !!activeSongForPerformance?.previewUrl;
+  const hasPlayableSong = !!activeSongForPerformance?.audio_url || !!activeSongForPerformance?.previewUrl;
   const hasReadableChart = !!activeSongForPerformance && (!!activeSongForPerformance.pdfUrl || !!activeSongForPerformance.leadsheetUrl || !!activeSongForPerformance.ugUrl || !!activeSongForPerformance.ug_chords_text);
 
   return (
