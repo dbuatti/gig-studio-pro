@@ -224,9 +224,9 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
       <div className="p-6 space-y-6 pb-24 md:pb-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="flex items-center gap-2 text-xl font-black uppercase tracking-tight text-foreground">
+            <h2 className="flex items-center gap-2 text-xl font-black uppercase tracking-tight text-slate-900 dark:text-white">
               <Waves className="w-5 h-5 text-indigo-600" />
-              Audio Transposer
+              Song Studio
             </h2>
           </div>
           {file && !isMobile && onAddToSetlist && (
@@ -242,7 +242,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 h-9 bg-secondary dark:bg-slate-800 p-1 mb-6">
+          <TabsList className="grid w-full grid-cols-4 h-9 bg-slate-100 dark:bg-slate-800 p-1 mb-6">
             <TabsTrigger value="search" className="text-[10px] uppercase font-bold gap-1.5"><Search className="w-3 h-3" /> iTunes</TabsTrigger>
             <TabsTrigger value="community" className="text-[10px] uppercase font-bold gap-1.5"><Globe className="w-3 h-3" /> Community</TabsTrigger>
             <TabsTrigger value="suggestions" className="text-[10px] uppercase font-bold gap-1.5"><Sparkles className="w-3 h-3" /> Discover</TabsTrigger>
@@ -279,7 +279,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
           <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300 border-t pt-6">
             <div className="flex flex-col items-center gap-5">
               {activeVideoId && (
-                <div className="w-full aspect-video rounded-xl overflow-hidden shadow-lg border border-border dark:border-slate-800 bg-black">
+                <div className="w-full aspect-video rounded-xl overflow-hidden shadow-lg border border-slate-200 dark:border-slate-800 bg-black">
                   <iframe width="100%" height="100%" src={`https://www.youtube.com/embed/${activeVideoId}`} frameBorder="0" allowFullScreen />
                 </div>
               )}
@@ -308,7 +308,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
               <Slider value={[progress]} max={100} step={0.1} onValueChange={([v]) => setProgress(v)} />
             </div>
 
-            <div className="bg-background dark:bg-slate-900/50 p-5 rounded-2xl border border-border dark:border-slate-800 space-y-4">
+            <div className="bg-slate-50 dark:bg-slate-900/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-4">
               <div className="flex items-center justify-between border-b pb-2 mb-2">
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                   <LinkIcon className="w-3.5 h-3.5 text-indigo-500" /> Manual Metadata Links
@@ -318,7 +318,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
 
               <div className="space-y-3">
                 <div className="flex flex-col gap-1.5">
-                  <Label className="text-[9px] font-bold text-muted-foreground uppercase flex items-center justify-between">
+                  <Label className="text-[9px] font-bold text-slate-500 uppercase flex items-center justify-between">
                     <span>YouTube Full Version</span>
                     <button 
                       onClick={() => window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(file.artist + ' ' + file.name + ' full audio')}`, '_blank')}
@@ -329,7 +329,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
                   </Label>
                   <Input 
                     placeholder="Paste video URL..." 
-                    className="h-8 text-[10px] bg-background border-border text-foreground" 
+                    className="h-8 text-[10px] bg-white border-slate-100" 
                     value={activeYoutubeUrl || ""} 
                     onChange={(e) => {
                       setActiveYoutubeUrl(e.target.value);
@@ -339,7 +339,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <Label className="text-[9px] font-bold text-muted-foreground uppercase flex items-center justify-between">
+                  <Label className="text-[9px] font-bold text-slate-500 uppercase flex items-center justify-between">
                     <span>Ultimate Guitar Tab</span>
                     <div className="flex gap-2">
                        <button onClick={handleUgPrint} className="text-indigo-500 hover:text-indigo-600 flex items-center gap-1">
@@ -355,7 +355,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
                   </Label>
                   <Input 
                     placeholder="Paste UG Tab Link..." 
-                    className="h-8 text-[10px] bg-background border-border text-foreground" 
+                    className="h-8 text-[10px] bg-white border-slate-100" 
                     value={activeUgUrl || ""} 
                     onChange={(e) => setActiveUgUrl(e.target.value)}
                   />
@@ -363,7 +363,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-6 bg-background dark:bg-slate-900/50 p-5 rounded-2xl border border-border dark:border-slate-800">
+            <div className="grid grid-cols-1 gap-6 bg-slate-50 dark:bg-slate-900/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800">
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
@@ -373,17 +373,17 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
                     <span className="text-sm font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
                       {pitch > 0 ? `+${pitch}` : pitch} ST
                     </span>
-                    <div className="flex bg-secondary dark:bg-slate-800/50 rounded-lg border p-0.5 shadow-inner">
+                    <div className="flex bg-slate-200/50 dark:bg-slate-800/50 rounded-lg border p-0.5 shadow-inner">
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <button onClick={() => handleOctaveShift('down')} className="h-7 px-2 hover:bg-accent dark:hover:bg-slate-700 rounded text-[10px] font-black uppercase text-muted-foreground hover:text-indigo-600 transition-colors border-r border-border">- oct</button>
+                            <button onClick={() => handleOctaveShift('down')} className="h-7 px-2 hover:bg-white dark:hover:bg-slate-700 rounded text-[10px] font-black uppercase text-slate-500 hover:text-indigo-600 transition-colors border-r">- oct</button>
                           </TooltipTrigger>
                           <TooltipContent className="text-[9px] font-black uppercase">-12 ST</TooltipContent>
                         </Tooltip>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <button onClick={() => handleOctaveShift('up')} className="h-7 px-2 hover:bg-accent dark:hover:bg-slate-700 rounded text-[10px] font-black uppercase text-muted-foreground hover:text-indigo-600 transition-colors">+ oct</button>
+                            <button onClick={() => handleOctaveShift('up')} className="h-7 px-2 hover:bg-white dark:hover:bg-slate-700 rounded text-[10px] font-black uppercase text-slate-500 hover:text-indigo-600 transition-colors">+ oct</button>
                           </TooltipTrigger>
                           <TooltipContent className="text-[9px] font-black uppercase">+12 ST</TooltipContent>
                         </Tooltip>
@@ -404,7 +404,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-6 pt-4 border-t border-border">
+              <div className="grid grid-cols-2 gap-6 pt-4 border-t">
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Tempo</Label>

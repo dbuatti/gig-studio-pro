@@ -221,7 +221,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
       id: 'reader',
       icon: <FileText className="w-5 h-5" />,
       onClick: () => onOpenReader(activeSongId || undefined),
-      disabled: false, // Re-enabled
+      disabled: !hasReadableChart,
       tooltip: "Reader (R)",
       className: "bg-emerald-600 text-white border-emerald-500",
     },
@@ -347,7 +347,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                     exit={{ opacity: 0, scale: 0.5 }}
                     className={cn(
                       "grid grid-cols-2 gap-2 p-3 bg-card/90 rounded-[2rem] border border-border/10 shadow-2xl backdrop-blur-xl",
-                      (direction === 'left' || direction === 'right') ? "grid-flow-col" : "grid-flow-row" // Corrected grid-flow
+                      (direction === 'left' || direction === 'right') && "grid-flow-col"
                     )}
                   >
                     {secondaryButtons.map((btn) => (

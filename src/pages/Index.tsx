@@ -35,7 +35,7 @@ import SetlistSettingsModal from '@/components/SetlistSettingsModal';
 import AdminPanel from '@/components/AdminPanel';
 import PreferencesModal from '@/components/PreferencesModal';
 import UserGuideModal from '@/components/UserGuideModal';
-import SongStudioSheet from '@/components/SongStudioSheet'; // Changed import to SongStudioSheet
+import SongStudioModal from '@/components/SongStudioModal';
 import FloatingCommandDock from '@/components/FloatingCommandDock';
 import ActiveSongBanner from '@/components/ActiveSongBanner';
 import { StudioTab } from '@/components/SongStudioView';
@@ -65,7 +65,7 @@ const Index = () => {
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [isUserGuideOpen, setIsUserGuideOpen] = useState(false);
-  const [isSongStudioSheetOpen, setIsSongStudioSheetOpen] = useState(false); // Changed state name
+  const [isSongStudioModalOpen, setIsSongStudioModalOpen] = useState(false);
   const [songStudioModalSongId, setSongStudioModalSongId] = useState<string | null>(null);
   const [songStudioModalGigId, setSongStudioModalGigId] = useState<string | 'library' | null>(null); // Declared here
   const [songStudioDefaultTab, setSongStudioDefaultTab] = useState<StudioTab | undefined>(undefined);
@@ -473,7 +473,7 @@ const Index = () => {
   const handleEditSong = (song: SetlistSong, defaultTab?: StudioTab) => {
     audio.stopPlayback();
     setSongStudioModalSongId(song.master_id || song.id);
-    setIsSongStudioSheetOpen(true); // Changed to setIsSongStudioSheetOpen
+    setIsSongStudioModalOpen(true);
     setSongStudioDefaultTab(defaultTab || 'audio');
   };
 
@@ -1314,7 +1314,7 @@ const Index = () => {
         }}
         onOpenStudio={(id) => {
           setSongStudioModalSongId(id);
-          setIsSongStudioSheetOpen(true); // Changed to setIsSongStudioSheetOpen
+          setIsSongStudioModalOpen(true);
           setIsResourceAuditOpen(false);
           setSongStudioDefaultTab('details');
         }}
@@ -1345,10 +1345,10 @@ const Index = () => {
         keyPreference={globalKeyPreference}
       />
 
-      {isSongStudioSheetOpen && (
-        <SongStudioSheet // Changed to SongStudioSheet
-          isOpen={isSongStudioSheetOpen} // Controlled by new state
-          onClose={() => { setIsSongStudioSheetOpen(false); setSongStudioDefaultTab(undefined); }}
+      {isSongStudioModalOpen && (
+        <SongStudioModal
+          isOpen={isSongStudioModalOpen}
+          onClose={() => { setIsSongStudioModalOpen(false); setSongStudioDefaultTab(undefined); }}
           gigId={songStudioModalGigId} // Use the new state variable here
           songId={songStudioModalSongId}
           visibleSongs={activeDashboardView === 'gigs' ? filteredAndSortedSongs : masterRepertoire}
