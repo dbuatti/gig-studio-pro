@@ -96,14 +96,27 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
       dbUpdates.highest_note_original = song.highest_note_original;
       dbUpdates.highest_note_updated_at = now;
     }
+    if (song.originalKey !== undefined) {
+      dbUpdates.original_key = song.originalKey;
+      dbUpdates.original_key_updated_at = now;
+    }
+    if (song.targetKey !== undefined) {
+      dbUpdates.target_key = song.targetKey;
+      dbUpdates.target_key_updated_at = now;
+    }
 
     if (song.previewUrl !== undefined) dbUpdates.preview_url = song.previewUrl;
     if (song.youtubeUrl !== undefined) dbUpdates.youtube_url = song.youtubeUrl;
     if (song.appleMusicUrl !== undefined) dbUpdates.apple_music_url = song.appleMusicUrl;
     if (song.pdfUrl !== undefined) dbUpdates.pdf_url = song.pdfUrl;
     if (song.leadsheetUrl !== undefined) dbUpdates.leadsheet_url = song.leadsheetUrl;
-    dbUpdates.original_key = song.originalKey !== undefined && song.originalKey !== null ? song.originalKey : 'TBC';
-    dbUpdates.target_key = song.targetKey !== undefined && song.targetKey !== null ? song.targetKey : dbUpdates.original_key;
+    if (dbUpdates.original_key === undefined) {
+       dbUpdates.original_key = song.originalKey !== undefined && song.originalKey !== null ? song.originalKey : 'TBC';
+    }
+    if (dbUpdates.target_key === undefined) {
+       dbUpdates.target_key = song.targetKey !== undefined && song.targetKey !== null ? song.targetKey : dbUpdates.original_key;
+    }
+    
     if (song.pitch !== undefined) dbUpdates.pitch = song.pitch;
     if (song.bpm !== undefined) dbUpdates.bpm = song.bpm;
     if (song.genre !== undefined) dbUpdates.genre = song.genre;
@@ -204,6 +217,8 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
       chords_updated_at: result.chords_updated_at,
       ug_link_updated_at: result.ug_link_updated_at,
       highest_note_updated_at: result.highest_note_updated_at,
+      original_key_updated_at: result.original_key_updated_at,
+      target_key_updated_at: result.target_key_updated_at,
     } as any;
     syncedSongs.push(mappedResult);
   }

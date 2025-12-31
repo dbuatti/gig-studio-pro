@@ -15,6 +15,8 @@ export interface GlobalSettings {
   goalUgChordsCount: number;
   goalUgLinksCount: number;
   goalHighestNoteCount: number;
+  goalOriginalKeyCount: number;
+  goalTargetKeyCount: number;
 }
 
 const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
@@ -26,6 +28,8 @@ const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   goalUgChordsCount: 10,
   goalUgLinksCount: 10,
   goalHighestNoteCount: 10,
+  goalOriginalKeyCount: 10,
+  goalTargetKeyCount: 10,
 };
 
 export function useSettings() {
@@ -48,7 +52,11 @@ export function useSettings() {
         try {
           const { data, error } = await supabase
             .from('profiles')
-            .select('key_preference, safe_pitch_max_note, is_safe_pitch_enabled, is_goal_tracker_enabled, goal_lyrics_count, goal_ug_chords_count, goal_ug_links_count, goal_highest_note_count')
+            .select(`
+              key_preference, safe_pitch_max_note, is_safe_pitch_enabled, is_goal_tracker_enabled, 
+              goal_lyrics_count, goal_ug_chords_count, goal_ug_links_count, goal_highest_note_count,
+              goal_original_key_count, goal_target_key_count
+            `)
             .eq('id', user.id)
             .single();
 
@@ -65,6 +73,8 @@ export function useSettings() {
             if (data.goal_ug_chords_count !== undefined) loadedSettings.goalUgChordsCount = data.goal_ug_chords_count;
             if (data.goal_ug_links_count !== undefined) loadedSettings.goalUgLinksCount = data.goal_ug_links_count;
             if (data.goal_highest_note_count !== undefined) loadedSettings.goalHighestNoteCount = data.goal_highest_note_count;
+            if (data.goal_original_key_count !== undefined) loadedSettings.goalOriginalKeyCount = data.goal_original_key_count;
+            if (data.goal_target_key_count !== undefined) loadedSettings.goalTargetKeyCount = data.goal_target_key_count;
             
             setSettings(prev => {
               const newSettings = { ...prev, ...loadedSettings };
@@ -120,40 +130,30 @@ export function useSettings() {
           goalUgChordsCount: 'goal_ug_chords_count',
           goalUgLinksCount: 'goal_ug_links_count',
           goalHighestNoteCount: 'goal_highest_note_count',
+          goalOriginalKeyCount: 'goal_original_key_count',
+          goalTargetKeyCount: 'goal_target_key_count',
         };
         const dbColumn = dbKeyMap[key];
         const { error } = await supabase
           .from('profiles')
           .update({ [dbColumn]: value })
           .eq('id', user.id);
-        if (error) {
-          // Error handling
-        }
-      } catch (err) {
-        // Error handling
-      }
+      } catch (err) {}
     }
   }, [user]);
 
-  const setKeyPreference = useCallback((pref: KeyPreference) => updateSetting('keyPreference', pref), [updateSetting]);
-  const setSafePitchMaxNote = useCallback((note: string) => updateSetting('safePitchMaxNote', note), [updateSetting]);
-  const setIsSafePitchEnabled = useCallback((enabled: boolean) => updateSetting('isSafePitchEnabled', enabled), [updateSetting]);
-  const setIsGoalTrackerEnabled = useCallback((enabled: boolean) => updateSetting('isGoalTrackerEnabled', enabled), [updateSetting]);
-  const setGoalLyricsCount = useCallback((count: number) => updateSetting('goalLyricsCount', count), [updateSetting]);
-  const setGoalUgChordsCount = useCallback((count: number) => updateSetting('goalUgChordsCount', count), [updateSetting]);
-  const setGoalUgLinksCount = useCallback((count: number) => updateSetting('goalUgLinksCount', count), [updateSetting]);
-  const setGoalHighestNoteCount = useCallback((count: number) => updateSetting('goalHighestNoteCount', count), [updateSetting]);
-
   return {
     ...settings,
-    setKeyPreference,
-    setSafePitchMaxNote,
-    setIsSafePitchEnabled,
-    setIsGoalTrackerEnabled,
-    setGoalLyricsCount,
-    setGoalUgChordsCount,
-    setGoalUgLinksCount,
-    setGoalHighestNoteCount,
+    setKeyPreference: (pref: KeyPreference) => updateSetting('keyPreference', pref),
+    setSafePitchMaxNote: (note: string) => updateSetting('safePitchMaxNote', note),
+    setIsSafePitchEnabled: (enabled: boolean) => updateSetting('isSafePitchEnabled', enabled),
+    setIsGoalTrackerEnabled: (enabled: boolean) => updateSetting('isGoalTrackerEnabled', enabled),
+    setGoalLyricsCount: (count: number) => updateSetting('goalLyricsCount', count),
+    setGoalUgChordsCount: (count: number) => updateSetting('goalUgChordsCount', count),
+    setGoalUgLinksCount: (count: number) => updateSetting('goalUgLinksCount', count),
+    setGoalHighestNoteCount: (count: number) => updateSetting('goalHighestNoteCount', count),
+    setGoalOriginalKeyCount: (count: number) => updateSetting('goalOriginalKeyCount', count),
+    setGoalTargetKeyCount: (count: number) => updateSetting('goalTargetKeyCount', count),
     isFetchingSettings,
   };
 }

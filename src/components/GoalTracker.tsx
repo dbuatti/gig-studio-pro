@@ -6,7 +6,7 @@ import { useSettings } from '@/hooks/use-settings';
 import { CustomProgress } from "@/components/CustomProgress";
 import { 
   Target, Type, Music2, Link as LinkIcon, 
-  Music, Sparkles, CheckCircle2 
+  Music, Sparkles, CheckCircle2, Hash
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
@@ -20,7 +20,9 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
     goalLyricsCount,
     goalUgChordsCount,
     goalUgLinksCount,
-    goalHighestNoteCount 
+    goalHighestNoteCount,
+    goalOriginalKeyCount,
+    goalTargetKeyCount
   } = useSettings();
 
   if (!isGoalTrackerEnabled) return null;
@@ -42,10 +44,10 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
       lyrics: repertoire.filter(s => (s.lyrics || "").length > 20 && isToday((s as any).lyrics_updated_at, 'lyrics')).length,
       chords: repertoire.filter(s => (s.ug_chords_text || "").length > 10 && isToday((s as any).chords_updated_at, 'chords')).length,
       links: repertoire.filter(s => !!s.ugUrl && isToday((s as any).ug_link_updated_at, 'links')).length,
-      highestNote: repertoire.filter(s => !!s.highest_note_original && isToday((s as any).highest_note_updated_at, 'highestNote')).length
+      highestNote: repertoire.filter(s => !!s.highest_note_original && isToday((s as any).highest_note_updated_at, 'highestNote')).length,
+      originalKey: repertoire.filter(s => (s as any).original_key_updated_at && isToday((s as any).original_key_updated_at, 'originalKey')).length,
+      targetKey: repertoire.filter(s => (s as any).target_key_updated_at && isToday((s as any).target_key_updated_at, 'targetKey')).length
     };
-
-    console.log("[GoalTracker] Active Counts:", counts);
 
     const goals = [
       { 
@@ -65,25 +67,25 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
         bg: 'bg-indigo-500/10'
       },
       { 
-        label: 'UG Links Bound', 
-        icon: <LinkIcon className="w-3 h-3" />, 
-        current: counts.links, 
-        target: goalUgLinksCount, 
-        color: 'text-orange-500',
-        bg: 'bg-orange-500/10'
+        label: 'Original Keys Set', 
+        icon: <Hash className="w-3 h-3" />, 
+        current: counts.originalKey, 
+        target: goalOriginalKeyCount, 
+        color: 'text-amber-500',
+        bg: 'bg-amber-500/10'
       },
       { 
-        label: 'Voice Range Analyzed', 
-        icon: <Music className="w-3 h-3" />, 
-        current: counts.highestNote, 
-        target: goalHighestNoteCount, 
-        color: 'text-emerald-500',
-        bg: 'bg-emerald-500/10'
+        label: 'Stage Keys Bound', 
+        icon: <Target className="w-3 h-3" />, 
+        current: counts.targetKey, 
+        target: goalTargetKeyCount, 
+        color: 'text-blue-500',
+        bg: 'bg-blue-500/10'
       }
     ];
 
     return goals;
-  }, [repertoire, goalLyricsCount, goalUgChordsCount, goalUgLinksCount, goalHighestNoteCount]);
+  }, [repertoire, goalLyricsCount, goalUgChordsCount, goalOriginalKeyCount, goalTargetKeyCount]);
 
   const overallProgress = useMemo(() => {
     const totalCurrent = stats.reduce((acc, g) => acc + Math.min(g.current, g.target), 0);
@@ -141,7 +143,7 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
                 <CustomProgress 
                   value={Math.min(100, progress)} 
                   className="h-1.5 bg-background"
-                  indicatorClassName={isComplete ? "bg-emerald-500" : cn("bg-indigo-500", goal.color.replace('text-', 'bg-'))}
+                  indicatorClassName={isComplete ? "bg-emerald-500" : cn("bg-indigo-50", goal.color.replace('text-', 'bg-'))}
                 />
               </div>
             </div>
