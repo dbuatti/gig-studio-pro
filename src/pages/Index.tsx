@@ -65,6 +65,7 @@ const Index = () => {
   const [isUserGuideOpen, setIsUserGuideOpen] = useState(false);
   const [isSongStudioModalOpen, setIsSongStudioModalOpen] = useState(false);
   const [songStudioModalSongId, setSongStudioModalSongId] = useState<string | null>(null);
+  const [songStudioModalGigId, setSongStudioModalGigId] = useState<string | 'library' | null>(null); // Declared here
   const [songStudioDefaultTab, setSongStudioDefaultTab] = useState<StudioTab | undefined>(undefined);
   const [isKeyManagementOpen, setIsKeyManagementOpen] = useState(false);
   const [isPerformanceOverlayOpen, setIsPerformanceOverlayOpen] = useState(false);
@@ -1147,7 +1148,10 @@ const Index = () => {
           setSongStudioModalSongId(null);
           setIsSongStudioModalOpen(true);
           setSongStudioDefaultTab('library');
-          console.log("[Index] Setting isSongStudioModalOpen to true, songStudioModalSongId to null, defaultTab to 'library'.");
+          // Corrected: Explicitly set gigId to 'library' for search mode
+          // This ensures the SongStudioModal renders correctly when no specific song is selected.
+          setSongStudioModalGigId('library'); 
+          console.log("[Index] Setting isSongStudioModalOpen to true, songStudioModalSongId to null, defaultTab to 'library', gigId to 'library'.");
         }}
         onOpenPractice={() => {}}
         onOpenReader={handleOpenReader}
@@ -1358,7 +1362,7 @@ const Index = () => {
         <SongStudioModal
           isOpen={isSongStudioModalOpen}
           onClose={() => { setIsSongStudioModalOpen(false); setSongStudioDefaultTab(undefined); }}
-          gigId={activeDashboardView === 'repertoire' ? 'library' : (activeSetlistId || 'library')}
+          gigId={songStudioModalGigId} // Use the new state variable here
           songId={songStudioModalSongId}
           visibleSongs={activeDashboardView === 'gigs' ? filteredAndSortedSongs : masterRepertoire}
           onSelectSong={(id) => {
