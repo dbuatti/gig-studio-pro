@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import SongStudioView, { StudioTab } from './SongStudioView'; // Import StudioTab
+import SongStudioView, { StudioTab } from './SongStudioView';
 import { useNavigate } from 'react-router-dom';
 import { SetlistSong } from './SetlistManager';
 
@@ -13,10 +13,12 @@ interface SongStudioModalProps {
   songId: string | null;
   visibleSongs?: SetlistSong[];
   onSelectSong?: (id: string) => void;
-  allSetlists?: { id: string; name: string; songs: SetlistSong[] }[]; // New prop
-  masterRepertoire?: SetlistSong[]; // New prop
-  onUpdateSetlistSongs?: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>; // New prop
-  defaultTab?: StudioTab; // New prop for default active tab
+  allSetlists?: { id: string; name: string; songs: SetlistSong[] }[];
+  masterRepertoire?: SetlistSong[];
+  onUpdateSetlistSongs?: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>;
+  defaultTab?: StudioTab;
+  // New prop to handle auto-saving from the parent context
+  handleAutoSave?: (updates: Partial<SetlistSong>) => void;
 }
 
 const SongStudioModal: React.FC<SongStudioModalProps> = ({ 
@@ -26,39 +28,25 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   songId,
   visibleSongs = [],
   onSelectSong,
-  allSetlists, // Destructure new prop
-  masterRepertoire, // Destructure new prop
-  onUpdateSetlistSongs, // Destructure new prop
-  defaultTab // Destructure new prop
+  allSetlists,
+  masterRepertoire,
+  onUpdateSetlistSongs,
+  defaultTab,
+  handleAutoSave // Destructure the new prop
 }) => {
   const navigate = useNavigate();
 
-  console.log(`[SongStudioModal] Rendered. isOpen: ${isOpen}, gigId: ${gigId}, songId: ${songId}, defaultTab: ${defaultTab}`);
-
-  // Allow songId to be null if gigId is 'library' for the search view
-  if (!gigId || (gigId !== 'library' && !songId)) {
-    console.warn(`[SongStudioModal] Not rendering due to invalid gigId or songId. gigId: ${gigId}, songId: ${songId}`);
-    return null;
-  }
-
   const handleExpand = () => {
-    console.log("[SongStudioModal] handleExpand triggered.");
     onClose();
-    // Only navigate if a songId is actually present
     if (gigId && songId) {
       navigate(`/gig/${gigId}/song/${songId}`);
     } else {
-      // If no songId, navigate to a generic studio page or dashboard
       navigate('/dashboard'); 
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => {
-      console.log(`[SongStudioModal] Dialog onOpenChange: ${open}`);
-      !open && onClose();
-    }}>
-      {/* Accessible Header (Hidden visually) */}
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogHeader className="sr-only">
         <DialogTitle>Song Studio - Editing Song</DialogTitle>
         <DialogDescription>
@@ -78,6 +66,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         masterRepertoire={masterRepertoire}
         onUpdateSetlistSongs={onUpdateSetlistSongs}
         defaultTab={defaultTab}
+        // Pass the handleAutoSave function to enable auto-saving within the modal
+        handleAutoSave={handleAutoSave}
       />
     </Dialog>
   );

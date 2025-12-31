@@ -8,10 +8,10 @@ import { useAuth } from '@/components/AuthProvider';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useToneAudio } from '@/hooks/use-tone-audio';
 import { useSettings } from '@/hooks/use-settings';
-import { SetlistSong, Setlist } from '@/components/SetlistManager'; // Import Setlist
+import { SetlistSong, Setlist } from '@/components/SetlistManager';
 import { syncToMasterRepertoire } from '@/utils/repertoireSync';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
-import { showSuccess, showError } from '@/utils/toast';
+import { showError } from '@/utils/toast';
 import StudioTabContent from '@/components/StudioTabContent';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -26,16 +26,17 @@ export type StudioTab = 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | '
 
 interface SongStudioViewProps {
   gigId: string | 'library';
-  songId: string | null; // Allow songId to be null
+  songId: string | null;
   onClose: () => void;
   isModal?: boolean;
   onExpand?: () => void;
   visibleSongs?: SetlistSong[];
   onSelectSong?: (id: string) => void;
-  allSetlists?: Setlist[]; // Use Setlist interface
+  allSetlists?: Setlist[];
   masterRepertoire?: SetlistSong[];
   onUpdateSetlistSongs?: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>;
-  defaultTab?: StudioTab; // New prop for default active tab
+  defaultTab?: StudioTab;
+  handleAutoSave?: (updates: Partial<SetlistSong>) => void;
 }
 
 const SongStudioView: React.FC<SongStudioViewProps> = ({
@@ -49,7 +50,8 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   allSetlists = [],
   masterRepertoire = [],
   onUpdateSetlistSongs,
-  defaultTab
+  defaultTab,
+  handleAutoSave: externalAutoSave,
 }) => {
   const isMobile = useIsMobile();
   const { user } = useAuth();
@@ -58,9 +60,8 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   
   const [song, setSong] = useState<SetlistSong | null>(null);
   const [formData, setFormData] = useState<Partial<SetlistSong>>({});
-  const [activeTab, setActiveTab] = useState<StudioTab>(defaultTab || 'audio'); // Use defaultTab here
+  const [activeTab, setActiveTab] = useState<StudioTab>(defaultTab || 'audio');
   const [loading, setLoading] = useState(true);
-  const [isVerifying, setIsVerifying] = useState(false);
   const [activeChartType, setActiveChartType] = useState<'pdf' | 'leadsheet' | 'web' | 'ug'>('pdf');
   
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
@@ -71,6 +72,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     currentSongRef.current = song;
   }, [song]);
 
+  // Define the performSave function
   const performSave = async (currentUpdates: Partial<SetlistSong>) => {
     const targetSong = currentSongRef.current;
     if (!targetSong || !user) {
@@ -94,6 +96,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     }
   };
 
+  // Define the handleAutoSave function
   const handleAutoSave = useCallback((updates: Partial<SetlistSong>) => {
     setFormData(prev => ({ ...prev, ...updates }));
     lastPendingUpdatesRef.current = { ...lastPendingUpdatesRef.current, ...updates };
@@ -104,17 +107,8 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     }, 1000);
   }, [user, gigId, formData, masterRepertoire]);
 
-  const { pitch, setPitch, targetKey, setTargetKey, isPitchLinked, setIsPitchLinked } = useHarmonicSync({
-    formData: {
-      originalKey: formData.originalKey,
-      targetKey: formData.targetKey,
-      pitch: formData.pitch,
-      is_pitch_linked: formData.is_pitch_linked,
-      ug_chords_text: formData.ug_chords_text,
-    },
-    handleAutoSave,
-    globalKeyPreference
-  });
+  // Use externalAutoSave if provided, otherwise use the internal handleAutoSave
+  const activeAutoSave = externalAutoSave || handleAutoSave;
 
   const handleClose = useCallback(() => {
     const pending = lastPendingUpdatesRef.current;
@@ -244,6 +238,27 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     disabled: loading
   });
 
+  // --- HARMONIC SYNC LOGIC ---
+  // This hook manages pitch, targetKey, and isPitchLinked state, and provides setters
+  // that handle both local state updates and database persistence via handleAutoSave.
+  const {
+    pitch,
+    setPitch,
+    targetKey,
+    setTargetKey,
+    isPitchLinked,
+    setIsPitchLinked,
+  } = useHarmonicSync({
+    formData: formData,
+    handleAutoSave: activeAutoSave,
+    globalKeyPreference: globalKeyPreference,
+  });
+
+  // Sync audio engine pitch with the pitch from harmonic sync
+  useEffect(() => {
+    audio.setPitch(pitch);
+  }, [pitch, audio]);
+
   if (loading) return <div className="h-full flex items-center justify-center bg-slate-950"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
 
   return (
@@ -254,17 +269,17 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           <div className="min-w-0">
             <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">{gigId === 'library' ? 'MASTER' : 'GIG'}</p>
             <h2 className="text-xl font-black uppercase text-white truncate max-w-[250px]">
-              {songId ? formData.name : "Library Search"} {/* Conditional title */}
+              {songId ? formData.name : "Library Search"} 
             </h2>
           </div>
         </div>
         <div className="flex items-center gap-4">
-          {gigId === 'library' && song ? ( // Only render if gigId is 'library' AND song is not null
+          {gigId === 'library' && song ? (
             <SetlistMultiSelector songMasterId={songId || ''} allSetlists={allSetlists} songToAssign={song} onUpdateSetlistSongs={onUpdateSetlistSongs!} />
           ) : (
             <div className="flex items-center gap-3 bg-white/5 px-4 h-11 rounded-xl border border-white/10">
               <Label className="text-[8px] font-black text-slate-500 uppercase">Gig Approved</Label>
-              <Switch checked={formData.isApproved || false} onCheckedChange={(v) => handleAutoSave({ isApproved: v })} className="data-[state=checked]:bg-emerald-500" />
+              <Switch checked={formData.isApproved || false} onCheckedChange={(v) => activeAutoSave({ isApproved: v })} className="data-[state=checked]:bg-emerald-500" />
             </div>
           )}
         </div>
@@ -292,7 +307,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           activeTab={activeTab}
           song={song}
           formData={formData}
-          handleAutoSave={handleAutoSave}
+          handleAutoSave={activeAutoSave}
           onUpdateKey={setTargetKey}
           audioEngine={audio}
           isMobile={isMobile}
@@ -305,11 +320,11 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           handleDownloadAll={async () => {}}
           onSwitchTab={setActiveTab}
           pitch={pitch}
-          setPitch={(p) => { setPitch(p); audio.setPitch(p); }}
+          setPitch={setPitch}
           targetKey={targetKey}
           setTargetKey={setTargetKey}
           isPitchLinked={isPitchLinked}
-          setIsPitchLinked={(l) => { setIsPitchLinked(l); if (!l) audio.setPitch(0); }}
+          setIsPitchLinked={setIsPitchLinked}
           setTempo={audio.setTempo}
           setVolume={audio.setVolume}
           setFineTune={audio.setFineTune}
