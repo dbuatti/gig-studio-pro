@@ -112,6 +112,7 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     playerRef.current.playbackRate = 1;
     playerRef.current.volume.value = -6;
     
+    // MODIFICATION: Check suppressToasts flag before showing success message
     if (!suppressToasts) {
       showSuccess("Audio Loaded");
     }

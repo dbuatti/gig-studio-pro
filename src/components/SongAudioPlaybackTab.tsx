@@ -62,15 +62,12 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
   const formatTime = (seconds: number) => 
     new Date(seconds * 1000).toISOString().substr(14, 5);
 
-  // Determine which URL to use for playback
-  const audioSourceUrl = formData.extraction_status === 'completed' && formData.audio_url ? formData.audio_url : formData.previewUrl;
-
   const handleAutoSave = (updates: Partial<SetlistSong>) => {
     onSave(updates);
   };
 
   const handleLoadAudio = async () => {
-    if (!audioSourceUrl) return showError("No audio URL available.");
+    if (!audioSourceUrl) return;
     // Pass the current pitch from the harmonic sync hook
     await onLoadAudioFromUrl(audioSourceUrl, pitch || 0);
   };
@@ -91,6 +88,9 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
 
   const isProcessing = formData.extraction_status === 'processing' || formData.extraction_status === 'queued';
   const isExtractionFailed = formData.extraction_status === 'failed';
+
+  // Determine which URL to use for playback
+  const audioSourceUrl = formData.extraction_status === 'completed' && formData.audio_url ? formData.audio_url : formData.previewUrl;
 
   return (
     <div className="space-y-6 md:space-y-12 animate-in fade-in duration-500">
