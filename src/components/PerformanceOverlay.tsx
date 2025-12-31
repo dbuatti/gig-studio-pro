@@ -13,7 +13,7 @@ import {
   Waves, Activity, ArrowRight, Shuffle,
   Settings2, Gauge, FileText, Save, Youtube,
   Monitor, AlignLeft, RotateCcw, ShieldCheck, ExternalLink,
-  Clock, Timer, ChevronRight, Zap, Minus, Plus, Edit3, Check, Keyboard
+  Clock, Timer, ChevronRight, Zap, Minus, Plus, Edit3, Check, Keyboard, CloudDownload, AlertTriangle, Loader2
 } from 'lucide-react';
 import { SetlistSong } from './SetlistManager';
 import AudioVisualizer from './AudioVisualizer';
@@ -40,6 +40,7 @@ interface PerformanceOverlayProps {
   analyzer: any;
   onOpenAdmin?: () => void;
   gigId?: string | null;
+  isLoadingAudio?: boolean; // NEW PROP
 }
 
 type ViewMode = 'visualizer' | 'pdf' | 'lyrics';
@@ -59,7 +60,8 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
   onUpdateKey,
   analyzer,
   onOpenAdmin,
-  gigId
+  gigId,
+  isLoadingAudio, // Destructure new prop
 }) => {
   const navigate = useNavigate();
   const { keyPreference: globalPreference } = useSettings();
@@ -290,6 +292,9 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
     }
   };
 
+  const isProcessing = currentSong?.extraction_status === 'processing' || currentSong?.extraction_status === 'queued';
+  const isExtractionFailed = currentSong?.extraction_status === 'failed';
+
   return (
     <div className="fixed inset-0 z-[100] bg-slate-950 text-white flex flex-col font-sans selection:bg-indigo-500/30 overflow-hidden h-screen w-screen">
       {/* Top HUD Header */}
@@ -401,7 +406,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
 
           <div className={cn("text-center px-6 transition-all duration-700 z-10 relative flex flex-col items-center justify-center shrink-0", viewMode === 'lyrics' ? "pt-6 pb-4" : "pt-10 pb-6")}>
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-600/10 border border-indigo-500/20 rounded-full mb-4">
-               <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
+               <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.6)]" />
                <span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest font-mono">Stage Locked: ESC to Exit</span>
             </div>
             <h1 className={cn(
@@ -586,7 +591,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
                     </SelectTrigger>
                     <SelectContent className="bg-slate-900 border-white/10 text-white z-[300]">
                       {keysToUse.map(k => (
-                        <SelectItem key={k} value={k} className="font-mono font-bold">{k}</SelectItem>
+                        <SelectItem key={k} value={k} className="font-mono text-xs">{k}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -656,9 +661,25 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
 
           <Button 
             onClick={onTogglePlayback}
-            className="h-16 w-16 md:h-24 md:w-24 rounded-full bg-gradient-to-br from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 shadow-[0_0_50px_rgba(79,70,229,0.3)] transition-all hover:scale-110 active:scale-90 flex items-center justify-center p-0"
+            disabled={isLoadingAudio || isProcessing || isExtractionFailed} // Disable if loading, processing, or failed
+            className={cn(
+              "h-16 w-16 md:h-24 md:w-24 rounded-full shadow-2xl flex items-center justify-center p-0 transition-all hover:scale-110 active:scale-90",
+              isLoadingAudio || isProcessing || isExtractionFailed
+                ? "bg-slate-600 cursor-not-allowed"
+                : isPlaying
+                  ? "bg-red-600 hover:bg-red-700 shadow-[0_0_50px_rgba(220,38,38,0.3)]"
+                  : "bg-indigo-600 hover:bg-indigo-700 shadow-[0_0_50px_rgba(79,70,229,0.3)]"
+            )}
           >
-            {isPlaying ? <Pause className="w-8 h-8 md:w-12 md:h-12 text-white" /> : <Play className="w-8 h-8 md:w-12 md:h-12 ml-1 md:ml-2 fill-current text-white" />}
+            {isLoadingAudio || isProcessing ? (
+              <Loader2 className="w-8 h-8 md:w-12 md:h-12 animate-spin text-white" />
+            ) : isExtractionFailed ? (
+              <AlertTriangle className="w-8 h-8 md:w-12 md:h-12 text-white" />
+            ) : isPlaying ? (
+              <Pause className="w-8 h-8 md:w-12 md:h-12 text-white" />
+            ) : (
+              <Play className="w-8 h-8 md:w-12 md:h-12 ml-1 md:ml-2 fill-current text-white" />
+            )}
           </Button>
 
           <Button variant="ghost" size="icon" onClick={onNext} className="h-12 w-12 md:h-16 md:w-16 rounded-full hover:bg-white/5 text-slate-400">
