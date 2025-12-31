@@ -34,7 +34,9 @@ interface SheetReaderHeaderProps {
   // NEW: Sidebar Toggle
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
-  headerLeftOffset: number; // This property is required
+  headerLeftOffset: number;
+  // NEW: Save handler for preference
+  onSavePreference: (pref: 'sharps' | 'flats') => void;
 }
 
 const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
@@ -57,9 +59,9 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   onPullKey,
   isSidebarOpen,
   onToggleSidebar,
-  headerLeftOffset, // Destructure new prop
+  headerLeftOffset,
+  onSavePreference, // Destructure new prop
 }) => {
-  // Use the reader specific preference for display
   const rawTargetKey = currentSong?.targetKey || currentSong?.originalKey;
   const displayKey = rawTargetKey ? formatKey(rawTargetKey, readerKeyPreference) : null;
   const keysToUse = readerKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
@@ -67,7 +69,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   return (
     <div 
       className="fixed top-0 right-0 z-60 bg-slate-900/80 backdrop-blur-xl border-b border-white/10 px-6 py-3 flex items-center justify-between shadow-lg animate-in slide-in-from-top duration-300"
-      style={{ left: `${headerLeftOffset}px` }} // Apply dynamic left
+      style={{ left: `${headerLeftOffset}px` }}
     >
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={onClose} className="h-10 w-10 rounded-xl bg-white/5" title="Back to Dashboard"><ArrowLeft className="w-5 h-5 text-slate-400" /></Button>
@@ -133,7 +135,6 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
         
         {currentSong && (
           <div className="flex items-center gap-2">
-            {/* NEW: Pull Key Button */}
             <Button 
               variant="ghost" 
               size="sm"
@@ -145,7 +146,6 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
               Pull Key
             </Button>
 
-            {/* NEW: Key Preference Override Toggle */}
             <DropdownMenu onOpenChange={setIsOverlayOpen}>
               <DropdownMenuTrigger asChild>
                 <Button 
@@ -162,18 +162,23 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="bg-slate-900 border-white/10 text-white z-[300]">
-                <DropdownMenuItem onClick={() => setReaderKeyPreference('sharps')} className="font-bold cursor-pointer flex items-center justify-between">
+                <DropdownMenuItem 
+                  onClick={() => { setReaderKeyPreference('sharps'); onSavePreference('sharps'); }} 
+                  className="font-bold cursor-pointer flex items-center justify-between"
+                >
                   <span>Sharps</span>
                   {readerKeyPreference === 'sharps' && <span className="text-emerald-500">✓</span>}
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setReaderKeyPreference('flats')} className="font-bold cursor-pointer flex items-center justify-between">
+                <DropdownMenuItem 
+                  onClick={() => { setReaderKeyPreference('flats'); onSavePreference('flats'); }} 
+                  className="font-bold cursor-pointer flex items-center justify-between"
+                >
                   <span>Flats</span>
                   {readerKeyPreference === 'flats' && <span className="text-emerald-500">✓</span>}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
             
-            {/* Existing Key Signature Dropdown */}
             <DropdownMenu onOpenChange={setIsOverlayOpen}>
               <DropdownMenuTrigger asChild>
                 <Button 

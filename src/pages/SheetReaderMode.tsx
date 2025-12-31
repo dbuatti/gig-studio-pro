@@ -188,6 +188,24 @@ const SheetReaderMode: React.FC = () => {
     }
   }, [currentSong, setTargetKey, setPitch]);
 
+  // NEW: Handler to save reader preference
+  const handleSaveReaderPreference = useCallback(async (pref: 'sharps' | 'flats') => {
+    if (!currentSong || !user) return;
+    try {
+      const { error } = await supabase
+        .from('repertoire')
+        .update({ key_preference: pref })
+        .eq('id', currentSong.id);
+      if (error) throw error;
+      
+      // Update local state to reflect change immediately
+      setAllSongs(prev => prev.map(s => s.id === currentSong.id ? { ...s, key_preference: pref } : s));
+      showSuccess(`Preference saved: ${pref === 'sharps' ? 'Sharps' : 'Flats'}`);
+    } catch (err) {
+      showError("Failed to save preference.");
+    }
+  }, [currentSong, user]);
+
   useEffect(() => {
     setAudioPitch(pitch);
   }, [pitch, setAudioPitch]);
@@ -230,6 +248,7 @@ const SheetReaderMode: React.FC = () => {
         extraction_status: d.extraction_status,
         last_sync_log: d.last_sync_log,
         preferred_reader: d.preferred_reader, // Ensure this is mapped
+        key_preference: d.key_preference, // Ensure this is mapped
       }));
 
       const readableSongs = mappedSongs.filter(s => 
@@ -641,6 +660,7 @@ const SheetReaderMode: React.FC = () => {
           isSidebarOpen={isSidebarOpen}
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           headerLeftOffset={headerLeftOffset}
+          onSavePreference={handleSaveReaderPreference} // Pass new handler
         />
 
         {/* Warning Banner */}
