@@ -78,9 +78,27 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
     dbUpdates.title = cleanMetadata(song.name) || 'Untitled Track';
     dbUpdates.artist = cleanMetadata(song.artist) || 'Unknown Artist';
 
+    // Track specific updates for Daily Goals
+    const now = new Date().toISOString();
+    if (song.lyrics !== undefined) {
+      dbUpdates.lyrics = song.lyrics;
+      dbUpdates.lyrics_updated_at = now;
+    }
+    if (song.ug_chords_text !== undefined) {
+      dbUpdates.ug_chords_text = song.ug_chords_text;
+      dbUpdates.chords_updated_at = now;
+    }
+    if (song.ugUrl !== undefined) {
+      dbUpdates.ug_url = song.ugUrl;
+      dbUpdates.ug_link_updated_at = now;
+    }
+    if (song.highest_note_original !== undefined) {
+      dbUpdates.highest_note_original = song.highest_note_original;
+      dbUpdates.highest_note_updated_at = now;
+    }
+
     if (song.previewUrl !== undefined) dbUpdates.preview_url = song.previewUrl;
     if (song.youtubeUrl !== undefined) dbUpdates.youtube_url = song.youtubeUrl;
-    if (song.ugUrl !== undefined) dbUpdates.ug_url = song.ugUrl;
     if (song.appleMusicUrl !== undefined) dbUpdates.apple_music_url = song.appleMusicUrl;
     if (song.pdfUrl !== undefined) dbUpdates.pdf_url = song.pdfUrl;
     if (song.leadsheetUrl !== undefined) dbUpdates.leadsheet_url = song.leadsheetUrl;
@@ -92,7 +110,6 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
     if (song.isMetadataConfirmed !== undefined) dbUpdates.is_metadata_confirmed = song.isMetadataConfirmed;
     if (song.isKeyConfirmed !== undefined) dbUpdates.is_key_confirmed = song.isKeyConfirmed;
     if (song.notes !== undefined) dbUpdates.notes = song.notes;
-    if (song.lyrics !== undefined) dbUpdates.lyrics = song.lyrics;
     if (song.resources !== undefined) dbUpdates.resources = song.resources;
     if (song.user_tags !== undefined) dbUpdates.user_tags = song.user_tags;
     if (song.is_pitch_linked !== undefined) dbUpdates.is_pitch_linked = song.is_pitch_linked;
@@ -100,10 +117,8 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
     if (song.is_active !== undefined) dbUpdates.is_active = song.is_active;
     if (song.isApproved !== undefined) dbUpdates.is_approved = song.isApproved;
     if (song.preferred_reader !== undefined) dbUpdates.preferred_reader = song.preferred_reader;
-    if (song.ug_chords_text !== undefined) dbUpdates.ug_chords_text = song.ug_chords_text;
     if (song.ug_chords_config !== undefined) dbUpdates.ug_chords_config = song.ug_chords_config;
     if (song.is_ug_chords_present !== undefined) dbUpdates.is_ug_chords_present = song.is_ug_chords_present;
-    if (song.highest_note_original !== undefined) dbUpdates.highest_note_original = song.highest_note_original;
     if (song.metadata_source !== undefined) dbUpdates.metadata_source = song.metadata_source;
     if (song.sync_status !== undefined) dbUpdates.sync_status = song.sync_status;
     if (song.last_sync_log !== undefined) dbUpdates.last_sync_log = song.last_sync_log;
@@ -184,7 +199,12 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
       last_extracted_at: result.last_extracted_at,
       source_type: result.source_type,
       is_in_library: result.is_in_library,
-    };
+      // Pass back the new timestamps
+      lyrics_updated_at: result.lyrics_updated_at,
+      chords_updated_at: result.chords_updated_at,
+      ug_link_updated_at: result.ug_link_updated_at,
+      highest_note_updated_at: result.highest_note_updated_at,
+    } as any;
     syncedSongs.push(mappedResult);
   }
 

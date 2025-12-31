@@ -26,11 +26,18 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
   if (!isGoalTrackerEnabled) return null;
 
   const stats = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+
+    const isToday = (timestamp: string | undefined | null) => {
+      if (!timestamp) return false;
+      return timestamp.split('T')[0] === today;
+    };
+
     const counts = {
-      lyrics: repertoire.filter(s => (s.lyrics || "").length > 20).length,
-      chords: repertoire.filter(s => (s.ug_chords_text || "").length > 10).length,
-      links: repertoire.filter(s => !!s.ugUrl).length,
-      highestNote: repertoire.filter(s => !!s.highest_note_original).length
+      lyrics: repertoire.filter(s => (s.lyrics || "").length > 20 && isToday((s as any).lyrics_updated_at)).length,
+      chords: repertoire.filter(s => (s.ug_chords_text || "").length > 10 && isToday((s as any).chords_updated_at)).length,
+      links: repertoire.filter(s => !!s.ugUrl && isToday((s as any).ug_link_updated_at)).length,
+      highestNote: repertoire.filter(s => !!s.highest_note_original && isToday((s as any).highest_note_updated_at)).length
     };
 
     const goals = [
@@ -87,14 +94,14 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
             <Target className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h3 className="text-xl font-black uppercase tracking-tight">Repertoire Mastery</h3>
-            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">Live Performance Optimization Goals</p>
+            <h3 className="text-xl font-black uppercase tracking-tight">Daily Performance Mastery</h3>
+            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">Live Performance Daily Quota (Resets at Midnight)</p>
           </div>
         </div>
 
         <div className="flex items-center gap-4">
           <div className="text-right">
-            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Global Progress</p>
+            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Today's Progress</p>
             <p className="text-2xl font-black text-indigo-600 font-mono">{Math.round(overallProgress)}%</p>
           </div>
           {overallProgress === 100 && <CheckCircle2 className="w-8 h-8 text-emerald-500" />}
