@@ -179,8 +179,12 @@ const Index = () => {
   }, [activeSongForPerformance]);
 
   const fetchSetlistsAndRepertoire = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      console.log("[Index] fetchSetlistsAndRepertoire: User is null, returning.");
+      return;
+    }
     setLoading(true);
+    console.log("[Index] fetchSetlistsAndRepertoire: Fetching data for user ID:", user.id); // Log user ID
     try {
       const { data: setlistsData, error: setlistsError } = await supabase
         .from('setlists')
@@ -206,7 +210,7 @@ const Index = () => {
         .order('title');
 
       if (repertoireError) {
-        // console.error("[Index] Supabase Repertoire Fetch Error:", repertoireError); // Removed console.error
+        console.error("[Index] Supabase Repertoire Fetch Error:", repertoireError);
         // console.error("[Index] Full Repertoire Error Object:", JSON.stringify(repertoireError, null, 2)); // Removed console.error
         if (repertoireError.message.includes("new row violates row-level-security")) {
           showError("Database Security Error: You don't have permission to read repertoire data. Check RLS policies.");
@@ -215,6 +219,8 @@ const Index = () => {
         }
         throw repertoireError;
       }
+
+      console.log("[Index] Raw repertoireData from Supabase:", repertoireData); // Log raw data
 
       const mappedRepertoire: SetlistSong[] = (repertoireData || []).map(d => ({
         id: d.id,
@@ -264,6 +270,7 @@ const Index = () => {
         audio_url: d.audio_url,
       }));
       setMasterRepertoire(mappedRepertoire);
+      console.log("[Index] Mapped masterRepertoire after setting state:", mappedRepertoire); // Log mapped data
 
       const setlistsWithSongs: Setlist[] = [];
 
