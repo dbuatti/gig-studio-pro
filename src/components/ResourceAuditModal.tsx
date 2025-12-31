@@ -42,6 +42,7 @@ import { useSettings } from '@/hooks/use-settings';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthProvider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Added Select components
+import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu"; // Added DropdownMenuSeparator
 
 interface ResourceAuditModalProps {
   isOpen: boolean;
@@ -65,6 +66,88 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
   const [editValue, setEditValue] = useState("");
   const [hoveredSongId, setHoveredSongId] = useState<string | null>(null);
   const [isBulkPullingKeys, setIsBulkPullingKeys] = useState(false);
+
+  const keysToUse = keyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
+
+  const handleUpdateOriginalKey = useCallback((song: SetlistSong, newOriginalKey: string) => {
+    const updates: Partial<SetlistSong> = { originalKey: newOriginalKey };
+    
+    // If the key was TBC, setting a real key should confirm it.
+    if (newOriginalKey !== "TBC") {
+        updates.isKeyConfirmed = true;
+    } else {
+        updates.isKeyConfirmed = false;
+    }
+
+    // If pitch is linked, recalculate pitch based on the new original key, maintaining the current target key.
+    const currentTargetKey = song.targetKey || song.originalKey || 'C';
+    
+    if (song.is_pitch_linked) {
+        // Calculate the new pitch shift required to get from newOriginalKey to currentTargetKey
+        const newPitch = calculateSemitones(newOriginalKey, currentTargetKey);
+        updates.pitch = newPitch;
+        // targetKey remains currentTargetKey
+    } else {
+        // If not linked, setting a new original key should reset pitch to 0 and target key to the new original key
+        updates.targetKey = newOriginalKey;
+        updates.pitch = 0;
+    }
+    
+    onVerify(song.id, updates);
+    showSuccess(`Original Key set to ${newOriginalKey}`);
+  }, [onVerify, keyPreference]);
+
+  const handleUpdateTargetKey = useCallback((song: SetlistSong, newTargetKey: string) => {
+    const newPitch = calculateSemitones(song.originalKey || 'C', newTargetKey);
+    onVerify(song.id, { targetKey: newTargetKey, pitch: newPitch });
+    showSuccess(`Stage Key set to ${newTargetKey}`);
+  }, [onVerify]);
+
+  const handleApplyStageKeyToOriginal = useCallback((song: SetlistSong) => {
+    if (!song.targetKey || song.targetKey === "TBC") {
+      showError("Stage Key is not set.");
+      return;
+    }
+    onVerify(song.id, { 
+      originalKey: song.targetKey, 
+      pitch: 0, // Reset pitch to 0 when applying to original
+      isKeyConfirmed: true,
+    });
+    showSuccess(`Stage Key '${song.targetKey}' applied to Original Key.`);
+  }, [onVerify]);
+
+  const handleResetStageKey = useCallback((song: SetlistSong) => {
+    onVerify(song.id, { targetKey: song.originalKey, pitch: 0 });
+    showSuccess("Stage Key reset to Original.");
+  }, [onVerify]);
+
+  const handleConfirmKey = useCallback((song: SetlistSong) => {
+    onVerify(song.id, { isKeyConfirmed: true });
+    showSuccess("Key confirmed!");
+  }, [onVerify]);
+  
+  const handlePullKeyFromChords = useCallback((song: SetlistSong) => {
+    if (!song.ug_chords_text || song.ug_chords_text.trim() === "") {
+      showError("No UG Chords text found to extract key.");
+      return;
+    }
+
+    const rawPulledKey = extractKeyFromChords(song.ug_chords_text);
+    
+    if (rawPulledKey) {
+      const extractedOriginalKey = formatKey(rawPulledKey, keyPreference);
+      
+      onVerify(song.id, {
+        originalKey: extractedOriginalKey,
+        targetKey: extractedOriginalKey, // Reset target key to original
+        pitch: 0, // Reset pitch
+        isKeyConfirmed: true,
+      });
+      showSuccess(`Key "${extractedOriginalKey}" pulled from chords!`);
+    } else {
+      showError("Could not extract a valid key from the chords text.");
+    }
+  }, [onVerify, keyPreference]);
 
   const auditList = useMemo(() => {
     return songs.filter(s => {
@@ -243,61 +326,6 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
       setIsBulkPullingKeys(false);
     }
   };
-
-  // Handlers for the new 'keys' tab
-  const handlePullKeyFromChords = useCallback((song: SetlistSong) => {
-    if (!song.ug_chords_text?.trim()) {
-      showError("No chords text available to pull key from.");
-      return;
-    }
-    const rawExtractedKey = extractKeyFromChords(song.ug_chords_text);
-    if (rawExtractedKey) {
-      const formattedKey = formatKey(rawExtractedKey, keyPreference);
-      onVerify(song.id, { 
-        originalKey: formattedKey, 
-        targetKey: formattedKey,
-        pitch: 0,
-        isKeyConfirmed: true,
-      });
-      showSuccess(`Pulled key: ${formattedKey}`);
-    } else {
-      showError("Could not extract key from chords.");
-    }
-  }, [onVerify, keyPreference]);
-
-  const handleUpdateTargetKey = useCallback((song: SetlistSong, newTargetKey: string) => {
-    const newPitch = calculateSemitones(song.originalKey || 'C', newTargetKey);
-    onVerify(song.id, { targetKey: newTargetKey, pitch: newPitch });
-    showSuccess(`Stage Key set to ${newTargetKey}`);
-  }, [onVerify]);
-
-  const handleApplyStageKeyToOriginal = useCallback((song: SetlistSong) => {
-    if (!song.targetKey || song.targetKey === "TBC") {
-      showError("Stage Key is not set.");
-      return;
-    }
-    onVerify(song.id, { 
-      originalKey: song.targetKey, 
-      pitch: 0, // Reset pitch to 0 when applying to original
-      isKeyConfirmed: true,
-    });
-    showSuccess(`Stage Key '${song.targetKey}' applied to Original Key.`);
-  }, [onVerify]);
-
-  const handleResetStageKey = useCallback((song: SetlistSong) => {
-    onVerify(song.id, { targetKey: song.originalKey, pitch: 0 });
-    showSuccess("Stage Key reset to Original.");
-  }, [onVerify]);
-
-  const handleConfirmKey = useCallback((song: SetlistSong) => {
-    onVerify(song.id, { isKeyConfirmed: true });
-    showSuccess("Key confirmed!");
-  }, [onVerify]);
-
-  const keysToUse = keyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
-
-  // Removed the problematic useEffect that intercepted Cmd+V/Ctrl+V
-  // The browser's native paste functionality will now work for input fields.
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -510,7 +538,7 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
                               {/* Verification badge is now automatic based on presence */}
                               {hasLink && (
                                 <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-                                  <Check className="w-3 h-3 text-emerald-500" />
+                                  <Check className="w-3 h-3" />
                                   <span className="text-[8px] font-black text-emerald-500 uppercase">Verified</span>
                                 </div>
                               )}
@@ -545,7 +573,7 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
                               </Button>
                               {hasLink && (
                                 <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-                                  <Check className="w-3 h-3 text-emerald-500" />
+                                  <Check className="w-3 h-3" />
                                   <span className="text-[8px] font-black text-emerald-500 uppercase">Verified</span>
                                 </div>
                               )}
@@ -556,7 +584,21 @@ const ResourceAuditModal: React.FC<ResourceAuditModalProps> = ({ isOpen, onClose
                           <div className="flex items-center gap-2">
                             <div className="flex flex-col items-center">
                               <span className="text-[8px] font-black text-slate-500 uppercase">Original</span>
-                              <span className="text-xs font-mono font-bold text-slate-400">{displayOriginalKey}</span>
+                              <Select 
+                                value={displayOriginalKey} 
+                                onValueChange={(val) => handleUpdateOriginalKey(song, val)}
+                              >
+                                <SelectTrigger className="h-8 w-20 bg-white/5 border-white/10 text-xs font-black font-mono rounded-xl">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="bg-slate-900 border-white/10 text-white z-[300]">
+                                  {keysToUse.map(k => (
+                                    <SelectItem key={k} value={k} className="font-mono text-xs">{k}</SelectItem>
+                                  ))}
+                                  <DropdownMenuSeparator className="bg-white/5" />
+                                  <SelectItem value="TBC" className="font-mono text-xs text-amber-400">TBC</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </div>
                             <ArrowRight className="w-3 h-3 text-slate-600" />
                             <div className="flex flex-col items-center">
