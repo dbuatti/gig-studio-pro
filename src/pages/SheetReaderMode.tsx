@@ -229,6 +229,7 @@ const SheetReaderMode: React.FC = () => {
         highest_note_original: d.highest_note_original,
         extraction_status: d.extraction_status,
         last_sync_log: d.last_sync_log,
+        preferred_reader: d.preferred_reader, // Ensure this is mapped
       }));
 
       const readableSongs = mappedSongs.filter(s => 
@@ -322,6 +323,52 @@ const SheetReaderMode: React.FC = () => {
     stopPlayback();
   }, [allSongs.length, stopPlayback]);
 
+  // NEW: Logic to determine the best chart type based on preference and availability
+  const getBestChartType = useCallback((): ChartType => {
+    if (!currentSong) return 'pdf';
+
+    const hasPdf = !!currentSong.pdfUrl;
+    const hasLeadsheet = !!currentSong.leadsheetUrl;
+    const hasChords = !!currentSong.ug_chords_text?.trim();
+    const pref = currentSong.preferred_reader;
+
+    // 1. Respect the explicit preference if the resource exists
+    if (pref === 'ug' && hasChords) return 'chords';
+    if (pref === 'ls' && hasLeadsheet) return 'leadsheet';
+    if (pref === 'fn' && hasPdf) return 'pdf';
+
+    // 2. If preference is set but resource is missing, fall back to available resources
+    if (pref === 'ug' && !hasChords) {
+        if (hasPdf) return 'pdf';
+        if (hasLeadsheet) return 'leadsheet';
+    }
+    if (pref === 'ls' && !hasLeadsheet) {
+        if (hasPdf) return 'pdf';
+        if (hasChords) return 'chords';
+    }
+    if (pref === 'fn' && !hasPdf) {
+        if (hasLeadsheet) return 'leadsheet';
+        if (hasChords) return 'chords';
+    }
+
+    // 3. Default Fallback Logic (if no preference or all missing)
+    if (hasPdf) return 'pdf';
+    if (hasLeadsheet) return 'leadsheet';
+    if (hasChords) return 'chords';
+
+    return 'pdf'; // Absolute fallback
+  }, [currentSong]);
+
+  // Update selectedChartType when song changes to respect preference
+  useEffect(() => {
+    if (currentSong) {
+      const bestType = getBestChartType();
+      if (selectedChartType !== bestType) {
+        setSelectedChartType(bestType);
+      }
+    }
+  }, [currentSong, getBestChartType]);
+
   const availableChartTypes = useMemo((): ChartType[] => {
     if (!currentSong) return [];
     const types: ChartType[] = [];
@@ -401,66 +448,77 @@ const SheetReaderMode: React.FC = () => {
     }
 
     const url = chartType === 'pdf' ? song.pdfUrl : song.leadsheetUrl;
+    
+    // --- FIX START: Handle Missing PDF/Leadsheet by Fallback ---
     if (!url) {
+      // If we are trying to show PDF/Leadsheet but it's missing, 
+      // check if Chords exist and switch to them.
+      if (song.ug_chords_text?.trim()) {
+        // We need to update the parent state to switch to 'chords'
+        // We do this by returning a special signal or handling it in the parent.
+        // To keep it simple, we will render the ChordsReader directly here 
+        // and trigger a state update in a useEffect to sync the UI dropdown.
+        console.log(`[SheetReaderMode] Fallback: ${chartType} missing, rendering Chords instead.`);
+        
+        // Trigger a state update to sync the dropdown (debounced to avoid loops)
+        setTimeout(() => setSelectedChartType('chords'), 0);
+
+        return (
+          <UGChordsReader
+            key={`${song.id}-chords-fallback-${harmonicTargetKey}`}
+            chordsText={song.ug_chords_text}
+            config={song.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
+            isMobile={false}
+            originalKey={song.originalKey}
+            targetKey={harmonicTargetKey}
+            isPlaying={isPlaying}
+            progress={progress}
+            duration={duration}
+            readerKeyPreference={readerKeyPreference}
+            onChartReady={handleChartReady}
+          />
+        );
+      }
+
+      // If absolutely nothing is available
       return (
         <div className="h-full flex items-center justify-center bg-slate-950">
           <div className="text-center">
             <Music className="w-24 h-24 text-slate-600 mx-auto mb-8" />
-            <h3 className="text-2xl font-bold mb-4">No {chartType === 'pdf' ? 'Score' : 'Leadsheet'}</h3>
-            <Button onClick={() => setIsStudioPanelOpen(true)}>Open Studio</Button>
-          </div>
-        </div>
-      );
-    }
-
-    // --- FIX START: Force PDF Download Instead of Iframe ---
-    if (chartType === 'pdf' || chartType === 'leadsheet') {
-      // We assume the URL is a direct link to Supabase Storage.
-      // We will render a prominent download button that forces the file to download.
-      // This bypasses the browser's PDF viewer and CORS issues entirely.
-      return (
-        <div className="h-full w-full flex flex-col items-center justify-center bg-slate-950 p-8 text-center animate-in fade-in duration-500">
-          <div className="bg-indigo-600/10 p-8 rounded-full border border-indigo-500/20 mb-8">
-            <FileText className="w-12 h-12 text-indigo-400" />
-          </div>
-          <h3 className="text-3xl font-black uppercase tracking-tight mb-2">PDF Ready</h3>
-          <p className="text-slate-400 mb-8 max-w-md">
-            Due to browser security policies, PDFs must be downloaded to your device for viewing.
-            Click the button below to save the file.
-          </p>
-          <a 
-            href={url} 
-            download={`${song.name.replace(/[^a-z0-9]/gi, '_')}_${chartType}.pdf`}
-            className="inline-flex items-center gap-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest px-8 py-4 rounded-2xl shadow-2xl shadow-indigo-600/30 transition-all hover:scale-105 active:scale-95"
-            onClick={() => {
-              showSuccess("Download started...");
-              // Mark as loaded to hide the spinner
-              onChartLoad(song.id, chartType);
-            }}
-          >
-            <Download className="w-5 h-5" /> Download {chartType === 'pdf' ? 'Score' : 'Leadsheet'}
-          </a>
-          <div className="mt-8 flex gap-4 text-xs text-slate-500 font-mono">
-            <span className="bg-white/5 px-2 py-1 rounded">.PDF</span>
-            <span className="bg-white/5 px-2 py-1 rounded">Direct Link</span>
-            <span className="bg-white/5 px-2 py-1 rounded">Native Viewer</span>
+            <h3 className="text-2xl font-bold mb-4">No Chart Available</h3>
+            <p className="text-slate-500 mb-4">This song has no PDF, Leadsheet, or Chords linked.</p>
+            <Button onClick={() => setIsStudioPanelOpen(true)}>Open Studio to Link</Button>
           </div>
         </div>
       );
     }
     // --- FIX END ---
 
-    // Fallback for other types (shouldn't happen given availableChartTypes logic, but kept for safety)
+    // --- PDF/Leadsheet Rendering (Download Button) ---
+    // We keep the download button logic for valid URLs to avoid CORS issues
     return (
-      <div className="h-full flex flex-col items-center justify-center bg-slate-950 p-12 text-center">
-        <ShieldCheck className="w-16 h-16 text-indigo-400 mb-8" />
-        <h4 className="text-4xl font-black mb-6">Asset Protected</h4>
-        <Button onClick={() => window.open(url, '_blank')}>
-          <ExternalLink className="mr-2" /> Launch Chart Window
-        </Button>
+      <div className="h-full w-full flex flex-col items-center justify-center bg-slate-950 p-8 text-center animate-in fade-in duration-500">
+        <div className="bg-indigo-600/10 p-8 rounded-full border border-indigo-500/20 mb-8">
+          <FileText className="w-12 h-12 text-indigo-400" />
+        </div>
+        <h3 className="text-3xl font-black uppercase tracking-tight mb-2">PDF Ready</h3>
+        <p className="text-slate-400 mb-8 max-w-md">
+          Click the button below to download the file for viewing in your native PDF app.
+        </p>
+        <a 
+          href={url} 
+          download={`${song.name.replace(/[^a-z0-9]/gi, '_')}_${chartType}.pdf`}
+          className="inline-flex items-center gap-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest px-8 py-4 rounded-2xl shadow-2xl shadow-indigo-600/30 transition-all hover:scale-105 active:scale-95"
+          onClick={() => {
+            showSuccess("Download started...");
+            onChartLoad(song.id, chartType);
+          }}
+        >
+          <Download className="w-5 h-5" /> Download {chartType === 'pdf' ? 'Score' : 'Leadsheet'}
+        </a>
       </div>
     );
-  }, [isFramable, harmonicTargetKey, isPlaying, progress, duration, readerKeyPreference, handleChartReady]);
+  }, [isFramable, harmonicTargetKey, isPlaying, progress, duration, readerKeyPreference, handleChartReady, setSelectedChartType]);
 
   // Update rendered charts when song or type changes
   useEffect(() => {
@@ -481,7 +539,7 @@ const SheetReaderMode: React.FC = () => {
       return [{
         id: currentSong.id,
         content: renderChartForSong(currentSong, selectedChartType, handleChartLoad),
-        isLoaded: false, // We will treat PDFs as "loaded" immediately in the render function
+        isLoaded: false, 
         opacity: 1,
         zIndex: 10,
         type: selectedChartType,
@@ -497,8 +555,6 @@ const SheetReaderMode: React.FC = () => {
       console.log(`[SheetReaderMode] Chart loading timeout started for ${currentSong.name}`);
       const timer = setTimeout(() => {
         console.log(`[SheetReaderMode] Chart loading timeout expired for ${currentSong.name}`);
-        // If it's still loading after timeout, mark it as loaded to hide the spinner
-        // The user can use the "Open Externally" button if the iframe failed
         setRenderedCharts(prev => prev.map(rc =>
           rc.id === currentSong.id && rc.type === selectedChartType ? { ...rc, isLoaded: true } : rc
         ));
