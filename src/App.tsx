@@ -40,6 +40,7 @@ const App = () => {
 
   // Apply the theme class to the document's root element
   React.useEffect(() => {
+    console.log("[App] Component Mounted. Current Theme:", theme);
     document.documentElement.classList.remove('light', 'dark');
     document.documentElement.classList.add(theme);
   }, [theme]);

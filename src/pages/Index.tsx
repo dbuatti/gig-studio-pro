@@ -92,6 +92,13 @@ const Index = () => {
 
   const [floatingDockMenuOpen, setFloatingDockMenuOpen] = useState(false);
 
+  console.log("[Dashboard] Rendering...", { 
+    userId: user?.id, 
+    activeSetlistId, 
+    activeView: activeDashboardView,
+    repertoireSize: masterRepertoire.length 
+  });
+
   const activeSetlist = useMemo(() =>
     allSetlists.find(list => list.id === activeSetlistId),
   [allSetlists, activeSetlistId]);
@@ -146,31 +153,10 @@ const Index = () => {
     return songs;
   }, [activeSetlist, searchTerm, sortMode, activeFilters]);
 
-  const missingAudioCount = useMemo(() => {
-    if (!activeSetlist) return 0;
-    return activeSetlist.songs.filter(s =>
-      s.youtubeUrl &&
-      (!s.audio_url) &&
-      s.extraction_status !== 'queued' && s.extraction_status !== 'processing'
-    ).length;
-  }, [activeSetlist]);
-
-  const repertoireMissingAudioCount = useMemo(() => {
-    return masterRepertoire.filter(s =>
-      s.youtubeUrl &&
-      (!s.audio_url) &&
-      s.extraction_status !== 'queued' && s.extraction_status !== 'processing'
-    ).length;
-  }, [masterRepertoire]);
-
-  const currentSongHighestNote = useMemo(() => {
-    if (!activeSongForPerformance?.highest_note_original) return undefined;
-    return activeSongForPerformance.highest_note_original;
-  }, [activeSongForPerformance]);
-
   const fetchSetlistsAndRepertoire = useCallback(async () => {
     if (!user) return;
     setLoading(true);
+    console.log("[Dashboard] Triggering fetchSetlistsAndRepertoire...");
     try {
       const { data: setlistsData, error: setlistsError } = await supabase
         .from('setlists')
@@ -281,6 +267,7 @@ const Index = () => {
   }, [user]);
 
   useEffect(() => {
+    console.log("[Dashboard] Auth state effect firing", { authLoading, userEmail: user?.email });
     if (!authLoading && user) {
       fetchSetlistsAndRepertoire();
     } else if (!authLoading && !user) {
@@ -290,6 +277,7 @@ const Index = () => {
 
   useEffect(() => {
     if (!user) return;
+    console.log("[Dashboard] Setting up Repertoire Realtime Channel");
     const repertoireChannel = supabase
       .channel('repertoire_changes')
       .on(
@@ -297,6 +285,7 @@ const Index = () => {
         { event: 'UPDATE', schema: 'public', table: 'repertoire', filter: `user_id=eq.${user.id}` },
         (payload) => {
           const updatedSong = payload.new as SetlistSong;
+          console.log(`[Dashboard] Realtime Update Received for "${updatedSong.name}"`, { status: updatedSong.extraction_status });
           if (updatedSong.extraction_status && (updatedSong.extraction_status === 'completed' || updatedSong.extraction_status === 'failed')) {
             showSuccess(`Repertoire updated for "${updatedSong.name}"`);
             fetchSetlistsAndRepertoire();
@@ -304,11 +293,15 @@ const Index = () => {
         }
       )
       .subscribe();
-    return () => { supabase.removeChannel(repertoireChannel); };
+    return () => { 
+      console.log("[Dashboard] Cleaning up Repertoire Realtime Channel");
+      supabase.removeChannel(repertoireChannel); 
+    };
   }, [user, fetchSetlistsAndRepertoire]);
 
   useEffect(() => {
     if (activeSetlist) {
+      console.log("[Dashboard] Active Setlist Changed - initializing song", { listName: activeSetlist.name });
       const lastActiveSongId = localStorage.getItem(`active_song_id_${activeSetlist.id}`);
       let songToActivate = null;
       if (lastActiveSongId) {
@@ -321,10 +314,11 @@ const Index = () => {
     } else {
       setActiveSongForPerformance(null);
     }
-  }, [activeSetlistId, allSetlists]); // Removed full activeSetlist to avoid unnecessary triggers
+  }, [activeSetlistId, allSetlists]);
 
   useEffect(() => {
     if (activeSetlist && activeSongForPerformance) {
+      console.log("[Dashboard] Storing active song ID in local storage", { songName: activeSongForPerformance.name });
       localStorage.setItem(`active_song_id_${activeSetlist.id}`, activeSongForPerformance.id);
     }
   }, [activeSetlistId, activeSongForPerformance?.id]);
@@ -335,9 +329,11 @@ const Index = () => {
     if (activeSongForPerformance && (activeSongForPerformance.audio_url || activeSongForPerformance.previewUrl)) {
       const urlToLoad = activeSongForPerformance.audio_url || activeSongForPerformance.previewUrl;
       if (urlToLoad) {
+        console.log("[Dashboard] Audio Load Triggered", { song: activeSongForPerformance.name, url: urlToLoad.substring(0, 50) + "..." });
         loadFromUrl(urlToLoad, activeSongForPerformance.pitch || 0, true);
       }
     } else {
+      console.log("[Dashboard] Audio Engine Reset (No song or URL)");
       stopPlayback();
       resetEngine();
     }
@@ -350,6 +346,7 @@ const Index = () => {
   }, [activeSetlistId]);
 
   const handleSelectSetlist = (id: string) => {
+    console.log("[Dashboard] Setlist Selection Changed:", id);
     setActiveSetlistId(id);
     audio.stopPlayback();
   };
@@ -437,6 +434,7 @@ const Index = () => {
   };
 
   const handleSelectSongForPlayback = (song: SetlistSong) => {
+    console.log("[Dashboard] Explicit Song Selection for Playback:", song.name);
     setActiveSongForPerformance(song);
     audio.stopPlayback();
     if (activeSetlist) {
@@ -547,77 +545,6 @@ const Index = () => {
       showSuccess("Setlist reordered!");
     } catch (err: any) {
       showError(`Failed to reorder songs: ${err.message}`);
-    }
-  };
-
-  const handleRepertoireAutoLink = async () => {
-    if (!user) return;
-    setIsRepertoireAutoLinking(true);
-    const songsToProcess = masterRepertoire.filter(s => !s.youtubeUrl || s.youtubeUrl.trim() === '');
-    if (songsToProcess.length === 0) {
-      setIsRepertoireAutoLinking(false);
-      return;
-    }
-    try {
-      await supabase.functions.invoke('bulk-populate-youtube-links', { body: { songIds: songsToProcess.map(s => s.id) } });
-      await fetchSetlistsAndRepertoire();
-      showSuccess("AI Discovery Complete for Repertoire!");
-    } catch (err: any) {
-      showError(`AI Discovery Failed: ${err.message}`);
-    } finally {
-      setIsRepertoireAutoLinking(false);
-    }
-  };
-
-  const handleRepertoireGlobalAutoSync = async () => {
-    if (!user) return;
-    setIsRepertoireGlobalAutoSyncing(true);
-    try {
-      await supabase.functions.invoke('global-auto-sync', { body: { songIds: masterRepertoire.map(s => s.id) } });
-      await fetchSetlistsAndRepertoire();
-      showSuccess("Global Auto-Sync Complete for Repertoire!");
-    } catch (err: any) {
-      showError(`Global Auto-Sync Failed: ${err.message}`);
-    } finally {
-      setIsRepertoireGlobalAutoSyncing(false);
-    }
-  };
-
-  const handleRepertoireBulkRefreshAudio = async () => {
-    if (!user) return;
-    setIsRepertoireBulkQueuingAudio(true);
-    const songsToQueue = masterRepertoire.filter(s => s.youtubeUrl && (!s.audio_url) && s.extraction_status !== 'queued' && s.extraction_status !== 'processing');
-    if (songsToQueue.length === 0) {
-      setIsRepertoireBulkQueuingAudio(false);
-      return;
-    }
-    try {
-      await supabase.from('repertoire').update({ extraction_status: 'queued', last_sync_log: 'Queued for background audio extraction.' }).in('id', songsToQueue.map(s => s.id));
-      await fetchSetlistsAndRepertoire();
-      showSuccess(`Queued ${songsToQueue.length} repertoire tasks.`);
-    } catch (err: any) {
-      showError(`Failed to queue tasks: ${err.message}`);
-    } finally {
-      setIsRepertoireBulkQueuingAudio(false);
-    }
-  };
-
-  const handleRepertoireClearAutoLinks = async () => {
-    if (!user) return;
-    setIsRepertoireClearingAutoLinks(true);
-    const autoPopulatedSongs = masterRepertoire.filter(s => s.metadata_source === 'auto_populated');
-    if (autoPopulatedSongs.length === 0) {
-      setIsRepertoireClearingAutoLinks(false);
-      return;
-    }
-    try {
-      await supabase.from('repertoire').update({ youtube_url: null, metadata_source: null, sync_status: 'IDLE', last_sync_log: 'Cleared auto-populated link' }).in('id', autoPopulatedSongs.map(s => s.id));
-      await fetchSetlistsAndRepertoire();
-      showSuccess("Links cleared!");
-    } catch (err: any) {
-      showError(`Failed to clear links: ${err.message}`);
-    } finally {
-      setIsRepertoireClearingAutoLinks(false);
     }
   };
 
@@ -746,13 +673,12 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="repertoire" className="mt-0 space-y-8">
-            <SetlistExporter songs={masterRepertoire} onAutoLink={handleRepertoireAutoLink} onGlobalAutoSync={handleRepertoireGlobalAutoSync} onBulkRefreshAudio={handleRepertoireBulkRefreshAudio} onClearAutoLinks={handleRepertoireClearAutoLinks} isBulkDownloading={isRepertoireBulkQueuingAudio} missingAudioCount={repertoireMissingAudioCount} onOpenAdmin={() => setIsAdminPanelOpen(true)} />
             <RepertoireView repertoire={masterRepertoire} onEditSong={handleEditSong} allSetlists={allSetlists} onUpdateSetlistSongs={handleUpdateSetlistSongs} onRefreshRepertoire={handleRefreshRepertoire} onAddSong={async (newSong) => { if (!user) return; try { const synced = await syncToMasterRepertoire(user.id, [newSong]); setMasterRepertoire(prev => [...prev, synced[0]]); } catch (err: any) { showError(`Failed: ${err.message}`); } }} searchTerm={searchTerm} setSearchTerm={setSearchTerm} sortMode={sortMode} setSortMode={setSortMode} activeFilters={activeFilters} setActiveFilters={setActiveFilters} />
           </TabsContent>
         </Tabs>
       </div>
 
-      <FloatingCommandDock onOpenSearch={() => setIsAudioTransposerModalOpen(true)} onOpenPractice={() => {}} onOpenReader={handleOpenReader} onOpenAdmin={() => setIsAdminPanelOpen(true)} onOpenPreferences={() => setIsPreferencesOpen(true)} onToggleHeatmap={() => setShowHeatmap(prev => !prev)} onOpenUserGuide={() => setIsUserGuideOpen(true)} showHeatmap={showHeatmap} viewMode={activeDashboardView} hasPlayableSong={hasPlayableSong} hasReadableChart={hasReadableChart} isPlaying={audio.isPlaying} onTogglePlayback={audio.togglePlayback} currentSongHighestNote={currentSongHighestNote} currentSongPitch={activeSongForPerformance?.pitch} onSafePitchToggle={handleSafePitchToggle} activeSongId={activeSongForPerformance?.id} onSetMenuOpen={setFloatingDockMenuOpen} isMenuOpen={floatingDockMenuOpen} onOpenPerformance={handleOpenPerformanceOverlay} />
+      <FloatingCommandDock onOpenSearch={() => setIsAudioTransposerModalOpen(true)} onOpenPractice={() => {}} onOpenReader={handleOpenReader} onOpenAdmin={() => setIsAdminPanelOpen(true)} onOpenPreferences={() => setIsPreferencesOpen(true)} onToggleHeatmap={() => setShowHeatmap(prev => !prev)} onOpenUserGuide={() => setIsUserGuideOpen(true)} showHeatmap={showHeatmap} viewMode={activeDashboardView} hasPlayableSong={hasPlayableSong} hasReadableChart={hasReadableChart} isPlaying={audio.isPlaying} onTogglePlayback={audio.togglePlayback} currentSongHighestNote={activeSongForPerformance?.highest_note_original || undefined} currentSongPitch={activeSongForPerformance?.pitch} onSafePitchToggle={handleSafePitchToggle} activeSongId={activeSongForPerformance?.id} onSetMenuOpen={setFloatingDockMenuOpen} isMenuOpen={floatingDockMenuOpen} onOpenPerformance={handleOpenPerformanceOverlay} />
 
       <AlertDialog open={isCreatingSetlist} onOpenChange={setIsCreatingSetlist}>
         <AlertDialogContent className="bg-slate-900 border-white/10 text-white rounded-[2rem]">

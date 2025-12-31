@@ -56,7 +56,11 @@ const SheetReaderMode: React.FC = () => {
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  const [readerKeyPreference, setReaderKeyPreference] = useState<KeyPreference>(globalKeyPreference);
+  // Narrowing KeyPreference for internal reader state to satisfy child component types
+  const [readerKeyPreference, setReaderKeyPreference] = useState<'sharps' | 'flats'>(
+    globalKeyPreference === 'neutral' ? 'sharps' : globalKeyPreference
+  );
+  
   const [selectedChartType, setSelectedChartType] = useState<ChartType>('pdf');
   const [renderedCharts, setRenderedCharts] = useState<RenderedChart[]>([]);
 
@@ -270,11 +274,7 @@ const SheetReaderMode: React.FC = () => {
   }, []);
 
   const renderChartForSong = useCallback((song: SetlistSong, chartType: ChartType): React.ReactNode => {
-    // Resolve concrete preference for rendering
-    const concretePreference = readerKeyPreference === 'neutral' 
-      ? (song.key_preference || 'sharps') 
-      : readerKeyPreference;
-
+    // Current readerKeyPreference is already narrowed to 'sharps' | 'flats'
     if (chartType === 'chords' && song.ug_chords_text?.trim()) {
       return (
         <UGChordsReader
@@ -287,7 +287,7 @@ const SheetReaderMode: React.FC = () => {
           isPlaying={isPlaying}
           progress={progress}
           duration={duration}
-          readerKeyPreference={concretePreference}
+          readerKeyPreference={readerKeyPreference}
           onChartReady={handleChartReady}
         />
       );
