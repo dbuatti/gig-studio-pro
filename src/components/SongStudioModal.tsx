@@ -33,11 +33,18 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
 }) => {
   const navigate = useNavigate();
 
-  if (!gigId || !songId) return null;
+  // Allow songId to be null if gigId is 'library' for the search view
+  if (!gigId || (gigId !== 'library' && !songId)) return null;
 
   const handleExpand = () => {
     onClose();
-    navigate(`/gig/${gigId}/song/${songId}`);
+    // Only navigate if a songId is actually present
+    if (gigId && songId) {
+      navigate(`/gig/${gigId}/song/${songId}`);
+    } else {
+      // If no songId, navigate to a generic studio page or dashboard
+      navigate('/dashboard'); 
+    }
   };
 
   return (

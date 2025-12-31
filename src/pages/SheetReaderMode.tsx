@@ -726,7 +726,7 @@ const SheetReaderMode: React.FC = () => {
           onPullKey={handlePullKey}
           isSidebarOpen={isSidebarOpen}
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-          headerLeftOffset={headerLeftOffset} // Pass dynamic left offset
+          headerLeftOffset={headerLeftOffset}
         />
 
         {isOriginalKeyMissing && (
