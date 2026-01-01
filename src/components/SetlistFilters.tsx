@@ -9,7 +9,7 @@ import {
   X, Star, Save, Trash2, Headphones, Sparkles, Hash,
   CircleDashed, ChevronDown, ListFilter, Music2, 
   VideoOff, FileX2, VolumeX, BarChart3, TrendingUp, TrendingDown,
-  Target, AlertCircle, Link as LinkIcon, FileSearch, ShieldCheck, Check, Guitar
+  Target, AlertCircle, Link as LinkIcon, FileSearch, ShieldCheck, Check, Guitar, Type
 } from 'lucide-react';
 import { 
   DropdownMenu, 
@@ -34,6 +34,7 @@ export interface FilterState {
   isApproved: 'all' | 'yes' | 'no';
   readiness: number; 
   hasUgChords: 'all' | 'yes' | 'no';
+  hasLyrics: 'all' | 'yes' | 'no'; // NEW
 }
 
 export const DEFAULT_FILTERS: FilterState = {
@@ -45,7 +46,8 @@ export const DEFAULT_FILTERS: FilterState = {
   isConfirmed: 'all',
   isApproved: 'all',
   readiness: 0,
-  hasUgChords: 'all'
+  hasUgChords: 'all',
+  hasLyrics: 'all', // NEW
 };
 
 interface SetlistFiltersProps {
@@ -58,7 +60,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
     const saved = localStorage.getItem('gig_filter_presets');
     return saved ? JSON.parse(saved) : [
       { id: 'broken', name: 'Needs Attention', filters: { ...DEFAULT_FILTERS, readiness: 40 } },
-      { id: 'stage-ready', name: 'Performance Ready', filters: { ...DEFAULT_FILTERS, readiness: 100, hasAudio: 'full', hasChart: 'yes', isConfirmed: 'yes', isApproved: 'yes', hasUgChords: 'yes' } }
+      { id: 'stage-ready', name: 'Performance Ready', filters: { ...DEFAULT_FILTERS, readiness: 100, hasAudio: 'full', hasChart: 'yes', isConfirmed: 'yes', isApproved: 'yes', hasUgChords: 'yes', hasLyrics: 'yes' } }
     ];
   });
 
@@ -328,6 +330,34 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
             </DropdownMenuContent>
           </DropdownMenu>
 
+          {/* NEW: Lyrics Toggle (Icon only) */}
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className={cn(
+                      "h-9 w-9 rounded-xl border transition-all",
+                      activeFilters.hasLyrics !== 'all' ? "bg-pink-600 text-white shadow-lg" : "bg-card border-border text-muted-foreground"
+                    )}
+                  >
+                    <Type className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent className="text-[10px] font-black uppercase">Lyrics</TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-popover border-border text-foreground">
+              <DropdownMenuRadioGroup value={activeFilters.hasLyrics} onValueChange={(v) => onFilterChange({ ...activeFilters, hasLyrics: v as any })}>
+                <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Has Lyrics</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-10 rounded-xl text-destructive">Missing Lyrics</DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           {!isDefault && (
             <Button 
               variant="ghost" 
@@ -361,7 +391,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                 className="bg-emerald-50 text-emerald-600 border-emerald-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
                 onClick={() => onFilterChange({ ...activeFilters, isConfirmed: 'all' })}
               >
-                Key Verified: {activeFilters.isConfirmed} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
+                Key Verified: {activeFilters.isConfirmed} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
               </Badge>
             )}
             {activeFilters.isApproved !== 'all' && (
@@ -370,7 +400,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                 className="bg-indigo-50 text-indigo-600 border-indigo-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
                 onClick={() => onFilterChange({ ...activeFilters, isApproved: 'all' })}
               >
-                Approved: {activeFilters.isApproved} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
+                Approved: {activeFilters.isApproved} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
               </Badge>
             )}
             {activeFilters.hasAudio !== 'all' && (
@@ -379,7 +409,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                 className="bg-indigo-50 text-indigo-600 border-indigo-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
                 onClick={() => onFilterChange({ ...activeFilters, hasAudio: 'all' })}
               >
-                Audio: {activeFilters.hasAudio} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
+                Audio: {activeFilters.hasAudio} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
               </Badge>
             )}
             {activeFilters.hasVideo !== 'all' && (
@@ -388,7 +418,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                 className="bg-red-50 text-red-600 border-red-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
                 onClick={() => onFilterChange({ ...activeFilters, hasVideo: 'all' })}
               >
-                Video: {activeFilters.hasVideo} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
+                Video: {activeFilters.hasVideo} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
               </Badge>
             )}
             {activeFilters.hasPdf !== 'all' && (
@@ -397,7 +427,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                 className="bg-emerald-50 text-emerald-600 border-emerald-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
                 onClick={() => onFilterChange({ ...activeFilters, hasPdf: 'all' })}
               >
-                PDF: {activeFilters.hasPdf} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
+                PDF: {activeFilters.hasPdf} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
               </Badge>
             )}
             {activeFilters.hasUg !== 'all' && (
@@ -406,7 +436,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                 className="bg-orange-50 text-orange-600 border-orange-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
                 onClick={() => onFilterChange({ ...activeFilters, hasUg: 'all' })}
               >
-                UG: {activeFilters.hasUg} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
+                UG: {activeFilters.hasUg} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
               </Badge>
             )}
             {activeFilters.hasUgChords !== 'all' && (
@@ -415,7 +445,17 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                 className="bg-purple-50 text-purple-600 border-purple-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
                 onClick={() => onFilterChange({ ...activeFilters, hasUgChords: 'all' })}
               >
-                UG Chords: {activeFilters.hasUgChords} <X className="w-2.5 h-2.5 ml-1 opacity-40 group-hover:opacity-100" />
+                UG Chords: {activeFilters.hasUgChords} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
+              </Badge>
+            )}
+            {/* NEW: Lyrics Badge */}
+            {activeFilters.hasLyrics !== 'all' && (
+              <Badge 
+                variant="secondary" 
+                className="bg-pink-50 text-pink-600 border-pink-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
+                onClick={() => onFilterChange({ ...activeFilters, hasLyrics: 'all' })}
+              >
+                Lyrics: {activeFilters.hasLyrics} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
               </Badge>
             )}
           </div>
