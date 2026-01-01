@@ -84,10 +84,19 @@ const Index = () => {
   const [renameSetlistName, setNewSetlistNameForRename] = useState("");
   const [deleteSetlistConfirmId, setDeleteSetlistConfirmId] = useState<string | null>(null);
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [sortMode, setSortMode] = useState<'none' | 'ready' | 'work'>('none');
-  const [activeFilters, setActiveFilters] = useState<FilterState>(DEFAULT_FILTERS);
-  const [showHeatmap, setShowHeatmap] = useState(false);
+  // --- PERSISTENT STATE INITIALIZATION ---
+  const [searchTerm, setSearchTerm] = useState(() => localStorage.getItem('gig_search_term') || "");
+  const [sortMode, setSortMode] = useState<'none' | 'ready' | 'work'>(() => (localStorage.getItem('gig_sort_mode') as 'none' | 'ready' | 'work') || 'none');
+  const [activeFilters, setActiveFilters] = useState<FilterState>(() => {
+    const saved = localStorage.getItem('gig_active_filters');
+    try {
+      return saved ? { ...DEFAULT_FILTERS, ...JSON.parse(saved) } : DEFAULT_FILTERS;
+    } catch {
+      return DEFAULT_FILTERS;
+    }
+  });
+  const [showHeatmap, setShowHeatmap] = useState(() => localStorage.getItem('gig_show_heatmap') === 'true');
+  // --- END PERSISTENT STATE INITIALIZATION ---
 
   // Automation States
   const [isRepertoireAutoLinking, setIsRepertoireAutoLinking] = useState(false);
@@ -100,6 +109,24 @@ const Index = () => {
   const userId = user?.id;
 
   const onOpenAdmin = () => setIsAdminPanelOpen(true);
+
+  // --- PERSISTENCE EFFECTS ---
+  useEffect(() => {
+    localStorage.setItem('gig_search_term', searchTerm);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    localStorage.setItem('gig_sort_mode', sortMode);
+  }, [sortMode]);
+
+  useEffect(() => {
+    localStorage.setItem('gig_active_filters', JSON.stringify(activeFilters));
+  }, [activeFilters]);
+
+  useEffect(() => {
+    localStorage.setItem('gig_show_heatmap', showHeatmap.toString());
+  }, [showHeatmap]);
+  // --- END PERSISTENCE EFFECTS ---
 
   const missingAudioCount = useMemo(() => {
     return masterRepertoire.filter(s => {
