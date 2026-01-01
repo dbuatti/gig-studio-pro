@@ -260,8 +260,9 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
           <Tooltip>
             <TooltipTrigger asChild>
               <motion.button
-                drag
+                drag="x"
                 dragMomentum={false}
+                dragElastic={0}
                 onDragEnd={handleDragEnd}
                 onClick={handleToggleMenu}
                 onPointerDown={(e) => {
