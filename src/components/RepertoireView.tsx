@@ -89,6 +89,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
       const hasPdf = !!s.pdfUrl || !!s.leadsheetUrl || !!s.sheet_music_url;
       const hasUg = !!s.ugUrl;
       const hasUgChords = !!s.ug_chords_text && s.ug_chords_text.trim().length > 0;
+      const hasLyrics = !!s.lyrics && s.lyrics.length > 20; // Check for lyrics presence
 
       if (activeFilters.readiness > 0 && readiness < activeFilters.readiness) return false;
       if (activeFilters.isConfirmed === 'yes' && !s.isKeyConfirmed) return false;
@@ -108,6 +109,10 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
       if (activeFilters.hasUg === 'no' && hasUg) return false;
       if (activeFilters.hasUgChords === 'yes' && !hasUgChords) return false;
       if (activeFilters.hasUgChords === 'no' && hasUgChords) return false;
+      
+      // Apply Lyrics filter
+      if (activeFilters.hasLyrics === 'yes' && !hasLyrics) return false;
+      if (activeFilters.hasLyrics === 'no' && hasLyrics) return false;
       
       return true;
     });
