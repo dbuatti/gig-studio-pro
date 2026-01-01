@@ -6,7 +6,8 @@ import { cn } from "@/lib/utils";
 import { 
   LayoutDashboard, Search, Sparkles, ShieldCheck, X, Settings, 
   Play, FileText, Pause, BookOpen, Volume2, ShieldAlert, Zap,
-  ChevronRight, ChevronLeft, ChevronUp, ChevronDown, MoreHorizontal, Wrench
+  ChevronRight, ChevronLeft, ChevronUp, ChevronDown, MoreHorizontal, Wrench,
+  Rocket, Activity
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { motion, AnimatePresence } from 'framer-motion';
@@ -35,7 +36,7 @@ interface FloatingCommandDockProps {
   activeSongId?: string | null;
   onSetMenuOpen?: (open: boolean) => void;
   isMenuOpen?: boolean;
-  onOpenPerformance: () => void; // NEW: Add onOpenPerformance prop
+  onOpenPerformance: () => void;
 }
 
 type MenuDirection = 'up' | 'down' | 'left' | 'right';
@@ -61,7 +62,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   activeSongId,
   onSetMenuOpen,
   isMenuOpen: isMenuOpenProp,
-  onOpenPerformance, // Destructure new prop
+  onOpenPerformance,
 }) => {
   const [isOpen, setIsOpen] = useState<boolean>(() => {
     if (typeof window !== 'undefined') return localStorage.getItem('floating_dock_open') === 'true';
@@ -69,48 +70,27 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   });
 
   const [isSubMenuOpen, setIsSubMenuOpen] = useState(false);
-
-  // Initialize position to { x: 0, y: 0 } to ensure it starts at the CSS-defined point
   const [position, setPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-
   const [isSafePitchActive, setIsSafePitchActive] = useState(false);
-  const { safePitchMaxNote, isSafePitchEnabled } = useSettings(); // NEW: Get isSafePitchEnabled
+  const { safePitchMaxNote, isSafePitchEnabled } = useSettings();
 
-  // Intelligent Direction Calculation based on available space
   const direction = useMemo((): MenuDirection => {
     if (typeof window === 'undefined') return 'up';
-    
     const windowWidth = window.innerWidth;
     const windowHeight = window.innerHeight;
-    
-    const dockSize = 56; // Approximate size of the main button (h-14 w-14)
-    const margin = 32; // 8 units margin * 4 (tailwind default)
-    
-    // Calculate the current screen position of the dock's top-left corner
-    // Initial CSS: left-8 (32px), bottom-8 (32px)
+    const dockSize = 56;
+    const margin = 32;
     const currentLeft = margin + position.x;
-    const currentBottom = margin - position.y; // positive y from framer-motion means moving down, which decreases distance from bottom
-
-    // Calculate the center of the dock
+    const currentBottom = margin - position.y;
     const centerX = currentLeft + dockSize / 2;
-    const centerY = windowHeight - currentBottom - dockSize / 2; // Y from top
+    const centerY = windowHeight - currentBottom - dockSize / 2;
 
-    // Determine if the dock is in the bottom-left quadrant
-    const isBottomHalf = centerY > windowHeight / 2;
-    const isLeftHalf = centerX < windowWidth / 2;
+    if (centerY > windowHeight / 2 && centerX < windowWidth / 2) return 'up';
 
-    if (isBottomHalf && isLeftHalf) {
-      return 'up'; // Force up when in bottom-left quadrant
-    }
-
-    // Fallback to dynamic calculation for other quadrants
     const spaceRight = windowWidth - (currentLeft + dockSize);
     const spaceLeft = currentLeft;
-    const spaceDown = currentBottom; // Space from bottom edge
-    const spaceUp = windowHeight - (currentBottom + dockSize); // Space from top edge
-
-    const menuWidth = 250;
-    const menuHeight = 200;
+    const spaceDown = currentBottom;
+    const spaceUp = windowHeight - (currentBottom + dockSize);
 
     const spaces = [
       { dir: 'right' as MenuDirection, space: spaceRight },
@@ -120,7 +100,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     ];
 
     const validSpaces = spaces.filter(s => 
-      (s.dir === 'left' || s.dir === 'right') ? s.space > menuWidth : s.space > menuHeight
+      (s.dir === 'left' || s.dir === 'right') ? s.space > 250 : s.space > 200
     );
 
     if (validSpaces.length > 0) {
@@ -142,7 +122,6 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     localStorage.setItem('floating_dock_open', nextState.toString());
   }, [internalIsMenuOpen, isReaderMode, onSetMenuOpen]);
 
-  // Global ESC listener
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && internalIsMenuOpen) handleToggleMenu();
@@ -151,32 +130,21 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     return () => window.removeEventListener('keydown', handleEsc);
   }, [internalIsMenuOpen, handleToggleMenu]);
 
-  // NEW: Global keyboard shortcuts for P and R
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      // Ignore if user is typing in an input or textarea
-      if (
-        e.target instanceof HTMLInputElement || 
-        e.target instanceof HTMLTextAreaElement ||
-        (e.target as HTMLElement).isContentEditable
-      ) {
-        return;
-      }
-
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || (e.target as HTMLElement).isContentEditable) return;
       if (e.key.toLowerCase() === 'p') {
         e.preventDefault();
         onOpenPerformance();
       }
       if (e.key.toLowerCase() === 'r') {
         e.preventDefault();
-        onOpenReader();
+        onOpenReader(activeSongId || undefined);
       }
     };
-
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [onOpenPerformance, onOpenReader]);
-
+  }, [onOpenPerformance, onOpenReader, activeSongId]);
 
   const handleDragEnd = (_: any, info: any) => {
     const newPos = { x: position.x + info.offset.x, y: position.y + info.offset.y };
@@ -190,18 +158,16 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   }, [currentSongHighestNote, safePitchMaxNote]);
 
   useEffect(() => {
-    // Only apply safe pitch logic if the feature is enabled in preferences
     if (isSafePitchEnabled && isSafePitchActive && safePitchLimit !== null) {
       const currentPitch = currentSongPitch || 0;
       if (currentPitch > safePitchLimit) {
-        onSafePitchToggle?.(false, 0); // Deactivate if pitch exceeds limit
+        onSafePitchToggle?.(false, 0);
         setIsSafePitchActive(false);
-        // Removed: showError("Pitch exceeds safe limit.");
         return;
       }
       onSafePitchToggle?.(true, safePitchLimit);
     } else if (!isSafePitchActive) {
-      onSafePitchToggle?.(false, 0); // Ensure it's off if not active
+      onSafePitchToggle?.(false, 0);
     }
   }, [isSafePitchEnabled, isSafePitchActive, safePitchLimit, currentSongPitch, onSafePitchToggle]);
 
@@ -218,6 +184,14 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
       ),
     },
     {
+      id: 'performance',
+      icon: <Rocket className="w-5 h-5" />,
+      onClick: onOpenPerformance,
+      disabled: !activeSongId,
+      tooltip: "Stage Mode (P)",
+      className: "bg-orange-600 text-white border-orange-500",
+    },
+    {
       id: 'reader',
       icon: <FileText className="w-5 h-5" />,
       onClick: () => onOpenReader(activeSongId || undefined),
@@ -228,8 +202,8 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     {
       id: 'search',
       icon: <Search className="w-5 h-5" />,
-      onClick: onOpenSearch, // Re-enabled onClick
-      disabled: false, // Re-enabled button
+      onClick: onOpenSearch,
+      disabled: false,
       tooltip: "Discovery",
       className: "bg-slate-800 text-white border-white/10 hover:bg-indigo-600",
     },
@@ -239,7 +213,6 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     { id: 'automation', icon: <Zap className="w-4 h-4" />, onClick: onOpenAdmin, tooltip: "Automation Hub", className: "bg-purple-600/20 text-purple-400 border-purple-500/30" },
     { id: 'admin', icon: <ShieldCheck className="w-4 h-4" />, onClick: onOpenAdmin, tooltip: "Audit Matrix", className: "bg-red-900/40 text-red-400 border-red-500/30" },
     { id: 'heatmap', icon: <Sparkles className="w-4 h-4" />, onClick: onToggleHeatmap, tooltip: "Heatmap (H)", className: cn(showHeatmap ? "bg-amber-500 text-black border-amber-400" : "bg-slate-800 text-amber-400 border-white/10") },
-    // NEW: Conditionally render Safe Pitch button
     ...(isSafePitchEnabled ? [{ id: 'safe-pitch', icon: <ShieldAlert className="w-4 h-4" />, onClick: () => setIsSafePitchActive(!isSafePitchActive), tooltip: "Safe Pitch", className: cn(isSafePitchActive ? "bg-emerald-600 text-white border-emerald-400" : "bg-slate-800 text-emerald-400 border-white/10") }] : []),
     { id: 'preferences', icon: <Settings className="w-4 h-4" />, onClick: onOpenPreferences, tooltip: "Prefs", className: "bg-slate-800 text-slate-300 border-white/10" },
     { id: 'user-guide', icon: <BookOpen className="w-4 h-4" />, onClick: onOpenUserGuide, tooltip: "Guide", className: "bg-blue-600/20 text-blue-400 border-blue-500/30" },
@@ -269,7 +242,6 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
           direction === 'right' && "flex-row"
         )}
       >
-        {/* Hub Trigger Button */}
         <div className="bg-card/90 backdrop-blur-2xl p-2 rounded-full border border-border/20 shadow-2xl">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -297,7 +269,6 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
               exit={{ opacity: 0, scale: 0.8 }}
               className={cn("flex items-center gap-3", getMenuClasses(direction))}
             >
-              {/* Primary Slot Container */}
               <div className={cn(
                 "flex items-center gap-3 p-3 bg-card/90 rounded-[2.5rem] border border-border/10 shadow-2xl backdrop-blur-xl",
                 (direction === 'up' || direction === 'down') ? "flex-col" : "flex-row"
@@ -319,7 +290,6 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                   </Tooltip>
                 ))}
 
-                {/* Sub-Menu Toggle */}
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
@@ -338,7 +308,6 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                 </Tooltip>
               </div>
 
-              {/* Secondary Utility Matrix */}
               <AnimatePresence>
                 {isSubMenuOpen && (
                   <motion.div
