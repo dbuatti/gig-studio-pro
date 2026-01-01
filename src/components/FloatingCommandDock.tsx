@@ -124,7 +124,6 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || (e.target as HTMLElement).isContentEditable) return;
       if (e.key === 'Escape' && internalIsMenuOpen) handleToggleMenu();
     };
     window.addEventListener('keydown', handleEsc);
@@ -176,7 +175,10 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     {
       id: 'practice',
       icon: isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />,
-      onClick: onTogglePlayback,
+      onClick: () => {
+        console.log("[DOCK CLICK] Practice button clicked.");
+        onTogglePlayback();
+      },
       disabled: !hasPlayableSong,
       tooltip: isPlaying ? "Pause (Space)" : "Play (Space)",
       className: cn(
@@ -187,7 +189,10 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     {
       id: 'performance',
       icon: <Rocket className="w-5 h-5" />,
-      onClick: onOpenPerformance,
+      onClick: () => {
+        console.log("[DOCK CLICK] Performance button clicked.");
+        onOpenPerformance();
+      },
       disabled: !activeSongId,
       tooltip: "Stage Mode (P)",
       className: "bg-orange-600 text-white border-orange-500",
@@ -195,7 +200,10 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     {
       id: 'reader',
       icon: <FileText className="w-5 h-5" />,
-      onClick: () => onOpenReader(activeSongId || undefined),
+      onClick: () => {
+        console.log("[DOCK CLICK] Reader button clicked.");
+        onOpenReader(activeSongId || undefined);
+      },
       disabled: !hasReadableChart,
       tooltip: "Reader (R)",
       className: "bg-emerald-600 text-white border-emerald-500",
@@ -203,7 +211,10 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     {
       id: 'search',
       icon: <Search className="w-5 h-5" />,
-      onClick: onOpenSearch,
+      onClick: () => {
+        console.log("[DOCK CLICK] Search button clicked.");
+        onOpenSearch();
+      },
       disabled: false,
       tooltip: "Discovery",
       className: "bg-slate-800 text-white border-white/10 hover:bg-indigo-600",
@@ -250,7 +261,10 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                 variant="ghost"
                 size="icon"
                 onClick={handleToggleMenu}
-                onPointerDown={(e) => e.stopPropagation()}
+                onPointerDown={(e) => {
+                  console.log("[DOCK POINTER DOWN] Main Toggle button pointer down. Stopping propagation.");
+                  e.stopPropagation();
+                }}
                 className={cn(
                   "h-14 w-14 rounded-full transition-all duration-500 border-2 shadow-xl",
                   internalIsMenuOpen ? "bg-secondary text-secondary-foreground border-border rotate-90" : "bg-card text-indigo-400 border-border/10"
@@ -282,7 +296,10 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                         variant="ghost"
                         size="icon"
                         onClick={() => { btn.onClick?.(); if (btn.id !== 'practice') handleToggleMenu(); }}
-                        onPointerDown={(e) => e.stopPropagation()}
+                        onPointerDown={(e) => {
+                          console.log(`[DOCK POINTER DOWN] Primary Button ${btn.id} pointer down. Stopping propagation.`);
+                          e.stopPropagation();
+                        }}
                         className={cn("h-12 w-12 rounded-full border transition-all active:scale-90 disabled:opacity-10", btn.className)}
                         disabled={btn.disabled}
                       >
@@ -299,7 +316,10 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                       variant="ghost"
                       size="icon"
                       onClick={() => setIsSubMenuOpen(!isSubMenuOpen)}
-                      onPointerDown={(e) => e.stopPropagation()}
+                      onPointerDown={(e) => {
+                        console.log("[DOCK POINTER DOWN] SubMenu Toggle button pointer down. Stopping propagation.");
+                        e.stopPropagation();
+                      }}
                       className={cn(
                         "h-12 w-12 rounded-full border transition-all",
                         isSubMenuOpen ? "bg-secondary text-secondary-foreground border-border" : "bg-card text-slate-400 border-border/5"
@@ -330,7 +350,10 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                             variant="ghost"
                             size="icon"
                             onClick={() => { btn.onClick(); if (btn.id !== 'heatmap' && btn.id !== 'safe-pitch') handleToggleMenu(); }}
-                            onPointerDown={(e) => e.stopPropagation()}
+                            onPointerDown={(e) => {
+                              console.log(`[DOCK POINTER DOWN] Secondary Button ${btn.id} pointer down. Stopping propagation.`);
+                              e.stopPropagation();
+                            }}
                             className={cn("h-10 w-10 rounded-full border transition-all hover:scale-110", btn.className)}
                           >
                             {btn.icon}
