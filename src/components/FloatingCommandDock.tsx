@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { 
@@ -73,9 +73,6 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   const [position, setPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isSafePitchActive, setIsSafePitchActive] = useState(false);
   const { safePitchMaxNote, isSafePitchEnabled } = useSettings();
-  
-  // Ref for the draggable element
-  const dragRef = useRef(null);
 
   const direction = useMemo((): MenuDirection => {
     if (typeof window === 'undefined') return 'up';
@@ -127,7 +124,6 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || (e.target as HTMLElement).isContentEditable) return;
       if (e.key === 'Escape' && internalIsMenuOpen) handleToggleMenu();
     };
     window.addEventListener('keydown', handleEsc);
@@ -179,10 +175,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     {
       id: 'practice',
       icon: isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />,
-      onClick: () => {
-        console.log("[DOCK CLICK] Practice button clicked.");
-        onTogglePlayback();
-      },
+      onClick: onTogglePlayback,
       disabled: !hasPlayableSong,
       tooltip: isPlaying ? "Pause (Space)" : "Play (Space)",
       className: cn(
@@ -193,10 +186,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     {
       id: 'performance',
       icon: <Rocket className="w-5 h-5" />,
-      onClick: () => {
-        console.log("[DOCK CLICK] Performance button clicked.");
-        onOpenPerformance();
-      },
+      onClick: onOpenPerformance,
       disabled: !activeSongId,
       tooltip: "Stage Mode (P)",
       className: "bg-orange-600 text-white border-orange-500",
@@ -204,10 +194,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     {
       id: 'reader',
       icon: <FileText className="w-5 h-5" />,
-      onClick: () => {
-        console.log("[DOCK CLICK] Reader button clicked.");
-        onOpenReader(activeSongId || undefined);
-      },
+      onClick: () => onOpenReader(activeSongId || undefined),
       disabled: !hasReadableChart,
       tooltip: "Reader (R)",
       className: "bg-emerald-600 text-white border-emerald-500",
@@ -215,10 +202,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     {
       id: 'search',
       icon: <Search className="w-5 h-5" />,
-      onClick: () => {
-        console.log("[DOCK CLICK] Search button clicked.");
-        onOpenSearch();
-      },
+      onClick: onOpenSearch,
       disabled: false,
       tooltip: "Discovery",
       className: "bg-slate-800 text-white border-white/10 hover:bg-indigo-600",
@@ -246,10 +230,12 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   return (
     <TooltipProvider>
       <motion.div
-        ref={dragRef}
+        drag
+        dragMomentum={false}
+        onDragEnd={handleDragEnd}
         style={{ x: position.x, y: position.y }}
         className={cn(
-          "fixed bottom-8 left-8 z-[300] flex items-center gap-3 touch-none",
+          "fixed bottom-8 left-8 z-[300] flex items-center gap-3 touch-none cursor-grab active:cursor-grabbing",
           direction === 'up' && "flex-col-reverse",
           direction === 'down' && "flex-col",
           direction === 'left' && "flex-row-reverse",
@@ -259,23 +245,17 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
         <div className="bg-card/90 backdrop-blur-2xl p-2 rounded-full border border-border/20 shadow-2xl">
           <Tooltip>
             <TooltipTrigger asChild>
-              <motion.button
-                drag="x"
-                dragMomentum={false}
-                dragElastic={0}
-                onDragEnd={handleDragEnd}
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={handleToggleMenu}
-                onPointerDown={(e) => {
-                  console.log("[DOCK POINTER DOWN] Main Toggle button pointer down. Stopping propagation.");
-                  e.stopPropagation();
-                }}
                 className={cn(
-                  "h-14 w-14 rounded-full transition-all duration-500 border-2 shadow-xl cursor-grab active:cursor-grabbing",
+                  "h-14 w-14 rounded-full transition-all duration-500 border-2 shadow-xl",
                   internalIsMenuOpen ? "bg-secondary text-secondary-foreground border-border rotate-90" : "bg-card text-indigo-400 border-border/10"
                 )}
               >
                 {internalIsMenuOpen ? <X className="w-6 h-6" /> : <LayoutDashboard className="w-6 h-6" />}
-              </motion.button>
+              </Button>
             </TooltipTrigger>
             <TooltipContent side={direction === 'left' ? 'right' : direction === 'right' ? 'left' : direction === 'up' ? 'bottom' : 'top'}>Command Hub</TooltipContent>
           </Tooltip>
@@ -300,10 +280,6 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                         variant="ghost"
                         size="icon"
                         onClick={() => { btn.onClick?.(); if (btn.id !== 'practice') handleToggleMenu(); }}
-                        onPointerDown={(e) => {
-                          console.log(`[DOCK POINTER DOWN] Primary Button ${btn.id} pointer down. Stopping propagation.`);
-                          e.stopPropagation();
-                        }}
                         className={cn("h-12 w-12 rounded-full border transition-all active:scale-90 disabled:opacity-10", btn.className)}
                         disabled={btn.disabled}
                       >
@@ -320,10 +296,6 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                       variant="ghost"
                       size="icon"
                       onClick={() => setIsSubMenuOpen(!isSubMenuOpen)}
-                      onPointerDown={(e) => {
-                        console.log("[DOCK POINTER DOWN] SubMenu Toggle button pointer down. Stopping propagation.");
-                        e.stopPropagation();
-                      }}
                       className={cn(
                         "h-12 w-12 rounded-full border transition-all",
                         isSubMenuOpen ? "bg-secondary text-secondary-foreground border-border" : "bg-card text-slate-400 border-border/5"
@@ -354,10 +326,6 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                             variant="ghost"
                             size="icon"
                             onClick={() => { btn.onClick(); if (btn.id !== 'heatmap' && btn.id !== 'safe-pitch') handleToggleMenu(); }}
-                            onPointerDown={(e) => {
-                              console.log(`[DOCK POINTER DOWN] Secondary Button ${btn.id} pointer down. Stopping propagation.`);
-                              e.stopPropagation();
-                            }}
                             className={cn("h-10 w-10 rounded-full border transition-all hover:scale-110", btn.className)}
                           >
                             {btn.icon}
