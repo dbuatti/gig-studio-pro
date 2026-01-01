@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { 
@@ -73,6 +73,9 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   const [position, setPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isSafePitchActive, setIsSafePitchActive] = useState(false);
   const { safePitchMaxNote, isSafePitchEnabled } = useSettings();
+  
+  // Ref for the draggable element
+  const dragRef = useRef(null);
 
   const direction = useMemo((): MenuDirection => {
     if (typeof window === 'undefined') return 'up';
@@ -124,6 +127,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || (e.target as HTMLElement).isContentEditable) return;
       if (e.key === 'Escape' && internalIsMenuOpen) handleToggleMenu();
     };
     window.addEventListener('keydown', handleEsc);
@@ -242,12 +246,10 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   return (
     <TooltipProvider>
       <motion.div
-        drag
-        dragMomentum={false}
-        onDragEnd={handleDragEnd}
+        ref={dragRef}
         style={{ x: position.x, y: position.y }}
         className={cn(
-          "fixed bottom-8 left-8 z-[300] flex items-center gap-3 touch-none cursor-grab active:cursor-grabbing",
+          "fixed bottom-8 left-8 z-[300] flex items-center gap-3 touch-none",
           direction === 'up' && "flex-col-reverse",
           direction === 'down' && "flex-col",
           direction === 'left' && "flex-row-reverse",
@@ -257,21 +259,22 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
         <div className="bg-card/90 backdrop-blur-2xl p-2 rounded-full border border-border/20 shadow-2xl">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
+              <motion.button
+                drag
+                dragMomentum={false}
+                onDragEnd={handleDragEnd}
                 onClick={handleToggleMenu}
                 onPointerDown={(e) => {
                   console.log("[DOCK POINTER DOWN] Main Toggle button pointer down. Stopping propagation.");
                   e.stopPropagation();
                 }}
                 className={cn(
-                  "h-14 w-14 rounded-full transition-all duration-500 border-2 shadow-xl",
+                  "h-14 w-14 rounded-full transition-all duration-500 border-2 shadow-xl cursor-grab active:cursor-grabbing",
                   internalIsMenuOpen ? "bg-secondary text-secondary-foreground border-border rotate-90" : "bg-card text-indigo-400 border-border/10"
                 )}
               >
                 {internalIsMenuOpen ? <X className="w-6 h-6" /> : <LayoutDashboard className="w-6 h-6" />}
-              </Button>
+              </motion.button>
             </TooltipTrigger>
             <TooltipContent side={direction === 'left' ? 'right' : direction === 'right' ? 'left' : direction === 'up' ? 'bottom' : 'top'}>Command Hub</TooltipContent>
           </Tooltip>
