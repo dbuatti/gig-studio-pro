@@ -64,6 +64,10 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
     ];
   });
 
+  useEffect(() => {
+    console.log("[SetlistFilters] Active Filters Updated:", activeFilters);
+  }, [activeFilters]);
+
   const savePreset = () => {
     const name = prompt("Enter preset name:");
     if (!name) return;
