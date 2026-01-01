@@ -124,6 +124,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || (e.target as HTMLElement).isContentEditable) return;
       if (e.key === 'Escape' && internalIsMenuOpen) handleToggleMenu();
     };
     window.addEventListener('keydown', handleEsc);
