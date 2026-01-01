@@ -249,6 +249,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                 variant="ghost"
                 size="icon"
                 onClick={handleToggleMenu}
+                onPointerDown={(e) => e.stopPropagation()}
                 className={cn(
                   "h-14 w-14 rounded-full transition-all duration-500 border-2 shadow-xl",
                   internalIsMenuOpen ? "bg-secondary text-secondary-foreground border-border rotate-90" : "bg-card text-indigo-400 border-border/10"
@@ -280,6 +281,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                         variant="ghost"
                         size="icon"
                         onClick={() => { btn.onClick?.(); if (btn.id !== 'practice') handleToggleMenu(); }}
+                        onPointerDown={(e) => e.stopPropagation()}
                         className={cn("h-12 w-12 rounded-full border transition-all active:scale-90 disabled:opacity-10", btn.className)}
                         disabled={btn.disabled}
                       >
@@ -296,6 +298,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                       variant="ghost"
                       size="icon"
                       onClick={() => setIsSubMenuOpen(!isSubMenuOpen)}
+                      onPointerDown={(e) => e.stopPropagation()}
                       className={cn(
                         "h-12 w-12 rounded-full border transition-all",
                         isSubMenuOpen ? "bg-secondary text-secondary-foreground border-border" : "bg-card text-slate-400 border-border/5"
@@ -326,6 +329,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                             variant="ghost"
                             size="icon"
                             onClick={() => { btn.onClick(); if (btn.id !== 'heatmap' && btn.id !== 'safe-pitch') handleToggleMenu(); }}
+                            onPointerDown={(e) => e.stopPropagation()}
                             className={cn("h-10 w-10 rounded-full border transition-all hover:scale-110", btn.className)}
                           >
                             {btn.icon}
