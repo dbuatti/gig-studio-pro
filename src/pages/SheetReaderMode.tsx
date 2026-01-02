@@ -580,9 +580,11 @@ const SheetReaderMode: React.FC = () => {
     const isFastSwipe = Math.abs(vx) > 0.3; // velocity in pixels/ms
 
     console.log(`[Drag] isHorizontalSwipe: ${isHorizontalSwipe}, isFastSwipe: ${isFastSwipe}, navigatedRef.current (before navigation check): ${navigatedRef.current}`);
+    const shouldNavigate = isHorizontalSwipe && (isFastSwipe || Math.abs(mx) > swipeThreshold) && !navigatedRef.current;
+    console.log(`[Drag] Full navigation condition: ${shouldNavigate} (isHorizontalSwipe: ${isHorizontalSwipe}, isFastSwipe: ${isFastSwipe}, Math.abs(mx) > swipeThreshold: ${Math.abs(mx) > swipeThreshold}, navigatedRef.current: ${navigatedRef.current})`);
 
-    // NEW CONDITION: Trigger if it's a horizontal swipe AND (it's fast OR it's a significant drag)
-    if (isHorizontalSwipe && (isFastSwipe || Math.abs(mx) > swipeThreshold * 1.5) && !navigatedRef.current) {
+
+    if (shouldNavigate) {
       navigatedRef.current = true; // Mark as navigated for this gesture
       cancel(); // Stop further updates for this specific gesture
       console.log("[Drag] Swipe detected and navigation triggered. navigatedRef set to true, cancel() called.");
