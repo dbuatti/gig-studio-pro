@@ -528,6 +528,9 @@ const SheetReaderMode: React.FC = () => {
 
   // Browser Fullscreen API logic
   const toggleBrowserFullScreen = useCallback(() => {
+    // This function uses the standard Fullscreen API, which is generally well-supported
+    // across modern browsers on various devices, including mobile and tablets.
+    // The button triggering this is designed to be touch-friendly.
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(err => {
         showError(`Error attempting to enable fullscreen mode: ${err.message} (${err.name})`);
