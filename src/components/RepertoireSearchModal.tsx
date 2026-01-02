@@ -120,12 +120,12 @@ const RepertoireSearchModal: React.FC<RepertoireSearchModalProps> = ({
                       
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <h4 className="font-black text-sm uppercase tracking-tight truncate text-foreground">{song.name}</h4>
+                          <h4 className="font-black text-sm uppercase tracking-tight truncate line-clamp-1 text-foreground">{song.name}</h4>
                           {readiness === 100 && <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />}
                           {isProcessing && <CloudDownload className="w-3.5 h-3.5 text-indigo-500 animate-bounce" />}
                           {isExtractionFailed && <AlertTriangle className="w-3.5 h-3.5 text-destructive" />}
                         </div>
-                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest truncate">{song.artist}</p>
+                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest truncate line-clamp-1">{song.artist}</p>
                         {isExtractionFailed && song.last_sync_log && (
                           <p className="text-[8px] text-destructive mt-1 truncate max-w-[150px]">Error: {song.last_sync_log}</p>
                         )}
