@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ListMusic, GripVertical, Check, X } from 'lucide-react';
-import { DragDropContext, Droppable, Draggable, DropResult, DragUpdate, DragStart, DragOverlay } from 'react-beautiful-dnd';
+import { DragDropContext, Droppable, Draggable, DropResult, DragStart } from 'react-beautiful-dnd';
 import { SetlistSong } from './SetlistManager';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from './ui/scroll-area';
@@ -25,20 +25,17 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
   setlistName,
 }) => {
   const [localSongs, setLocalSongs] = useState(songs);
-  const [draggingItem, setDraggingItem] = useState<SetlistSong | null>(null);
+  // Removed draggingItem state as DragOverlay is no longer used.
 
   // Update localSongs when the prop changes (e.g., when modal opens with new data)
   React.useEffect(() => {
     setLocalSongs(songs);
   }, [songs]);
 
-  const onBeforeCapture = (start: DragStart) => {
-    const item = localSongs.find(song => song.id === start.draggableId);
-    setDraggingItem(item || null);
-  };
+  // Removed onBeforeCapture as DragOverlay is no longer used.
 
   const onDragEnd = (result: DropResult) => {
-    setDraggingItem(null); // Clear dragging item regardless of drop success
+    // Removed setDraggingItem(null) as DragOverlay is no longer used.
     if (!result.destination) return;
 
     const newItems = Array.from(localSongs);
@@ -98,7 +95,7 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
         </div>
 
         <ScrollArea className="flex-1 p-6 custom-scrollbar">
-          <DragDropContext onBeforeCapture={onBeforeCapture} onDragEnd={onDragEnd}>
+          <DragDropContext onDragEnd={onDragEnd}>
             <Droppable droppableId="setlist-songs">
               {(provided) => (
                 <div
@@ -113,9 +110,12 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
                           ref={provided.innerRef}
                           {...provided.draggableProps}
                           {...provided.dragHandleProps}
+                          className={cn(
+                            "p-4 bg-card border border-border rounded-2xl flex items-center gap-4 shadow-sm transition-all",
+                            snapshot.isDragging ? "opacity-0" : "hover:border-indigo-500/50" // Hide original item when dragging
+                          )}
                         >
-                          {/* Render the actual item when not dragging */}
-                          {!snapshot.isDragging && renderDraggableItem(song, index, false)}
+                          {renderDraggableItem(song, index, snapshot.isDragging)}
                         </div>
                       )}
                     </Draggable>
@@ -124,9 +124,7 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
                 </div>
               )}
             </Droppable>
-            <DragOverlay>
-              {draggingItem ? renderDraggableItem(draggingItem, localSongs.findIndex(s => s.id === draggingItem.id), true) : null}
-            </DragOverlay>
+            {/* DragOverlay removed */}
           </DragDropContext>
         </ScrollArea>
 
