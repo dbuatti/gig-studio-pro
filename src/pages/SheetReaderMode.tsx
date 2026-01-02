@@ -265,7 +265,7 @@ const SheetReaderMode: React.FC = () => {
         const { data: setlistsData, error: setlistsError } = await supabase
           .from('setlists')
           .select('id')
-          .eq('user.id', user.id)
+          .eq('user_id', user.id) // Corrected from 'user.id' to 'user_id'
           .limit(1);
 
         if (setlistsError || !setlistsData || setlistsData.length === 0) {
@@ -558,21 +558,21 @@ const SheetReaderMode: React.FC = () => {
 
   // --- Gesture Implementation ---
   const bind = useDrag(({ first, down, movement: [mx, my], direction: [dx], velocity: [vx], cancel, intentional }) => {
-    console.log(`[Drag] (RAW) first: ${first}, down: ${down}, mx: ${mx.toFixed(2)}, my: ${my.toFixed(2)}, dx: ${dx.toFixed(2)}, vx: ${vx.toFixed(2)}, navigatedRef (before first check): ${navigatedRef.current}`);
+    // console.log(`[Drag] (RAW) first: ${first}, down: ${down}, mx: ${mx.toFixed(2)}, my: ${my.toFixed(2)}, dx: ${dx.toFixed(2)}, vx: ${vx.toFixed(2)}, navigatedRef (before first check): ${navigatedRef.current}`);
 
     // Reset navigatedRef unconditionally at the very beginning of a new gesture
     if (first) {
       navigatedRef.current = false;
-      console.log("[Drag] (START OF GESTURE) navigatedRef reset to false.");
+      // console.log("[Drag] (START OF GESTURE) navigatedRef reset to false.");
     }
 
-    console.log(`[Drag] (PROCESSED) first: ${first}, down: ${down}, mx: ${mx.toFixed(2)}, my: ${my.toFixed(2)}, dx: ${dx.toFixed(2)}, vx: ${vx.toFixed(2)}, navigatedRef (after first check): ${navigatedRef.current}`);
+    // console.log(`[Drag] (PROCESSED) first: ${first}, down: ${down}, mx: ${mx.toFixed(2)}, my: ${my.toFixed(2)}, dx: ${dx.toFixed(2)}, vx: ${vx.toFixed(2)}, navigatedRef (after first check): ${navigatedRef.current}`);
 
     api.start({ x: down ? mx : 0, immediate: down });
 
     // Only process swipe if intentional and primarily horizontal
     if (!intentional || Math.abs(mx) < Math.abs(my)) {
-      console.log("[Drag] Not intentional or primarily vertical. Skipping navigation logic.");
+      // console.log("[Drag] Not intentional or primarily vertical. Skipping navigation logic.");
       return;
     }
 
@@ -580,45 +580,45 @@ const SheetReaderMode: React.FC = () => {
     const isLongSwipe = Math.abs(mx) > swipeThreshold;
     const isMediumFastSwipe = Math.abs(mx) > swipeThreshold / 2 && isFastSwipe; // Moved at least half threshold AND fast
 
-    console.log(`[Drag] isFastSwipe: ${isFastSwipe}, isLongSwipe: ${isLongSwipe}, isMediumFastSwipe: ${isMediumFastSwipe}, navigatedRef.current (before navigation check): ${navigatedRef.current}`);
+    // console.log(`[Drag] isFastSwipe: ${isFastSwipe}, isLongSwipe: ${isLongSwipe}, isMediumFastSwipe: ${isMediumFastSwipe}, navigatedRef.current (before navigation check): ${navigatedRef.current}`);
 
     // The core condition for triggering navigation
     const shouldTriggerNavigation = (isLongSwipe || isMediumFastSwipe) && !navigatedRef.current;
     
-    console.log(`[Drag] Full navigation condition: ${shouldTriggerNavigation} (isLongSwipe: ${isLongSwipe}, isMediumFastSwipe: ${isMediumFastSwipe}, navigatedRef.current: ${navigatedRef.current})`);
+    // console.log(`[Drag] Full navigation condition: ${shouldTriggerNavigation} (isLongSwipe: ${isLongSwipe}, isMediumFastSwipe: ${isMediumFastSwipe}, navigatedRef.current: ${navigatedRef.current})`);
 
     if (shouldTriggerNavigation) {
       navigatedRef.current = true; // Mark as navigated for this gesture
       cancel(); // Stop further updates for this specific gesture
-      console.log("[Drag] Swipe detected and navigation triggered. navigatedRef set to true, cancel() called.");
+      // console.log("[Drag] Swipe detected and navigation triggered. navigatedRef set to true, cancel() called.");
 
       if (dx < 0) { // Swiping left (next)
-        console.log("[Drag] Swiping left (next)");
+        // console.log("[Drag] Swiping left (next)");
         if (selectedChartType === 'chords') {
           handleNext();
         } else if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
           if (pdfCurrentPage < (pdfNumPages || 1)) {
             setPdfCurrentPage(prev => prev + 1);
-            console.log(`[Drag] Navigating to next PDF page: ${pdfCurrentPage + 1}`);
+            // console.log(`[Drag] Navigating to next PDF page: ${pdfCurrentPage + 1}`);
           } else {
             handleNext(); // Last PDF page, go to next song
           }
         }
       } else { // Swiping right (previous)
-        console.log("[Drag] Swiping right (previous)");
+        // console.log("[Drag] Swiping right (previous)");
         if (selectedChartType === 'chords') {
           handlePrev();
         } else if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
           if (pdfCurrentPage > 1) {
             setPdfCurrentPage(prev => prev - 1);
-            console.log(`[Drag] Navigating to previous PDF page: ${pdfCurrentPage - 1}`);
+            // console.log(`[Drag] Navigating to previous PDF page: ${pdfCurrentPage - 1}`);
           } else {
             handlePrev(); // First PDF page, go to previous song
           }
         }
       }
       api.start({ x: 0 });
-      console.log("[Drag] Animation reset to x: 0.");
+      // console.log("[Drag] Animation reset to x: 0.");
     }
   }, {
     threshold: 20,        // Initial movement before drag starts
@@ -633,23 +633,17 @@ const SheetReaderMode: React.FC = () => {
     const handleDragEndReset = () => {
       if (navigatedRef.current) {
         navigatedRef.current = false;
-        console.log("[Drag] (POINTER UP) navigatedRef reset to false.");
+        // console.log("[Drag] (POINTER UP) navigatedRef reset to false.");
       }
     };
 
-    const handlePointerDown = () => {
-      // No need to track `downRef` here, `first` in `useDrag` handles the start of a new gesture.
-      // The `navigatedRef` is reset at the start of a new gesture.
-    };
-
+    // Removed the custom pointerdown listener as useDrag handles it internally
     chartContainerRef.current?.addEventListener('pointerup', handleDragEndReset);
     chartContainerRef.current?.addEventListener('pointercancel', handleDragEndReset); // Also reset on cancel
-    chartContainerRef.current?.addEventListener('pointerdown', handlePointerDown); // Keep this to prevent default scroll behavior
 
     return () => {
       chartContainerRef.current?.removeEventListener('pointerup', handleDragEndReset);
       chartContainerRef.current?.removeEventListener('pointercancel', handleDragEndReset);
-      chartContainerRef.current?.removeEventListener('pointerdown', handlePointerDown);
     };
   }, [bind]);
 
@@ -722,7 +716,7 @@ const SheetReaderMode: React.FC = () => {
             {...bind}  
             style={{ 
               x: springX, 
-              touchAction: 'pan-x pan-y pinch-zoom'
+              touchAction: 'pan-x' // Changed to pan-x
             }} 
             className="h-full w-full relative"
           >
