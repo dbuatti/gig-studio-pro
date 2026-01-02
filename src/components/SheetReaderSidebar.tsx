@@ -11,9 +11,12 @@ interface SheetReaderSidebarProps {
   songs: SetlistSong[];
   currentIndex: number;
   onSelectSong: (index: number) => void;
+  isFullScreen?: boolean; // NEW: Add isFullScreen prop
 }
 
-const SheetReaderSidebar: React.FC<SheetReaderSidebarProps> = ({ songs, currentIndex, onSelectSong }) => {
+const SheetReaderSidebar: React.FC<SheetReaderSidebarProps> = ({ songs, currentIndex, onSelectSong, isFullScreen }) => {
+  if (isFullScreen) return null; // Hide sidebar in full-screen mode
+
   return (
     <div className="w-full h-full bg-slate-900/80 backdrop-blur-xl border-r border-white/10 flex flex-col shrink-0">
       <div className="p-4 border-b border-white/10 shrink-0">

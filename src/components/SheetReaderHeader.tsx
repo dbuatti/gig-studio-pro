@@ -109,6 +109,8 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
     onTogglePlayback();
   };
 
+  if (isFullScreen) return null; // Hide header in full-screen mode
+
   return (
     <div 
       className="fixed top-0 right-0 z-60 bg-slate-900/80 backdrop-blur-xl border-b border-white/10 px-6 py-3 flex items-center justify-between shadow-lg animate-in slide-in-from-top duration-300 h-[112px]"

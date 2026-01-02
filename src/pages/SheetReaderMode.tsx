@@ -72,6 +72,11 @@ const SheetReaderMode: React.FC = () => {
 
   const currentSong = allSongs[currentIndex];
 
+  // Swipe navigation refs and state
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
+  const swipeThreshold = 50; // pixels
+
   // Sync state to current song's saved preference
   useEffect(() => {
     if (currentSong?.key_preference) {
@@ -612,19 +617,46 @@ const SheetReaderMode: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentSong, onOpenCurrentSongStudio, handlePrev, handleNext]);
 
+  // Swipe gesture handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchEndX.current = e.touches[0].clientX; // Initialize touchEndX as well
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    if (!isBrowserFullScreen) return; // Only allow swipe navigation in full screen
+
+    const deltaX = touchEndX.current - touchStartX.current;
+
+    if (deltaX > swipeThreshold) {
+      // Swiped right (previous song)
+      handlePrev();
+    } else if (deltaX < -swipeThreshold) {
+      // Swiped left (next song)
+      handleNext();
+    }
+    // Reset touch positions
+    touchStartX.current = 0;
+    touchEndX.current = 0;
+  };
+
   if (initialLoading) return <div className="h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-white relative">
       <motion.div
-        initial={{ x: isSidebarOpen ? 0 : -300 }}
-        animate={{ x: isSidebarOpen ? 0 : -300 }}
+        initial={{ x: isSidebarOpen && !isBrowserFullScreen ? 0 : -300 }}
+        animate={{ x: isSidebarOpen && !isBrowserFullScreen ? 0 : -300 }}
         className="fixed left-0 top-0 h-full w-[300px] z-50"
       >
         <SheetReaderSidebar songs={allSongs} currentIndex={currentIndex} onSelectSong={(idx) => { setCurrentIndex(idx); stopPlayback(); }} />
       </motion.div>
 
-      <main className={cn("flex-1 flex flex-col overflow-hidden transition-all duration-300", isSidebarOpen && "ml-[300px]")}>
+      <main className={cn("flex-1 flex flex-col overflow-hidden transition-all duration-300", isSidebarOpen && !isBrowserFullScreen && "ml-[300px]")}>
         <SheetReaderHeader
           currentSong={currentSong!}
           onClose={() => navigate('/')}
@@ -654,14 +686,19 @@ const SheetReaderMode: React.FC = () => {
           tempo={tempo}
           readerKeyPreference={readerKeyPreference}
           setReaderKeyPreference={setReaderKeyPreference}
-          isSidebarOpen={isSidebarOpen}
+          isSidebarOpen={isSidebarOpen && !isBrowserFullScreen} // Hide sidebar button in full screen
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-          headerLeftOffset={isSidebarOpen ? 300 : 0}
+          headerLeftOffset={isSidebarOpen && !isBrowserFullScreen ? 300 : 0} // Adjust offset
           onSavePreference={handleSaveReaderPreference}
           audioEngine={audioEngine}
         />
 
-        <div className={cn("flex-1 bg-black relative", isBrowserFullScreen ? "mt-0" : "mt-[112px]")}>
+        <div
+          className={cn("flex-1 bg-black relative", isBrowserFullScreen ? "mt-0" : "mt-[112px]")}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
           {renderedCharts.map(rc => (
             <motion.div key={`${rc.id}-${rc.type}`} className="absolute inset-0" animate={{ opacity: rc.opacity }} style={{ zIndex: rc.zIndex }}>
               {rc.content}
