@@ -94,6 +94,7 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
   useEffect(() => {
     if (playerRef.current) {
       playerRef.current.volume.value = volume;
+      console.log(`[AudioEngine] Volume updated to: ${volume} dB`);
     }
   }, [volume]);
 
@@ -144,7 +145,12 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
 
     // Use refs to bail early if already loading or same URL is loaded
     if (!force && (isLoadingAudioRef.current || (url === currentUrlRef.current && currentBufferRef.current))) {
-      console.log("[AudioEngine] Bailing on load: URL already processing or loaded.");
+      console.log("[AudioEngine] Bailing on load: URL already processing or loaded. Applying pitch only.");
+      // If we bail, ensure pitch is still applied in case it changed since load
+      if (playerRef.current) {
+        playerRef.current.detune = (initialPitch * 100) + fineTune;
+        setPitchState(initialPitch);
+      }
       return;
     }
 
@@ -173,7 +179,7 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
       isLoadingAudioRef.current = false;
       setIsLoadingAudioState(false);
     } 
-  }, [loadAudioBuffer]);
+  }, [loadAudioBuffer, fineTune]);
 
   const togglePlayback = useCallback(async () => {
     console.log(`[AudioEngine] Toggle Playback triggered. Current state: ${isPlaying ? 'Playing' : 'Stopped'}`);
@@ -182,6 +188,7 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     if (!playerRef.current) {
       console.log("[AudioEngine] Player not initialized. Attempting to load from current URL.");
       if (currentUrlRef.current && !isLoadingAudioRef.current) {
+        // Attempt to load audio if URL is set but player isn't ready
         await loadFromUrl(currentUrlRef.current, pitch, true);
       }
     }
@@ -243,22 +250,34 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
 
   const setPitch = useCallback((p: number) => {
     setPitchState(p);
-    if (playerRef.current) playerRef.current.detune = (p * 100) + fineTune;
+    if (playerRef.current) {
+      playerRef.current.detune = (p * 100) + fineTune;
+      console.log(`[AudioEngine] Pitch updated to: ${p} ST (Detune: ${playerRef.current.detune})`);
+    }
   }, [fineTune]);
 
   const setTempo = useCallback((t: number) => {
     setTempoState(t);
-    if (playerRef.current) playerRef.current.playbackRate = t;
+    if (playerRef.current) {
+      playerRef.current.playbackRate = t;
+      console.log(`[AudioEngine] Tempo updated to: ${t}x`);
+    }
   }, []);
 
   const setVolume = useCallback((v: number) => {
     setVolumeState(v);
-    if (playerRef.current) playerRef.current.volume.value = v;
+    if (playerRef.current) {
+      playerRef.current.volume.value = v;
+      console.log(`[AudioEngine] Volume updated to: ${v} dB`);
+    }
   }, []);
 
   const setFineTune = useCallback((f: number) => {
     setFineTuneState(f);
-    if (playerRef.current) playerRef.current.detune = (pitch * 100) + f;
+    if (playerRef.current) {
+      playerRef.current.detune = (pitch * 100) + f;
+      console.log(`[AudioEngine] FineTune updated to: ${f} cents (Detune: ${playerRef.current.detune})`);
+    }
   }, [pitch]);
 
   const setProgressHandler = useCallback((p: number) => {
@@ -270,6 +289,9 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
         playerRef.current.stop();
         playbackStartTimeRef.current = Tone.now();
         playerRef.current.start(0, offset);
+        console.log(`[AudioEngine] Seek and Restart: ${offset.toFixed(2)}s`);
+      } else {
+        console.log(`[AudioEngine] Seek only: ${offset.toFixed(2)}s`);
       }
     }
   }, [duration, isPlaying]);

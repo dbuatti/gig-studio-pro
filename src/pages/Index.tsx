@@ -71,7 +71,7 @@ const Index = () => {
   const [isUserGuideOpen, setIsUserGuideOpen] = useState(false);
   const [isSongStudioModalOpen, setIsSongStudioModalOpen] = useState(false);
   const [songStudioModalSongId, setSongStudioModalSongId] = useState<string | null>(null);
-  const [songStudioModalGigId, setSongStudioModalGigId, ] = useState<string | 'library' | null>(null);
+  const [songStudioModalGigId, setSongStudioModalGigId] = useState<string | 'library' | null>(null);
   const [songStudioDefaultTab, setSongStudioDefaultTab] = useState<StudioTab | undefined>(undefined);
   const [isKeyManagementOpen, setIsKeyManagementOpen] = useState(false);
   const [isPerformanceOverlayOpen, setIsPerformanceOverlayOpen] = useState(false);
@@ -342,7 +342,8 @@ const Index = () => {
       // 2. Load audio if URL exists
       if (urlToLoad) {
         // Pass the pitch to loadFromUrl so it can initialize the player detune correctly upon buffer load
-        audio.loadFromUrl(urlToLoad, activeSongForPerformance.pitch || 0, true);
+        // IMPORTANT: Removed force: true to prevent redundant fetching if URL is the same.
+        audio.loadFromUrl(urlToLoad, activeSongForPerformance.pitch || 0);
       } else {
         audio.resetEngine();
         showWarning("Selected song has no audio link.");

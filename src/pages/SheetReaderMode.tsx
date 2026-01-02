@@ -269,11 +269,13 @@ const SheetReaderMode: React.FC = () => {
 
   useEffect(() => {
     if (!currentSong) return;
+    // IMPORTANT: Removed 'pitch' from the dependency array and 'force: true' from loadFromUrl.
+    // Pitch changes are handled by the separate setAudioPitch effect.
     if (currentUrl !== currentSong.previewUrl || !currentBuffer) {
-      const timer = setTimeout(() => loadFromUrl(currentSong.previewUrl, pitch || 0, true), 100);
+      const timer = setTimeout(() => loadFromUrl(currentSong.previewUrl, pitch || 0), 100);
       return () => clearTimeout(timer);
     }
-  }, [currentSong, pitch, currentUrl, currentBuffer, loadFromUrl]);
+  }, [currentSong, currentUrl, currentBuffer, loadFromUrl]);
 
   const handleNext = useCallback(() => {
     if (allSongs.length === 0) return;
