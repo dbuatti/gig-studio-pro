@@ -23,8 +23,8 @@ import SheetReaderSidebar from '@/components/SheetReaderSidebar';
 import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
 import { extractKeyFromChords } from '@/utils/chordUtils';
 import RepertoireSearchModal from '@/components/RepertoireSearchModal';
-import FullScreenSongInfo from '@/components/FullScreenSongInfo'; // NEW: Import FullScreenSongInfo
-import { motion, AnimatePresence } from 'framer-motion'; // Import motion and AnimatePresence
+import FullScreenSongInfo from '@/components/FullScreenSongInfo';
+import { motion, AnimatePresence } from 'framer-motion';
 
 type ChartType = 'pdf' | 'leadsheet' | 'chords';
 
@@ -50,7 +50,7 @@ const SheetReaderMode: React.FC = () => {
     ugChordsChordColor,
     ugChordsLineSpacing,
     ugChordsTextAlign,
-    preventStageKeyOverwrite // NEW: Get preventStageKeyOverwrite
+    preventStageKeyOverwrite
   } = useSettings();
   const { forceReaderResource } = useReaderSettings();
 
@@ -104,12 +104,13 @@ const SheetReaderMode: React.FC = () => {
 
   const harmonicSync = useHarmonicSync({
     formData: {
+      id: currentSong?.id, // Pass ID for session overrides
       originalKey: currentSong?.originalKey,
       targetKey: currentSong?.targetKey || currentSong?.originalKey,
       pitch: currentSong?.pitch ?? 0,
       is_pitch_linked: currentSong?.is_pitch_linked ?? true,
       ug_chords_text: currentSong?.ug_chords_text,
-      isKeyConfirmed: currentSong?.isKeyConfirmed, // Pass isKeyConfirmed
+      isKeyConfirmed: currentSong?.isKeyConfirmed,
     },
     handleAutoSave: useCallback(async (updates: Partial<SetlistSong>) => {
       if (!currentSong || !user) return;
@@ -131,75 +132,29 @@ const SheetReaderMode: React.FC = () => {
       }
     }, [currentSong, user, handleLocalSongUpdate]),
     globalKeyPreference,
-    preventStageKeyOverwrite, // NEW: Pass the prop
+    preventStageKeyOverwrite,
   });
 
-  const { pitch, targetKey: harmonicTargetKey, setTargetKey, setPitch } = harmonicSync;
-
-  // NEW: Local state for temporary pitch and targetKey when stage key is locked
-  const [tempPitch, setTempPitch] = useState(0);
-  const [tempTargetKey, setTempTargetKey] = useState('C');
-  // NEW: Session-level cache for temporary overrides using useRef
-  const sessionOverridesRef = useRef<Record<string, { pitch: number; targetKey: string }>>({});
-
-  const isStageKeyLocked = preventStageKeyOverwrite && currentSong?.isKeyConfirmed;
-
-  // Initialize temporary state when currentSong changes, checking session overrides first
-  useEffect(() => {
-    if (currentSong) {
-      const override = sessionOverridesRef.current[currentSong.id];
-      if (override) {
-        setTempPitch(override.pitch);
-        setTempTargetKey(override.targetKey);
-      } else {
-        setTempPitch(currentSong.pitch ?? 0);
-        setTempTargetKey(currentSong.targetKey || currentSong.originalKey || 'C');
-      }
-    }
-  }, [currentSong]); // Removed sessionOverrides from dependencies, as ref doesn't trigger re-render
-
-  // Determine effective pitch and targetKey for UI/transposition
-  const effectivePitch = isStageKeyLocked ? tempPitch : pitch;
-  const effectiveTargetKey = isStageKeyLocked ? tempTargetKey : harmonicTargetKey;
-
-  // NEW: Setters that update sessionOverrides when isStageKeyLocked is true
-  const setTempPitchWithOverride = useCallback((newPitch: number) => {
-    setTempPitch(newPitch);
-    if (currentSong) {
-      sessionOverridesRef.current = { // Update ref directly
-        ...sessionOverridesRef.current,
-        [currentSong.id]: { ...sessionOverridesRef.current[currentSong.id], pitch: newPitch, targetKey: tempTargetKey }
-      };
-    }
-  }, [currentSong, tempTargetKey]);
-
-  const setTempTargetKeyWithOverride = useCallback((newTargetKey: string) => {
-    setTempTargetKey(newTargetKey);
-    if (currentSong) {
-      sessionOverridesRef.current = { // Update ref directly
-        ...sessionOverridesRef.current,
-        [currentSong.id]: { ...sessionOverridesRef.current[currentSong.id], targetKey: newTargetKey, pitch: tempPitch }
-      };
-    }
-  }, [currentSong, tempPitch]);
+  const { 
+    pitch: effectivePitch,
+    targetKey: effectiveTargetKey,
+    setTargetKey, 
+    setPitch, 
+    isStageKeyLocked 
+  } = harmonicSync;
 
   const handleUpdateKey = useCallback(async (newTargetKey: string) => {
     if (!currentSong || !user) return;
 
-    const newPitch = calculateSemitones(currentSong.originalKey || 'C', newTargetKey);
-
+    setTargetKey(newTargetKey); 
+    setAudioPitch(calculateSemitones(currentSong.originalKey || 'C', newTargetKey));
+    
     if (isStageKeyLocked) {
-      setTempTargetKeyWithOverride(newTargetKey); // Use new setter
-      setTempPitchWithOverride(newPitch); // Use new setter
-      setAudioPitch(newPitch); // Update audio engine immediately
       showInfo(`Stage Key temporarily set to ${newTargetKey}`);
     } else {
-      // Persistent change to database
-      setTargetKey(newTargetKey); // This calls harmonicSync's setTargetKey, which saves to DB
-      setPitch(newPitch); // This calls harmonicSync's setPitch, which saves to DB
       showSuccess(`Stage Key set to ${newTargetKey}`);
     }
-  }, [currentSong, user, isStageKeyLocked, setTargetKey, setPitch, setTempTargetKeyWithOverride, setTempPitchWithOverride, setAudioPitch]);
+  }, [currentSong, user, isStageKeyLocked, setTargetKey, setAudioPitch]);
 
   const handlePullKey = useCallback(async () => {
     if (!currentSong || !currentSong.ug_chords_text || !user) {
@@ -212,35 +167,16 @@ const SheetReaderMode: React.FC = () => {
       return;
     }
     
+    setTargetKey(extractedKey); 
+    setPitch(0);
+    setAudioPitch(0);
+    
     if (isStageKeyLocked) {
-      setTempTargetKeyWithOverride(extractedKey);
-      setTempPitchWithOverride(0);
-      setAudioPitch(0);
       showInfo(`Key temporarily set to ${extractedKey}`);
     } else {
-      // Persistent change
-      try {
-        const result = await syncToMasterRepertoire(user.id, [{
-          id: currentSong.id,
-          name: currentSong.name,
-          artist: currentSong.artist,
-          originalKey: extractedKey,
-          targetKey: extractedKey,
-          pitch: 0,
-          isKeyConfirmed: true
-        }]);
-        
-        if (result[0]) {
-          handleLocalSongUpdate(currentSong.id, result[0]);
-          setTargetKey(extractedKey); // Update harmonicSync state, which saves to DB
-          setPitch(0); // Update harmonicSync state, which saves to DB
-          showSuccess(`Key set to ${extractedKey}`);
-        }
-      } catch (err) {
-        showError("Failed to pull key.");
-      }
+      showSuccess(`Key set to ${extractedKey}`);
     }
-  }, [currentSong, user, isStageKeyLocked, handleLocalSongUpdate, setTargetKey, setPitch, setTempTargetKeyWithOverride, setTempPitchWithOverride, setAudioPitch]);
+  }, [currentSong, user, isStageKeyLocked, setTargetKey, setPitch, setAudioPitch]);
 
   const handleSaveReaderPreference = useCallback(async (pref: 'sharps' | 'flats') => {
     if (!currentSong || !user) return;
@@ -263,7 +199,7 @@ const SheetReaderMode: React.FC = () => {
   }, [currentSong, user, handleLocalSongUpdate]);
 
   useEffect(() => {
-    setAudioPitch(effectivePitch); // Use effectivePitch for audio engine
+    setAudioPitch(effectivePitch);
   }, [effectivePitch, setAudioPitch]);
 
   const fetchSongs = useCallback(async () => {
@@ -289,9 +225,7 @@ const SheetReaderMode: React.FC = () => {
         originalKey: d.original_key ?? 'TBC',
         targetKey: d.target_key ?? d.original_key ?? 'TBC',
         pitch: d.pitch ?? 0,
-        // --- FIX: Prioritize audio_url for previewUrl ---
         previewUrl: d.extraction_status === 'completed' && d.audio_url ? d.audio_url : d.preview_url,
-        // --- END FIX ---
         youtubeUrl: d.youtube_url,
         ugUrl: d.ug_url,
         appleMusicUrl: d.apple_music_url,
@@ -377,9 +311,7 @@ const SheetReaderMode: React.FC = () => {
             originalKey: masterSong.original_key ?? 'TBC',
             targetKey: masterSong.target_key ?? masterSong.original_key ?? 'TBC',
             pitch: masterSong.pitch ?? 0,
-            // --- FIX: Prioritize audio_url for previewUrl ---
             previewUrl: masterSong.extraction_status === 'completed' && masterSong.audio_url ? masterSong.audio_url : masterSong.preview_url,
-            // --- END FIX ---
             youtubeUrl: masterSong.youtube_url,
             ugUrl: masterSong.ug_url,
             appleMusicUrl: masterSong.apple_music_url,
@@ -467,13 +399,11 @@ const SheetReaderMode: React.FC = () => {
 
   useEffect(() => {
     if (!currentSong) return;
-    // --- FIX: Use currentSong.previewUrl which is now correctly prioritized ---
     if (currentUrl !== currentSong.previewUrl || !currentBuffer) {
-      const timer = setTimeout(() => loadFromUrl(currentSong.previewUrl, effectivePitch || 0), 100); // Use effectivePitch here
+      const timer = setTimeout(() => loadFromUrl(currentSong.previewUrl, effectivePitch || 0), 100);
       return () => clearTimeout(timer);
     }
-    // --- END FIX ---
-  }, [currentSong, currentUrl, currentBuffer, loadFromUrl, effectivePitch]); // Added effectivePitch to dependencies
+  }, [currentSong, currentUrl, currentBuffer, loadFromUrl, effectivePitch]);
 
   const handleNext = useCallback(() => {
     if (allSongs.length === 0) return;
@@ -491,21 +421,16 @@ const SheetReaderMode: React.FC = () => {
     if (!currentSong) return 'pdf';
     const pref = currentSong.preferred_reader;
 
-    // 1. Prioritize based on user's preferred_reader setting
     if (pref === 'ug' && currentSong.ug_chords_text?.trim()) return 'chords';
     if (pref === 'ls' && currentSong.leadsheetUrl) return 'leadsheet';
     if (pref === 'fn' && currentSong.pdfUrl) return 'pdf';
 
-    // 2. Prioritize UG Chords if present (default preference)
     if (currentSong.ug_chords_text?.trim()) return 'chords';
 
-    // 3. Then PDF
     if (currentSong.pdfUrl) return 'pdf';
 
-    // 4. Then Leadsheet
     if (currentSong.leadsheetUrl) return 'leadsheet';
 
-    // 5. Fallback
     return 'pdf';
   }, [currentSong]);
 
@@ -531,10 +456,9 @@ const SheetReaderMode: React.FC = () => {
   }, []);
 
   const renderChartForSong = useCallback((song: SetlistSong, chartType: ChartType): React.ReactNode => {
-    // Resolve the effective config for UGChordsReader
     const resolvedUgChordsConfig: UGChordsConfig = song.ug_chords_config ? {
-      ...DEFAULT_UG_CHORDS_CONFIG, // Start with defaults
-      ...song.ug_chords_config,    // Apply song-specific overrides
+      ...DEFAULT_UG_CHORDS_CONFIG,
+      ...song.ug_chords_config,
     } : {
       fontFamily: ugChordsFontFamily,
       fontSize: ugChordsFontSize,
@@ -547,12 +471,12 @@ const SheetReaderMode: React.FC = () => {
     if (chartType === 'chords' && song.ug_chords_text?.trim()) {
       return (
         <UGChordsReader
-          key={`${song.id}-chords-${effectiveTargetKey}`} // Use effectiveTargetKey here
+          key={`${song.id}-chords-${effectiveTargetKey}`}
           chordsText={song.ug_chords_text}
           config={resolvedUgChordsConfig}
           isMobile={false}
           originalKey={song.originalKey}
-          targetKey={effectiveTargetKey} // Use effectiveTargetKey here
+          targetKey={effectiveTargetKey}
           isPlaying={isPlaying}
           progress={progress}
           duration={duration}
@@ -564,7 +488,6 @@ const SheetReaderMode: React.FC = () => {
 
     const url = chartType === 'pdf' ? song.pdfUrl : song.leadsheetUrl;
     if (!url) {
-      // If no PDF/Leadsheet URL, and chords are available, switch to chords view
       if (song.ug_chords_text?.trim()) {
         setTimeout(() => setSelectedChartType('chords'), 0);
         return null;
@@ -736,8 +659,8 @@ const SheetReaderMode: React.FC = () => {
           onToggleFullScreen={toggleBrowserFullScreen}
           setIsOverlayOpen={setIsOverlayOpen}
           isOverrideActive={forceReaderResource !== 'default'}
-          pitch={effectivePitch} // Use effectivePitch here
-          setPitch={setTempPitchWithOverride} // Allow temporary pitch changes
+          pitch={effectivePitch}
+          setPitch={setPitch}
           isPlaying={isPlaying}
           isLoadingAudio={isLoadingAudio}
           onTogglePlayback={audioEngine.togglePlayback}
@@ -756,8 +679,8 @@ const SheetReaderMode: React.FC = () => {
           headerLeftOffset={isSidebarOpen && !isBrowserFullScreen ? 300 : 0}
           onSavePreference={handleSaveReaderPreference}
           audioEngine={audioEngine}
-          effectiveTargetKey={effectiveTargetKey} // NEW: Pass effectiveTargetKey
-          onPullKey={handlePullKey} // Pass the pull key handler
+          effectiveTargetKey={effectiveTargetKey}
+          onPullKey={handlePullKey}
         />
 
         <div
@@ -765,7 +688,7 @@ const SheetReaderMode: React.FC = () => {
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
-          style={{ overscrollBehaviorY: 'contain' }} // Prevent pull-to-refresh
+          style={{ overscrollBehaviorY: 'contain' }}
         >
           {renderedCharts.map(rc => (
             <motion.div key={`${rc.id}-${rc.type}`} className="absolute inset-0" animate={{ opacity: rc.opacity }} style={{ zIndex: rc.zIndex }}>
@@ -781,9 +704,9 @@ const SheetReaderMode: React.FC = () => {
           song={currentSong}
           onExitFullScreen={toggleBrowserFullScreen}
           readerKeyPreference={readerKeyPreference}
-          onUpdateKey={handleUpdateKey} // NEW: Pass onUpdateKey
-          setIsOverlayOpen={setIsOverlayOpen} // NEW: Pass setIsOverlayOpen
-          effectiveTargetKey={effectiveTargetKey} // FIX: Pass effectiveTargetKey
+          onUpdateKey={handleUpdateKey}
+          setIsOverlayOpen={setIsOverlayOpen}
+          effectiveTargetKey={effectiveTargetKey}
         />
       )}
 
@@ -808,7 +731,7 @@ const SheetReaderMode: React.FC = () => {
                   songId={currentSong.id}
                   visibleSongs={allSongs}
                   handleAutoSave={(updates) => handleLocalSongUpdate(currentSong.id, updates)}
-                  preventStageKeyOverwrite={preventStageKeyOverwrite} // NEW: Pass the prop
+                  preventStageKeyOverwrite={preventStageKeyOverwrite}
                 />
               )}
             </div>

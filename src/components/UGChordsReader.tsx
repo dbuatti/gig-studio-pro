@@ -12,7 +12,7 @@ interface UGChordsReaderProps {
   config?: UGChordsConfig; // Make config optional, will use global if not provided
   isMobile: boolean;
   originalKey?: string;
-  targetKey?: string;
+  targetKey?: string; // This is effectiveTargetKey
   isPlaying: boolean;
   progress: number;
   duration: number;
