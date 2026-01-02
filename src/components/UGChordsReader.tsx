@@ -5,17 +5,11 @@ import { cn } from '@/lib/utils';
 import { formatChordText, transposeChords } from '@/utils/chordUtils';
 import { calculateSemitones } from '@/utils/keyUtils';
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
+import { UGChordsConfig } from './SetlistManager'; // Import UGChordsConfig
 
 interface UGChordsReaderProps {
   chordsText: string;
-  config: {
-    fontFamily: string;
-    fontSize: number;
-    chordBold: boolean;
-    chordColor: string;
-    lineSpacing: number;
-    textAlign: "left" | "center" | "right";
-  };
+  config?: UGChordsConfig; // Make config optional, will use global if not provided
   isMobile: boolean;
   originalKey?: string;
   targetKey?: string;
@@ -28,14 +22,33 @@ interface UGChordsReaderProps {
 
 const UGChordsReader = React.memo(({
   chordsText,
-  config,
+  config: songConfig, // Rename prop to avoid conflict with resolved config
   isMobile,
   originalKey,
   targetKey,
   readerKeyPreference,
   onChartReady,
 }: UGChordsReaderProps) => {
-  const { keyPreference: globalKeyPreference } = useSettings();
+  const { 
+    keyPreference: globalKeyPreference,
+    ugChordsFontFamily,
+    ugChordsFontSize,
+    ugChordsChordBold,
+    ugChordsChordColor,
+    ugChordsLineSpacing,
+    ugChordsTextAlign,
+  } = useSettings();
+
+  // Resolve the effective config: song-specific if available, otherwise global settings
+  const resolvedConfig: UGChordsConfig = useMemo(() => ({
+    fontFamily: songConfig?.fontFamily || ugChordsFontFamily,
+    fontSize: songConfig?.fontSize || ugChordsFontSize,
+    chordBold: songConfig?.chordBold ?? ugChordsChordBold, // Use ?? for boolean defaults
+    chordColor: songConfig?.chordColor || ugChordsChordColor,
+    lineSpacing: songConfig?.lineSpacing || ugChordsLineSpacing,
+    textAlign: songConfig?.textAlign || ugChordsTextAlign,
+  }), [songConfig, ugChordsFontFamily, ugChordsFontSize, ugChordsChordBold, ugChordsChordColor, ugChordsLineSpacing, ugChordsTextAlign]);
+
   const activeKeyPreference = readerKeyPreference || globalKeyPreference;
   
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -47,17 +60,17 @@ const UGChordsReader = React.memo(({
     return transposeChords(chordsText, n, activeKeyPreference);
   }, [chordsText, originalKey, targetKey, activeKeyPreference]);
 
-  const readableChordColor = config.chordColor === "#000000" ? "#ffffff" : config.chordColor;
+  const readableChordColor = resolvedConfig.chordColor === "#000000" ? "#ffffff" : resolvedConfig.chordColor;
 
   const formattedHtml = useMemo(() => {
     return formatChordText(transposedChordsText, {
-      fontFamily: config.fontFamily,
-      fontSize: config.fontSize,
-      chordBold: config.chordBold,
+      fontFamily: resolvedConfig.fontFamily,
+      fontSize: resolvedConfig.fontSize,
+      chordBold: resolvedConfig.chordBold,
       chordColor: readableChordColor,
-      lineSpacing: config.lineSpacing
+      lineSpacing: resolvedConfig.lineSpacing
     });
-  }, [transposedChordsText, config, readableChordColor]);
+  }, [transposedChordsText, resolvedConfig, readableChordColor]);
 
   useEffect(() => {
     if (chordsText && onChartReady) {
@@ -74,10 +87,10 @@ const UGChordsReader = React.memo(({
         isMobile ? "text-sm" : "text-base"
       )}
       style={{ 
-        fontFamily: config.fontFamily,
-        fontSize: `${config.fontSize}px`,
-        lineHeight: config.lineSpacing,
-        textAlign: config.textAlign as any,
+        fontFamily: resolvedConfig.fontFamily,
+        fontSize: `${resolvedConfig.fontSize}px`,
+        lineHeight: resolvedConfig.lineSpacing,
+        textAlign: resolvedConfig.textAlign as any,
         color: readableChordColor || "#ffffff",
         touchAction: 'pan-y'
       }}
@@ -85,7 +98,7 @@ const UGChordsReader = React.memo(({
       {chordsText ? (
         <pre 
           ref={contentRef}
-          className="whitespace-pre font-inherit inline-block min-w-full"
+          className="whitespace-pre-wrap font-inherit inline-block min-w-full" // Changed to whitespace-pre-wrap
           dangerouslySetInnerHTML={{ __html: formattedHtml }}
         />
       ) : (

@@ -51,7 +51,7 @@ export interface SetlistSong {
   user_tags?: string[];
   is_pitch_linked?: boolean; 
   duration_seconds?: number;
-  key_preference?: KeyPreference;
+  key_preference?: KeyPreference; // NEW: Add key_preference
   is_active?: boolean;
   fineTune?: number;
   tempo?: number;
@@ -59,7 +59,7 @@ export interface SetlistSong {
   isApproved?: boolean;
   preferred_reader?: 'ug' | 'ls' | 'fn' | null;
   ug_chords_text?: string;
-  ug_chords_config?: UGChordsConfig;
+  ug_chords_config?: UGChordsConfig; // NEW: Add ug_chords_config
   is_ug_chords_present?: boolean;
   highest_note_original?: string;
   is_ug_link_verified?: boolean; 

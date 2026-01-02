@@ -7,7 +7,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { SetlistSong } from './SetlistManager';
+import { SetlistSong, UGChordsConfig } from './SetlistManager'; // Import UGChordsConfig
 import { transposeChords, extractKeyFromChords } from '@/utils/chordUtils';
 import { useSettings } from '@/hooks/use-settings';
 import { cn } from "@/lib/utils";
@@ -41,7 +41,15 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
   isPitchLinked,
   setIsPitchLinked,
 }) => {
-  const { keyPreference: globalPreference } = useSettings(); 
+  const { 
+    keyPreference: globalPreference,
+    ugChordsFontFamily,
+    ugChordsFontSize,
+    ugChordsChordBold,
+    ugChordsChordColor,
+    ugChordsLineSpacing,
+    ugChordsTextAlign,
+  } = useSettings(); 
   
   // Resolve effective notation preference: if global is neutral, use song preference, else global.
   const resolvedPreference = globalPreference === 'neutral' 
@@ -51,7 +59,37 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
   const [chordsText, setChordsText] = useState(formData.ug_chords_text || "");
   const [localTransposeSemitones, setLocalTransposeSemitones] = useState(0);
   const [isFetchingUg, setIsFetchingUg] = useState(false);
-  const [config, setConfig] = useState(formData.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG);
+  
+  // Initialize config state with song-specific config, falling back to global settings
+  const [config, setConfig] = useState<UGChordsConfig>(() => {
+    const songSpecificConfig = formData.ug_chords_config;
+    if (songSpecificConfig) {
+      return { ...DEFAULT_UG_CHORDS_CONFIG, ...songSpecificConfig };
+    }
+    return {
+      fontFamily: ugChordsFontFamily,
+      fontSize: ugChordsFontSize,
+      chordBold: ugChordsChordBold,
+      chordColor: ugChordsChordColor,
+      lineSpacing: ugChordsLineSpacing,
+      textAlign: ugChordsTextAlign,
+    };
+  });
+
+  // Update local config state if global settings change AND there's no song-specific override
+  useEffect(() => {
+    if (!formData.ug_chords_config) { // Only update if no song-specific config is present
+      setConfig({
+        fontFamily: ugChordsFontFamily,
+        fontSize: ugChordsFontSize,
+        chordBold: ugChordsChordBold,
+        chordColor: ugChordsChordColor,
+        lineSpacing: ugChordsLineSpacing,
+        textAlign: ugChordsTextAlign,
+      });
+    }
+  }, [ugChordsFontFamily, ugChordsFontSize, ugChordsChordBold, ugChordsChordColor, ugChordsLineSpacing, ugChordsTextAlign, formData.ug_chords_config]);
+
 
   const activeTransposeOffset = isPitchLinked ? pitch : localTransposeSemitones;
 
@@ -70,17 +108,18 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
   }, [chordsText, formData.ug_chords_text, handleAutoSave]);
 
   useEffect(() => {
+    // Only save config if it's different from the global defaults, effectively making it a song-specific override
+    const isDefault = config.fontFamily === ugChordsFontFamily &&
+                      config.fontSize === ugChordsFontSize &&
+                      config.chordBold === ugChordsChordBold &&
+                      config.chordColor === ugChordsChordColor &&
+                      config.lineSpacing === ugChordsLineSpacing &&
+                      config.textAlign === ugChordsTextAlign;
+
     handleAutoSave({
-      ug_chords_config: {
-        fontFamily: config.fontFamily,
-        fontSize: config.fontSize,
-        chordBold: config.chordBold,
-        chordColor: config.chordColor,
-        lineSpacing: config.lineSpacing,
-        textAlign: config.textAlign
-      }
+      ug_chords_config: isDefault ? null : config // Save null if it matches global defaults
     });
-  }, [config, handleAutoSave]);
+  }, [config, handleAutoSave, ugChordsFontFamily, ugChordsFontSize, ugChordsChordBold, ugChordsChordColor, ugChordsLineSpacing, ugChordsTextAlign]);
 
   useEffect(() => {
     if (!isPitchLinked) {
@@ -606,7 +645,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
               }}
             >
               {transposedText ? (
-                <pre className="whitespace-pre-wrap font-inherit">
+                <pre className="whitespace-pre-wrap font-inherit"> {/* Changed to whitespace-pre-wrap */}
                   {transposedText}
                 </pre>
               ) : (

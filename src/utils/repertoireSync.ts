@@ -90,9 +90,9 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
     if (song.duration_seconds !== undefined) dbUpdates.duration_seconds = Math.round(song.duration_seconds || 0);
     if (song.isApproved !== undefined) dbUpdates.is_approved = song.isApproved;
     if (song.preferred_reader !== undefined) dbUpdates.preferred_reader = song.preferred_reader;
-    if (song.ug_chords_config !== undefined) dbUpdates.ug_chords_config = song.ug_chords_config;
+    if (song.ug_chords_config !== undefined) dbUpdates.ug_chords_config = song.ug_chords_config; // NEW
     if (song.is_ug_chords_present !== undefined) dbUpdates.is_ug_chords_present = song.is_ug_chords_present;
-    if (song.key_preference !== undefined) dbUpdates.key_preference = song.key_preference;
+    if (song.key_preference !== undefined) dbUpdates.key_preference = song.key_preference; // NEW
     if (song.audio_url !== undefined) dbUpdates.audio_url = song.audio_url;
     if (song.extraction_status !== undefined) dbUpdates.extraction_status = song.extraction_status;
 

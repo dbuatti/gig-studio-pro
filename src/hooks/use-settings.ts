@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
+import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants'; // Import default config
 
 export type KeyPreference = 'flats' | 'sharps' | 'neutral';
 
@@ -18,6 +19,13 @@ export interface GlobalSettings {
   goalOriginalKeyCount: number;
   goalTargetKeyCount: number;
   defaultDashboardView: 'gigs' | 'repertoire';
+  // NEW: Global UG Chords Display Settings
+  ugChordsFontFamily: string;
+  ugChordsFontSize: number;
+  ugChordsChordBold: boolean;
+  ugChordsChordColor: string;
+  ugChordsLineSpacing: number;
+  ugChordsTextAlign: 'left' | 'center' | 'right';
 }
 
 const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
@@ -32,6 +40,13 @@ const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   goalOriginalKeyCount: 10,
   goalTargetKeyCount: 10,
   defaultDashboardView: 'gigs',
+  // NEW: Default values for UG Chords Display
+  ugChordsFontFamily: DEFAULT_UG_CHORDS_CONFIG.fontFamily,
+  ugChordsFontSize: DEFAULT_UG_CHORDS_CONFIG.fontSize,
+  ugChordsChordBold: DEFAULT_UG_CHORDS_CONFIG.chordBold,
+  ugChordsChordColor: DEFAULT_UG_CHORDS_CONFIG.chordColor,
+  ugChordsLineSpacing: DEFAULT_UG_CHORDS_CONFIG.lineSpacing,
+  ugChordsTextAlign: DEFAULT_UG_CHORDS_CONFIG.textAlign,
 };
 
 export function useSettings() {
@@ -57,7 +72,9 @@ export function useSettings() {
             .select(`
               key_preference, safe_pitch_max_note, is_safe_pitch_enabled, is_goal_tracker_enabled, 
               goal_lyrics_count, goal_ug_chords_count, goal_ug_links_count, goal_highest_note_count,
-              goal_original_key_count, goal_target_key_count, default_dashboard_view
+              goal_original_key_count, goal_target_key_count, default_dashboard_view,
+              ug_chords_font_family, ug_chords_font_size, ug_chords_chord_bold, ug_chords_chord_color,
+              ug_chords_line_spacing, ug_chords_text_align
             `)
             .eq('id', user.id)
             .single();
@@ -78,6 +95,13 @@ export function useSettings() {
             if (data.goal_original_key_count !== undefined) loadedSettings.goalOriginalKeyCount = data.goal_original_key_count;
             if (data.goal_target_key_count !== undefined) loadedSettings.goalTargetKeyCount = data.goal_target_key_count;
             if (data.default_dashboard_view) loadedSettings.defaultDashboardView = data.default_dashboard_view as 'gigs' | 'repertoire';
+            // NEW: Load UG Chords Display Settings
+            if (data.ug_chords_font_family) loadedSettings.ugChordsFontFamily = data.ug_chords_font_family;
+            if (data.ug_chords_font_size !== undefined) loadedSettings.ugChordsFontSize = data.ug_chords_font_size;
+            if (data.ug_chords_chord_bold !== undefined) loadedSettings.ugChordsChordBold = data.ug_chords_chord_bold;
+            if (data.ug_chords_chord_color) loadedSettings.ugChordsChordColor = data.ug_chords_chord_color;
+            if (data.ug_chords_line_spacing !== undefined) loadedSettings.ugChordsLineSpacing = data.ug_chords_line_spacing;
+            if (data.ug_chords_text_align) loadedSettings.ugChordsTextAlign = data.ug_chords_text_align;
             
             setSettings(prev => {
               const newSettings = { ...prev, ...loadedSettings };
@@ -133,9 +157,16 @@ export function useSettings() {
           goalUgChordsCount: 'goal_ug_chords_count',
           goalUgLinksCount: 'goal_ug_links_count',
           goalHighestNoteCount: 'goal_highest_note_count',
-          goalOriginalKeyCount: 'goal_original_key_count',
-          goalTargetKeyCount: 'goal_target_key_count',
+          goalOriginalKeyCount: 'original_key_count', // Corrected column name
+          goalTargetKeyCount: 'target_key_count',     // Corrected column name
           defaultDashboardView: 'default_dashboard_view',
+          // NEW: Map UG Chords Display Settings to DB columns
+          ugChordsFontFamily: 'ug_chords_font_family',
+          ugChordsFontSize: 'ug_chords_font_size',
+          ugChordsChordBold: 'ug_chords_chord_bold',
+          ugChordsChordColor: 'ug_chords_chord_color',
+          ugChordsLineSpacing: 'ug_chords_line_spacing',
+          ugChordsTextAlign: 'ug_chords_text_align',
         };
         const dbColumn = dbKeyMap[key];
         const { error } = await supabase
@@ -159,6 +190,13 @@ export function useSettings() {
     setGoalOriginalKeyCount: (count: number) => updateSetting('goalOriginalKeyCount', count),
     setGoalTargetKeyCount: (count: number) => updateSetting('goalTargetKeyCount', count),
     setDefaultDashboardView: (view: 'gigs' | 'repertoire') => updateSetting('defaultDashboardView', view),
+    // NEW: Setters for UG Chords Display Settings
+    setUgChordsFontFamily: (font: string) => updateSetting('ugChordsFontFamily', font),
+    setUgChordsFontSize: (size: number) => updateSetting('ugChordsFontSize', size),
+    setUgChordsChordBold: (bold: boolean) => updateSetting('ugChordsChordBold', bold),
+    setUgChordsChordColor: (color: string) => updateSetting('ugChordsChordColor', color),
+    setUgChordsLineSpacing: (spacing: number) => updateSetting('ugChordsLineSpacing', spacing),
+    setUgChordsTextAlign: (align: 'left' | 'center' | 'right') => updateSetting('ugChordsTextAlign', align),
     isFetchingSettings,
   };
 }

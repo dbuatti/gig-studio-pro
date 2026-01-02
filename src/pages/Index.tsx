@@ -262,7 +262,7 @@ const Index = () => {
         isApproved: d.is_approved,
         preferred_reader: d.preferred_reader,
         ug_chords_text: d.ug_chords_text,
-        ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
+        ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG, // NEW: Map ug_chords_config
         is_ug_chords_present: d.is_ug_chords_present,
         highest_note_original: d.highest_note_original,
         is_ug_link_verified: d.is_ug_link_verified,
@@ -692,7 +692,7 @@ const Index = () => {
       return;
     }
 
-    if (!confirm(`Clear ${autoPopulated.length} auto-populated links?`)) return;
+    if (!confirm(`Are you sure you want to clear ${autoPopulated.length} auto-populated links?`)) return;
 
     setIsRepertoireClearingAutoLinks(true);
     try {

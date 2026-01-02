@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
-import { SetlistSong } from '@/components/SetlistManager';
+import { SetlistSong, UGChordsConfig } from '@/components/SetlistManager'; // Import UGChordsConfig
 import { Button } from '@/components/ui/button';
 import { Music, Loader2, AlertCircle, X, ExternalLink, ShieldCheck, FileText, Layout, Guitar, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -41,7 +41,15 @@ const SheetReaderMode: React.FC = () => {
   const { songId: routeSongId } = useParams<{ songId?: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
-  const { keyPreference: globalKeyPreference } = useSettings();
+  const { 
+    keyPreference: globalKeyPreference,
+    ugChordsFontFamily,
+    ugChordsFontSize,
+    ugChordsChordBold,
+    ugChordsChordColor,
+    ugChordsLineSpacing,
+    ugChordsTextAlign,
+  } = useSettings(); // Destructure global UG Chords settings
   const { forceReaderResource } = useReaderSettings();
 
   const [allSongs, setAllSongs] = useState<SetlistSong[]>([]);
@@ -471,12 +479,25 @@ const SheetReaderMode: React.FC = () => {
   }, []);
 
   const renderChartForSong = useCallback((song: SetlistSong, chartType: ChartType): React.ReactNode => {
+    // Resolve the effective config for UGChordsReader
+    const resolvedUgChordsConfig: UGChordsConfig = song.ug_chords_config ? {
+      ...DEFAULT_UG_CHORDS_CONFIG, // Start with defaults
+      ...song.ug_chords_config,    // Apply song-specific overrides
+    } : {
+      fontFamily: ugChordsFontFamily,
+      fontSize: ugChordsFontSize,
+      chordBold: ugChordsChordBold,
+      chordColor: ugChordsChordColor,
+      lineSpacing: ugChordsLineSpacing,
+      textAlign: ugChordsTextAlign,
+    };
+
     if (chartType === 'chords' && song.ug_chords_text?.trim()) {
       return (
         <UGChordsReader
           key={`${song.id}-chords-${harmonicTargetKey}`}
           chordsText={song.ug_chords_text}
-          config={song.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
+          config={resolvedUgChordsConfig} // Pass the resolved config
           isMobile={false}
           originalKey={song.originalKey}
           targetKey={harmonicTargetKey}
@@ -522,7 +543,7 @@ const SheetReaderMode: React.FC = () => {
         </a>
       </div>
     );
-  }, [harmonicTargetKey, isPlaying, progress, duration, readerKeyPreference, handleChartReady, handleChartLoad, setSelectedChartType, setIsStudioPanelOpen]);
+  }, [harmonicTargetKey, isPlaying, progress, duration, readerKeyPreference, handleChartReady, handleChartLoad, setSelectedChartType, setIsStudioPanelOpen, ugChordsFontFamily, ugChordsFontSize, ugChordsChordBold, ugChordsChordColor, ugChordsLineSpacing, ugChordsTextAlign]);
 
   useEffect(() => {
     if (!currentSong) {
