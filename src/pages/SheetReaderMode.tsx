@@ -50,7 +50,6 @@ const SheetReaderMode: React.FC = () => {
     ugChordsChordColor,
     ugChordsLineSpacing,
     ugChordsTextAlign,
-    preventStageKeyOverwrite, // NEW: Destructure preventStageKeyOverwrite
   } = useSettings();
   const { forceReaderResource } = useReaderSettings();
 
@@ -142,29 +141,25 @@ const SheetReaderMode: React.FC = () => {
     setTargetKey(newTargetKey);
     setPitch(newPitch);
 
-    // Conditionally save to database based on the global preference
-    if (!preventStageKeyOverwrite) { // NEW: Check the preference here
-      try {
-        // Use the utility to ensure timestamps are updated
-        const result = await syncToMasterRepertoire(user.id, [{
-          id: currentSong.id,
-          name: currentSong.name,
-          artist: currentSong.artist,
-          targetKey: newTargetKey,
-          pitch: newPitch
-        }]);
-        
-        if (result[0]) {
-          handleLocalSongUpdate(currentSong.id, result[0]);
-          showSuccess(`Stage Key set to ${newTargetKey}`);
-        }
-      } catch (err) {
-        showError("Failed to update Stage Key.");
+    // Always save to database
+    try {
+      // Use the utility to ensure timestamps are updated
+      const result = await syncToMasterRepertoire(user.id, [{
+        id: currentSong.id,
+        name: currentSong.name,
+        artist: currentSong.artist,
+        targetKey: newTargetKey,
+        pitch: newPitch
+      }]);
+      
+      if (result[0]) {
+        handleLocalSongUpdate(currentSong.id, result[0]);
+        showSuccess(`Stage Key set to ${newTargetKey}`);
       }
-    } else {
-      showInfo("Stage Key changed locally (global preference prevents database overwrite)."); // NEW: Info toast
+    } catch (err) {
+      showError("Failed to update Stage Key.");
     }
-  }, [currentSong, user, handleLocalSongUpdate, setTargetKey, setPitch, preventStageKeyOverwrite]); // NEW: Add preventStageKeyOverwrite to dependencies
+  }, [currentSong, user, handleLocalSongUpdate, setTargetKey, setPitch]);
 
   const handlePullKey = useCallback(async () => {
     if (!currentSong || !currentSong.ug_chords_text || !user) {
@@ -537,7 +532,7 @@ const SheetReaderMode: React.FC = () => {
 
     return (
       <div className="h-full w-full flex flex-col items-center justify-center bg-slate-950 p-8 text-center">
-        <FileText className="w-12 h-12 text-indigo-400 mb-6" />
+        <FileText className="w-12 h-12 text-indigo-400 mb-4" />
         <h3 className="text-2xl font-black uppercase mb-4">PDF Matrix Ready</h3>
         <a 
           href={url} 

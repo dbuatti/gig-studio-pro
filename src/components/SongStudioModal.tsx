@@ -4,7 +4,7 @@ import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import SongStudioView, { StudioTab } from './SongStudioView';
 import { useNavigate } from 'react-router-dom';
-import { SetlistSong } from './SetlistManager';
+import { SetlistSong, Setlist } from './SetlistManager';
 
 interface SongStudioModalProps {
   isOpen: boolean;
@@ -13,7 +13,7 @@ interface SongStudioModalProps {
   songId: string | null;
   visibleSongs?: SetlistSong[];
   onSelectSong?: (id: string) => void;
-  allSetlists?: { id: string; name: string; songs: SetlistSong[] }[];
+  allSetlists?: Setlist[]; // Corrected type
   masterRepertoire?: SetlistSong[];
   onUpdateSetlistSongs?: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>;
   defaultTab?: StudioTab;

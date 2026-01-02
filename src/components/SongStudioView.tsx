@@ -36,7 +36,7 @@ interface SongStudioViewProps {
   visibleSongs?: SetlistSong[];
   onSelectSong?: (id: string) => void;
   allSetlists?: Setlist[];
-  masterRepertoire?: SetlistSong[];
+  masterRepertoire?: SetlistSong[]; // Corrected type
   onUpdateSetlistSongs?: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>;
   defaultTab?: StudioTab;
   handleAutoSave?: (updates: Partial<SetlistSong>) => void;

@@ -45,7 +45,6 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
     ugChordsChordColor, setUgChordsChordColor,
     ugChordsLineSpacing, setUgChordsLineSpacing,
     ugChordsTextAlign, setUgChordsTextAlign,
-    preventStageKeyOverwrite, setPreventStageKeyOverwrite, // NEW
     isFetchingSettings 
   } = useSettings();
   const { user, signOut } = useAuth();
@@ -366,26 +365,6 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
                     </Button>
                   </div>
                 </div>
-              </div>
-            </div>
-
-            {/* NEW: Prevent Stage Key Overwrite */}
-            <div className="p-4 bg-card rounded-2xl border border-border">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-red-100 dark:bg-red-600/10 rounded-lg">
-                    <ShieldAlert className="w-4 h-4 text-destructive" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-foreground">Prevent Stage Key Overwrite</p>
-                    <p className="text-[9px] text-muted-foreground uppercase font-black">Temporary key changes only</p>
-                  </div>
-                </div>
-                <Switch 
-                  checked={preventStageKeyOverwrite} 
-                  onCheckedChange={setPreventStageKeyOverwrite}
-                  className="data-[state=checked]:bg-destructive"
-                />
               </div>
             </div>
           </div>
