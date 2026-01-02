@@ -29,7 +29,7 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import { useSpring, animated } from '@react-spring/web';
-import { useDrag } from '@use-gesture/react';
+import { useDrag } from '@use-gesture/react'; // Added missing import
 
 // Configure PDF.js worker source - FIXED URL
 // Using a stable, CORS-friendly version from cdnjs that is guaranteed to exist
@@ -544,7 +544,7 @@ const SheetReaderMode: React.FC = () => {
   }, [currentSong, onOpenCurrentSongStudio, handlePrev, handleNext, selectedChartType, pdfNumPages]);
 
   // --- Gesture Implementation ---
-  const bind = useDrag(({ down, movement: [mx, my], direction: [dx], velocity: [vx], cancel, intentional, memo }) => {
+  const bind = useDrag(({ down, movement: [mx, my], direction: [dx], velocity: [vx], cancel, intentional }) => {
     // Update spring for visual feedback during drag
     api.start({ x: down ? mx : 0, immediate: down });
 
@@ -583,12 +583,11 @@ const SheetReaderMode: React.FC = () => {
       api.start({ x: 0 }); // Reset spring after action
     }
   }, {
-    drag: {
-      threshold: 20,        // Initial movement before drag starts
-      filterTaps: true,     // Ignore quick taps
-      axis: 'x',            // Lock to horizontal
-      preventScroll: true,  // Critical: stops vertical scroll conflict
-    }
+    // FIX 1: Removed 'drag:' wrapper. Config options go directly here.
+    threshold: 20,        // Initial movement before drag starts
+    filterTaps: true,     // Ignore quick taps
+    axis: 'x',            // Lock to horizontal
+    preventScroll: true,  // Critical: stops vertical scroll conflict
   });
 
   if (initialLoading) return <div className="h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
@@ -655,13 +654,17 @@ const SheetReaderMode: React.FC = () => {
             "overscroll-behavior-x-contain" // Prevents browser back/forward navigation
           )}
         >
+          {/* FIX 2 & 3: 
+              1. Removed {...bind()} because we are manually controlling the spring via api.start() in the drag handler.
+              2. Removed duplicate style attribute.
+              3. Added touch-action to the style prop to handle vertical scrolling.
+          */}
           <animated.div 
-            {...bind()} 
-            style={{ x: springX }} 
+            style={{ 
+              x: springX,
+              touchAction: 'pan-y pinch-zoom' 
+            }} 
             className="h-full w-full relative"
-            // Allows vertical scroll, blocks horizontal browser nav on the element itself
-            // react-pdf and UGChordsReader handle their own internal scrolling.
-            style={{ touchAction: 'pan-y pinch-zoom' }} 
           >
             {currentSong ? (
               <>
