@@ -50,9 +50,9 @@ interface SheetReaderHeaderProps {
   audioEngine: AudioEngineControls;
   effectiveTargetKey: string; // NEW: Add effectiveTargetKey prop
   onPullKey: () => void; // NEW: Add onPullKey prop
-  pdfCurrentPage: number; // NEW: Add pdfCurrentPage
-  setPdfCurrentPage: (page: number) => void; // NEW: Add setPdfCurrentPage
-  selectedChartType: ChartType; // NEW: Add selectedChartType
+  pdfCurrentPage: number; // NEW
+  setPdfCurrentPage: React.Dispatch<React.SetStateAction<number>>; // NEW: Corrected type
+  selectedChartType: ChartType; // NEW
 }
 
 const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({

@@ -26,7 +26,7 @@ import RepertoireSearchModal from '@/components/RepertoireSearchModal';
 import FullScreenSongInfo from '@/components/FullScreenSongInfo';
 import { AnimatePresence } from 'framer-motion';
 
-type ChartType = 'pdf' | 'leadsheet' | 'chords';
+export type ChartType = 'pdf' | 'leadsheet' | 'chords'; // Exporting ChartType
 
 interface RenderedChart {
   id: string;
