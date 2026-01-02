@@ -67,15 +67,7 @@ const UGChordsReader = React.memo(({
 
   const readableChordColor = resolvedConfig.chordColor === "#000000" ? "#ffffff" : resolvedConfig.chordColor;
 
-  const formattedHtml = useMemo(() => {
-    return formatChordText(transposedChordsText, {
-      fontFamily: resolvedConfig.fontFamily,
-      fontSize: resolvedConfig.fontSize,
-      chordBold: resolvedConfig.chordBold,
-      chordColor: readableChordColor,
-      lineSpacing: resolvedConfig.lineSpacing
-    });
-  }, [transposedChordsText, resolvedConfig, readableChordColor]);
+  // Removed formattedHtml useMemo as dangerouslySetInnerHTML is no longer used.
 
   useEffect(() => {
     if (chordsText && onChartReady) {
@@ -104,8 +96,9 @@ const UGChordsReader = React.memo(({
         <pre 
           ref={contentRef}
           className="whitespace-pre-wrap font-inherit inline-block min-w-full" // Changed to whitespace-pre-wrap
-          dangerouslySetInnerHTML={{ __html: formattedHtml }}
-        />
+        >
+          {transposedChordsText}
+        </pre>
       ) : (
         <div className="h-full flex items-center justify-center text-slate-500 text-sm italic">
           <p>No chord data available for this track.</p>
