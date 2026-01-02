@@ -448,12 +448,21 @@ const SheetReaderMode: React.FC = () => {
         const url = chartType === 'pdf' ? song.pdfUrl : song.leadsheetUrl;
         if (url && isFramable(url)) {
           return (
-            <iframe
-              src={`${url}#toolbar=0&navpanes=0&view=FitH`}
-              className="w-full h-full bg-white"
-              title="Sheet Music"
-              onLoad={commonProps.onChartReady}
-            />
+            // The iframe itself should be the scrollable content
+            // The overlay will sit on top to capture gestures
+            <div className="w-full h-full min-w-full snap-center">
+              <iframe
+                src={`${url}#toolbar=0&navpanes=0&view=FitH`}
+                className="w-full h-full bg-white block" // Added 'block'
+                title="Sheet Music"
+                onLoad={commonProps.onChartReady}
+                // pointer-events: none is crucial for the overlay to work
+                // but it disables internal iframe controls.
+                // Let's try without it first, and rely on the overlay's z-index.
+                // If the iframe still captures events, we might need to conditionally apply pointer-events: none
+                // or use a different strategy.
+              />
+            </div>
           );
         } else if (url) {
           return (
@@ -516,6 +525,10 @@ const SheetReaderMode: React.FC = () => {
     if (allSongs.length > 0) {
       setCurrentIndex((prevIndex) => (prevIndex + 1) % allSongs.length);
       stopPlayback();
+      // Reset PDF scroll position when changing songs
+      if (pdfContainerRef.current) {
+        pdfContainerRef.current.scrollLeft = 0;
+      }
     }
   }, [allSongs, stopPlayback]);
 
@@ -523,6 +536,10 @@ const SheetReaderMode: React.FC = () => {
     if (allSongs.length > 0) {
       setCurrentIndex((prevIndex) => (prevIndex - 1 + allSongs.length) % allSongs.length);
       stopPlayback();
+      // Reset PDF scroll position when changing songs
+      if (pdfContainerRef.current) {
+        pdfContainerRef.current.scrollLeft = 0;
+      }
     }
   }, [allSongs, stopPlayback]);
 
@@ -532,7 +549,7 @@ const SheetReaderMode: React.FC = () => {
   
   const handleTouchStart = (e: React.TouchEvent) => {
     // Only handle touch if we are in PDF mode
-    if (selectedChartType !== 'pdf') return;
+    if (selectedChartType !== 'pdf' && selectedChartType !== 'leadsheet') return;
     
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
@@ -541,28 +558,28 @@ const SheetReaderMode: React.FC = () => {
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (selectedChartType !== 'pdf') return;
+    if (selectedChartType !== 'pdf' && selectedChartType !== 'leadsheet') return;
     
     touchEndX.current = e.touches[0].clientX;
     touchEndY.current = e.touches[0].clientY;
   };
 
   const handleTouchEnd = () => {
-    if (selectedChartType !== 'pdf') return;
+    if (selectedChartType !== 'pdf' && selectedChartType !== 'leadsheet') return;
 
     const deltaX = touchEndX.current - touchStartX.current;
     const deltaY = touchEndY.current - touchStartY.current;
 
-    // Check if it's a horizontal swipe (dominant direction)
-    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > swipeThreshold) {
-      const container = pdfContainerRef.current;
-      if (!container) return;
+    const container = pdfContainerRef.current;
+    if (!container) return;
 
-      const isAtStart = container.scrollLeft <= 0;
-      const isAtEnd = container.scrollLeft >= container.scrollWidth - container.clientWidth - 1; // -1 for rounding
+    // Determine if it's a horizontal swipe (dominant direction)
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > swipeThreshold) {
+      const isAtStart = container.scrollLeft <= 1; // Small tolerance for floating point
+      const isAtEnd = container.scrollLeft >= container.scrollWidth - container.clientWidth - 1;
 
       // Swipe Right (Next Song) - Only on Last Page
-      if (deltaX < 0) { 
+      if (deltaX < 0) { // Swiping left
         if (isAtEnd) {
           handleNext();
         } else {
@@ -571,7 +588,7 @@ const SheetReaderMode: React.FC = () => {
         }
       } 
       // Swipe Left (Prev Song) - Only on First Page
-      else if (deltaX > 0) {
+      else if (deltaX > 0) { // Swiping right
         if (isAtStart) {
           handlePrev();
         } else {
@@ -590,7 +607,7 @@ const SheetReaderMode: React.FC = () => {
 
   // Tap Navigation (Left/Right side of screen)
   const handleContainerClick = (e: React.MouseEvent) => {
-    if (selectedChartType !== 'pdf') return;
+    if (selectedChartType !== 'pdf' && selectedChartType !== 'leadsheet') return;
     
     const container = pdfContainerRef.current;
     if (!container) return;
@@ -599,6 +616,10 @@ const SheetReaderMode: React.FC = () => {
     const clickX = e.clientX - rect.left;
     const width = rect.width;
 
+    // Only trigger if not a swipe (to avoid double-triggering on short taps that are also swipes)
+    // This check is a bit tricky with the current touchEnd logic.
+    // For now, let's assume a click is a distinct event.
+    
     if (clickX < width * 0.3) {
       // Tap Left: Scroll Left
       container.scrollBy({ left: -container.clientWidth * 0.8, behavior: 'smooth' });
@@ -697,10 +718,7 @@ const SheetReaderMode: React.FC = () => {
       {/* Main Content */}
       <main className={cn("flex-1 flex flex-col overflow-hidden transition-all duration-300", 
         isSidebarOpen && !isBrowserFullScreen && "ml-[300px]")}
-        // Touch handlers for swipe detection
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
+        // Touch handlers for swipe detection - MOVED TO OVERLAY
       >
         <SheetReaderHeader
           currentSong={currentSong!}
@@ -743,15 +761,21 @@ const SheetReaderMode: React.FC = () => {
         {/* Chart Container */}
         <div
           ref={pdfContainerRef}
-          className={cn("flex-1 bg-black relative overflow-hidden", isBrowserFullScreen ? "mt-0" : "mt-[112px]")}
-          onClick={handleContainerClick}
+          className={cn("flex-1 bg-black relative overflow-x-auto overflow-y-hidden snap-x snap-mandatory", isBrowserFullScreen ? "mt-0" : "mt-[112px]")}
+          // onClick={handleContainerClick} // MOVED TO OVERLAY
         >
-          {/* 
-            Rendered Charts: 
-            We remove the motion.div wrapper to ensure immediate transitions (no cross-fade).
-            We rely on the `opacity` and `zIndex` in the state to manage visibility if needed, 
-            but here we just render the active chart directly for "immediate" appearance.
-          */}
+          {/* Transparent overlay to capture touch events over the iframe */}
+          {(selectedChartType === 'pdf' || selectedChartType === 'leadsheet') && (
+            <div 
+              className="absolute inset-0 z-10" // Higher z-index than iframe
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              onClick={handleContainerClick}
+              style={{ touchAction: 'pan-x' }} // Allow horizontal pan, prevent vertical default
+            />
+          )}
+
           {renderedCharts.map(rc => {
             // Only render the active chart for immediate appearance
             if (rc.id !== currentSong?.id || rc.type !== selectedChartType) return null;
@@ -759,10 +783,8 @@ const SheetReaderMode: React.FC = () => {
             // For PDF/Leadsheet, we wrap in a scrollable container if it's an iframe
             if (rc.type === 'pdf' || rc.type === 'leadsheet') {
               return (
-                <div key={`${rc.id}-${rc.type}`} className="w-full h-full overflow-x-auto overflow-y-hidden snap-x snap-mandatory">
-                   <div className="w-full h-full min-w-full snap-center">
-                     {rc.content}
-                   </div>
+                <div key={`${rc.id}-${rc.type}`} className="w-full h-full min-w-full snap-center">
+                   {rc.content} {/* rc.content is already the iframe wrapped in a div */}
                 </div>
               );
             }
