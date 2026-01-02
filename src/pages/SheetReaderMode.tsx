@@ -355,11 +355,21 @@ const SheetReaderMode: React.FC = () => {
         s.pdfUrl || s.leadsheetUrl || s.ug_chords_text || s.sheet_music_url
       );
 
-      setAllSongs(readableSongs);
+      // Deduplicate songs based on master_id or id
+      const uniqueSongsMap = new Map<string, SetlistSong>();
+      readableSongs.forEach(song => {
+        const key = song.master_id || song.id;
+        if (key && !uniqueSongsMap.has(key)) {
+          uniqueSongsMap.set(key, song);
+        }
+      });
+      const uniqueReadableSongs = Array.from(uniqueSongsMap.values());
+
+      setAllSongs(uniqueReadableSongs);
 
       let initialIndex = 0;
       if (targetId) {
-        const idx = readableSongs.findIndex(s => s.id === targetId || s.master_id === targetId);
+        const idx = uniqueReadableSongs.findIndex(s => s.id === targetId || s.master_id === targetId);
         if (idx !== -1) initialIndex = idx;
       }
       setCurrentIndex(initialIndex);
