@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ListMusic, GripVertical, Check, X } from 'lucide-react';
-import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
+import { DragDropContext, Droppable, Draggable, DropResult, DragUpdate, DragStart, DragOverlay } from 'react-beautiful-dnd';
 import { SetlistSong } from './SetlistManager';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from './ui/scroll-area';
@@ -25,13 +25,20 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
   setlistName,
 }) => {
   const [localSongs, setLocalSongs] = useState(songs);
+  const [draggingItem, setDraggingItem] = useState<SetlistSong | null>(null);
 
   // Update localSongs when the prop changes (e.g., when modal opens with new data)
   React.useEffect(() => {
     setLocalSongs(songs);
   }, [songs]);
 
+  const onBeforeCapture = (start: DragStart) => {
+    const item = localSongs.find(song => song.id === start.draggableId);
+    setDraggingItem(item || null);
+  };
+
   const onDragEnd = (result: DropResult) => {
+    setDraggingItem(null); // Clear dragging item regardless of drop success
     if (!result.destination) return;
 
     const newItems = Array.from(localSongs);
@@ -47,6 +54,24 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
   };
 
   const hasChanges = JSON.stringify(songs) !== JSON.stringify(localSongs);
+
+  const renderDraggableItem = (song: SetlistSong, index: number, isDragging: boolean) => (
+    <div
+      className={cn(
+        "p-4 bg-card border border-border rounded-2xl flex items-center gap-4 shadow-sm transition-all",
+        isDragging ? "ring-2 ring-indigo-500 bg-indigo-500/10" : "hover:border-indigo-500/50"
+      )}
+    >
+      <GripVertical className="w-5 h-5 text-muted-foreground shrink-0 cursor-grab" />
+      <div className="flex-1 min-w-0">
+        <h4 className="text-sm font-black uppercase tracking-tight truncate text-foreground">{song.name}</h4>
+        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest truncate">{song.artist || "Unknown Artist"}</p>
+      </div>
+      <span className="text-[9px] font-mono font-black text-muted-foreground shrink-0">
+        {(index + 1).toString().padStart(2, '0')}
+      </span>
+    </div>
+  );
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -73,7 +98,7 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
         </div>
 
         <ScrollArea className="flex-1 p-6 custom-scrollbar">
-          <DragDropContext onDragEnd={onDragEnd}>
+          <DragDropContext onBeforeCapture={onBeforeCapture} onDragEnd={onDragEnd}>
             <Droppable droppableId="setlist-songs">
               {(provided) => (
                 <div
@@ -88,19 +113,9 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
                           ref={provided.innerRef}
                           {...provided.draggableProps}
                           {...provided.dragHandleProps}
-                          className={cn(
-                            "p-4 bg-card border border-border rounded-2xl flex items-center gap-4 shadow-sm transition-all",
-                            snapshot.isDragging ? "ring-2 ring-indigo-500 bg-indigo-500/10" : "hover:border-indigo-500/50"
-                          )}
                         >
-                          <GripVertical className="w-5 h-5 text-muted-foreground shrink-0 cursor-grab" />
-                          <div className="flex-1 min-w-0">
-                            <h4 className="text-sm font-black uppercase tracking-tight truncate text-foreground">{song.name}</h4>
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest truncate">{song.artist || "Unknown Artist"}</p>
-                          </div>
-                          <span className="text-[9px] font-mono font-black text-muted-foreground shrink-0">
-                            {(index + 1).toString().padStart(2, '0')}
-                          </span>
+                          {/* Render the actual item when not dragging */}
+                          {!snapshot.isDragging && renderDraggableItem(song, index, false)}
                         </div>
                       )}
                     </Draggable>
@@ -109,6 +124,9 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
                 </div>
               )}
             </Droppable>
+            <DragOverlay>
+              {draggingItem ? renderDraggableItem(draggingItem, localSongs.findIndex(s => s.id === draggingItem.id), true) : null}
+            </DragOverlay>
           </DragDropContext>
         </ScrollArea>
 
