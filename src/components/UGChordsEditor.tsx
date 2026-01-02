@@ -95,8 +95,12 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
 
   const transposedText = useMemo(() => {
     if (!chordsText) return chordsText;
-    return transposeChords(chordsText, activeTransposeOffset, resolvedPreference);
-  }, [chordsText, activeTransposeOffset, resolvedPreference]);
+    // Handle null/undefined keys gracefully
+    const safeOriginalKey = formData.originalKey || 'C';
+    const safeTargetKey = targetKey || safeOriginalKey;
+    const n = calculateSemitones(safeOriginalKey, safeTargetKey);
+    return transposeChords(chordsText, n, resolvedPreference);
+  }, [chordsText, formData.originalKey, targetKey, resolvedPreference]);
 
   useEffect(() => {
     if (chordsText !== formData.ug_chords_text) {
@@ -328,7 +332,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
               <Button
                 onClick={handleFetchUgChords}
                 disabled={isFetchingUg || !formData.ugUrl?.trim()}
-                className="h-12 px-6 bg-indigo-600 hover:bg-indigo-50 text-white font-bold text-[10px] uppercase gap-2 rounded-xl"
+                className="h-12 px-6 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] uppercase gap-2 rounded-xl"
               >
                 {isFetchingUg ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
                 Fetch Chords

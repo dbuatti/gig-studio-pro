@@ -204,13 +204,7 @@ const SheetReaderMode: React.FC = () => {
       let activeSetlistSongsList: SetlistSong[] = [];
 
       // Always fetch full master repertoire
-      // FIXED: Changed .eq('user.id', userId) to .eq('user_id', user.id)
-      const { data: masterData, error: masterError } = await supabase
-        .from('repertoire')
-        .select('*')
-        .eq('user_id', user.id) // CORRECTED LINE
-        .order('title');
-      
+      const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user.id', user.id).order('title');
       if (masterError) throw masterError;
       masterRepertoireList = (masterData || []).map((d: any) => ({
         id: d.id,
@@ -313,7 +307,7 @@ const SheetReaderMode: React.FC = () => {
             pdfUrl: masterSong.pdf_url,
             leadsheetUrl: masterSong.leadsheet_url,
             bpm: masterSong.bpm,
-            genre: masterSong.genre, // Corrected from 'master.genre' to 'masterSong.genre'
+            genre: masterSong.genre,
             isSyncing: false,
             isMetadataConfirmed: masterSong.is_metadata_confirmed,
             isKeyConfirmed: masterSong.is_key_confirmed,
@@ -550,7 +544,7 @@ const SheetReaderMode: React.FC = () => {
   }, [currentSong, onOpenCurrentSongStudio, handlePrev, handleNext, selectedChartType, pdfNumPages]);
 
   // --- Gesture Implementation ---
-  const bind = useDrag(({ down, movement: [mx, my], direction: [dx], velocity: [vx], cancel, intentional }) => {
+  const bind = useDrag(({ down, movement: [mx, my], direction: [dx], velocity: [vx], cancel, intentional, memo }) => {
     // Update spring for visual feedback during drag
     api.start({ x: down ? mx : 0, immediate: down });
 
@@ -589,11 +583,12 @@ const SheetReaderMode: React.FC = () => {
       api.start({ x: 0 }); // Reset spring after action
     }
   }, {
-    // FIX 1: Removed 'drag:' wrapper. Config options go directly here.
-    threshold: 20,        // Initial movement before drag starts
-    filterTaps: true,     // Ignore quick taps
-    axis: 'x',            // Lock to horizontal
-    preventScroll: true,  // Critical: stops vertical scroll conflict
+    drag: {
+      threshold: 20,        // Initial movement before drag starts
+      filterTaps: true,     // Ignore quick taps
+      axis: 'x',            // Lock to horizontal
+      preventScroll: true,  // Critical: stops vertical scroll conflict
+    }
   });
 
   if (initialLoading) return <div className="h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
@@ -660,17 +655,13 @@ const SheetReaderMode: React.FC = () => {
             "overscroll-behavior-x-contain" // Prevents browser back/forward navigation
           )}
         >
-          {/* FIX 2 & 3: 
-              1. Removed {...bind()} because we are manually controlling the spring via api.start() in the drag handler.
-              2. Removed duplicate style attribute.
-              3. Added touch-action to the style prop to handle vertical scrolling.
-          */}
           <animated.div 
-            style={{ 
-              x: springX,
-              touchAction: 'pan-y pinch-zoom' 
-            }} 
+            {...bind()} 
+            style={{ x: springX }} 
             className="h-full w-full relative"
+            // Allows vertical scroll, blocks horizontal browser nav on the element itself
+            // react-pdf and UGChordsReader handle their own internal scrolling.
+            style={{ touchAction: 'pan-y pinch-zoom' }} 
           >
             {currentSong ? (
               <>

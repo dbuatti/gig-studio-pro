@@ -59,7 +59,10 @@ const UGChordsReader = React.memo(({
 
   const transposedChordsText = useMemo(() => {
     if (!chordsText) return chordsText;
-    const n = calculateSemitones(originalKey, targetKey);
+    // Handle null/undefined keys gracefully
+    const safeOriginalKey = originalKey || 'C';
+    const safeTargetKey = targetKey || safeOriginalKey;
+    const n = calculateSemitones(safeOriginalKey, safeTargetKey);
     return transposeChords(chordsText, n, activeKeyPreference);
   }, [chordsText, originalKey, targetKey, activeKeyPreference]);
 
