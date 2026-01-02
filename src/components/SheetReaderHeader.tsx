@@ -3,7 +3,7 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { ArrowLeft, Search, Music, ChevronLeft, ChevronRight, Loader2, ChevronDown, Maximize2, Minimize2, Bug, Hash, Sparkles, ListMusic, Play, Pause, Gauge, Volume2, Activity, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Search, Music, ChevronLeft, ChevronRight, Loader2, ChevronDown, Maximize2, Minimize2, Bug, Hash, Sparkles, ListMusic, Play, Pause, Gauge, Volume2, Activity, RotateCcw, FileText } from 'lucide-react'; // Added FileText
 import { cn } from '@/lib/utils';
 import { formatKey, ALL_KEYS_SHARP, ALL_KEYS_FLAT } from '@/utils/keyUtils';
 import { SetlistSong } from './SetlistManager';
@@ -16,7 +16,8 @@ import { AudioEngineControls } from '@/hooks/use-tone-audio';
 interface SheetReaderHeaderProps {
   currentSong: SetlistSong | null;
   onClose: () => void;
-  onSearchClick: () => void;
+  onOpenRepertoireSearch: () => void; // Renamed from onSearchClick
+  onOpenCurrentSongStudio: () => void; // NEW prop for opening current song in Studio
   onPrevSong: () => void;
   onNextSong: () => void;
   isLoading: boolean;
@@ -52,7 +53,8 @@ interface SheetReaderHeaderProps {
 const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   currentSong,
   onClose,
-  onSearchClick,
+  onOpenRepertoireSearch, // Renamed
+  onOpenCurrentSongStudio, // NEW
   onPrevSong,
   onNextSong,
   isLoading,
@@ -71,6 +73,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   progress,
   duration,
   onSetProgress,
+  onStopPlayback,
   volume,
   setVolume,
   tempo,
@@ -181,6 +184,16 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
 
       {/* Center Section: Audio Progress and Metrics */}
       <div className="flex-1 flex items-center gap-6 px-6 border-x border-white/10 h-full">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onStopPlayback}
+          className="h-10 w-10 rounded-xl hover:bg-white/10 text-slate-400"
+          title="Reset Playback"
+        >
+          <RotateCcw className="w-5 h-5" />
+        </Button>
+
         <div className="flex-1 mx-4 space-y-2 max-w-md">
           <Slider
             value={[duration > 0 ? (progress / 100) * duration : 0]}
@@ -240,6 +253,18 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
             >
               <Sparkles className="w-3.5 h-3.5" />
               Pull Key
+            </Button>
+
+            {/* NEW: Paper Icon Button for Current Song Studio */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onOpenCurrentSongStudio}
+              disabled={!currentSong}
+              className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
+              title="Open Current Song in Studio (I)"
+            >
+              <FileText className="w-5 h-5" />
             </Button>
 
             <DropdownMenu onOpenChange={setIsOverlayOpen}>
@@ -304,12 +329,13 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
           </div>
         )}
         
+        {/* Original Search Button (now for Repertoire Search) */}
         <Button 
           variant="ghost" 
           size="icon" 
-          onClick={onSearchClick}
+          onClick={onOpenRepertoireSearch} // Changed onClick
           className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
-          title="Open Studio (I)"
+          title="Search Repertoire"
         >
           <Search className="w-5 h-5" />
         </Button>

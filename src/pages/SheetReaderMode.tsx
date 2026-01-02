@@ -23,6 +23,7 @@ import SheetReaderSidebar from '@/components/SheetReaderSidebar';
 import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
 import { motion, AnimatePresence } from 'framer-motion';
 import { extractKeyFromChords } from '@/utils/chordUtils';
+import RepertoireSearchModal from '@/components/RepertoireSearchModal'; // NEW: Import RepertoireSearchModal
 
 type ChartType = 'pdf' | 'leadsheet' | 'chords';
 
@@ -47,10 +48,11 @@ const SheetReaderMode: React.FC = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [initialLoading, setInitialLoading] = useState(true);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
-  const [isBrowserFullScreen, setIsBrowserFullScreen] = useState(false); // Renamed from isImmersive
+  const [isBrowserFullScreen, setIsBrowserFullScreen] = useState(false);
   const [isStudioPanelOpen, setIsStudioPanelOpen] = useState(false);
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isRepertoireSearchModalOpen, setIsRepertoireSearchModalOpen] = useState(false); // NEW: State for RepertoireSearchModal
 
   const [readerKeyPreference, setReaderKeyPreference] = useState<'sharps' | 'flats'>(
     globalKeyPreference === 'neutral' ? 'sharps' : globalKeyPreference
@@ -537,17 +539,38 @@ const SheetReaderMode: React.FC = () => {
     return () => document.removeEventListener('fullscreenchange', handleFullScreenChange);
   }, []);
 
+  const onOpenCurrentSongStudio = useCallback(() => {
+    if (currentSong) {
+      setIsStudioPanelOpen(true);
+    } else {
+      showInfo("No song selected to open in Studio.");
+    }
+  }, [currentSong]);
+
+  const handleSelectSongFromRepertoireSearch = useCallback((song: SetlistSong) => {
+    const idx = allSongs.findIndex(s => s.id === song.id || s.master_id === song.master_id);
+    if (idx !== -1) {
+      setCurrentIndex(idx);
+    } else {
+      // If the selected song isn't in the current 'allSongs' list (e.g., due to filters),
+      // we need to re-fetch or add it. For simplicity, let's just navigate to it.
+      navigate(`/sheet-reader/${song.id}`);
+    }
+    stopPlayback();
+    setIsRepertoireSearchModalOpen(false);
+  }, [allSongs, navigate, stopPlayback]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (e.key.toLowerCase() === 'i' && currentSong) {
         e.preventDefault();
-        setIsStudioPanelOpen(prev => !prev);
+        onOpenCurrentSongStudio();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentSong]);
+  }, [currentSong, onOpenCurrentSongStudio]);
 
   if (initialLoading) return <div className="h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
 
@@ -565,14 +588,15 @@ const SheetReaderMode: React.FC = () => {
         <SheetReaderHeader
           currentSong={currentSong!}
           onClose={() => navigate('/')}
-          onSearchClick={() => setIsStudioPanelOpen(true)}
+          onOpenRepertoireSearch={() => setIsRepertoireSearchModalOpen(true)} // Changed handler
+          onOpenCurrentSongStudio={onOpenCurrentSongStudio} // NEW handler
           onPrevSong={handlePrev}
           onNextSong={handleNext}
           isLoading={!currentSong}
           keyPreference={globalKeyPreference}
           onUpdateKey={handleUpdateKey}
-          isFullScreen={isBrowserFullScreen} // Pass isBrowserFullScreen
-          onToggleFullScreen={toggleBrowserFullScreen} // Pass toggleBrowserFullScreen
+          isFullScreen={isBrowserFullScreen}
+          onToggleFullScreen={toggleBrowserFullScreen}
           setIsOverlayOpen={setIsOverlayOpen}
           isOverrideActive={forceReaderResource !== 'default'}
           pitch={pitch}
@@ -598,7 +622,7 @@ const SheetReaderMode: React.FC = () => {
           audioEngine={audioEngine}
         />
 
-        <div className={cn("flex-1 bg-black relative", isBrowserFullScreen ? "mt-0" : "mt-[112px]")}> {/* Use isBrowserFullScreen for margin */}
+        <div className={cn("flex-1 bg-black relative", isBrowserFullScreen ? "mt-0" : "mt-[112px]")}>
           {renderedCharts.map(rc => (
             <motion.div key={`${rc.id}-${rc.type}`} className="absolute inset-0" animate={{ opacity: rc.opacity }} style={{ zIndex: rc.zIndex }}>
               {rc.content}
@@ -606,8 +630,6 @@ const SheetReaderMode: React.FC = () => {
           ))}
           {isChartLoading && <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 z-20"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>}
         </div>
-
-        {/* SheetReaderFooter is removed */}
       </main>
 
       <AnimatePresence>
@@ -637,6 +659,13 @@ const SheetReaderMode: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <RepertoireSearchModal
+        isOpen={isRepertoireSearchModalOpen}
+        onClose={() => setIsRepertoireSearchModalOpen(false)}
+        repertoire={allSongs} // Pass all songs for searching
+        onSelectSong={handleSelectSongFromRepertoireSearch}
+      />
 
       <PreferencesModal isOpen={isPreferencesOpen} onClose={() => setIsPreferencesOpen(false)} />
     </div>
