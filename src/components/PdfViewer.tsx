@@ -16,8 +16,7 @@ const PdfViewer: React.FC<PdfViewerProps> = ({ url, page, onLoad, className }) =
 
   return (
     <iframe
-      // Removed the 'key' prop to prevent React from forcing a re-render of the iframe
-      // This allows the browser's PDF viewer to handle page changes internally for a smoother experience.
+      key={page} // Set key to page number to force re-render only when page changes
       src={srcWithPage}
       className={cn("w-full h-full bg-white block", className)}
       title="Sheet Music"
