@@ -6,37 +6,45 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  Search, Library, Music, Check, X, Star, ShieldCheck, CloudDownload, AlertTriangle
+  Search, Library, Music, Check, X, Star, ShieldCheck, CloudDownload, AlertTriangle, ListMusic
 } from 'lucide-react';
 import { SetlistSong } from './SetlistManager';
 import { cn } from "@/lib/utils";
 import { formatKey } from '@/utils/keyUtils';
 import { useSettings } from '@/hooks/use-settings';
 import { calculateReadiness } from '@/utils/repertoireSync';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"; // NEW: Import Tabs
 
 interface RepertoireSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
-  repertoire: SetlistSong[];
+  masterRepertoire: SetlistSong[]; // NEW: Full master repertoire
+  currentSetlistSongs: SetlistSong[]; // NEW: Songs from the current setlist (if applicable)
   onSelectSong: (song: SetlistSong) => void;
 }
 
 const RepertoireSearchModal: React.FC<RepertoireSearchModalProps> = ({
   isOpen,
   onClose,
-  repertoire,
+  masterRepertoire, // NEW
+  currentSetlistSongs, // NEW
   onSelectSong,
 }) => {
   const { keyPreference } = useSettings();
   const [query, setQuery] = useState("");
+  const [activeTab, setActiveTab] = useState<'repertoire' | 'this-set'>('repertoire'); // NEW: State for active tab
+
+  const songsToDisplay = useMemo(() => {
+    return activeTab === 'repertoire' ? masterRepertoire : currentSetlistSongs;
+  }, [activeTab, masterRepertoire, currentSetlistSongs]);
 
   const filteredItems = useMemo(() => {
     const q = query.toLowerCase();
-    return repertoire.filter(song =>
+    return songsToDisplay.filter(song =>
       (song.name || "").toLowerCase().includes(q) ||
       (song.artist || "").toLowerCase().includes(q)
     ).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  }, [repertoire, query]);
+  }, [songsToDisplay, query]);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -61,21 +69,36 @@ const RepertoireSearchModal: React.FC<RepertoireSearchModalProps> = ({
             </DialogDescription>
           </DialogHeader>
           
-          <div className="flex gap-3 mt-6">
+          <div className="flex flex-col gap-3 mt-6"> {/* Changed to flex-col to stack search and tabs */}
             <div className="relative flex-1">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-300" />
               <Input
                 autoFocus
-                placeholder="Search master repertoire..."
+                placeholder="Search repertoire..."
                 className="bg-white/10 border-white/20 text-white placeholder:text-indigo-200 h-12 pl-10 rounded-xl focus-visible:ring-white/30"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />
             </div>
+            {/* NEW: Tabs for modes */}
+            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'repertoire' | 'this-set')} className="w-full">
+              <TabsList className="grid w-full grid-cols-2 h-10 bg-white/10 p-1 rounded-xl">
+                <TabsTrigger value="repertoire" className="text-sm font-black uppercase tracking-tight gap-2 h-8 rounded-lg">
+                  <Library className="w-4 h-4" /> Repertoire
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="this-set" 
+                  disabled={currentSetlistSongs.length === 0} // Disable if no current setlist songs
+                  className="text-sm font-black uppercase tracking-tight gap-2 h-8 rounded-lg"
+                >
+                  <ListMusic className="w-4 h-4" /> This Set
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
         </div>
 
-        <div className="flex-1 overflow-hidden bg-secondary flex flex-col">
+        <div className="flex-1 overflow-hidden bg-secondary flex flex-col min-h-0"> {/* Added min-h-0 here */}
           <ScrollArea className="h-full">
             <div className="p-6 space-y-2">
               {filteredItems.length > 0 ? (
@@ -149,7 +172,7 @@ const RepertoireSearchModal: React.FC<RepertoireSearchModalProps> = ({
             <Star className="w-3.5 h-3.5 text-indigo-500 fill-indigo-500" />
             <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Master Repertoire Engine v4.0</span>
           </div>
-          <p className="text-[9px] font-mono text-muted-foreground uppercase">Total: {repertoire.length} Tracks</p>
+          <p className="text-[9px] font-mono text-muted-foreground uppercase">Total: {songsToDisplay.length} Tracks</p>
         </div>
       </DialogContent>
     </Dialog>

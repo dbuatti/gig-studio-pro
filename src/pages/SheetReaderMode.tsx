@@ -44,7 +44,9 @@ const SheetReaderMode: React.FC = () => {
   const { keyPreference: globalKeyPreference } = useSettings();
   const { forceReaderResource } = useReaderSettings();
 
-  const [allSongs, setAllSongs] = useState<SetlistSong[]>([]);
+  const [allSongs, setAllSongs] = useState<SetlistSong[]>([]); // This will be the currently displayed songs in the sidebar
+  const [fullMasterRepertoire, setFullMasterRepertoire] = useState<SetlistSong[]>([]); // NEW: All songs from master repertoire
+  const [currentSetlistSongs, setCurrentSetlistSongs] = useState<SetlistSong[]>([]); // NEW: Songs from the active setlist
   const [currentIndex, setCurrentIndex] = useState(0);
   const [initialLoading, setInitialLoading] = useState(true);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
@@ -81,6 +83,8 @@ const SheetReaderMode: React.FC = () => {
 
   const handleLocalSongUpdate = useCallback((songId: string, updates: Partial<SetlistSong>) => {
     setAllSongs(prev => prev.map(s => s.id === songId ? { ...s, ...updates } : s));
+    setFullMasterRepertoire(prev => prev.map(s => s.id === songId ? { ...s, ...updates } : s)); // Update master repertoire too
+    setCurrentSetlistSongs(prev => prev.map(s => s.id === songId ? { ...s, ...updates } : s)); // Update setlist songs too
   }, []);
 
   const harmonicSync = useHarmonicSync({
@@ -205,16 +209,70 @@ const SheetReaderMode: React.FC = () => {
       const filterApproved = searchParams.get('filterApproved');
       const targetId = routeSongId || searchParams.get('id');
 
-      let mappedSongs: SetlistSong[] = [];
+      let currentViewSongs: SetlistSong[] = [];
+      let masterRepertoireList: SetlistSong[] = [];
+      let activeSetlistSongsList: SetlistSong[] = [];
+
+      // Always fetch full master repertoire
+      const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user_id', user.id).order('title');
+      if (masterError) throw masterError;
+      masterRepertoireList = (masterData || []).map((d: any) => ({
+        id: d.id,
+        master_id: d.id,
+        name: d.title,
+        artist: d.artist,
+        originalKey: d.original_key ?? 'TBC',
+        targetKey: d.target_key ?? d.original_key ?? 'TBC',
+        pitch: d.pitch ?? 0,
+        previewUrl: d.extraction_status === 'completed' && d.audio_url ? d.audio_url : d.preview_url,
+        youtubeUrl: d.youtube_url,
+        ugUrl: d.ug_url,
+        appleMusicUrl: d.apple_music_url,
+        pdfUrl: d.pdf_url,
+        leadsheetUrl: d.leadsheet_url,
+        bpm: d.bpm,
+        genre: d.genre,
+        isSyncing: false,
+        isMetadataConfirmed: d.is_metadata_confirmed,
+        isKeyConfirmed: d.is_key_confirmed,
+        notes: d.notes,
+        lyrics: d.lyrics,
+        resources: d.resources || [],
+        user_tags: d.user_tags || [],
+        is_pitch_linked: d.is_pitch_linked ?? true,
+        duration_seconds: d.duration_seconds,
+        key_preference: d.key_preference,
+        is_active: d.is_active,
+        isApproved: d.is_approved,
+        preferred_reader: d.preferred_reader,
+        ug_chords_text: d.ug_chords_text,
+        ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
+        is_ug_chords_present: d.is_ug_chords_present,
+        highest_note_original: d.highest_note_original,
+        metadata_source: d.metadata_source,
+        sync_status: d.sync_status,
+        last_sync_log: d.last_sync_log,
+        auto_synced: d.auto_synced,
+        is_sheet_verified: d.is_sheet_verified,
+        sheet_music_url: d.sheet_music_url,
+        extraction_status: d.extraction_status,
+        extraction_error: d.extraction_error,
+        audio_url: d.audio_url,
+        lyrics_updated_at: d.lyrics_updated_at,
+        chords_updated_at: d.chords_updated_at,
+        ug_link_updated_at: d.ug_link_updated_at,
+        highest_note_updated_at: d.highest_note_updated_at,
+        original_key_updated_at: d.original_key_updated_at,
+        target_key_updated_at: d.target_key_updated_at,
+      }));
+      setFullMasterRepertoire(masterRepertoireList);
 
       if (filterApproved === 'true') {
-        // If filterApproved is true, it means we're coming from a setlist context
-        // We need to find the setlist first, then fetch its songs in order.
         const { data: setlistsData, error: setlistsError } = await supabase
           .from('setlists')
           .select('id')
           .eq('user_id', user.id)
-          .limit(1); // Assuming we want the active setlist, or the first one if not specified
+          .limit(1);
 
         if (setlistsError || !setlistsData || setlistsData.length === 0) {
           throw new Error("No active setlist found for approved songs.");
@@ -237,16 +295,16 @@ const SheetReaderMode: React.FC = () => {
             )
           `)
           .eq('setlist_id', activeSetlistId)
-          .order('sort_order', { ascending: true }); // Order by sort_order
+          .order('sort_order', { ascending: true });
 
         if (junctionError) throw junctionError;
 
-        mappedSongs = (junctionData || []).map((junction: any) => {
+        activeSetlistSongsList = (junctionData || []).map((junction: any) => {
           const masterSong = junction.repertoire;
           if (!masterSong) return null;
           return {
-            id: junction.id, // Use junction ID for setlist-specific operations
-            master_id: masterSong.id, // Keep master ID for linking to repertoire
+            id: junction.id,
+            master_id: masterSong.id,
             name: masterSong.title,
             artist: masterSong.artist,
             originalKey: masterSong.original_key ?? 'TBC',
@@ -295,68 +353,16 @@ const SheetReaderMode: React.FC = () => {
             isPlayed: junction.isPlayed || false,
           };
         }).filter(Boolean) as SetlistSong[];
-
+        setCurrentSetlistSongs(activeSetlistSongsList);
+        currentViewSongs = activeSetlistSongsList; // Set current view to setlist songs
       } else {
-        // If not filtering by approved, fetch all repertoire songs
-        const { data, error } = await supabase.from('repertoire').select('*').eq('user_id', user.id).order('title');
-        if (error) throw error;
-
-        mappedSongs = (data || []).map((d: any) => ({
-          id: d.id,
-          master_id: d.id,
-          name: d.title,
-          artist: d.artist,
-          originalKey: d.original_key ?? 'TBC',
-          targetKey: d.target_key ?? d.original_key ?? 'TBC',
-          pitch: d.pitch ?? 0,
-          previewUrl: d.extraction_status === 'completed' && d.audio_url ? d.audio_url : d.preview_url,
-          youtubeUrl: d.youtube_url,
-          ugUrl: d.ug_url,
-          appleMusicUrl: d.apple_music_url,
-          pdfUrl: d.pdf_url,
-          leadsheetUrl: d.leadsheet_url,
-          bpm: d.bpm,
-          genre: d.genre,
-          isSyncing: false,
-          isMetadataConfirmed: d.is_metadata_confirmed,
-          isKeyConfirmed: d.is_key_confirmed,
-          notes: d.notes,
-          lyrics: d.lyrics,
-          resources: d.resources || [],
-          user_tags: d.user_tags || [],
-          is_pitch_linked: d.is_pitch_linked ?? true,
-          duration_seconds: d.duration_seconds,
-          key_preference: d.key_preference,
-          is_active: d.is_active,
-          isApproved: d.is_approved,
-          preferred_reader: d.preferred_reader,
-          ug_chords_text: d.ug_chords_text,
-          ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
-          is_ug_chords_present: d.is_ug_chords_present,
-          highest_note_original: d.highest_note_original,
-          metadata_source: d.metadata_source,
-          sync_status: d.sync_status,
-          last_sync_log: d.last_sync_log,
-          auto_synced: d.auto_synced,
-          is_sheet_verified: d.is_sheet_verified,
-          sheet_music_url: d.sheet_music_url,
-          extraction_status: d.extraction_status,
-          extraction_error: d.extraction_error,
-          audio_url: d.audio_url,
-          lyrics_updated_at: d.lyrics_updated_at,
-          chords_updated_at: d.chords_updated_at,
-          ug_link_updated_at: d.ug_link_updated_at,
-          highest_note_updated_at: d.highest_note_updated_at,
-          original_key_updated_at: d.original_key_updated_at,
-          target_key_updated_at: d.target_key_updated_at,
-        }));
+        currentViewSongs = masterRepertoireList; // Default current view to master repertoire
       }
 
-      const readableSongs = mappedSongs.filter(s => 
+      const readableSongs = currentViewSongs.filter(s => 
         s.pdfUrl || s.leadsheetUrl || s.ug_chords_text || s.sheet_music_url
       );
 
-      // Deduplicate songs based on master_id or id
       const uniqueSongsMap = new Map<string, SetlistSong>();
       readableSongs.forEach(song => {
         const key = song.master_id || song.id;
@@ -614,7 +620,6 @@ const SheetReaderMode: React.FC = () => {
           tempo={tempo}
           readerKeyPreference={readerKeyPreference}
           setReaderKeyPreference={setReaderKeyPreference}
-          // Removed onPullKey prop
           isSidebarOpen={isSidebarOpen}
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           headerLeftOffset={isSidebarOpen ? 300 : 0}
@@ -630,8 +635,6 @@ const SheetReaderMode: React.FC = () => {
           ))}
           {isChartLoading && <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 z-20"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>}
         </div>
-
-        {/* SheetReaderFooter is removed */}
       </main>
 
       <AnimatePresence>
@@ -665,7 +668,8 @@ const SheetReaderMode: React.FC = () => {
       <RepertoireSearchModal
         isOpen={isRepertoireSearchModalOpen}
         onClose={() => setIsRepertoireSearchModalOpen(false)}
-        repertoire={allSongs}
+        masterRepertoire={fullMasterRepertoire} // NEW
+        currentSetlistSongs={currentSetlistSongs} // NEW
         onSelectSong={handleSelectSongFromRepertoireSearch}
       />
 
