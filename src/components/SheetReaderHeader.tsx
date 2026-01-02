@@ -223,13 +223,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
             </span>
             <span className="text-xl font-black text-white font-mono">{pitch > 0 ? '+' : ''}{pitch} <span className="text-[10px] text-slate-500">ST</span></span>
           </div>
-
-          <div className="flex flex-col items-center">
-            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1.5 font-mono">
-              <Volume2 className="w-3 h-3" /> Gain
-            </span>
-            <span className="text-xl font-black text-white font-mono">{Math.round(((volume || -6) + 60) * 1.66)}%</span>
-          </div>
+          {/* Removed Gain display */}
         </div>
       </div>
 

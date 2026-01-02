@@ -44,9 +44,9 @@ const SheetReaderMode: React.FC = () => {
   const { keyPreference: globalKeyPreference } = useSettings();
   const { forceReaderResource } = useReaderSettings();
 
-  const [allSongs, setAllSongs] = useState<SetlistSong[]>([]); // This will be the currently displayed songs in the sidebar
-  const [fullMasterRepertoire, setFullMasterRepertoire] = useState<SetlistSong[]>([]); // NEW: All songs from master repertoire
-  const [currentSetlistSongs, setCurrentSetlistSongs] = useState<SetlistSong[]>([]); // NEW: Songs from the active setlist
+  const [allSongs, setAllSongs] = useState<SetlistSong[]>([]);
+  const [fullMasterRepertoire, setFullMasterRepertoire] = useState<SetlistSong[]>([]);
+  const [currentSetlistSongs, setCurrentSetlistSongs] = useState<SetlistSong[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [initialLoading, setInitialLoading] = useState(true);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
@@ -83,8 +83,8 @@ const SheetReaderMode: React.FC = () => {
 
   const handleLocalSongUpdate = useCallback((songId: string, updates: Partial<SetlistSong>) => {
     setAllSongs(prev => prev.map(s => s.id === songId ? { ...s, ...updates } : s));
-    setFullMasterRepertoire(prev => prev.map(s => s.id === songId ? { ...s, ...updates } : s)); // Update master repertoire too
-    setCurrentSetlistSongs(prev => prev.map(s => s.id === songId ? { ...s, ...updates } : s)); // Update setlist songs too
+    setFullMasterRepertoire(prev => prev.map(s => s.id === songId ? { ...s, ...updates } : s));
+    setCurrentSetlistSongs(prev => prev.map(s => s.id === songId ? { ...s, ...updates } : s));
   }, []);
 
   const harmonicSync = useHarmonicSync({
@@ -214,7 +214,7 @@ const SheetReaderMode: React.FC = () => {
       let activeSetlistSongsList: SetlistSong[] = [];
 
       // Always fetch full master repertoire
-      const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user_id', user.id).order('title');
+      const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user.id', user.id).order('title');
       if (masterError) throw masterError;
       masterRepertoireList = (masterData || []).map((d: any) => ({
         id: d.id,
@@ -354,9 +354,9 @@ const SheetReaderMode: React.FC = () => {
           };
         }).filter(Boolean) as SetlistSong[];
         setCurrentSetlistSongs(activeSetlistSongsList);
-        currentViewSongs = activeSetlistSongsList; // Set current view to setlist songs
+        currentViewSongs = activeSetlistSongsList;
       } else {
-        currentViewSongs = masterRepertoireList; // Default current view to master repertoire
+        currentViewSongs = masterRepertoireList;
       }
 
       const readableSongs = currentViewSongs.filter(s => 
@@ -568,15 +568,31 @@ const SheetReaderMode: React.FC = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (e.key.toLowerCase() === 'i' && currentSong) {
-        e.preventDefault();
-        onOpenCurrentSongStudio();
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      switch (e.key) {
+        case 'ArrowLeft':
+          e.preventDefault();
+          handlePrev();
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          handleNext();
+          break;
+        case 'i':
+        case 'I':
+          if (currentSong) {
+            e.preventDefault();
+            onOpenCurrentSongStudio();
+          }
+          break;
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentSong, onOpenCurrentSongStudio]);
+  }, [currentSong, onOpenCurrentSongStudio, handlePrev, handleNext]);
 
   if (initialLoading) return <div className="h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
 
@@ -668,8 +684,8 @@ const SheetReaderMode: React.FC = () => {
       <RepertoireSearchModal
         isOpen={isRepertoireSearchModalOpen}
         onClose={() => setIsRepertoireSearchModalOpen(false)}
-        masterRepertoire={fullMasterRepertoire} // NEW
-        currentSetlistSongs={currentSetlistSongs} // NEW
+        masterRepertoire={fullMasterRepertoire}
+        currentSetlistSongs={currentSetlistSongs}
         onSelectSong={handleSelectSongFromRepertoireSearch}
       />
 
