@@ -251,8 +251,8 @@ const SheetReaderMode: React.FC = () => {
         chords_updated_at: d.chords_updated_at,
         ug_link_updated_at: d.ug_link_updated_at,
         highest_note_updated_at: d.highest_note_updated_at,
-        original_key_updated_at: d.original_key_updated_at,
-        target_key_updated_at: d.target_key_updated_at,
+        original_key_updated_at: d.original_key_updated_at, // FIX: Changed from masterData
+        target_key_updated_at: d.target_key_updated_at, // FIX: Changed from masterData
       }));
       setFullMasterRepertoire(masterRepertoireList);
 
@@ -435,19 +435,13 @@ const SheetReaderMode: React.FC = () => {
         const url = chartType === 'pdf' ? song.pdfUrl : song.leadsheetUrl;
         if (url && isFramable(url)) {
           return (
-            // The iframe itself should be the scrollable content
-            // The overlay will sit on top to capture gestures
             <div className="w-full h-full">
               <iframe
-                src={`${url}#toolbar=0&navpanes=0&view=Fit&page=${pdfCurrentPage}`} // NEW: Add page parameter
+                src={`${url}#toolbar=0&navpanes=0&view=Fit&page=${pdfCurrentPage}`}
                 className="w-full h-full bg-white block" 
                 title="Sheet Music"
                 onLoad={commonProps.onChartReady}
-                // pointer-events: none is crucial for the overlay to work
-                // but it disables internal iframe controls.
-                // Let's try without it first, and rely on the overlay's z-index.
-                // If the iframe still captures events, we might need to conditionally apply pointer-events: none
-                // or use a different strategy.
+                key={`${url}-${pdfCurrentPage}`}
               />
             </div>
           );
