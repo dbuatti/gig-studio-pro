@@ -31,11 +31,12 @@ import 'react-pdf/dist/Page/TextLayer.css';
 import { useSpring, animated } from '@react-spring/web';
 import { useDrag } from '@use-gesture/react';
 
-// Import the PDF.js worker locally
-import workerSrc from 'pdfjs-dist/build/pdf.worker.js?url';
-
 // Configure PDF.js worker source using the locally bundled worker
-pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
+// This uses the URL constructor with import.meta.url for more robust asset resolution with Vite.
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.js',
+  import.meta.url,
+).toString();
 
 export type ChartType = 'pdf' | 'leadsheet' | 'chords';
 
@@ -206,7 +207,7 @@ const SheetReaderMode: React.FC = () => {
       let activeSetlistSongsList: SetlistSong[] = [];
 
       // Always fetch full master repertoire
-      const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user.id', user.id).order('title');
+      const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user_id', user.id).order('title');
       if (masterError) throw masterError;
       masterRepertoireList = (masterData || []).map((d: any) => ({
         id: d.id,
