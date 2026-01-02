@@ -401,22 +401,24 @@ const SheetReaderMode: React.FC = () => {
   }, [fetchSongs, navigate]);
 
   const getBestChartType = useCallback((song: SetlistSong): ChartType => {
+    // 1. Force Reader Resource overrides
     if (forceReaderResource === 'force-pdf' && song.pdfUrl) return 'pdf';
-    if (forceReaderResource === 'force-ug' && song.ugUrl) return 'chords';
+    if (forceReaderResource === 'force-ug' && (song.ugUrl || song.ug_chords_text)) return 'chords';
     if (forceReaderResource === 'force-chords' && song.ug_chords_text) return 'chords';
 
-    if (song.preferred_reader === 'pdf' && song.pdfUrl) return 'pdf';
+    // 2. Song's preferred_reader
+    if (song.preferred_reader === 'ug' && (song.ugUrl || song.ug_chords_text)) return 'chords';
     if (song.preferred_reader === 'ls' && song.leadsheetUrl) return 'leadsheet';
-    if (song.preferred_reader === 'ug' && song.ugUrl) return 'chords';
-    if (song.preferred_reader === 'fn' && song.sheet_music_url) return 'pdf'; // Assuming 'fn' maps to a PDF-like sheet_music_url
+    if (song.preferred_reader === 'fn' && (song.sheet_music_url || song.pdfUrl)) return 'pdf';
 
+    // 3. Fallback based on available resources (order of preference)
     if (song.pdfUrl) return 'pdf';
     if (song.leadsheetUrl) return 'leadsheet';
     if (song.ug_chords_text) return 'chords';
-    if (song.ugUrl) return 'chords'; // Fallback to UG chords if only URL is present
+    if (song.ugUrl) return 'chords';
     if (song.sheet_music_url) return 'pdf';
 
-    return 'pdf'; // Default fallback
+    return 'pdf'; // Default fallback if nothing else matches
   }, [forceReaderResource]);
 
   const isFramable = useCallback((url: string | null | undefined) => {
