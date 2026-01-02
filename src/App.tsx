@@ -15,7 +15,9 @@ import SongStudio from "@/pages/SongStudio";
 import GigEntry from "@/pages/GigEntry";
 import PublicGigView from "@/pages/PublicGigView";
 import { useTheme } from '@/hooks/use-theme';
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react"; // Added useState
+import NotificationBell from "@/components/NotificationBell"; // NEW
+import NotificationDrawer from "@/components/NotificationDrawer"; // NEW
 
 const queryClient = new QueryClient();
 
@@ -61,6 +63,8 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const App = () => {
   const { theme } = useTheme();
+  const { session } = useAuth(); // Get session from AuthProvider
+  const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] = useState(false); // NEW
 
   useEffect(() => {
     document.documentElement.classList.remove('light', 'dark');
@@ -75,6 +79,12 @@ const App = () => {
           <Toaster />
           <Sonner position="top-center" />
           <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+            {/* NEW: Notification Bell in a common header area if user is logged in */}
+            {session && (
+              <div className="fixed top-4 right-4 z-[100]">
+                <NotificationBell onOpenDrawer={() => setIsNotificationDrawerOpen(true)} />
+              </div>
+            )}
             <Routes>
               <Route path="/" element={<RootRoute />} />
               <Route path="/login" element={<Login />} />
@@ -100,6 +110,8 @@ const App = () => {
               } />
               <Route path="*" element={<NotFound />} />
             </Routes>
+            {/* NEW: Notification Drawer */}
+            <NotificationDrawer isOpen={isNotificationDrawerOpen} onClose={() => setIsNotificationDrawerOpen(false)} />
           </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>

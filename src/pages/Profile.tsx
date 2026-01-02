@@ -9,13 +9,14 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { showSuccess, showError } from '@/utils/toast';
-import { Globe, User, Loader2, ArrowLeft, RotateCcw, Sparkles, ExternalLink, Link as LinkIcon, Check, Copy } from 'lucide-react';
+import { Globe, User, Loader2, ArrowLeft, RotateCcw, Sparkles, ExternalLink, Link as LinkIcon, Check, Copy, UserPlus, UserCheck } from 'lucide-react'; // NEW: Import UserPlus, UserCheck
 import { useNavigate } from 'react-router-dom';
 import PublicRepertoireView from '@/components/PublicRepertoireView';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useTheme } from '@/hooks/use-theme';
-import { useSettings } from '@/hooks/use-settings'; // Import useSettings
+import { useSettings } from '@/hooks/use-settings';
+import { useFollow } from '@/hooks/use-follow'; // NEW: Import useFollow
 
 const THEMES = [
   { name: 'Vibrant Light', primary: '#9333ea', background: '#ffffff', text: '#1e1b4b', border: '#9333ea' },
@@ -29,36 +30,39 @@ const DEFAULT_COLORS_LIGHT = { primary: 'hsl(var(--primary))', background: 'hsl(
 const DEFAULT_COLORS_DARK = { primary: 'hsl(var(--primary))', background: 'hsl(var(--background))', text: 'hsl(var(--foreground))', border: 'hsl(var(--primary))' };
 
 const Profile = () => {
-  const { user } = useAuth();
+  const { user: currentUser } = useAuth(); // Renamed to currentUser to avoid conflict
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<any>(null);
   const [songs, setSongs] = useState<any[]>([]);
   const { theme } = useTheme();
-  const { isFetchingSettings } = useSettings(); // Use loading state from useSettings
+  const { isFetchingSettings } = useSettings();
+
+  // NEW: Use the useFollow hook for the current profile
+  const { isFollowing, followCount, loading: followLoading, toggleFollow } = useFollow(profile?.id);
 
   const fetchData = useCallback(async () => {
-    if (!user) return;
+    if (!currentUser) return;
     
     try {
       let { data: profileData, error: pError } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', user.id)
+        .eq('id', currentUser.id)
         .maybeSingle();
 
       if (!profileData && !pError) {
         const initialThemeName = theme === 'dark' ? 'Dark Pro' : 'Vibrant Light';
-        const initialThemePreset = THEMES.find(t => t.name === initialThemeName) || THEMES[0]; // Fallback to first theme
+        const initialThemePreset = THEMES.find(t => t.name === initialThemeName) || THEMES[0];
         const { data: newData, error: iError } = await supabase
           .from('profiles')
           .insert([{ 
-            id: user.id, 
-            first_name: user.email?.split('@')[0], 
+            id: currentUser.id, 
+            first_name: currentUser.email?.split('@')[0], 
             repertoire_threshold: 0, 
-            custom_colors: initialThemePreset, // Store the preset colors
-            custom_theme: initialThemeName // Store the theme name
+            custom_colors: initialThemePreset,
+            custom_theme: initialThemeName
           }])
           .select()
           .single();
@@ -74,7 +78,7 @@ const Profile = () => {
       const { data: songData, error: sError } = await supabase
         .from('repertoire')
         .select('*, extraction_status, last_sync_log')
-        .eq('user_id', user.id)
+        .eq('user_id', currentUser.id)
         .eq('is_active', true);
 
       if (sError) throw sError;
@@ -84,10 +88,9 @@ const Profile = () => {
     } finally {
       setLoading(false);
     }
-  }, [user, theme]);
+  }, [currentUser, theme]);
 
   useEffect(() => {
-    // Only fetch profile data if useSettings is not already fetching global settings
     if (!isFetchingSettings) {
       fetchData();
     }
@@ -98,13 +101,13 @@ const Profile = () => {
   };
 
   const saveToDatabase = async (updates: any) => {
-    if (!user) return;
+    if (!currentUser) return;
     setSaving(true);
     try {
       const { error } = await supabase
         .from('profiles')
         .update(updates)
-        .eq('id', user.id);
+        .eq('id', currentUser.id);
 
       if (error) throw error;
       showSuccess("Settings Saved");
@@ -122,7 +125,7 @@ const Profile = () => {
     showSuccess("Share Link Copied!");
   };
 
-  if (loading || isFetchingSettings) return ( // Show loading if useSettings is still fetching
+  if (loading || isFetchingSettings) return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
     </div>
@@ -131,9 +134,10 @@ const Profile = () => {
   const thresholdFilteredSongs = songs.filter(s => (s.readiness_score || 0) >= (profile?.repertoire_threshold || 0));
 
   const currentDefaultColors = theme === 'dark' ? DEFAULT_COLORS_DARK : DEFAULT_COLORS_LIGHT;
-  // This will now be the actual colors from the selected preset, or the dynamic CSS variables
   const profileColors = profile?.custom_colors || currentDefaultColors; 
 
+  // Determine if this is the current user's profile
+  const isMyProfile = currentUser?.id === profile?.id;
 
   return (
     <div className="h-screen bg-background text-foreground flex overflow-hidden">
@@ -172,6 +176,7 @@ const Profile = () => {
                       onBlur={(e) => saveToDatabase({ first_name: e.target.value })}
                       onChange={(e) => handleUpdateLocal({ first_name: e.target.value })}
                       className="h-9 text-xs bg-background border-border text-foreground"
+                      disabled={!isMyProfile} // Disable if not current user's profile
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -181,9 +186,28 @@ const Profile = () => {
                       onBlur={(e) => saveToDatabase({ last_name: e.target.value })}
                       onChange={(e) => handleUpdateLocal({ last_name: e.target.value })}
                       className="h-9 text-xs bg-background border-border text-foreground"
+                      disabled={!isMyProfile} // Disable if not current user's profile
                     />
                   </div>
                 </div>
+                {/* NEW: Follow Button */}
+                {!isMyProfile && (
+                  <Button
+                    onClick={toggleFollow}
+                    disabled={followLoading}
+                    className={cn(
+                      "w-full h-10 rounded-xl font-black uppercase text-[10px] tracking-widest gap-2 shadow-lg",
+                      isFollowing
+                        ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20"
+                        : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/20"
+                    )}
+                  >
+                    {followLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                      isFollowing ? <UserCheck className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />
+                    )}
+                    {isFollowing ? `Following (${followCount})` : `Follow (${followCount})`}
+                  </Button>
+                )}
               </div>
             </div>
           </section>
@@ -191,7 +215,7 @@ const Profile = () => {
           <section className="space-y-4">
             <div className="flex items-center justify-between p-5 bg-card rounded-[2rem] border border-border">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-100 dark:bg-indigo-600/10 rounded-xl">
+                <div className="p-2 bg-indigo-100 dark:bg-indigo-600/10 rounded-lg">
                   <Globe className="w-4 h-4 text-indigo-400" />
                 </div>
                 <div>
@@ -211,13 +235,14 @@ const Profile = () => {
                   saveToDatabase({ is_repertoire_public: checked });
                   if (checked) showSuccess("Repertoire is now Live!");
                 }}
+                disabled={!isMyProfile} // Disable if not current user's profile
               />
             </div>
 
             <div className="space-y-4">
               <div className="p-6 bg-emerald-50 dark:bg-emerald-500/5 border border-emerald-100 dark:border-emerald-500/20 rounded-[2rem] flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-emerald-100 dark:bg-emerald-500/10 rounded-xl">
+                  <div className="p-2 bg-emerald-100 dark:bg-emerald-500/10 rounded-lg">
                     <Check className="w-4 h-4 text-emerald-500" />
                   </div>
                   <div>
@@ -245,6 +270,7 @@ const Profile = () => {
                           ? "bg-indigo-600 border-indigo-500 text-white shadow-lg" 
                           : "bg-card border-border text-muted-foreground hover:text-foreground"
                       )}
+                      disabled={!isMyProfile} // Disable if not current user's profile
                     >
                       {val === 0 ? 'ALL' : `>${val}%`}
                     </Button>
@@ -269,6 +295,7 @@ const Profile = () => {
                       }}
                       onChange={(e) => handleUpdateLocal({ repertoire_slug: e.target.value })}
                       className="h-10 pl-24 text-xs bg-card border-border font-bold text-foreground"
+                      disabled={!isMyProfile} // Disable if not current user's profile
                     />
                   </div>
                 </div>
@@ -282,6 +309,7 @@ const Profile = () => {
                   onChange={(e) => handleUpdateLocal({ repertoire_bio: e.target.value })}
                   className="bg-card border-border min-h-[100px] text-xs resize-none rounded-xl text-foreground"
                   placeholder="Tell clients about your vibe..."
+                  disabled={!isMyProfile} // Disable if not current user's profile
                 />
               </div>
             </div>
@@ -296,11 +324,11 @@ const Profile = () => {
                   key={themeOption.name}
                   variant="ghost" 
                   onClick={() => {
-                    // When a preset is clicked, update both custom_colors (hex values) and custom_theme (name)
                     handleUpdateLocal({ custom_colors: themeOption, custom_theme: themeOption.name });
                     saveToDatabase({ custom_colors: themeOption, custom_theme: themeOption.name });
                   }}
                   className="h-14 bg-card border border-border hover:border-indigo-500/50 justify-start px-4 rounded-xl gap-3 group transition-all text-foreground"
+                  disabled={!isMyProfile} // Disable if not current user's profile
                 >
                   <div className="w-4 h-4 rounded-full border border-border" style={{ background: themeOption.primary }} />
                   <span className="text-[10px] font-bold uppercase tracking-tight">{themeOption.name}</span>
@@ -320,13 +348,14 @@ const Profile = () => {
                     <div className="w-8 h-8 rounded-lg border-2 border-border shadow-inner overflow-hidden relative">
                       <Input 
                         type="color" 
-                        value={profileColors[color.key]} // Use profileColors directly
+                        value={profileColors[color.key]}
                         onChange={(e) => {
                           const newColors = { ...profile.custom_colors, [color.key]: e.target.value };
-                          handleUpdateLocal({ custom_colors: newColors, custom_theme: null }); // Clear custom_theme if manually adjusting colors
+                          handleUpdateLocal({ custom_colors: newColors, custom_theme: null });
                         }}
-                        onBlur={() => saveToDatabase({ custom_colors: profile.custom_colors, custom_theme: null })} // Clear custom_theme on blur
+                        onBlur={() => saveToDatabase({ custom_colors: profile.custom_colors, custom_theme: null })}
                         className="absolute inset-0 w-[200%] h-[200%] -translate-x-1/4 -translate-y-1/4 cursor-pointer"
+                        disabled={!isMyProfile} // Disable if not current user's profile
                       />
                     </div>
                     <span className="text-[10px] font-mono font-bold text-muted-foreground uppercase">{profileColors[color.key]}</span>
@@ -339,10 +368,11 @@ const Profile = () => {
                 size="sm" 
                 onClick={() => {
                   const resetColors = theme === 'dark' ? DEFAULT_COLORS_DARK : DEFAULT_COLORS_LIGHT;
-                  handleUpdateLocal({ custom_colors: resetColors, custom_theme: null }); // Reset to dynamic defaults
+                  handleUpdateLocal({ custom_colors: resetColors, custom_theme: null });
                   saveToDatabase({ custom_colors: resetColors, custom_theme: null });
                 }}
                 className="w-full mt-2 text-[9px] font-black uppercase text-muted-foreground hover:text-foreground gap-2"
+                disabled={!isMyProfile} // Disable if not current user's profile
               >
                 <RotateCcw className="w-3 h-3" /> Reset to Defaults
               </Button>
@@ -354,7 +384,7 @@ const Profile = () => {
       <div className="flex-1 bg-background flex flex-col p-10 relative overflow-hidden">
         <div 
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] blur-[150px] opacity-20 pointer-events-none rounded-full"
-          style={{ background: profileColors.primary }} // Use profileColors directly
+          style={{ background: profileColors.primary }}
         />
 
         <div className="relative z-10 h-full flex flex-col gap-6">
@@ -404,6 +434,7 @@ const Profile = () => {
                     saveToDatabase({ is_repertoire_public: true });
                   }}
                   className="mt-8 border-indigo-500/50 text-indigo-600 dark:text-indigo-400 font-black uppercase tracking-widest text-[10px] h-12 px-8 rounded-2xl"
+                  disabled={!isMyProfile} // Disable if not current user's profile
                 >
                   Go Live Now
                 </Button>
