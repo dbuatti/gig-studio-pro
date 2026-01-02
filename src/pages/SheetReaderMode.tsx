@@ -228,8 +228,8 @@ const SheetReaderMode: React.FC = () => {
               id, title, artist, original_key, target_key, pitch, preview_url, youtube_url, ug_url, 
               apple_music_url, pdf_url, leadsheet_url, bpm, genre, is_metadata_confirmed, is_key_confirmed, 
               notes, lyrics, resources, user_tags, is_pitch_linked, duration_seconds, key_preference, 
-              is_active, fineTune, tempo, volume, is_approved, preferred_reader, ug_chords_text, 
-              ug_chords_config, is_ug_chords_present, highest_note_original, is_ug_link_verified, 
+              is_active, is_approved, preferred_reader, ug_chords_text, 
+              ug_chords_config, is_ug_chords_present, highest_note_original, 
               metadata_source, sync_status, last_sync_log, auto_synced, is_sheet_verified, sheet_music_url, 
               extraction_status, extraction_error, audio_url, lyrics_updated_at, chords_updated_at, 
               ug_link_updated_at, highest_note_updated_at, original_key_updated_at, target_key_updated_at
@@ -270,16 +270,16 @@ const SheetReaderMode: React.FC = () => {
             duration_seconds: masterSong.duration_seconds,
             key_preference: masterSong.key_preference,
             is_active: masterSong.is_active,
-            fineTune: masterSong.fineTune,
-            tempo: masterSong.tempo,
-            volume: masterSong.volume,
+            // fineTune: masterSong.fineTune, // Removed
+            // tempo: masterSong.tempo, // Removed
+            // volume: masterSong.volume, // Removed
             isApproved: masterSong.is_approved,
             preferred_reader: masterSong.preferred_reader,
             ug_chords_text: masterSong.ug_chords_text,
             ug_chords_config: masterSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
             is_ug_chords_present: masterSong.is_ug_chords_present,
             highest_note_original: masterSong.highest_note_original,
-            is_ug_link_verified: masterSong.is_ug_link_verified,
+            // is_ug_link_verified: masterSong.is_ug_link_verified, // Removed
             metadata_source: masterSong.metadata_source,
             sync_status: masterSong.sync_status,
             last_sync_log: masterSong.last_sync_log,
@@ -331,16 +331,16 @@ const SheetReaderMode: React.FC = () => {
           duration_seconds: d.duration_seconds,
           key_preference: d.key_preference,
           is_active: d.is_active,
-          fineTune: d.fineTune,
-          tempo: d.tempo,
-          volume: d.volume,
+          // fineTune: d.fineTune, // Removed
+          // tempo: d.tempo, // Removed
+          // volume: d.volume, // Removed
           isApproved: d.is_approved,
           preferred_reader: d.preferred_reader,
           ug_chords_text: d.ug_chords_text,
           ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
           is_ug_chords_present: d.is_ug_chords_present,
           highest_note_original: d.highest_note_original,
-          is_ug_link_verified: d.is_ug_link_verified,
+          // is_ug_link_verified: d.is_ug_link_verified, // Removed
           metadata_source: d.metadata_source,
           sync_status: d.sync_status,
           last_sync_log: d.last_sync_log,
