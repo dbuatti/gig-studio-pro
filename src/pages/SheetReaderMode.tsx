@@ -30,7 +30,7 @@ import 'react-pdf/dist/Page/AnnotationLayer.css'; // Import default styles for a
 import 'react-pdf/dist/Page/TextLayer.css'; // Import default styles for text layer
 
 // Configure PDF.js worker source
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
 export type ChartType = 'pdf' | 'leadsheet' | 'chords'; // Exporting ChartType
 
