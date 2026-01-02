@@ -31,8 +31,11 @@ import 'react-pdf/dist/Page/TextLayer.css';
 import { useSpring, animated } from '@react-spring/web';
 import { useDrag } from '@use-gesture/react';
 
-// Configure PDF.js worker source using a reliable URL
-pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@4.4.168/build/pdf.worker.min.js`;
+// Import the PDF.js worker locally
+import workerSrc from 'pdfjs-dist/build/pdf.worker.min.js?url';
+
+// Configure PDF.js worker source using the locally bundled worker
+pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
 
 export type ChartType = 'pdf' | 'leadsheet' | 'chords';
 
