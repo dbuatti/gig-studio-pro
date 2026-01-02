@@ -150,6 +150,7 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
                 isMobile={isMobile}
                 originalKey={formData.originalKey}
                 targetKey={targetKey}
+                readerKeyPreference={formData.key_preference}
                 // Removed auto-scroll props
                 isPlaying={false} // Pass a default value
                 progress={0} // Pass a default value

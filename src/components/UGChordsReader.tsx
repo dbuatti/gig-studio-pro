@@ -4,7 +4,7 @@ import React, { useMemo, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { formatChordText, transposeChords } from '@/utils/chordUtils';
 import { calculateSemitones } from '@/utils/keyUtils';
-import { useSettings } from '@/hooks/use-settings';
+import { useSettings, KeyPreference } from '@/hooks/use-settings';
 
 interface UGChordsReaderProps {
   chordsText: string;
@@ -22,7 +22,7 @@ interface UGChordsReaderProps {
   isPlaying: boolean;
   progress: number;
   duration: number;
-  readerKeyPreference?: 'sharps' | 'flats';
+  readerKeyPreference?: KeyPreference;
   onChartReady?: () => void;
 }
 
