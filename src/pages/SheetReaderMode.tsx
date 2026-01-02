@@ -558,21 +558,17 @@ const SheetReaderMode: React.FC = () => {
 
   // --- Gesture Implementation ---
   const bind = useDrag(({ first, down, movement: [mx, my], direction: [dx], velocity: [vx], cancel, intentional }) => {
-    // console.log(`[Drag] (RAW) first: ${first}, down: ${down}, mx: ${mx.toFixed(2)}, my: ${my.toFixed(2)}, dx: ${dx.toFixed(2)}, vx: ${vx.toFixed(2)}, navigatedRef (before first check): ${navigatedRef.current}`);
+    console.log(`[Drag Event] first: ${first}, down: ${down}, mx: ${mx.toFixed(2)}, my: ${my.toFixed(2)}, dx: ${dx.toFixed(2)}, vx: ${vx.toFixed(2)}, navigatedRef: ${navigatedRef.current}`);
 
     // Reset navigatedRef unconditionally at the very beginning of a new gesture
     if (first) {
       navigatedRef.current = false;
-      // console.log("[Drag] (START OF GESTURE) navigatedRef reset to false.");
     }
-
-    // console.log(`[Drag] (PROCESSED) first: ${first}, down: ${down}, mx: ${mx.toFixed(2)}, my: ${my.toFixed(2)}, dx: ${dx.toFixed(2)}, vx: ${vx.toFixed(2)}, navigatedRef (after first check): ${navigatedRef.current}`);
 
     api.start({ x: down ? mx : 0, immediate: down });
 
     // Only process swipe if intentional and primarily horizontal
     if (!intentional || Math.abs(mx) < Math.abs(my)) {
-      // console.log("[Drag] Not intentional or primarily vertical. Skipping navigation logic.");
       return;
     }
 
@@ -580,52 +576,41 @@ const SheetReaderMode: React.FC = () => {
     const isLongSwipe = Math.abs(mx) > swipeThreshold;
     const isMediumFastSwipe = Math.abs(mx) > swipeThreshold / 2 && isFastSwipe; // Moved at least half threshold AND fast
 
-    // console.log(`[Drag] isFastSwipe: ${isFastSwipe}, isLongSwipe: ${isLongSwipe}, isMediumFastSwipe: ${isMediumFastSwipe}, navigatedRef.current (before navigation check): ${navigatedRef.current}`);
-
     // The core condition for triggering navigation
     const shouldTriggerNavigation = (isLongSwipe || isMediumFastSwipe) && !navigatedRef.current;
     
-    // console.log(`[Drag] Full navigation condition: ${shouldTriggerNavigation} (isLongSwipe: ${isLongSwipe}, isMediumFastSwipe: ${isMediumFastSwipe}, navigatedRef.current: ${navigatedRef.current})`);
-
     if (shouldTriggerNavigation) {
       navigatedRef.current = true; // Mark as navigated for this gesture
       cancel(); // Stop further updates for this specific gesture
-      // console.log("[Drag] Swipe detected and navigation triggered. navigatedRef set to true, cancel() called.");
 
       if (dx < 0) { // Swiping left (next)
-        // console.log("[Drag] Swiping left (next)");
         if (selectedChartType === 'chords') {
           handleNext();
         } else if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
           if (pdfCurrentPage < (pdfNumPages || 1)) {
             setPdfCurrentPage(prev => prev + 1);
-            // console.log(`[Drag] Navigating to next PDF page: ${pdfCurrentPage + 1}`);
           } else {
             handleNext(); // Last PDF page, go to next song
           }
         }
       } else { // Swiping right (previous)
-        // console.log("[Drag] Swiping right (previous)");
         if (selectedChartType === 'chords') {
           handlePrev();
         } else if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
           if (pdfCurrentPage > 1) {
             setPdfCurrentPage(prev => prev - 1);
-            // console.log(`[Drag] Navigating to previous PDF page: ${pdfCurrentPage - 1}`);
           } else {
             handlePrev(); // First PDF page, go to previous song
           }
         }
       }
       api.start({ x: 0 });
-      // console.log("[Drag] Animation reset to x: 0.");
     }
   }, {
     threshold: 20,        // Initial movement before drag starts
     filterTaps: true,     // Ignore quick taps
     axis: 'x',            // Lock to horizontal
-    preventScroll: true,  // Critical: stops vertical scroll conflict
-    bounds: { left: -100, right: 100 } // Added bounds as per user notes
+    // Removed preventScroll and bounds
   });
 
   // NEW: Effect to reset navigatedRef when the drag gesture ends
@@ -633,11 +618,9 @@ const SheetReaderMode: React.FC = () => {
     const handleDragEndReset = () => {
       if (navigatedRef.current) {
         navigatedRef.current = false;
-        // console.log("[Drag] (POINTER UP) navigatedRef reset to false.");
       }
     };
 
-    // Removed the custom pointerdown listener as useDrag handles it internally
     chartContainerRef.current?.addEventListener('pointerup', handleDragEndReset);
     chartContainerRef.current?.addEventListener('pointercancel', handleDragEndReset); // Also reset on cancel
 
@@ -716,7 +699,7 @@ const SheetReaderMode: React.FC = () => {
             {...bind}  
             style={{ 
               x: springX, 
-              touchAction: 'none' // Changed to 'none'
+              touchAction: 'none'
             }} 
             className="h-full w-full relative"
           >
