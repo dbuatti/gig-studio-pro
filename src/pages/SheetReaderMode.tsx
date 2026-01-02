@@ -214,7 +214,7 @@ const SheetReaderMode: React.FC = () => {
       let activeSetlistSongsList: SetlistSong[] = [];
 
       // Always fetch full master repertoire
-      const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user.id', user.id).order('title');
+      const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user_id', user.id).order('title');
       if (masterError) throw masterError;
       masterRepertoireList = (masterData || []).map((d: any) => ({
         id: d.id,
@@ -568,9 +568,7 @@ const SheetReaderMode: React.FC = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        return;
-      }
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
       switch (e.key) {
         case 'ArrowLeft':
