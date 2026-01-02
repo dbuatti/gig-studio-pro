@@ -118,9 +118,9 @@ const RepertoireSearchModal: React.FC<RepertoireSearchModalProps> = ({
                         <Music className="w-5 h-5" />
                       </div>
                       
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 max-w-[60%]"> {/* Added max-w to force truncation */}
                         <div className="flex items-center gap-2">
-                          <h4 className="font-black text-sm uppercase tracking-tight truncate line-clamp-1 text-foreground">{song.name}</h4>
+                          <h4 className="font-black text-sm uppercase tracking-tight truncate line-clamp-1 text-foreground flex-1 min-w-0">{song.name}</h4>
                           {readiness === 100 && <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />}
                           {isProcessing && <CloudDownload className="w-3.5 h-3.5 text-indigo-500 animate-bounce" />}
                           {isExtractionFailed && <AlertTriangle className="w-3.5 h-3.5 text-destructive" />}
