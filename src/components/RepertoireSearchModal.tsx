@@ -109,10 +109,10 @@ const RepertoireSearchModal: React.FC<RepertoireSearchModalProps> = ({
                   const isExtractionFailed = song.extraction_status === 'failed';
 
                   return (
-                    <button
+                    <div // Changed from <button> to <div>
                       key={song.id}
                       onClick={() => onSelectSong(song)}
-                      className="w-full flex items-center gap-4 p-4 rounded-2xl transition-all border group bg-card border-border hover:border-border/50 hover:bg-accent dark:hover:bg-secondary text-left"
+                      className="w-full flex items-center gap-4 p-4 rounded-2xl transition-all border group bg-card border-border hover:border-border/50 hover:bg-accent dark:hover:bg-secondary text-left cursor-pointer"
                     >
                       <div className="bg-secondary p-2.5 rounded-xl text-muted-foreground shrink-0">
                         <Music className="w-5 h-5" />
@@ -120,12 +120,12 @@ const RepertoireSearchModal: React.FC<RepertoireSearchModalProps> = ({
                       
                       <div className="flex-1 min-w-0 max-w-[60%]"> {/* Added max-w to force truncation */}
                         <div className="flex items-center gap-2">
-                          <h4 className="font-black text-sm uppercase tracking-tight truncate line-clamp-1 text-foreground">{song.name}</h4>
+                          <h4 className="font-black text-sm uppercase tracking-tight truncate line-clamp-1 text-foreground flex-1 min-w-0">{song.name}</h4>
                           {readiness === 100 && <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />}
                           {isProcessing && <CloudDownload className="w-3.5 h-3.5 text-indigo-500 animate-bounce" />}
                           {isExtractionFailed && <AlertTriangle className="w-3.5 h-3.5 text-destructive" />}
                         </div>
-                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest truncate line-clamp-1">{song.artist}</p>
+                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest truncate line-clamp-1 flex-1 min-w-0">{song.artist}</p>
                         {isExtractionFailed && song.last_sync_log && (
                           <p className="text-[8px] text-destructive mt-1 truncate max-w-[150px]">Error: {song.last_sync_log}</p>
                         )}
@@ -154,7 +154,7 @@ const RepertoireSearchModal: React.FC<RepertoireSearchModalProps> = ({
                           <Check className="w-5 h-5" />
                         </Button>
                       </div>
-                    </button>
+                    </div>
                   );
                 })
               ) : (
