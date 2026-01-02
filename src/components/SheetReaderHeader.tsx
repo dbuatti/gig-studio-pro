@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Search, Music, ChevronLeft, ChevronRight, Loader2, ChevronDown, Maximize2, Minimize2, Bug, Hash, Sparkles, ListMusic, Play, Pause } from 'lucide-react';
+import { Slider } from "@/components/ui/slider"; // Import Slider
+import { ArrowLeft, Search, Music, ChevronLeft, ChevronRight, Loader2, ChevronDown, Maximize2, Minimize2, Bug, Hash, Sparkles, ListMusic, Play, Pause, Gauge, Volume2, Activity, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatKey, ALL_KEYS_SHARP, ALL_KEYS_FLAT } from '@/utils/keyUtils';
 import { SetlistSong } from './SetlistManager';
@@ -10,7 +11,7 @@ import { KeyPreference } from '@/hooks/use-settings';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuPortal, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { showError } from '@/utils/toast';
-import { AudioEngineControls } from '@/hooks/use-tone-audio'; // Import AudioEngineControls
+import { AudioEngineControls } from '@/hooks/use-tone-audio';
 
 interface SheetReaderHeaderProps {
   currentSong: SetlistSong | null;
@@ -28,23 +29,27 @@ interface SheetReaderHeaderProps {
   // Harmonic Sync Props
   pitch: number;
   setPitch: (pitch: number) => void;
-  // NEW: Props for audio control
+  // Audio control props (moved from footer)
   isPlaying: boolean;
   isLoadingAudio: boolean;
   onTogglePlayback: () => void;
   onLoadAudio: (url: string, initialPitch: number) => Promise<void>;
-  // NEW: Props for override readerKeyPreference
+  progress: number; // NEW
+  duration: number; // NEW
+  onSetProgress: (value: number) => void; // NEW
+  onStopPlayback: () => void; // NEW
+  volume: number; // NEW
+  setVolume: (value: number) => void; // NEW
+  tempo: number; // NEW
+  // Reader Key Preference
   readerKeyPreference: 'sharps' | 'flats';
   setReaderKeyPreference: (pref: 'sharps' | 'flats') => void;
-  // NEW: Pull Key Handler
   onPullKey: () => void;
-  // NEW: Sidebar Toggle
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
   headerLeftOffset: number;
-  // NEW: Save handler for preference
   onSavePreference: (pref: 'sharps' | 'flats') => void;
-  audioEngine: AudioEngineControls; // Add audioEngine prop
+  audioEngine: AudioEngineControls;
 }
 
 const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
@@ -66,6 +71,13 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   isLoadingAudio,
   onTogglePlayback,
   onLoadAudio,
+  progress, // NEW
+  duration, // NEW
+  onSetProgress, // NEW
+  onStopPlayback, // NEW
+  volume, // NEW
+  setVolume, // NEW
+  tempo, // NEW
   readerKeyPreference,
   setReaderKeyPreference,
   onPullKey,
@@ -73,11 +85,17 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   onToggleSidebar,
   headerLeftOffset,
   onSavePreference,
-  audioEngine, // Destructure audioEngine
+  audioEngine,
 }) => {
   const rawTargetKey = currentSong?.targetKey || currentSong?.originalKey;
   const displayKey = rawTargetKey ? formatKey(rawTargetKey, readerKeyPreference) : null;
   const keysToUse = readerKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const handleAudioButtonClick = async () => {
     if (!currentSong) return;
@@ -86,7 +104,6 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
       showError("No audio source available for this song.");
       return;
     }
-    // If audio is not loaded or it's a different URL, load it first
     if (!audioEngine.currentBuffer || audioEngine.currentUrl !== urlToLoad) {
       await onLoadAudio(urlToLoad, pitch || 0);
     }
@@ -95,42 +112,26 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
 
   return (
     <div 
-      className="fixed top-0 right-0 z-60 bg-slate-900/80 backdrop-blur-xl border-b border-white/10 px-6 py-3 flex items-center justify-between shadow-lg animate-in slide-in-from-top duration-300"
+      className="fixed top-0 right-0 z-60 bg-slate-900/80 backdrop-blur-xl border-b border-white/10 px-6 py-3 flex flex-col gap-3 shadow-lg animate-in slide-in-from-top duration-300"
       style={{ left: `${headerLeftOffset}px` }}
     >
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={onClose} className="h-10 w-10 rounded-xl bg-white/5" title="Back to Dashboard"><ArrowLeft className="w-5 h-5 text-slate-400" /></Button>
-        
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={onToggleSidebar} 
-          className={cn(
-            "h-10 w-10 rounded-xl transition-all",
-            isSidebarOpen ? "bg-indigo-600 text-white hover:bg-indigo-700" : "bg-white/5 hover:bg-white/10 text-slate-400"
-          )}
-          title="Toggle Song List"
-        >
-          <ListMusic className="w-5 h-5" />
-        </Button>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={onClose} className="h-10 w-10 rounded-xl bg-white/5" title="Back to Dashboard"><ArrowLeft className="w-5 h-5 text-slate-400" /></Button>
+          
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={onToggleSidebar} 
+            className={cn(
+              "h-10 w-10 rounded-xl transition-all",
+              isSidebarOpen ? "bg-indigo-600 text-white hover:bg-indigo-700" : "bg-white/5 hover:bg-white/10 text-slate-400"
+            )}
+            title="Toggle Song List"
+          >
+            <ListMusic className="w-5 h-5" />
+          </Button>
 
-        {/* NEW PLAY BUTTON */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleAudioButtonClick}
-          disabled={isLoadingAudio || (!currentSong?.audio_url && !currentSong?.previewUrl)}
-          className={cn(
-            "h-10 w-10 rounded-xl transition-all",
-            isPlaying ? "bg-red-600 text-white hover:bg-red-700" : "bg-indigo-600 text-white hover:bg-indigo-700",
-            (isLoadingAudio || (!currentSong?.audio_url && !currentSong?.previewUrl)) && "opacity-50 cursor-not-allowed"
-          )}
-          title={isPlaying ? "Pause Audio" : "Play Audio"}
-        >
-          {isLoadingAudio ? <Loader2 className="w-5 h-5 animate-spin" /> : (isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />)}
-        </Button>
-
-        <div className="flex items-center gap-2">
           <Button 
             variant="ghost" 
             size="icon" 
@@ -166,110 +167,176 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
+
+        <div className="flex items-center gap-4">
+          {isOverrideActive && (
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-red-600/20 border border-red-500/20 rounded-full">
+              <Bug className="w-3 h-3 text-red-400" />
+              <span className="text-[9px] font-black uppercase tracking-widest text-red-400">DEBUG ACTIVE</span>
+            </div>
+          )}
+          
+          {currentSong && (
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={onPullKey}
+                className="bg-emerald-600/10 text-emerald-500 hover:bg-emerald-600 hover:text-white border border-emerald-600/20 h-10 px-3 rounded-xl font-black text-[10px] uppercase tracking-widest gap-2"
+                title="Pull Key from Chords"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Pull Key
+              </Button>
+
+              <DropdownMenu onOpenChange={setIsOverlayOpen}>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    onPointerDown={(e) => e.stopPropagation()}
+                    className="bg-white/5 border-white/10 text-xs font-black font-mono h-10 px-3 rounded-xl text-indigo-400 gap-2 min-w-[60px]"
+                    disabled={isLoading}
+                    title="Key Notation Preference"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      {readerKeyPreference === 'sharps' ? <Hash className="w-3 h-3" /> : <Music className="w-3 h-3" />}
+                      {readerKeyPreference === 'sharps' ? '#' : 'b'}
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-slate-900 border-white/10 text-white z-[300]">
+                  <DropdownMenuItem 
+                    onClick={() => { setReaderKeyPreference('sharps'); onSavePreference('sharps'); }} 
+                    className="font-bold cursor-pointer flex items-center justify-between"
+                  >
+                    <span>Sharps</span>
+                    {readerKeyPreference === 'sharps' && <span className="text-emerald-500">✓</span>}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={() => { setReaderKeyPreference('flats'); onSavePreference('flats'); }} 
+                    className="font-bold cursor-pointer flex items-center justify-between"
+                  >
+                    <span>Flats</span>
+                    {readerKeyPreference === 'flats' && <span className="text-emerald-500">✓</span>}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              
+              <DropdownMenu onOpenChange={setIsOverlayOpen}>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    onPointerDown={(e) => e.stopPropagation()}
+                    className="bg-white/5 border-white/10 text-xs font-black font-mono h-10 px-4 rounded-xl text-indigo-400 gap-2 min-w-[80px]"
+                    disabled={isLoading}
+                    title="Change Stage Key"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Music className="w-3.5 h-3.5" />
+                      {displayKey || <Skeleton className="h-4 w-6 bg-white/10" />}
+                      <ChevronDown className="w-3 h-3 opacity-50" />
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuPortal>
+                  <DropdownMenuContent align="end" className="bg-slate-900 border-white/10 text-white z-[300] max-h-60 overflow-y-auto custom-scrollbar">
+                    {keysToUse.map(k => (
+                      <DropdownMenuItem key={k} onSelect={() => onUpdateKey(k)} className="font-mono font-bold cursor-pointer">
+                        {k}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenuPortal>
+              </DropdownMenu>
+            </div>
+          )}
+          
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={onSearchClick}
+            className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
+            title="Open Studio (I)"
+          >
+            <Search className="w-5 h-5" />
+          </Button>
+          
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={onToggleFullScreen}
+            className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
+            title={isFullScreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+          >
+            {isFullScreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+          </Button>
+        </div>
       </div>
 
-      <div className="flex items-center gap-4">
-        {isOverrideActive && (
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-red-600/20 border border-red-500/20 rounded-full">
-            <Bug className="w-3 h-3 text-red-400" />
-            <span className="text-[9px] font-black uppercase tracking-widest text-red-400">DEBUG ACTIVE</span>
-          </div>
-        )}
-        
-        {currentSong && (
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={onPullKey}
-              className="bg-emerald-600/10 text-emerald-500 hover:bg-emerald-600 hover:text-white border border-emerald-600/20 h-10 px-3 rounded-xl font-black text-[10px] uppercase tracking-widest gap-2"
-              title="Pull Key from Chords"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              Pull Key
-            </Button>
+      {/* NEW: Audio Controls Section */}
+      <div className="flex items-center gap-6 py-2 px-2 border-t border-white/10">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onStopPlayback}
+          className="h-10 w-10 rounded-xl hover:bg-white/10 text-slate-400"
+          title="Reset Playback"
+        >
+          <RotateCcw className="w-5 h-5" />
+        </Button>
 
-            <DropdownMenu onOpenChange={setIsOverlayOpen}>
-              <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  onPointerDown={(e) => e.stopPropagation()}
-                  className="bg-white/5 border-white/10 text-xs font-black font-mono h-10 px-3 rounded-xl text-indigo-400 gap-2 min-w-[60px]"
-                  disabled={isLoading}
-                  title="Key Notation Preference"
-                >
-                  <span className="flex items-center gap-1.5">
-                    {readerKeyPreference === 'sharps' ? <Hash className="w-3 h-3" /> : <Music className="w-3 h-3" />}
-                    {readerKeyPreference === 'sharps' ? '#' : 'b'}
-                  </span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-slate-900 border-white/10 text-white z-[300]">
-                <DropdownMenuItem 
-                  onClick={() => { setReaderKeyPreference('sharps'); onSavePreference('sharps'); }} 
-                  className="font-bold cursor-pointer flex items-center justify-between"
-                >
-                  <span>Sharps</span>
-                  {readerKeyPreference === 'sharps' && <span className="text-emerald-500">✓</span>}
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => { setReaderKeyPreference('flats'); onSavePreference('flats'); }} 
-                  className="font-bold cursor-pointer flex items-center justify-between"
-                >
-                  <span>Flats</span>
-                  {readerKeyPreference === 'flats' && <span className="text-emerald-500">✓</span>}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            
-            <DropdownMenu onOpenChange={setIsOverlayOpen}>
-              <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  onPointerDown={(e) => e.stopPropagation()}
-                  className="bg-white/5 border-white/10 text-xs font-black font-mono h-10 px-4 rounded-xl text-indigo-400 gap-2 min-w-[80px]"
-                  disabled={isLoading}
-                  title="Change Stage Key"
-                >
-                  <span className="flex items-center gap-2">
-                    <Music className="w-3.5 h-3.5" />
-                    {displayKey || <Skeleton className="h-4 w-6 bg-white/10" />}
-                    <ChevronDown className="w-3 h-3 opacity-50" />
-                  </span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuPortal>
-                <DropdownMenuContent align="end" className="bg-slate-900 border-white/10 text-white z-[300] max-h-60 overflow-y-auto custom-scrollbar">
-                  {keysToUse.map(k => (
-                    <DropdownMenuItem key={k} onSelect={() => onUpdateKey(k)} className="font-mono font-bold cursor-pointer">
-                      {k}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenuPortal>
-            </DropdownMenu>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleAudioButtonClick}
+          disabled={isLoadingAudio || (!currentSong?.audio_url && !currentSong?.previewUrl)}
+          className={cn(
+            "h-14 w-14 rounded-full shadow-2xl transition-all hover:scale-105 active:scale-95 flex items-center justify-center",
+            isPlaying ? "bg-red-600 text-white hover:bg-red-700 shadow-red-600/20" : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-600/20",
+            (isLoadingAudio || (!currentSong?.audio_url && !currentSong?.previewUrl)) && "opacity-50 cursor-not-allowed"
+          )}
+          title={isPlaying ? "Pause Audio" : "Play Audio"}
+        >
+          {isLoadingAudio ? <Loader2 className="w-7 h-7 animate-spin" /> : (isPlaying ? <Pause className="w-7 h-7" /> : <Play className="w-7 h-7" />)}
+        </Button>
+
+        <div className="flex-1 mx-4 space-y-2 max-w-md">
+          <Slider
+            value={[duration > 0 ? (progress / 100) * duration : 0]}
+            max={duration}
+            step={1}
+            onValueChange={([v]) => onSetProgress((v / duration) * 100)}
+            className="w-full"
+            disabled={!currentSong?.previewUrl}
+          />
+          <div className="flex justify-between text-[10px] font-mono font-black text-slate-500 uppercase">
+            <span>{formatTime((progress / 100) * duration)}</span>
+            <span>{formatTime(duration)}</span>
           </div>
-        )}
-        
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={onSearchClick}
-          className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
-          title="Open Studio (I)"
-        >
-          <Search className="w-5 h-5" />
-        </Button>
-        
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={onToggleFullScreen}
-          className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
-          title={isFullScreen ? "Exit Fullscreen" : "Enter Fullscreen"}
-        >
-          {isFullScreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
-        </Button>
+        </div>
+
+        <div className="flex items-center gap-6">
+          <div className="flex flex-col items-center">
+            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1.5 font-mono">
+              <Gauge className="w-3 h-3" /> Tempo
+            </span>
+            <span className="text-xl font-black text-white font-mono">{currentSong?.bpm || "--"} <span className="text-[10px] text-slate-500">BPM</span></span>
+          </div>
+
+          <div className="flex flex-col items-center">
+            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1.5 font-mono">
+              <Activity className="w-3 h-3" /> Pitch
+            </span>
+            <span className="text-xl font-black text-white font-mono">{pitch > 0 ? '+' : ''}{pitch} <span className="text-[10px] text-slate-500">ST</span></span>
+          </div>
+
+          <div className="flex flex-col items-center">
+            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1.5 font-mono">
+              <Volume2 className="w-3 h-3" /> Gain
+            </span>
+            <span className="text-xl font-black text-white font-mono">{Math.round(((volume || -6) + 60) * 1.66)}%</span>
+          </div>
+        </div>
       </div>
     </div>
   );

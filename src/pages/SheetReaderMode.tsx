@@ -19,7 +19,6 @@ import { useReaderSettings, ReaderResourceForce } from '@/hooks/use-reader-setti
 import PreferencesModal from '@/components/PreferencesModal';
 import SongStudioModal from '@/components/SongStudioModal';
 import SheetReaderHeader from '@/components/SheetReaderHeader';
-import SheetReaderFooter from '@/components/SheetReaderFooter';
 import SheetReaderSidebar from '@/components/SheetReaderSidebar';
 import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -64,7 +63,7 @@ const SheetReaderMode: React.FC = () => {
   const {
     isPlaying, progress, duration, loadFromUrl, stopPlayback,
     setPitch: setAudioPitch, setProgress: setAudioProgress, volume, setVolume,
-    currentUrl, currentBuffer, isLoadingAudio
+    currentUrl, currentBuffer, isLoadingAudio, tempo
   } = audioEngine;
 
   const currentSong = allSongs[currentIndex];
@@ -391,13 +390,11 @@ const SheetReaderMode: React.FC = () => {
 
   useEffect(() => {
     if (!currentSong) return;
-    // IMPORTANT: Removed 'pitch' from the dependency array and 'force: true' from loadFromUrl.
-    // Pitch changes are handled by the separate setAudioPitch effect.
     if (currentUrl !== currentSong.previewUrl || !currentBuffer) {
       const timer = setTimeout(() => loadFromUrl(currentSong.previewUrl, pitch || 0), 100);
       return () => clearTimeout(timer);
     }
-  }, [currentSong, currentUrl, currentBuffer, loadFromUrl, pitch]); // Added pitch to dependency array
+  }, [currentSong, currentUrl, currentBuffer, loadFromUrl, pitch]);
 
   const handleNext = useCallback(() => {
     if (allSongs.length === 0) return;
@@ -428,7 +425,7 @@ const SheetReaderMode: React.FC = () => {
       const bestType = getBestChartType();
       if (selectedChartType !== bestType) setSelectedChartType(bestType);
     }
-  }, [currentSong, getBestChartType, selectedChartType]); // Added selectedChartType to dependency array
+  }, [currentSong, getBestChartType, selectedChartType]);
 
   const handleChartReady = useCallback(() => {
     if (currentSong) {
@@ -565,6 +562,13 @@ const SheetReaderMode: React.FC = () => {
           isLoadingAudio={isLoadingAudio}
           onTogglePlayback={audioEngine.togglePlayback}
           onLoadAudio={loadFromUrl}
+          progress={progress}
+          duration={duration}
+          onSetProgress={setAudioProgress}
+          onStopPlayback={stopPlayback}
+          volume={volume}
+          setVolume={setVolume}
+          tempo={tempo}
           readerKeyPreference={readerKeyPreference}
           setReaderKeyPreference={setReaderKeyPreference}
           onPullKey={handlePullKey}
@@ -575,7 +579,7 @@ const SheetReaderMode: React.FC = () => {
           audioEngine={audioEngine}
         />
 
-        <div className={cn("flex-1 bg-black relative", isImmersive ? "mt-0" : "mt-16")}>
+        <div className={cn("flex-1 bg-black relative", isImmersive ? "mt-0" : "mt-[112px]")}> {/* Adjusted mt-16 to mt-[112px] (header height) */}
           {renderedCharts.map(rc => (
             <motion.div key={`${rc.id}-${rc.type}`} className="absolute inset-0" animate={{ opacity: rc.opacity }} style={{ zIndex: rc.zIndex }}>
               {rc.content}
@@ -584,23 +588,7 @@ const SheetReaderMode: React.FC = () => {
           {isChartLoading && <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 z-20"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>}
         </div>
 
-        {!isImmersive && currentSong && (
-          <SheetReaderFooter
-            currentSong={currentSong}
-            isPlaying={isPlaying}
-            progress={progress}
-            duration={duration}
-            onTogglePlayback={audioEngine.togglePlayback}
-            onStopPlayback={stopPlayback}
-            onSetProgress={setAudioProgress}
-            pitch={pitch}
-            setPitch={setPitch}
-            volume={volume}
-            setVolume={setVolume}
-            keyPreference={globalKeyPreference}
-            isLoadingAudio={isLoadingAudio}
-          />
-        )}
+        {/* SheetReaderFooter is removed */}
       </main>
 
       <AnimatePresence>
