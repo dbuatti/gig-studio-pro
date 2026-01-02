@@ -3,10 +3,10 @@
 import { KeyPreference } from '@/hooks/use-settings';
 import { transposeKey, formatKey, MAPPING_TO_SHARP, MAPPING_TO_FLAT } from './keyUtils';
 
-// Robust musical chord regex that handles sharps/flats and common extensions without relying on \b
-// Updated to use negative lookbehind (?<!\w) and negative lookahead (?!\w) to prevent matching chords within words (e.g., 'Don't' -> 'D', 'Cause' -> 'C').
-// The second capturing group `([^/\s]*?)` now captures any characters that are not a '/' or whitespace, non-greedily.
-const CHORD_REGEX = /(?<!\w)([A-G](?:#|b)?)([^/\s]*?)(\/[A-G](?:#|b)?)?(?!\w)/g;
+// Robust musical chord regex that handles sharps/flats and common extensions.
+// It ensures the chord is a standalone entity by using negative lookbehind and lookahead for word characters.
+// The chordType group is now more specific to actual chord suffixes.
+const CHORD_REGEX = /(?<!\w)([A-G][#b]?)(m(?:aj)?|dim|aug|sus\d?|add\d?|\d+)?(\/[A-G][#b]?)?(?!\w)/g;
 
 /**
  * Determines if a line likely contains chords rather than just lyrics.
@@ -16,14 +16,21 @@ export const isChordLine = (line: string): boolean => {
   if (!trimmed || trimmed.length > 100) return false;
   
   // Count matches vs words. Chord lines usually have a high match-to-text ratio
-  const matches = trimmed.match(CHORD_REGEX);
-  if (!matches) return false;
+  const matches = Array.from(trimmed.matchAll(CHORD_REGEX)); // Use matchAll to get all matches
+  if (matches.length === 0) return false;
 
   // Heuristic: If it looks like a section header, it's not a chord line
   if (trimmed.startsWith('[') && trimmed.endsWith(']')) return false;
 
-  // If we have at least one valid chord match
-  return matches.length > 0;
+  // Further check: ensure a significant portion of the line is chords, not just one letter
+  const chordCharacters = matches.reduce((acc, match) => acc + match[0].length, 0);
+  
+  // If the line is very long but only has a few chords, it's probably not a chord line.
+  // Or if less than 1/3 of the line's characters are part of identified chords.
+  if (trimmed.length > 30 && matches.length < 2) return false; 
+  if (chordCharacters < trimmed.length / 3 && matches.length < 3) return false; 
+
+  return true;
 };
 
 /**
@@ -59,6 +66,8 @@ export const transposeChords = (text: string, semitones: number, keyPref: KeyPre
 
 /**
  * Formats chord text for display with basic styling
+ * This function is not actually used for styling anymore, as styling is done via CSS.
+ * It can be simplified or removed if not needed for other logic.
  */
 export const formatChordText = (text: string, config?: {
   fontFamily: string;
@@ -68,15 +77,9 @@ export const formatChordText = (text: string, config?: {
   lineSpacing: number;
 }): string => {
   if (!text) return '';
-  const lines = text.split('\n');
-  
-  return lines.map(line => {
-    if (!line.trim()) return line;
-    let formattedLine = line;
-    // We don't use <strong> tags here anymore as we handle it in the CSS/Pre style,
-    // but the logic remains for line-level identification if needed.
-    return formattedLine;
-  }).join('\n');
+  // The actual formatting with <strong> tags is removed as it's handled by CSS.
+  // This function can simply return the text or be removed if no other processing is needed.
+  return text;
 };
 
 /**
@@ -88,12 +91,11 @@ export const extractKeyFromChords = (text: string): string | null => {
   for (const line of lines) {
     if (line.trim().startsWith('[') && line.trim().endsWith(']')) continue;
     const match = line.match(CHORD_REGEX);
-    if (match && match.length >= 3) { // Ensure enough capturing groups
+    if (match) { // match[0] is the full match, match[1] is root, match[2] is chordType
       const rootNote = match[1];
-      const chordSuffix = match[2]; // This will be 'm7', '7sus4', 'add9' etc.
+      const chordSuffix = match[2]; 
       
       if (rootNote) {
-        // Check for 'm' or 'dim' anywhere in the suffix to determine minor key
         const isMinor = chordSuffix && (chordSuffix.includes('m') || chordSuffix.includes('dim'));
         const normalizedRoot = MAPPING_TO_SHARP[rootNote] || rootNote;
         return normalizedRoot + (isMinor ? 'm' : '');
