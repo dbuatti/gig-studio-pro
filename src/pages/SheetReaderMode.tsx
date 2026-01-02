@@ -143,6 +143,9 @@ const SheetReaderMode: React.FC = () => {
     isStageKeyLocked 
   } = harmonicSync;
 
+  // Add this log
+  console.log("[SheetReaderMode] effectiveTargetKey:", effectiveTargetKey);
+
   const handleUpdateKey = useCallback(async (newTargetKey: string) => {
     if (!currentSong || !user) return;
 
@@ -455,7 +458,7 @@ const SheetReaderMode: React.FC = () => {
     ));
   }, []);
 
-  const renderChartForSong = useCallback((song: SetlistSong, chartType: ChartType): React.ReactNode => {
+  const renderChartForSong = (song: SetlistSong, chartType: ChartType): React.ReactNode => {
     const resolvedUgChordsConfig: UGChordsConfig = song.ug_chords_config ? {
       ...DEFAULT_UG_CHORDS_CONFIG,
       ...song.ug_chords_config,
@@ -518,7 +521,7 @@ const SheetReaderMode: React.FC = () => {
         </a>
       </div>
     );
-  }, [effectiveTargetKey, isPlaying, progress, duration, readerKeyPreference, handleChartReady, handleChartLoad, setSelectedChartType, setIsStudioPanelOpen, ugChordsFontFamily, ugChordsFontSize, ugChordsChordBold, ugChordsChordColor, ugChordsLineSpacing, ugChordsTextAlign]);
+  };
 
   useEffect(() => {
     if (!currentSong) {

@@ -20,7 +20,7 @@ interface UGChordsReaderProps {
   onChartReady?: () => void;
 }
 
-const UGChordsReader = React.memo(({
+const UGChordsReader = ({
   chordsText,
   config: songConfig, // Rename prop to avoid conflict with resolved config
   isMobile,
@@ -106,6 +106,6 @@ const UGChordsReader = React.memo(({
       )}
     </div>
   );
-});
+};
 
 export default UGChordsReader;

@@ -71,13 +71,16 @@ export function useHarmonicSync({ formData, handleAutoSave, globalKeyPreference,
         };
       }
       setLocalPitch(newPitch); // Update local state for immediate UI reflection
+      console.log("[useHarmonicSync] setPitch (locked): localPitch updated to", newPitch);
     } else if (isPitchLinkedFromData) {
       const updates: Partial<SetlistSong> = { pitch: newPitch };
       const newTarget = transposeKey(originalKeyFromData, newPitch);
       updates.targetKey = newTarget;
       handleAutoSave(updates);
+      console.log("[useHarmonicSync] setPitch (linked): handleAutoSave called with", updates);
     } else {
       setLocalPitch(newPitch);
+      console.log("[useHarmonicSync] setPitch (unlinked): localPitch updated to", newPitch);
     }
   }, [isPitchLinkedFromData, originalKeyFromData, handleAutoSave, isStageKeyLocked, formData.id]);
 
@@ -90,14 +93,17 @@ export function useHarmonicSync({ formData, handleAutoSave, globalKeyPreference,
         };
       }
       setLocalTargetKey(newTargetKey); // Update local state for immediate UI reflection
+      console.log("[useHarmonicSync] setTargetKey (locked): localTargetKey updated to", newTargetKey);
     } else if (isPitchLinkedFromData) {
       const updates: Partial<SetlistSong> = { targetKey: newTargetKey };
       const newPitch = calculateSemitones(originalKeyFromData, newTargetKey);
       updates.pitch = newPitch;
       updates.isKeyConfirmed = true; // Automatically confirm when target key is set
       handleAutoSave(updates);
+      console.log("[useHarmonicSync] setTargetKey (linked): handleAutoSave called with", updates);
     } else {
       setLocalTargetKey(newTargetKey);
+      console.log("[useHarmonicSync] setTargetKey (unlinked): localTargetKey updated to", newTargetKey);
     }
   }, [isPitchLinkedFromData, originalKeyFromData, handleAutoSave, isStageKeyLocked, formData.id]);
 
