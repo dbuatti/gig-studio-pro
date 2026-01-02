@@ -1,0 +1,99 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { useAuth } from "@/components/AuthProvider";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import Index from "@/pages/Index";
+import Login from "@/pages/Login";
+import Landing from "@/pages/Landing";
+import NotFound from "@/pages/NotFound";
+import Profile from "@/pages/Profile";
+import PublicRepertoire from "@/pages/PublicRepertoire";
+import SheetReaderMode from "@/pages/SheetReaderMode";
+import SongStudio from "@/pages/SongStudio";
+import GigEntry from "@/pages/GigEntry";
+import PublicGigView from "@/pages/PublicGigView";
+import NotificationBell from "@/components/NotificationBell";
+import NotificationDrawer from "@/components/NotificationDrawer";
+
+const RENDER_WORKER_URL = "https://yt-audio-api-1-wedr.onrender.com";
+
+const KeepAliveWorker = () => {
+  const { session } = useAuth();
+
+  useEffect(() => {
+    if (!session) return;
+
+    const pingWorker = async () => {
+      try {
+        await fetch(RENDER_WORKER_URL, { mode: 'no-cors' });
+      } catch (e) {
+        // Silent fail on heartbeat
+      }
+    };
+
+    pingWorker();
+    const interval = setInterval(pingWorker, 10 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+  }, [session]);
+
+  return null;
+};
+
+const RootRoute = () => {
+  const { session, loading } = useAuth();
+  if (loading) return null;
+  return session ? <Index /> : <Landing />;
+};
+
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { session, loading } = useAuth();
+  if (loading) return null;
+  if (!session) return <Navigate to="/login" />;
+  return <>{children}</>;
+};
+
+const MainLayout = () => {
+  const { session } = useAuth();
+  const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] = useState(false);
+
+  return (
+    <>
+      <KeepAliveWorker />
+      {session && (
+        <div className="fixed top-4 right-4 z-[100]">
+          <NotificationBell onOpenDrawer={() => setIsNotificationDrawerOpen(true)} />
+        </div>
+      )}
+      <Routes>
+        <Route path="/" element={<RootRoute />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/repertoire/:slug" element={<PublicRepertoire />} />
+        <Route path="/gig" element={<GigEntry />} />
+        <Route path="/gig/:code" element={<PublicGigView />} />
+        <Route path="/setlist/:id" element={<PublicGigView />} />
+        <Route path="/dashboard" element={<Navigate to="/" replace />} />
+        <Route path="/profile" element={
+          <ProtectedRoute>
+            <Profile />
+          </ProtectedRoute>
+        } />
+        <Route path="/sheet-reader/:songId?" element={
+          <ProtectedRoute>
+            <SheetReaderMode />
+          </ProtectedRoute>
+        } />
+        <Route path="/gig/:gigId/song/:songId" element={
+          <ProtectedRoute>
+            <SongStudio />
+          </ProtectedRoute>
+        } />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+      <NotificationDrawer isOpen={isNotificationDrawerOpen} onClose={() => setIsNotificationDrawerOpen(false)} />
+    </>
+  );
+};
+
+export default MainLayout;
