@@ -438,8 +438,8 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
             )}
 
             {viewMode === 'lyrics' && currentSong?.lyrics && (
-              <div ref={lyricsContainerRef} className="h-full overflow-y-auto px-4 md:px-32 custom-scrollbar scroll-smooth">
-                <div className="max-w-5xl mx-auto py-16 md:py-24 space-y-16 md:space-y-24">
+              <div ref={lyricsContainerRef} className="h-full overflow-y-auto px-4 md:px-32 py-16 md:py-24 custom-scrollbar scroll-smooth">
+                <div className="max-w-5xl mx-auto space-y-16 md:space-y-24">
                   {lyricsSections.map((section, i) => {
                     const isPast = hasTimestamps && section.time >= 0 && section.time < adjustedTime;
                     const isCurrent = hasTimestamps 
