@@ -33,7 +33,7 @@ import { useSpring, animated } from '@react-spring/web';
 import { useDrag } from '@use-gesture/react';
 
 // Configure PDF.js worker source - UPDATED URL
-pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
+pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@4.0.379/build/pdf.worker.min.js`;
 
 export type ChartType = 'pdf' | 'leadsheet' | 'chords';
 
@@ -307,7 +307,7 @@ const SheetReaderMode: React.FC = () => {
             pdfUrl: masterSong.pdf_url,
             leadsheetUrl: masterSong.leadsheet_url,
             bpm: masterSong.bpm,
-            genre: masterSong.genre,
+            genre: masterSong.genre, // Corrected from 'master.genre' to 'masterSong.genre'
             isSyncing: false,
             isMetadataConfirmed: masterSong.is_metadata_confirmed,
             isKeyConfirmed: masterSong.is_key_confirmed,
