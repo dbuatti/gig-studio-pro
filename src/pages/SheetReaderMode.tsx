@@ -62,7 +62,7 @@ const SheetReaderMode: React.FC = () => {
   const {
     isPlaying, progress, duration, loadFromUrl, stopPlayback,
     setPitch: setAudioPitch, setProgress: setAudioProgress,
-    isLoadingAudio, tempo, volume, setVolume // FIXED: Added volume and setVolume here
+    isLoadingAudio, tempo
   } = audioEngine;
 
   const currentSong = allSongs[currentIndex];
