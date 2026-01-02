@@ -49,10 +49,14 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-[95vw] w-[1200px] h-[90vh] p-0 bg-slate-950 border-white/10 overflow-hidden rounded-[2rem] shadow-2xl">
+      <DialogContent 
+        className="max-w-[95vw] w-[1200px] h-[90vh] p-0 bg-slate-950 border-white/10 overflow-hidden rounded-[2rem] shadow-2xl"
+        aria-labelledby="song-studio-title"
+        aria-describedby="song-studio-description"
+      >
         <DialogHeader className="sr-only">
-          <DialogTitle>Song Studio - Editing Song</DialogTitle>
-          <DialogDescription>
+          <DialogTitle id="song-studio-title">Song Studio - Editing Song</DialogTitle>
+          <DialogDescription id="song-studio-description">
             Configure audio processing, metadata, and charts for the selected track.
           </DialogDescription>
         </DialogHeader>
