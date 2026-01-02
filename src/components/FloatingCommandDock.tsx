@@ -175,8 +175,8 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     {
       id: 'practice',
       icon: isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />,
-      onClick: onTogglePlayback,
-      disabled: !hasPlayableSong,
+      onClick: onOpenPerformance, // Changed to open PerformanceOverlay
+      disabled: false, // No longer disabled by hasPlayableSong
       tooltip: isPlaying ? "Pause (Space)" : "Play (Space)",
       className: cn(
         "text-white shadow-xl scale-110",
@@ -195,7 +195,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
       id: 'reader',
       icon: <FileText className="w-5 h-5" />,
       onClick: () => onOpenReader(activeSongId || undefined),
-      disabled: !hasReadableChart,
+      disabled: false, // No longer disabled by hasReadableChart
       tooltip: "Reader (R)",
       className: "bg-emerald-600 text-white border-emerald-500",
     },
