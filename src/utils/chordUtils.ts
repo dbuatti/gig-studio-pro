@@ -4,7 +4,8 @@ import { KeyPreference } from '@/hooks/use-settings';
 import { transposeKey, formatKey, MAPPING_TO_SHARP, MAPPING_TO_FLAT } from './keyUtils';
 
 // Robust musical chord regex that handles sharps/flats and common extensions without relying on \b
-const CHORD_REGEX = /([A-G](?:#|b)?)(m|maj|dim|aug|sus\d?|add\d?|\d+)?(\/[A-G](?:#|b)?)?/g;
+// Updated to use negative lookbehind (?<!\w) and negative lookahead (?!\w) to prevent matching chords within words (e.g., 'Don't' -> 'D', 'Cause' -> 'C').
+const CHORD_REGEX = /(?<!\w)([A-G](?:#|b)?)(m|maj|dim|aug|sus\d?|add\d?|\d+)?(\/[A-G](?:#|b)?)?(?!\w)/g;
 
 /**
  * Determines if a line likely contains chords rather than just lyrics.
