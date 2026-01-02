@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "@/pages/Index";
@@ -13,8 +13,6 @@ import SheetReaderMode from "@/pages/SheetReaderMode";
 import SongStudio from "@/pages/SongStudio";
 import GigEntry from "@/pages/GigEntry";
 import PublicGigView from "@/pages/PublicGigView";
-import NotificationBell from "@/components/NotificationBell";
-import NotificationDrawer from "@/components/NotificationDrawer";
 
 const RENDER_WORKER_URL = "https://yt-audio-api-1-wedr.onrender.com";
 
@@ -55,17 +53,9 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const MainLayout = () => {
-  const { session } = useAuth();
-  const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] = useState(false);
-
   return (
     <>
       <KeepAliveWorker />
-      {session && (
-        <div className="fixed top-4 right-4 z-[100]">
-          <NotificationBell onOpenDrawer={() => setIsNotificationDrawerOpen(true)} />
-        </div>
-      )}
       <Routes>
         <Route path="/" element={<RootRoute />} />
         <Route path="/login" element={<Login />} />
@@ -91,7 +81,6 @@ const MainLayout = () => {
         } />
         <Route path="*" element={<NotFound />} />
       </Routes>
-      <NotificationDrawer isOpen={isNotificationDrawerOpen} onClose={() => setIsNotificationDrawerOpen(false)} />
     </>
   );
 };
