@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
@@ -24,7 +24,7 @@ import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
 import { extractKeyFromChords } from '@/utils/chordUtils';
 import RepertoireSearchModal from '@/components/RepertoireSearchModal';
 import FullScreenSongInfo from '@/components/FullScreenSongInfo';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 
 type ChartType = 'pdf' | 'leadsheet' | 'chords';
 
@@ -82,9 +82,12 @@ const SheetReaderMode: React.FC = () => {
 
   const currentSong = allSongs[currentIndex];
 
-  // Swipe navigation refs and state
+  // Refs for PDF scrolling and swipe detection
+  const pdfContainerRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
   const touchEndX = useRef(0);
+  const touchEndY = useRef(0);
   const swipeThreshold = 50; // pixels
 
   // Sync state to current song's saved preference
@@ -104,7 +107,7 @@ const SheetReaderMode: React.FC = () => {
 
   const harmonicSync = useHarmonicSync({
     formData: {
-      id: currentSong?.id, // Pass ID for session overrides
+      id: currentSong?.id,
       originalKey: currentSong?.originalKey,
       targetKey: currentSong?.targetKey || currentSong?.originalKey,
       pitch: currentSong?.pitch ?? 0,
@@ -114,8 +117,6 @@ const SheetReaderMode: React.FC = () => {
     },
     handleAutoSave: useCallback(async (updates: Partial<SetlistSong>) => {
       if (!currentSong || !user) return;
-      console.log("[SheetReader] Auto-saving master updates via utility:", updates);
-      
       try {
         const result = await syncToMasterRepertoire(user.id, [{
           ...updates,
@@ -398,24 +399,21 @@ const SheetReaderMode: React.FC = () => {
   }, [fetchSongs, navigate]);
 
   const getBestChartType = useCallback((song: SetlistSong): ChartType => {
-    // 1. Force Reader Resource overrides
     if (forceReaderResource === 'force-pdf' && song.pdfUrl) return 'pdf';
     if (forceReaderResource === 'force-ug' && (song.ugUrl || song.ug_chords_text)) return 'chords';
     if (forceReaderResource === 'force-chords' && song.ug_chords_text) return 'chords';
 
-    // 2. Song's preferred_reader
     if (song.preferred_reader === 'ug' && (song.ugUrl || song.ug_chords_text)) return 'chords';
     if (song.preferred_reader === 'ls' && song.leadsheetUrl) return 'leadsheet';
     if (song.preferred_reader === 'fn' && (song.sheet_music_url || song.pdfUrl)) return 'pdf';
 
-    // 3. Fallback based on available resources (order of preference)
     if (song.pdfUrl) return 'pdf';
     if (song.leadsheetUrl) return 'leadsheet';
     if (song.ug_chords_text) return 'chords';
     if (song.ugUrl) return 'chords';
     if (song.sheet_music_url) return 'pdf';
 
-    return 'pdf'; // Default fallback if nothing else matches
+    return 'pdf';
   }, [forceReaderResource]);
 
   const isFramable = useCallback((url: string | null | undefined) => {
@@ -435,7 +433,7 @@ const SheetReaderMode: React.FC = () => {
           <UGChordsReader
             chordsText={song.ug_chords_text || ""}
             config={song.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
-            isMobile={false} // Adjust as needed
+            isMobile={false}
             originalKey={song.originalKey}
             targetKey={effectiveTargetKey}
             isPlaying={isPlaying}
@@ -530,23 +528,96 @@ const SheetReaderMode: React.FC = () => {
 
   const isChartLoading = renderedCharts.find(c => c.id === currentSong?.id && c.type === selectedChartType && !c.isLoaded);
 
-  // --- MODIFIED SECTION START ---
-  // Detect if the app is running in standalone (PWA) mode
-  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
-                       (window.navigator as any).standalone === true;
+  // --- NEW: Touch/Swipe Logic for PDF Navigation ---
+  
+  const handleTouchStart = (e: React.TouchEvent) => {
+    // Only handle touch if we are in PDF mode
+    if (selectedChartType !== 'pdf') return;
+    
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    touchEndX.current = e.touches[0].clientX;
+    touchEndY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (selectedChartType !== 'pdf') return;
+    
+    touchEndX.current = e.touches[0].clientX;
+    touchEndY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = () => {
+    if (selectedChartType !== 'pdf') return;
+
+    const deltaX = touchEndX.current - touchStartX.current;
+    const deltaY = touchEndY.current - touchStartY.current;
+
+    // Check if it's a horizontal swipe (dominant direction)
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > swipeThreshold) {
+      const container = pdfContainerRef.current;
+      if (!container) return;
+
+      const isAtStart = container.scrollLeft <= 0;
+      const isAtEnd = container.scrollLeft >= container.scrollWidth - container.clientWidth - 1; // -1 for rounding
+
+      // Swipe Right (Next Song) - Only on Last Page
+      if (deltaX < 0) { 
+        if (isAtEnd) {
+          handleNext();
+        } else {
+          // Scroll PDF right
+          container.scrollBy({ left: container.clientWidth * 0.8, behavior: 'smooth' });
+        }
+      } 
+      // Swipe Left (Prev Song) - Only on First Page
+      else if (deltaX > 0) {
+        if (isAtStart) {
+          handlePrev();
+        } else {
+          // Scroll PDF left
+          container.scrollBy({ left: -container.clientWidth * 0.8, behavior: 'smooth' });
+        }
+      }
+    }
+    
+    // Reset touch values
+    touchStartX.current = 0;
+    touchStartY.current = 0;
+    touchEndX.current = 0;
+    touchEndY.current = 0;
+  };
+
+  // Tap Navigation (Left/Right side of screen)
+  const handleContainerClick = (e: React.MouseEvent) => {
+    if (selectedChartType !== 'pdf') return;
+    
+    const container = pdfContainerRef.current;
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const width = rect.width;
+
+    if (clickX < width * 0.3) {
+      // Tap Left: Scroll Left
+      container.scrollBy({ left: -container.clientWidth * 0.8, behavior: 'smooth' });
+    } else if (clickX > width * 0.7) {
+      // Tap Right: Scroll Right
+      container.scrollBy({ left: container.clientWidth * 0.8, behavior: 'smooth' });
+    }
+  };
+
+  // --- END NEW LOGIC ---
 
   const toggleBrowserFullScreen = useCallback(() => {
-    // In a PWA on iOS, the app is already "full screen" in the sense that it takes up the whole viewport.
-    // The browser's Fullscreen API is often disabled or non-functional in this context.
-    // We treat "toggling fullscreen" in a PWA as a no-op or visual confirmation.
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
+    
     if (isStandalone) {
-      // We can't really toggle fullscreen in standalone mode, but we can update the state
-      // to reflect that we are "visually" full screen.
       setIsBrowserFullScreen(prev => !prev);
       return;
     }
 
-    // Standard browser Fullscreen API logic
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(err => {
         showError(`Error attempting to enable fullscreen mode: ${err.message} (${err.name})`);
@@ -554,21 +625,18 @@ const SheetReaderMode: React.FC = () => {
     } else {
       document.exitFullscreen();
     }
-  }, [isStandalone]);
+  }, []);
 
   useEffect(() => {
-    // Standard browser event listener
     const handleFullScreenChange = () => {
-      // Only update state if we are NOT in standalone mode
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
       if (!isStandalone) {
         setIsBrowserFullScreen(!!document.fullscreenElement);
       }
     };
-
     document.addEventListener('fullscreenchange', handleFullScreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullScreenChange);
-  }, [isStandalone]);
-  // --- MODIFIED SECTION END ---
+  }, []);
 
   const onOpenCurrentSongStudio = useCallback(() => {
     if (currentSong) {
@@ -589,6 +657,7 @@ const SheetReaderMode: React.FC = () => {
     setIsRepertoireSearchModalOpen(false);
   }, [allSongs, navigate, stopPlayback]);
 
+  // Keyboard shortcuts for navigation (Left/Right arrows)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -615,43 +684,24 @@ const SheetReaderMode: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentSong, onOpenCurrentSongStudio, handlePrev, handleNext]);
 
-  // Swipe gesture handlers
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-    touchEndX.current = e.touches[0].clientX;
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    touchEndX.current = e.touches[0].clientX;
-  };
-
-  const handleTouchEnd = () => {
-    if (!isBrowserFullScreen) return;
-
-    const deltaX = touchEndX.current - touchStartX.current;
-
-    if (deltaX > swipeThreshold) {
-      handlePrev();
-    } else if (deltaX < -swipeThreshold) {
-      handleNext();
-    }
-    touchStartX.current = 0;
-    touchEndX.current = 0;
-  };
-
   if (initialLoading) return <div className="h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-white relative">
-      <motion.div
-        initial={{ x: isSidebarOpen && !isBrowserFullScreen ? 0 : -300 }}
-        animate={{ x: isSidebarOpen && !isBrowserFullScreen ? 0 : -300 }}
-        className="fixed left-0 top-0 h-full w-[300px] z-50"
-      >
+      {/* Sidebar */}
+      <div className={cn("fixed left-0 top-0 h-full w-[300px] z-50 transition-transform duration-300", 
+        isSidebarOpen && !isBrowserFullScreen ? "translate-x-0" : "-translate-x-full")}>
         <SheetReaderSidebar songs={allSongs} currentIndex={currentIndex} onSelectSong={(idx) => { setCurrentIndex(idx); stopPlayback(); }} isFullScreen={isBrowserFullScreen} />
-      </motion.div>
+      </div>
 
-      <main className={cn("flex-1 flex flex-col overflow-hidden transition-all duration-300", isSidebarOpen && !isBrowserFullScreen && "ml-[300px]")}>
+      {/* Main Content */}
+      <main className={cn("flex-1 flex flex-col overflow-hidden transition-all duration-300", 
+        isSidebarOpen && !isBrowserFullScreen && "ml-[300px]")}
+        // Touch handlers for swipe detection
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
         <SheetReaderHeader
           currentSong={currentSong!}
           onClose={() => navigate('/')}
@@ -690,18 +740,37 @@ const SheetReaderMode: React.FC = () => {
           onPullKey={handlePullKey}
         />
 
+        {/* Chart Container */}
         <div
-          className={cn("flex-1 bg-black relative overflow-y-auto", isBrowserFullScreen ? "mt-0" : "mt-[112px]")}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          style={{ overscrollBehaviorY: 'contain' }}
+          ref={pdfContainerRef}
+          className={cn("flex-1 bg-black relative overflow-hidden", isBrowserFullScreen ? "mt-0" : "mt-[112px]")}
+          onClick={handleContainerClick}
         >
-          {renderedCharts.map(rc => (
-            <motion.div key={`${rc.id}-${rc.type}`} className="absolute inset-0" animate={{ opacity: rc.opacity }} style={{ zIndex: rc.zIndex }}>
-              {rc.content}
-            </motion.div>
-          ))}
+          {/* 
+            Rendered Charts: 
+            We remove the motion.div wrapper to ensure immediate transitions (no cross-fade).
+            We rely on the `opacity` and `zIndex` in the state to manage visibility if needed, 
+            but here we just render the active chart directly for "immediate" appearance.
+          */}
+          {renderedCharts.map(rc => {
+            // Only render the active chart for immediate appearance
+            if (rc.id !== currentSong?.id || rc.type !== selectedChartType) return null;
+            
+            // For PDF/Leadsheet, we wrap in a scrollable container if it's an iframe
+            if (rc.type === 'pdf' || rc.type === 'leadsheet') {
+              return (
+                <div key={`${rc.id}-${rc.type}`} className="w-full h-full overflow-x-auto overflow-y-hidden snap-x snap-mandatory">
+                   <div className="w-full h-full min-w-full snap-center">
+                     {rc.content}
+                   </div>
+                </div>
+              );
+            }
+            
+            // For Chords (UG), it handles its own scrolling
+            return <div key={`${rc.id}-${rc.type}`} className="w-full h-full">{rc.content}</div>;
+          })}
+          
           {isChartLoading && <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 z-20"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>}
         </div>
       </main>
@@ -719,12 +788,7 @@ const SheetReaderMode: React.FC = () => {
 
       <AnimatePresence>
         {isStudioPanelOpen && (
-          <motion.div
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            className="fixed right-0 top-0 h-full w-[480px] bg-slate-900 shadow-2xl z-50 flex flex-col"
-          >
+          <div className="fixed right-0 top-0 h-full w-[480px] bg-slate-900 shadow-2xl z-50 flex flex-col">
             <div className="h-16 flex items-center justify-between px-6 border-b border-slate-800">
               <h2 className="text-xl font-bold">Song Studio</h2>
               <Button variant="ghost" size="icon" onClick={() => setIsStudioPanelOpen(false)}><X className="w-5 h-5" /></Button>
@@ -742,7 +806,7 @@ const SheetReaderMode: React.FC = () => {
                 />
               )}
             </div>
-          </motion.div>
+          </div>
         )}
       </AnimatePresence>
 

@@ -5,14 +5,14 @@ import { cn } from '@/lib/utils';
 import { formatChordText, transposeChords } from '@/utils/chordUtils';
 import { calculateSemitones } from '@/utils/keyUtils';
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
-import { UGChordsConfig } from './SetlistManager'; // Import UGChordsConfig
+import { UGChordsConfig } from './SetlistManager';
 
 interface UGChordsReaderProps {
   chordsText: string;
-  config?: UGChordsConfig; // Make config optional, will use global if not provided
+  config?: UGChordsConfig;
   isMobile: boolean;
   originalKey?: string;
-  targetKey?: string; // This is effectiveTargetKey
+  targetKey?: string;
   isPlaying: boolean;
   progress: number;
   duration: number;
@@ -22,10 +22,10 @@ interface UGChordsReaderProps {
 
 const UGChordsReader = React.memo(({
   chordsText,
-  config: songConfig, // Rename prop to avoid conflict with resolved config
+  config: songConfig,
   isMobile,
   originalKey,
-  targetKey, // This is effectiveTargetKey
+  targetKey,
   readerKeyPreference,
   onChartReady,
 }: UGChordsReaderProps) => {
@@ -39,7 +39,6 @@ const UGChordsReader = React.memo(({
     ugChordsTextAlign,
   } = useSettings(); 
   
-  // Resolve effective notation preference: if global is neutral, use song preference, else global.
   const resolvedPreference = globalKeyPreference === 'neutral' 
     ? (readerKeyPreference || 'sharps') 
     : globalKeyPreference;
@@ -47,7 +46,7 @@ const UGChordsReader = React.memo(({
   const resolvedConfig: UGChordsConfig = useMemo(() => ({
     fontFamily: songConfig?.fontFamily || ugChordsFontFamily,
     fontSize: songConfig?.fontSize || ugChordsFontSize,
-    chordBold: songConfig?.chordBold ?? ugChordsChordBold, // Use ?? for boolean defaults
+    chordBold: songConfig?.chordBold ?? ugChordsChordBold,
     chordColor: songConfig?.chordColor || ugChordsChordColor,
     lineSpacing: songConfig?.lineSpacing || ugChordsLineSpacing,
     textAlign: songConfig?.textAlign || ugChordsTextAlign,
@@ -59,7 +58,6 @@ const UGChordsReader = React.memo(({
   const contentRef = useRef<HTMLPreElement>(null);
 
   const transposedChordsText = useMemo(() => {
-    console.log("[UGChordsReader] Recalculating transposedChordsText. targetKey:", targetKey, "originalKey:", originalKey, "activeKeyPreference:", activeKeyPreference);
     if (!chordsText) return chordsText;
     const n = calculateSemitones(originalKey, targetKey);
     return transposeChords(chordsText, n, activeKeyPreference);
