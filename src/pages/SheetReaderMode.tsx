@@ -65,7 +65,7 @@ const SheetReaderMode: React.FC = () => {
   const [initialLoading, setInitialLoading] = useState(true);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [isBrowserFullScreen, setIsBrowserFullScreen] = useState(false);
-  const [isStudioPanelOpen, setIsStudioPanelOpen] = useState(false);
+  const [isStudioPanelOpen, setIsStudioPanel] = useState(false);
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isRepertoireSearchModalOpen, setIsRepertoireSearchModalOpen] = useState(false);
@@ -91,6 +91,7 @@ const SheetReaderMode: React.FC = () => {
   // Refs for PDF scrolling and swipe detection
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const swipeThreshold = 80; // Pixels for horizontal swipe to register
+  const navigatedRef = useRef(false); // NEW: Ref to prevent multiple navigations per swipe
 
   // Animation for horizontal drag
   const [{ x: springX }, api] = useSpring(() => ({ x: 0 }));
@@ -487,7 +488,7 @@ const SheetReaderMode: React.FC = () => {
 
   const onOpenCurrentSongStudio = useCallback(() => {
     if (currentSong) {
-      setIsStudioPanelOpen(true);
+      setIsStudioPanel(true);
     } else {
       showInfo("No song selected to open in Studio.");
     }
@@ -548,7 +549,15 @@ const SheetReaderMode: React.FC = () => {
 
   // --- Gesture Implementation ---
   const bind = useDrag(({ down, movement: [mx, my], direction: [dx], velocity: [vx], cancel, intentional, memo }) => {
-    // Update spring for visual feedback during drag
+    // Reset navigatedRef when a new drag starts (finger down)
+    if (down && !memo) { // memo is undefined on first call of a gesture
+      navigatedRef.current = false;
+    }
+    // Reset navigatedRef when the drag ends (finger up)
+    if (!down && navigatedRef.current) {
+      navigatedRef.current = false;
+    }
+
     api.start({ x: down ? mx : 0, immediate: down });
 
     // Only process swipe if intentional and primarily horizontal
@@ -557,10 +566,11 @@ const SheetReaderMode: React.FC = () => {
     }
 
     const isHorizontalSwipe = Math.abs(mx) > swipeThreshold;
-    const isFastSwipe = Math.abs(vx) > 0.3; // Adjusted velocity threshold as per user notes
+    const isFastSwipe = Math.abs(vx) > 0.3;
 
-    if (isHorizontalSwipe && isFastSwipe) { // Changed from OR to AND as per user notes
-      cancel(); // Stop the spring animation if a swipe is detected
+    if (isHorizontalSwipe && isFastSwipe && !navigatedRef.current) { // Add !navigatedRef.current
+      navigatedRef.current = true; // Mark as navigated for this gesture
+      cancel();
 
       if (dx < 0) { // Swiping left (next)
         if (selectedChartType === 'chords') {
@@ -583,7 +593,7 @@ const SheetReaderMode: React.FC = () => {
           }
         }
       }
-      api.start({ x: 0 }); // Reset spring after action
+      api.start({ x: 0 });
     }
   }, {
     threshold: 20,        // Initial movement before drag starts
@@ -661,7 +671,7 @@ const SheetReaderMode: React.FC = () => {
             {...bind()}  
             style={{ 
               x: springX, 
-              touchAction: 'pan-x pan-y pinch-zoom' // Updated touchAction as per user notes
+              touchAction: 'pan-x pan-y pinch-zoom'
             }} 
             className="h-full w-full relative"
           >
@@ -750,13 +760,13 @@ const SheetReaderMode: React.FC = () => {
           <div className="fixed right-0 top-0 h-full w-[480px] bg-slate-900 shadow-2xl z-50 flex flex-col">
             <div className="h-16 flex items-center justify-between px-6 border-b border-slate-800">
               <h2 className="text-xl font-bold">Song Studio</h2>
-              <Button variant="ghost" size="icon" onClick={() => setIsStudioPanelOpen(false)}><X className="w-5 h-5" /></Button>
+              <Button variant="ghost" size="icon" onClick={() => setIsStudioPanel(false)}><X className="w-5 h-5" /></Button>
             </div>
             <div className="flex-1 overflow-hidden">
               {currentSong && (
                 <SongStudioModal
                   isOpen={true}
-                  onClose={() => setIsStudioPanelOpen(false)}
+                  onClose={() => setIsStudioPanel(false)}
                   gigId="library"
                   songId={currentSong.id}
                   visibleSongs={allSongs}
