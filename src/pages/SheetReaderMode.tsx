@@ -47,7 +47,7 @@ const SheetReaderMode: React.FC = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [initialLoading, setInitialLoading] = useState(true);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
-  const [isImmersive, setIsImmersive] = useState(false);
+  const [isBrowserFullScreen, setIsBrowserFullScreen] = useState(false); // Renamed from isImmersive
   const [isStudioPanelOpen, setIsStudioPanelOpen] = useState(false);
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -518,6 +518,25 @@ const SheetReaderMode: React.FC = () => {
 
   const isChartLoading = renderedCharts.find(c => c.id === currentSong?.id && c.type === selectedChartType && !c.isLoaded);
 
+  // Browser Fullscreen API logic
+  const toggleBrowserFullScreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => {
+        showError(`Error attempting to enable fullscreen mode: ${err.message} (${err.name})`);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleFullScreenChange = () => {
+      setIsBrowserFullScreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullScreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullScreenChange);
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -552,8 +571,8 @@ const SheetReaderMode: React.FC = () => {
           isLoading={!currentSong}
           keyPreference={globalKeyPreference}
           onUpdateKey={handleUpdateKey}
-          isFullScreen={isImmersive}
-          onToggleFullScreen={() => setIsImmersive(!isImmersive)}
+          isFullScreen={isBrowserFullScreen} // Pass isBrowserFullScreen
+          onToggleFullScreen={toggleBrowserFullScreen} // Pass toggleBrowserFullScreen
           setIsOverlayOpen={setIsOverlayOpen}
           isOverrideActive={forceReaderResource !== 'default'}
           pitch={pitch}
@@ -579,7 +598,7 @@ const SheetReaderMode: React.FC = () => {
           audioEngine={audioEngine}
         />
 
-        <div className={cn("flex-1 bg-black relative", isImmersive ? "mt-0" : "mt-[112px]")}> {/* Adjusted mt-16 to mt-[112px] (header height) */}
+        <div className={cn("flex-1 bg-black relative", isBrowserFullScreen ? "mt-0" : "mt-[112px]")}> {/* Use isBrowserFullScreen for margin */}
           {renderedCharts.map(rc => (
             <motion.div key={`${rc.id}-${rc.type}`} className="absolute inset-0" animate={{ opacity: rc.opacity }} style={{ zIndex: rc.zIndex }}>
               {rc.content}
