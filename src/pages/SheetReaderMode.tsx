@@ -185,26 +185,6 @@ const SheetReaderMode: React.FC = () => {
     }
   }, [currentSong, user, isStageKeyLocked, setTargetKey, setPitch, setAudioPitch]);
 
-  const handleSaveReaderPreference = useCallback(async (pref: 'sharps' | 'flats') => {
-    if (!currentSong || !user) return;
-    
-    try {
-      const result = await syncToMasterRepertoire(user.id, [{
-        id: currentSong.id,
-        name: currentSong.name,
-        artist: currentSong.artist,
-        key_preference: pref
-      }]);
-      
-      if (result[0]) {
-        handleLocalSongUpdate(currentSong.id, result[0]);
-        showSuccess(`Preference saved: ${pref === 'sharps' ? 'Sharps' : 'Flats'}`);
-      }
-    } catch (err) {
-      showError("Failed to save preference.");
-    }
-  }, [currentSong, user, handleLocalSongUpdate]);
-
   useEffect(() => {
     setAudioPitch(effectivePitch);
   }, [effectivePitch, setAudioPitch]);
@@ -356,8 +336,8 @@ const SheetReaderMode: React.FC = () => {
             chords_updated_at: masterSong.chords_updated_at,
             ug_link_updated_at: masterSong.ug_link_updated_at,
             highest_note_updated_at: masterSong.highest_note_updated_at,
-            original_key_updated_at: masterSong.original_key_updated_at,
-            target_key_updated_at: masterSong.target_key_updated_at,
+            original_key_updated_at: masterData.original_key_updated_at,
+            target_key_updated_at: masterData.target_key_updated_at,
             isPlayed: junction.isPlayed || false,
           };
         }).filter(Boolean) as SetlistSong[];
@@ -556,7 +536,7 @@ const SheetReaderMode: React.FC = () => {
   // --- NEW: Touch/Swipe Logic for PDF Navigation ---
   
   const handleTouchStart = (e: React.TouchEvent) => {
-    console.log("[SheetReaderMode] Touch Start:", e.touches[0].clientX, e.touches[0].clientY);
+    console.log("[SheetReaderMode] Touch Start: X:", e.touches[0].clientX, "Y:", e.touches[0].clientY);
     // Only handle touch if we are in PDF mode
     if (selectedChartType !== 'pdf' && selectedChartType !== 'leadsheet' && selectedChartType !== 'chords') return;
     
@@ -567,7 +547,7 @@ const SheetReaderMode: React.FC = () => {
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    // console.log("[SheetReaderMode] Touch Move:", e.touches[0].clientX, e.touches[0].clientY);
+    console.log("[SheetReaderMode] Touch Move: X:", e.touches[0].clientX, "Y:", e.touches[0].clientY);
     if (selectedChartType !== 'pdf' && selectedChartType !== 'leadsheet' && selectedChartType !== 'chords') return;
     
     touchEndX.current = e.touches[0].clientX;
@@ -580,6 +560,7 @@ const SheetReaderMode: React.FC = () => {
 
     const deltaX = touchEndX.current - touchStartX.current;
     const deltaY = touchEndY.current - touchStartY.current;
+    console.log("[SheetReaderMode] Touch End: DeltaX:", deltaX, "DeltaY:", deltaY);
 
     const container = chartContainerRef.current;
     if (!container) return;
@@ -590,15 +571,19 @@ const SheetReaderMode: React.FC = () => {
         // Swipe Left (Next PDF Page)
         if (deltaX < 0) { // Swiping left
           setPdfCurrentPage(prev => {
-            console.log("[SheetReaderMode] Swiped left, next PDF page:", prev + 1);
-            return Math.min(prev + 1, 999); // Arbitrary max page
+            console.log("[SheetReaderMode] Swiped left, next PDF page: Current prev:", prev);
+            const newPage = Math.min(prev + 1, 999); // Arbitrary max page
+            console.log("[SheetReaderMode] Swiped left, next PDF page: New page:", newPage);
+            return newPage;
           });
         } 
         // Swipe Right (Prev PDF Page)
         else if (deltaX > 0) { // Swiping right
           setPdfCurrentPage(prev => {
-            console.log("[SheetReaderMode] Swiped right, previous PDF page:", prev - 1);
-            return Math.max(1, prev - 1);
+            console.log("[SheetReaderMode] Swiped right, previous PDF page: Current prev:", prev);
+            const newPage = Math.max(1, prev - 1);
+            console.log("[SheetReaderMode] Swiped right, previous PDF page: New page:", newPage);
+            return newPage;
           });
         }
       } else if (selectedChartType === 'chords') {
@@ -607,7 +592,7 @@ const SheetReaderMode: React.FC = () => {
           console.log("[SheetReaderMode] Swiped left on chords, next song.");
           handleNext();
         } 
-        else if (deltaX > 0) { // Swiping right
+        else if (deltaX > 0) { // Swiped right
           console.log("[SheetReaderMode] Swiped right on chords, previous song.");
           handlePrev();
         }
@@ -643,14 +628,18 @@ const SheetReaderMode: React.FC = () => {
     if (clickX < width * 0.3) {
       // Tap Left: Prev PDF Page
       setPdfCurrentPage(prev => {
-        console.log("[SheetReaderMode] Tapped left, previous PDF page:", prev - 1);
-        return Math.max(1, prev - 1);
+        console.log("[SheetReaderMode] Tapped left, previous PDF page: Current prev:", prev);
+        const newPage = Math.max(1, prev - 1);
+        console.log("[SheetReaderMode] Tapped left, previous PDF page: New page:", newPage);
+        return newPage;
       });
     } else if (clickX > width * 0.7) {
       // Tap Right: Next PDF Page
       setPdfCurrentPage(prev => {
-        console.log("[SheetReaderMode] Tapped right, next PDF page:", prev + 1);
-        return Math.min(prev + 1, 999); // Arbitrary max page
+        console.log("[SheetReaderMode] Tapped right, next PDF page: Current prev:", prev);
+        const newPage = Math.min(prev + 1, 999); // Arbitrary max page
+        console.log("[SheetReaderMode] Tapped right, next PDF page: New page:", newPage);
+        return newPage;
       });
     }
   };
@@ -714,8 +703,10 @@ const SheetReaderMode: React.FC = () => {
           e.preventDefault();
           if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
             setPdfCurrentPage(prev => {
-              console.log("[SheetReaderMode] Keyboard ArrowLeft, previous PDF page:", prev - 1);
-              return Math.max(1, prev - 1);
+              console.log("[SheetReaderMode] Keyboard ArrowLeft, previous PDF page: Current prev:", prev);
+              const newPage = Math.max(1, prev - 1);
+              console.log("[SheetReaderMode] Keyboard ArrowLeft, previous PDF page: New page:", newPage);
+              return newPage;
             });
           } else {
             handlePrev();
@@ -725,8 +716,10 @@ const SheetReaderMode: React.FC = () => {
           e.preventDefault();
           if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
             setPdfCurrentPage(prev => {
-              console.log("[SheetReaderMode] Keyboard ArrowRight, next PDF page:", prev + 1);
-              return Math.min(prev + 1, 999); // Arbitrary max page
+              console.log("[SheetReaderMode] Keyboard ArrowRight, next PDF page: Current prev:", prev);
+              const newPage = Math.min(prev + 1, 999); // Arbitrary max page
+              console.log("[SheetReaderMode] Keyboard ArrowRight, next PDF page: New page:", newPage);
+              return newPage;
             });
           } else {
             handleNext();
@@ -814,7 +807,7 @@ const SheetReaderMode: React.FC = () => {
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
               onClick={handleContainerClick}
-              style={{ touchAction: 'none' }} // Allow vertical pan, prevent horizontal default
+              style={{ touchAction: 'pan-y' }} // Allow vertical pan, prevent horizontal default
             />
           )}
 
