@@ -83,7 +83,7 @@ const SheetReaderMode: React.FC = () => {
   const currentSong = allSongs[currentIndex];
 
   // Refs for PDF scrolling and swipe detection
-  const pdfContainerRef = useRef<HTMLDivElement>(null);
+  const chartContainerRef = useRef<HTMLDivElement>(null); // Renamed from pdfContainerRef for clarity
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
   const touchEndX = useRef(0);
@@ -526,8 +526,8 @@ const SheetReaderMode: React.FC = () => {
       setCurrentIndex((prevIndex) => (prevIndex + 1) % allSongs.length);
       stopPlayback();
       // Reset PDF scroll position when changing songs
-      if (pdfContainerRef.current) {
-        pdfContainerRef.current.scrollLeft = 0;
+      if (chartContainerRef.current) {
+        chartContainerRef.current.scrollLeft = 0;
       }
     }
   }, [allSongs, stopPlayback]);
@@ -537,8 +537,8 @@ const SheetReaderMode: React.FC = () => {
       setCurrentIndex((prevIndex) => (prevIndex - 1 + allSongs.length) % allSongs.length);
       stopPlayback();
       // Reset PDF scroll position when changing songs
-      if (pdfContainerRef.current) {
-        pdfContainerRef.current.scrollLeft = 0;
+      if (chartContainerRef.current) {
+        chartContainerRef.current.scrollLeft = 0;
       }
     }
   }, [allSongs, stopPlayback]);
@@ -549,7 +549,7 @@ const SheetReaderMode: React.FC = () => {
   
   const handleTouchStart = (e: React.TouchEvent) => {
     // Only handle touch if we are in PDF mode
-    if (selectedChartType !== 'pdf' && selectedChartType !== 'leadsheet') return;
+    if (selectedChartType !== 'pdf' && selectedChartType !== 'leadsheet' && selectedChartType !== 'chords') return;
     
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
@@ -558,46 +558,36 @@ const SheetReaderMode: React.FC = () => {
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (selectedChartType !== 'pdf' && selectedChartType !== 'leadsheet') return;
+    if (selectedChartType !== 'pdf' && selectedChartType !== 'leadsheet' && selectedChartType !== 'chords') return;
     
     touchEndX.current = e.touches[0].clientX;
     touchEndY.current = e.touches[0].clientY;
   };
 
   const handleTouchEnd = () => {
-    if (selectedChartType !== 'pdf' && selectedChartType !== 'leadsheet') return;
+    if (selectedChartType !== 'pdf' && selectedChartType !== 'leadsheet' && selectedChartType !== 'chords') return;
 
     const deltaX = touchEndX.current - touchStartX.current;
     const deltaY = touchEndY.current - touchStartY.current;
 
-    const container = pdfContainerRef.current;
+    const container = chartContainerRef.current;
     if (!container) return;
 
     // Determine if it's a horizontal swipe (dominant direction)
     if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > swipeThreshold) {
-      const isAtStart = container.scrollLeft <= 1; // Small tolerance for floating point
-      const isAtEnd = container.scrollLeft >= container.scrollWidth - container.clientWidth - 1;
-
-      // Swipe Right (Next Song) - Only on Last Page
+      // Swipe Right (Next Song)
       if (deltaX < 0) { // Swiping left
-        if (isAtEnd) {
-          handleNext();
-        } else {
-          // Scroll PDF right
-          container.scrollBy({ left: container.clientWidth * 0.8, behavior: 'smooth' });
-        }
+        handleNext();
       } 
-      // Swipe Left (Prev Song) - Only on First Page
+      // Swipe Left (Prev Song)
       else if (deltaX > 0) { // Swiping right
-        if (isAtStart) {
-          handlePrev();
-        } else {
-          // Scroll PDF left
-          container.scrollBy({ left: -container.clientWidth * 0.8, behavior: 'smooth' });
-        }
+        handlePrev();
       }
     }
-    
+    // For vertical swipes or non-significant horizontal swipes, allow native scrolling.
+    // The `touchAction: 'pan-y'` on the container should handle vertical scrolling for chords.
+    // For iframes, the browser handles internal scrolling.
+
     // Reset touch values
     touchStartX.current = 0;
     touchStartY.current = 0;
@@ -609,7 +599,7 @@ const SheetReaderMode: React.FC = () => {
   const handleContainerClick = (e: React.MouseEvent) => {
     if (selectedChartType !== 'pdf' && selectedChartType !== 'leadsheet') return;
     
-    const container = pdfContainerRef.current;
+    const container = chartContainerRef.current;
     if (!container) return;
 
     const rect = container.getBoundingClientRect();
@@ -718,7 +708,6 @@ const SheetReaderMode: React.FC = () => {
       {/* Main Content */}
       <main className={cn("flex-1 flex flex-col overflow-hidden transition-all duration-300", 
         isSidebarOpen && !isBrowserFullScreen && "ml-[300px]")}
-        // Touch handlers for swipe detection - MOVED TO OVERLAY
       >
         <SheetReaderHeader
           currentSong={currentSong!}
@@ -760,19 +749,19 @@ const SheetReaderMode: React.FC = () => {
 
         {/* Chart Container */}
         <div
-          ref={pdfContainerRef}
+          ref={chartContainerRef}
           className={cn("flex-1 bg-black relative overflow-x-auto overflow-y-hidden snap-x snap-mandatory", isBrowserFullScreen ? "mt-0" : "mt-[112px]")}
           // onClick={handleContainerClick} // MOVED TO OVERLAY
         >
           {/* Transparent overlay to capture touch events over the iframe */}
-          {(selectedChartType === 'pdf' || selectedChartType === 'leadsheet') && (
+          {(selectedChartType === 'pdf' || selectedChartType === 'leadsheet' || selectedChartType === 'chords') && (
             <div 
               className="absolute inset-0 z-10" // Higher z-index than iframe
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
               onClick={handleContainerClick}
-              style={{ touchAction: 'pan-x' }} // Allow horizontal pan, prevent vertical default
+              style={{ touchAction: 'pan-y' }} // Allow vertical pan, prevent horizontal default
             />
           )}
 
