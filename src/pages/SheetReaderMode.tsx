@@ -25,17 +25,9 @@ import { extractKeyFromChords } from '@/utils/chordUtils';
 import RepertoireSearchModal from '@/components/RepertoireSearchModal';
 import FullScreenSongInfo from '@/components/FullScreenSongInfo';
 import { AnimatePresence } from 'framer-motion';
+import PdfViewer from '@/components/PdfViewer'; // NEW import
 
 export type ChartType = 'pdf' | 'leadsheet' | 'chords'; // Exporting ChartType
-
-interface RenderedChart {
-  id: string;
-  content: React.ReactNode;
-  isLoaded: boolean;
-  opacity: number;
-  zIndex: number;
-  type: ChartType;
-}
 
 const SheetReaderMode: React.FC = () => {
   const navigate = useNavigate();
@@ -72,7 +64,7 @@ const SheetReaderMode: React.FC = () => {
   );
   
   const [selectedChartType, setSelectedChartType] = useState<ChartType>('pdf');
-  const [renderedCharts, setRenderedCharts] = useState<RenderedChart[]>([]);
+  const [isChartContentLoading, setIsChartContentLoading] = useState(false); // NEW state for chart content loading
   const [pdfCurrentPage, setPdfCurrentPage] = useState(1); // NEW: State for current PDF page
 
   const audioEngine = useToneAudio(true);
@@ -403,104 +395,33 @@ const SheetReaderMode: React.FC = () => {
     return 'pdf';
   }, [forceReaderResource]);
 
+  const getChartUrlForType = useCallback((song: SetlistSong, type: ChartType): string | null => {
+    switch (type) {
+      case 'pdf': return song.pdfUrl;
+      case 'leadsheet': return song.leadsheetUrl;
+      case 'chords': return null; // Chords are handled by UGChordsReader, not an iframe URL
+      default: return null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (currentSong) {
+      const bestType = getBestChartType(currentSong);
+      if (selectedChartType !== bestType) { // Only update if different
+        setSelectedChartType(bestType);
+        setIsChartContentLoading(true); // Start loading when chart type changes
+      }
+    } else {
+      setSelectedChartType('pdf'); // Reset if no song
+      setIsChartContentLoading(false);
+    }
+  }, [currentSong, getBestChartType, selectedChartType]);
+
   const isFramable = useCallback((url: string | null | undefined) => {
     if (!url) return true;
     const blockedSites = ['ultimate-guitar.com', 'musicnotes.com', 'sheetmusicplus.com'];
     return !blockedSites.some(site => url.includes(site));
   }, []);
-
-  const renderChartForSong = useCallback((song: SetlistSong, chartType: ChartType) => {
-    const commonProps = {
-      onChartReady: () => setRenderedCharts(prev => prev.map(rc => rc.id === song.id && rc.type === chartType ? { ...rc, isLoaded: true } : rc)),
-    };
-
-    switch (chartType) {
-      case 'chords':
-        return (
-          <UGChordsReader
-            chordsText={song.ug_chords_text || ""}
-            config={song.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
-            isMobile={false}
-            originalKey={song.originalKey}
-            targetKey={effectiveTargetKey}
-            isPlaying={isPlaying}
-            progress={progress}
-            duration={duration}
-            readerKeyPreference={readerKeyPreference}
-            {...commonProps}
-          />
-        );
-      case 'pdf':
-      case 'leadsheet':
-        const url = chartType === 'pdf' ? song.pdfUrl : song.leadsheetUrl;
-        if (url && isFramable(url)) {
-          return (
-            <div className="w-full h-full">
-              <iframe
-                src={`${url}#toolbar=0&navpanes=0&view=Fit&page=${pdfCurrentPage}`}
-                className="w-full h-full bg-white block" 
-                title="Sheet Music"
-                onLoad={commonProps.onChartReady}
-                key={`${url}-${pdfCurrentPage}`}
-              />
-            </div>
-          );
-        } else if (url) {
-          return (
-            <div className="h-full w-full flex flex-col items-center justify-center p-6 md:p-12 text-center bg-slate-950">
-              <ShieldCheck className="w-12 h-12 md:w-16 md:h-16 text-indigo-400 mb-6 md:mb-10" />
-              <h4 className="text-3xl md:text-5xl font-black uppercase tracking-tight mb-4 md:mb-6 text-white">Asset Protected</h4>
-              <p className="text-slate-500 max-xl mb-8 md:mb-16 text-lg md:text-xl font-medium leading-relaxed">
-                External security prevents in-app display. Use the button below to launch in a secure dedicated performance window.
-              </p>
-              <Button onClick={() => window.open(url, '_blank')} className="bg-indigo-600 hover:bg-indigo-700 h-16 md:h-20 px-10 md:px-16 font-black uppercase tracking-[0.2em] text-xs md:text-sm rounded-2xl md:rounded-3xl shadow-2xl shadow-indigo-600/30 gap-4 md:gap-6">
-                <ExternalLink className="w-6 h-6 md:w-8 md:h-8" /> Launch Chart Window
-              </Button>
-            </div>
-          );
-        }
-        return (
-          <div className="h-full flex items-center justify-center text-slate-500 text-sm italic">
-            <p>No {chartType} available for this track.</p>
-          </div>
-        );
-      default:
-        return (
-          <div className="h-full flex items-center justify-center text-slate-500 text-sm italic">
-            <p>No chart selected or available.</p>
-          </div>
-        );
-    }
-  }, [effectiveTargetKey, isPlaying, progress, duration, readerKeyPreference, ugChordsFontFamily, ugChordsFontSize, ugChordsChordBold, ugChordsChordColor, ugChordsLineSpacing, ugChordsTextAlign, isFramable, pdfCurrentPage]); // NEW: Add pdfCurrentPage to dependencies
-
-  useEffect(() => {
-    if (currentSong) {
-      const bestType = getBestChartType(currentSong);
-      setSelectedChartType(bestType);
-    }
-  }, [currentSong, getBestChartType]);
-
-  useEffect(() => {
-    if (!currentSong) {
-      setRenderedCharts([]);
-      return;
-    }
-
-    setRenderedCharts(prev => {
-      const existing = prev.find(c => c.id === currentSong.id && c.type === selectedChartType);
-      if (existing) {
-        return prev.map(c => c.id === currentSong.id && c.type === selectedChartType ? { ...c, opacity: 1, zIndex: 10 } : { ...c, opacity: 0, zIndex: 0 });
-      }
-      return [{
-        id: currentSong.id,
-        content: renderChartForSong(currentSong, selectedChartType),
-        isLoaded: false,
-        opacity: 1,
-        zIndex: 10,
-        type: selectedChartType,
-      }];
-    });
-  }, [currentSong, selectedChartType, renderChartForSong]);
 
   const handleNext = useCallback(() => {
     if (allSongs.length > 0) {
@@ -525,8 +446,6 @@ const SheetReaderMode: React.FC = () => {
       console.log("[SheetReaderMode] Navigating to previous song.");
     }
   }, [allSongs, stopPlayback]);
-
-  const isChartLoading = renderedCharts.find(c => c.id === currentSong?.id && c.type === selectedChartType && !c.isLoaded);
 
   // --- NEW: Touch/Swipe Logic for PDF Navigation ---
   
@@ -801,39 +720,79 @@ const SheetReaderMode: React.FC = () => {
         {/* Chart Container */}
         <div
           ref={chartContainerRef}
-          className={cn("flex-1 bg-black relative overflow-hidden", isBrowserFullScreen ? "mt-0" : "mt-[112px]")} // Removed snap-x snap-mandatory
-          // onClick={handleContainerClick} // MOVED TO OVERLAY
+          className={cn("flex-1 bg-black relative overflow-hidden", isBrowserFullScreen ? "mt-0" : "mt-[112px]")}
         >
           {/* Transparent overlay to capture touch events over the iframe */}
           {(selectedChartType === 'pdf' || selectedChartType === 'leadsheet' || selectedChartType === 'chords') && (
             <div 
-              className="absolute inset-0 z-10" // Higher z-index than iframe
+              className="absolute inset-0 z-10"
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
               onClick={handleContainerClick}
-              style={{ touchAction: 'pan-y' }} // Allow vertical pan, prevent horizontal default
+              style={{ touchAction: 'pan-y' }}
             />
           )}
 
-          {renderedCharts.map(rc => {
-            // Only render the active chart for immediate appearance
-            if (rc.id !== currentSong?.id || rc.type !== selectedChartType) return null;
-            
-            // For PDF/Leadsheet, we wrap in a scrollable container if it's an iframe
-            if (rc.type === 'pdf' || rc.type === 'leadsheet') {
-              return (
-                <div key={`${rc.id}-${rc.type}`} className="w-full h-full"> {/* Removed min-w-full snap-center */}
-                   {rc.content} {/* rc.content is already the iframe wrapped in a div */}
-                </div>
-              );
-            }
-            
-            // For Chords (UG), it handles its own scrolling
-            return <div key={`${rc.id}-${rc.type}`} className="w-full h-full">{rc.content}</div>;
-          })}
+          {currentSong ? (
+            <>
+              {selectedChartType === 'chords' ? (
+                <UGChordsReader
+                  chordsText={currentSong.ug_chords_text || ""}
+                  config={currentSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
+                  isMobile={false}
+                  originalKey={currentSong.originalKey}
+                  targetKey={effectiveTargetKey}
+                  isPlaying={isPlaying}
+                  progress={progress}
+                  duration={duration}
+                  readerKeyPreference={readerKeyPreference}
+                  onChartReady={() => setIsChartContentLoading(false)} // Chart is ready
+                />
+              ) : (
+                (() => {
+                  const url = getChartUrlForType(currentSong, selectedChartType);
+                  if (url && isFramable(url)) {
+                    return (
+                      <div className="w-full h-full">
+                        <PdfViewer
+                          url={url}
+                          page={pdfCurrentPage}
+                          onLoad={() => setIsChartContentLoading(false)} // Iframe loaded
+                        />
+                      </div>
+                    );
+                  } else if (url) {
+                    // Protected asset view
+                    return (
+                      <div className="h-full w-full flex flex-col items-center justify-center p-6 md:p-12 text-center bg-slate-950">
+                        <ShieldCheck className="w-12 h-12 md:w-16 md:h-16 text-indigo-400 mb-6 md:mb-10" />
+                        <h4 className="text-3xl md:text-5xl font-black uppercase tracking-tight mb-4 md:mb-6 text-white">Asset Protected</h4>
+                        <p className="text-slate-500 max-xl mb-8 md:mb-16 text-lg md:text-xl font-medium leading-relaxed">
+                          External security prevents in-app display. Use the button below to launch in a secure dedicated performance window.
+                        </p>
+                        <Button onClick={() => window.open(url, '_blank')} className="bg-indigo-600 hover:bg-indigo-700 h-16 md:h-20 px-10 md:px-16 font-black uppercase tracking-[0.2em] text-xs md:text-sm rounded-2xl md:rounded-3xl shadow-2xl shadow-indigo-600/30 gap-4 md:gap-6">
+                          <ExternalLink className="w-6 h-6 md:w-8 md:h-8" /> Launch Chart Window
+                        </Button>
+                      </div>
+                    );
+                  }
+                  // No URL available for PDF/Leadsheet
+                  return (
+                    <div className="h-full flex items-center justify-center text-slate-500 text-sm italic">
+                      <p>No {selectedChartType} available for this track.</p>
+                    </div>
+                  );
+                })()
+              )}
+            </>
+          ) : (
+            <div className="h-full flex items-center justify-center text-slate-500 text-sm italic">
+              <p>No song selected or available.</p>
+            </div>
+          )}
           
-          {isChartLoading && <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 z-20"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>}
+          {isChartContentLoading && <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 z-20"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>}
         </div>
       </main>
 
