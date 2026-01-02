@@ -87,10 +87,10 @@ const SheetReaderMode: React.FC = () => {
 
   // Refs for PDF scrolling and swipe detection
   const chartContainerRef = useRef<HTMLDivElement>(null);
-  const swipeThreshold = 50; // Pixels for horizontal swipe to register
+  const swipeThreshold = 80; // Pixels for horizontal swipe to register
 
   // Animation for horizontal drag
-  const [{ x }, api] = useSpring(() => ({ x: 0 }));
+  const [{ x: springX }, api] = useSpring(() => ({ x: 0 }));
 
   // Sync state to current song's saved preference
   useEffect(() => {
@@ -204,7 +204,7 @@ const SheetReaderMode: React.FC = () => {
       let activeSetlistSongsList: SetlistSong[] = [];
 
       // Always fetch full master repertoire
-      const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user_id', user.id).order('title');
+      const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user.id', user.id).order('title');
       if (masterError) throw masterError;
       masterRepertoireList = (masterData || []).map((d: any) => ({
         id: d.id,
@@ -544,7 +544,15 @@ const SheetReaderMode: React.FC = () => {
   }, [currentSong, onOpenCurrentSongStudio, handlePrev, handleNext, selectedChartType, pdfNumPages]);
 
   // --- Gesture Implementation ---
-  const bind = useDrag(({ down, movement: [mx], direction: [dx], velocity: [vx], cancel }) => {
+  const bind = useDrag(({ down, movement: [mx, my], direction: [dx], velocity: [vx], cancel, intentional, memo }) => {
+    // Update spring for visual feedback during drag
+    api.start({ x: down ? mx : 0, immediate: down });
+
+    // Only process swipe if intentional and primarily horizontal
+    if (!intentional || Math.abs(mx) < Math.abs(my)) {
+      return;
+    }
+
     const isHorizontalSwipe = Math.abs(mx) > swipeThreshold;
     const isFastSwipe = Math.abs(vx) > 0.5;
 
@@ -572,19 +580,15 @@ const SheetReaderMode: React.FC = () => {
           }
         }
       }
+      api.start({ x: 0 }); // Reset spring after action
     }
-
-    api.start({ x: down ? mx : 0, immediate: down }); // Animate x movement
   }, {
-    axis: 'x',
-    filterTaps: true,
-    threshold: 10, // Small threshold for drag start
-    // Prevent vertical scrolling from interfering with horizontal drag on the animated container
-    // The content inside (UGChordsReader or PDF viewer) will handle its own vertical scrolling.
-    // This ensures horizontal drag is prioritized for song/page navigation.
-    // touchAction: 'pan-y' is on UGChordsReader, PDF viewer handles its own.
-    // The animated.div itself should probably have 'touch-action: none' to prevent browser default horizontal scroll.
-    // However, react-pdf's internal viewer might conflict. Let's try without explicit touchAction on animated.div first.
+    drag: {
+      threshold: 20,        // Initial movement before drag starts
+      filterTaps: true,     // Ignore quick taps
+      axis: 'x',            // Lock to horizontal
+      preventScroll: true,  // Critical: stops vertical scroll conflict
+    }
   });
 
   if (initialLoading) return <div className="h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
@@ -645,9 +649,20 @@ const SheetReaderMode: React.FC = () => {
         {/* Chart Container */}
         <div
           ref={chartContainerRef}
-          className={cn("flex-1 bg-black relative overflow-hidden", isBrowserFullScreen ? "mt-0" : "mt-[112px]")}
+          className={cn(
+            "flex-1 bg-black relative overflow-hidden", 
+            isBrowserFullScreen ? "mt-0" : "mt-[112px]",
+            "overscroll-behavior-x-contain" // Prevents browser back/forward navigation
+          )}
         >
-          <animated.div {...bind()} style={{ x }} className="h-full w-full relative">
+          <animated.div 
+            {...bind()} 
+            style={{ x: springX }} 
+            className="h-full w-full relative"
+            // Allows vertical scroll, blocks horizontal browser nav on the element itself
+            // react-pdf and UGChordsReader handle their own internal scrolling.
+            style={{ touchAction: 'pan-y pinch-zoom' }} 
+          >
             {currentSong ? (
               <>
                 {selectedChartType === 'chords' ? (
