@@ -50,6 +50,7 @@ const SheetReaderMode: React.FC = () => {
     ugChordsChordColor,
     ugChordsLineSpacing,
     ugChordsTextAlign,
+    preventStageKeyOverwrite, // NEW: Destructure preventStageKeyOverwrite
   } = useSettings();
   const { forceReaderResource } = useReaderSettings();
 
@@ -137,26 +138,33 @@ const SheetReaderMode: React.FC = () => {
     if (!currentSong || !user) return;
     const newPitch = calculateSemitones(currentSong.originalKey || 'C', newTargetKey);
     
-    try {
-      // Use the utility to ensure timestamps are updated
-      const result = await syncToMasterRepertoire(user.id, [{
-        id: currentSong.id,
-        name: currentSong.name,
-        artist: currentSong.artist,
-        targetKey: newTargetKey,
-        pitch: newPitch
-      }]);
-      
-      if (result[0]) {
-        handleLocalSongUpdate(currentSong.id, result[0]);
-        setTargetKey(newTargetKey);
-        setPitch(newPitch);
-        showSuccess(`Stage Key set to ${newTargetKey}`);
+    // Always update local state and audio engine
+    setTargetKey(newTargetKey);
+    setPitch(newPitch);
+
+    // Conditionally save to database based on the global preference
+    if (!preventStageKeyOverwrite) { // NEW: Check the preference here
+      try {
+        // Use the utility to ensure timestamps are updated
+        const result = await syncToMasterRepertoire(user.id, [{
+          id: currentSong.id,
+          name: currentSong.name,
+          artist: currentSong.artist,
+          targetKey: newTargetKey,
+          pitch: newPitch
+        }]);
+        
+        if (result[0]) {
+          handleLocalSongUpdate(currentSong.id, result[0]);
+          showSuccess(`Stage Key set to ${newTargetKey}`);
+        }
+      } catch (err) {
+        showError("Failed to update Stage Key.");
       }
-    } catch (err) {
-      showError("Failed to update Stage Key.");
+    } else {
+      showInfo("Stage Key changed locally (global preference prevents database overwrite)."); // NEW: Info toast
     }
-  }, [currentSong, user, handleLocalSongUpdate, setTargetKey, setPitch]);
+  }, [currentSong, user, handleLocalSongUpdate, setTargetKey, setPitch, preventStageKeyOverwrite]); // NEW: Add preventStageKeyOverwrite to dependencies
 
   const handlePullKey = useCallback(async () => {
     if (!currentSong || !currentSong.ug_chords_text || !user) {
@@ -728,6 +736,8 @@ const SheetReaderMode: React.FC = () => {
           song={currentSong}
           onExitFullScreen={toggleBrowserFullScreen}
           readerKeyPreference={readerKeyPreference}
+          onUpdateKey={handleUpdateKey} // NEW: Pass onUpdateKey
+          setIsOverlayOpen={setIsOverlayOpen} // NEW: Pass setIsOverlayOpen
         />
       )}
 
