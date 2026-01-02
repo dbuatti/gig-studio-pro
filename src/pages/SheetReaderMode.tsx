@@ -50,7 +50,8 @@ const SheetReaderMode: React.FC = () => {
     ugChordsChordColor,
     ugChordsLineSpacing,
     ugChordsTextAlign,
-    preventStageKeyOverwrite
+    preventStageKeyOverwrite,
+    setKeyPreference: setGlobalKeyPreference // NEW: Get the setter for global key preference
   } = useSettings();
   const { forceReaderResource } = useReaderSettings();
 
@@ -336,8 +337,8 @@ const SheetReaderMode: React.FC = () => {
             chords_updated_at: masterSong.chords_updated_at,
             ug_link_updated_at: masterSong.ug_link_updated_at,
             highest_note_updated_at: masterSong.highest_note_updated_at,
-            original_key_updated_at: masterData.original_key_updated_at,
-            target_key_updated_at: masterData.target_key_updated_at,
+            original_key_updated_at: masterSong.original_key_updated_at, // FIX: Changed from masterData
+            target_key_updated_at: masterSong.target_key_updated_at, // FIX: Changed from masterData
             isPlayed: junction.isPlayed || false,
           };
         }).filter(Boolean) as SetlistSong[];
@@ -692,6 +693,16 @@ const SheetReaderMode: React.FC = () => {
     stopPlayback();
     setIsRepertoireSearchModalOpen(false);
   }, [allSongs, navigate, stopPlayback]);
+
+  // FIX: Define handleSaveReaderPreference
+  const handleSaveReaderPreference = useCallback((pref: 'sharps' | 'flats') => {
+    setReaderKeyPreference(pref);
+    // Also save to global settings if it's not 'neutral'
+    if (globalKeyPreference !== 'neutral') { // Only save if global is not neutral, otherwise it's a temporary override
+      setGlobalKeyPreference(pref);
+    }
+    showSuccess(`Reader preference saved to ${pref === 'sharps' ? 'Sharps' : 'Flats'}`);
+  }, [setGlobalKeyPreference, globalKeyPreference]);
 
   // Keyboard shortcuts for navigation (Left/Right arrows)
   useEffect(() => {
