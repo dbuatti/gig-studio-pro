@@ -139,15 +139,15 @@ const SheetReaderMode: React.FC = () => {
   // NEW: Local state for temporary pitch and targetKey when stage key is locked
   const [tempPitch, setTempPitch] = useState(0);
   const [tempTargetKey, setTempTargetKey] = useState('C');
-  // NEW: Session-level cache for temporary overrides
-  const [sessionOverrides, setSessionOverrides] = useState<Record<string, { pitch: number; targetKey: string }>>({});
+  // NEW: Session-level cache for temporary overrides using useRef
+  const sessionOverridesRef = useRef<Record<string, { pitch: number; targetKey: string }>>({});
 
   const isStageKeyLocked = preventStageKeyOverwrite && currentSong?.isKeyConfirmed;
 
   // Initialize temporary state when currentSong changes, checking session overrides first
   useEffect(() => {
     if (currentSong) {
-      const override = sessionOverrides[currentSong.id];
+      const override = sessionOverridesRef.current[currentSong.id];
       if (override) {
         setTempPitch(override.pitch);
         setTempTargetKey(override.targetKey);
@@ -156,7 +156,7 @@ const SheetReaderMode: React.FC = () => {
         setTempTargetKey(currentSong.targetKey || currentSong.originalKey || 'C');
       }
     }
-  }, [currentSong, sessionOverrides]);
+  }, [currentSong]); // Removed sessionOverrides from dependencies, as ref doesn't trigger re-render
 
   // Determine effective pitch and targetKey for UI/transposition
   const effectivePitch = isStageKeyLocked ? tempPitch : pitch;
@@ -166,20 +166,20 @@ const SheetReaderMode: React.FC = () => {
   const setTempPitchWithOverride = useCallback((newPitch: number) => {
     setTempPitch(newPitch);
     if (currentSong) {
-      setSessionOverrides(prev => ({
-        ...prev,
-        [currentSong.id]: { ...prev[currentSong.id], pitch: newPitch, targetKey: tempTargetKey }
-      }));
+      sessionOverridesRef.current = { // Update ref directly
+        ...sessionOverridesRef.current,
+        [currentSong.id]: { ...sessionOverridesRef.current[currentSong.id], pitch: newPitch, targetKey: tempTargetKey }
+      };
     }
   }, [currentSong, tempTargetKey]);
 
   const setTempTargetKeyWithOverride = useCallback((newTargetKey: string) => {
     setTempTargetKey(newTargetKey);
     if (currentSong) {
-      setSessionOverrides(prev => ({
-        ...prev,
-        [currentSong.id]: { ...prev[currentSong.id], targetKey: newTargetKey, pitch: tempPitch }
-      }));
+      sessionOverridesRef.current = { // Update ref directly
+        ...sessionOverridesRef.current,
+        [currentSong.id]: { ...sessionOverridesRef.current[currentSong.id], targetKey: newTargetKey, pitch: tempPitch }
+      };
     }
   }, [currentSong, tempPitch]);
 
