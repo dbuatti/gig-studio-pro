@@ -452,8 +452,8 @@ const SheetReaderMode: React.FC = () => {
             // The overlay will sit on top to capture gestures
             <div className="w-full h-full min-w-full snap-center">
               <iframe
-                src={`${url}#toolbar=0&navpanes=0&view=FitH`}
-                className="w-full h-full bg-white block" // Added 'block'
+                src={`${url}#toolbar=0&navpanes=0&view=Fit`} 
+                className="w-full h-full bg-white block" 
                 title="Sheet Music"
                 onLoad={commonProps.onChartReady}
                 // pointer-events: none is crucial for the overlay to work
