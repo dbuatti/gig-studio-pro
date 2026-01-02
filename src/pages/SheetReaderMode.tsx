@@ -206,7 +206,7 @@ const SheetReaderMode: React.FC = () => {
       let activeSetlistSongsList: SetlistSong[] = [];
 
       // Always fetch full master repertoire
-      const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user.id', user.id).order('title');
+      const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user_id', user.id).order('title');
       if (masterError) throw masterError;
       masterRepertoireList = (masterData || []).map((d: any) => ({
         id: d.id,
@@ -585,12 +585,11 @@ const SheetReaderMode: React.FC = () => {
       api.start({ x: 0 }); // Reset spring after action
     }
   }, {
-    drag: {
-      threshold: 20,        // Initial movement before drag starts
-      filterTaps: true,     // Ignore quick taps
-      axis: 'x',            // Lock to horizontal
-      preventScroll: true,  // Critical: stops vertical scroll conflict
-    }
+    // FIX 1: Move drag properties directly into the config object
+    threshold: 20,        // Initial movement before drag starts
+    filterTaps: true,     // Ignore quick taps
+    axis: 'x',            // Lock to horizontal
+    preventScroll: true,  // Critical: stops vertical scroll conflict
   });
 
   if (initialLoading) return <div className="h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
@@ -658,12 +657,13 @@ const SheetReaderMode: React.FC = () => {
           )}
         >
           <animated.div 
-            {...bind()} 
-            style={{ x: springX }} 
+            // FIX 2 & 3: Spread bind directly and merge style attributes
+            {...bind()}  
+            style={{ 
+              x: springX, 
+              touchAction: 'pan-y pinch-zoom' 
+            }} 
             className="h-full w-full relative"
-            // Allows vertical scroll, blocks horizontal browser nav on the element itself
-            // react-pdf and UGChordsReader handle their own internal scrolling.
-            style={{ touchAction: 'pan-y pinch-zoom' }} 
           >
             {currentSong ? (
               <>
