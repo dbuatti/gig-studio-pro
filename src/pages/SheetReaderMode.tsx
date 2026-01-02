@@ -31,11 +31,8 @@ import 'react-pdf/dist/Page/TextLayer.css';
 import { useSpring, animated } from '@react-spring/web';
 import { useDrag } from '@use-gesture/react';
 
-// --- FIX START ---
 // Configure PDF.js worker source using a reliable URL
-// Using unpkg which has the correct file structure for pdfjs-dist
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@4.4.168/build/pdf.worker.min.js`;
-// --- FIX END ---
 
 export type ChartType = 'pdf' | 'leadsheet' | 'chords';
 
@@ -103,7 +100,7 @@ const SheetReaderMode: React.FC = () => {
     }
   }, [currentSong?.id, globalKeyPreference]);
 
-  // NEW: Reset PDF page when current song changes
+  // Reset PDF page when current song changes
   useEffect(() => {
     setPdfCurrentPage(1);
     setPdfNumPages(null); // Reset total pages too
@@ -556,9 +553,9 @@ const SheetReaderMode: React.FC = () => {
     }
 
     const isHorizontalSwipe = Math.abs(mx) > swipeThreshold;
-    const isFastSwipe = Math.abs(vx) > 0.5;
+    const isFastSwipe = Math.abs(vx) > 0.3; // Adjusted velocity threshold as per user notes
 
-    if (isHorizontalSwipe || isFastSwipe) {
+    if (isHorizontalSwipe && isFastSwipe) { // Changed from OR to AND as per user notes
       cancel(); // Stop the spring animation if a swipe is detected
 
       if (dx < 0) { // Swiping left (next)
@@ -585,11 +582,11 @@ const SheetReaderMode: React.FC = () => {
       api.start({ x: 0 }); // Reset spring after action
     }
   }, {
-    // FIX 1: Move drag properties directly into the config object
     threshold: 20,        // Initial movement before drag starts
     filterTaps: true,     // Ignore quick taps
     axis: 'x',            // Lock to horizontal
     preventScroll: true,  // Critical: stops vertical scroll conflict
+    bounds: { left: -100, right: 100 } // Added bounds as per user notes
   });
 
   if (initialLoading) return <div className="h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
@@ -653,15 +650,14 @@ const SheetReaderMode: React.FC = () => {
           className={cn(
             "flex-1 bg-black relative overflow-hidden", 
             isBrowserFullScreen ? "mt-0" : "mt-[112px]",
-            "overscroll-behavior-x-contain" // Prevents browser back/forward navigation
+            "overscroll-behavior-x-contain"
           )}
         >
           <animated.div 
-            // FIX 2 & 3: Spread bind directly and merge style attributes
             {...bind()}  
             style={{ 
               x: springX, 
-              touchAction: 'pan-y pinch-zoom' 
+              touchAction: 'pan-x pan-y pinch-zoom' // Updated touchAction as per user notes
             }} 
             className="h-full w-full relative"
           >
