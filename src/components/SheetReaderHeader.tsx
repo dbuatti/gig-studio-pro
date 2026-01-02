@@ -48,6 +48,7 @@ interface SheetReaderHeaderProps {
   onSavePreference: (pref: 'sharps' | 'flats') => void;
   audioEngine: AudioEngineControls;
   effectiveTargetKey: string; // NEW: Add effectiveTargetKey prop
+  onPullKey: () => void; // NEW: Add onPullKey prop
 }
 
 const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
@@ -85,6 +86,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   onSavePreference,
   audioEngine,
   effectiveTargetKey, // Destructure new prop
+  onPullKey, // Destructure new prop
 }) => {
   const displayKey = effectiveTargetKey ? formatKey(effectiveTargetKey, readerKeyPreference) : null; // Use effectiveTargetKey here
   const keysToUse = readerKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
@@ -239,7 +241,19 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
         
         {currentSong && (
           <div className="flex items-center gap-2">
-            {/* Removed Pull Key Button */}
+            {/* NEW: Pull Key Button */}
+            {(!currentSong.originalKey || currentSong.originalKey === 'TBC') && currentSong.ug_chords_text && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onPullKey}
+                disabled={isLoading}
+                className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
+                title="Pull Key from Chords"
+              >
+                <Sparkles className="w-5 h-5" />
+              </Button>
+            )}
 
             {/* NEW: Paper Icon Button for Current Song Studio */}
             <Button

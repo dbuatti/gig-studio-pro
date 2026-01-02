@@ -139,20 +139,49 @@ const SheetReaderMode: React.FC = () => {
   // NEW: Local state for temporary pitch and targetKey when stage key is locked
   const [tempPitch, setTempPitch] = useState(0);
   const [tempTargetKey, setTempTargetKey] = useState('C');
+  // NEW: Session-level cache for temporary overrides
+  const [sessionOverrides, setSessionOverrides] = useState<Record<string, { pitch: number; targetKey: string }>>({});
 
   const isStageKeyLocked = preventStageKeyOverwrite && currentSong?.isKeyConfirmed;
 
-  // Initialize temporary state when currentSong changes
+  // Initialize temporary state when currentSong changes, checking session overrides first
   useEffect(() => {
     if (currentSong) {
-      setTempPitch(currentSong.pitch ?? 0);
-      setTempTargetKey(currentSong.targetKey || currentSong.originalKey || 'C');
+      const override = sessionOverrides[currentSong.id];
+      if (override) {
+        setTempPitch(override.pitch);
+        setTempTargetKey(override.targetKey);
+      } else {
+        setTempPitch(currentSong.pitch ?? 0);
+        setTempTargetKey(currentSong.targetKey || currentSong.originalKey || 'C');
+      }
     }
-  }, [currentSong]);
+  }, [currentSong, sessionOverrides]);
 
   // Determine effective pitch and targetKey for UI/transposition
   const effectivePitch = isStageKeyLocked ? tempPitch : pitch;
   const effectiveTargetKey = isStageKeyLocked ? tempTargetKey : harmonicTargetKey;
+
+  // NEW: Setters that update sessionOverrides when isStageKeyLocked is true
+  const setTempPitchWithOverride = useCallback((newPitch: number) => {
+    setTempPitch(newPitch);
+    if (currentSong) {
+      setSessionOverrides(prev => ({
+        ...prev,
+        [currentSong.id]: { ...prev[currentSong.id], pitch: newPitch, targetKey: tempTargetKey }
+      }));
+    }
+  }, [currentSong, tempTargetKey]);
+
+  const setTempTargetKeyWithOverride = useCallback((newTargetKey: string) => {
+    setTempTargetKey(newTargetKey);
+    if (currentSong) {
+      setSessionOverrides(prev => ({
+        ...prev,
+        [currentSong.id]: { ...prev[currentSong.id], targetKey: newTargetKey, pitch: tempPitch }
+      }));
+    }
+  }, [currentSong, tempPitch]);
 
   const handleUpdateKey = useCallback(async (newTargetKey: string) => {
     if (!currentSong || !user) return;
@@ -160,9 +189,8 @@ const SheetReaderMode: React.FC = () => {
     const newPitch = calculateSemitones(currentSong.originalKey || 'C', newTargetKey);
 
     if (isStageKeyLocked) {
-      // Temporary change only
-      setTempTargetKey(newTargetKey);
-      setTempPitch(newPitch);
+      setTempTargetKeyWithOverride(newTargetKey); // Use new setter
+      setTempPitchWithOverride(newPitch); // Use new setter
       setAudioPitch(newPitch); // Update audio engine immediately
       showInfo(`Stage Key temporarily set to ${newTargetKey}`);
     } else {
@@ -171,7 +199,7 @@ const SheetReaderMode: React.FC = () => {
       setPitch(newPitch); // This calls harmonicSync's setPitch, which saves to DB
       showSuccess(`Stage Key set to ${newTargetKey}`);
     }
-  }, [currentSong, user, isStageKeyLocked, setTargetKey, setPitch, setAudioPitch]);
+  }, [currentSong, user, isStageKeyLocked, setTargetKey, setPitch, setTempTargetKeyWithOverride, setTempPitchWithOverride, setAudioPitch]);
 
   const handlePullKey = useCallback(async () => {
     if (!currentSong || !currentSong.ug_chords_text || !user) {
@@ -185,8 +213,8 @@ const SheetReaderMode: React.FC = () => {
     }
     
     if (isStageKeyLocked) {
-      setTempTargetKey(extractedKey);
-      setTempPitch(0);
+      setTempTargetKeyWithOverride(extractedKey);
+      setTempPitchWithOverride(0);
       setAudioPitch(0);
       showInfo(`Key temporarily set to ${extractedKey}`);
     } else {
@@ -212,7 +240,7 @@ const SheetReaderMode: React.FC = () => {
         showError("Failed to pull key.");
       }
     }
-  }, [currentSong, user, isStageKeyLocked, handleLocalSongUpdate, setTargetKey, setPitch, setAudioPitch]);
+  }, [currentSong, user, isStageKeyLocked, handleLocalSongUpdate, setTargetKey, setPitch, setTempTargetKeyWithOverride, setTempPitchWithOverride, setAudioPitch]);
 
   const handleSaveReaderPreference = useCallback(async (pref: 'sharps' | 'flats') => {
     if (!currentSong || !user) return;
@@ -709,7 +737,7 @@ const SheetReaderMode: React.FC = () => {
           setIsOverlayOpen={setIsOverlayOpen}
           isOverrideActive={forceReaderResource !== 'default'}
           pitch={effectivePitch} // Use effectivePitch here
-          setPitch={setTempPitch} // Allow temporary pitch changes
+          setPitch={setTempPitchWithOverride} // Allow temporary pitch changes
           isPlaying={isPlaying}
           isLoadingAudio={isLoadingAudio}
           onTogglePlayback={audioEngine.togglePlayback}
@@ -729,6 +757,7 @@ const SheetReaderMode: React.FC = () => {
           onSavePreference={handleSaveReaderPreference}
           audioEngine={audioEngine}
           effectiveTargetKey={effectiveTargetKey} // NEW: Pass effectiveTargetKey
+          onPullKey={handlePullKey} // Pass the pull key handler
         />
 
         <div
