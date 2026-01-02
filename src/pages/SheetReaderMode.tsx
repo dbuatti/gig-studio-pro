@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
-import { SetlistSong, UGChordsConfig } from '@/components/SetlistManager'; // Import UGChordsConfig
+import { SetlistSong, UGChordsConfig } from '@/components/SetlistManager';
 import { Button } from '@/components/ui/button';
 import { Music, Loader2, AlertCircle, X, ExternalLink, ShieldCheck, FileText, Layout, Guitar, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -24,6 +24,7 @@ import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
 import { motion, AnimatePresence } from 'framer-motion';
 import { extractKeyFromChords } from '@/utils/chordUtils';
 import RepertoireSearchModal from '@/components/RepertoireSearchModal';
+import FullScreenSongInfo from '@/components/FullScreenSongInfo'; // NEW: Import FullScreenSongInfo
 
 type ChartType = 'pdf' | 'leadsheet' | 'chords';
 
@@ -49,7 +50,7 @@ const SheetReaderMode: React.FC = () => {
     ugChordsChordColor,
     ugChordsLineSpacing,
     ugChordsTextAlign,
-  } = useSettings(); // Destructure global UG Chords settings
+  } = useSettings();
   const { forceReaderResource } = useReaderSettings();
 
   const [allSongs, setAllSongs] = useState<SetlistSong[]>([]);
@@ -497,7 +498,7 @@ const SheetReaderMode: React.FC = () => {
         <UGChordsReader
           key={`${song.id}-chords-${harmonicTargetKey}`}
           chordsText={song.ug_chords_text}
-          config={resolvedUgChordsConfig} // Pass the resolved config
+          config={resolvedUgChordsConfig}
           isMobile={false}
           originalKey={song.originalKey}
           targetKey={harmonicTargetKey}
@@ -515,7 +516,7 @@ const SheetReaderMode: React.FC = () => {
       // If no PDF/Leadsheet URL, and chords are available, switch to chords view
       if (song.ug_chords_text?.trim()) {
         setTimeout(() => setSelectedChartType('chords'), 0);
-        return null; // Return null for now, the effect will re-render with chords
+        return null;
       }
       return (
         <div className="h-full flex flex-col items-center justify-center bg-slate-950">
@@ -571,9 +572,6 @@ const SheetReaderMode: React.FC = () => {
 
   // Browser Fullscreen API logic
   const toggleBrowserFullScreen = useCallback(() => {
-    // This function uses the standard Fullscreen API, which is generally well-supported
-    // across modern browsers on various devices, including mobile and tablets.
-    // The button triggering this is designed to be touch-friendly.
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(err => {
         showError(`Error attempting to enable fullscreen mode: ${err.message} (${err.name})`);
@@ -604,8 +602,6 @@ const SheetReaderMode: React.FC = () => {
     if (idx !== -1) {
       setCurrentIndex(idx);
     } else {
-      // If the selected song isn't in the current 'allSongs' list (e.g., due to filters),
-      // we need to re-fetch or add it. For simplicity, let's just navigate to it.
       navigate(`/sheet-reader/${song.id}`);
     }
     stopPlayback();
@@ -641,7 +637,7 @@ const SheetReaderMode: React.FC = () => {
   // Swipe gesture handlers
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
-    touchEndX.current = e.touches[0].clientX; // Initialize touchEndX as well
+    touchEndX.current = e.touches[0].clientX;
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
@@ -649,18 +645,15 @@ const SheetReaderMode: React.FC = () => {
   };
 
   const handleTouchEnd = () => {
-    if (!isBrowserFullScreen) return; // Only allow swipe navigation in full screen
+    if (!isBrowserFullScreen) return;
 
     const deltaX = touchEndX.current - touchStartX.current;
 
     if (deltaX > swipeThreshold) {
-      // Swiped right (previous song)
       handlePrev();
     } else if (deltaX < -swipeThreshold) {
-      // Swiped left (next song)
       handleNext();
     }
-    // Reset touch positions
     touchStartX.current = 0;
     touchEndX.current = 0;
   };
@@ -674,7 +667,7 @@ const SheetReaderMode: React.FC = () => {
         animate={{ x: isSidebarOpen && !isBrowserFullScreen ? 0 : -300 }}
         className="fixed left-0 top-0 h-full w-[300px] z-50"
       >
-        <SheetReaderSidebar songs={allSongs} currentIndex={currentIndex} onSelectSong={(idx) => { setCurrentIndex(idx); stopPlayback(); }} />
+        <SheetReaderSidebar songs={allSongs} currentIndex={currentIndex} onSelectSong={(idx) => { setCurrentIndex(idx); stopPlayback(); }} isFullScreen={isBrowserFullScreen} />
       </motion.div>
 
       <main className={cn("flex-1 flex flex-col overflow-hidden transition-all duration-300", isSidebarOpen && !isBrowserFullScreen && "ml-[300px]")}>
@@ -707,18 +700,19 @@ const SheetReaderMode: React.FC = () => {
           tempo={tempo}
           readerKeyPreference={readerKeyPreference}
           setReaderKeyPreference={setReaderKeyPreference}
-          isSidebarOpen={isSidebarOpen && !isBrowserFullScreen} // Hide sidebar button in full screen
+          isSidebarOpen={isSidebarOpen && !isBrowserFullScreen}
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-          headerLeftOffset={isSidebarOpen && !isBrowserFullScreen ? 300 : 0} // Adjust offset
+          headerLeftOffset={isSidebarOpen && !isBrowserFullScreen ? 300 : 0}
           onSavePreference={handleSaveReaderPreference}
           audioEngine={audioEngine}
         />
 
         <div
-          className={cn("flex-1 bg-black relative", isBrowserFullScreen ? "mt-0" : "mt-[112px]")}
+          className={cn("flex-1 bg-black relative overflow-y-auto", isBrowserFullScreen ? "mt-0" : "mt-[112px]")}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
+          style={{ overscrollBehaviorY: 'contain' }} // Prevent pull-to-refresh
         >
           {renderedCharts.map(rc => (
             <motion.div key={`${rc.id}-${rc.type}`} className="absolute inset-0" animate={{ opacity: rc.opacity }} style={{ zIndex: rc.zIndex }}>
@@ -728,6 +722,14 @@ const SheetReaderMode: React.FC = () => {
           {isChartLoading && <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 z-20"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>}
         </div>
       </main>
+
+      {isBrowserFullScreen && currentSong && (
+        <FullScreenSongInfo
+          song={currentSong}
+          onExitFullScreen={toggleBrowserFullScreen}
+          readerKeyPreference={readerKeyPreference}
+        />
+      )}
 
       <AnimatePresence>
         {isStudioPanelOpen && (
