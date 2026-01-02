@@ -25,14 +25,17 @@ import { extractKeyFromChords } from '@/utils/chordUtils';
 import RepertoireSearchModal from '@/components/RepertoireSearchModal';
 import FullScreenSongInfo from '@/components/FullScreenSongInfo';
 import { AnimatePresence } from 'framer-motion';
-import { Document, Page, pdfjs } from 'react-pdf'; // NEW import for react-pdf
-import 'react-pdf/dist/Page/AnnotationLayer.css'; // Import default styles for annotations
-import 'react-pdf/dist/Page/TextLayer.css'; // Import default styles for text layer
+import { Document, Page, pdfjs } from 'react-pdf';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
 
-// Configure PDF.js worker source - FIXED URL to match react-pdf v5.4.296
-pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@4.4.168/build/pdf.worker.min.js`;
+import { useSpring, animated } from '@react-spring/web';
+import { useDrag } from '@use-gesture/react';
 
-export type ChartType = 'pdf' | 'leadsheet' | 'chords'; // Exporting ChartType
+// Configure PDF.js worker source - UPDATED URL
+pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
+
+export type ChartType = 'pdf' | 'leadsheet' | 'chords';
 
 const SheetReaderMode: React.FC = () => {
   const navigate = useNavigate();
@@ -71,7 +74,7 @@ const SheetReaderMode: React.FC = () => {
   const [selectedChartType, setSelectedChartType] = useState<ChartType>('pdf');
   const [isChartContentLoading, setIsChartContentLoading] = useState(false);
   const [pdfCurrentPage, setPdfCurrentPage] = useState(1);
-  const [pdfNumPages, setPdfNumPages] = useState<number | null>(null); // NEW: State for total PDF pages
+  const [pdfNumPages, setPdfNumPages] = useState<number | null>(null);
 
   const audioEngine = useToneAudio(true);
   const {
@@ -84,11 +87,10 @@ const SheetReaderMode: React.FC = () => {
 
   // Refs for PDF scrolling and swipe detection
   const chartContainerRef = useRef<HTMLDivElement>(null);
-  const touchStartX = useRef(0);
-  const touchStartY = useRef(0);
-  const touchEndX = useRef(0);
-  const touchEndY = useRef(0);
-  const swipeThreshold = 50;
+  const swipeThreshold = 50; // Pixels for horizontal swipe to register
+
+  // Animation for horizontal drag
+  const [{ x }, api] = useSpring(() => ({ x: 0 }));
 
   // Sync state to current song's saved preference
   useEffect(() => {
@@ -452,71 +454,6 @@ const SheetReaderMode: React.FC = () => {
     }
   }, [allSongs, stopPlayback]);
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (selectedChartType !== 'pdf' && selectedChartType !== 'leadsheet' && selectedChartType !== 'chords') return;
-    
-    touchStartX.current = e.touches[0].clientX;
-    touchStartY.current = e.touches[0].clientY;
-    touchEndX.current = e.touches[0].clientX;
-    touchEndY.current = e.touches[0].clientY;
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (selectedChartType !== 'pdf' && selectedChartType !== 'leadsheet' && selectedChartType !== 'chords') return;
-    
-    touchEndX.current = e.touches[0].clientX;
-    touchEndY.current = e.touches[0].clientY;
-  };
-
-  const handleTouchEnd = () => {
-    if (selectedChartType !== 'pdf' && selectedChartType !== 'leadsheet' && selectedChartType !== 'chords') return;
-
-    const deltaX = touchEndX.current - touchStartX.current;
-    const deltaY = touchEndY.current - touchStartY.current;
-
-    const container = chartContainerRef.current;
-    if (!container) return;
-
-    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > swipeThreshold) {
-      if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
-        if (deltaX < 0) { // Swiping left
-          setPdfCurrentPage(prev => Math.min(prev + 1, pdfNumPages || 999));
-        } 
-        else if (deltaX > 0) { // Swiping right
-          setPdfCurrentPage(prev => Math.max(1, prev - 1));
-        }
-      } else if (selectedChartType === 'chords') {
-        if (deltaX < 0) {
-          handleNext();
-        } 
-        else if (deltaX > 0) {
-          handlePrev();
-        }
-      }
-    }
-    touchStartX.current = 0;
-    touchStartY.current = 0;
-    touchEndX.current = 0;
-    touchEndY.current = 0;
-  };
-
-  const handleContainerClick = (e: React.MouseEvent) => {
-    if (selectedChartType !== 'pdf' && selectedChartType !== 'leadsheet') return;
-    
-    const container = chartContainerRef.current;
-    if (!container) return;
-
-    const rect = container.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const width = rect.width;
-    
-    if (clickX < width * 0.3) {
-      setPdfCurrentPage(prev => Math.max(1, prev - 1));
-    } else if (clickX > width * 0.7) {
-      setPdfCurrentPage(prev => Math.min(prev + 1, pdfNumPages || 999));
-    }
-  };
-
   const toggleBrowserFullScreen = useCallback(() => {
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
     
@@ -606,6 +543,50 @@ const SheetReaderMode: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentSong, onOpenCurrentSongStudio, handlePrev, handleNext, selectedChartType, pdfNumPages]);
 
+  // --- Gesture Implementation ---
+  const bind = useDrag(({ down, movement: [mx], direction: [dx], velocity: [vx], cancel }) => {
+    const isHorizontalSwipe = Math.abs(mx) > swipeThreshold;
+    const isFastSwipe = Math.abs(vx) > 0.5;
+
+    if (isHorizontalSwipe || isFastSwipe) {
+      cancel(); // Stop the spring animation if a swipe is detected
+
+      if (dx < 0) { // Swiping left (next)
+        if (selectedChartType === 'chords') {
+          handleNext();
+        } else if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
+          if (pdfCurrentPage < (pdfNumPages || 1)) {
+            setPdfCurrentPage(prev => prev + 1);
+          } else {
+            handleNext(); // Last PDF page, go to next song
+          }
+        }
+      } else { // Swiping right (previous)
+        if (selectedChartType === 'chords') {
+          handlePrev();
+        } else if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
+          if (pdfCurrentPage > 1) {
+            setPdfCurrentPage(prev => prev - 1);
+          } else {
+            handlePrev(); // First PDF page, go to previous song
+          }
+        }
+      }
+    }
+
+    api.start({ x: down ? mx : 0, immediate: down }); // Animate x movement
+  }, {
+    axis: 'x',
+    filterTaps: true,
+    threshold: 10, // Small threshold for drag start
+    // Prevent vertical scrolling from interfering with horizontal drag on the animated container
+    // The content inside (UGChordsReader or PDF viewer) will handle its own vertical scrolling.
+    // This ensures horizontal drag is prioritized for song/page navigation.
+    // touchAction: 'pan-y' is on UGChordsReader, PDF viewer handles its own.
+    // The animated.div itself should probably have 'touch-action: none' to prevent browser default horizontal scroll.
+    // However, react-pdf's internal viewer might conflict. Let's try without explicit touchAction on animated.div first.
+  });
+
   if (initialLoading) return <div className="h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
 
   return (
@@ -666,83 +647,71 @@ const SheetReaderMode: React.FC = () => {
           ref={chartContainerRef}
           className={cn("flex-1 bg-black relative overflow-hidden", isBrowserFullScreen ? "mt-0" : "mt-[112px]")}
         >
-          {/* Transparent overlay to capture touch events over the iframe */}
-          {(selectedChartType === 'pdf' || selectedChartType === 'leadsheet') && ( // MODIFIED: Removed 'chords' from condition
-            <div 
-              className="absolute inset-0 z-10"
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
-              onClick={handleContainerClick}
-              style={{ touchAction: 'pan-y' }}
-            />
-          )}
-
-          {currentSong ? (
-            <>
-              {selectedChartType === 'chords' ? (
-                <UGChordsReader
-                  chordsText={currentSong.ug_chords_text || ""}
-                  config={currentSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
-                  isMobile={false}
-                  originalKey={currentSong.originalKey}
-                  targetKey={effectiveTargetKey}
-                  isPlaying={isPlaying}
-                  progress={progress}
-                  duration={duration}
-                  readerKeyPreference={readerKeyPreference}
-                  onChartReady={() => setIsChartContentLoading(false)}
-                />
-              ) : (
-                (() => {
-                  const url = getChartUrlForType(currentSong, selectedChartType);
-                  if (url) {
-                    return (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Document
-                          file={url}
-                          onLoadSuccess={({ numPages }) => {
-                            setPdfNumPages(numPages);
-                            setIsChartContentLoading(false);
-                          }}
-                          onLoadError={(error) => {
-                            console.error("Error loading PDF:", error);
-                            showError("Failed to load PDF document.");
-                            setIsChartContentLoading(false);
-                          }}
-                          loading={<Loader2 className="w-12 h-12 animate-spin text-indigo-500" />}
-                          className="w-full h-full flex items-center justify-center"
-                        >
-                          <Page
-                            pageNumber={pdfCurrentPage}
-                            width={chartContainerRef.current?.offsetWidth || undefined}
-                            height={chartContainerRef.current?.offsetHeight || undefined}
-                            renderAnnotationLayer={true}
-                            renderTextLayer={true}
-                            loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
-                            onRenderSuccess={() => {
-                              // This is called when the page is rendered, not just loaded.
-                              // We can use this to ensure the content is fully visible.
+          <animated.div {...bind()} style={{ x }} className="h-full w-full relative">
+            {currentSong ? (
+              <>
+                {selectedChartType === 'chords' ? (
+                  <UGChordsReader
+                    chordsText={currentSong.ug_chords_text || ""}
+                    config={currentSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
+                    isMobile={false}
+                    originalKey={currentSong.originalKey}
+                    targetKey={effectiveTargetKey}
+                    isPlaying={isPlaying}
+                    progress={progress}
+                    duration={duration}
+                    readerKeyPreference={readerKeyPreference}
+                    onChartReady={() => setIsChartContentLoading(false)}
+                  />
+                ) : (
+                  (() => {
+                    const url = getChartUrlForType(currentSong, selectedChartType);
+                    if (url) {
+                      return (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Document
+                            file={url}
+                            onLoadSuccess={({ numPages }) => {
+                              setPdfNumPages(numPages);
                               setIsChartContentLoading(false);
                             }}
-                          />
-                        </Document>
+                            onLoadError={(error) => {
+                              console.error("Error loading PDF:", error);
+                              showError("Failed to load PDF document.");
+                              setIsChartContentLoading(false);
+                            }}
+                            loading={<Loader2 className="w-12 h-12 animate-spin text-indigo-500" />}
+                            className="w-full h-full flex items-center justify-center"
+                          >
+                            <Page
+                              pageNumber={pdfCurrentPage}
+                              width={chartContainerRef.current?.offsetWidth || undefined}
+                              height={chartContainerRef.current?.offsetHeight || undefined}
+                              renderAnnotationLayer={true}
+                              renderTextLayer={true}
+                              loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
+                              onRenderSuccess={() => {
+                                setIsChartContentLoading(false);
+                              }}
+                            />
+                          </Document>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="h-full flex items-center justify-center text-slate-500 text-sm italic">
+                        <p>No {selectedChartType} available for this track.</p>
                       </div>
                     );
-                  }
-                  return (
-                    <div className="h-full flex items-center justify-center text-slate-500 text-sm italic">
-                      <p>No {selectedChartType} available for this track.</p>
-                    </div>
-                  );
-                })()
-              )}
-            </>
-          ) : (
-            <div className="h-full flex items-center justify-center text-slate-500 text-sm italic">
-              <p>No song selected or available.</p>
-            </div>
-          )}
+                  })()
+                )}
+              </>
+            ) : (
+              <div className="h-full flex items-center justify-center text-slate-500 text-sm italic">
+                <p>No song selected or available.</p>
+              </div>
+            )}
+          </animated.div>
           
           {isChartContentLoading && <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 z-20"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>}
         </div>
