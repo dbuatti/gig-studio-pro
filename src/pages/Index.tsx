@@ -141,6 +141,10 @@ const Index = () => {
     allSetlists.find(list => list.id === activeSetlistId),
   [allSetlists, activeSetlistId]);
 
+  const isFilterActive = useMemo(() => {
+    return JSON.stringify(activeFilters) !== JSON.stringify(DEFAULT_FILTERS) || searchTerm.trim().length > 0;
+  }, [activeFilters, searchTerm]);
+
   const filteredAndSortedSongs = useMemo(() => {
     if (!activeSetlist) return [];
     let songs = [...activeSetlist.songs];
@@ -776,11 +780,53 @@ const Index = () => {
               </div>
             </div>
 
+            {isFilterActive && (
+              <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-400" />
+                  <p className="text-sm font-bold text-amber-400 uppercase tracking-tight">
+                    Filters Active: Showing a subset of {activeSetlist?.songs.length || 0} tracks.
+                  </p>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => { setSearchTerm(""); setActiveFilters(DEFAULT_FILTERS); }}
+                  className="text-amber-400 hover:bg-amber-500/20 text-[10px] font-black uppercase"
+                >
+                  Clear All Filters
+                </Button>
+              </div>
+            )}
+
             <SetlistStats songs={activeSetlist?.songs || []} goalSeconds={activeSetlist?.time_goal} onUpdateGoal={async (newGoal) => { if (!userId || !activeSetlist) return; try { await supabase.from('setlists').update({ time_goal: newGoal }).eq('id', activeSetlist.id).eq('user_id', userId); setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, time_goal: newGoal } : s)); showSuccess("Goal updated!"); } catch (err: any) { showError(`Failed: ${err.message}`); } }} />
             <SetlistManager songs={filteredAndSortedSongs} onRemove={handleRemoveSongFromSetlist} onSelect={handleSelectSongForPlayback} onEdit={handleEditSong} onUpdateKey={handleUpdateSongKey} onTogglePlayed={handleTogglePlayed} onLinkAudio={() => {}} onUpdateSong={handleUpdateSongInSetlist} onSyncProData={async (song) => { if (!userId) return; try { const synced = await syncToMasterRepertoire(userId, [song]); setMasterRepertoire(prev => prev.map(s => s.id === synced[0].id ? synced[0] : s)); await fetchSetlistsAndRepertoire(); showSuccess("Synced!"); } catch (err: any) { showError(`Failed: ${err.message}`); } }} onReorder={handleReorderSongs} currentSongId={activeSongForPerformance?.id} sortMode={sortMode} setSortMode={setSortMode} activeFilters={activeFilters} setActiveFilters={setActiveFilters} searchTerm={searchTerm} setSearchTerm={setSearchTerm} showHeatmap={showHeatmap} allSetlists={allSetlists} onUpdateSetlistSongs={handleUpdateSetlistSongs} />
           </TabsContent>
 
           <TabsContent value="repertoire" className="mt-0 space-y-8">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              {/* RepertoireView handles its own header/search/filter display now, but we need the filter warning here */}
+            </div>
+            
+            {isFilterActive && (
+              <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-400" />
+                  <p className="text-sm font-bold text-amber-400 uppercase tracking-tight">
+                    Filters Active: Showing a subset of {masterRepertoire.length} tracks.
+                  </p>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => { setSearchTerm(""); setActiveFilters(DEFAULT_FILTERS); }}
+                  className="text-amber-400 hover:bg-amber-500/20 text-[10px] font-black uppercase"
+                >
+                  Clear All Filters
+                </Button>
+              </div>
+            )}
+
             <RepertoireView 
               repertoire={masterRepertoire} 
               onEditSong={handleEditSong} 
