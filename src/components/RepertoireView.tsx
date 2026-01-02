@@ -31,8 +31,8 @@ interface RepertoireViewProps {
   onAddSong: (song: SetlistSong) => void;
   searchTerm: string;
   setSearchTerm: (term: string) => void;
-  sortMode: 'none' | 'ready' | 'work';
-  setSortMode: (mode: 'none' | 'ready' | 'work') => void;
+  sortMode: 'none' | 'ready' | 'work' | 'manual'; // FIX: Added 'manual' to sortMode type
+  setSortMode: (mode: 'none' | 'ready' | 'work' | 'manual') => void; // FIX: Added 'manual' to setSortMode type
   activeFilters: FilterState;
   setActiveFilters: (filters: FilterState) => void;
   // Automation Hub Props

@@ -106,8 +106,8 @@ interface SetlistManagerProps {
   onReorder: (newSongs: SetlistSong[]) => void;
   currentSongId?: string;
   onOpenAdmin?: () => void;
-  sortMode: 'none' | 'ready' | 'work' | 'manual'; // NEW: Add 'manual'
-  setSortMode: (mode: 'none' | 'ready' | 'work' | 'manual') => void; // NEW: Add 'manual'
+  sortMode: 'none' | 'ready' | 'work' | 'manual'; 
+  setSortMode: (mode: 'none' | 'ready' | 'work' | 'manual') => void; 
   activeFilters: FilterState;
   setActiveFilters: (filters: FilterState) => void;
   searchTerm: string;
@@ -142,7 +142,10 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   onOpenSortModal, // NEW: Destructure onOpenSortModal
 }) => {
   const isMobile = useIsMobile();
-  const { keyPreference: globalKeyPreference } = useSettings();
+  const { keyPreference: globalPreference } = useSettings();
+  
+  console.log("SetlistManager: globalPreference =", globalPreference); // Debug log
+
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
