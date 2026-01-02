@@ -667,7 +667,7 @@ const SheetReaderMode: React.FC = () => {
           className={cn("flex-1 bg-black relative overflow-hidden", isBrowserFullScreen ? "mt-0" : "mt-[112px]")}
         >
           {/* Transparent overlay to capture touch events over the iframe */}
-          {(selectedChartType === 'pdf' || selectedChartType === 'leadsheet' || selectedChartType === 'chords') && (
+          {(selectedChartType === 'pdf' || selectedChartType === 'leadsheet') && ( // MODIFIED: Removed 'chords' from condition
             <div 
               className="absolute inset-0 z-10"
               onTouchStart={handleTouchStart}

@@ -91,7 +91,7 @@ const UGChordsReader = React.memo(({
       {chordsText ? (
         <pre 
           ref={contentRef}
-          className="whitespace-pre-wrap font-inherit inline-block min-w-full"
+          className="whitespace-pre-wrap font-inherit min-w-full"
         >
           {transposedChordsText}
         </pre>
