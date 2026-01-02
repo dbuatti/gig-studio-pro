@@ -323,9 +323,9 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
       )}
       
       <nav className="h-16 bg-black/20 border-b border-white/5 flex items-center px-6 overflow-x-auto no-scrollbar shrink-0">
-        <div className="flex gap-8">
+        <div className="grid grid-cols-7 w-full">
           {['config', 'audio', 'details', 'charts', 'lyrics', 'visual', 'library'].map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab as any)} className={cn("text-[10px] font-black uppercase tracking-widest h-16 flex items-center border-b-4", activeTab === tab ? "text-indigo-400 border-indigo-50" : "text-slate-500 border-transparent")}>
+            <button key={tab} onClick={() => setActiveTab(tab as any)} className={cn("text-[10px] font-black uppercase tracking-widest h-16 flex items-center justify-center border-b-4 transition-colors", activeTab === tab ? "text-indigo-400 border-indigo-50" : "text-slate-500 border-transparent hover:text-white")}>
               {tab.toUpperCase()}
             </button>
           ))}
