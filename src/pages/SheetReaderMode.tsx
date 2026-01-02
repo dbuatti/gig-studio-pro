@@ -30,7 +30,7 @@ import 'react-pdf/dist/Page/AnnotationLayer.css'; // Import default styles for a
 import 'react-pdf/dist/Page/TextLayer.css'; // Import default styles for text layer
 
 // Configure PDF.js worker source
-pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/build/pdf.worker.min.js`;
 
 export type ChartType = 'pdf' | 'leadsheet' | 'chords'; // Exporting ChartType
 
@@ -733,8 +733,8 @@ const SheetReaderMode: React.FC = () => {
                   return (
                     <div className="h-full flex items-center justify-center text-slate-500 text-sm italic">
                       <p>No {selectedChartType} available for this track.</p>
-                    </div>
-                  );
+                    );
+                  }
                 })()
               )}
             </>
