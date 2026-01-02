@@ -7,9 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
-import { Settings2, Hash, Music2, LogOut, ShieldCheck, Zap, Globe, User, Youtube, Key, ShieldAlert, Bug, FileText, Monitor, Sun, Moon, Loader2, Target, Type, Link as LinkIcon, Music } from 'lucide-react';
+import { Settings2, Hash, Music2, LogOut, ShieldCheck, Zap, Globe, User, Youtube, Key, ShieldAlert, Bug, FileText, Monitor, Sun, Moon, Loader2, Target, Type, Link as LinkIcon, Music, ListMusic, Library, LayoutDashboard } from 'lucide-react';
 import { useAuth } from './AuthProvider';
-import { cn } from "@/lib/utils";
+import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
@@ -36,6 +36,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
     goalHighestNoteCount, setGoalHighestNoteCount,
     goalOriginalKeyCount, setGoalOriginalKeyCount,
     goalTargetKeyCount, setGoalTargetKeyCount,
+    defaultDashboardView, setDefaultDashboardView,
     isFetchingSettings 
   } = useSettings();
   const { user, signOut } = useAuth();
@@ -177,6 +178,33 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
 
           <div className="space-y-4">
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Display Engine</h4>
+            
+            {/* NEW: Default Dashboard View */}
+            <div className="p-4 bg-card rounded-2xl border border-border space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-100 dark:bg-indigo-600/10 rounded-lg">
+                  <LayoutDashboard className="w-4 h-4 text-indigo-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-foreground">Default Dashboard View</p>
+                  <p className="text-[10px] text-muted-foreground uppercase font-black">Current: {defaultDashboardView}</p>
+                </div>
+              </div>
+              <ToggleGroup 
+                type="single" 
+                value={defaultDashboardView} 
+                onValueChange={(value) => value && setDefaultDashboardView(value as 'gigs' | 'repertoire')} 
+                className="grid grid-cols-2 bg-secondary p-1 rounded-xl gap-1"
+              >
+                <ToggleGroupItem value="gigs" className="text-[9px] font-black uppercase h-9 rounded-lg data-[state=on]:bg-indigo-600 data-[state=on]:text-white gap-2">
+                  <ListMusic className="w-3 h-3" /> Gigs
+                </ToggleGroupItem>
+                <ToggleGroupItem value="repertoire" className="text-[9px] font-black uppercase h-9 rounded-lg data-[state=on]:bg-indigo-600 data-[state=on]:text-white gap-2">
+                  <Library className="w-3 h-3" /> Repertoire
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+
             <div className="p-4 bg-card rounded-2xl border border-border space-y-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-indigo-100 dark:bg-indigo-600/10 rounded-lg">

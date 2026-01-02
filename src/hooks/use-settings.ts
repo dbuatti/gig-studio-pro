@@ -17,6 +17,7 @@ export interface GlobalSettings {
   goalHighestNoteCount: number;
   goalOriginalKeyCount: number;
   goalTargetKeyCount: number;
+  defaultDashboardView: 'gigs' | 'repertoire';
 }
 
 const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
@@ -30,6 +31,7 @@ const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   goalHighestNoteCount: 10,
   goalOriginalKeyCount: 10,
   goalTargetKeyCount: 10,
+  defaultDashboardView: 'gigs',
 };
 
 export function useSettings() {
@@ -55,7 +57,7 @@ export function useSettings() {
             .select(`
               key_preference, safe_pitch_max_note, is_safe_pitch_enabled, is_goal_tracker_enabled, 
               goal_lyrics_count, goal_ug_chords_count, goal_ug_links_count, goal_highest_note_count,
-              goal_original_key_count, goal_target_key_count
+              goal_original_key_count, goal_target_key_count, default_dashboard_view
             `)
             .eq('id', user.id)
             .single();
@@ -75,6 +77,7 @@ export function useSettings() {
             if (data.goal_highest_note_count !== undefined) loadedSettings.goalHighestNoteCount = data.goal_highest_note_count;
             if (data.goal_original_key_count !== undefined) loadedSettings.goalOriginalKeyCount = data.goal_original_key_count;
             if (data.goal_target_key_count !== undefined) loadedSettings.goalTargetKeyCount = data.goal_target_key_count;
+            if (data.default_dashboard_view) loadedSettings.defaultDashboardView = data.default_dashboard_view as 'gigs' | 'repertoire';
             
             setSettings(prev => {
               const newSettings = { ...prev, ...loadedSettings };
@@ -132,6 +135,7 @@ export function useSettings() {
           goalHighestNoteCount: 'goal_highest_note_count',
           goalOriginalKeyCount: 'goal_original_key_count',
           goalTargetKeyCount: 'goal_target_key_count',
+          defaultDashboardView: 'default_dashboard_view',
         };
         const dbColumn = dbKeyMap[key];
         const { error } = await supabase
@@ -154,6 +158,7 @@ export function useSettings() {
     setGoalHighestNoteCount: (count: number) => updateSetting('goalHighestNoteCount', count),
     setGoalOriginalKeyCount: (count: number) => updateSetting('goalOriginalKeyCount', count),
     setGoalTargetKeyCount: (count: number) => updateSetting('goalTargetKeyCount', count),
+    setDefaultDashboardView: (view: 'gigs' | 'repertoire') => updateSetting('defaultDashboardView', view),
     isFetchingSettings,
   };
 }

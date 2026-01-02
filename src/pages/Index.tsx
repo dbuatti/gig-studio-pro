@@ -50,7 +50,7 @@ const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, loading: authLoading } = useAuth();
   const isMobile = useIsMobile();
-  const { keyPreference: globalKeyPreference, safePitchMaxNote, isSafePitchEnabled, isFetchingSettings, isGoalTrackerEnabled } = useSettings();
+  const { keyPreference: globalKeyPreference, safePitchMaxNote, isSafePitchEnabled, isFetchingSettings, isGoalTrackerEnabled, defaultDashboardView } = useSettings();
   const audio = useToneAudio();
 
   const [allSetlists, setAllSetlists] = useState<Setlist[]>([]);
@@ -60,7 +60,7 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
   
   // Persist dashboard view via URL search param
-  const activeDashboardView = (searchParams.get('view') as 'gigs' | 'repertoire') || 'gigs';
+  const activeDashboardView = (searchParams.get('view') as 'gigs' | 'repertoire') || defaultDashboardView;
 
   const [isSetlistSettingsOpen, setIsSetlistSettingsOpen] = useState(false);
   const [isRepertoirePickerOpen, setIsRepertoirePickerOpen] = useState(false);
