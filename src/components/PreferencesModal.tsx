@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
-import { Settings2, Hash, Music2, LogOut, ShieldCheck, Zap, Globe, User, Youtube, Key, ShieldAlert, Bug, FileText, Monitor, Sun, Moon, Loader2, Target, Type, Link as LinkIcon, Music, ListMusic, Library, LayoutDashboard } from 'lucide-react';
+import { Settings2, Hash, Music2, LogOut, ShieldCheck, Zap, Globe, User, Youtube, Key, ShieldAlert, Bug, FileText, Monitor, Sun, Moon, Loader2, Target, Type, Link as LinkIcon, Music, ListMusic, Library, LayoutDashboard, ArrowRight } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
@@ -240,6 +240,14 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
             <div className="p-4 bg-card rounded-2xl border border-border">
               <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Active User</p>
               <p className="text-sm font-bold mt-1 text-foreground">{user?.email}</p>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => navigate('/profile')} 
+                className="mt-4 w-full justify-start gap-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50/10 h-10 px-0"
+              >
+                <Globe className="w-4 h-4" /> Public Repertoire Dashboard <ArrowRight className="w-4 h-4 ml-auto" />
+              </Button>
               <Button variant="ghost" size="sm" onClick={() => signOut()} className="mt-4 w-full justify-start gap-2 text-destructive hover:text-destructive-foreground hover:bg-destructive/10 h-10 px-0">
                 <LogOut className="w-4 h-4" /> Sign Out
               </Button>
