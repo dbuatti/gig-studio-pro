@@ -234,8 +234,8 @@ const Index = () => {
         master_id: d.id,
         name: d.title,
         artist: d.artist,
-        originalKey: d.original_key !== null ? d.original_key : 'TBC',
-        targetKey: d.target_key !== null ? d.target_key : (d.original_key !== null ? d.original_key : 'TBC'),
+        originalKey: d.original_key !== null ? d.original_key : 'TBC', 
+        targetKey: d.target_key !== null ? d.target_key : (d.original_key !== null ? d.original_key : 'TBC'), 
         pitch: d.pitch ?? 0,
         previewUrl: d.extraction_status === 'completed' && d.audio_url ? d.audio_url : d.preview_url,
         youtubeUrl: d.youtube_url,
@@ -483,6 +483,9 @@ const Index = () => {
     if (!current) return;
     try {
       const updated = { ...current, ...updates };
+      if (updates.targetKey !== undefined) { // If targetKey is being updated, mark as confirmed
+        updated.isKeyConfirmed = true;
+      }
       await syncToMasterRepertoire(userId, [updated as SetlistSong]);
       await fetchSetlistsAndRepertoire();
     } catch (err: any) {

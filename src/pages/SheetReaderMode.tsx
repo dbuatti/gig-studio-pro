@@ -21,10 +21,10 @@ import SongStudioModal from '@/components/SongStudioModal';
 import SheetReaderHeader from '@/components/SheetReaderHeader';
 import SheetReaderSidebar from '@/components/SheetReaderSidebar';
 import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
-import { motion, AnimatePresence } from 'framer-motion';
 import { extractKeyFromChords } from '@/utils/chordUtils';
 import RepertoireSearchModal from '@/components/RepertoireSearchModal';
 import FullScreenSongInfo from '@/components/FullScreenSongInfo'; // NEW: Import FullScreenSongInfo
+import { motion, AnimatePresence } from 'framer-motion'; // Import motion and AnimatePresence
 
 type ChartType = 'pdf' | 'leadsheet' | 'chords';
 
@@ -149,7 +149,8 @@ const SheetReaderMode: React.FC = () => {
         name: currentSong.name,
         artist: currentSong.artist,
         targetKey: newTargetKey,
-        pitch: newPitch
+        pitch: newPitch,
+        isKeyConfirmed: true // Set isKeyConfirmed to true when targetKey is explicitly updated
       }]);
       
       if (result[0]) {
@@ -231,7 +232,7 @@ const SheetReaderMode: React.FC = () => {
       let activeSetlistSongsList: SetlistSong[] = [];
 
       // Always fetch full master repertoire
-      const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user_id', user.id).order('title');
+      const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user.id', user.id).order('title');
       if (masterError) throw masterError;
       masterRepertoireList = (masterData || []).map((d: any) => ({
         id: d.id,

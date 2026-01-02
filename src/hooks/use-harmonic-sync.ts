@@ -56,6 +56,7 @@ export function useHarmonicSync({ formData, handleAutoSave, globalKeyPreference 
       const updates: Partial<SetlistSong> = { targetKey: newTargetKey };
       const newPitch = calculateSemitones(originalKeyFromData, newTargetKey);
       updates.pitch = newPitch;
+      updates.isKeyConfirmed = true; // Automatically confirm when target key is set
       handleAutoSave(updates);
     } else {
       setLocalTargetKey(newTargetKey);
