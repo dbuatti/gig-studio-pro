@@ -63,7 +63,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   
   const [song, setSong] = useState<SetlistSong | null>(null);
   const [formData, setFormData] = useState<Partial<SetlistSong>>({});
-  const [activeTab, setActiveTab] = useState<StudioTab>(defaultTab || 'audio');
+  const [activeTab, setActiveTab] = useState<StudioTab>(defaultTab || 'config'); // Set default to 'config'
   const [loading, setLoading] = useState(true);
   const [activeChartType, setActiveChartType] = useState<'pdf' | 'leadsheet' | 'web' | 'ug'>('pdf');
   const [isProSyncOpen, setIsProSyncOpen] = useState(false); 
@@ -268,6 +268,24 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     showSuccess("Pro Metadata Synced");
   };
 
+  const handleDownloadAll = async () => {
+    showError("Download All functionality is not yet implemented.");
+  };
+
+  const handleUgPrint = () => {
+    if (formData.ugUrl) {
+      window.open(formData.ugUrl, '_blank');
+    } else {
+      showError("No Ultimate Guitar link available.");
+    }
+  };
+
+  const isFramable = (url: string | null | undefined) => {
+    if (!url) return true;
+    const blockedSites = ['ultimate-guitar.com', 'musicnotes.com', 'sheetmusicplus.com'];
+    return !blockedSites.some(site => url.includes(site));
+  };
+
   if (loading) return <div className="h-full flex items-center justify-center bg-slate-950"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
 
   return (
@@ -325,11 +343,11 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           isMobile={isMobile}
           onLoadAudioFromUrl={audio.loadFromUrl}
           setPreviewPdfUrl={() => {}}
-          isFramable={() => true}
+          isFramable={isFramable}
           activeChartType={activeChartType}
           setActiveChartType={setActiveChartType}
-          handleUgPrint={() => {}}
-          handleDownloadAll={async () => {}}
+          handleUgPrint={handleUgPrint}
+          handleDownloadAll={handleDownloadAll}
           onSwitchTab={setActiveTab}
           pitch={pitch}
           setPitch={setPitch}
