@@ -439,25 +439,33 @@ const SheetReaderMode: React.FC = () => {
 
   const handleNext = useCallback(() => {
     if (allSongs.length > 0) {
-      setCurrentIndex((prevIndex) => (prevIndex + 1) % allSongs.length);
+      console.log(`[SheetReaderMode] handleNext called. Current index: ${currentIndex}`);
+      setCurrentIndex((prevIndex) => {
+        const newIndex = (prevIndex + 1) % allSongs.length;
+        console.log(`[SheetReaderMode] New index after next: ${newIndex}`);
+        return newIndex;
+      });
       stopPlayback();
       if (chartContainerRef.current) {
         chartContainerRef.current.scrollLeft = 0;
       }
-      console.log("[SheetReaderMode] Navigating to next song.");
     }
-  }, [allSongs, stopPlayback]);
+  }, [allSongs, currentIndex, stopPlayback]);
 
   const handlePrev = useCallback(() => {
     if (allSongs.length > 0) {
-      setCurrentIndex((prevIndex) => (prevIndex - 1 + allSongs.length) % allSongs.length);
+      console.log(`[SheetReaderMode] handlePrev called. Current index: ${currentIndex}`);
+      setCurrentIndex((prevIndex) => {
+        const newIndex = (prevIndex - 1 + allSongs.length) % allSongs.length;
+        console.log(`[SheetReaderMode] New index after prev: ${newIndex}`);
+        return newIndex;
+      });
       stopPlayback();
       if (chartContainerRef.current) {
         chartContainerRef.current.scrollLeft = 0;
       }
-      console.log("[SheetReaderMode] Navigating to previous song.");
     }
-  }, [allSongs, stopPlayback]);
+  }, [allSongs, currentIndex, stopPlayback]);
 
   const toggleBrowserFullScreen = useCallback(() => {
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
@@ -549,13 +557,13 @@ const SheetReaderMode: React.FC = () => {
   }, [currentSong, onOpenCurrentSongStudio, handlePrev, handleNext, selectedChartType, pdfNumPages]);
 
   // --- Gesture Implementation ---
-  const bind = useDrag(({ down, movement: [mx, my], direction: [dx], velocity: [vx], cancel, intentional, memo }) => {
-    console.log(`[Drag] down: ${down}, mx: ${mx.toFixed(2)}, my: ${my.toFixed(2)}, dx: ${dx.toFixed(2)}, vx: ${vx.toFixed(2)}, navigatedRef: ${navigatedRef.current}`);
+  const bind = useDrag(({ first, down, movement: [mx, my], direction: [dx], velocity: [vx], cancel, intentional }) => {
+    console.log(`[Drag] first: ${first}, down: ${down}, mx: ${mx.toFixed(2)}, my: ${my.toFixed(2)}, dx: ${dx.toFixed(2)}, vx: ${vx.toFixed(2)}, navigatedRef: ${navigatedRef.current}`);
 
-    // Reset navigatedRef ONLY when a new drag starts (finger touches screen)
-    if (down && !memo) { // memo is undefined on first call of a gesture
+    // Reset navigatedRef ONLY when a new drag starts (first event of a gesture)
+    if (first) {
       navigatedRef.current = false;
-      console.log("[Drag] New drag started. navigatedRef reset to false.");
+      console.log("[Drag] First event of gesture. navigatedRef reset to false.");
     }
     // Reset navigatedRef when the drag ends (finger up)
     if (!down && navigatedRef.current) {
@@ -576,7 +584,7 @@ const SheetReaderMode: React.FC = () => {
 
     console.log(`[Drag] isHorizontalSwipe: ${isHorizontalSwipe}, isFastSwipe: ${isFastSwipe}, navigatedRef.current: ${navigatedRef.current}`);
 
-    if (isHorizontalSwipe && isFastSwipe && !navigatedRef.current) { // Add !navigatedRef.current
+    if (isHorizontalSwipe && isFastSwipe && !navigatedRef.current) {
       navigatedRef.current = true; // Mark as navigated for this gesture
       cancel(); // Stop further updates for this specific gesture
       console.log("[Drag] Swipe detected and navigation triggered. navigatedRef set to true, cancel() called.");
@@ -607,6 +615,7 @@ const SheetReaderMode: React.FC = () => {
         }
       }
       api.start({ x: 0 });
+      console.log("[Drag] Animation reset to x: 0.");
     }
   }, {
     threshold: 20,        // Initial movement before drag starts
