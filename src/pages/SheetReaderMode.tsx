@@ -143,9 +143,6 @@ const SheetReaderMode: React.FC = () => {
     isStageKeyLocked 
   } = harmonicSync;
 
-  // Add this log
-  console.log("[SheetReaderMode] effectiveTargetKey:", effectiveTargetKey);
-
   const handleUpdateKey = useCallback(async (newTargetKey: string) => {
     if (!currentSong || !user) return;
 
@@ -533,8 +530,23 @@ const SheetReaderMode: React.FC = () => {
 
   const isChartLoading = renderedCharts.find(c => c.id === currentSong?.id && c.type === selectedChartType && !c.isLoaded);
 
-  // Browser Fullscreen API logic
+  // --- MODIFIED SECTION START ---
+  // Detect if the app is running in standalone (PWA) mode
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                       (window.navigator as any).standalone === true;
+
   const toggleBrowserFullScreen = useCallback(() => {
+    // In a PWA on iOS, the app is already "full screen" in the sense that it takes up the whole viewport.
+    // The browser's Fullscreen API is often disabled or non-functional in this context.
+    // We treat "toggling fullscreen" in a PWA as a no-op or visual confirmation.
+    if (isStandalone) {
+      // We can't really toggle fullscreen in standalone mode, but we can update the state
+      // to reflect that we are "visually" full screen.
+      setIsBrowserFullScreen(prev => !prev);
+      return;
+    }
+
+    // Standard browser Fullscreen API logic
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(err => {
         showError(`Error attempting to enable fullscreen mode: ${err.message} (${err.name})`);
@@ -542,15 +554,21 @@ const SheetReaderMode: React.FC = () => {
     } else {
       document.exitFullscreen();
     }
-  }, []);
+  }, [isStandalone]);
 
   useEffect(() => {
+    // Standard browser event listener
     const handleFullScreenChange = () => {
-      setIsBrowserFullScreen(!!document.fullscreenElement);
+      // Only update state if we are NOT in standalone mode
+      if (!isStandalone) {
+        setIsBrowserFullScreen(!!document.fullscreenElement);
+      }
     };
+
     document.addEventListener('fullscreenchange', handleFullScreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullScreenChange);
-  }, []);
+  }, [isStandalone]);
+  // --- MODIFIED SECTION END ---
 
   const onOpenCurrentSongStudio = useCallback(() => {
     if (currentSong) {
