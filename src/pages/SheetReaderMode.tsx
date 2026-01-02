@@ -15,7 +15,7 @@ import { showError, showSuccess, showInfo } from '@/utils/toast';
 import UGChordsReader from '@/components/UGChordsReader';
 import { useToneAudio } from '@/hooks/use-tone-audio';
 import { calculateSemitones } from '@/utils/keyUtils';
-import { useReaderSettings } from '@/hooks/use-reader-settings';
+import { useReaderSettings, ReaderResourceForce } from '@/hooks/use-reader-settings';
 import PreferencesModal from '@/components/PreferencesModal';
 import SongStudioModal from '@/components/SongStudioModal';
 import SheetReaderHeader from '@/components/SheetReaderHeader';
@@ -201,42 +201,163 @@ const SheetReaderMode: React.FC = () => {
     setInitialLoading(true);
 
     try {
-      let query = supabase.from('repertoire').select('*').eq('user_id', user.id).order('title');
       const filterApproved = searchParams.get('filterApproved');
-      if (filterApproved === 'true') query = query.eq('is_approved', true);
+      const targetId = routeSongId || searchParams.get('id');
 
-      const { data, error } = await query;
-      if (error) throw error;
+      let mappedSongs: SetlistSong[] = [];
 
-      const mappedSongs: SetlistSong[] = (data || []).map((d: any) => ({
-        id: d.id,
-        master_id: d.id,
-        name: d.title,
-        artist: d.artist,
-        originalKey: d.original_key ?? 'TBC',
-        targetKey: d.target_key ?? d.original_key ?? 'TBC',
-        pitch: d.pitch ?? 0,
-        previewUrl: d.extraction_status === 'completed' && d.audio_url ? d.audio_url : d.preview_url,
-        youtubeUrl: d.youtube_url,
-        ugUrl: d.ug_url,
-        appleMusicUrl: d.apple_music_url,
-        pdfUrl: d.pdf_url,
-        leadsheetUrl: d.leadsheet_url,
-        bpm: d.bpm,
-        ug_chords_text: d.ug_chords_text,
-        ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
-        is_ug_chords_present: d.is_ug_chords_present,
-        is_pitch_linked: d.is_pitch_linked ?? true,
-        sheet_music_url: d.sheet_music_url,
-        is_sheet_verified: d.is_sheet_verified,
-        highest_note_original: d.highest_note_original,
-        extraction_status: d.extraction_status,
-        last_sync_log: d.last_sync_log,
-        preferred_reader: d.preferred_reader,
-        key_preference: d.key_preference,
-        original_key_updated_at: d.original_key_updated_at,
-        target_key_updated_at: d.target_key_updated_at,
-      }));
+      if (filterApproved === 'true') {
+        // If filterApproved is true, it means we're coming from a setlist context
+        // We need to find the setlist first, then fetch its songs in order.
+        const { data: setlistsData, error: setlistsError } = await supabase
+          .from('setlists')
+          .select('id')
+          .eq('user_id', user.id)
+          .limit(1); // Assuming we want the active setlist, or the first one if not specified
+
+        if (setlistsError || !setlistsData || setlistsData.length === 0) {
+          throw new Error("No active setlist found for approved songs.");
+        }
+        const activeSetlistId = setlistsData[0].id;
+
+        const { data: junctionData, error: junctionError } = await supabase
+          .from('setlist_songs')
+          .select(`
+            *,
+            repertoire (
+              id, title, artist, original_key, target_key, pitch, preview_url, youtube_url, ug_url, 
+              apple_music_url, pdf_url, leadsheet_url, bpm, genre, is_metadata_confirmed, is_key_confirmed, 
+              notes, lyrics, resources, user_tags, is_pitch_linked, duration_seconds, key_preference, 
+              is_active, fineTune, tempo, volume, is_approved, preferred_reader, ug_chords_text, 
+              ug_chords_config, is_ug_chords_present, highest_note_original, is_ug_link_verified, 
+              metadata_source, sync_status, last_sync_log, auto_synced, is_sheet_verified, sheet_music_url, 
+              extraction_status, extraction_error, audio_url, lyrics_updated_at, chords_updated_at, 
+              ug_link_updated_at, highest_note_updated_at, original_key_updated_at, target_key_updated_at
+            )
+          `)
+          .eq('setlist_id', activeSetlistId)
+          .order('sort_order', { ascending: true }); // Order by sort_order
+
+        if (junctionError) throw junctionError;
+
+        mappedSongs = (junctionData || []).map((junction: any) => {
+          const masterSong = junction.repertoire;
+          if (!masterSong) return null;
+          return {
+            id: junction.id, // Use junction ID for setlist-specific operations
+            master_id: masterSong.id, // Keep master ID for linking to repertoire
+            name: masterSong.title,
+            artist: masterSong.artist,
+            originalKey: masterSong.original_key ?? 'TBC',
+            targetKey: masterSong.target_key ?? masterSong.original_key ?? 'TBC',
+            pitch: masterSong.pitch ?? 0,
+            previewUrl: masterSong.extraction_status === 'completed' && masterSong.audio_url ? masterSong.audio_url : masterSong.preview_url,
+            youtubeUrl: masterSong.youtube_url,
+            ugUrl: masterSong.ug_url,
+            appleMusicUrl: masterSong.apple_music_url,
+            pdfUrl: masterSong.pdf_url,
+            leadsheetUrl: masterSong.leadsheet_url,
+            bpm: masterSong.bpm,
+            genre: masterSong.genre,
+            isSyncing: false,
+            isMetadataConfirmed: masterSong.is_metadata_confirmed,
+            isKeyConfirmed: masterSong.is_key_confirmed,
+            notes: masterSong.notes,
+            lyrics: masterSong.lyrics,
+            resources: masterSong.resources || [],
+            user_tags: masterSong.user_tags || [],
+            is_pitch_linked: masterSong.is_pitch_linked ?? true,
+            duration_seconds: masterSong.duration_seconds,
+            key_preference: masterSong.key_preference,
+            is_active: masterSong.is_active,
+            fineTune: masterSong.fineTune,
+            tempo: masterSong.tempo,
+            volume: masterSong.volume,
+            isApproved: masterSong.is_approved,
+            preferred_reader: masterSong.preferred_reader,
+            ug_chords_text: masterSong.ug_chords_text,
+            ug_chords_config: masterSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
+            is_ug_chords_present: masterSong.is_ug_chords_present,
+            highest_note_original: masterSong.highest_note_original,
+            is_ug_link_verified: masterSong.is_ug_link_verified,
+            metadata_source: masterSong.metadata_source,
+            sync_status: masterSong.sync_status,
+            last_sync_log: masterSong.last_sync_log,
+            auto_synced: masterSong.auto_synced,
+            is_sheet_verified: masterSong.is_sheet_verified,
+            sheet_music_url: masterSong.sheet_music_url,
+            extraction_status: masterSong.extraction_status,
+            extraction_error: masterSong.extraction_error,
+            audio_url: masterSong.audio_url,
+            lyrics_updated_at: masterSong.lyrics_updated_at,
+            chords_updated_at: masterSong.chords_updated_at,
+            ug_link_updated_at: masterSong.ug_link_updated_at,
+            highest_note_updated_at: masterSong.highest_note_updated_at,
+            original_key_updated_at: masterSong.original_key_updated_at,
+            target_key_updated_at: masterSong.target_key_updated_at,
+            isPlayed: junction.isPlayed || false,
+          };
+        }).filter(Boolean) as SetlistSong[];
+
+      } else {
+        // If not filtering by approved, fetch all repertoire songs
+        const { data, error } = await supabase.from('repertoire').select('*').eq('user_id', user.id).order('title');
+        if (error) throw error;
+
+        mappedSongs = (data || []).map((d: any) => ({
+          id: d.id,
+          master_id: d.id,
+          name: d.title,
+          artist: d.artist,
+          originalKey: d.original_key ?? 'TBC',
+          targetKey: d.target_key ?? d.original_key ?? 'TBC',
+          pitch: d.pitch ?? 0,
+          previewUrl: d.extraction_status === 'completed' && d.audio_url ? d.audio_url : d.preview_url,
+          youtubeUrl: d.youtube_url,
+          ugUrl: d.ug_url,
+          appleMusicUrl: d.apple_music_url,
+          pdfUrl: d.pdf_url,
+          leadsheetUrl: d.leadsheet_url,
+          bpm: d.bpm,
+          genre: d.genre,
+          isSyncing: false,
+          isMetadataConfirmed: d.is_metadata_confirmed,
+          isKeyConfirmed: d.is_key_confirmed,
+          notes: d.notes,
+          lyrics: d.lyrics,
+          resources: d.resources || [],
+          user_tags: d.user_tags || [],
+          is_pitch_linked: d.is_pitch_linked ?? true,
+          duration_seconds: d.duration_seconds,
+          key_preference: d.key_preference,
+          is_active: d.is_active,
+          fineTune: d.fineTune,
+          tempo: d.tempo,
+          volume: d.volume,
+          isApproved: d.is_approved,
+          preferred_reader: d.preferred_reader,
+          ug_chords_text: d.ug_chords_text,
+          ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
+          is_ug_chords_present: d.is_ug_chords_present,
+          highest_note_original: d.highest_note_original,
+          is_ug_link_verified: d.is_ug_link_verified,
+          metadata_source: d.metadata_source,
+          sync_status: d.sync_status,
+          last_sync_log: d.last_sync_log,
+          auto_synced: d.auto_synced,
+          is_sheet_verified: d.is_sheet_verified,
+          sheet_music_url: d.sheet_music_url,
+          extraction_status: d.extraction_status,
+          extraction_error: d.extraction_error,
+          audio_url: d.audio_url,
+          lyrics_updated_at: d.lyrics_updated_at,
+          chords_updated_at: d.chords_updated_at,
+          ug_link_updated_at: d.ug_link_updated_at,
+          highest_note_updated_at: d.highest_note_updated_at,
+          original_key_updated_at: d.original_key_updated_at,
+          target_key_updated_at: d.target_key_updated_at,
+        }));
+      }
 
       const readableSongs = mappedSongs.filter(s => 
         s.pdfUrl || s.leadsheetUrl || s.ug_chords_text || s.sheet_music_url
@@ -245,9 +366,8 @@ const SheetReaderMode: React.FC = () => {
       setAllSongs(readableSongs);
 
       let initialIndex = 0;
-      const targetId = routeSongId || searchParams.get('id');
       if (targetId) {
-        const idx = readableSongs.findIndex(s => s.id === targetId);
+        const idx = readableSongs.findIndex(s => s.id === targetId || s.master_id === targetId);
         if (idx !== -1) initialIndex = idx;
       }
       setCurrentIndex(initialIndex);

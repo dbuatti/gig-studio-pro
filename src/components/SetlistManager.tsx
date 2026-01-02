@@ -106,8 +106,8 @@ interface SetlistManagerProps {
   onReorder: (newSongs: SetlistSong[]) => void;
   currentSongId?: string;
   onOpenAdmin?: () => void;
-  sortMode: 'none' | 'ready' | 'work';
-  setSortMode: (mode: 'none' | 'ready' | 'work') => void;
+  sortMode: 'none' | 'ready' | 'work' | 'manual'; // NEW: Add 'manual'
+  setSortMode: (mode: 'none' | 'ready' | 'work' | 'manual') => void; // NEW: Add 'manual'
   activeFilters: FilterState;
   setActiveFilters: (filters: FilterState) => void;
   searchTerm: string;
@@ -115,6 +115,7 @@ interface SetlistManagerProps {
   showHeatmap: boolean;
   allSetlists: Setlist[]; // Add allSetlists prop
   onUpdateSetlistSongs: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>; // Add onUpdateSetlistSongs prop
+  onOpenSortModal: () => void; // NEW: Add prop to open sort modal
 }
 
 const SetlistManager: React.FC<SetlistManagerProps> = ({
@@ -137,17 +138,18 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   setSearchTerm,
   showHeatmap,
   allSetlists, // Destructure allSetlists
-  onUpdateSetlistSongs // Destructure onUpdateSetlistSongs
+  onUpdateSetlistSongs, // Destructure onUpdateSetlistSongs
+  onOpenSortModal, // NEW: Destructure onOpenSortModal
 }) => {
   const isMobile = useIsMobile();
-  const { keyPreference: globalPreference } = useSettings();
+  const { keyPreference: globalKeyPreference } = useSettings();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const isItunesPreview = (url: string) => url && (url.includes('apple.com') || url.includes('itunes-assets'));
 
   const handleMove = (id: string, direction: 'up' | 'down') => {
-    if (sortMode !== 'none' || searchTerm) return;
+    if (sortMode !== 'none' || searchTerm) return; // Only allow manual reorder when sortMode is 'none' and no search term
     
     const index = processedSongs.findIndex(s => s.id === id);
     if (index === -1) return;
@@ -162,7 +164,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     showSuccess("Setlist reordered!"); // Success toast for reordering
   };
 
-  const isReorderingEnabled = sortMode === 'none' && !searchTerm;
+  const isReorderingEnabled = sortMode === 'none' && !searchTerm; // Only enable up/down arrows in 'none' mode without search
 
   const getHeatmapClass = (song: SetlistSong) => {
     if (!showHeatmap) return "";
@@ -215,6 +217,16 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
             </Button>
             <Button 
               variant="ghost" size="sm" 
+              onClick={() => setSortMode('manual')} // NEW: Manual Sort Button
+              className={cn(
+                "h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg",
+                sortMode === 'manual' && "bg-background dark:bg-secondary shadow-sm text-indigo-600"
+              )}
+            >
+              <SortAsc className="w-3 h-3" /> <span className="hidden sm:inline">Manual</span>
+            </Button>
+            <Button 
+              variant="ghost" size="sm" 
               onClick={() => setSortMode('ready')}
               className={cn(
                 "h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg",
@@ -255,6 +267,14 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
               className="h-10 sm:h-9 pl-9 text-[11px] font-bold bg-card dark:bg-card border-border dark:border-border rounded-xl focus-visible:ring-indigo-500"
             />
           </div>
+          {sortMode === 'manual' && ( // NEW: Button to open sort modal when in manual mode
+            <Button 
+              onClick={onOpenSortModal}
+              className="h-10 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] tracking-widest gap-2 shadow-lg shadow-indigo-600/20"
+            >
+              <SortAsc className="w-3.5 h-3.5" /> Reorder
+            </Button>
+          )}
         </div>
       </div>
 

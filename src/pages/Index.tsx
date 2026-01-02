@@ -17,7 +17,7 @@ import { calculateSemitones, transposeKey } from '@/utils/keyUtils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Plus, ListMusic, Settings2, BookOpen, Search, LayoutDashboard, X, AlertCircle, CloudDownload, AlertTriangle, Library, Hash, Music } from 'lucide-react';
+import { Loader2, Plus, ListMusic, Settings2, BookOpen, Search, LayoutDashboard, X, AlertCircle, CloudDownload, AlertTriangle, Library, Hash, Music, SortAsc } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -44,6 +44,7 @@ import KeyManagementModal from '@/components/KeyManagementModal';
 import PerformanceOverlay from '@/components/PerformanceOverlay';
 import AudioTransposer, { AudioTransposerRef } from '@/components/AudioTransposer';
 import GoalTracker from '@/components/GoalTracker';
+import SetlistSortModal from '@/components/SetlistSortModal'; // NEW: Import SetlistSortModal
 
 const Index = () => {
   const navigate = useNavigate();
@@ -76,6 +77,7 @@ const Index = () => {
   const [isKeyManagementOpen, setIsKeyManagementOpen] = useState(false);
   const [isPerformanceOverlayOpen, setIsPerformanceOverlayOpen] = useState(false);
   const [isAudioTransposerModalOpen, setIsAudioTransposerModalOpen] = useState(false);
+  const [isSetlistSortModalOpen, setIsSetlistSortModalOpen] = useState(false); // NEW: State for sort modal
   const audioTransposerRef = useRef<AudioTransposerRef>(null);
 
   const [newSetlistName, setNewSetlistName] = useState("");
@@ -86,7 +88,7 @@ const Index = () => {
 
   // --- PERSISTENT STATE INITIALIZATION ---
   const [searchTerm, setSearchTerm] = useState(() => localStorage.getItem('gig_search_term') || "");
-  const [sortMode, setSortMode] = useState<'none' | 'ready' | 'work'>(() => (localStorage.getItem('gig_sort_mode') as 'none' | 'ready' | 'work') || 'none');
+  const [sortMode, setSortMode] = useState<'none' | 'ready' | 'work' | 'manual'>(() => (localStorage.getItem('gig_sort_mode') as 'none' | 'ready' | 'work' | 'manual') || 'none'); // NEW: Add 'manual'
   const [activeFilters, setActiveFilters] = useState<FilterState>(() => {
     const saved = localStorage.getItem('gig_active_filters');
     try {
@@ -133,7 +135,7 @@ const Index = () => {
       const hasLink = !!s.youtubeUrl;
       const hasAudio = !!s.audio_url;
       const status = (s.extraction_status || "").toLowerCase();
-      return hasLink && (!hasAudio || status !== 'completed');
+      return hasLink && (!hasAudio || status !== 'completed') && status !== 'processing' && status !== 'queued';
     }).length;
   }, [masterRepertoire]);
 
@@ -197,6 +199,11 @@ const Index = () => {
       songs.sort((a, b) => calculateReadiness(b) - calculateReadiness(a));
     } else if (sortMode === 'work') {
       songs.sort((a, b) => calculateReadiness(a) - calculateReadiness(b));
+    } else if (sortMode === 'manual') {
+      // Songs are already ordered by sort_order from fetchSetlistsAndRepertoire
+      // No additional sorting needed here for 'manual' mode
+    } else { // 'none' (alphabetical)
+      songs.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     }
     return songs;
   }, [activeSetlist, searchTerm, sortMode, activeFilters]);
@@ -283,7 +290,7 @@ const Index = () => {
           .from('setlist_songs')
           .select('*')
           .eq('setlist_id', setlist.id)
-          .order('sort_order', { ascending: true });
+          .order('sort_order', { ascending: true }); // IMPORTANT: Order by sort_order
 
         if (junctionError) continue;
 
@@ -292,8 +299,8 @@ const Index = () => {
           if (!masterSong) return null;
           return {
             ...masterSong,
-            id: junction.id,
-            master_id: masterSong.id,
+            id: junction.id, // Use junction ID for setlist-specific operations
+            master_id: masterSong.id, // Keep master ID for linking to repertoire
             isPlayed: junction.isPlayed || false,
           };
         }).filter(Boolean) as SetlistSong[];
@@ -826,7 +833,29 @@ const Index = () => {
             )}
 
             <SetlistStats songs={activeSetlist?.songs || []} goalSeconds={activeSetlist?.time_goal} onUpdateGoal={async (newGoal) => { if (!userId || !activeSetlist) return; try { await supabase.from('setlists').update({ time_goal: newGoal }).eq('id', activeSetlist.id).eq('user_id', userId); setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, time_goal: newGoal } : s)); showSuccess("Goal updated!"); } catch (err: any) { showError(`Failed: ${err.message}`); } }} />
-            <SetlistManager songs={filteredAndSortedSongs} onRemove={handleRemoveSongFromSetlist} onSelect={handleSelectSongForPlayback} onEdit={handleEditSong} onUpdateKey={handleUpdateSongKey} onTogglePlayed={handleTogglePlayed} onLinkAudio={() => {}} onUpdateSong={handleUpdateSongInSetlist} onSyncProData={async (song) => { if (!userId) return; try { const synced = await syncToMasterRepertoire(userId, [song]); setMasterRepertoire(prev => prev.map(s => s.id === synced[0].id ? synced[0] : s)); await fetchSetlistsAndRepertoire(); showSuccess("Synced!"); } catch (err: any) { showError(`Failed: ${err.message}`); } }} onReorder={handleReorderSongs} currentSongId={activeSongForPerformance?.id} sortMode={sortMode} setSortMode={setSortMode} activeFilters={activeFilters} setActiveFilters={setActiveFilters} searchTerm={searchTerm} setSearchTerm={setSearchTerm} showHeatmap={showHeatmap} allSetlists={allSetlists} onUpdateSetlistSongs={handleUpdateSetlistSongs} />
+            <SetlistManager 
+              songs={filteredAndSortedSongs} 
+              onRemove={handleRemoveSongFromSetlist} 
+              onSelect={handleSelectSongForPlayback} 
+              onEdit={handleEditSong} 
+              onUpdateKey={handleUpdateSongKey} 
+              onTogglePlayed={handleTogglePlayed} 
+              onLinkAudio={() => {}} 
+              onUpdateSong={handleUpdateSongInSetlist} 
+              onSyncProData={async (song) => { if (!userId) return; try { const synced = await syncToMasterRepertoire(userId, [song]); setMasterRepertoire(prev => prev.map(s => s.id === synced[0].id ? synced[0] : s)); await fetchSetlistsAndRepertoire(); showSuccess("Synced!"); } catch (err: any) { showError(`Failed: ${err.message}`); } }} 
+              onReorder={handleReorderSongs} 
+              currentSongId={activeSongForPerformance?.id} 
+              sortMode={sortMode} 
+              setSortMode={setSortMode} 
+              activeFilters={activeFilters} 
+              setActiveFilters={setActiveFilters} 
+              searchTerm={searchTerm} 
+              setSearchTerm={setSearchTerm} 
+              showHeatmap={showHeatmap} 
+              allSetlists={allSetlists} 
+              onUpdateSetlistSongs={handleUpdateSetlistSongs} 
+              onOpenSortModal={() => setIsSetlistSortModalOpen(true)} // NEW: Pass handler to open sort modal
+            />
           </TabsContent>
 
           <TabsContent value="repertoire" className="mt-0 space-y-8">
@@ -932,6 +961,16 @@ const Index = () => {
             </div>
           </DialogContent>
         </Dialog>
+      )}
+
+      {activeSetlist && (
+        <SetlistSortModal
+          isOpen={isSetlistSortModalOpen}
+          onClose={() => setIsSetlistSortModalOpen(false)}
+          songs={activeSetlist.songs}
+          onReorder={handleReorderSongs}
+          setlistName={activeSetlist.name}
+        />
       )}
     </div>
   );
