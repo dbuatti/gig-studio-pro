@@ -18,8 +18,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, Plus, ListMusic, Settings2, BookOpen, Search, LayoutDashboard, X, AlertCircle, CloudDownload, AlertTriangle, Library, Hash, Music } from 'lucide-react';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 // Custom Components
@@ -71,7 +71,7 @@ const Index = () => {
   const [isUserGuideOpen, setIsUserGuideOpen] = useState(false);
   const [isSongStudioModalOpen, setIsSongStudioModalOpen] = useState(false);
   const [songStudioModalSongId, setSongStudioModalSongId] = useState<string | null>(null);
-  const [songStudioModalGigId, setSongStudioModalGigId] = useState<string | 'library' | null>(null);
+  const [songStudioModalGigId, setSongStudioModalGigId, ] = useState<string | 'library' | null>(null);
   const [songStudioDefaultTab, setSongStudioDefaultTab] = useState<StudioTab | undefined>(undefined);
   const [isKeyManagementOpen, setIsKeyManagementOpen] = useState(false);
   const [isPerformanceOverlayOpen, setIsPerformanceOverlayOpen] = useState(false);
@@ -327,6 +327,31 @@ const Index = () => {
       navigate('/landing');
     }
   }, [userId, authLoading, fetchSetlistsAndRepertoire, navigate]);
+
+  // --- AUDIO LOADING EFFECT ---
+  useEffect(() => {
+    if (activeSongForPerformance) {
+      const urlToLoad = activeSongForPerformance.audio_url || activeSongForPerformance.previewUrl;
+      
+      // 1. Apply settings immediately (these setters update the Tone.js engine directly)
+      audio.setPitch(activeSongForPerformance.pitch || 0);
+      audio.setTempo(activeSongForPerformance.tempo || 1);
+      audio.setVolume(activeSongForPerformance.volume || -6);
+      audio.setFineTune(activeSongForPerformance.fineTune || 0);
+
+      // 2. Load audio if URL exists
+      if (urlToLoad) {
+        // Pass the pitch to loadFromUrl so it can initialize the player detune correctly upon buffer load
+        audio.loadFromUrl(urlToLoad, activeSongForPerformance.pitch || 0, true);
+      } else {
+        audio.resetEngine();
+        showWarning("Selected song has no audio link.");
+      }
+    } else {
+      audio.resetEngine();
+    }
+  }, [activeSongForPerformance, audio]);
+  // --- END AUDIO LOADING EFFECT ---
 
   const handleSelectSetlist = (id: string) => {
     setActiveSetlistId(id);
