@@ -72,6 +72,7 @@ const SheetReaderMode: React.FC = () => {
   
   const [selectedChartType, setSelectedChartType] = useState<ChartType>('pdf');
   const [renderedCharts, setRenderedCharts] = useState<RenderedChart[]>([]);
+  const [pdfCurrentPage, setPdfCurrentPage] = useState(1); // NEW: State for current PDF page
 
   const audioEngine = useToneAudio(true);
   const {
@@ -98,6 +99,11 @@ const SheetReaderMode: React.FC = () => {
       setReaderKeyPreference(globalKeyPreference as 'sharps' | 'flats');
     }
   }, [currentSong?.id, globalKeyPreference]);
+
+  // NEW: Reset PDF page when current song changes
+  useEffect(() => {
+    setPdfCurrentPage(1);
+  }, [currentSong?.id]);
 
   const handleLocalSongUpdate = useCallback((songId: string, updates: Partial<SetlistSong>) => {
     setAllSongs(prev => prev.map(s => s.id === songId ? { ...s, ...updates } : s));
@@ -450,9 +456,9 @@ const SheetReaderMode: React.FC = () => {
           return (
             // The iframe itself should be the scrollable content
             // The overlay will sit on top to capture gestures
-            <div className="w-full h-full min-w-full snap-center">
+            <div className="w-full h-full">
               <iframe
-                src={`${url}#toolbar=0&navpanes=0&view=Fit`} 
+                src={`${url}#toolbar=0&navpanes=0&view=Fit&page=${pdfCurrentPage}`} // NEW: Add page parameter
                 className="w-full h-full bg-white block" 
                 title="Sheet Music"
                 onLoad={commonProps.onChartReady}
@@ -490,7 +496,7 @@ const SheetReaderMode: React.FC = () => {
           </div>
         );
     }
-  }, [effectiveTargetKey, isPlaying, progress, duration, readerKeyPreference, ugChordsFontFamily, ugChordsFontSize, ugChordsChordBold, ugChordsChordColor, ugChordsLineSpacing, ugChordsTextAlign, isFramable]);
+  }, [effectiveTargetKey, isPlaying, progress, duration, readerKeyPreference, ugChordsFontFamily, ugChordsFontSize, ugChordsChordBold, ugChordsChordColor, ugChordsLineSpacing, ugChordsTextAlign, isFramable, pdfCurrentPage]); // NEW: Add pdfCurrentPage to dependencies
 
   useEffect(() => {
     if (currentSong) {
@@ -575,13 +581,23 @@ const SheetReaderMode: React.FC = () => {
 
     // Determine if it's a horizontal swipe (dominant direction)
     if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > swipeThreshold) {
-      // Swipe Right (Next Song)
-      if (deltaX < 0) { // Swiping left
-        handleNext();
-      } 
-      // Swipe Left (Prev Song)
-      else if (deltaX > 0) { // Swiping right
-        handlePrev();
+      if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
+        // Swipe Left (Next PDF Page)
+        if (deltaX < 0) { // Swiping left
+          setPdfCurrentPage(prev => Math.min(prev + 1, 999)); // Arbitrary max page
+        } 
+        // Swipe Right (Prev PDF Page)
+        else if (deltaX > 0) { // Swiping right
+          setPdfCurrentPage(prev => Math.max(1, prev - 1));
+        }
+      } else if (selectedChartType === 'chords') {
+        // For chords, horizontal swipe navigates songs
+        if (deltaX < 0) { // Swiping left
+          handleNext();
+        } 
+        else if (deltaX > 0) { // Swiping right
+          handlePrev();
+        }
       }
     }
     // For vertical swipes or non-significant horizontal swipes, allow native scrolling.
@@ -611,11 +627,11 @@ const SheetReaderMode: React.FC = () => {
     // For now, let's assume a click is a distinct event.
     
     if (clickX < width * 0.3) {
-      // Tap Left: Scroll Left
-      container.scrollBy({ left: -container.clientWidth * 0.8, behavior: 'smooth' });
+      // Tap Left: Prev PDF Page
+      setPdfCurrentPage(prev => Math.max(1, prev - 1));
     } else if (clickX > width * 0.7) {
-      // Tap Right: Scroll Right
-      container.scrollBy({ left: container.clientWidth * 0.8, behavior: 'smooth' });
+      // Tap Right: Next PDF Page
+      setPdfCurrentPage(prev => Math.min(prev + 1, 999)); // Arbitrary max page
     }
   };
 
@@ -676,11 +692,19 @@ const SheetReaderMode: React.FC = () => {
       switch (e.key) {
         case 'ArrowLeft':
           e.preventDefault();
-          handlePrev();
+          if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
+            setPdfCurrentPage(prev => Math.max(1, prev - 1));
+          } else {
+            handlePrev();
+          }
           break;
         case 'ArrowRight':
           e.preventDefault();
-          handleNext();
+          if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
+            setPdfCurrentPage(prev => Math.min(prev + 1, 999)); // Arbitrary max page
+          } else {
+            handleNext();
+          }
           break;
         case 'i':
         case 'I':
@@ -693,7 +717,7 @@ const SheetReaderMode: React.FC = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentSong, onOpenCurrentSongStudio, handlePrev, handleNext]);
+  }, [currentSong, onOpenCurrentSongStudio, handlePrev, handleNext, selectedChartType]); // NEW: Add selectedChartType to dependencies
 
   if (initialLoading) return <div className="h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
 
@@ -745,12 +769,15 @@ const SheetReaderMode: React.FC = () => {
           audioEngine={audioEngine}
           effectiveTargetKey={effectiveTargetKey}
           onPullKey={handlePullKey}
+          pdfCurrentPage={pdfCurrentPage} // NEW: Pass pdfCurrentPage
+          setPdfCurrentPage={setPdfCurrentPage} // NEW: Pass setPdfCurrentPage
+          selectedChartType={selectedChartType} // NEW: Pass selectedChartType
         />
 
         {/* Chart Container */}
         <div
           ref={chartContainerRef}
-          className={cn("flex-1 bg-black relative overflow-x-auto overflow-y-hidden snap-x snap-mandatory", isBrowserFullScreen ? "mt-0" : "mt-[112px]")}
+          className={cn("flex-1 bg-black relative overflow-hidden", isBrowserFullScreen ? "mt-0" : "mt-[112px]")} // Removed snap-x snap-mandatory
           // onClick={handleContainerClick} // MOVED TO OVERLAY
         >
           {/* Transparent overlay to capture touch events over the iframe */}
@@ -772,7 +799,7 @@ const SheetReaderMode: React.FC = () => {
             // For PDF/Leadsheet, we wrap in a scrollable container if it's an iframe
             if (rc.type === 'pdf' || rc.type === 'leadsheet') {
               return (
-                <div key={`${rc.id}-${rc.type}`} className="w-full h-full min-w-full snap-center">
+                <div key={`${rc.id}-${rc.type}`} className="w-full h-full"> {/* Removed min-w-full snap-center */}
                    {rc.content} {/* rc.content is already the iframe wrapped in a div */}
                 </div>
               );

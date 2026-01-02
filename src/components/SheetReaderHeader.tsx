@@ -12,6 +12,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Skeleton } from "@/components/ui/skeleton";
 import { showError } from '@/utils/toast';
 import { AudioEngineControls } from '@/hooks/use-tone-audio';
+import { ChartType } from '@/pages/SheetReaderMode'; // NEW: Import ChartType
 
 interface SheetReaderHeaderProps {
   currentSong: SetlistSong | null;
@@ -49,6 +50,9 @@ interface SheetReaderHeaderProps {
   audioEngine: AudioEngineControls;
   effectiveTargetKey: string; // NEW: Add effectiveTargetKey prop
   onPullKey: () => void; // NEW: Add onPullKey prop
+  pdfCurrentPage: number; // NEW: Add pdfCurrentPage
+  setPdfCurrentPage: (page: number) => void; // NEW: Add setPdfCurrentPage
+  selectedChartType: ChartType; // NEW: Add selectedChartType
 }
 
 const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
@@ -87,6 +91,9 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   audioEngine,
   effectiveTargetKey, // Destructure new prop
   onPullKey, // Destructure new prop
+  pdfCurrentPage, // NEW
+  setPdfCurrentPage, // NEW
+  selectedChartType, // NEW
 }) => {
   const displayKey = effectiveTargetKey ? formatKey(effectiveTargetKey, readerKeyPreference) : null; // Use effectiveTargetKey here
   const keysToUse = readerKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
@@ -108,6 +115,14 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
       await onLoadAudio(urlToLoad, pitch || 0); // Pass current effective pitch
     }
     onTogglePlayback();
+  };
+
+  const handlePrevPdfPage = () => {
+    setPdfCurrentPage(prev => Math.max(1, prev - 1));
+  };
+
+  const handleNextPdfPage = () => {
+    setPdfCurrentPage(prev => Math.min(prev + 1, 999)); // Arbitrary max page
   };
 
   if (isFullScreen) return null; // Hide header in full-screen mode
@@ -134,16 +149,57 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
           <ListMusic className="w-5 h-5" />
         </Button>
 
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={onPrevSong} 
-          disabled={isLoading}
-          className="h-9 w-9 rounded-lg hover:bg-white/10 text-slate-400"
-          title="Previous Song"
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </Button>
+        {/* NEW: PDF Page Navigation or Song Navigation */}
+        {(selectedChartType === 'pdf' || selectedChartType === 'leadsheet') ? (
+          <>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={handlePrevPdfPage} 
+              disabled={isLoading || pdfCurrentPage === 1}
+              className="h-9 w-9 rounded-lg hover:bg-white/10 text-slate-400"
+              title="Previous Page"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest">
+              Page {pdfCurrentPage}
+            </span>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={handleNextPdfPage} 
+              disabled={isLoading}
+              className="h-9 w-9 rounded-lg hover:bg-white/10 text-slate-400"
+              title="Next Page"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={onPrevSong} 
+              disabled={isLoading}
+              className="h-9 w-9 rounded-lg hover:bg-white/10 text-slate-400"
+              title="Previous Song"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={onNextSong} 
+              disabled={isLoading}
+              className="h-9 w-9 rounded-lg hover:bg-white/10 text-slate-400"
+              title="Next Song"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </>
+        )}
         
         <Button
           variant="ghost"
@@ -158,17 +214,6 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
           title={isPlaying ? "Pause Audio" : "Play Audio"}
         >
           {isLoadingAudio ? <Loader2 className="w-7 h-7 animate-spin" /> : (isPlaying ? <Pause className="w-7 h-7" /> : <Play className="w-7 h-7" />)}
-        </Button>
-
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={onNextSong} 
-          disabled={isLoading}
-          className="h-9 w-9 rounded-lg hover:bg-white/10 text-slate-400"
-          title="Next Song"
-        >
-          <ChevronRight className="w-4 h-4" />
         </Button>
 
         <div className="flex-1 text-left min-w-[120px] max-w-[200px]">
