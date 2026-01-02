@@ -4,18 +4,18 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
-import { SetlistSong, UGChordsConfig } from '@/components/SetlistManager';
+import { SetlistSong } from '@/components/SetlistManager';
 import { Button } from '@/components/ui/button';
-import { Music, Loader2, AlertCircle, X, ExternalLink, ShieldCheck, FileText, Layout, Guitar, ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import { Music, Loader2, X, ExternalLink, ShieldCheck, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
-import { useSettings, KeyPreference } from '@/hooks/use-settings';
-import { calculateReadiness, syncToMasterRepertoire } from '@/utils/repertoireSync';
+import { useSettings } from '@/hooks/use-settings';
+import { syncToMasterRepertoire } from '@/utils/repertoireSync';
 import { showError, showSuccess, showInfo } from '@/utils/toast';
 import UGChordsReader from '@/components/UGChordsReader';
 import { useToneAudio } from '@/hooks/use-tone-audio';
 import { calculateSemitones } from '@/utils/keyUtils';
-import { useReaderSettings, ReaderResourceForce } from '@/hooks/use-reader-settings';
+import { useReaderSettings } from '@/hooks/use-reader-settings';
 import PreferencesModal from '@/components/PreferencesModal';
 import SongStudioModal from '@/components/SongStudioModal';
 import SheetReaderHeader from '@/components/SheetReaderHeader';
@@ -28,28 +28,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 type ChartType = 'pdf' | 'leadsheet' | 'chords';
 
-interface RenderedChart {
-  id: string;
-  content: React.ReactNode;
-  isLoaded: boolean;
-  opacity: number;
-  zIndex: number;
-  type: ChartType;
-}
-
 const SheetReaderMode: React.FC = () => {
   const navigate = useNavigate();
   const { songId: routeSongId } = useParams<{ songId?: string }>();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { 
     keyPreference: globalKeyPreference,
-    ugChordsFontFamily,
-    ugChordsFontSize,
-    ugChordsChordBold,
-    ugChordsChordColor,
-    ugChordsLineSpacing,
-    ugChordsTextAlign,
     preventStageKeyOverwrite
   } = useSettings();
   const { forceReaderResource } = useReaderSettings();
@@ -65,57 +50,43 @@ const SheetReaderMode: React.FC = () => {
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isRepertoireSearchModalOpen, setIsRepertoireSearchModalOpen] = useState(false);
+  const [chartLoading, setChartLoading] = useState(false);
 
   const [readerKeyPreference, setReaderKeyPreference] = useState<'sharps' | 'flats'>(
     globalKeyPreference === 'neutral' ? 'sharps' : globalKeyPreference
   );
   
   const [selectedChartType, setSelectedChartType] = useState<ChartType>('pdf');
-  const [renderedCharts, setRenderedCharts] = useState<RenderedChart[]>([]);
 
   const audioEngine = useToneAudio(true);
   const {
     isPlaying, progress, duration, loadFromUrl, stopPlayback,
-    setPitch: setAudioPitch, setProgress: setAudioProgress, volume, setVolume,
-    currentUrl, currentBuffer, isLoadingAudio, tempo
+    setPitch: setAudioPitch, setProgress: setAudioProgress,
+    isLoadingAudio, tempo
   } = audioEngine;
 
   const currentSong = allSongs[currentIndex];
 
-  // Swipe navigation refs and state
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
-  const swipeThreshold = 50; // pixels
+  const swipeThreshold = 50;
 
-  // Sync state to current song's saved preference
-  useEffect(() => {
-    if (currentSong?.key_preference) {
-      setReaderKeyPreference(currentSong.key_preference as 'sharps' | 'flats');
-    } else if (globalKeyPreference !== 'neutral') {
-      setReaderKeyPreference(globalKeyPreference as 'sharps' | 'flats');
-    }
-  }, [currentSong?.id, globalKeyPreference]);
-
+  // Persistence of song updates
   const handleLocalSongUpdate = useCallback((songId: string, updates: Partial<SetlistSong>) => {
     setAllSongs(prev => prev.map(s => s.id === songId ? { ...s, ...updates } : s));
-    setFullMasterRepertoire(prev => prev.map(s => s.id === songId ? { ...s, ...updates } : s));
-    setCurrentSetlistSongs(prev => prev.map(s => s.id === songId ? { ...s, ...updates } : s));
   }, []);
 
   const harmonicSync = useHarmonicSync({
     formData: {
-      id: currentSong?.id, // Pass ID for session overrides
+      id: currentSong?.id,
       originalKey: currentSong?.originalKey,
       targetKey: currentSong?.targetKey || currentSong?.originalKey,
       pitch: currentSong?.pitch ?? 0,
       is_pitch_linked: currentSong?.is_pitch_linked ?? true,
-      ug_chords_text: currentSong?.ug_chords_text,
       isKeyConfirmed: currentSong?.isKeyConfirmed,
     },
     handleAutoSave: useCallback(async (updates: Partial<SetlistSong>) => {
       if (!currentSong || !user) return;
-      console.log("[SheetReader] Auto-saving master updates via utility:", updates);
-      
       try {
         const result = await syncToMasterRepertoire(user.id, [{
           ...updates,
@@ -123,10 +94,7 @@ const SheetReaderMode: React.FC = () => {
           name: currentSong.name,
           artist: currentSong.artist
         }]);
-        
-        if (result[0]) {
-          handleLocalSongUpdate(currentSong.id, result[0]);
-        }
+        if (result[0]) handleLocalSongUpdate(currentSong.id, result[0]);
       } catch (err) {
         console.error("Sheet Reader Auto-save failed:", err);
       }
@@ -143,67 +111,22 @@ const SheetReaderMode: React.FC = () => {
     isStageKeyLocked 
   } = harmonicSync;
 
-  // Add this log
-  console.log("[SheetReaderMode] effectiveTargetKey:", effectiveTargetKey);
-
-  const handleUpdateKey = useCallback(async (newTargetKey: string) => {
-    if (!currentSong || !user) return;
-
+  const handleUpdateKey = useCallback((newTargetKey: string) => {
+    if (!currentSong) return;
     setTargetKey(newTargetKey); 
     setAudioPitch(calculateSemitones(currentSong.originalKey || 'C', newTargetKey));
-    
-    if (isStageKeyLocked) {
-      showInfo(`Stage Key temporarily set to ${newTargetKey}`);
-    } else {
-      showSuccess(`Stage Key set to ${newTargetKey}`);
-    }
-  }, [currentSong, user, isStageKeyLocked, setTargetKey, setAudioPitch]);
+    if (isStageKeyLocked) showInfo(`Session Key: ${newTargetKey}`);
+  }, [currentSong, isStageKeyLocked, setTargetKey, setAudioPitch]);
 
-  const handlePullKey = useCallback(async () => {
-    if (!currentSong || !currentSong.ug_chords_text || !user) {
-      showError("No UG chords to extract key from.");
-      return;
-    }
+  const handlePullKey = useCallback(() => {
+    if (!currentSong?.ug_chords_text) return;
     const extractedKey = extractKeyFromChords(currentSong.ug_chords_text);
-    if (!extractedKey) {
-      showError("Could not extract key.");
-      return;
+    if (extractedKey) {
+      setTargetKey(extractedKey);
+      setPitch(0);
+      setAudioPitch(0);
     }
-    
-    setTargetKey(extractedKey); 
-    setPitch(0);
-    setAudioPitch(0);
-    
-    if (isStageKeyLocked) {
-      showInfo(`Key temporarily set to ${extractedKey}`);
-    } else {
-      showSuccess(`Key set to ${extractedKey}`);
-    }
-  }, [currentSong, user, isStageKeyLocked, setTargetKey, setPitch, setAudioPitch]);
-
-  const handleSaveReaderPreference = useCallback(async (pref: 'sharps' | 'flats') => {
-    if (!currentSong || !user) return;
-    
-    try {
-      const result = await syncToMasterRepertoire(user.id, [{
-        id: currentSong.id,
-        name: currentSong.name,
-        artist: currentSong.artist,
-        key_preference: pref
-      }]);
-      
-      if (result[0]) {
-        handleLocalSongUpdate(currentSong.id, result[0]);
-        showSuccess(`Preference saved: ${pref === 'sharps' ? 'Sharps' : 'Flats'}`);
-      }
-    } catch (err) {
-      showError("Failed to save preference.");
-    }
-  }, [currentSong, user, handleLocalSongUpdate]);
-
-  useEffect(() => {
-    setAudioPitch(effectivePitch);
-  }, [effectivePitch, setAudioPitch]);
+  }, [currentSong, setTargetKey, setPitch, setAudioPitch]);
 
   const fetchSongs = useCallback(async () => {
     if (!user) return;
@@ -213,413 +136,93 @@ const SheetReaderMode: React.FC = () => {
       const filterApproved = searchParams.get('filterApproved');
       const targetId = routeSongId || searchParams.get('id');
 
-      let currentViewSongs: SetlistSong[] = [];
-      let masterRepertoireList: SetlistSong[] = [];
-      let activeSetlistSongsList: SetlistSong[] = [];
-
-      // Always fetch full master repertoire
       const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user_id', user.id).order('title');
       if (masterError) throw masterError;
-      masterRepertoireList = (masterData || []).map((d: any) => ({
+      
+      const masterList = (masterData || []).map((d: any) => ({
+        ...d,
         id: d.id,
-        master_id: d.id,
         name: d.title,
-        artist: d.artist,
         originalKey: d.original_key ?? 'TBC',
         targetKey: d.target_key ?? d.original_key ?? 'TBC',
-        pitch: d.pitch ?? 0,
         previewUrl: d.extraction_status === 'completed' && d.audio_url ? d.audio_url : d.preview_url,
-        youtubeUrl: d.youtube_url,
-        ugUrl: d.ug_url,
-        appleMusicUrl: d.apple_music_url,
-        pdfUrl: d.pdf_url,
-        leadsheetUrl: d.leadsheet_url,
-        bpm: d.bpm,
-        genre: d.genre,
-        isSyncing: false,
-        isMetadataConfirmed: d.is_metadata_confirmed,
-        isKeyConfirmed: d.is_key_confirmed,
-        notes: d.notes,
-        lyrics: d.lyrics,
-        resources: d.resources || [],
-        user_tags: d.user_tags || [],
-        is_pitch_linked: d.is_pitch_linked ?? true,
-        duration_seconds: d.duration_seconds,
-        key_preference: d.key_preference,
-        is_active: d.is_active,
-        isApproved: d.is_approved,
-        preferred_reader: d.preferred_reader,
-        ug_chords_text: d.ug_chords_text,
-        ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
-        is_ug_chords_present: d.is_ug_chords_present,
-        highest_note_original: d.highest_note_original,
-        metadata_source: d.metadata_source,
-        sync_status: d.sync_status,
-        last_sync_log: d.last_sync_log,
-        auto_synced: d.auto_synced,
-        is_sheet_verified: d.is_sheet_verified,
-        sheet_music_url: d.sheet_music_url,
-        extraction_status: d.extraction_status,
-        extraction_error: d.extraction_error,
-        audio_url: d.audio_url,
-        lyrics_updated_at: d.lyrics_updated_at,
-        chords_updated_at: d.chords_updated_at,
-        ug_link_updated_at: d.ug_link_updated_at,
-        highest_note_updated_at: d.highest_note_updated_at,
-        original_key_updated_at: d.original_key_updated_at,
-        target_key_updated_at: d.target_key_updated_at,
       }));
-      setFullMasterRepertoire(masterRepertoireList);
+      setFullMasterRepertoire(masterList);
+
+      let currentViewSongs = masterList;
 
       if (filterApproved === 'true') {
-        const { data: setlistsData, error: setlistsError } = await supabase
-          .from('setlists')
-          .select('id')
-          .eq('user_id', user.id)
-          .limit(1);
-
-        if (setlistsError || !setlistsData || setlistsData.length === 0) {
-          throw new Error("No active setlist found for approved songs.");
+        const { data: setlists } = await supabase.from('setlists').select('id').eq('user_id', user.id).limit(1);
+        if (setlists?.[0]) {
+          const { data: junction } = await supabase.from('setlist_songs')
+            .select('*, repertoire:song_id(*)')
+            .eq('setlist_id', setlists[0].id)
+            .order('sort_order', { ascending: true });
+          
+          currentViewSongs = (junction || []).map((j: any) => ({
+            ...j.repertoire,
+            id: j.id,
+            master_id: j.repertoire.id,
+            name: j.repertoire.title,
+            originalKey: j.repertoire.original_key ?? 'TBC',
+            targetKey: j.repertoire.target_key ?? j.repertoire.original_key ?? 'TBC',
+            previewUrl: j.repertoire.extraction_status === 'completed' && j.repertoire.audio_url ? j.repertoire.audio_url : j.repertoire.preview_url,
+          })).filter((s: any) => s.name);
+          setCurrentSetlistSongs(currentViewSongs);
         }
-        const activeSetlistId = setlistsData[0].id;
-
-        const { data: junctionData, error: junctionError } = await supabase
-          .from('setlist_songs')
-          .select(`
-            *,
-            repertoire:song_id (
-              id, title, artist, original_key, target_key, pitch, preview_url, youtube_url, ug_url, 
-              apple_music_url, pdf_url, leadsheet_url, bpm, genre, is_metadata_confirmed, is_key_confirmed, 
-              notes, lyrics, resources, user_tags, is_pitch_linked, duration_seconds, key_preference, 
-              is_active, is_approved, preferred_reader, ug_chords_text, 
-              ug_chords_config, is_ug_chords_present, highest_note_original, 
-              metadata_source, sync_status, last_sync_log, auto_synced, is_sheet_verified, sheet_music_url, 
-              extraction_status, extraction_error, audio_url, lyrics_updated_at, chords_updated_at, 
-              ug_link_updated_at, highest_note_updated_at, original_key_updated_at, target_key_updated_at
-            )
-          `)
-          .eq('setlist_id', activeSetlistId)
-          .order('sort_order', { ascending: true });
-
-        if (junctionError) throw junctionError;
-
-        activeSetlistSongsList = (junctionData || []).map((junction: any) => {
-          const masterSong = junction.repertoire;
-          if (!masterSong) return null;
-          return {
-            id: junction.id,
-            master_id: masterSong.id,
-            name: masterSong.title,
-            artist: masterSong.artist,
-            originalKey: masterSong.original_key ?? 'TBC',
-            targetKey: masterSong.target_key ?? masterSong.original_key ?? 'TBC',
-            pitch: masterSong.pitch ?? 0,
-            previewUrl: masterSong.extraction_status === 'completed' && masterSong.audio_url ? masterSong.audio_url : masterSong.preview_url,
-            youtubeUrl: masterSong.youtube_url,
-            ugUrl: masterSong.ug_url,
-            appleMusicUrl: masterSong.apple_music_url,
-            pdfUrl: masterSong.pdf_url,
-            leadsheetUrl: masterSong.leadsheet_url,
-            bpm: masterSong.bpm,
-            genre: masterSong.genre,
-            isSyncing: false,
-            isMetadataConfirmed: masterSong.is_metadata_confirmed,
-            isKeyConfirmed: masterSong.is_key_confirmed,
-            notes: masterSong.notes,
-            lyrics: masterSong.lyrics,
-            resources: masterSong.resources || [],
-            user_tags: masterSong.user_tags || [],
-            is_pitch_linked: masterSong.is_pitch_linked ?? true,
-            duration_seconds: masterSong.duration_seconds,
-            key_preference: masterSong.key_preference,
-            is_active: masterSong.is_active,
-            isApproved: masterSong.is_approved,
-            preferred_reader: masterSong.preferred_reader,
-            ug_chords_text: masterSong.ug_chords_text,
-            ug_chords_config: masterSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
-            is_ug_chords_present: masterSong.is_ug_chords_present,
-            highest_note_original: masterSong.highest_note_original,
-            metadata_source: masterSong.metadata_source,
-            sync_status: masterSong.sync_status,
-            last_sync_log: masterSong.last_sync_log,
-            auto_synced: masterSong.auto_synced,
-            is_sheet_verified: masterSong.is_sheet_verified,
-            sheet_music_url: masterSong.sheet_music_url,
-            extraction_status: masterSong.extraction_status,
-            extraction_error: masterSong.extraction_error,
-            audio_url: masterSong.audio_url,
-            lyrics_updated_at: masterSong.lyrics_updated_at,
-            chords_updated_at: masterSong.chords_updated_at,
-            ug_link_updated_at: masterSong.ug_link_updated_at,
-            highest_note_updated_at: masterSong.highest_note_updated_at,
-            original_key_updated_at: masterSong.original_key_updated_at,
-            target_key_updated_at: masterSong.target_key_updated_at,
-            isPlayed: junction.isPlayed || false,
-          };
-        }).filter(Boolean) as SetlistSong[];
-        setCurrentSetlistSongs(activeSetlistSongsList);
-        currentViewSongs = activeSetlistSongsList;
-      } else {
-        currentViewSongs = masterRepertoireList;
       }
 
-      const readableSongs = currentViewSongs.filter(s => 
-        s.pdfUrl || s.leadsheetUrl || s.ug_chords_text || s.sheet_music_url
+      const readable = currentViewSongs.filter((s: any) => 
+        s.pdf_url || s.leadsheet_url || s.ug_chords_text || s.sheet_music_url
       );
+      setAllSongs(readable);
 
-      const uniqueSongsMap = new Map<string, SetlistSong>();
-      readableSongs.forEach(song => {
-        const key = song.master_id || song.id;
-        if (key && !uniqueSongsMap.has(key)) {
-          uniqueSongsMap.set(key, song);
-        }
-      });
-      const uniqueReadableSongs = Array.from(uniqueSongsMap.values());
-
-      setAllSongs(uniqueReadableSongs);
-
-      let initialIndex = 0;
-      if (targetId) {
-        const idx = uniqueReadableSongs.findIndex(s => s.id === targetId || s.master_id === targetId);
-        if (idx !== -1) initialIndex = idx;
-      }
-      setCurrentIndex(initialIndex);
+      const startIdx = targetId ? readable.findIndex((s: any) => s.id === targetId || s.master_id === targetId) : 0;
+      setCurrentIndex(startIdx === -1 ? 0 : startIdx);
     } catch (err: any) {
-      showError(`Failed to load songs: ${err.message}`);
+      showError(`Load failed: ${err.message}`);
     } finally {
       setInitialLoading(false);
     }
   }, [user, routeSongId, searchParams]);
 
   useEffect(() => {
-    const fromDashboard = sessionStorage.getItem('from_dashboard');
-    if (!fromDashboard) {
-      navigate('/', { replace: true });
-      return;
-    }
     fetchSongs();
-  }, [fetchSongs, navigate]);
+  }, [fetchSongs]);
 
   const getBestChartType = useCallback((song: SetlistSong): ChartType => {
-    // 1. Force Reader Resource overrides
     if (forceReaderResource === 'force-pdf' && song.pdfUrl) return 'pdf';
     if (forceReaderResource === 'force-ug' && (song.ugUrl || song.ug_chords_text)) return 'chords';
-    if (forceReaderResource === 'force-chords' && song.ug_chords_text) return 'chords';
-
-    // 2. Song's preferred_reader
-    if (song.preferred_reader === 'ug' && (song.ugUrl || song.ug_chords_text)) return 'chords';
-    if (song.preferred_reader === 'ls' && song.leadsheetUrl) return 'leadsheet';
-    if (song.preferred_reader === 'fn' && (song.sheet_music_url || song.pdfUrl)) return 'pdf';
-
-    // 3. Fallback based on available resources (order of preference)
+    if (song.preferred_reader === 'ug') return 'chords';
+    if (song.preferred_reader === 'ls') return 'leadsheet';
     if (song.pdfUrl) return 'pdf';
     if (song.leadsheetUrl) return 'leadsheet';
     if (song.ug_chords_text) return 'chords';
-    if (song.ugUrl) return 'chords';
-    if (song.sheet_music_url) return 'pdf';
-
-    return 'pdf'; // Default fallback if nothing else matches
+    return 'pdf';
   }, [forceReaderResource]);
 
-  const isFramable = useCallback((url: string | null | undefined) => {
-    if (!url) return true;
-    const blockedSites = ['ultimate-guitar.com', 'musicnotes.com', 'sheetmusicplus.com'];
-    return !blockedSites.some(site => url.includes(site));
-  }, []);
-
-  const renderChartForSong = useCallback((song: SetlistSong, chartType: ChartType) => {
-    const commonProps = {
-      onChartReady: () => setRenderedCharts(prev => prev.map(rc => rc.id === song.id && rc.type === chartType ? { ...rc, isLoaded: true } : rc)),
-    };
-
-    switch (chartType) {
-      case 'chords':
-        return (
-          <UGChordsReader
-            chordsText={song.ug_chords_text || ""}
-            config={song.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
-            isMobile={false} // Adjust as needed
-            originalKey={song.originalKey}
-            targetKey={effectiveTargetKey}
-            isPlaying={isPlaying}
-            progress={progress}
-            duration={duration}
-            readerKeyPreference={readerKeyPreference}
-            {...commonProps}
-          />
-        );
-      case 'pdf':
-      case 'leadsheet':
-        const url = chartType === 'pdf' ? song.pdfUrl : song.leadsheetUrl;
-        if (url && isFramable(url)) {
-          return (
-            <iframe
-              src={`${url}#toolbar=0&navpanes=0&view=FitH`}
-              className="w-full h-full bg-white"
-              title="Sheet Music"
-              onLoad={commonProps.onChartReady}
-            />
-          );
-        } else if (url) {
-          return (
-            <div className="h-full w-full flex flex-col items-center justify-center p-6 md:p-12 text-center bg-slate-950">
-              <ShieldCheck className="w-12 h-12 md:w-16 md:h-16 text-indigo-400 mb-6 md:mb-10" />
-              <h4 className="text-3xl md:text-5xl font-black uppercase tracking-tight mb-4 md:mb-6 text-white">Asset Protected</h4>
-              <p className="text-slate-500 max-xl mb-8 md:mb-16 text-lg md:text-xl font-medium leading-relaxed">
-                External security prevents in-app display. Use the button below to launch in a secure dedicated performance window.
-              </p>
-              <Button onClick={() => window.open(url, '_blank')} className="bg-indigo-600 hover:bg-indigo-700 h-16 md:h-20 px-10 md:px-16 font-black uppercase tracking-[0.2em] text-xs md:text-sm rounded-2xl md:rounded-3xl shadow-2xl shadow-indigo-600/30 gap-4 md:gap-6">
-                <ExternalLink className="w-6 h-6 md:w-8 md:h-8" /> Launch Chart Window
-              </Button>
-            </div>
-          );
-        }
-        return (
-          <div className="h-full flex items-center justify-center text-slate-500 text-sm italic">
-            <p>No {chartType} available for this track.</p>
-          </div>
-        );
-      default:
-        return (
-          <div className="h-full flex items-center justify-center text-slate-500 text-sm italic">
-            <p>No chart selected or available.</p>
-          </div>
-        );
-    }
-  }, [effectiveTargetKey, isPlaying, progress, duration, readerKeyPreference, ugChordsFontFamily, ugChordsFontSize, ugChordsChordBold, ugChordsChordColor, ugChordsLineSpacing, ugChordsTextAlign, isFramable]);
-
   useEffect(() => {
-    if (currentSong) {
-      const bestType = getBestChartType(currentSong);
-      setSelectedChartType(bestType);
-    }
+    if (currentSong) setSelectedChartType(getBestChartType(currentSong));
   }, [currentSong, getBestChartType]);
-
-  useEffect(() => {
-    if (!currentSong) {
-      setRenderedCharts([]);
-      return;
-    }
-
-    setRenderedCharts(prev => {
-      const existing = prev.find(c => c.id === currentSong.id && c.type === selectedChartType);
-      if (existing) {
-        return prev.map(c => c.id === currentSong.id && c.type === selectedChartType ? { ...c, opacity: 1, zIndex: 10 } : { ...c, opacity: 0, zIndex: 0 });
-      }
-      return [{
-        id: currentSong.id,
-        content: renderChartForSong(currentSong, selectedChartType),
-        isLoaded: false,
-        opacity: 1,
-        zIndex: 10,
-        type: selectedChartType,
-      }];
-    });
-  }, [currentSong, selectedChartType, renderChartForSong]);
 
   const handleNext = useCallback(() => {
     if (allSongs.length > 0) {
-      setCurrentIndex((prevIndex) => (prevIndex + 1) % allSongs.length);
+      setCurrentIndex(p => (p + 1) % allSongs.length);
       stopPlayback();
     }
   }, [allSongs, stopPlayback]);
 
   const handlePrev = useCallback(() => {
     if (allSongs.length > 0) {
-      setCurrentIndex((prevIndex) => (prevIndex - 1 + allSongs.length) % allSongs.length);
+      setCurrentIndex(p => (p - 1 + allSongs.length) % allSongs.length);
       stopPlayback();
     }
   }, [allSongs, stopPlayback]);
 
-  const isChartLoading = renderedCharts.find(c => c.id === currentSong?.id && c.type === selectedChartType && !c.isLoaded);
-
-  // Browser Fullscreen API logic
   const toggleBrowserFullScreen = useCallback(() => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(err => {
-        showError(`Error attempting to enable fullscreen mode: ${err.message} (${err.name})`);
-      });
-    } else {
-      document.exitFullscreen();
-    }
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+    else document.exitFullscreen();
   }, []);
-
-  useEffect(() => {
-    const handleFullScreenChange = () => {
-      setIsBrowserFullScreen(!!document.fullscreenElement);
-    };
-    document.addEventListener('fullscreenchange', handleFullScreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullScreenChange);
-  }, []);
-
-  const onOpenCurrentSongStudio = useCallback(() => {
-    if (currentSong) {
-      setIsStudioPanelOpen(true);
-    } else {
-      showInfo("No song selected to open in Studio.");
-    }
-  }, [currentSong]);
-
-  const handleSelectSongFromRepertoireSearch = useCallback((song: SetlistSong) => {
-    const idx = allSongs.findIndex(s => s.id === song.id || s.master_id === song.master_id);
-    if (idx !== -1) {
-      setCurrentIndex(idx);
-    } else {
-      navigate(`/sheet-reader/${song.id}`);
-    }
-    stopPlayback();
-    setIsRepertoireSearchModalOpen(false);
-  }, [allSongs, navigate, stopPlayback]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-
-      switch (e.key) {
-        case 'ArrowLeft':
-          e.preventDefault();
-          handlePrev();
-          break;
-        case 'ArrowRight':
-          e.preventDefault();
-          handleNext();
-          break;
-        case 'i':
-        case 'I':
-          if (currentSong) {
-            e.preventDefault();
-            onOpenCurrentSongStudio();
-          }
-          break;
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentSong, onOpenCurrentSongStudio, handlePrev, handleNext]);
-
-  // Swipe gesture handlers
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-    touchEndX.current = e.touches[0].clientX;
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    touchEndX.current = e.touches[0].clientX;
-  };
-
-  const handleTouchEnd = () => {
-    if (!isBrowserFullScreen) return;
-
-    const deltaX = touchEndX.current - touchStartX.current;
-
-    if (deltaX > swipeThreshold) {
-      handlePrev();
-    } else if (deltaX < -swipeThreshold) {
-      handleNext();
-    }
-    touchStartX.current = 0;
-    touchEndX.current = 0;
-  };
 
   if (initialLoading) return <div className="h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
 
@@ -638,7 +241,7 @@ const SheetReaderMode: React.FC = () => {
           currentSong={currentSong!}
           onClose={() => navigate('/')}
           onOpenRepertoireSearch={() => setIsRepertoireSearchModalOpen(true)}
-          onOpenCurrentSongStudio={onOpenCurrentSongStudio}
+          onOpenCurrentSongStudio={() => setIsStudioPanelOpen(true)}
           onPrevSong={handlePrev}
           onNextSong={handleNext}
           isLoading={!currentSong}
@@ -666,25 +269,37 @@ const SheetReaderMode: React.FC = () => {
           isSidebarOpen={isSidebarOpen && !isBrowserFullScreen}
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           headerLeftOffset={isSidebarOpen && !isBrowserFullScreen ? 300 : 0}
-          onSavePreference={handleSaveReaderPreference}
+          onSavePreference={setReaderKeyPreference}
           audioEngine={audioEngine}
           effectiveTargetKey={effectiveTargetKey}
           onPullKey={handlePullKey}
         />
 
-        <div
-          className={cn("flex-1 bg-black relative overflow-y-auto", isBrowserFullScreen ? "mt-0" : "mt-[112px]")}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          style={{ overscrollBehaviorY: 'contain' }}
-        >
-          {renderedCharts.map(rc => (
-            <motion.div key={`${rc.id}-${rc.type}`} className="absolute inset-0" animate={{ opacity: rc.opacity }} style={{ zIndex: rc.zIndex }}>
-              {rc.content}
-            </motion.div>
-          ))}
-          {isChartLoading && <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 z-20"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>}
+        <div className={cn("flex-1 bg-black relative overflow-y-auto", isBrowserFullScreen ? "mt-0" : "mt-[112px]")}>
+          {currentSong && (
+            <div className="absolute inset-0">
+              {selectedChartType === 'chords' ? (
+                <UGChordsReader
+                  chordsText={currentSong.ug_chords_text || ""}
+                  config={currentSong.ug_chords_config}
+                  isMobile={false}
+                  originalKey={currentSong.originalKey}
+                  targetKey={effectiveTargetKey}
+                  isPlaying={isPlaying}
+                  progress={progress}
+                  duration={duration}
+                  readerKeyPreference={readerKeyPreference}
+                />
+              ) : (
+                <iframe
+                  src={`${(selectedChartType === 'pdf' ? currentSong.pdfUrl : currentSong.leadsheetUrl) || currentSong.sheet_music_url}#toolbar=0&navpanes=0&view=FitH`}
+                  className="w-full h-full bg-white"
+                  title="Chart Viewer"
+                  onLoad={() => setChartLoading(false)}
+                />
+              )}
+            </div>
+          )}
         </div>
       </main>
 
@@ -700,29 +315,22 @@ const SheetReaderMode: React.FC = () => {
       )}
 
       <AnimatePresence>
-        {isStudioPanelOpen && (
-          <motion.div
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            className="fixed right-0 top-0 h-full w-[480px] bg-slate-900 shadow-2xl z-50 flex flex-col"
-          >
+        {isStudioPanelOpen && currentSong && (
+          <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} className="fixed right-0 top-0 h-full w-[480px] bg-slate-900 shadow-2xl z-50 flex flex-col">
             <div className="h-16 flex items-center justify-between px-6 border-b border-slate-800">
               <h2 className="text-xl font-bold">Song Studio</h2>
               <Button variant="ghost" size="icon" onClick={() => setIsStudioPanelOpen(false)}><X className="w-5 h-5" /></Button>
             </div>
             <div className="flex-1 overflow-hidden">
-              {currentSong && (
-                <SongStudioModal
-                  isOpen={true}
-                  onClose={() => setIsStudioPanelOpen(false)}
-                  gigId="library"
-                  songId={currentSong.id}
-                  visibleSongs={allSongs}
-                  handleAutoSave={(updates) => handleLocalSongUpdate(currentSong.id, updates)}
-                  preventStageKeyOverwrite={preventStageKeyOverwrite}
-                />
-              )}
+              <SongStudioModal
+                isOpen={true}
+                onClose={() => setIsStudioPanelOpen(false)}
+                gigId="library"
+                songId={currentSong.id}
+                visibleSongs={allSongs}
+                handleAutoSave={(updates) => handleLocalSongUpdate(currentSong.id, updates)}
+                preventStageKeyOverwrite={preventStageKeyOverwrite}
+              />
             </div>
           </motion.div>
         )}
@@ -733,7 +341,11 @@ const SheetReaderMode: React.FC = () => {
         onClose={() => setIsRepertoireSearchModalOpen(false)}
         masterRepertoire={fullMasterRepertoire}
         currentSetlistSongs={currentSetlistSongs}
-        onSelectSong={handleSelectSongFromRepertoireSearch}
+        onSelectSong={(s) => { 
+          const idx = allSongs.findIndex(x => x.id === s.id || x.master_id === s.master_id);
+          if (idx !== -1) setCurrentIndex(idx);
+          setIsRepertoireSearchModalOpen(false);
+        }}
       />
 
       <PreferencesModal isOpen={isPreferencesOpen} onClose={() => setIsPreferencesOpen(false)} />

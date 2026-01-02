@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { SetlistSong } from '@/components/SetlistManager';
 import { calculateSemitones, transposeKey } from '@/utils/keyUtils';
 import { KeyPreference } from './use-settings';
@@ -9,103 +9,52 @@ interface UseHarmonicSyncProps {
   formData: Partial<SetlistSong>;
   handleAutoSave: (updates: Partial<SetlistSong>) => void;
   globalKeyPreference: KeyPreference;
-  preventStageKeyOverwrite: boolean; // NEW: Add this prop
+  preventStageKeyOverwrite: boolean;
 }
 
 export function useHarmonicSync({ formData, handleAutoSave, globalKeyPreference, preventStageKeyOverwrite }: UseHarmonicSyncProps) {
   const isPitchLinkedFromData = formData.is_pitch_linked ?? true;
   const originalKeyFromData = formData.originalKey || 'C';
 
-  // Internal state for local overrides when not linked
+  // State for session-specific overrides or local changes
   const [localPitch, setLocalPitch] = useState(formData.pitch ?? 0);
   const [localTargetKey, setLocalTargetKey] = useState(formData.targetKey || originalKeyFromData);
 
-  // NEW: Ref to store temporary overrides when stage key is locked
-  const sessionOverridesRef = useRef<Record<string, { pitch: number; targetKey: string }>>({});
-
-  // Update local state when formData changes, but only if not linked
+  // Sync local state when formData changes (e.g. song switch or DB sync)
   useEffect(() => {
-    if (!isPitchLinkedFromData) {
-      setLocalPitch(formData.pitch ?? 0);
-      setLocalTargetKey(formData.targetKey || originalKeyFromData);
-    }
-  }, [formData.pitch, formData.targetKey, originalKeyFromData, isPitchLinkedFromData]);
-
-  // Determine if stage key changes should be prevented
-  const isStageKeyLocked = preventStageKeyOverwrite && formData.isKeyConfirmed;
-
-  // Determine active pitch and targetKey based on linking status AND lock status
-  const effectivePitch = useMemo(() => {
-    if (isStageKeyLocked && formData.id && sessionOverridesRef.current[formData.id]) {
-      return sessionOverridesRef.current[formData.id].pitch;
-    }
-    return isPitchLinkedFromData ? (formData.pitch ?? 0) : localPitch;
-  }, [isStageKeyLocked, formData.id, isPitchLinkedFromData, formData.pitch, localPitch]);
-
-  const effectiveTargetKey = useMemo(() => {
-    if (isStageKeyLocked && formData.id && sessionOverridesRef.current[formData.id]) {
-      return sessionOverridesRef.current[formData.id].targetKey;
-    }
-    return isPitchLinkedFromData ? (formData.targetKey || originalKeyFromData) : localTargetKey;
-  }, [isStageKeyLocked, formData.id, isPitchLinkedFromData, formData.targetKey, originalKeyFromData, localTargetKey]);
-
-  // Update session overrides when formData.id changes (i.e., switching songs)
-  useEffect(() => {
-    if (formData.id && !sessionOverridesRef.current[formData.id]) {
-      sessionOverridesRef.current[formData.id] = {
-        pitch: formData.pitch ?? 0,
-        targetKey: formData.targetKey || originalKeyFromData,
-      };
-    }
+    setLocalPitch(formData.pitch ?? 0);
+    setLocalTargetKey(formData.targetKey || originalKeyFromData);
   }, [formData.id, formData.pitch, formData.targetKey, originalKeyFromData]);
 
-
-  // --- Setters that interact with handleAutoSave or local/session state ---
+  // Determine if stage key changes should be prevented from persisting
+  const isStageKeyLocked = preventStageKeyOverwrite && formData.isKeyConfirmed;
 
   const setPitch = useCallback((newPitch: number) => {
-    if (isStageKeyLocked) {
-      if (formData.id) {
-        sessionOverridesRef.current = {
-          ...sessionOverridesRef.current,
-          [formData.id]: { ...sessionOverridesRef.current[formData.id], pitch: newPitch }
-        };
-      }
-      setLocalPitch(newPitch); // Update local state for immediate UI reflection
-      console.log("[useHarmonicSync] setPitch (locked): localPitch updated to", newPitch);
-    } else if (isPitchLinkedFromData) {
+    // 1. Update local UI state immediately
+    setLocalPitch(newPitch);
+
+    // 2. If not locked, persist to database
+    if (!isStageKeyLocked && isPitchLinkedFromData) {
       const updates: Partial<SetlistSong> = { pitch: newPitch };
       const newTarget = transposeKey(originalKeyFromData, newPitch);
       updates.targetKey = newTarget;
       handleAutoSave(updates);
-      console.log("[useHarmonicSync] setPitch (linked): handleAutoSave called with", updates);
-    } else {
-      setLocalPitch(newPitch);
-      console.log("[useHarmonicSync] setPitch (unlinked): localPitch updated to", newPitch);
     }
-  }, [isPitchLinkedFromData, originalKeyFromData, handleAutoSave, isStageKeyLocked, formData.id]);
+  }, [isStageKeyLocked, isPitchLinkedFromData, originalKeyFromData, handleAutoSave]);
 
   const setTargetKey = useCallback((newTargetKey: string) => {
-    if (isStageKeyLocked) {
-      if (formData.id) {
-        sessionOverridesRef.current = {
-          ...sessionOverridesRef.current,
-          [formData.id]: { ...sessionOverridesRef.current[formData.id], targetKey: newTargetKey }
-        };
-      }
-      setLocalTargetKey(newTargetKey); // Update local state for immediate UI reflection
-      console.log("[useHarmonicSync] setTargetKey (locked): localTargetKey updated to", newTargetKey);
-    } else if (isPitchLinkedFromData) {
+    // 1. Update local UI state immediately
+    setLocalTargetKey(newTargetKey);
+
+    // 2. If not locked, persist to database
+    if (!isStageKeyLocked && isPitchLinkedFromData) {
       const updates: Partial<SetlistSong> = { targetKey: newTargetKey };
       const newPitch = calculateSemitones(originalKeyFromData, newTargetKey);
       updates.pitch = newPitch;
-      updates.isKeyConfirmed = true; // Automatically confirm when target key is set
+      updates.isKeyConfirmed = true; 
       handleAutoSave(updates);
-      console.log("[useHarmonicSync] setTargetKey (linked): handleAutoSave called with", updates);
-    } else {
-      setLocalTargetKey(newTargetKey);
-      console.log("[useHarmonicSync] setTargetKey (unlinked): localTargetKey updated to", newTargetKey);
     }
-  }, [isPitchLinkedFromData, originalKeyFromData, handleAutoSave, isStageKeyLocked, formData.id]);
+  }, [isStageKeyLocked, isPitchLinkedFromData, originalKeyFromData, handleAutoSave]);
 
   const setIsPitchLinked = useCallback((linked: boolean) => {
     const updates: Partial<SetlistSong> = { is_pitch_linked: linked };
@@ -115,20 +64,19 @@ export function useHarmonicSync({ formData, handleAutoSave, globalKeyPreference,
       setLocalPitch(0);
       setLocalTargetKey(originalKeyFromData);
     } else {
-      const currentTargetKey = localTargetKey;
-      updates.pitch = calculateSemitones(originalKeyFromData, currentTargetKey);
-      updates.targetKey = currentTargetKey;
+      updates.pitch = calculateSemitones(originalKeyFromData, localTargetKey);
+      updates.targetKey = localTargetKey;
     }
     handleAutoSave(updates);
   }, [originalKeyFromData, localTargetKey, handleAutoSave]);
 
   return {
-    pitch: effectivePitch, // Return effective pitch
+    pitch: localPitch, 
     setPitch,
-    targetKey: effectiveTargetKey, // Return effective target key
+    targetKey: localTargetKey, 
     setTargetKey,
     isPitchLinked: isPitchLinkedFromData,
     setIsPitchLinked,
-    isStageKeyLocked, // Expose this for UI to disable controls
+    isStageKeyLocked,
   };
 }
