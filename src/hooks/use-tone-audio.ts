@@ -52,7 +52,9 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
 
   const initEngine = useCallback(async () => {
     if (Tone.getContext().state !== 'running') {
+      console.log("[AudioEngine] Initializing Tone.js context...");
       await Tone.start();
+      console.log("[AudioEngine] Tone.js context started successfully.");
     }
     if (!analyzerRef.current) {
       analyzerRef.current = new Tone.Analyser("fft", 256);
@@ -65,6 +67,7 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
       playerRef.current.stop();
       playerRef.current.dispose();
       playerRef.current = null;
+      console.log("[AudioEngine] Previous player instance disposed.");
     }
     if (requestRef.current) {
       cancelAnimationFrame(requestRef.current);
@@ -78,6 +81,7 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     setCurrentUrlState("");
     isLoadingAudioRef.current = false;
     setIsLoadingAudioState(false);
+    console.log("[AudioEngine] Engine fully reset.");
   }, []);
 
   useEffect(() => {
@@ -134,7 +138,7 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
 
   const loadFromUrl = useCallback(async (url: string, initialPitch: number = 0, force: boolean = false) => {
     if (!url) {
-      console.warn("[AudioEngine] Received empty URL in loadFromUrl.");
+      console.warn("[AudioEngine] Received empty URL in loadFromUrl. Aborting.");
       return;
     }
 
@@ -153,7 +157,7 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     try {
       const response = await fetch(url);
       if (!response.ok) {
-        console.error("[AudioEngine] Fetch failed with status:", response.status, response.statusText);
+        console.error(`[AudioEngine] Fetch failed with status: ${response.status} ${response.statusText}. URL: ${url}`);
         throw new Error(`Fetch error: ${response.status}`);
       }
       
@@ -172,9 +176,11 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
   }, [loadAudioBuffer]);
 
   const togglePlayback = useCallback(async () => {
+    console.log(`[AudioEngine] Toggle Playback triggered. Current state: ${isPlaying ? 'Playing' : 'Stopped'}`);
     await initEngine();
 
     if (!playerRef.current) {
+      console.log("[AudioEngine] Player not initialized. Attempting to load from current URL.");
       if (currentUrlRef.current && !isLoadingAudioRef.current) {
         await loadFromUrl(currentUrlRef.current, pitch, true);
       }
@@ -182,6 +188,7 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
 
     if (!playerRef.current) {
       showError("No audio loaded to play.");
+      console.error("[AudioEngine] Playback failed: No audio buffer available.");
       return;
     }
 
@@ -190,12 +197,14 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
       const elapsed = (Tone.now() - playbackStartTimeRef.current) * tempo;
       playbackOffsetRef.current += elapsed;
       setIsPlaying(false);
+      console.log("[AudioEngine] Playback stopped.");
     } else {
       const startTime = (progress / 100) * duration;
       playbackOffsetRef.current = startTime;
       playbackStartTimeRef.current = Tone.now();
       playerRef.current.start(0, startTime);
       setIsPlaying(true);
+      console.log(`[AudioEngine] Playback started at offset: ${startTime.toFixed(2)}s`);
     }
   }, [isPlaying, progress, duration, tempo, initEngine, loadFromUrl, pitch]);
 
@@ -205,6 +214,7 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
       setIsPlaying(false);
       setProgress(0);
       playbackOffsetRef.current = 0;
+      console.log("[AudioEngine] Playback fully reset and stopped.");
     }
   }, []);
 
