@@ -15,6 +15,7 @@ interface FullScreenSongInfoProps {
   readerKeyPreference: KeyPreference;
   onUpdateKey: (newTargetKey: string) => void; // NEW: Add onUpdateKey prop
   setIsOverlayOpen: (isOpen: boolean) => void; // NEW: Add setIsOverlayOpen prop
+  effectiveTargetKey: string; // NEW: Add effectiveTargetKey prop
 }
 
 const FullScreenSongInfo: React.FC<FullScreenSongInfoProps> = ({
@@ -23,8 +24,9 @@ const FullScreenSongInfo: React.FC<FullScreenSongInfoProps> = ({
   readerKeyPreference,
   onUpdateKey, // Destructure new prop
   setIsOverlayOpen, // Destructure new prop
+  effectiveTargetKey, // Destructure new prop
 }) => {
-  const displayKey = formatKey(song.targetKey || song.originalKey, readerKeyPreference);
+  const displayKey = formatKey(effectiveTargetKey, readerKeyPreference); // Use effectiveTargetKey here
   const keysToUse = readerKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT; // Determine keys based on preference
 
   return (

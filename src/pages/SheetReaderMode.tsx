@@ -136,34 +136,42 @@ const SheetReaderMode: React.FC = () => {
 
   const { pitch, targetKey: harmonicTargetKey, setTargetKey, setPitch } = harmonicSync;
 
+  // NEW: Local state for temporary pitch and targetKey when stage key is locked
+  const [tempPitch, setTempPitch] = useState(0);
+  const [tempTargetKey, setTempTargetKey] = useState('C');
+
+  const isStageKeyLocked = preventStageKeyOverwrite && currentSong?.isKeyConfirmed;
+
+  // Initialize temporary state when currentSong changes
+  useEffect(() => {
+    if (currentSong) {
+      setTempPitch(currentSong.pitch ?? 0);
+      setTempTargetKey(currentSong.targetKey || currentSong.originalKey || 'C');
+    }
+  }, [currentSong]);
+
+  // Determine effective pitch and targetKey for UI/transposition
+  const effectivePitch = isStageKeyLocked ? tempPitch : pitch;
+  const effectiveTargetKey = isStageKeyLocked ? tempTargetKey : harmonicTargetKey;
+
   const handleUpdateKey = useCallback(async (newTargetKey: string) => {
     if (!currentSong || !user) return;
-    const newPitch = calculateSemitones(currentSong.originalKey || 'C', newTargetKey);
-    
-    // Always update local state and audio engine
-    setTargetKey(newTargetKey);
-    setPitch(newPitch);
 
-    // Always save to database
-    try {
-      // Use the utility to ensure timestamps are updated
-      const result = await syncToMasterRepertoire(user.id, [{
-        id: currentSong.id,
-        name: currentSong.name,
-        artist: currentSong.artist,
-        targetKey: newTargetKey,
-        pitch: newPitch,
-        isKeyConfirmed: true // Set isKeyConfirmed to true when targetKey is explicitly updated
-      }]);
-      
-      if (result[0]) {
-        handleLocalSongUpdate(currentSong.id, result[0]);
-        showSuccess(`Stage Key set to ${newTargetKey}`);
-      }
-    } catch (err) {
-      showError("Failed to update Stage Key.");
+    const newPitch = calculateSemitones(currentSong.originalKey || 'C', newTargetKey);
+
+    if (isStageKeyLocked) {
+      // Temporary change only
+      setTempTargetKey(newTargetKey);
+      setTempPitch(newPitch);
+      setAudioPitch(newPitch); // Update audio engine immediately
+      showInfo(`Stage Key temporarily set to ${newTargetKey}`);
+    } else {
+      // Persistent change to database
+      setTargetKey(newTargetKey); // This calls harmonicSync's setTargetKey, which saves to DB
+      setPitch(newPitch); // This calls harmonicSync's setPitch, which saves to DB
+      showSuccess(`Stage Key set to ${newTargetKey}`);
     }
-  }, [currentSong, user, handleLocalSongUpdate, setTargetKey, setPitch]);
+  }, [currentSong, user, isStageKeyLocked, setTargetKey, setPitch, setAudioPitch]);
 
   const handlePullKey = useCallback(async () => {
     if (!currentSong || !currentSong.ug_chords_text || !user) {
@@ -176,27 +184,35 @@ const SheetReaderMode: React.FC = () => {
       return;
     }
     
-    try {
-      const result = await syncToMasterRepertoire(user.id, [{
-        id: currentSong.id,
-        name: currentSong.name,
-        artist: currentSong.artist,
-        originalKey: extractedKey,
-        targetKey: extractedKey,
-        pitch: 0,
-        isKeyConfirmed: true
-      }]);
-      
-      if (result[0]) {
-        handleLocalSongUpdate(currentSong.id, result[0]);
-        setTargetKey(extractedKey);
-        setPitch(0);
-        showSuccess(`Key set to ${extractedKey}`);
+    if (isStageKeyLocked) {
+      setTempTargetKey(extractedKey);
+      setTempPitch(0);
+      setAudioPitch(0);
+      showInfo(`Key temporarily set to ${extractedKey}`);
+    } else {
+      // Persistent change
+      try {
+        const result = await syncToMasterRepertoire(user.id, [{
+          id: currentSong.id,
+          name: currentSong.name,
+          artist: currentSong.artist,
+          originalKey: extractedKey,
+          targetKey: extractedKey,
+          pitch: 0,
+          isKeyConfirmed: true
+        }]);
+        
+        if (result[0]) {
+          handleLocalSongUpdate(currentSong.id, result[0]);
+          setTargetKey(extractedKey); // Update harmonicSync state, which saves to DB
+          setPitch(0); // Update harmonicSync state, which saves to DB
+          showSuccess(`Key set to ${extractedKey}`);
+        }
+      } catch (err) {
+        showError("Failed to pull key.");
       }
-    } catch (err) {
-      showError("Failed to pull key.");
     }
-  }, [currentSong, user, handleLocalSongUpdate, setTargetKey, setPitch]);
+  }, [currentSong, user, isStageKeyLocked, handleLocalSongUpdate, setTargetKey, setPitch, setAudioPitch]);
 
   const handleSaveReaderPreference = useCallback(async (pref: 'sharps' | 'flats') => {
     if (!currentSong || !user) return;
@@ -219,8 +235,8 @@ const SheetReaderMode: React.FC = () => {
   }, [currentSong, user, handleLocalSongUpdate]);
 
   useEffect(() => {
-    setAudioPitch(pitch);
-  }, [pitch, setAudioPitch]);
+    setAudioPitch(effectivePitch); // Use effectivePitch for audio engine
+  }, [effectivePitch, setAudioPitch]);
 
   const fetchSongs = useCallback(async () => {
     if (!user) return;
@@ -425,11 +441,11 @@ const SheetReaderMode: React.FC = () => {
     if (!currentSong) return;
     // --- FIX: Use currentSong.previewUrl which is now correctly prioritized ---
     if (currentUrl !== currentSong.previewUrl || !currentBuffer) {
-      const timer = setTimeout(() => loadFromUrl(currentSong.previewUrl, pitch || 0), 100);
+      const timer = setTimeout(() => loadFromUrl(currentSong.previewUrl, effectivePitch || 0), 100); // Use effectivePitch here
       return () => clearTimeout(timer);
     }
     // --- END FIX ---
-  }, [currentSong, currentUrl, currentBuffer, loadFromUrl, pitch]);
+  }, [currentSong, currentUrl, currentBuffer, loadFromUrl, effectivePitch]); // Added effectivePitch to dependencies
 
   const handleNext = useCallback(() => {
     if (allSongs.length === 0) return;
@@ -503,12 +519,12 @@ const SheetReaderMode: React.FC = () => {
     if (chartType === 'chords' && song.ug_chords_text?.trim()) {
       return (
         <UGChordsReader
-          key={`${song.id}-chords-${harmonicTargetKey}`}
+          key={`${song.id}-chords-${effectiveTargetKey}`} // Use effectiveTargetKey here
           chordsText={song.ug_chords_text}
           config={resolvedUgChordsConfig}
           isMobile={false}
           originalKey={song.originalKey}
-          targetKey={harmonicTargetKey}
+          targetKey={effectiveTargetKey} // Use effectiveTargetKey here
           isPlaying={isPlaying}
           progress={progress}
           duration={duration}
@@ -551,7 +567,7 @@ const SheetReaderMode: React.FC = () => {
         </a>
       </div>
     );
-  }, [harmonicTargetKey, isPlaying, progress, duration, readerKeyPreference, handleChartReady, handleChartLoad, setSelectedChartType, setIsStudioPanelOpen, ugChordsFontFamily, ugChordsFontSize, ugChordsChordBold, ugChordsChordColor, ugChordsLineSpacing, ugChordsTextAlign]);
+  }, [effectiveTargetKey, isPlaying, progress, duration, readerKeyPreference, handleChartReady, handleChartLoad, setSelectedChartType, setIsStudioPanelOpen, ugChordsFontFamily, ugChordsFontSize, ugChordsChordBold, ugChordsChordColor, ugChordsLineSpacing, ugChordsTextAlign]);
 
   useEffect(() => {
     if (!currentSong) {
@@ -692,8 +708,8 @@ const SheetReaderMode: React.FC = () => {
           onToggleFullScreen={toggleBrowserFullScreen}
           setIsOverlayOpen={setIsOverlayOpen}
           isOverrideActive={forceReaderResource !== 'default'}
-          pitch={pitch}
-          setPitch={setPitch}
+          pitch={effectivePitch} // Use effectivePitch here
+          setPitch={setTempPitch} // Allow temporary pitch changes
           isPlaying={isPlaying}
           isLoadingAudio={isLoadingAudio}
           onTogglePlayback={audioEngine.togglePlayback}
@@ -737,6 +753,7 @@ const SheetReaderMode: React.FC = () => {
           readerKeyPreference={readerKeyPreference}
           onUpdateKey={handleUpdateKey} // NEW: Pass onUpdateKey
           setIsOverlayOpen={setIsOverlayOpen} // NEW: Pass setIsOverlayOpen
+          effectiveTargetKey={effectiveTargetKey} // FIX: Pass effectiveTargetKey
         />
       )}
 

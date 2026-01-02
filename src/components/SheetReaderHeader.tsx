@@ -27,8 +27,8 @@ interface SheetReaderHeaderProps {
   onToggleFullScreen: () => void;
   setIsOverlayOpen: (isOpen: boolean) => void;
   isOverrideActive: boolean;
-  pitch: number;
-  setPitch: (pitch: number) => void;
+  pitch: number; // Now represents effectivePitch
+  setPitch: (pitch: number) => void; // Now for temporary pitch changes
   isPlaying: boolean;
   isLoadingAudio: boolean;
   onTogglePlayback: () => void;
@@ -42,7 +42,6 @@ interface SheetReaderHeaderProps {
   tempo: number;
   readerKeyPreference: 'sharps' | 'flats';
   setReaderKeyPreference: (pref: 'sharps' | 'flats') => void;
-  // Removed onPullKey prop
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
   headerLeftOffset: number;
@@ -64,8 +63,8 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   onToggleFullScreen,
   setIsOverlayOpen,
   isOverrideActive,
-  pitch,
-  setPitch,
+  pitch, // Now effectivePitch
+  setPitch, // Now for temporary pitch changes
   isPlaying,
   isLoadingAudio,
   onTogglePlayback,
@@ -79,7 +78,6 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   tempo,
   readerKeyPreference,
   setReaderKeyPreference,
-  // Removed onPullKey from destructuring
   isSidebarOpen,
   onToggleSidebar,
   headerLeftOffset,
@@ -104,7 +102,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
       return;
     }
     if (!audioEngine.currentBuffer || audioEngine.currentUrl !== urlToLoad) {
-      await onLoadAudio(urlToLoad, pitch || 0);
+      await onLoadAudio(urlToLoad, pitch || 0); // Pass current effective pitch
     }
     onTogglePlayback();
   };
