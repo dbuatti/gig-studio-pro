@@ -2,13 +2,15 @@
 
 import React from 'react';
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Search, Music, ChevronLeft, ChevronRight, Loader2, ChevronDown, Maximize2, Minimize2, Bug, Hash, Sparkles, ListMusic } from 'lucide-react';
+import { ArrowLeft, Search, Music, ChevronLeft, ChevronRight, Loader2, ChevronDown, Maximize2, Minimize2, Bug, Hash, Sparkles, ListMusic, Play, Pause } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatKey, ALL_KEYS_SHARP, ALL_KEYS_FLAT } from '@/utils/keyUtils';
 import { SetlistSong } from './SetlistManager';
 import { KeyPreference } from '@/hooks/use-settings';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuPortal, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
+import { showError } from '@/utils/toast';
+import { AudioEngineControls } from '@/hooks/use-tone-audio'; // Import AudioEngineControls
 
 interface SheetReaderHeaderProps {
   currentSong: SetlistSong | null;
@@ -26,6 +28,11 @@ interface SheetReaderHeaderProps {
   // Harmonic Sync Props
   pitch: number;
   setPitch: (pitch: number) => void;
+  // NEW: Props for audio control
+  isPlaying: boolean;
+  isLoadingAudio: boolean;
+  onTogglePlayback: () => void;
+  onLoadAudio: (url: string, initialPitch: number) => Promise<void>;
   // NEW: Props for override readerKeyPreference
   readerKeyPreference: 'sharps' | 'flats';
   setReaderKeyPreference: (pref: 'sharps' | 'flats') => void;
@@ -37,6 +44,7 @@ interface SheetReaderHeaderProps {
   headerLeftOffset: number;
   // NEW: Save handler for preference
   onSavePreference: (pref: 'sharps' | 'flats') => void;
+  audioEngine: AudioEngineControls; // Add audioEngine prop
 }
 
 const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
@@ -54,17 +62,36 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   isOverrideActive,
   pitch,
   setPitch,
+  isPlaying,
+  isLoadingAudio,
+  onTogglePlayback,
+  onLoadAudio,
   readerKeyPreference,
   setReaderKeyPreference,
   onPullKey,
   isSidebarOpen,
   onToggleSidebar,
   headerLeftOffset,
-  onSavePreference, // Destructure new prop
+  onSavePreference,
+  audioEngine, // Destructure audioEngine
 }) => {
   const rawTargetKey = currentSong?.targetKey || currentSong?.originalKey;
   const displayKey = rawTargetKey ? formatKey(rawTargetKey, readerKeyPreference) : null;
   const keysToUse = readerKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
+
+  const handleAudioButtonClick = async () => {
+    if (!currentSong) return;
+    const urlToLoad = currentSong.audio_url || currentSong.previewUrl;
+    if (!urlToLoad) {
+      showError("No audio source available for this song.");
+      return;
+    }
+    // If audio is not loaded or it's a different URL, load it first
+    if (!audioEngine.currentBuffer || audioEngine.currentUrl !== urlToLoad) {
+      await onLoadAudio(urlToLoad, pitch || 0);
+    }
+    onTogglePlayback();
+  };
 
   return (
     <div 
@@ -85,6 +112,22 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
           title="Toggle Song List"
         >
           <ListMusic className="w-5 h-5" />
+        </Button>
+
+        {/* NEW PLAY BUTTON */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleAudioButtonClick}
+          disabled={isLoadingAudio || (!currentSong?.audio_url && !currentSong?.previewUrl)}
+          className={cn(
+            "h-10 w-10 rounded-xl transition-all",
+            isPlaying ? "bg-red-600 text-white hover:bg-red-700" : "bg-indigo-600 text-white hover:bg-indigo-700",
+            (isLoadingAudio || (!currentSong?.audio_url && !currentSong?.previewUrl)) && "opacity-50 cursor-not-allowed"
+          )}
+          title={isPlaying ? "Pause Audio" : "Play Audio"}
+        >
+          {isLoadingAudio ? <Loader2 className="w-5 h-5 animate-spin" /> : (isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />)}
         </Button>
 
         <div className="flex items-center gap-2">

@@ -397,7 +397,7 @@ const SheetReaderMode: React.FC = () => {
       const timer = setTimeout(() => loadFromUrl(currentSong.previewUrl, pitch || 0), 100);
       return () => clearTimeout(timer);
     }
-  }, [currentSong, currentUrl, currentBuffer, loadFromUrl]);
+  }, [currentSong, currentUrl, currentBuffer, loadFromUrl, pitch]); // Added pitch to dependency array
 
   const handleNext = useCallback(() => {
     if (allSongs.length === 0) return;
@@ -428,7 +428,7 @@ const SheetReaderMode: React.FC = () => {
       const bestType = getBestChartType();
       if (selectedChartType !== bestType) setSelectedChartType(bestType);
     }
-  }, [currentSong, getBestChartType]);
+  }, [currentSong, getBestChartType, selectedChartType]); // Added selectedChartType to dependency array
 
   const handleChartReady = useCallback(() => {
     if (currentSong) {
@@ -495,7 +495,7 @@ const SheetReaderMode: React.FC = () => {
         </a>
       </div>
     );
-  }, [harmonicTargetKey, isPlaying, progress, duration, readerKeyPreference, handleChartReady, handleChartLoad]);
+  }, [harmonicTargetKey, isPlaying, progress, duration, readerKeyPreference, handleChartReady, handleChartLoad, setSelectedChartType, setIsStudioPanelOpen]);
 
   useEffect(() => {
     if (!currentSong) {
@@ -561,6 +561,10 @@ const SheetReaderMode: React.FC = () => {
           isOverrideActive={forceReaderResource !== 'default'}
           pitch={pitch}
           setPitch={setPitch}
+          isPlaying={isPlaying}
+          isLoadingAudio={isLoadingAudio}
+          onTogglePlayback={audioEngine.togglePlayback}
+          onLoadAudio={loadFromUrl}
           readerKeyPreference={readerKeyPreference}
           setReaderKeyPreference={setReaderKeyPreference}
           onPullKey={handlePullKey}
@@ -568,6 +572,7 @@ const SheetReaderMode: React.FC = () => {
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           headerLeftOffset={isSidebarOpen ? 300 : 0}
           onSavePreference={handleSaveReaderPreference}
+          audioEngine={audioEngine}
         />
 
         <div className={cn("flex-1 bg-black relative", isImmersive ? "mt-0" : "mt-16")}>
