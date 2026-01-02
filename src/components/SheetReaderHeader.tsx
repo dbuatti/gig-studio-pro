@@ -3,7 +3,7 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { ArrowLeft, Search, Music, ChevronLeft, ChevronRight, Loader2, ChevronDown, Maximize2, Minimize2, Bug, Hash, Sparkles, ListMusic, Play, Pause, Gauge, Volume2, Activity, RotateCcw, FileText } from 'lucide-react'; // Added FileText
+import { ArrowLeft, Search, Music, ChevronLeft, ChevronRight, Loader2, ChevronDown, Maximize2, Minimize2, Bug, Hash, Sparkles, ListMusic, Play, Pause, Gauge, Volume2, Activity, RotateCcw, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatKey, ALL_KEYS_SHARP, ALL_KEYS_FLAT } from '@/utils/keyUtils';
 import { SetlistSong } from './SetlistManager';
@@ -16,8 +16,8 @@ import { AudioEngineControls } from '@/hooks/use-tone-audio';
 interface SheetReaderHeaderProps {
   currentSong: SetlistSong | null;
   onClose: () => void;
-  onOpenRepertoireSearch: () => void; // Renamed from onSearchClick
-  onOpenCurrentSongStudio: () => void; // NEW prop for opening current song in Studio
+  onOpenRepertoireSearch: () => void;
+  onOpenCurrentSongStudio: () => void;
   onPrevSong: () => void;
   onNextSong: () => void;
   isLoading: boolean;
@@ -42,7 +42,7 @@ interface SheetReaderHeaderProps {
   tempo: number;
   readerKeyPreference: 'sharps' | 'flats';
   setReaderKeyPreference: (pref: 'sharps' | 'flats') => void;
-  onPullKey: () => void;
+  // Removed onPullKey prop
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
   headerLeftOffset: number;
@@ -53,8 +53,8 @@ interface SheetReaderHeaderProps {
 const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   currentSong,
   onClose,
-  onOpenRepertoireSearch, // Renamed
-  onOpenCurrentSongStudio, // NEW
+  onOpenRepertoireSearch,
+  onOpenCurrentSongStudio,
   onPrevSong,
   onNextSong,
   isLoading,
@@ -79,7 +79,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   tempo,
   readerKeyPreference,
   setReaderKeyPreference,
-  onPullKey,
+  // Removed onPullKey from destructuring
   isSidebarOpen,
   onToggleSidebar,
   headerLeftOffset,
@@ -187,7 +187,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
         <Button
           variant="ghost"
           size="icon"
-          onClick={onStopPlayback}
+          onClick={audioEngine.stopPlayback} // Use audioEngine.stopPlayback directly
           className="h-10 w-10 rounded-xl hover:bg-white/10 text-slate-400"
           title="Reset Playback"
         >
@@ -244,16 +244,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
         
         {currentSong && (
           <div className="flex items-center gap-2">
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={onPullKey}
-              className="bg-emerald-600/10 text-emerald-500 hover:bg-emerald-600 hover:text-white border border-emerald-600/20 h-10 px-3 rounded-xl font-black text-[10px] uppercase tracking-widest gap-2"
-              title="Pull Key from Chords"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              Pull Key
-            </Button>
+            {/* Removed Pull Key Button */}
 
             {/* NEW: Paper Icon Button for Current Song Studio */}
             <Button
@@ -329,11 +320,10 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
           </div>
         )}
         
-        {/* Original Search Button (now for Repertoire Search) */}
         <Button 
           variant="ghost" 
           size="icon" 
-          onClick={onOpenRepertoireSearch} // Changed onClick
+          onClick={onOpenRepertoireSearch}
           className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
           title="Search Repertoire"
         >

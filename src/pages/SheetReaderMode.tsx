@@ -23,7 +23,7 @@ import SheetReaderSidebar from '@/components/SheetReaderSidebar';
 import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
 import { motion, AnimatePresence } from 'framer-motion';
 import { extractKeyFromChords } from '@/utils/chordUtils';
-import RepertoireSearchModal from '@/components/RepertoireSearchModal'; // NEW: Import RepertoireSearchModal
+import RepertoireSearchModal from '@/components/RepertoireSearchModal';
 
 type ChartType = 'pdf' | 'leadsheet' | 'chords';
 
@@ -52,7 +52,7 @@ const SheetReaderMode: React.FC = () => {
   const [isStudioPanelOpen, setIsStudioPanelOpen] = useState(false);
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isRepertoireSearchModalOpen, setIsRepertoireSearchModalOpen] = useState(false); // NEW: State for RepertoireSearchModal
+  const [isRepertoireSearchModalOpen, setIsRepertoireSearchModalOpen] = useState(false);
 
   const [readerKeyPreference, setReaderKeyPreference] = useState<'sharps' | 'flats'>(
     globalKeyPreference === 'neutral' ? 'sharps' : globalKeyPreference
@@ -588,8 +588,8 @@ const SheetReaderMode: React.FC = () => {
         <SheetReaderHeader
           currentSong={currentSong!}
           onClose={() => navigate('/')}
-          onOpenRepertoireSearch={() => setIsRepertoireSearchModalOpen(true)} // Changed handler
-          onOpenCurrentSongStudio={onOpenCurrentSongStudio} // NEW handler
+          onOpenRepertoireSearch={() => setIsRepertoireSearchModalOpen(true)}
+          onOpenCurrentSongStudio={onOpenCurrentSongStudio}
           onPrevSong={handlePrev}
           onNextSong={handleNext}
           isLoading={!currentSong}
@@ -614,7 +614,7 @@ const SheetReaderMode: React.FC = () => {
           tempo={tempo}
           readerKeyPreference={readerKeyPreference}
           setReaderKeyPreference={setReaderKeyPreference}
-          onPullKey={handlePullKey}
+          // Removed onPullKey prop
           isSidebarOpen={isSidebarOpen}
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           headerLeftOffset={isSidebarOpen ? 300 : 0}
@@ -630,6 +630,8 @@ const SheetReaderMode: React.FC = () => {
           ))}
           {isChartLoading && <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 z-20"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>}
         </div>
+
+        {/* SheetReaderFooter is removed */}
       </main>
 
       <AnimatePresence>
@@ -663,7 +665,7 @@ const SheetReaderMode: React.FC = () => {
       <RepertoireSearchModal
         isOpen={isRepertoireSearchModalOpen}
         onClose={() => setIsRepertoireSearchModalOpen(false)}
-        repertoire={allSongs} // Pass all songs for searching
+        repertoire={allSongs}
         onSelectSong={handleSelectSongFromRepertoireSearch}
       />
 
