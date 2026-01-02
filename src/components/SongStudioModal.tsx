@@ -19,6 +19,7 @@ interface SongStudioModalProps {
   defaultTab?: StudioTab;
   // New prop to handle auto-saving from the parent context
   handleAutoSave?: (updates: Partial<SetlistSong>) => void;
+  preventStageKeyOverwrite?: boolean; // NEW: Add this prop
 }
 
 const SongStudioModal: React.FC<SongStudioModalProps> = ({ 
@@ -32,7 +33,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   masterRepertoire,
   onUpdateSetlistSongs,
   defaultTab,
-  handleAutoSave // Destructure the new prop
+  handleAutoSave, // Destructure the new prop
+  preventStageKeyOverwrite // Destructure the new prop
 }) => {
   const navigate = useNavigate();
 
@@ -69,6 +71,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
           defaultTab={defaultTab}
           // Pass the handleAutoSave function to enable auto-saving within the modal
           handleAutoSave={handleAutoSave}
+          preventStageKeyOverwrite={preventStageKeyOverwrite} // NEW: Pass the prop
         />
       </DialogContent>
     </Dialog>

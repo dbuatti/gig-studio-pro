@@ -51,7 +51,7 @@ const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, loading: authLoading } = useAuth();
   const isMobile = useIsMobile();
-  const { keyPreference: globalKeyPreference, safePitchMaxNote, isSafePitchEnabled, isFetchingSettings, isGoalTrackerEnabled, defaultDashboardView } = useSettings();
+  const { keyPreference: globalKeyPreference, safePitchMaxNote, isSafePitchEnabled, isFetchingSettings, isGoalTrackerEnabled, defaultDashboardView, preventStageKeyOverwrite } = useSettings(); // NEW: Get preventStageKeyOverwrite
   const audio = useToneAudio();
 
   const [allSetlists, setAllSetlists] = useState<Setlist[]>([]);
@@ -938,7 +938,7 @@ const Index = () => {
       <KeyManagementModal isOpen={isKeyManagementOpen} onClose={() => setIsKeyManagementOpen(false)} repertoire={masterRepertoire} onUpdateKey={handleUpdateMasterKey} keyPreference={globalKeyPreference} />
 
       {isSongStudioModalOpen && (
-        <SongStudioModal isOpen={isSongStudioModalOpen} onClose={() => { setIsSongStudioModalOpen(false); setSongStudioDefaultTab(undefined); }} gigId={songStudioModalGigId} songId={songStudioModalSongId} visibleSongs={activeDashboardView === 'gigs' ? filteredAndSortedSongs : masterRepertoire} onSelectSong={setSongStudioModalSongId} allSetlists={allSetlists} masterRepertoire={masterRepertoire} onUpdateSetlistSongs={handleUpdateSetlistSongs} defaultTab={songStudioDefaultTab} />
+        <SongStudioModal isOpen={isSongStudioModalOpen} onClose={() => { setIsSongStudioModalOpen(false); setSongStudioDefaultTab(undefined); }} gigId={songStudioModalGigId} songId={songStudioModalSongId} visibleSongs={activeDashboardView === 'gigs' ? filteredAndSortedSongs : masterRepertoire} onSelectSong={setSongStudioModalSongId} allSetlists={allSetlists} masterRepertoire={masterRepertoire} onUpdateSetlistSongs={handleUpdateSetlistSongs} defaultTab={songStudioDefaultTab} preventStageKeyOverwrite={preventStageKeyOverwrite} />
       )}
 
       {isPerformanceOverlayOpen && activeSetlist && activeSongForPerformance && (

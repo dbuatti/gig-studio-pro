@@ -50,6 +50,7 @@ const SheetReaderMode: React.FC = () => {
     ugChordsChordColor,
     ugChordsLineSpacing,
     ugChordsTextAlign,
+    preventStageKeyOverwrite // NEW: Get preventStageKeyOverwrite
   } = useSettings();
   const { forceReaderResource } = useReaderSettings();
 
@@ -108,6 +109,7 @@ const SheetReaderMode: React.FC = () => {
       pitch: currentSong?.pitch ?? 0,
       is_pitch_linked: currentSong?.is_pitch_linked ?? true,
       ug_chords_text: currentSong?.ug_chords_text,
+      isKeyConfirmed: currentSong?.isKeyConfirmed, // Pass isKeyConfirmed
     },
     handleAutoSave: useCallback(async (updates: Partial<SetlistSong>) => {
       if (!currentSong || !user) return;
@@ -129,6 +131,7 @@ const SheetReaderMode: React.FC = () => {
       }
     }, [currentSong, user, handleLocalSongUpdate]),
     globalKeyPreference,
+    preventStageKeyOverwrite, // NEW: Pass the prop
   });
 
   const { pitch, targetKey: harmonicTargetKey, setTargetKey, setPitch } = harmonicSync;
@@ -232,7 +235,7 @@ const SheetReaderMode: React.FC = () => {
       let activeSetlistSongsList: SetlistSong[] = [];
 
       // Always fetch full master repertoire
-      const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user_id', user.id).order('title');
+      const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user.id', user.id).order('title');
       if (masterError) throw masterError;
       masterRepertoireList = (masterData || []).map((d: any) => ({
         id: d.id,
@@ -758,6 +761,7 @@ const SheetReaderMode: React.FC = () => {
                   songId={currentSong.id}
                   visibleSongs={allSongs}
                   handleAutoSave={(updates) => handleLocalSongUpdate(currentSong.id, updates)}
+                  preventStageKeyOverwrite={preventStageKeyOverwrite} // NEW: Pass the prop
                 />
               )}
             </div>

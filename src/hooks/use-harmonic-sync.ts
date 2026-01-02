@@ -9,9 +9,10 @@ interface UseHarmonicSyncProps {
   formData: Partial<SetlistSong>;
   handleAutoSave: (updates: Partial<SetlistSong>) => void;
   globalKeyPreference: KeyPreference;
+  preventStageKeyOverwrite: boolean; // NEW: Add this prop
 }
 
-export function useHarmonicSync({ formData, handleAutoSave, globalKeyPreference }: UseHarmonicSyncProps) {
+export function useHarmonicSync({ formData, handleAutoSave, globalKeyPreference, preventStageKeyOverwrite }: UseHarmonicSyncProps) {
   // Directly derive linked status from formData
   const isPitchLinkedFromData = formData.is_pitch_linked ?? true;
   const originalKeyFromData = formData.originalKey || 'C';
@@ -38,9 +39,15 @@ export function useHarmonicSync({ formData, handleAutoSave, globalKeyPreference 
     ? (formData.targetKey || originalKeyFromData)
     : localTargetKey;
 
+  // NEW: Determine if stage key changes should be prevented
+  const isStageKeyLocked = preventStageKeyOverwrite && formData.isKeyConfirmed;
+
   // --- Setters that interact with handleAutoSave ---
 
   const setPitch = useCallback((newPitch: number) => {
+    if (isStageKeyLocked) { // NEW: Prevent changes if locked
+      return;
+    }
     if (isPitchLinkedFromData) {
       const updates: Partial<SetlistSong> = { pitch: newPitch };
       const newTarget = transposeKey(originalKeyFromData, newPitch);
@@ -49,9 +56,12 @@ export function useHarmonicSync({ formData, handleAutoSave, globalKeyPreference 
     } else {
       setLocalPitch(newPitch);
     }
-  }, [isPitchLinkedFromData, originalKeyFromData, handleAutoSave]);
+  }, [isPitchLinkedFromData, originalKeyFromData, handleAutoSave, isStageKeyLocked]); // Added isStageKeyLocked
 
   const setTargetKey = useCallback((newTargetKey: string) => {
+    if (isStageKeyLocked) { // NEW: Prevent changes if locked
+      return;
+    }
     if (isPitchLinkedFromData) {
       const updates: Partial<SetlistSong> = { targetKey: newTargetKey };
       const newPitch = calculateSemitones(originalKeyFromData, newTargetKey);
@@ -61,7 +71,7 @@ export function useHarmonicSync({ formData, handleAutoSave, globalKeyPreference 
     } else {
       setLocalTargetKey(newTargetKey);
     }
-  }, [isPitchLinkedFromData, originalKeyFromData, handleAutoSave]);
+  }, [isPitchLinkedFromData, originalKeyFromData, handleAutoSave, isStageKeyLocked]); // Added isStageKeyLocked
 
   const setIsPitchLinked = useCallback((linked: boolean) => {
     const updates: Partial<SetlistSong> = { is_pitch_linked: linked };

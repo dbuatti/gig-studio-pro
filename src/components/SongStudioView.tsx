@@ -40,6 +40,7 @@ interface SongStudioViewProps {
   onUpdateSetlistSongs?: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>;
   defaultTab?: StudioTab;
   handleAutoSave?: (updates: Partial<SetlistSong>) => void;
+  preventStageKeyOverwrite?: boolean; // NEW: Add this prop
 }
 
 const SongStudioView: React.FC<SongStudioViewProps> = ({
@@ -55,10 +56,11 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   onUpdateSetlistSongs,
   defaultTab,
   handleAutoSave: externalAutoSave,
+  preventStageKeyOverwrite, // NEW: Destructure the prop
 }) => {
   const isMobile = useIsMobile();
   const { user } = useAuth();
-  const { keyPreference: globalKeyPreference } = useSettings();
+  const { keyPreference: globalKeyPreference } = useSettings(); // Removed preventStageKeyOverwrite from here
   const audio = useToneAudio();
   
   const [song, setSong] = useState<SetlistSong | null>(null);
@@ -230,6 +232,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     formData: formData,
     handleAutoSave: activeAutoSave,
     globalKeyPreference: globalKeyPreference,
+    preventStageKeyOverwrite: preventStageKeyOverwrite, // NEW: Pass the prop
   });
 
   useEffect(() => {
