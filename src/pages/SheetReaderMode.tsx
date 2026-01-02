@@ -265,7 +265,7 @@ const SheetReaderMode: React.FC = () => {
         const { data: setlistsData, error: setlistsError } = await supabase
           .from('setlists')
           .select('id')
-          .eq('user_id', user.id) // Corrected from 'user.id' to 'user_id'
+          .eq('user_id', user.id)
           .limit(1);
 
         if (setlistsError || !setlistsData || setlistsData.length === 0) {
@@ -716,7 +716,7 @@ const SheetReaderMode: React.FC = () => {
             {...bind}  
             style={{ 
               x: springX, 
-              touchAction: 'pan-x' // Changed to pan-x
+              touchAction: 'none' // Changed to 'none'
             }} 
             className="h-full w-full relative"
           >
