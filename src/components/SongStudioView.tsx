@@ -23,7 +23,7 @@ import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
 import { extractKeyFromChords } from '@/utils/chordUtils';
 import ProSyncSearch from './ProSyncSearch'; 
 import { formatKey } from '@/utils/keyUtils';
-import SongStudioHeaderMetrics from '@/components/SongStudioHeaderMetrics'; // Import new component
+import SongStudioHeader from '@/components/SongStudioHeader'; // Import the consolidated header
 
 export type StudioTab = 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library';
 
@@ -273,51 +273,21 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   return (
     <div className="flex flex-col h-full bg-slate-950 overflow-hidden">
       <header className="bg-slate-900 border-b border-white/5 flex flex-col shrink-0 z-50">
-        {/* Top Row: Navigation and Actions */}
-        <div className="h-20 flex items-center justify-between px-6">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={handleClose} className="h-12 w-12 rounded-2xl bg-white/5"><ArrowLeft className="w-5 h-5 text-slate-400" /></Button>
-            <div className="min-w-0">
-              <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">{gigId === 'library' ? 'MASTER' : 'GIG'}</p>
-              <h2 className="text-xl font-black uppercase text-white truncate max-w-[250px]">
-                {songId ? formData.name : "Library Search"} 
-              </h2>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            {songId && (
-              <Button 
-                variant="outline" 
-                onClick={() => setIsProSyncOpen(true)}
-                className="h-11 px-4 rounded-xl border-indigo-500/20 bg-indigo-600/10 text-indigo-400 font-black uppercase text-[10px] tracking-widest gap-2 shadow-lg hover:bg-indigo-600 hover:text-white transition-all"
-              >
-                <Globe className="w-4 h-4" /> Pro Sync
-              </Button>
-            )}
-
-            {gigId === 'library' && song ? (
-              <SetlistMultiSelector songMasterId={songId || ''} allSetlists={allSetlists} songToAssign={song} onUpdateSetlistSongs={onUpdateSetlistSongs!} />
-            ) : (
-              <div className="flex items-center gap-3 bg-white/5 px-4 h-11 rounded-xl border border-white/10">
-                <Label className="text-[8px] font-black text-slate-500 uppercase">Gig Approved</Label>
-                <Switch checked={formData.isApproved || false} onCheckedChange={(v) => activeAutoSave({ isApproved: v })} className="data-[state=checked]:bg-emerald-500" />
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Metrics Row */}
-        {songId && (
-          <SongStudioHeaderMetrics
-            formData={formData}
-            isPlaying={audio.isPlaying}
-            isLoadingAudio={audio.isLoadingAudio}
-            onTogglePlayback={audio.togglePlayback}
-            pitch={pitch}
-            targetKey={targetKey}
-            globalKeyPreference={globalKeyPreference}
-          />
-        )}
+        <SongStudioHeader
+          formData={formData}
+          isPlaying={audio.isPlaying}
+          isLoadingAudio={audio.isLoadingAudio}
+          onTogglePlayback={audio.togglePlayback}
+          pitch={pitch}
+          targetKey={targetKey}
+          globalKeyPreference={globalKeyPreference}
+          onClose={handleClose}
+          onOpenProSync={() => setIsProSyncOpen(true)}
+          gigId={gigId}
+          allSetlists={allSetlists}
+          onUpdateSetlistSongs={onUpdateSetlistSongs!}
+          onAutoSave={activeAutoSave}
+        />
       </header>
       
       <ProSyncSearch 
