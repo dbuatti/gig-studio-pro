@@ -45,6 +45,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
     ugChordsChordColor, setUgChordsChordColor,
     ugChordsLineSpacing, setUgChordsLineSpacing,
     ugChordsTextAlign, setUgChordsTextAlign,
+    preventStageKeyOverwrite, setPreventStageKeyOverwrite, // NEW
     isFetchingSettings 
   } = useSettings();
   const { user, signOut } = useAuth();
@@ -214,155 +215,175 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
             </div>
 
             <div className="p-4 bg-card rounded-2xl border border-border space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-100 dark:bg-indigo-600/10 rounded-lg">
-                  <Hash className="w-4 h-4 text-indigo-400" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-100 dark:bg-indigo-600/10 rounded-lg">
+                    <Hash className="w-4 h-4 text-indigo-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-foreground">Key Notation</p>
+                    <p className="text-[10px] text-muted-foreground uppercase font-black">Current: {keyPreference}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-bold text-foreground">Key Notation</p>
-                  <p className="text-[10px] text-muted-foreground uppercase font-black">Current: {keyPreference}</p>
-                </div>
+                <ToggleGroup type="single" value={keyPreference} onValueChange={(value) => value && setKeyPreference(value as KeyPreference)} className="grid grid-cols-3 bg-secondary p-1 rounded-xl gap-1">
+                  <ToggleGroupItem value="flats" className="text-[9px] font-black uppercase h-9 rounded-lg data-[state=on]:bg-indigo-600 data-[state=on]:text-white">Flats (b)</ToggleGroupItem>
+                  <ToggleGroupItem value="neutral" className="text-[9px] font-black uppercase h-9 rounded-lg data-[state=on]:bg-indigo-600 data-[state=on]:text-white">Neutral</ToggleGroupItem>
+                  <ToggleGroupItem value="sharps" className="text-[9px] font-black uppercase h-9 rounded-lg data-[state=on]:bg-indigo-600 data-[state=on]:text-white">Sharps (#)</ToggleGroupItem>
+                </ToggleGroup>
               </div>
-              <ToggleGroup type="single" value={keyPreference} onValueChange={(value) => value && setKeyPreference(value as KeyPreference)} className="grid grid-cols-3 bg-secondary p-1 rounded-xl gap-1">
-                <ToggleGroupItem value="flats" className="text-[9px] font-black uppercase h-9 rounded-lg data-[state=on]:bg-indigo-600 data-[state=on]:text-white">Flats (b)</ToggleGroupItem>
-                <ToggleGroupItem value="neutral" className="text-[9px] font-black uppercase h-9 rounded-lg data-[state=on]:bg-indigo-600 data-[state=on]:text-white">Neutral</ToggleGroupItem>
-                <ToggleGroupItem value="sharps" className="text-[9px] font-black uppercase h-9 rounded-lg data-[state=on]:bg-indigo-600 data-[state=on]:text-white">Sharps (#)</ToggleGroupItem>
-              </ToggleGroup>
-            </div>
 
-            <div className="flex items-center justify-between p-4 bg-card rounded-2xl border border-border">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-100 dark:bg-indigo-600/10 rounded-lg">
-                  {theme === 'dark' ? <Moon className="w-4 h-4 text-indigo-400" /> : <Sun className="w-4 h-4 text-indigo-400" />}
+              {/* NEW: Prevent Stage Key Overwrite */}
+              <div className="flex items-center justify-between p-4 bg-card rounded-2xl border border-border">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-emerald-100 dark:bg-emerald-600/10 rounded-lg">
+                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-foreground">Lock Stage Key</p>
+                    <p className="text-[9px] text-muted-foreground uppercase font-black">Prevent changes after confirmation</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-bold text-foreground">App Theme</p>
-                </div>
+                <Switch 
+                  checked={preventStageKeyOverwrite} 
+                  onCheckedChange={setPreventStageKeyOverwrite}
+                  className="data-[state=checked]:bg-emerald-600"
+                />
               </div>
-              <Switch checked={theme === 'dark'} onCheckedChange={toggleTheme} />
-            </div>
 
-            {/* NEW: Global UG Chords Display Settings */}
-            <div className="p-4 bg-card rounded-2xl border border-border space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-100 dark:bg-indigo-600/10 rounded-lg">
-                  <Palette className="w-4 h-4 text-indigo-400" />
+              <div className="flex items-center justify-between p-4 bg-card rounded-2xl border border-border">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-100 dark:bg-indigo-600/10 rounded-lg">
+                    {theme === 'dark' ? <Moon className="w-4 h-4 text-indigo-400" /> : <Sun className="w-4 h-4 text-indigo-400" />}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-foreground">App Theme</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-bold text-foreground">Global Chord Display</p>
-                  <p className="text-[10px] text-muted-foreground uppercase font-black">Default styling for UG Chords</p>
-                </div>
+                <Switch checked={theme === 'dark'} onCheckedChange={toggleTheme} />
               </div>
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label className="text-[9px] font-black uppercase text-muted-foreground">Font Family</Label>
-                  <Select 
-                    value={ugChordsFontFamily} 
-                    onValueChange={setUgChordsFontFamily}
-                  >
-                    <SelectTrigger className="h-9 text-xs bg-secondary border-border">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover border-border text-foreground">
-                      <SelectItem value="monospace" className="text-xs">Monospace</SelectItem>
-                      <SelectItem value="sans-serif" className="text-xs">Sans Serif</SelectItem>
-                      <SelectItem value="serif" className="text-xs">Serif</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[9px] font-black uppercase text-muted-foreground">Font Size</Label>
-                  <div className="flex items-center gap-2">
-                    <Slider 
-                      value={[ugChordsFontSize]} 
-                      min={12} 
-                      max={24} 
-                      step={1} 
-                      onValueChange={([value]) => setUgChordsFontSize(value)}
-                      className="flex-1"
-                    />
-                    <span className="text-xs font-mono font-bold w-8 text-center text-foreground">{ugChordsFontSize}px</span>
+
+              {/* NEW: Global UG Chords Display Settings */}
+              <div className="p-4 bg-card rounded-2xl border border-border space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-100 dark:bg-indigo-600/10 rounded-lg">
+                    <Palette className="w-4 h-4 text-indigo-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-foreground">Global Chord Display</p>
+                    <p className="text-[10px] text-muted-foreground uppercase font-black">Default styling for UG Chords</p>
                   </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[9px] font-black uppercase text-muted-foreground">Line Spacing</Label>
-                  <div className="flex items-center gap-2">
-                    <Slider 
-                      value={[ugChordsLineSpacing]} 
-                      min={1} 
-                      max={2.5} 
-                      step={0.1} 
-                      onValueChange={([value]) => setUgChordsLineSpacing(value)}
-                      className="flex-1"
-                    />
-                    <span className="text-xs font-mono font-bold w-8 text-center text-foreground">{ugChordsLineSpacing}x</span>
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[9px] font-black uppercase text-muted-foreground">Chord Bold</Label>
-                  <div className="flex items-center gap-2">
-                    <Switch 
-                      checked={ugChordsChordBold} 
-                      onCheckedChange={setUgChordsChordBold}
-                      className="data-[state=checked]:bg-indigo-600"
-                    />
-                    <span className="text-xs font-bold text-foreground">{ugChordsChordBold ? 'ON' : 'OFF'}</span>
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[9px] font-black uppercase text-muted-foreground">Chord Color</Label>
-                  <div className="flex items-center gap-2">
-                    <Input 
-                      type="color" 
-                      value={ugChordsChordColor} 
-                      onChange={(e) => setUgChordsChordColor(e.target.value)}
-                      className="h-8 w-12 p-1 rounded border border-border bg-background"
-                    />
-                    <span className="text-xs font-mono text-foreground">{ugChordsChordColor}</span>
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[9px] font-black uppercase text-muted-foreground">Alignment</Label>
-                  <div className="flex gap-1">
-                    <Button 
-                      variant={ugChordsTextAlign === "left" ? "default" : "outline"} 
-                      size="sm" 
-                      onClick={() => setUgChordsTextAlign("left")}
-                      className={cn(
-                        "h-8 w-8 p-0",
-                        ugChordsTextAlign === "left" 
-                          ? "bg-indigo-600 hover:bg-indigo-500 text-white" 
-                          : "border border-border bg-secondary text-muted-foreground hover:bg-accent"
-                      )}
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-[9px] font-black uppercase text-muted-foreground">Font Family</Label>
+                    <Select 
+                      value={ugChordsFontFamily} 
+                      onValueChange={setUgChordsFontFamily}
                     >
-                      <AlignLeft className="w-3.5 h-3.5" />
-                    </Button>
-                    <Button 
-                      variant={ugChordsTextAlign === "center" ? "default" : "outline"} 
-                      size="sm" 
-                      onClick={() => setUgChordsTextAlign("center")}
-                      className={cn(
-                        "h-8 w-8 p-0",
-                        ugChordsTextAlign === "center" 
-                          ? "bg-indigo-600 hover:bg-indigo-500 text-white" 
-                          : "border border-border bg-secondary text-muted-foreground hover:bg-accent"
-                      )}
-                    >
-                      <AlignCenter className="w-3.5 h-3.5" />
-                    </Button>
-                    <Button 
-                      variant={ugChordsTextAlign === "right" ? "default" : "outline"} 
-                      size="sm" 
-                      onClick={() => setUgChordsTextAlign("right")}
-                      className={cn(
-                        "h-8 w-8 p-0",
-                        ugChordsTextAlign === "right" 
-                          ? "bg-indigo-600 hover:bg-indigo-500 text-white" 
-                          : "border border-border bg-secondary text-muted-foreground hover:bg-accent"
-                      )}
-                    >
-                      <AlignRight className="w-3.5 h-3.5" />
-                    </Button>
+                      <SelectTrigger className="h-9 text-xs bg-secondary border-border">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover border-border text-foreground">
+                        <SelectItem value="monospace" className="text-xs">Monospace</SelectItem>
+                        <SelectItem value="sans-serif" className="text-xs">Sans Serif</SelectItem>
+                        <SelectItem value="serif" className="text-xs">Serif</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[9px] font-black uppercase text-muted-foreground">Font Size</Label>
+                    <div className="flex items-center gap-2">
+                      <Slider 
+                        value={[ugChordsFontSize]} 
+                        min={12} 
+                        max={24} 
+                        step={1} 
+                        onValueChange={([value]) => setUgChordsFontSize(value)}
+                        className="flex-1"
+                      />
+                      <span className="text-xs font-mono font-bold w-8 text-center text-foreground">{ugChordsFontSize}px</span>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[9px] font-black uppercase text-muted-foreground">Line Spacing</Label>
+                    <div className="flex items-center gap-2">
+                      <Slider 
+                        value={[ugChordsLineSpacing]} 
+                        min={1} 
+                        max={2.5} 
+                        step={0.1} 
+                        onValueChange={([value]) => setUgChordsLineSpacing(value)}
+                        className="flex-1"
+                      />
+                      <span className="text-xs font-mono font-bold w-8 text-center text-foreground">{ugChordsLineSpacing}x</span>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[9px] font-black uppercase text-muted-foreground">Chord Bold</Label>
+                    <div className="flex items-center gap-2">
+                      <Switch 
+                        checked={ugChordsChordBold} 
+                        onCheckedChange={setUgChordsChordBold}
+                        className="data-[state=checked]:bg-indigo-600"
+                      />
+                      <span className="text-xs font-bold text-foreground">{ugChordsChordBold ? 'ON' : 'OFF'}</span>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[9px] font-black uppercase text-muted-foreground">Chord Color</Label>
+                    <div className="flex items-center gap-2">
+                      <Input 
+                        type="color" 
+                        value={ugChordsChordColor} 
+                        onChange={(e) => setUgChordsChordColor(e.target.value)}
+                        className="h-8 w-12 p-1 rounded border border-border bg-background"
+                      />
+                      <span className="text-xs font-mono text-foreground">{ugChordsChordColor}</span>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[9px] font-black uppercase text-muted-foreground">Alignment</Label>
+                    <div className="flex gap-1">
+                      <Button 
+                        variant={ugChordsTextAlign === "left" ? "default" : "outline"} 
+                        size="sm" 
+                        onClick={() => setUgChordsTextAlign("left")}
+                        className={cn(
+                          "h-8 w-8 p-0",
+                          ugChordsTextAlign === "left" 
+                            ? "bg-indigo-600 hover:bg-indigo-500 text-white" 
+                            : "border border-border bg-secondary text-muted-foreground hover:bg-accent"
+                        )}
+                      >
+                        <AlignLeft className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button 
+                        variant={ugChordsTextAlign === "center" ? "default" : "outline"} 
+                        size="sm" 
+                        onClick={() => setUgChordsTextAlign("center")}
+                        className={cn(
+                          "h-8 w-8 p-0",
+                          ugChordsTextAlign === "center" 
+                            ? "bg-indigo-600 hover:bg-indigo-500 text-white" 
+                            : "border border-border bg-secondary text-muted-foreground hover:bg-accent"
+                        )}
+                      >
+                        <AlignCenter className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button 
+                        variant={ugChordsTextAlign === "right" ? "default" : "outline"} 
+                        size="sm" 
+                        onClick={() => setUgChordsTextAlign("right")}
+                        className={cn(
+                          "h-8 w-8 p-0",
+                          ugChordsTextAlign === "right" 
+                            ? "bg-indigo-600 hover:bg-indigo-500 text-white" 
+                            : "border border-border bg-secondary text-muted-foreground hover:bg-accent"
+                        )}
+                      >
+                        <AlignRight className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -61,7 +61,7 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
   isMobile,
   onOpenInApp
 }) => {
-  const { keyPreference: globalPreference } = useSettings();
+  const { keyPreference: globalPreference, preventStageKeyOverwrite } = useSettings(); // NEW: Get preventStageKeyOverwrite
   
   // Resolve effective notation preference: if global is neutral, use song preference, else global.
   const resolvedPreference = globalPreference === 'neutral' 
@@ -101,6 +101,9 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
   const isExtractionFailed = formData.extraction_status === 'failed';
 
   const audioSourceUrl = formData.extraction_status === 'completed' && formData.audio_url ? formData.audio_url : formData.previewUrl;
+
+  // NEW: Determine if Stage Key should be disabled
+  const isStageKeyDisabled = preventStageKeyOverwrite && formData.isKeyConfirmed;
 
   return (
     <div className={cn("flex-1 p-6 md:p-8 space-y-8 md:space-y-10 overflow-y-auto")}>
@@ -249,10 +252,12 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
             <Select 
               value={formatKey(targetKey, resolvedPreference)}
               onValueChange={handleTargetKeyChange}
+              disabled={isStageKeyDisabled} // NEW: Disable if preventStageKeyOverwrite is active and key is confirmed
             >
               <SelectTrigger className={cn(
                 "border-none text-white font-bold font-mono h-12 shadow-xl text-lg transition-colors",
-                formData.isKeyConfirmed ? "bg-emerald-600 shadow-emerald-500/20" : "bg-indigo-600 shadow-indigo-500/20"
+                formData.isKeyConfirmed ? "bg-emerald-600 shadow-emerald-500/20" : "bg-indigo-600 shadow-indigo-500/20",
+                isStageKeyDisabled && "opacity-50 cursor-not-allowed" // NEW: Visual cue for disabled state
               )}>
                 <SelectValue />
               </SelectTrigger>

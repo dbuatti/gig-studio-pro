@@ -13,6 +13,7 @@ import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { showSuccess, showError } from '@/utils/toast';
 import { ScrollArea } from './ui/scroll-area';
+import { useSettings } from '@/hooks/use-settings'; // NEW: Import useSettings
 
 interface KeyManagementMatrixProps {
   repertoire: SetlistSong[];
@@ -25,6 +26,7 @@ const KeyManagementMatrix: React.FC<KeyManagementMatrixProps> = ({
   onUpdateKey,
   keyPreference,
 }) => {
+  const { preventStageKeyOverwrite } = useSettings(); // NEW: Get preventStageKeyOverwrite
   const [searchTerm, setSearchTerm] = useState("");
   const [isUpdatingId, setIsUpdatingId] = useState<string | null>(null);
 
@@ -115,6 +117,8 @@ const KeyManagementMatrix: React.FC<KeyManagementMatrixProps> = ({
                   const displayOrigKey = formatKey(originalKey, keyPreference);
                   const displayTargetKey = formatKey(targetKey, keyPreference);
                   const isUpdating = isUpdatingId === song.id;
+                  // NEW: Determine if Stage Key should be disabled
+                  const isStageKeyDisabled = preventStageKeyOverwrite && song.isKeyConfirmed;
 
                   return (
                     <TableRow key={song.id} className="hover:bg-accent/50">
@@ -159,9 +163,12 @@ const KeyManagementMatrix: React.FC<KeyManagementMatrixProps> = ({
                         <Select 
                           value={displayTargetKey} 
                           onValueChange={(val) => handleStageKeyChange(song, val)}
-                          disabled={isUpdating}
+                          disabled={isUpdating || isStageKeyDisabled} // NEW: Disable if preventStageKeyOverwrite is active and key is confirmed
                         >
-                          <SelectTrigger className="h-8 w-24 bg-indigo-600/10 border-indigo-500/20 text-xs font-mono font-bold text-indigo-400">
+                          <SelectTrigger className={cn(
+                            "h-8 w-24 bg-indigo-600/10 border-indigo-500/20 text-xs font-mono font-bold text-indigo-400",
+                            isStageKeyDisabled && "opacity-50 cursor-not-allowed" // NEW: Visual cue for disabled state
+                          )}>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="bg-popover border-border text-foreground z-[300]">
