@@ -5,7 +5,8 @@ import { transposeKey, formatKey, MAPPING_TO_SHARP, MAPPING_TO_FLAT } from './ke
 
 // Robust musical chord regex that handles sharps/flats and common extensions without relying on \b
 // Updated to use negative lookbehind (?<!\w) and negative lookahead (?!\w) to prevent matching chords within words (e.g., 'Don't' -> 'D', 'Cause' -> 'C').
-const CHORD_REGEX = /(?<!\w)([A-G](?:#|b)?)(m|maj|dim|aug|sus\d?|add\d?|\d+)?(\/[A-G](?:#|b)?)?(?!\w)/g;
+// The second capturing group `([^/\s]*?)` now captures any characters that are not a '/' or whitespace, non-greedily.
+const CHORD_REGEX = /(?<!\w)([A-G](?:#|b)?)([^/\s]*?)(\/[A-G](?:#|b)?)?(?!\w)/g;
 
 /**
  * Determines if a line likely contains chords rather than just lyrics.
@@ -87,15 +88,14 @@ export const extractKeyFromChords = (text: string): string | null => {
   for (const line of lines) {
     if (line.trim().startsWith('[') && line.trim().endsWith(']')) continue;
     const match = line.match(CHORD_REGEX);
-    if (match && match[0]) {
-      const fullMatch = match[0];
-      // Extract the root and minor status
-      const rootMatch = fullMatch.match(/^([A-G][#b]?)(m|maj|dim|aug|sus\d?|add\d?|\d+)?/);
-      if (rootMatch && rootMatch[1]) {
-        let key = rootMatch[1];
-        const chordType = rootMatch[2];
-        const isMinor = chordType && (chordType.startsWith('m') || chordType === 'dim');
-        const normalizedRoot = MAPPING_TO_SHARP[key] || key;
+    if (match && match.length >= 3) { // Ensure enough capturing groups
+      const rootNote = match[1];
+      const chordSuffix = match[2]; // This will be 'm7', '7sus4', 'add9' etc.
+      
+      if (rootNote) {
+        // Check for 'm' or 'dim' anywhere in the suffix to determine minor key
+        const isMinor = chordSuffix && (chordSuffix.includes('m') || chordSuffix.includes('dim'));
+        const normalizedRoot = MAPPING_TO_SHARP[rootNote] || rootNote;
         return normalizedRoot + (isMinor ? 'm' : '');
       }
     }
