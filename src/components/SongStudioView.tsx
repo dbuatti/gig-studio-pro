@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Check, Sparkles, Loader2, AlertCircle, ShieldAlert, Globe } from 'lucide-react'; 
+import { ArrowLeft, Check, Sparkles, Loader2, AlertCircle, ShieldAlert, Globe, X } from 'lucide-react'; 
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -23,7 +23,7 @@ import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
 import { extractKeyFromChords } from '@/utils/chordUtils';
 import ProSyncSearch from './ProSyncSearch'; 
 import { formatKey } from '@/utils/keyUtils';
-import SongStudioHeader from '@/components/SongStudioHeader'; // Import the consolidated header
+import SongStudioConsolidatedHeader from '@/components/SongStudioConsolidatedHeader'; // Import the new consolidated header
 
 export type StudioTab = 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library';
 
@@ -272,8 +272,8 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
 
   return (
     <div className="flex flex-col h-full bg-slate-950 overflow-hidden">
-      <header className="bg-slate-900 border-b border-white/5 flex flex-col shrink-0 z-50">
-        <SongStudioHeader
+      <header className="shrink-0 z-50">
+        <SongStudioConsolidatedHeader
           formData={formData}
           isPlaying={audio.isPlaying}
           isLoadingAudio={audio.isLoadingAudio}
