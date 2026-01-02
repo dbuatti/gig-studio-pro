@@ -47,6 +47,7 @@ interface SheetReaderHeaderProps {
   headerLeftOffset: number;
   onSavePreference: (pref: 'sharps' | 'flats') => void;
   audioEngine: AudioEngineControls;
+  effectiveTargetKey: string; // NEW: Add effectiveTargetKey prop
 }
 
 const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
@@ -83,9 +84,9 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   headerLeftOffset,
   onSavePreference,
   audioEngine,
+  effectiveTargetKey, // Destructure new prop
 }) => {
-  const rawTargetKey = currentSong?.targetKey || currentSong?.originalKey;
-  const displayKey = rawTargetKey ? formatKey(rawTargetKey, readerKeyPreference) : null;
+  const displayKey = effectiveTargetKey ? formatKey(effectiveTargetKey, readerKeyPreference) : null; // Use effectiveTargetKey here
   const keysToUse = readerKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
 
   const formatTime = (seconds: number) => {

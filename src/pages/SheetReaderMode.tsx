@@ -728,6 +728,7 @@ const SheetReaderMode: React.FC = () => {
           headerLeftOffset={isSidebarOpen && !isBrowserFullScreen ? 300 : 0}
           onSavePreference={handleSaveReaderPreference}
           audioEngine={audioEngine}
+          effectiveTargetKey={effectiveTargetKey} // NEW: Pass effectiveTargetKey
         />
 
         <div
