@@ -20,7 +20,7 @@ interface UGChordsReaderProps {
   onChartReady?: () => void;
 }
 
-const UGChordsReader = ({
+const UGChordsReader = React.memo(({
   chordsText,
   config: songConfig, // Rename prop to avoid conflict with resolved config
   isMobile,
@@ -59,15 +59,13 @@ const UGChordsReader = ({
   const contentRef = useRef<HTMLPreElement>(null);
 
   const transposedChordsText = useMemo(() => {
-    console.log("[UGChordsReader] Recalculating transposedChordsText. targetKey:", targetKey, "originalKey:", originalKey, "activeKeyPreference:", activeKeyPreference); // Added console log
+    console.log("[UGChordsReader] Recalculating transposedChordsText. targetKey:", targetKey, "originalKey:", originalKey, "activeKeyPreference:", activeKeyPreference);
     if (!chordsText) return chordsText;
     const n = calculateSemitones(originalKey, targetKey);
     return transposeChords(chordsText, n, activeKeyPreference);
   }, [chordsText, originalKey, targetKey, activeKeyPreference]);
 
   const readableChordColor = resolvedConfig.chordColor === "#000000" ? "#ffffff" : resolvedConfig.chordColor;
-
-  // Removed formattedHtml useMemo as dangerouslySetInnerHTML is no longer used.
 
   useEffect(() => {
     if (chordsText && onChartReady) {
@@ -95,7 +93,7 @@ const UGChordsReader = ({
       {chordsText ? (
         <pre 
           ref={contentRef}
-          className="whitespace-pre-wrap font-inherit inline-block min-w-full" // Changed to whitespace-pre-wrap
+          className="whitespace-pre-wrap font-inherit inline-block min-w-full"
         >
           {transposedChordsText}
         </pre>
@@ -106,6 +104,6 @@ const UGChordsReader = ({
       )}
     </div>
   );
-};
+});
 
 export default UGChordsReader;
