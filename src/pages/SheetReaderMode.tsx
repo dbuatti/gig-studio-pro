@@ -29,8 +29,8 @@ import { Document, Page, pdfjs } from 'react-pdf'; // NEW import for react-pdf
 import 'react-pdf/dist/Page/AnnotationLayer.css'; // Import default styles for annotations
 import 'react-pdf/dist/Page/TextLayer.css'; // Import default styles for text layer
 
-// Configure PDF.js worker source
-pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+// Configure PDF.js worker source - FIXED URL
+pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
 
 export type ChartType = 'pdf' | 'leadsheet' | 'chords'; // Exporting ChartType
 
