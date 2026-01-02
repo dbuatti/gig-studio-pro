@@ -224,7 +224,7 @@ const SheetReaderMode: React.FC = () => {
           .from('setlist_songs')
           .select(`
             *,
-            repertoire (
+            repertoire:song_id (
               id, title, artist, original_key, target_key, pitch, preview_url, youtube_url, ug_url, 
               apple_music_url, pdf_url, leadsheet_url, bpm, genre, is_metadata_confirmed, is_key_confirmed, 
               notes, lyrics, resources, user_tags, is_pitch_linked, duration_seconds, key_preference, 
