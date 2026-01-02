@@ -549,18 +549,14 @@ const SheetReaderMode: React.FC = () => {
 
   // --- Gesture Implementation ---
   const bind = useDrag(({ down, movement: [mx, my], direction: [dx], velocity: [vx], cancel, intentional, memo }) => {
-    // Reset navigatedRef when a new drag starts (finger down)
-    if (down && !memo) { // memo is undefined on first call of a gesture
+    // Reset navigatedRef ONLY when a new drag starts (finger touches screen)
+    if (down && !memo) {
       navigatedRef.current = false;
     }
-    // Reset navigatedRef when the drag ends (finger up)
-    if (!down && navigatedRef.current) {
-      navigatedRef.current = false;
-    }
+    // Removed: Resetting navigatedRef on drag end. It should persist until a new drag starts.
 
     api.start({ x: down ? mx : 0, immediate: down });
 
-    // Only process swipe if intentional and primarily horizontal
     if (!intentional || Math.abs(mx) < Math.abs(my)) {
       return;
     }
@@ -568,32 +564,34 @@ const SheetReaderMode: React.FC = () => {
     const isHorizontalSwipe = Math.abs(mx) > swipeThreshold;
     const isFastSwipe = Math.abs(vx) > 0.3;
 
-    if (isHorizontalSwipe && isFastSwipe && !navigatedRef.current) { // Add !navigatedRef.current
-      navigatedRef.current = true; // Mark as navigated for this gesture
-      cancel();
+    if (isHorizontalSwipe && isFastSwipe) {
+      if (!navigatedRef.current) {
+        navigatedRef.current = true; // Mark as navigated for this gesture
+        cancel(); // Stop further updates for this specific gesture
 
-      if (dx < 0) { // Swiping left (next)
-        if (selectedChartType === 'chords') {
-          handleNext();
-        } else if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
-          if (pdfCurrentPage < (pdfNumPages || 1)) {
-            setPdfCurrentPage(prev => prev + 1);
-          } else {
-            handleNext(); // Last PDF page, go to next song
+        if (dx < 0) { // Swiping left (next)
+          if (selectedChartType === 'chords') {
+            handleNext();
+          } else if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
+            if (pdfCurrentPage < (pdfNumPages || 1)) {
+              setPdfCurrentPage(prev => prev + 1);
+            } else {
+              handleNext(); // Last PDF page, go to next song
+            }
+          }
+        } else { // Swiping right (previous)
+          if (selectedChartType === 'chords') {
+            handlePrev();
+          } else if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
+            if (pdfCurrentPage > 1) {
+              setPdfCurrentPage(prev => prev - 1);
+            } else {
+              handlePrev(); // First PDF page, go to previous song
+            }
           }
         }
-      } else { // Swiping right (previous)
-        if (selectedChartType === 'chords') {
-          handlePrev();
-        } else if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
-          if (pdfCurrentPage > 1) {
-            setPdfCurrentPage(prev => prev - 1);
-          } else {
-            handlePrev(); // First PDF page, go to previous song
-          }
-        }
+        api.start({ x: 0 });
       }
-      api.start({ x: 0 });
     }
   }, {
     threshold: 20,        // Initial movement before drag starts
