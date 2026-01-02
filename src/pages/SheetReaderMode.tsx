@@ -224,7 +224,9 @@ const SheetReaderMode: React.FC = () => {
         originalKey: d.original_key ?? 'TBC',
         targetKey: d.target_key ?? d.original_key ?? 'TBC',
         pitch: d.pitch ?? 0,
+        // --- FIX: Prioritize audio_url for previewUrl ---
         previewUrl: d.extraction_status === 'completed' && d.audio_url ? d.audio_url : d.preview_url,
+        // --- END FIX ---
         youtubeUrl: d.youtube_url,
         ugUrl: d.ug_url,
         appleMusicUrl: d.apple_music_url,
@@ -310,7 +312,9 @@ const SheetReaderMode: React.FC = () => {
             originalKey: masterSong.original_key ?? 'TBC',
             targetKey: masterSong.target_key ?? masterSong.original_key ?? 'TBC',
             pitch: masterSong.pitch ?? 0,
+            // --- FIX: Prioritize audio_url for previewUrl ---
             previewUrl: masterSong.extraction_status === 'completed' && masterSong.audio_url ? masterSong.audio_url : masterSong.preview_url,
+            // --- END FIX ---
             youtubeUrl: masterSong.youtube_url,
             ugUrl: masterSong.ug_url,
             appleMusicUrl: masterSong.apple_music_url,
@@ -398,10 +402,12 @@ const SheetReaderMode: React.FC = () => {
 
   useEffect(() => {
     if (!currentSong) return;
+    // --- FIX: Use currentSong.previewUrl which is now correctly prioritized ---
     if (currentUrl !== currentSong.previewUrl || !currentBuffer) {
       const timer = setTimeout(() => loadFromUrl(currentSong.previewUrl, pitch || 0), 100);
       return () => clearTimeout(timer);
     }
+    // --- END FIX ---
   }, [currentSong, currentUrl, currentBuffer, loadFromUrl, pitch]);
 
   const handleNext = useCallback(() => {
@@ -480,9 +486,10 @@ const SheetReaderMode: React.FC = () => {
 
     const url = chartType === 'pdf' ? song.pdfUrl : song.leadsheetUrl;
     if (!url) {
+      // If no PDF/Leadsheet URL, and chords are available, switch to chords view
       if (song.ug_chords_text?.trim()) {
         setTimeout(() => setSelectedChartType('chords'), 0);
-        return null;
+        return null; // Return null for now, the effect will re-render with chords
       }
       return (
         <div className="h-full flex flex-col items-center justify-center bg-slate-950">
