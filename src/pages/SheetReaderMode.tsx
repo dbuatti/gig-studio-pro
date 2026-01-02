@@ -558,18 +558,15 @@ const SheetReaderMode: React.FC = () => {
 
   // --- Gesture Implementation ---
   const bind = useDrag(({ first, down, movement: [mx, my], direction: [dx], velocity: [vx], cancel, intentional }) => {
-    console.log(`[Drag] first: ${first}, down: ${down}, mx: ${mx.toFixed(2)}, my: ${my.toFixed(2)}, dx: ${dx.toFixed(2)}, vx: ${vx.toFixed(2)}, navigatedRef: ${navigatedRef.current}`);
+    console.log(`[Drag] (RAW) first: ${first}, down: ${down}, mx: ${mx.toFixed(2)}, my: ${my.toFixed(2)}, dx: ${dx.toFixed(2)}, vx: ${vx.toFixed(2)}, navigatedRef (before first check): ${navigatedRef.current}`);
 
-    // Reset navigatedRef ONLY when a new drag starts (first event of a gesture)
+    // Reset navigatedRef unconditionally at the very beginning of a new gesture
     if (first) {
       navigatedRef.current = false;
-      console.log("[Drag] First event of gesture. navigatedRef reset to false.");
+      console.log("[Drag] (START OF GESTURE) navigatedRef reset to false.");
     }
-    // Reset navigatedRef when the drag ends (finger up)
-    if (!down && navigatedRef.current) {
-      navigatedRef.current = false;
-      console.log("[Drag] Drag ended. navigatedRef reset to false.");
-    }
+
+    console.log(`[Drag] (PROCESSED) first: ${first}, down: ${down}, mx: ${mx.toFixed(2)}, my: ${my.toFixed(2)}, dx: ${dx.toFixed(2)}, vx: ${vx.toFixed(2)}, navigatedRef (after first check): ${navigatedRef.current}`);
 
     api.start({ x: down ? mx : 0, immediate: down });
 
@@ -582,7 +579,7 @@ const SheetReaderMode: React.FC = () => {
     const isHorizontalSwipe = Math.abs(mx) > swipeThreshold;
     const isFastSwipe = Math.abs(vx) > 0.3;
 
-    console.log(`[Drag] isHorizontalSwipe: ${isHorizontalSwipe}, isFastSwipe: ${isFastSwipe}, navigatedRef.current: ${navigatedRef.current}`);
+    console.log(`[Drag] isHorizontalSwipe: ${isHorizontalSwipe}, isFastSwipe: ${isFastSwipe}, navigatedRef.current (before navigation check): ${navigatedRef.current}`);
 
     if (isHorizontalSwipe && isFastSwipe && !navigatedRef.current) {
       navigatedRef.current = true; // Mark as navigated for this gesture
