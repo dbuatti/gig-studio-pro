@@ -12,7 +12,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Skeleton } from "@/components/ui/skeleton";
 import { showError } from '@/utils/toast';
 import { AudioEngineControls } from '@/hooks/use-tone-audio';
-import { ChartType } from '@/pages/SheetReaderMode'; // NEW: Import ChartType
+
+// FIX: Import ChartType directly from the local file or define it locally if not exported
+// Since SheetReaderMode exports it as default, we can import it as default or define it here.
+// To avoid circular dependency issues, defining it locally is safer if it's just a type.
+type ChartType = 'pdf' | 'leadsheet' | 'web' | 'chords';
 
 interface SheetReaderHeaderProps {
   currentSong: SetlistSong | null;
@@ -28,8 +32,8 @@ interface SheetReaderHeaderProps {
   onToggleFullScreen: () => void;
   setIsOverlayOpen: (isOpen: boolean) => void;
   isOverrideActive: boolean;
-  pitch: number; // Now represents effectivePitch
-  setPitch: (pitch: number) => void; // Now for temporary pitch changes
+  pitch: number;
+  setPitch: (pitch: number) => void;
   isPlaying: boolean;
   isLoadingAudio: boolean;
   onTogglePlayback: () => void;
@@ -48,11 +52,11 @@ interface SheetReaderHeaderProps {
   headerLeftOffset: number;
   onSavePreference: (pref: 'sharps' | 'flats') => void;
   audioEngine: AudioEngineControls;
-  effectiveTargetKey: string; // NEW: Add effectiveTargetKey prop
-  onPullKey: () => void; // NEW: Add onPullKey prop
-  pdfCurrentPage: number; // NEW
-  setPdfCurrentPage: React.Dispatch<React.SetStateAction<number>>; // NEW: Corrected type
-  selectedChartType: ChartType; // NEW
+  effectiveTargetKey: string;
+  onPullKey: () => void;
+  pdfCurrentPage: number;
+  setPdfCurrentPage: React.Dispatch<React.SetStateAction<number>>;
+  selectedChartType: ChartType;
 }
 
 const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
@@ -69,8 +73,8 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   onToggleFullScreen,
   setIsOverlayOpen,
   isOverrideActive,
-  pitch, // Now effectivePitch
-  setPitch, // Now for temporary pitch changes
+  pitch,
+  setPitch,
   isPlaying,
   isLoadingAudio,
   onTogglePlayback,
@@ -89,13 +93,13 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   headerLeftOffset,
   onSavePreference,
   audioEngine,
-  effectiveTargetKey, // Destructure new prop
-  onPullKey, // Destructure new prop
-  pdfCurrentPage, // NEW
-  setPdfCurrentPage, // NEW
-  selectedChartType, // NEW
+  effectiveTargetKey,
+  onPullKey,
+  pdfCurrentPage,
+  setPdfCurrentPage,
+  selectedChartType,
 }) => {
-  const displayKey = effectiveTargetKey ? formatKey(effectiveTargetKey, readerKeyPreference) : null; // Use effectiveTargetKey here
+  const displayKey = effectiveTargetKey ? formatKey(effectiveTargetKey, readerKeyPreference) : null;
   const keysToUse = readerKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
 
   const formatTime = (seconds: number) => {
@@ -112,7 +116,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
       return;
     }
     if (!audioEngine.currentBuffer || audioEngine.currentUrl !== urlToLoad) {
-      await onLoadAudio(urlToLoad, pitch || 0); // Pass current effective pitch
+      await onLoadAudio(urlToLoad, pitch || 0);
     }
     onTogglePlayback();
   };
@@ -122,10 +126,10 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   };
 
   const handleNextPdfPage = () => {
-    setPdfCurrentPage(prev => Math.min(prev + 1, 999)); // Arbitrary max page
+    setPdfCurrentPage(prev => Math.min(prev + 1, 999));
   };
 
-  if (isFullScreen) return null; // Hide header in full-screen mode
+  if (isFullScreen) return null;
 
   return (
     <div 
@@ -235,7 +239,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
         <Button
           variant="ghost"
           size="icon"
-          onClick={audioEngine.stopPlayback} // Use audioEngine.stopPlayback directly
+          onClick={audioEngine.stopPlayback}
           className="h-10 w-10 rounded-xl hover:bg-white/10 text-slate-400"
           title="Reset Playback"
         >
@@ -271,7 +275,6 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
             </span>
             <span className="text-xl font-black text-white font-mono">{pitch > 0 ? '+' : ''}{pitch} <span className="text-[10px] text-slate-500">ST</span></span>
           </div>
-          {/* Removed Gain display */}
         </div>
       </div>
 
