@@ -419,12 +419,22 @@ const SheetReaderMode: React.FC = () => {
   const getBestChartType = useCallback((): ChartType => {
     if (!currentSong) return 'pdf';
     const pref = currentSong.preferred_reader;
+
+    // 1. Prioritize based on user's preferred_reader setting
     if (pref === 'ug' && currentSong.ug_chords_text?.trim()) return 'chords';
     if (pref === 'ls' && currentSong.leadsheetUrl) return 'leadsheet';
     if (pref === 'fn' && currentSong.pdfUrl) return 'pdf';
-    if (currentSong.pdfUrl) return 'pdf';
-    if (currentSong.leadsheetUrl) return 'leadsheet';
+
+    // 2. Prioritize UG Chords if present (default preference)
     if (currentSong.ug_chords_text?.trim()) return 'chords';
+
+    // 3. Then PDF
+    if (currentSong.pdfUrl) return 'pdf';
+
+    // 4. Then Leadsheet
+    if (currentSong.leadsheetUrl) return 'leadsheet';
+
+    // 5. Fallback
     return 'pdf';
   }, [currentSong]);
 
