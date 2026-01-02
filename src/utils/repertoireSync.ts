@@ -36,9 +36,11 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
       updated_at: new Date().toISOString(),
     };
 
-    // Use ID if available to ensure we update the correct record
-    if (song.master_id || song.id) {
-      dbUpdates.id = song.master_id || song.id;
+    // Only include 'id' in the upsert payload if it's an update to an existing master record.
+    // If song.master_id is not present, it's a new client-side song, and we let Supabase
+    // handle the 'id' generation or update based on the 'onConflict' clause.
+    if (song.master_id) {
+      dbUpdates.id = song.master_id;
     }
 
     dbUpdates.title = cleanMetadata(song.name) || 'Untitled Track';
