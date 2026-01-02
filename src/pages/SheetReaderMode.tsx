@@ -628,6 +628,57 @@ const SheetReaderMode: React.FC = () => {
     bounds: { left: -100, right: 100 } // Added bounds as per user notes
   });
 
+  // NEW: Effect to reset navigatedRef when the drag gesture ends
+  useEffect(() => {
+    const handleDragEndReset = () => {
+      if (navigatedRef.current) {
+        navigatedRef.current = false;
+        console.log("[Drag] (END OF GESTURE) navigatedRef reset to false via useEffect.");
+      }
+    };
+
+    // This effect will run when the component unmounts or when 'down' changes
+    // We need to ensure it only runs when the drag *ends*.
+    // The 'bind' function itself handles the 'down' state, so we can't directly watch 'down' here.
+    // Instead, we rely on the 'first' property to reset at the start of a new gesture,
+    // and the 'cancel' call to prevent re-triggers within a gesture.
+    // The primary issue was that if a gesture *didn't* trigger navigation (e.g., too short),
+    // navigatedRef might not be reset. The 'first' check should cover this.
+    // However, if the gesture is cancelled *before* 'first' is true for the next gesture,
+    // we might still have an issue. Let's ensure the 'first' check is the ultimate source of truth.
+    // No, the `first` check is for the *start* of a new gesture. If a gesture ends without `first` being true for a new one,
+    // `navigatedRef` could remain `true`. The `useDrag` hook doesn't expose a simple `onDragEnd` callback directly
+    // that we can use in a `useEffect` to reliably reset `navigatedRef.current`.
+    // The `bind` function itself is the event handler. The `down` property is the most direct way.
+
+    // Let's try to use a ref to the `down` state to detect the transition.
+    const downRef = useRef(false);
+    const unbind = bind[0]; // Get the actual event handler from useDrag
+
+    const handlePointerUp = () => {
+      if (downRef.current && navigatedRef.current) {
+        navigatedRef.current = false;
+        console.log("[Drag] (POINTER UP) navigatedRef reset to false.");
+      }
+      downRef.current = false;
+    };
+
+    const handlePointerDown = () => {
+      downRef.current = true;
+    };
+
+    chartContainerRef.current?.addEventListener('pointerup', handlePointerUp);
+    chartContainerRef.current?.addEventListener('pointercancel', handlePointerUp); // Also reset on cancel
+    chartContainerRef.current?.addEventListener('pointerdown', handlePointerDown);
+
+    return () => {
+      chartContainerRef.current?.removeEventListener('pointerup', handlePointerUp);
+      chartContainerRef.current?.removeEventListener('pointercancel', handlePointerUp);
+      chartContainerRef.current?.removeEventListener('pointerdown', handlePointerDown);
+    };
+  }, [bind]);
+
+
   if (initialLoading) return <div className="h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
 
   return (
