@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
-import { Settings2, Hash, Music2, LogOut, ShieldCheck, Zap, Globe, User, Youtube, Key, ShieldAlert, Bug, FileText, Monitor, Sun, Moon, Loader2, Target, Type, Link as LinkIcon, Music, ListMusic, Library, LayoutDashboard } from 'lucide-react';
+import { Settings2, Hash, Music2, LogOut, ShieldCheck, Zap, Globe, User, Youtube, Key, ShieldAlert, Bug, FileText, Monitor, Sun, Moon, Loader2, Target, Type, Link as LinkIcon, Music, ListMusic, Library, LayoutDashboard, Copy, ExternalLink } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
@@ -43,18 +43,22 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
   const navigate = useNavigate();
   const [ytApiKey, setYtApiKey] = useState("");
   const [isSavingYtKey, setIsSavingYtKey] = useState(false);
+  const [publicRepertoireSlug, setPublicRepertoireSlug] = useState<string | null>(null);
 
   const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     if (isOpen && user) {
-      fetchYtKey();
+      fetchProfileData();
     }
   }, [isOpen, user]);
 
-  const fetchYtKey = async () => {
-    const { data } = await supabase.from('profiles').select('youtube_api_key').eq('id', user?.id).single();
-    if (data?.youtube_api_key) setYtApiKey(data.youtube_api_key);
+  const fetchProfileData = async () => {
+    const { data } = await supabase.from('profiles').select('youtube_api_key, repertoire_slug').eq('id', user?.id).single();
+    if (data) {
+      if (data.youtube_api_key) setYtApiKey(data.youtube_api_key);
+      if (data.repertoire_slug) setPublicRepertoireSlug(data.repertoire_slug);
+    }
   };
 
   const handleSaveYtKey = async () => {
@@ -70,6 +74,17 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
       showError("Failed to save YouTube API key");
     } finally {
       setIsSavingYtKey(false);
+    }
+  };
+
+  const publicUrl = publicRepertoireSlug ? `${window.location.origin}/repertoire/${publicRepertoireSlug}` : '';
+
+  const copyLink = () => {
+    if (publicUrl) {
+      navigator.clipboard.writeText(publicUrl);
+      showSuccess("Public Repertoire Link Copied!");
+    } else {
+      showError("No public repertoire link available.");
     }
   };
 
@@ -240,6 +255,37 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
             <div className="p-4 bg-card rounded-2xl border border-border">
               <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Active User</p>
               <p className="text-sm font-bold mt-1 text-foreground">{user?.email}</p>
+              
+              {/* Public Repertoire Link Section */}
+              <div className="mt-6 pt-4 border-t border-border space-y-3">
+                <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+                  <Globe className="w-3.5 h-3.5" /> Public Repertoire Link
+                </Label>
+                {publicRepertoireSlug ? (
+                  <div className="flex items-center gap-2">
+                    <Input 
+                      value={publicUrl} 
+                      readOnly 
+                      className="flex-1 h-10 text-xs bg-secondary border-border text-foreground truncate" 
+                    />
+                    <Button size="sm" onClick={copyLink} className="bg-indigo-600 hover:bg-indigo-700 h-10 px-4 font-black uppercase text-[9px] rounded-xl">
+                      <Copy className="w-3.5 h-3.5 mr-2" /> Copy
+                    </Button>
+                    <a 
+                      href={publicUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="h-10 w-10 bg-secondary border border-border flex items-center justify-center rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent transition-all"
+                      title="Open Public Repertoire"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Set your public repertoire slug in your <a onClick={() => { onClose(); navigate('/profile'); }} className="text-indigo-500 hover:underline cursor-pointer">Profile</a> to enable this link.</p>
+                )}
+              </div>
+
               <Button variant="ghost" size="sm" onClick={() => signOut()} className="mt-4 w-full justify-start gap-2 text-destructive hover:text-destructive-foreground hover:bg-destructive/10 h-10 px-0">
                 <LogOut className="w-4 h-4" /> Sign Out
               </Button>
