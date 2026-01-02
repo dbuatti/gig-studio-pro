@@ -25,7 +25,12 @@ import { extractKeyFromChords } from '@/utils/chordUtils';
 import RepertoireSearchModal from '@/components/RepertoireSearchModal';
 import FullScreenSongInfo from '@/components/FullScreenSongInfo';
 import { AnimatePresence } from 'framer-motion';
-import PdfViewer from '@/components/PdfViewer'; // NEW import
+import { Document, Page, pdfjs } from 'react-pdf'; // NEW import for react-pdf
+import 'react-pdf/dist/Page/AnnotationLayer.css'; // Import default styles for annotations
+import 'react-pdf/dist/Page/TextLayer.css'; // Import default styles for text layer
+
+// Configure PDF.js worker source
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
 export type ChartType = 'pdf' | 'leadsheet' | 'chords'; // Exporting ChartType
 
@@ -43,7 +48,7 @@ const SheetReaderMode: React.FC = () => {
     ugChordsLineSpacing,
     ugChordsTextAlign,
     preventStageKeyOverwrite,
-    setKeyPreference: setGlobalKeyPreference // NEW: Get the setter for global key preference
+    setKeyPreference: setGlobalKeyPreference
   } = useSettings();
   const { forceReaderResource } = useReaderSettings();
 
@@ -64,8 +69,9 @@ const SheetReaderMode: React.FC = () => {
   );
   
   const [selectedChartType, setSelectedChartType] = useState<ChartType>('pdf');
-  const [isChartContentLoading, setIsChartContentLoading] = useState(false); // NEW state for chart content loading
-  const [pdfCurrentPage, setPdfCurrentPage] = useState(1); // NEW: State for current PDF page
+  const [isChartContentLoading, setIsChartContentLoading] = useState(false);
+  const [pdfCurrentPage, setPdfCurrentPage] = useState(1);
+  const [pdfNumPages, setPdfNumPages] = useState<number | null>(null); // NEW: State for total PDF pages
 
   const audioEngine = useToneAudio(true);
   const {
@@ -77,12 +83,12 @@ const SheetReaderMode: React.FC = () => {
   const currentSong = allSongs[currentIndex];
 
   // Refs for PDF scrolling and swipe detection
-  const chartContainerRef = useRef<HTMLDivElement>(null); // Renamed from pdfContainerRef for clarity
+  const chartContainerRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
   const touchEndX = useRef(0);
   const touchEndY = useRef(0);
-  const swipeThreshold = 50; // pixels
+  const swipeThreshold = 50;
 
   // Sync state to current song's saved preference
   useEffect(() => {
@@ -96,6 +102,7 @@ const SheetReaderMode: React.FC = () => {
   // NEW: Reset PDF page when current song changes
   useEffect(() => {
     setPdfCurrentPage(1);
+    setPdfNumPages(null); // Reset total pages too
   }, [currentSong?.id]);
 
   const handleLocalSongUpdate = useCallback((songId: string, updates: Partial<SetlistSong>) => {
@@ -243,8 +250,8 @@ const SheetReaderMode: React.FC = () => {
         chords_updated_at: d.chords_updated_at,
         ug_link_updated_at: d.ug_link_updated_at,
         highest_note_updated_at: d.highest_note_updated_at,
-        original_key_updated_at: d.original_key_updated_at, // FIX: Changed from masterData
-        target_key_updated_at: d.target_key_updated_at, // FIX: Changed from masterData
+        original_key_updated_at: d.original_key_updated_at,
+        target_key_updated_at: d.target_key_updated_at,
       }));
       setFullMasterRepertoire(masterRepertoireList);
 
@@ -329,8 +336,8 @@ const SheetReaderMode: React.FC = () => {
             chords_updated_at: masterSong.chords_updated_at,
             ug_link_updated_at: masterSong.ug_link_updated_at,
             highest_note_updated_at: masterSong.highest_note_updated_at,
-            original_key_updated_at: masterSong.original_key_updated_at, // FIX: Changed from masterData
-            target_key_updated_at: masterSong.target_key_updated_at, // FIX: Changed from masterData
+            original_key_updated_at: masterSong.original_key_updated_at,
+            target_key_updated_at: masterSong.target_key_updated_at,
             isPlayed: junction.isPlayed || false,
           };
         }).filter(Boolean) as SetlistSong[];
@@ -407,12 +414,12 @@ const SheetReaderMode: React.FC = () => {
   useEffect(() => {
     if (currentSong) {
       const bestType = getBestChartType(currentSong);
-      if (selectedChartType !== bestType) { // Only update if different
+      if (selectedChartType !== bestType) {
         setSelectedChartType(bestType);
-        setIsChartContentLoading(true); // Start loading when chart type changes
+        setIsChartContentLoading(true);
       }
     } else {
-      setSelectedChartType('pdf'); // Reset if no song
+      setSelectedChartType('pdf');
       setIsChartContentLoading(false);
     }
   }, [currentSong, getBestChartType, selectedChartType]);
@@ -427,7 +434,6 @@ const SheetReaderMode: React.FC = () => {
     if (allSongs.length > 0) {
       setCurrentIndex((prevIndex) => (prevIndex + 1) % allSongs.length);
       stopPlayback();
-      // Reset PDF scroll position when changing songs
       if (chartContainerRef.current) {
         chartContainerRef.current.scrollLeft = 0;
       }
@@ -439,7 +445,6 @@ const SheetReaderMode: React.FC = () => {
     if (allSongs.length > 0) {
       setCurrentIndex((prevIndex) => (prevIndex - 1 + allSongs.length) % allSongs.length);
       stopPlayback();
-      // Reset PDF scroll position when changing songs
       if (chartContainerRef.current) {
         chartContainerRef.current.scrollLeft = 0;
       }
@@ -447,11 +452,7 @@ const SheetReaderMode: React.FC = () => {
     }
   }, [allSongs, stopPlayback]);
 
-  // --- NEW: Touch/Swipe Logic for PDF Navigation ---
-  
   const handleTouchStart = (e: React.TouchEvent) => {
-    console.log("[SheetReaderMode] Touch Start: X:", e.touches[0].clientX, "Y:", e.touches[0].clientY);
-    // Only handle touch if we are in PDF mode
     if (selectedChartType !== 'pdf' && selectedChartType !== 'leadsheet' && selectedChartType !== 'chords') return;
     
     touchStartX.current = e.touches[0].clientX;
@@ -461,7 +462,6 @@ const SheetReaderMode: React.FC = () => {
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    console.log("[SheetReaderMode] Touch Move: X:", e.touches[0].clientX, "Y:", e.touches[0].clientY);
     if (selectedChartType !== 'pdf' && selectedChartType !== 'leadsheet' && selectedChartType !== 'chords') return;
     
     touchEndX.current = e.touches[0].clientX;
@@ -469,63 +469,38 @@ const SheetReaderMode: React.FC = () => {
   };
 
   const handleTouchEnd = () => {
-    console.log("[SheetReaderMode] Touch End");
     if (selectedChartType !== 'pdf' && selectedChartType !== 'leadsheet' && selectedChartType !== 'chords') return;
 
     const deltaX = touchEndX.current - touchStartX.current;
     const deltaY = touchEndY.current - touchStartY.current;
-    console.log("[SheetReaderMode] Touch End: DeltaX:", deltaX, "DeltaY:", deltaY);
 
     const container = chartContainerRef.current;
     if (!container) return;
 
-    // Determine if it's a horizontal swipe (dominant direction)
     if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > swipeThreshold) {
       if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
-        // Swipe Left (Next PDF Page)
         if (deltaX < 0) { // Swiping left
-          setPdfCurrentPage(prev => {
-            console.log("[SheetReaderMode] Swiped left, next PDF page: Current prev:", prev);
-            const newPage = Math.min(prev + 1, 999); // Arbitrary max page
-            console.log("[SheetReaderMode] Swiped left, next PDF page: New page:", newPage);
-            return newPage;
-          });
+          setPdfCurrentPage(prev => Math.min(prev + 1, pdfNumPages || 999));
         } 
-        // Swipe Right (Prev PDF Page)
         else if (deltaX > 0) { // Swiping right
-          setPdfCurrentPage(prev => {
-            console.log("[SheetReaderMode] Swiped right, previous PDF page: Current prev:", prev);
-            const newPage = Math.max(1, prev - 1);
-            console.log("[SheetReaderMode] Swiped right, previous PDF page: New page:", newPage);
-            return newPage;
-          });
+          setPdfCurrentPage(prev => Math.max(1, prev - 1));
         }
       } else if (selectedChartType === 'chords') {
-        // For chords, horizontal swipe navigates songs
-        if (deltaX < 0) { // Swiping left
-          console.log("[SheetReaderMode] Swiped left on chords, next song.");
+        if (deltaX < 0) {
           handleNext();
         } 
-        else if (deltaX > 0) { // Swiped right
-          console.log("[SheetReaderMode] Swiped right on chords, previous song.");
+        else if (deltaX > 0) {
           handlePrev();
         }
       }
     }
-    // For vertical swipes or non-significant horizontal swipes, allow native scrolling.
-    // The `touchAction: 'pan-y'` on the container should handle vertical scrolling for chords.
-    // For iframes, the browser handles internal scrolling.
-
-    // Reset touch values
     touchStartX.current = 0;
     touchStartY.current = 0;
     touchEndX.current = 0;
     touchEndY.current = 0;
   };
 
-  // Tap Navigation (Left/Right side of screen)
   const handleContainerClick = (e: React.MouseEvent) => {
-    console.log("[SheetReaderMode] Container Click");
     if (selectedChartType !== 'pdf' && selectedChartType !== 'leadsheet') return;
     
     const container = chartContainerRef.current;
@@ -534,31 +509,13 @@ const SheetReaderMode: React.FC = () => {
     const rect = container.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const width = rect.width;
-
-    // Only trigger if not a swipe (to avoid double-triggering on short taps that are also swipes)
-    // This check is a bit tricky with the current touchEnd logic.
-    // For now, let's assume a click is a distinct event.
     
     if (clickX < width * 0.3) {
-      // Tap Left: Prev PDF Page
-      setPdfCurrentPage(prev => {
-        console.log("[SheetReaderMode] Tapped left, previous PDF page: Current prev:", prev);
-        const newPage = Math.max(1, prev - 1);
-        console.log("[SheetReaderMode] Tapped left, previous PDF page: New page:", newPage);
-        return newPage;
-      });
+      setPdfCurrentPage(prev => Math.max(1, prev - 1));
     } else if (clickX > width * 0.7) {
-      // Tap Right: Next PDF Page
-      setPdfCurrentPage(prev => {
-        console.log("[SheetReaderMode] Tapped right, next PDF page: Current prev:", prev);
-        const newPage = Math.min(prev + 1, 999); // Arbitrary max page
-        console.log("[SheetReaderMode] Tapped right, next PDF page: New page:", newPage);
-        return newPage;
-      });
+      setPdfCurrentPage(prev => Math.min(prev + 1, pdfNumPages || 999));
     }
   };
-
-  // --- END NEW LOGIC ---
 
   const toggleBrowserFullScreen = useCallback(() => {
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
@@ -607,17 +564,14 @@ const SheetReaderMode: React.FC = () => {
     setIsRepertoireSearchModalOpen(false);
   }, [allSongs, navigate, stopPlayback]);
 
-  // FIX: Define handleSaveReaderPreference
   const handleSaveReaderPreference = useCallback((pref: 'sharps' | 'flats') => {
     setReaderKeyPreference(pref);
-    // Also save to global settings if it's not 'neutral'
-    if (globalKeyPreference !== 'neutral') { // Only save if global is not neutral, otherwise it's a temporary override
+    if (globalKeyPreference !== 'neutral') {
       setGlobalKeyPreference(pref);
     }
     showSuccess(`Reader preference saved to ${pref === 'sharps' ? 'Sharps' : 'Flats'}`);
   }, [setGlobalKeyPreference, globalKeyPreference]);
 
-  // Keyboard shortcuts for navigation (Left/Right arrows)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -626,12 +580,7 @@ const SheetReaderMode: React.FC = () => {
         case 'ArrowLeft':
           e.preventDefault();
           if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
-            setPdfCurrentPage(prev => {
-              console.log("[SheetReaderMode] Keyboard ArrowLeft, previous PDF page: Current prev:", prev);
-              const newPage = Math.max(1, prev - 1);
-              console.log("[SheetReaderMode] Keyboard ArrowLeft, previous PDF page: New page:", newPage);
-              return newPage;
-            });
+            setPdfCurrentPage(prev => Math.max(1, prev - 1));
           } else {
             handlePrev();
           }
@@ -639,12 +588,7 @@ const SheetReaderMode: React.FC = () => {
         case 'ArrowRight':
           e.preventDefault();
           if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
-            setPdfCurrentPage(prev => {
-              console.log("[SheetReaderMode] Keyboard ArrowRight, next PDF page: Current prev:", prev);
-              const newPage = Math.min(prev + 1, 999); // Arbitrary max page
-              console.log("[SheetReaderMode] Keyboard ArrowRight, next PDF page: New page:", newPage);
-              return newPage;
-            });
+            setPdfCurrentPage(prev => Math.min(prev + 1, pdfNumPages || 999));
           } else {
             handleNext();
           }
@@ -660,7 +604,7 @@ const SheetReaderMode: React.FC = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentSong, onOpenCurrentSongStudio, handlePrev, handleNext, selectedChartType]); // NEW: Add selectedChartType to dependencies
+  }, [currentSong, onOpenCurrentSongStudio, handlePrev, handleNext, selectedChartType, pdfNumPages]);
 
   if (initialLoading) return <div className="h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
 
@@ -712,9 +656,9 @@ const SheetReaderMode: React.FC = () => {
           audioEngine={audioEngine}
           effectiveTargetKey={effectiveTargetKey}
           onPullKey={handlePullKey}
-          pdfCurrentPage={pdfCurrentPage} // NEW: Pass pdfCurrentPage
-          setPdfCurrentPage={setPdfCurrentPage} // NEW: Pass setPdfCurrentPage
-          selectedChartType={selectedChartType} // NEW: Pass selectedChartType
+          pdfCurrentPage={pdfCurrentPage}
+          setPdfCurrentPage={setPdfCurrentPage}
+          selectedChartType={selectedChartType}
         />
 
         {/* Chart Container */}
@@ -747,37 +691,45 @@ const SheetReaderMode: React.FC = () => {
                   progress={progress}
                   duration={duration}
                   readerKeyPreference={readerKeyPreference}
-                  onChartReady={() => setIsChartContentLoading(false)} // Chart is ready
+                  onChartReady={() => setIsChartContentLoading(false)}
                 />
               ) : (
                 (() => {
                   const url = getChartUrlForType(currentSong, selectedChartType);
-                  if (url && isFramable(url)) {
+                  if (url) {
                     return (
-                      <div className="w-full h-full">
-                        <PdfViewer
-                          url={url}
-                          page={pdfCurrentPage}
-                          onLoad={() => setIsChartContentLoading(false)} // Iframe loaded
-                        />
-                      </div>
-                    );
-                  } else if (url) {
-                    // Protected asset view
-                    return (
-                      <div className="h-full w-full flex flex-col items-center justify-center p-6 md:p-12 text-center bg-slate-950">
-                        <ShieldCheck className="w-12 h-12 md:w-16 md:h-16 text-indigo-400 mb-6 md:mb-10" />
-                        <h4 className="text-3xl md:text-5xl font-black uppercase tracking-tight mb-4 md:mb-6 text-white">Asset Protected</h4>
-                        <p className="text-slate-500 max-xl mb-8 md:mb-16 text-lg md:text-xl font-medium leading-relaxed">
-                          External security prevents in-app display. Use the button below to launch in a secure dedicated performance window.
-                        </p>
-                        <Button onClick={() => window.open(url, '_blank')} className="bg-indigo-600 hover:bg-indigo-700 h-16 md:h-20 px-10 md:px-16 font-black uppercase tracking-[0.2em] text-xs md:text-sm rounded-2xl md:rounded-3xl shadow-2xl shadow-indigo-600/30 gap-4 md:gap-6">
-                          <ExternalLink className="w-6 h-6 md:w-8 md:h-8" /> Launch Chart Window
-                        </Button>
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Document
+                          file={url}
+                          onLoadSuccess={({ numPages }) => {
+                            setPdfNumPages(numPages);
+                            setIsChartContentLoading(false);
+                          }}
+                          onLoadError={(error) => {
+                            console.error("Error loading PDF:", error);
+                            showError("Failed to load PDF document.");
+                            setIsChartContentLoading(false);
+                          }}
+                          loading={<Loader2 className="w-12 h-12 animate-spin text-indigo-500" />}
+                          className="w-full h-full flex items-center justify-center"
+                        >
+                          <Page
+                            pageNumber={pdfCurrentPage}
+                            width={chartContainerRef.current?.offsetWidth || undefined}
+                            height={chartContainerRef.current?.offsetHeight || undefined}
+                            renderAnnotationLayer={true}
+                            renderTextLayer={true}
+                            loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
+                            onRenderSuccess={() => {
+                              // This is called when the page is rendered, not just loaded.
+                              // We can use this to ensure the content is fully visible.
+                              setIsChartContentLoading(false);
+                            }}
+                          />
+                        </Document>
                       </div>
                     );
                   }
-                  // No URL available for PDF/Leadsheet
                   return (
                     <div className="h-full flex items-center justify-center text-slate-500 text-sm italic">
                       <p>No {selectedChartType} available for this track.</p>
