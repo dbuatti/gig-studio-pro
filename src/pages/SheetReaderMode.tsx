@@ -31,9 +31,12 @@ import 'react-pdf/dist/Page/TextLayer.css';
 import { useSpring, animated } from '@react-spring/web';
 import { useDrag } from '@use-gesture/react';
 
-// Configure PDF.js worker source to point to the file in the public directory
-pdfjs.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.js`;
-console.log("[SheetReaderMode] pdfjs.GlobalWorkerOptions.workerSrc set to:", pdfjs.GlobalWorkerOptions.workerSrc);
+// Import the worker directly using Vite's ?url suffix
+import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.js?url';
+
+// Configure PDF.js worker source to point to the imported URL
+pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
+console.log("[SheetReaderMode] pdfjs.GlobalWorkerOptions.workerSrc set to:", pdfWorker);
 
 
 export type ChartType = 'pdf' | 'leadsheet' | 'chords';
@@ -307,7 +310,7 @@ const SheetReaderMode: React.FC = () => {
             ugUrl: masterSong.ug_url,
             appleMusicUrl: masterSong.apple_music_url,
             pdfUrl: masterSong.pdf_url,
-            leadsheetUrl: masterSong.leadsheet_url,
+            leadsheetUrl: masterSong.leadsheet_url, // Corrected from 'master.leadsheet_url'
             bpm: masterSong.bpm,
             genre: masterSong.genre,
             isSyncing: false,
