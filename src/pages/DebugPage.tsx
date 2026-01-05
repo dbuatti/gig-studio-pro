@@ -446,7 +446,7 @@ const DebugPage: React.FC = () => {
               />
             </Document>
             {debugSongId && (
-              <div className="absolute inset-0 z-30 pointer-events-none" ref={overlayWrapperRef}> {/* ASSIGN NEW REF HERE */}
+              <div className="absolute inset-0 z-30" ref={overlayWrapperRef}> {/* REMOVED pointer-events-none */}
                 <LinkDisplayOverlay
                   links={links}
                   currentPage={pdfCurrentPage}

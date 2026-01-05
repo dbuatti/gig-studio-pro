@@ -930,7 +930,7 @@ const SheetReaderMode: React.FC = () => {
                           />
                         </Document>
                         {/* NEW: LinkDisplayOverlay for PDF charts */}
-                        <div className="absolute inset-0 z-30 pointer-events-none" ref={overlayWrapperRef}> {/* New wrapper for overlay */}
+                        <div className="absolute inset-0 z-30" ref={overlayWrapperRef}> {/* New wrapper for overlay */} {/* REMOVED pointer-events-none */}
                           <LinkDisplayOverlay
                             links={links}
                             currentPage={pdfCurrentPage}
