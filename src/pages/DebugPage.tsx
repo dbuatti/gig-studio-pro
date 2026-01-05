@@ -18,6 +18,8 @@ import LinkDisplayOverlay, { SheetLink } from '@/components/LinkDisplayOverlay';
 import LinkSizeModal from '@/components/LinkSizeModal';
 import { useSettings } from '@/hooks/use-settings';
 import { useNavigate } from 'react-router-dom';
+import { useSpring, animated } from '@react-spring/web'; // NEW
+import { useDrag } from '@use-gesture/react'; // NEW
 
 // Configure PDF.js worker source
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
@@ -39,20 +41,23 @@ const DebugPage: React.FC = () => {
   const [isLoadingPdf, setIsLoadingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [isFullScreen, setIsFullScreen] = useState(false); // NEW: State for fullscreen mode
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
   const [links, setLinks] = useState<SheetLink[]>([]);
   const [isLinkEditorOpen, setIsLinkEditorOpen] = useState(false);
   const [isLinkSizeModalOpen, setIsLinkSizeModalOpen] = useState(false);
   const [isEditingLinksMode, setIsEditingLinksMode] = useState(false);
-  const [editingLink, setEditingLink] = useState<SheetLink | null>(null); // For editing existing links
+  const [editingLink, setEditingLink] = useState<SheetLink | null>(null);
 
   const pdfContainerRef = useRef<HTMLDivElement>(null);
-  const pageRef = useRef<HTMLDivElement>(null); // Ref for the rendered PDF page div
-  const overlayWrapperRef = useRef<HTMLDivElement>(null); // NEW REF for LinkDisplayOverlay's parent
+  const pageRef = useRef<HTMLDivElement>(null);
+  const overlayWrapperRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Ensure a debug song ID exists for link creation
+  // NEW: Refs for swipe logic
+  const swipeThreshold = 50; // Pixels for horizontal swipe to register
+  const navigatedRef = useRef(false); // Ref to prevent multiple navigations per swipe
+
   useEffect(() => {
     const initializeDebugSong = async () => {
       if (!user) return;
@@ -61,7 +66,6 @@ const DebugPage: React.FC = () => {
       let songExistsInDb = false;
 
       if (currentDebugSongId) {
-        // Check if the song exists in the repertoire table
         const { data, error } = await supabase
           .from('repertoire')
           .select('id')
@@ -71,10 +75,10 @@ const DebugPage: React.FC = () => {
 
         if (data) {
           songExistsInDb = true;
-        } else if (error && error.code !== 'PGRST116') { // PGRST116 means "no rows found"
+        } else if (error && error.code !== 'PGRST116') {
           console.error("[DebugPage] Error checking debug song existence:", error.message);
           showError("Failed to check debug song existence.");
-          currentDebugSongId = null; // Force creation of a new one if DB check fails
+          currentDebugSongId = null;
         }
       }
 
@@ -98,9 +102,9 @@ const DebugPage: React.FC = () => {
               is_metadata_confirmed: true,
               is_key_confirmed: true,
               lyrics: "This is a dummy song for testing sheet music links.",
-              preview_url: "", // No audio needed for link testing
-              extraction_status: "completed", // Mark as completed to avoid processing
-              is_in_library: false, // Mark as not in main library
+              preview_url: "",
+              extraction_status: "completed",
+              is_in_library: false,
             });
 
           if (insertError) throw insertError;
@@ -111,7 +115,7 @@ const DebugPage: React.FC = () => {
         } catch (err: any) {
           console.error("[DebugPage] Failed to create debug song:", err.message);
           showError("Failed to create debug song. Linking might not work.");
-          return; // Abort if debug song creation fails
+          return;
         }
       }
       setDebugSongId(currentDebugSongId);
@@ -122,7 +126,6 @@ const DebugPage: React.FC = () => {
     }
   }, [user]);
 
-  // Fetch links when PDF URL or song ID changes
   const fetchLinks = useCallback(async () => {
     if (!user || !debugSongId || !testPdfUrl) {
       setLinks([]);
@@ -135,7 +138,7 @@ const DebugPage: React.FC = () => {
         .from('sheet_links')
         .select('*')
         .eq('song_id', debugSongId)
-        .eq('user_id', user.id); // Corrected to user.id
+        .eq('user_id', user.id);
       
       if (error) throw error;
       setLinks(data || []);
@@ -185,11 +188,11 @@ const DebugPage: React.FC = () => {
       localStorage.setItem(DEBUG_PDF_URL_KEY, publicUrl);
       showSuccess("PDF uploaded and stored!");
       console.log("[DebugPage] PDF uploaded successfully. URL:", publicUrl);
-      setPdfDocument(null); // Force re-render/reload of PDF viewer
+      setPdfDocument(null);
       setPdfCurrentPage(1);
       setPdfNumPages(null);
       setPdfScale(1.0);
-      fetchLinks(); // Refetch links in case the song ID changed or was just created
+      fetchLinks();
     } catch (err: any) {
       console.error("[DebugPage] PDF upload failed:", err.message);
       showError(`PDF upload failed: ${err.message}`);
@@ -261,7 +264,6 @@ const DebugPage: React.FC = () => {
   const handleNavigateToPage = useCallback((pageNumber: number, x?: number, y?: number) => {
     setPdfCurrentPage(pageNumber);
     console.log(`[DebugPage] Navigating to page ${pageNumber} with coordinates X:${x}, Y:${y}`);
-    // Implement scrolling to specific coordinates if needed, similar to SheetReaderMode
   }, []);
 
   const handleEditLink = useCallback((link: SheetLink) => {
@@ -294,7 +296,7 @@ const DebugPage: React.FC = () => {
 
     console.log("[DebugPage] Deleting all links for song ID:", debugSongId);
     try {
-      const { error } = await supabase.from('sheet_links').delete().eq('song_id', debugSongId).eq('user_id', user.id); // Corrected to user.id
+      const { error } = await supabase.from('sheet_links').delete().eq('song_id', debugSongId).eq('user_id', user.id);
       if (error) throw error;
       showSuccess("All links deleted successfully.");
       setLinks([]);
@@ -305,7 +307,6 @@ const DebugPage: React.FC = () => {
     }
   };
 
-  // NEW: Fullscreen toggle logic
   const toggleFullScreen = useCallback(() => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(err => {
@@ -316,7 +317,6 @@ const DebugPage: React.FC = () => {
     }
   }, []);
 
-  // NEW: Listen for fullscreen change events
   useEffect(() => {
     const handleFullScreenChange = () => {
       setIsFullScreen(!!document.fullscreenElement);
@@ -324,6 +324,51 @@ const DebugPage: React.FC = () => {
     document.addEventListener('fullscreenchange', handleFullScreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullScreenChange);
   }, []);
+
+  // NEW: useDrag hook for swipe navigation and tap for fullscreen
+  const bind = useDrag(({ first, down, movement: [mx], direction: [dx], velocity: [vx], cancel }) => {
+    if (first) {
+      navigatedRef.current = false;
+    }
+
+    if (!down) { // Drag has ended
+      if (navigatedRef.current) {
+        navigatedRef.current = false;
+      }
+      return;
+    }
+
+    if (navigatedRef.current) {
+      return;
+    }
+
+    const isFastSwipe = Math.abs(vx) > 0.2;
+    const isLongSwipe = Math.abs(mx) > swipeThreshold;
+    
+    const shouldTriggerNavigation = isLongSwipe || isFastSwipe;
+    
+    if (shouldTriggerNavigation) {
+      navigatedRef.current = true;
+      cancel();
+
+      const pageStep = 1;
+
+      if (dx < 0) { // Swiping left (next page)
+        if (pdfCurrentPage < (pdfNumPages || 1)) {
+          setPdfCurrentPage(prev => Math.min(prev + pageStep, pdfNumPages || 999));
+        }
+      } else { // Swiping right (previous page)
+        if (pdfCurrentPage > 1) {
+          setPdfCurrentPage(prev => Math.max(1, prev - pageStep));
+        }
+      }
+    }
+  }, {
+    threshold: 5,
+    filterTaps: true, // This ensures onClick is only called for taps
+    axis: 'x',
+    onClick: toggleFullScreen // This will handle taps for fullscreen
+  });
 
   return (
     <div className={cn("flex flex-col", isFullScreen ? "fixed inset-0 z-[100] bg-background" : "min-h-screen p-6 md:p-10")}>
@@ -463,44 +508,57 @@ const DebugPage: React.FC = () => {
           "flex-1 bg-slate-900 rounded-[2rem] border-4 border-border shadow-2xl overflow-hidden relative flex items-center justify-center",
           isFullScreen ? "rounded-none border-0" : "min-h-[500px]"
         )}
-        onClick={toggleFullScreen} // NEW: Add onClick handler here
+        // Removed onClick={toggleFullScreen} from here, as it's now handled by useDrag's onClick
       >
         {isLoadingPdf && <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />}
         {pdfError && <div className="text-red-400 text-center p-4">{pdfError}</div>}
         {testPdfUrl && !isLoadingPdf && !pdfError && (
           <div className="relative w-full h-full flex items-center justify-center overflow-auto">
-            <Document
-              file={testPdfUrl}
-              onLoadSuccess={handleDocumentLoadSuccess}
-              onLoadError={handleDocumentLoadError}
-              loading={<Loader2 className="w-12 h-12 animate-spin text-indigo-500" />}
-              className="flex items-center justify-center"
+            <animated.div // NEW: Apply animated.div and bind here
+                {...bind()}
+                style={{
+                    touchAction: 'none', // Disable all touch actions on this element for precise control
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'flex-start',
+                    paddingTop: isFullScreen ? '0px' : '0px', // No dynamic padding needed here for debug
+                }}
+                className="relative"
             >
-              <Page
-                pageNumber={pdfCurrentPage}
-                scale={pdfScale}
-                renderAnnotationLayer={true}
-                renderTextLayer={true}
-                loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
-                // NEW: Pass ref to the rendered page div
-                inputRef={pageRef}
-              />
-            </Document>
-            {debugSongId && (
-              <div className="absolute inset-0 z-30" ref={overlayWrapperRef}> {/* REMOVED pointer-events-none */}
-                <LinkDisplayOverlay
-                  links={links}
-                  currentPage={pdfCurrentPage}
-                  onNavigateToPage={handleNavigateToPage}
-                  onLinkDeleted={fetchLinks}
-                  isEditingMode={isEditingLinksMode}
-                  onEditLink={handleEditLink}
-                  pageContainerRef={pageRef} // NEW: Pass the ref
-                  pdfScale={pdfScale} // NEW: Pass the scale
-                  overlayWrapperRef={overlayWrapperRef} // PASS NEW REF
+                <Document
+                file={testPdfUrl}
+                onLoadSuccess={handleDocumentLoadSuccess}
+                onLoadError={handleDocumentLoadError}
+                loading={<Loader2 className="w-12 h-12 animate-spin text-indigo-500" />}
+                className="flex items-center justify-center"
+                >
+                <Page
+                    pageNumber={pdfCurrentPage}
+                    scale={pdfScale}
+                    renderAnnotationLayer={true}
+                    renderTextLayer={true}
+                    loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
+                    inputRef={pageRef}
                 />
-              </div>
-            )}
+                </Document>
+                {debugSongId && (
+                <div className="absolute inset-0 z-30" ref={overlayWrapperRef}>
+                    <LinkDisplayOverlay
+                    links={links}
+                    currentPage={pdfCurrentPage}
+                    onNavigateToPage={handleNavigateToPage}
+                    onLinkDeleted={fetchLinks}
+                    isEditingMode={isEditingLinksMode}
+                    onEditLink={handleEditLink}
+                    pageContainerRef={pageRef}
+                    pdfScale={pdfScale}
+                    overlayWrapperRef={overlayWrapperRef}
+                    />
+                </div>
+                )}
+            </animated.div>
           </div>
         )}
         {!testPdfUrl && !isLoadingPdf && !pdfError && (
@@ -519,7 +577,7 @@ const DebugPage: React.FC = () => {
           songId={debugSongId}
           chartUrl={testPdfUrl}
           onLinkCreated={fetchLinks}
-          editingLink={editingLink} // Pass editingLink for editing functionality
+          editingLink={editingLink}
         />
       )}
 
