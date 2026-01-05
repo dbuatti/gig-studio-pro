@@ -94,22 +94,22 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
       </div>
 
       {/* Center Section: Song Title and Studio Button */}
-      <div className="flex-1 flex items-center justify-center min-w-0 px-4">
+      <div className="flex-1 flex items-center justify-center min-w-0 px-4 relative"> {/* Added relative for absolute positioning of buttons */}
         {isLoading ? (
           <Skeleton className="h-6 w-48 mx-auto bg-white/10" />
         ) : currentSong ? (
-          <div className="flex items-center gap-2">
-            {/* NEW: Back to Dashboard Button */}
+          <>
+            {/* NEW: Back to Dashboard Button - positioned absolutely */}
             <Button
               variant="ghost"
               size="icon"
               onClick={onClose} // This will navigate back to the dashboard
-              className="h-7 w-7 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 shrink-0"
+              className="h-7 w-7 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 shrink-0 absolute left-0"
               title="Back to Dashboard"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
             </Button>
-            <h2 className="text-lg font-black uppercase tracking-tight text-white line-clamp-1 flex-1 text-center min-w-0">
+            <h2 className="text-lg font-black uppercase tracking-tight text-white line-clamp-1 text-center flex-1 min-w-0"> {/* Removed flex-1 from h2, added to parent */}
               {currentSong.name}
             </h2>
             <Button
@@ -117,12 +117,12 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
               size="icon"
               onClick={onOpenCurrentSongStudio}
               disabled={!currentSong}
-              className="h-7 w-7 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 shrink-0"
+              className="h-7 w-7 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 shrink-0 absolute right-0"
               title="Open Current Song in Studio"
             >
               <FileText className="w-3.5 h-3.5" />
             </Button>
-          </div>
+          </>
         ) : (
           <p className="text-sm font-bold text-slate-500">No Song Selected</p>
         )}
