@@ -13,7 +13,7 @@ import { useSettings, KeyPreference } from '@/hooks/use-settings';
 import { calculateReadiness, syncToMasterRepertoire } from '@/utils/repertoireSync';
 import { showError, showSuccess, showInfo } from '@/utils/toast';
 import UGChordsReader from '@/components/UGChordsReader';
-import { useToneAudio } => '@/hooks/use-tone-audio';
+import { useToneAudio } from '@/hooks/use-tone-audio';
 import { calculateSemitones } from '@/utils/keyUtils';
 import { useReaderSettings, ReaderResourceForce } from '@/hooks/use-reader-settings';
 import PreferencesModal from '@/components/PreferencesModal';
@@ -92,7 +92,6 @@ const SheetReaderMode: React.FC = () => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const swipeThreshold = 50; // Pixels for horizontal swipe to register (reduced for trackpad)
   const navigatedRef = useRef(false); // Ref to prevent multiple navigations per swipe
-  const lastLoadedPdfUrlRef = useRef<string | null>(null); // NEW: Ref to track last loaded PDF URL
 
   // Animation for horizontal drag
   const [{ x: springX }, api] = useSpring(() => ({ x: 0 }));
@@ -111,7 +110,6 @@ const SheetReaderMode: React.FC = () => {
     setPdfCurrentPage(1);
     setPdfNumPages(null); // Reset total pages too
     setPdfContainerHeight(null); // Reset container height
-    lastLoadedPdfUrlRef.current = null; // NEW: Reset last loaded PDF URL
   }, [currentSong?.id]);
 
   const handleLocalSongUpdate = useCallback((songId: string, updates: Partial<SetlistSong>) => {
@@ -633,11 +631,9 @@ const SheetReaderMode: React.FC = () => {
     threshold: 5,         // Lower threshold for trackpad sensitivity
     filterTaps: true,     // Ignore quick taps
     axis: 'x',            // Lock to horizontal
-  }));
+  });
 
   if (initialLoading) return <div className="h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
-
-  const currentPdfUrl = getChartUrlForType(currentSong!, selectedChartType);
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-white relative">
@@ -713,8 +709,7 @@ const SheetReaderMode: React.FC = () => {
                 (() => {
                   const url = getChartUrlForType(currentSong, selectedChartType);
                   console.log("[SheetReaderMode] Attempting to load PDF from URL:", url); // Log PDF URL
-                  if (url && url !== lastLoadedPdfUrlRef.current) { // Only render Document if URL is new
-                    lastLoadedPdfUrlRef.current = url; // Update ref
+                  if (url) {
                     return (
                       <div className="w-full h-full overflow-x-auto overflow-y-hidden flex justify-center items-center"> {/* Allow horizontal scroll for wide pages */}
                         <Document
@@ -747,39 +742,6 @@ const SheetReaderMode: React.FC = () => {
                               // No need to set pdfScale anymore, height prop handles it.
                               // The overflow-x-auto on the parent div will handle width overflow.
                             }}
-                          />
-                        </Document>
-                      </div>
-                    );
-                  } else if (url) {
-                    // If URL is the same, and it was already loaded, just render the Document with current state
-                    return (
-                      <div className="w-full h-full overflow-x-auto overflow-y-hidden flex justify-center items-center">
-                        <Document
-                          file={url}
-                          onLoadSuccess={({ numPages }) => {
-                            console.log("[SheetReaderMode] PDF Document loaded successfully (cached). Pages:", numPages);
-                            setPdfNumPages(numPages);
-                            setIsChartContentLoading(false);
-                            if (chartContainerRef.current) {
-                              setPdfContainerHeight(chartContainerRef.current.clientHeight);
-                            }
-                          }}
-                          onLoadError={(error) => {
-                            console.error("[SheetReaderMode] Error loading PDF Document (cached):", error);
-                            showError("Failed to load PDF document.");
-                            setIsChartContentLoading(false);
-                          }}
-                          loading={<Loader2 className="w-12 h-12 animate-spin text-indigo-500" />}
-                          className="flex items-center justify-center"
-                        >
-                          <Page
-                            pageNumber={pdfCurrentPage}
-                            height={pdfContainerHeight || undefined}
-                            renderAnnotationLayer={true}
-                            renderTextLayer={true}
-                            loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
-                            onRenderSuccess={() => setIsChartContentLoading(false)}
                           />
                         </Document>
                       </div>
