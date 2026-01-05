@@ -47,6 +47,7 @@ const DebugPage: React.FC = () => {
   const [editingLink, setEditingLink] = useState<SheetLink | null>(null); // For editing existing links
 
   const pdfContainerRef = useRef<HTMLDivElement>(null);
+  const pageRef = useRef<HTMLDivElement>(null); // NEW: Ref for the rendered PDF page div
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Ensure a debug song ID exists for link creation
@@ -131,7 +132,7 @@ const DebugPage: React.FC = () => {
         .from('sheet_links')
         .select('*')
         .eq('song_id', debugSongId)
-        .eq('user_id', user.id);
+        .eq('user_id', user.id); // Corrected to user.id
       
       if (error) throw error;
       setLinks(data || []);
@@ -439,6 +440,8 @@ const DebugPage: React.FC = () => {
                 renderAnnotationLayer={true}
                 renderTextLayer={true}
                 loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
+                // NEW: Pass ref to the rendered page div
+                inputRef={pageRef}
               />
             </Document>
             {debugSongId && (
@@ -449,6 +452,8 @@ const DebugPage: React.FC = () => {
                 onLinkDeleted={fetchLinks}
                 isEditingMode={isEditingLinksMode}
                 onEditLink={handleEditLink}
+                pageContainerRef={pageRef} // NEW: Pass the ref
+                pdfScale={pdfScale} // NEW: Pass the scale
               />
             )}
           </div>
@@ -468,7 +473,6 @@ const DebugPage: React.FC = () => {
           onClose={() => { setIsLinkEditorOpen(false); setEditingLink(null); }}
           songId={debugSongId}
           chartUrl={testPdfUrl}
-          pdfDocument={pdfDocument}
           onLinkCreated={fetchLinks}
           editingLink={editingLink} // Pass editingLink for editing functionality
         />

@@ -44,7 +44,6 @@ interface LinkEditorOverlayProps {
   onClose: () => void;
   songId: string;
   chartUrl: string; // Renamed from pdfUrl
-  pdfDocument: PDFDocumentProxy | null; // Pass the PDFDocumentProxy directly
   onLinkCreated: () => void;
   editingLink?: SheetLink | null; // NEW: Optional prop for editing existing links
 }
@@ -54,7 +53,6 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
   onClose,
   songId,
   chartUrl, // Use chartUrl
-  pdfDocument: propPdfDocument, // Use propPdfDocument to distinguish from local state
   onLinkCreated,
   editingLink, // NEW: Destructure editingLink
 }) => {
@@ -75,21 +73,8 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
   const rightPageRef = useRef<HTMLDivElement>(null);
   const pdfContainerRef = useRef<HTMLDivElement>(null); // Ref for the overall PDF container to calculate scale
 
-  // Use propPdfDocument directly if available, otherwise manage local state
-  const [localPdfDocument, setLocalPdfDocument] = useState<PDFDocumentProxy | null>(propPdfDocument);
-
-  // Sync localPdfDocument with propPdfDocument
-  useEffect(() => {
-    if (propPdfDocument) {
-      setLocalPdfDocument(propPdfDocument);
-      setPdfNumPages(propPdfDocument.numPages);
-      setIsLoadingPdf(false);
-    } else {
-      setLocalPdfDocument(null);
-      setPdfNumPages(null);
-      setIsLoadingPdf(true);
-    }
-  }, [propPdfDocument]);
+  // LinkEditorOverlay now manages its own PDFDocumentProxy instance
+  const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
 
   // Reset state when modal opens/closes or editingLink changes
   useEffect(() => {
@@ -108,14 +93,20 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
         console.log("[LinkEditorOverlay] Initialized for creating new link.");
       }
       setPdfError(null);
-      if (localPdfDocument) {
-        setPdfNumPages(localPdfDocument.numPages);
-        setIsLoadingPdf(false);
-      } else {
+      // When opening, if chartUrl is available, start loading PDF
+      if (chartUrl) {
         setIsLoadingPdf(true);
+      } else {
+        setIsLoadingPdf(false);
+        setPdfError("No chart URL provided.");
       }
+    } else {
+      // When closing, clear PDF document to free resources
+      setPdfDocument(null);
+      setPdfNumPages(null);
+      setPdfScale(1.0);
     }
-  }, [isOpen, localPdfDocument, editingLink]);
+  }, [isOpen, editingLink, chartUrl]);
 
   const calculatePdfScale = useCallback(async (pdf: PDFDocumentProxy, container: HTMLDivElement, pageNumber: number) => {
     if (!container || !pdf) return;
@@ -143,12 +134,12 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
   // Effect for ResizeObserver on the main PDF container
   useEffect(() => {
     const container = pdfContainerRef.current;
-    if (!container || !localPdfDocument) return;
+    if (!container || !pdfDocument) return; // Use local pdfDocument here
 
     const resizeObserver = new ResizeObserver(entries => {
       for (let entry of entries) {
         if (entry.target === container) {
-          calculatePdfScale(localPdfDocument, container, leftPageNum); // Use leftPageNum as reference
+          calculatePdfScale(pdfDocument, container, leftPageNum); // Use local pdfDocument and leftPageNum as reference
         }
       }
     });
@@ -158,12 +149,12 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
     return () => {
       resizeObserver.unobserve(container);
     };
-  }, [localPdfDocument, leftPageNum, calculatePdfScale]);
+  }, [pdfDocument, leftPageNum, calculatePdfScale]); // Use local pdfDocument in dependencies
 
 
   const handleDocumentLoadSuccess = useCallback((pdf: PDFDocumentProxy) => {
     // console.log("[LinkEditorOverlay] PDF loaded successfully:", pdf); // Removed verbose log
-    setLocalPdfDocument(pdf);
+    setPdfDocument(pdf); // Set local pdfDocument
     setPdfNumPages(pdf.numPages);
     setIsLoadingPdf(false);
     if (pdfContainerRef.current) {
@@ -308,7 +299,7 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
             className="relative w-full h-full flex items-center justify-center overflow-auto"
             onClick={(e) => handleTap(e, type, pageNumber, pageRef)}
           >
-            {localPdfDocument && (
+            {pdfDocument && ( // Use local pdfDocument here
               <Document
                 file={chartUrl} // Use chartUrl here
                 onLoadSuccess={handleDocumentLoadSuccess}

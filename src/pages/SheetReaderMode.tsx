@@ -935,6 +935,8 @@ const SheetReaderMode: React.FC = () => {
                             onLinkDeleted={fetchLinks} // Refresh links after deletion
                             isEditingMode={isEditingLinksMode}
                             onEditLink={(link) => showInfo(`Editing link ${link.id} is not yet implemented.`)} // Placeholder for edit
+                            pageContainerRef={chartContainerRef}
+                            pdfScale={pdfScale || 1}
                           />
                         </div>
                       </div>
@@ -1030,8 +1032,8 @@ const SheetReaderMode: React.FC = () => {
           onClose={() => { setIsLinkEditorOpen(false); }}
           songId={currentSong.master_id || currentSong.id}
           chartUrl={currentChartDisplayUrl}
-          pdfDocument={pdfDocument}
           onLinkCreated={fetchLinks}
+          // pdfDocument is no longer passed here
         />
       )}
 
