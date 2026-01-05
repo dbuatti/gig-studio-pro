@@ -325,7 +325,7 @@ const DebugPage: React.FC = () => {
   }, []);
 
   // NEW: useDrag hook for swipe navigation and tap for fullscreen
-  const bind = useDrag(({ first, down, movement: [mx], direction: [dx], velocity: [vx], cancel }) => {
+  const bind = useDrag(({ first, down, movement: [mx], direction: [dx], velocity: [vx], cancel, tap }) => {
     if (first) {
       navigatedRef.current = false;
     }
@@ -333,12 +333,8 @@ const DebugPage: React.FC = () => {
     if (!down) { // Drag has ended
       if (navigatedRef.current) {
         navigatedRef.current = false;
-      } else {
-        // If it's not a drag (movement is small) and no navigation happened, it's a tap
-        const isTap = Math.abs(mx) < 10; // Small threshold for tap detection
-        if (isTap) {
-          toggleFullScreen();
-        }
+      } else if (tap) { // Check if it was a tap
+        toggleFullScreen();
       }
       return;
     }
@@ -370,7 +366,6 @@ const DebugPage: React.FC = () => {
     }
   }, {
     threshold: 5,
-    filterTaps: false, // No longer need filterTaps if handling tap manually
     axis: 'x',
     // No onClick here, handled within the drag callback
   });
@@ -513,7 +508,6 @@ const DebugPage: React.FC = () => {
           "flex-1 bg-slate-900 rounded-[2rem] border-4 border-border shadow-2xl overflow-hidden relative flex items-center justify-center",
           isFullScreen ? "rounded-none border-0" : "min-h-[500px]"
         )}
-        // Removed onClick={toggleFullScreen} from here, as it's now handled by useDrag's onClick
       >
         {isLoadingPdf && <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />}
         {pdfError && <div className="text-red-400 text-center p-4">{pdfError}</div>}
