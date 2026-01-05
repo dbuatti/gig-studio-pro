@@ -631,7 +631,7 @@ const SheetReaderMode: React.FC = () => {
     threshold: 5,         // Lower threshold for trackpad sensitivity
     filterTaps: true,     // Ignore quick taps
     axis: 'x',            // Lock to horizontal
-  }));
+  });
 
   if (initialLoading) return <div className="h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
 
@@ -640,7 +640,7 @@ const SheetReaderMode: React.FC = () => {
       {/* Sidebar */}
       <div className={cn("fixed left-0 top-0 h-full w-[300px] z-50 transition-transform duration-300", 
         isSidebarOpen && !isBrowserFullScreen ? "translate-x-0" : "-translate-x-full")}>
-        <SheetReaderSidebar songs={allSongs} currentIndex={currentIndex} onSelectSong={(idx) => { setCurrentIndex(idx); stopPlayback(); }} isFullScreen={isBrowserFullScreen} />
+        <SheetReaderSidebar songs={allSongs} currentIndex={currentIndex} onSelectSong={(idx) => { setCurrentIndex(idx); stopPlayback(); }} isFullScreen={isBrowserFullScreen} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
       </div>
 
       {/* Main Content */}

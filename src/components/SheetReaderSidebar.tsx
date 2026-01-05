@@ -4,25 +4,36 @@ import React from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { SetlistSong } from '@/components/SetlistManager';
 import { cn } from '@/lib/utils';
-import { Music, CheckCircle2, Loader2, CloudDownload, AlertTriangle } from 'lucide-react';
+import { Music, CheckCircle2, Loader2, CloudDownload, AlertTriangle, ListMusic, PanelLeft } from 'lucide-react'; // Import PanelLeft
 import { calculateReadiness } from '@/utils/repertoireSync';
+import { Button } from '@/components/ui/button'; // Import Button
 
 interface SheetReaderSidebarProps {
   songs: SetlistSong[];
   currentIndex: number;
   onSelectSong: (index: number) => void;
-  isFullScreen?: boolean; // NEW: Add isFullScreen prop
+  isFullScreen?: boolean;
+  onToggleSidebar: () => void; // Pass this prop down
 }
 
-const SheetReaderSidebar: React.FC<SheetReaderSidebarProps> = ({ songs, currentIndex, onSelectSong, isFullScreen }) => {
+const SheetReaderSidebar: React.FC<SheetReaderSidebarProps> = ({ songs, currentIndex, onSelectSong, isFullScreen, onToggleSidebar }) => {
   if (isFullScreen) return null; // Hide sidebar in full-screen mode
 
   return (
     <div className="w-full h-full bg-slate-900/80 backdrop-blur-xl border-r border-white/10 flex flex-col shrink-0">
-      <div className="p-4 border-b border-white/10 shrink-0">
+      <div className="p-4 border-b border-white/10 shrink-0 flex items-center justify-between"> {/* Make it a flex container */}
         <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400">
           Repertoire ({songs.length})
         </h3>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onToggleSidebar} // This button will close the sidebar
+          className="h-8 w-8 rounded-xl text-slate-400 hover:bg-white/10"
+          title="Close Sidebar"
+        >
+          <PanelLeft className="w-4 h-4" />
+        </Button>
       </div>
       <ScrollArea className="flex-1 min-h-0">
         <div className="p-2 space-y-1">
