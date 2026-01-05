@@ -5,8 +5,8 @@ import { transposeKey, formatKey, MAPPING_TO_SHARP, MAPPING_TO_FLAT } from './ke
 
 // Robust musical chord regex that handles sharps/flats and common extensions.
 // It ensures the chord is a standalone entity by using negative lookbehind and lookahead for word characters.
-// The chordType group is now more specific to actual chord suffixes, including maj7.
-const CHORD_REGEX = /(?<!\w)([A-G][#b]?)(maj7|maj|m|dim|aug|sus\d?|add\d?|\d+)?(\/[A-G][#b]?)?(?!\w)/g;
+// The chordType group is now more specific to actual chord suffixes, prioritizing longer matches.
+const CHORD_REGEX = /(?<!\w)([A-G][#b]?)(maj7|m7|dim7|sus4|sus2|add9|maj|m|dim|aug|sus|add|\d+)?(\/[A-G][#b]?)?(?!\w)/g;
 
 /**
  * Determines if a line likely contains chords rather than just lyrics.

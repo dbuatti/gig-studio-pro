@@ -65,6 +65,7 @@ const UGChordsReader = React.memo(({
     const safeOriginalKey = originalKey || 'C';
     const safeTargetKey = targetKey || safeOriginalKey;
     const n = calculateSemitones(safeOriginalKey, safeTargetKey);
+    console.log(`[UGChordsReader] Transposing by ${n} semitones. Original: ${safeOriginalKey}, Target: ${safeTargetKey}`); // Added log
     return transposeChords(chordsText, n, activeKeyPreference);
   }, [chordsText, originalKey, targetKey, activeKeyPreference]);
 
@@ -86,8 +87,8 @@ const UGChordsReader = React.memo(({
         isFullScreen ? "pt-0" : "pt-16" // Adjusted padding-top based on fullscreen and info overlay visibility
       )}
       style={{ 
-        fontFamily: resolvedConfig.fontFamily,
-        fontSize: `${resolvedConfig.fontSize}px`,
+        fontFamily: resolvedConfig.fontFamily, 
+        fontSize: `${resolvedConfig.fontSize}px`, 
         lineHeight: resolvedConfig.lineSpacing,
         textAlign: resolvedConfig.textAlign as any,
         color: readableChordColor || "#ffffff",
