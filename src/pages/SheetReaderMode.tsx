@@ -678,7 +678,6 @@ const SheetReaderMode: React.FC = () => {
           setReaderKeyPreference={setReaderKeyPreference}
           isSidebarOpen={isSidebarOpen && !isBrowserFullScreen}
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-          headerLeftOffset={isSidebarOpen && !isBrowserFullScreen ? 300 : 0}
           onSavePreference={handleSaveReaderPreference}
           audioEngine={audioEngine}
           effectiveTargetKey={effectiveTargetKey}
@@ -686,6 +685,7 @@ const SheetReaderMode: React.FC = () => {
           pdfCurrentPage={pdfCurrentPage}
           setPdfCurrentPage={setPdfCurrentPage}
           selectedChartType={selectedChartType}
+          pdfNumPages={pdfNumPages}
         />
 
         {/* Chart Container */}

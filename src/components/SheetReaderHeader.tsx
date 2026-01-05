@@ -8,14 +8,11 @@ import { cn } from '@/lib/utils';
 import { formatKey, ALL_KEYS_SHARP, ALL_KEYS_FLAT } from '@/utils/keyUtils';
 import { SetlistSong } from './SetlistManager';
 import { KeyPreference } from '@/hooks/use-settings';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuPortal, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuPortal, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { showError } from '@/utils/toast';
 import { AudioEngineControls } from '@/hooks/use-tone-audio';
 
-// FIX: Import ChartType directly from the local file or define it locally if not exported
-// Since SheetReaderMode exports it as default, we can import it as default or define it here.
-// To avoid circular dependency issues, defining it locally is safer if it's just a type.
 type ChartType = 'pdf' | 'leadsheet' | 'chords';
 
 interface SheetReaderHeaderProps {
@@ -49,7 +46,6 @@ interface SheetReaderHeaderProps {
   setReaderKeyPreference: (pref: 'sharps' | 'flats') => void;
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
-  headerLeftOffset: number;
   onSavePreference: (pref: 'sharps' | 'flats') => void;
   audioEngine: AudioEngineControls;
   effectiveTargetKey: string;
@@ -57,7 +53,7 @@ interface SheetReaderHeaderProps {
   pdfCurrentPage: number;
   setPdfCurrentPage: React.Dispatch<React.SetStateAction<number>>;
   selectedChartType: ChartType;
-  // Removed isLandscape prop
+  pdfNumPages: number | null; // NEW: Add pdfNumPages
 }
 
 const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
@@ -91,7 +87,6 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   setReaderKeyPreference,
   isSidebarOpen,
   onToggleSidebar,
-  headerLeftOffset,
   onSavePreference,
   audioEngine,
   effectiveTargetKey,
@@ -99,7 +94,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   pdfCurrentPage,
   setPdfCurrentPage,
   selectedChartType,
-  // Removed isLandscape
+  pdfNumPages, // NEW: Destructure pdfNumPages
 }) => {
   const displayKey = effectiveTargetKey ? formatKey(effectiveTargetKey, readerKeyPreference) : null;
   const keysToUse = readerKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
@@ -124,28 +119,27 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   };
 
   const handlePrevPdfPage = () => {
-    setPdfCurrentPage(prev => Math.max(1, prev - 1)); // Always step by 1
+    setPdfCurrentPage(prev => Math.max(1, prev - 1));
   };
 
   const handleNextPdfPage = () => {
-    setPdfCurrentPage(prev => Math.min(prev + 1, 999)); // Always step by 1
+    setPdfCurrentPage(prev => Math.min(prev + 1, pdfNumPages || 999));
   };
 
   if (isFullScreen) return null;
 
   return (
-    <div 
-      className="fixed top-0 right-0 z-60 bg-slate-900/80 backdrop-blur-xl border-b border-white/10 px-6 py-3 flex items-center justify-between shadow-lg animate-in slide-in-from-top duration-300 h-[112px]"
-      style={{ left: `${headerLeftOffset}px` }}
+    <div
+      className="fixed top-0 left-0 right-0 z-60 bg-slate-900/80 backdrop-blur-xl border-b border-white/10 px-6 py-3 flex items-center justify-between shadow-lg animate-in slide-in-from-top duration-300 h-[112px]"
     >
-      {/* Left Section: Navigation, Playback, Song Info */}
+      {/* Left Section: Navigation & Sidebar Toggle */}
       <div className="flex items-center gap-4 shrink-0">
         <Button variant="ghost" size="icon" onClick={onClose} className="h-10 w-10 rounded-xl bg-white/5" title="Back to Dashboard"><ArrowLeft className="w-5 h-5 text-slate-400" /></Button>
         
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={onToggleSidebar} 
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onToggleSidebar}
           className={cn(
             "h-10 w-10 rounded-xl transition-all",
             isSidebarOpen ? "bg-indigo-600 text-white hover:bg-indigo-700" : "bg-white/5 hover:bg-white/10 text-slate-400"
@@ -154,59 +148,11 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
         >
           <ListMusic className="w-5 h-5" />
         </Button>
+      </div>
 
-        {/* PDF Page Navigation or Song Navigation */}
-        {(selectedChartType === 'pdf' || selectedChartType === 'leadsheet') ? (
-          <>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={handlePrevPdfPage} 
-              disabled={isLoading || pdfCurrentPage === 1}
-              className="h-9 w-9 rounded-lg hover:bg-white/10 text-slate-400"
-              title="Previous Page"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest">
-              Page {pdfCurrentPage}
-            </span>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={handleNextPdfPage} 
-              disabled={isLoading}
-              className="h-9 w-9 rounded-lg hover:bg-white/10 text-slate-400"
-              title="Next Page"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={onPrevSong} 
-              disabled={isLoading}
-              className="h-9 w-9 rounded-lg hover:bg-white/10 text-slate-400"
-              title="Previous Song"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={onNextSong} 
-              disabled={isLoading}
-              className="h-9 w-9 rounded-lg hover:bg-white/10 text-slate-400"
-              title="Next Song"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </>
-        )}
-        
+      {/* Center Section: Song Info, Playback, Progress, Tempo, Pitch */}
+      <div className="flex-1 flex items-center justify-center gap-6 px-6">
+        {/* Playback Button */}
         <Button
           variant="ghost"
           size="icon"
@@ -222,7 +168,8 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
           {isLoadingAudio ? <Loader2 className="w-7 h-7 animate-spin" /> : (isPlaying ? <Pause className="w-7 h-7" /> : <Play className="w-7 h-7" />)}
         </Button>
 
-        <div className="flex-1 text-left min-w-[120px] max-w-[200px]">
+        {/* Song Info & Progress */}
+        <div className="flex-1 text-left min-w-0 max-w-xl">
           {isLoading ? (
             <Loader2 className="w-5 h-5 animate-spin text-indigo-400" />
           ) : currentSong ? (
@@ -231,39 +178,27 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 line-clamp-1">{currentSong.artist || "Unknown Artist"}</p>
             </>
           ) : (
-            <p className="text-sm font-bold text-slate-500">No Song</p>
+            <p className="text-sm font-bold text-slate-500">No Song Selected</p>
           )}
-        </div>
-      </div>
 
-      {/* Center Section: Audio Progress and Metrics */}
-      <div className="flex-1 flex items-center gap-6 px-6 border-x border-white/10 h-full">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={audioEngine.stopPlayback}
-          className="h-10 w-10 rounded-xl hover:bg-white/10 text-slate-400"
-          title="Reset Playback"
-        >
-          <RotateCcw className="w-5 h-5" />
-        </Button>
-
-        <div className="flex-1 mx-4 space-y-2 max-w-md">
-          <Slider
-            value={[duration > 0 ? (progress / 100) * duration : 0]}
-            max={duration}
-            step={1}
-            onValueChange={([v]) => onSetProgress((v / duration) * 100)}
-            className="w-full"
-            disabled={!currentSong?.previewUrl}
-          />
-          <div className="flex justify-between text-[10px] font-mono font-black text-slate-500 uppercase">
-            <span>{formatTime((progress / 100) * duration)}</span>
-            <span>{formatTime(duration)}</span>
+          <div className="mt-2 space-y-1">
+            <Slider
+              value={[duration > 0 ? (progress / 100) * duration : 0]}
+              max={duration}
+              step={1}
+              onValueChange={([v]) => onSetProgress((v / duration) * 100)}
+              className="w-full"
+              disabled={!currentSong?.previewUrl}
+            />
+            <div className="flex justify-between text-[10px] font-mono font-black text-slate-500 uppercase">
+              <span>{formatTime((progress / 100) * duration)}</span>
+              <span>{formatTime(duration)}</span>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-6">
+        {/* Tempo & Pitch */}
+        <div className="flex items-center gap-6 ml-6">
           <div className="flex flex-col items-center">
             <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1.5 font-mono">
               <Gauge className="w-3 h-3" /> Tempo
@@ -280,118 +215,139 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
         </div>
       </div>
 
-      {/* Right Section: Settings and Fullscreen */}
+      {/* Right Section: Song Navigation, Settings, Utilities */}
       <div className="flex items-center gap-4 shrink-0">
-        {isOverrideActive && (
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-red-600/20 border border-red-500/20 rounded-full">
-            <Bug className="w-3 h-3 text-red-400" />
-            <span className="text-[9px] font-black uppercase tracking-widest text-red-400">DEBUG ACTIVE</span>
-          </div>
-        )}
-        
-        {currentSong && (
+        {/* Song/Page Navigation */}
+        {(selectedChartType === 'pdf' || selectedChartType === 'leadsheet') ? (
           <div className="flex items-center gap-2">
-            {/* NEW: Pull Key Button */}
-            {(!currentSong.originalKey || currentSong.originalKey === 'TBC') && currentSong.ug_chords_text && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onPullKey}
-                disabled={isLoading}
-                className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
-                title="Pull Key from Chords"
-              >
-                <Sparkles className="w-5 h-5" />
-              </Button>
-            )}
-
-            {/* NEW: Paper Icon Button for Current Song Studio */}
             <Button
               variant="ghost"
               size="icon"
-              onClick={onOpenCurrentSongStudio}
-              disabled={!currentSong}
-              className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
-              title="Open Current Song in Studio (I)"
+              onClick={handlePrevPdfPage}
+              disabled={isLoading || pdfCurrentPage === 1}
+              className="h-9 w-9 rounded-lg hover:bg-white/10 text-slate-400"
+              title="Previous Page"
             >
-              <FileText className="w-5 h-5" />
+              <ChevronLeft className="w-4 h-4" />
             </Button>
-
-            <DropdownMenu onOpenChange={setIsOverlayOpen}>
-              <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  onPointerDown={(e) => e.stopPropagation()}
-                  className="bg-white/5 border-white/10 text-xs font-black font-mono h-10 px-3 rounded-xl text-indigo-400 gap-2 min-w-[60px]"
-                  disabled={isLoading}
-                  title="Key Notation Preference"
-                >
-                  <span className="flex items-center gap-1.5">
-                    {readerKeyPreference === 'sharps' ? <Hash className="w-3 h-3" /> : <Music className="w-3 h-3" />}
-                    {readerKeyPreference === 'sharps' ? '#' : 'b'}
-                  </span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-slate-900 border-white/10 text-white z-[300]">
-                <DropdownMenuItem 
-                  onClick={() => { setReaderKeyPreference('sharps'); onSavePreference('sharps'); }} 
-                  className="font-bold cursor-pointer flex items-center justify-between"
-                >
-                  <span>Sharps</span>
-                  {readerKeyPreference === 'sharps' && <span className="text-emerald-500">✓</span>}
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => { setReaderKeyPreference('flats'); onSavePreference('flats'); }} 
-                  className="font-bold cursor-pointer flex items-center justify-between"
-                >
-                  <span>Flats</span>
-                  {readerKeyPreference === 'flats' && <span className="text-emerald-500">✓</span>}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            
-            <DropdownMenu onOpenChange={setIsOverlayOpen}>
-              <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  onPointerDown={(e) => e.stopPropagation()}
-                  className="bg-white/5 border-white/10 text-xs font-black font-mono h-10 px-4 rounded-xl text-indigo-400 gap-2 min-w-[80px]"
-                  disabled={isLoading}
-                  title="Change Stage Key"
-                >
-                  <span className="flex items-center gap-2">
-                    <Music className="w-3.5 h-3.5" />
-                    {displayKey || <Skeleton className="h-4 w-6 bg-white/10" />}
-                    <ChevronDown className="w-3 h-3 opacity-50" />
-                  </span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuPortal>
-                <DropdownMenuContent align="end" className="bg-slate-900 border-white/10 text-white z-[300] max-h-60 overflow-y-auto custom-scrollbar">
-                  {keysToUse.map(k => (
-                    <DropdownMenuItem key={k} onSelect={() => onUpdateKey(k)} className="font-mono font-bold cursor-pointer">
-                      {k}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenuPortal>
-            </DropdownMenu>
+            <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest">
+              Page {pdfCurrentPage} {pdfNumPages ? `/ ${pdfNumPages}` : ''}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleNextPdfPage}
+              disabled={isLoading || (pdfNumPages && pdfCurrentPage >= pdfNumPages)}
+              className="h-9 w-9 rounded-lg hover:bg-white/10 text-slate-400"
+              title="Next Page"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onPrevSong}
+              disabled={isLoading}
+              className="h-9 w-9 rounded-lg hover:bg-white/10 text-slate-400"
+              title="Previous Song"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onNextSong}
+              disabled={isLoading}
+              className="h-9 w-9 rounded-lg hover:bg-white/10 text-slate-400"
+              title="Next Song"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
           </div>
         )}
-        
-        <Button 
-          variant="ghost" 
-          size="icon" 
+
+        {/* Harmonic Settings Dropdown */}
+        {currentSong && (
+          <DropdownMenu onOpenChange={setIsOverlayOpen}>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                onPointerDown={(e) => e.stopPropagation()}
+                className="bg-white/5 border-white/10 text-xs font-black font-mono h-10 px-3 rounded-xl text-indigo-400 gap-2 min-w-[80px]"
+                disabled={isLoading}
+                title="Harmonic Settings"
+              >
+                <span className="flex items-center gap-1.5">
+                  <Music className="w-3.5 h-3.5" />
+                  {displayKey || <Skeleton className="h-4 w-6 bg-white/10" />}
+                  <ChevronDown className="w-3 h-3 opacity-50" />
+                </span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuPortal>
+              <DropdownMenuContent align="end" className="bg-slate-900 border-white/10 text-white z-[300] max-h-60 overflow-y-auto custom-scrollbar">
+                <DropdownMenuItem
+                  onClick={() => { setReaderKeyPreference('sharps'); onSavePreference('sharps'); }}
+                  className="font-bold cursor-pointer flex items-center justify-between"
+                >
+                  <span>Sharps (#)</span>
+                  {readerKeyPreference === 'sharps' && <span className="text-emerald-500">✓</span>}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => { setReaderKeyPreference('flats'); onSavePreference('flats'); }}
+                  className="font-bold cursor-pointer flex items-center justify-between"
+                >
+                  <span>Flats (b)</span>
+                  {readerKeyPreference === 'flats' && <span className="text-emerald-500">✓</span>}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-white/10" />
+                <DropdownMenuItem
+                  onClick={() => onPullKey()}
+                  disabled={!currentSong.ug_chords_text || currentSong.originalKey !== 'TBC'}
+                  className="font-bold cursor-pointer flex items-center gap-2"
+                >
+                  <Sparkles className="w-4 h-4" /> Pull Key from Chords
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-white/10" />
+                <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-slate-500">Stage Key</DropdownMenuLabel>
+                {keysToUse.map(k => (
+                  <DropdownMenuItem key={k} onSelect={() => onUpdateKey(k)} className="font-mono font-bold cursor-pointer">
+                    {k}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenuPortal>
+          </DropdownMenu>
+        )}
+
+        {/* Utility Buttons */}
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={onOpenRepertoireSearch}
           className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
           title="Search Repertoire"
         >
           <Search className="w-5 h-5" />
         </Button>
-        
-        <Button 
-          variant="ghost" 
-          size="icon" 
+
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onOpenCurrentSongStudio}
+          disabled={!currentSong}
+          className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
+          title="Open Current Song in Studio"
+        >
+          <FileText className="w-5 h-5" />
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={onToggleFullScreen}
           className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
           title={isFullScreen ? "Exit Fullscreen" : "Enter Fullscreen"}
