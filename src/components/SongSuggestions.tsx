@@ -26,7 +26,8 @@ interface SongSuggestionsProps {
 const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectSuggestion, onAddExistingSong }) => {
   const [rawSuggestions, setRawSuggestions] = useState<any[]>(sessionSuggestionsCache || []);
   const [ignoredSuggestions, setIgnoredSuggestions] = useState<any[]>(sessionIgnoredCache);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingInitial, setIsLoadingInitial] = useState(true); // For initial load
+  const [isRefreshingSuggestions, setIsRefreshingSuggestions] = useState(false); // For subsequent refreshes
   const [seedSongId, setSeedSongId] = useState<string | null>(null);
 
   // Normalize string for comparisons
@@ -55,7 +56,11 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
   const fetchSuggestions = useCallback(async (isRefresh = false, preserveExisting = false) => {
     if (repertoire.length === 0) return;
     
-    setIsLoading(true);
+    if (isRefresh) {
+      setIsRefreshingSuggestions(true);
+    } else {
+      setIsLoadingInitial(true);
+    }
     
     try {
       const { data, error } = await supabase.functions.invoke('suggest-songs', {
@@ -96,7 +101,11 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
     } catch (err: any) {
       showError("Song suggestions temporarily unavailable.");
     } finally {
-      setIsLoading(false);
+      if (isRefresh) {
+        setIsRefreshingSuggestions(false);
+      } else {
+        setIsLoadingInitial(false);
+      }
     }
   }, [repertoire, seedSong, existingKeys]);
 
@@ -132,11 +141,11 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
     setIgnoredSuggestions(newIgnored);
     sessionIgnoredCache = newIgnored;
 
-    setRawSuggestions(filtered);
+    setRawSuggestions(filtered); // Immediately update the displayed list
     sessionSuggestionsCache = filtered;
     
     showInfo(`Cleaned duplicates. Replenishing list...`);
-    fetchSuggestions(true, true);
+    fetchSuggestions(true, true); // This call will now use isRefreshingSuggestions
   };
 
   if (repertoire.length === 0) {
@@ -162,7 +171,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
                 variant="ghost" 
                 size="sm" 
                 onClick={handleClearDuplicates}
-                disabled={isLoading}
+                disabled={isRefreshingSuggestions}
                 className="h-7 text-[9px] font-black uppercase bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
               >
                 Clear Duplicates ({duplicateCount})
@@ -172,11 +181,11 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
               variant="ghost" 
               size="sm" 
               onClick={() => fetchSuggestions(true, false)} 
-              disabled={isLoading}
+              disabled={isRefreshingSuggestions}
               className="h-7 text-[9px] font-black uppercase hover:bg-primary/10 text-primary flex-shrink-0"
             >
-              {isLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <RotateCcw className="w-3 h-3 mr-1" />} 
-              {isLoading ? "Fetching..." : "Refresh"}
+              {isRefreshingSuggestions ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <RotateCcw className="w-3 h-3 mr-1" />} 
+              {isRefreshingSuggestions ? "Fetching..." : "Refresh"}
             </Button>
           </div>
         </div>
@@ -213,7 +222,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
 
       <ScrollArea className="h-[500px]">
         <div className="space-y-2 pr-4 pl-4">
-          {isLoading && rawSuggestions.length === 0 ? (
+          {isLoadingInitial && rawSuggestions.length === 0 ? (
             <div className="py-20 flex flex-col items-center gap-4 text-center">
               <Loader2 className="w-8 h-8 animate-spin text-primary opacity-20" />
               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
@@ -315,11 +324,6 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
                       )}
                     </div>
                   </div>
-                  {isLoading && (
-                    <div className="absolute inset-0 bg-black/5 flex items-center justify-center backdrop-blur-[1px]">
-                      <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                    </div>
-                  )}
                 </div>
               ))
             ) : (
