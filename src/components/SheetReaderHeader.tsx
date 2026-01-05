@@ -68,7 +68,10 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
 
   return (
     <div
-      className="fixed top-0 left-0 right-0 z-60 bg-slate-900/80 backdrop-blur-xl border-b border-white/10 px-6 py-3 flex items-center justify-between shadow-lg animate-in slide-in-from-top duration-300 h-[72px]"
+      className={cn(
+        "fixed top-0 left-0 right-0 z-60 bg-slate-900/80 backdrop-blur-xl border-b border-white/10 px-6 py-3 flex items-center justify-between shadow-lg animate-in slide-in-from-top duration-300 h-[72px]",
+        isFullScreen && "hidden" // NEW: Hide header when in fullscreen
+      )}
     >
       {/* Left Section: Sidebar Toggle */}
       <div className="flex items-center gap-4 shrink-0">
@@ -97,7 +100,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
         </Button>
       </div>
 
-      {/* Center Section: Song Title */}
+      {/* Center Section: Song Title and Studio Button */}
       <div className="flex-1 text-center min-w-0 px-4">
         {isLoading ? (
           <Skeleton className="h-6 w-48 mx-auto bg-white/10" />
