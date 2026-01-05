@@ -53,10 +53,9 @@ const LinkDisplayOverlay: React.FC<LinkDisplayOverlayProps> = ({
   const [flashingTargetId, setFlashingTargetId] = useState<string | null>(null);
   const flashTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const handleLinkClick = useCallback((link: SheetLink) => {
+  const handleLinkClick = useCallback((link: SheetLink, e: React.MouseEvent) => {
+    e.stopPropagation(); // Stop event propagation here!
     if (isEditingMode) {
-      // In editing mode, clicking the dot itself doesn't navigate, but opens edit/delete options
-      // The actual edit/delete actions are handled by the buttons that appear on hover.
       return;
     }
     onNavigateToPage(link.target_page, link.target_x, link.target_y);
@@ -163,7 +162,7 @@ const LinkDisplayOverlay: React.FC<LinkDisplayOverlayProps> = ({
             <Tooltip key={link.id}>
               <TooltipTrigger asChild>
                 <div // This is now a div, not a button
-                  onClick={() => handleLinkClick(link)}
+                  onClick={(e) => handleLinkClick(link, e)}
                   className={cn(
                     "absolute rounded-full bg-indigo-600 border-2 border-indigo-700 shadow-lg flex items-center justify-center text-white font-bold transition-all duration-200 ease-out group", // Added group class
                     isEditingMode ? "opacity-100 cursor-grab" : "opacity-80 hover:opacity-100 active:scale-95",
