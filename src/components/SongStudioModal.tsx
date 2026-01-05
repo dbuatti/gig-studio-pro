@@ -54,8 +54,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
         aria-labelledby="song-studio-title"
         aria-describedby="song-studio-description"
       >
-        <DialogHeader> {/* Removed sr-only from here */}
-          <DialogTitle id="song-studio-title" className="sr-only">Song Studio - Editing Song</DialogTitle> {/* Added sr-only here */}
+        <DialogHeader>
+          <DialogTitle id="song-studio-title" className="sr-only">Song Studio - Editing Song</DialogTitle>
           <DialogDescription id="song-studio-description" className="sr-only">
             Configure audio processing, metadata, and charts for the selected track.
           </DialogDescription>
