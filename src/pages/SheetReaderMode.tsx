@@ -77,7 +77,7 @@ const SheetReaderMode: React.FC = () => {
   const [isChartContentLoading, setIsChartContentLoading] = useState(false);
   const [pdfCurrentPage, setPdfCurrentPage] = useState(1);
   const [pdfNumPages, setPdfNumPages] = useState<number | null>(null);
-  const [pdfScale, setPdfScale] = useState<number | null>(null); // NEW: State for PDF scale
+  const [pdfContainerHeight, setPdfContainerHeight] = useState<number | null>(null); // State for PDF container height
 
   const audioEngine = useToneAudio(true);
   const {
@@ -109,7 +109,7 @@ const SheetReaderMode: React.FC = () => {
   useEffect(() => {
     setPdfCurrentPage(1);
     setPdfNumPages(null); // Reset total pages too
-    setPdfScale(null); // NEW: Reset scale
+    setPdfContainerHeight(null); // Reset container height
   }, [currentSong?.id]);
 
   const handleLocalSongUpdate = useCallback((songId: string, updates: Partial<SetlistSong>) => {
@@ -557,7 +557,18 @@ const SheetReaderMode: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentSong, onOpenCurrentSongStudio, handlePrev, handleNext, selectedChartType, pdfNumPages]);
 
-  // Removed the useEffect that determined landscape mode
+  // NEW: Effect for window resize to recalculate PDF container height
+  useEffect(() => {
+    const handleResize = () => {
+      if (chartContainerRef.current) {
+        setPdfContainerHeight(chartContainerRef.current.clientHeight);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    handleResize(); // Initial call
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // --- Gesture Implementation ---
   const bind = useDrag(({ first, down, movement: [mx, my], direction: [dx], velocity: [vx], cancel, intentional }) => {
@@ -592,8 +603,8 @@ const SheetReaderMode: React.FC = () => {
         if (selectedChartType === 'chords') {
           handleNext();
         } else if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
-          if (pdfCurrentPage < (pdfNumPages || 1)) {
-            setPdfCurrentPage(prev => Math.min(prev + pageStep, pdfNumPages || 999)); // Use pageStep
+          if (pdfCurrentPage < (pdfNumPages || 1)) { // Check if not on last PDF page
+            setPdfCurrentPage(prev => Math.min(prev + pageStep, pdfNumPages || 999));
           } else {
             handleNext(); // Last PDF page, go to next song
           }
@@ -602,8 +613,8 @@ const SheetReaderMode: React.FC = () => {
         if (selectedChartType === 'chords') {
           handlePrev();
         } else if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
-          if (pdfCurrentPage > 1) {
-            setPdfCurrentPage(prev => Math.max(1, prev - pageStep)); // Use pageStep
+          if (pdfCurrentPage > 1) { // Check if not on first PDF page
+            setPdfCurrentPage(prev => Math.max(1, prev - pageStep));
           } else {
             handlePrev(); // First PDF page, go to previous song
           }
@@ -615,7 +626,6 @@ const SheetReaderMode: React.FC = () => {
     threshold: 20,        // Initial movement before drag starts
     filterTaps: true,     // Ignore quick taps
     axis: 'x',            // Lock to horizontal
-    // Removed preventScroll and bounds
   });
 
   // Effect to reset navigatedRef when the drag gesture ends
@@ -626,26 +636,20 @@ const SheetReaderMode: React.FC = () => {
       }
     };
 
-    chartContainerRef.current?.addEventListener('pointerup', handleDragEndReset);
-    chartContainerRef.current?.addEventListener('pointercancel', handleDragEndReset); // Also reset on cancel
+    // Attach to the element that receives the drag events
+    const targetElement = chartContainerRef.current?.querySelector('.react-pdf__Document');
+    if (targetElement) {
+      targetElement.addEventListener('pointerup', handleDragEndReset);
+      targetElement.addEventListener('pointercancel', handleDragEndReset);
+    }
 
     return () => {
-      chartContainerRef.current?.removeEventListener('pointerup', handleDragEndReset);
-      chartContainerRef.current?.removeEventListener('pointercancel', handleDragEndReset);
+      if (targetElement) {
+        targetElement.removeEventListener('pointerup', handleDragEndReset);
+        targetElement.removeEventListener('pointercancel', handleDragEndReset);
+      }
     };
   }, [bind]);
-
-  // NEW: Effect for window resize to recalculate PDF scale
-  useEffect(() => {
-    const handleResize = () => {
-      // Trigger a re-render of the Page component to recalculate scale
-      // by resetting pdfScale to null, which will cause onRenderSuccess to fire again
-      setPdfScale(null); 
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
 
   if (initialLoading) return <div className="h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
@@ -701,14 +705,13 @@ const SheetReaderMode: React.FC = () => {
           pdfCurrentPage={pdfCurrentPage}
           setPdfCurrentPage={setPdfCurrentPage}
           selectedChartType={selectedChartType}
-          // Removed isLandscape prop
         />
 
         {/* Chart Container */}
         <div
           ref={chartContainerRef}
           className={cn(
-            "flex-1 bg-black relative overflow-hidden", 
+            "flex-1 bg-black relative overflow-hidden", // overflow-hidden for the animated.div to handle swipe
             isBrowserFullScreen ? "mt-0" : "mt-[112px]",
             "overscroll-behavior-x-contain"
           )}
@@ -717,9 +720,14 @@ const SheetReaderMode: React.FC = () => {
             {...bind()}  
             style={{ 
               x: springX, 
-              touchAction: 'pan-y'
+              touchAction: 'pan-y', // Allow vertical scrolling within the page, but bind horizontal for drag
+              width: '100%', // Ensure it takes full width for drag context
+              height: '100%',
+              display: 'flex', // Use flex to center the PDF page
+              justifyContent: 'center', // Center horizontally
+              alignItems: 'center', // Center vertically
             }} 
-            className="h-full w-full relative"
+            className="relative"
           >
             {currentSong ? (
               selectedChartType === 'chords' ? (
@@ -741,13 +749,17 @@ const SheetReaderMode: React.FC = () => {
                   console.log("[SheetReaderMode] Attempting to load PDF from URL:", url); // Log PDF URL
                   if (url) {
                     return (
-                      <div className="w-full h-full flex items-center justify-center" ref={chartContainerRef}>
+                      <div className="w-full h-full overflow-x-auto overflow-y-hidden flex justify-center items-center"> {/* Allow horizontal scroll for wide pages */}
                         <Document
                           file={url}
                           onLoadSuccess={({ numPages }) => {
                             console.log("[SheetReaderMode] PDF Document loaded successfully. Pages:", numPages); // Log success
                             setPdfNumPages(numPages);
                             setIsChartContentLoading(false);
+                            // Recalculate container height here
+                            if (chartContainerRef.current) {
+                              setPdfContainerHeight(chartContainerRef.current.clientHeight);
+                            }
                           }}
                           onLoadError={(error) => {
                             console.error("[SheetReaderMode] Error loading PDF Document:", error); // Log error
@@ -755,50 +767,33 @@ const SheetReaderMode: React.FC = () => {
                             setIsChartContentLoading(false);
                           }}
                           loading={<Loader2 className="w-12 h-12 animate-spin text-indigo-500" />}
-                          className="w-full h-full flex items-center justify-center"
+                          className="flex items-center justify-center" // Center the document itself
                         >
                           <Page
                             pageNumber={pdfCurrentPage}
-                            scale={pdfScale || 1} // Use calculated scale, default to 1
+                            height={pdfContainerHeight || undefined} // Scale by height
                             renderAnnotationLayer={true}
                             renderTextLayer={true}
                             loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
                             onRenderSuccess={(page) => {
-                              console.log("[SheetReaderMode] PDF Page rendered successfully."); // Log page render success
                               setIsChartContentLoading(false);
-
-                              // Calculate scale after render
-                              if (chartContainerRef.current) {
-                                const containerWidth = chartContainerRef.current.clientWidth;
-                                const containerHeight = chartContainerRef.current.clientHeight;
-                                const originalPageWidth = page.originalWidth;
-                                const originalPageHeight = page.originalHeight;
-
-                                const scaleX = containerWidth / originalPageWidth;
-                                const scaleY = containerHeight / originalPageHeight;
-                                const newScale = Math.min(scaleX, scaleY);
-                                
-                                // Only update if significantly different to avoid re-renders
-                                if (Math.abs((pdfScale || 1) - newScale) > 0.01) {
-                                  setPdfScale(newScale);
-                                }
-                              }
+                              // No need to set pdfScale anymore, height prop handles it.
+                              // The overflow-x-auto on the parent div will handle width overflow.
                             }}
                           />
-                          {/* Removed conditional rendering for second page */}
                         </Document>
                       </div>
                     );
                   }
                   return (
-                    <div className="h-full flex items-center justify-center text-slate-500 text-sm italic">
+                    <div className="h-full w-full flex items-center justify-center text-slate-500 text-sm italic">
                       <p>No {selectedChartType} available for this track.</p>
                     </div>
                   );
                 })()
               )
             ) : (
-              <div className="h-full flex items-center justify-center text-slate-500 text-sm italic">
+              <div className="h-full w-full flex items-center justify-center text-slate-500 text-sm italic">
                 <p>No song selected or available.</p>
               </div>
             )}
