@@ -88,16 +88,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
           <ListMusic className="w-5 h-5" />
         </Button>
         
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onOpenCurrentSongStudio}
-          disabled={!currentSong}
-          className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
-          title="Open Current Song in Studio"
-        >
-          <FileText className="w-5 h-5" />
-        </Button>
+        {/* Removed the "Open Current Song in Studio" button from here */}
       </div>
 
       {/* Center Section: Song Title and Studio Button */}
@@ -105,7 +96,19 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
         {isLoading ? (
           <Skeleton className="h-6 w-48 mx-auto bg-white/10" />
         ) : currentSong ? (
-          <h2 className="text-lg font-black uppercase tracking-tight text-white line-clamp-1">{currentSong.name}</h2>
+          <h2 className="text-lg font-black uppercase tracking-tight text-white line-clamp-1 flex items-center justify-center gap-2">
+            {currentSong.name}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onOpenCurrentSongStudio}
+              disabled={!currentSong}
+              className="h-7 w-7 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 shrink-0"
+              title="Open Current Song in Studio"
+            >
+              <FileText className="w-3.5 h-3.5" />
+            </Button>
+          </h2>
         ) : (
           <p className="text-sm font-bold text-slate-500">No Song Selected</p>
         )}
