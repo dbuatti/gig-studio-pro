@@ -266,7 +266,7 @@ const SheetReaderMode: React.FC = () => {
         const { data: setlistsData, error: setlistsError } = await supabase
           .from('setlists')
           .select('id')
-          .eq('user.id', user.id)
+          .eq('user_id', user.id)
           .limit(1);
 
         if (setlistsError || !setlistsData || setlistsData.length === 0) {
@@ -685,7 +685,8 @@ const SheetReaderMode: React.FC = () => {
               height: '100%',
               display: 'flex', 
               justifyContent: 'center', 
-              alignItems: isBrowserFullScreen ? 'flex-start' : 'center', // Conditional alignment
+              alignItems: 'flex-start', // Changed to flex-start to allow padding-top to work
+              paddingTop: isBrowserFullScreen ? '64px' : '0px', // Apply padding-top here
             }} 
             className="relative"
           >

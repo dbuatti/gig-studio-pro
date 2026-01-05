@@ -82,8 +82,8 @@ const UGChordsReader = React.memo(({
       ref={scrollContainerRef}
       className={cn(
         "h-full w-full bg-slate-950 p-4 md:p-12 overflow-y-auto border border-white/10 font-mono custom-scrollbar block",
-        isMobile ? "text-sm" : "text-base",
-        isFullScreen && "pt-16" // NEW: Add padding-top when in fullscreen
+        isMobile ? "text-sm" : "text-base"
+        // Removed isFullScreen && "pt-16" from here
       )}
       style={{ 
         fontFamily: resolvedConfig.fontFamily,
