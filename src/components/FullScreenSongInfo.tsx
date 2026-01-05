@@ -11,7 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 
 interface FullScreenSongInfoProps {
   song: SetlistSong;
-  onExitFullScreen: () => void;
+  onExitFullScreen: () => void; // This prop now means 'onHideOverlay'
   readerKeyPreference: KeyPreference;
   onUpdateKey: (newTargetKey: string) => void;
   setIsOverlayOpen: (isOpen: boolean) => void;
@@ -20,7 +20,7 @@ interface FullScreenSongInfoProps {
 
 const FullScreenSongInfo: React.FC<FullScreenSongInfoProps> = ({
   song,
-  onExitFullScreen,
+  onExitFullScreen, // Renamed conceptually to onHideOverlay
   readerKeyPreference,
   onUpdateKey,
   setIsOverlayOpen,
@@ -89,9 +89,9 @@ const FullScreenSongInfo: React.FC<FullScreenSongInfoProps> = ({
         <Button
           variant="ghost"
           size="icon"
-          onClick={onExitFullScreen}
+          onClick={onExitFullScreen} // This now triggers hiding the info overlay
           className="rounded-full hover:bg-white/10 text-white/70 hover:text-white h-9 w-9 shrink-0"
-          title="Exit Fullscreen (ESC)"
+          title="Hide Info Overlay"
         >
           <X className="w-4 h-4" />
         </Button>
