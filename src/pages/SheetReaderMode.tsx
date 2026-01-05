@@ -103,6 +103,8 @@ const SheetReaderMode: React.FC = () => {
 
   // Refs for PDF scrolling and swipe detection
   const chartContainerRef = useRef<HTMLDivElement>(null);
+  const pageRef = useRef<HTMLDivElement>(null); // Ref for the rendered PDF page div
+  const overlayWrapperRef = useRef<HTMLDivElement>(null); // NEW REF for LinkDisplayOverlay's parent
   const swipeThreshold = 50; // Pixels for horizontal swipe to register (reduced for trackpad)
   const navigatedRef = useRef(false); // Ref to prevent multiple navigations per swipe
 
@@ -924,10 +926,11 @@ const SheetReaderMode: React.FC = () => {
                             onRenderSuccess={(page) => {
                               setIsChartContentLoading(false);
                             }}
+                            inputRef={pageRef} // Pass ref to the rendered page div
                           />
                         </Document>
                         {/* NEW: LinkDisplayOverlay for PDF charts */}
-                        <div className="absolute inset-0 z-30 pointer-events-none"> {/* New wrapper for overlay */}
+                        <div className="absolute inset-0 z-30 pointer-events-none" ref={overlayWrapperRef}> {/* New wrapper for overlay */}
                           <LinkDisplayOverlay
                             links={links}
                             currentPage={pdfCurrentPage}
@@ -935,8 +938,9 @@ const SheetReaderMode: React.FC = () => {
                             onLinkDeleted={fetchLinks} // Refresh links after deletion
                             isEditingMode={isEditingLinksMode}
                             onEditLink={(link) => showInfo(`Editing link ${link.id} is not yet implemented.`)} // Placeholder for edit
-                            pageContainerRef={chartContainerRef}
+                            pageContainerRef={pageRef} // Pass the ref
                             pdfScale={pdfScale || 1}
+                            overlayWrapperRef={overlayWrapperRef} // PASS NEW REF
                           />
                         </div>
                       </div>

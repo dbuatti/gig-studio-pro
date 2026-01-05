@@ -31,8 +31,9 @@ interface LinkDisplayOverlayProps {
   onLinkDeleted: () => void;
   isEditingMode: boolean;
   onEditLink: (link: SheetLink) => void;
-  pageContainerRef: React.RefObject<HTMLDivElement>; // NEW: Ref to the rendered PDF page container
-  pdfScale: number; // NEW: PDF scale for accurate positioning
+  pageContainerRef: React.RefObject<HTMLDivElement>; // Ref to the rendered PDF page container (the div from react-pdf's Page)
+  pdfScale: number; // PDF scale for accurate positioning
+  overlayWrapperRef: React.RefObject<HTMLDivElement>; // Ref to the direct parent of LinkDisplayOverlay
 }
 
 const LinkDisplayOverlay: React.FC<LinkDisplayOverlayProps> = ({
@@ -42,8 +43,9 @@ const LinkDisplayOverlay: React.FC<LinkDisplayOverlayProps> = ({
   onLinkDeleted,
   isEditingMode,
   onEditLink,
-  pageContainerRef, // NEW
-  pdfScale, // NEW
+  pageContainerRef,
+  pdfScale,
+  overlayWrapperRef, // NEW
 }) => {
   const { user } = useAuth();
   const { linkSize: globalLinkSize } = useSettings();
@@ -87,28 +89,39 @@ const LinkDisplayOverlay: React.FC<LinkDisplayOverlayProps> = ({
   const getLinkDotStyle = useCallback((link: SheetLink, type: 'source' | 'target', currentPage: number): CSSProperties => {
     const point = type === 'source' ? { x: link.source_x, y: link.source_y, page: link.source_page } : { x: link.target_x, y: link.target_y, page: link.target_page };
 
-    if (!point || point.page !== currentPage || !pageContainerRef.current) {
+    if (!point || point.page !== currentPage || !pageContainerRef.current || !overlayWrapperRef.current) {
       return { display: 'none' };
     }
 
-    const pageRect = pageContainerRef.current.getBoundingClientRect();
-    
-    // The x, y coordinates are normalized (0-1) relative to the *original* PDF page size.
-    // react-pdf scales the page, so we need to apply the scale to the coordinates.
-    // The `left` and `top` CSS properties are percentages relative to the *rendered* element's size.
-    // So, `point.x * 100%` is already correct if the parent is the rendered page.
+    const pageElement = pageContainerRef.current;
+    const pageRect = pageElement.getBoundingClientRect(); // Rect of the rendered PDF page div
+
+    const overlayWrapperElement = overlayWrapperRef.current;
+    const overlayWrapperRect = overlayWrapperElement.getBoundingClientRect(); // Rect of the overlay's parent
+
+    // Calculate the pixel position of the point relative to the viewport
+    const absX = pageRect.left + point.x * pageRect.width;
+    const absY = pageRect.top + point.y * pageRect.height;
+
+    // Calculate the pixel position of the dot relative to the overlayWrapperElement
+    const dotLeftPx = absX - overlayWrapperRect.left;
+    const dotTopPx = absY - overlayWrapperRect.top;
+
+    // Convert to percentage relative to the overlayWrapperElement's dimensions
+    const dotLeftPct = (dotLeftPx / overlayWrapperRect.width) * 100;
+    const dotTopPct = (dotTopPx / overlayWrapperRect.height) * 100;
 
     const baseSize = {
       'small': 16,
       'medium': 24,
       'large': 32,
       'extra-large': 40,
-    }[link.link_size || globalLinkSize]; // Use link-specific size if available, else global
+    }[link.link_size || globalLinkSize];
 
     return {
       position: 'absolute',
-      left: `${point.x * 100}%`,
-      top: `${point.y * 100}%`,
+      left: `${dotLeftPct}%`,
+      top: `${dotTopPct}%`,
       width: `${baseSize}px`,
       height: `${baseSize}px`,
       borderRadius: '50%',
@@ -125,7 +138,7 @@ const LinkDisplayOverlay: React.FC<LinkDisplayOverlayProps> = ({
       boxShadow: '0 0 10px rgba(0,0,0,0.3)',
       cursor: 'pointer',
     };
-  }, [currentPage, pageContainerRef, globalLinkSize]);
+  }, [currentPage, pageContainerRef, overlayWrapperRef, globalLinkSize]);
 
   return (
     <TooltipProvider>

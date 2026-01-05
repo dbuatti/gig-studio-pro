@@ -65,9 +65,12 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
   const [isCreatingLink, setIsCreatingLink] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
 
-  const leftPageRef = useRef<HTMLDivElement>(null);
-  const rightPageRef = useRef<HTMLDivElement>(null);
-  const pdfContainerRef = useRef<HTMLDivElement>(null); // Ref for the overall PDF container to calculate scale
+  // Refs for the wrapper divs of each PDF panel
+  const leftPanelWrapperRef = useRef<HTMLDivElement>(null);
+  const rightPanelWrapperRef = useRef<HTMLDivElement>(null);
+  // Refs for the actual rendered PDF page content divs (from react-pdf's Page component)
+  const leftPdfPageContentRef = useRef<HTMLDivElement>(null);
+  const rightPdfPageContentRef = useRef<HTMLDivElement>(null);
 
   // LinkEditorOverlay now manages its own PDFDocumentProxy instance
   const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
@@ -97,7 +100,8 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
     }
   }, [isOpen, editingLink, chartUrl]);
 
-  const calculatePdfScale = useCallback(async (pdf: PDFDocumentProxy, container: HTMLDivElement, pageNumber: number) => {
+  const calculatePdfScale = useCallback(async (pdf: PDFDocumentProxy, pageNumber: number) => {
+    const container = leftPanelWrapperRef.current; // Use one of the panel wrappers as reference
     if (!container || !pdf) return;
 
     const containerWidth = container.clientWidth;
@@ -118,17 +122,17 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
     } catch (error) {
       console.error("[LinkEditorOverlay] Error calculating PDF scale:", error);
     }
-  }, []);
+  }, [leftPanelWrapperRef]);
 
   // Effect for ResizeObserver on the main PDF container
   useEffect(() => {
-    const container = pdfContainerRef.current;
+    const container = leftPanelWrapperRef.current; // Use one of the panel wrappers as reference
     if (!container || !pdfDocument) return; // Use local pdfDocument here
 
     const resizeObserver = new ResizeObserver(entries => {
       for (let entry of entries) {
         if (entry.target === container) {
-          calculatePdfScale(pdfDocument, container, leftPageNum); // Use local pdfDocument and leftPageNum as reference
+          calculatePdfScale(pdfDocument, leftPageNum); // Use local pdfDocument and leftPageNum as reference
         }
       }
     });
@@ -138,16 +142,14 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
     return () => {
       resizeObserver.unobserve(container);
     };
-  }, [pdfDocument, leftPageNum, calculatePdfScale]); // Use local pdfDocument in dependencies
+  }, [pdfDocument, leftPageNum, calculatePdfScale, leftPanelWrapperRef]);
 
 
   const handleDocumentLoadSuccess = useCallback((pdf: PDFDocumentProxy) => {
     // console.log("[LinkEditorOverlay] PDF loaded successfully:", pdf); // Removed verbose log
     setPdfDocument(pdf); // Set local pdfDocument
     setPdfNumPages(pdf.numPages);
-    if (pdfContainerRef.current) {
-      calculatePdfScale(pdf, pdfContainerRef.current, 1);
-    }
+    calculatePdfScale(pdf, 1); // Calculate scale for the first page
   }, [calculatePdfScale]);
 
   const handleDocumentLoadError = useCallback((error: any) => {
@@ -159,11 +161,11 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
     e: React.MouseEvent<HTMLDivElement>,
     type: 'source' | 'target',
     pageNumber: number,
-    pageRef: React.RefObject<HTMLDivElement>
+    pdfPageContentRef: React.RefObject<HTMLDivElement> // Use this ref for tap coordinates
   ) => {
-    if (!pageRef.current) return;
+    if (!pdfPageContentRef.current) return; // Use the content ref
 
-    const rect = pageRef.current.getBoundingClientRect();
+    const rect = pdfPageContentRef.current.getBoundingClientRect(); // Get rect of the actual PDF content
     const x = (e.clientX - rect.left) / rect.width; // Normalized X (0-1)
     const y = (e.clientY - rect.top) / rect.height; // Normalized Y (0-1)
 
@@ -233,6 +235,26 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
       return { display: 'none' }; 
     }
 
+    const pdfPageContentElement = (type === 'source' ? leftPdfPageContentRef.current : rightPdfPageContentRef.current);
+    const parentWrapperElement = (type === 'source' ? leftPanelWrapperRef.current : rightPanelWrapperRef.current); // The direct parent of the dot
+
+    if (!pdfPageContentElement || !parentWrapperElement) return { display: 'none' };
+
+    const pdfPageContentRect = pdfPageContentElement.getBoundingClientRect();
+    const parentWrapperRect = parentWrapperElement.getBoundingClientRect();
+
+    // Calculate the pixel position of the point relative to the viewport
+    const absX = pdfPageContentRect.left + point.x * pdfPageContentRect.width;
+    const absY = pdfPageContentRect.top + point.y * pdfPageContentRect.height;
+
+    // Calculate the pixel position of the dot relative to its direct parent (parentWrapperElement)
+    const dotLeftPx = absX - parentWrapperRect.left;
+    const dotTopPx = absY - parentWrapperRect.top;
+
+    // Convert to percentage relative to the parentWrapperElement's dimensions
+    const dotLeftPct = (dotLeftPx / parentWrapperRect.width) * 100;
+    const dotTopPct = (dotTopPx / parentWrapperRect.height) * 100;
+
     const baseSize = {
       'small': 16,
       'medium': 24,
@@ -242,8 +264,8 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
 
     return {
       position: 'absolute',
-      left: `${point.x * 100}%`,
-      top: `${point.y * 100}%`,
+      left: `${dotLeftPct}%`,
+      top: `${dotTopPct}%`,
       width: `${baseSize}px`,
       height: `${baseSize}px`,
       borderRadius: '50%',
@@ -260,23 +282,24 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
       boxShadow: '0 0 10px rgba(0,0,0,0.3)',
       cursor: 'pointer',
     };
-  }, [globalLinkSize]);
+  }, [globalLinkSize, leftPdfPageContentRef, rightPdfPageContentRef, leftPanelWrapperRef, rightPanelWrapperRef]); // Add all relevant refs to dependencies
 
   const renderPdfPanel = (
     type: 'source' | 'target',
     pageNumber: number,
     setPageNumber: React.Dispatch<React.SetStateAction<number>>,
     point: LinkPoint | null,
-    pageRef: React.RefObject<HTMLDivElement>
+    wrapperRef: React.RefObject<HTMLDivElement>, // The wrapper div for the panel
+    pdfPageContentRef: React.RefObject<HTMLDivElement> // The actual PDF page content div
   ) => (
-    <div className="flex flex-col flex-1 h-full bg-slate-900 rounded-2xl border border-white/10 overflow-hidden">
+    <div ref={wrapperRef} className="flex flex-col flex-1 h-full bg-slate-900 rounded-2xl border border-white/10 overflow-hidden relative"> {/* Add relative here */}
       <div className="flex items-center justify-between p-3 border-b border-white/10 shrink-0">
         <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
           <MousePointer2 className="w-3 h-3" /> {type === 'source' ? 'Source (Blue)' : 'Target (Orange)'}
         </Label>
         <span className="text-[9px] font-mono text-slate-400 uppercase">Page {pageNumber} / {pdfNumPages || '?'}</span>
       </div>
-      <div className="flex-1 relative overflow-hidden flex items-center justify-center" ref={pageRef}>
+      <div className="flex-1 relative overflow-hidden flex items-center justify-center">
         {pdfError ? (
           <div className="text-red-400 text-center p-4">{pdfError}</div>
         ) : !chartUrl ? (
@@ -284,7 +307,7 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
         ) : (
           <div
             className="relative w-full h-full flex items-center justify-center overflow-auto"
-            onClick={(e) => handleTap(e, type, pageNumber, pageRef)}
+            onClick={(e) => handleTap(e, type, pageNumber, pdfPageContentRef)} // Pass pdfPageContentRef
           >
             <Document
               file={chartUrl} // Use chartUrl here
@@ -300,6 +323,7 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
                   renderAnnotationLayer={false}
                   renderTextLayer={false}
                   loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
+                  inputRef={pdfPageContentRef} // ASSIGN REF HERE
                 />
               )}
             </Document>
@@ -348,9 +372,9 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div ref={pdfContainerRef} className="flex-1 flex gap-4 p-6 overflow-hidden">
-          {renderPdfPanel('source', leftPageNum, setLeftPageNum, sourcePoint, leftPageRef)}
-          {renderPdfPanel('target', rightPageNum, setRightPageNum, targetPoint, rightPageRef)}
+        <div className="flex-1 flex gap-4 p-6 overflow-hidden">
+          {renderPdfPanel('source', leftPageNum, setLeftPageNum, sourcePoint, leftPanelWrapperRef, leftPdfPageContentRef)}
+          {renderPdfPanel('target', rightPageNum, setRightPageNum, targetPoint, rightPanelWrapperRef, rightPdfPageContentRef)}
         </div>
 
         <DialogFooter className="p-6 border-t border-white/5 bg-slate-900 flex flex-col sm:flex-row gap-4">

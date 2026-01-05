@@ -47,7 +47,8 @@ const DebugPage: React.FC = () => {
   const [editingLink, setEditingLink] = useState<SheetLink | null>(null); // For editing existing links
 
   const pdfContainerRef = useRef<HTMLDivElement>(null);
-  const pageRef = useRef<HTMLDivElement>(null); // NEW: Ref for the rendered PDF page div
+  const pageRef = useRef<HTMLDivElement>(null); // Ref for the rendered PDF page div
+  const overlayWrapperRef = useRef<HTMLDivElement>(null); // NEW REF for LinkDisplayOverlay's parent
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Ensure a debug song ID exists for link creation
@@ -445,16 +446,19 @@ const DebugPage: React.FC = () => {
               />
             </Document>
             {debugSongId && (
-              <LinkDisplayOverlay
-                links={links}
-                currentPage={pdfCurrentPage}
-                onNavigateToPage={handleNavigateToPage}
-                onLinkDeleted={fetchLinks}
-                isEditingMode={isEditingLinksMode}
-                onEditLink={handleEditLink}
-                pageContainerRef={pageRef} // NEW: Pass the ref
-                pdfScale={pdfScale} // NEW: Pass the scale
-              />
+              <div className="absolute inset-0 z-30 pointer-events-none" ref={overlayWrapperRef}> {/* ASSIGN NEW REF HERE */}
+                <LinkDisplayOverlay
+                  links={links}
+                  currentPage={pdfCurrentPage}
+                  onNavigateToPage={handleNavigateToPage}
+                  onLinkDeleted={fetchLinks}
+                  isEditingMode={isEditingLinksMode}
+                  onEditLink={handleEditLink}
+                  pageContainerRef={pageRef} // NEW: Pass the ref
+                  pdfScale={pdfScale} // NEW: Pass the scale
+                  overlayWrapperRef={overlayWrapperRef} // PASS NEW REF
+                />
+              </div>
             )}
           </div>
         )}
