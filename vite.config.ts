@@ -17,4 +17,7 @@ export default defineConfig(() => ({
       'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
     },
   },
+  optimizeDeps: {
+    include: ['pdfjs-dist'], // Include the whole package for optimization
+  },
 }));

@@ -31,8 +31,11 @@ import 'react-pdf/dist/Page/TextLayer.css';
 import { useSpring, animated } from '@react-spring/web';
 import { useDrag } from '@use-gesture/react';
 
-// Removed explicit PDF.js worker configuration.
-// react-pdf should handle this automatically.
+// Configure PDF.js worker source using a URL, which Vite can handle
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.js',
+  import.meta.url,
+).toString();
 
 export type ChartType = 'pdf' | 'leadsheet' | 'chords';
 
