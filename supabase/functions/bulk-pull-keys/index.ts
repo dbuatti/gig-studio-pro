@@ -1,3 +1,4 @@
+"use client";
 // @ts-ignore: Deno runtime import
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 // @ts-ignore: Deno runtime import
@@ -21,7 +22,10 @@ const MAPPING_TO_FLAT: Record<string, string> = {
   "C#": "Db", "D#": "Eb", "F#": "Gb", "G#": "Ab", "A#": "Bb"
 };
 
-const CHORD_REGEX = /([A-G](?:#|b)?)(m|maj|dim|aug|sus\d?|add\d?|\d+)?(\/[A-G](?:#|b)?)?/g;
+// Robust musical chord regex that handles sharps/flats and common extensions.
+// It ensures the chord is a standalone entity by using negative lookbehind and lookahead for word characters.
+// The chordType group is now more specific to actual chord suffixes, including maj7.
+const CHORD_REGEX = /(?<!\w)([A-G][#b]?)(maj7|maj|m|dim|aug|sus\d?|add\d?|\d+)?(\/[A-G][#b]?)?(?!\w)/g;
 
 function normalizeKeyString(key: string | undefined | null): string {
   if (!key || key === "TBC" || /^\d/.test(key)) return "TBC";
@@ -60,15 +64,16 @@ function extractKeyFromChords(text: string): string | null {
     if (line.trim().startsWith('[') && line.trim().endsWith(']')) {
       continue;
     }
-    const match = line.match(CHORD_REGEX);
-    if (match && match[0]) {
-      const fullChord = match[0];
-      const rootMatch = fullChord.match(/([A-G][#b]?)(m|maj|dim|aug|sus\d?|add\d?|\d+)?/);
-      if (rootMatch && rootMatch[1]) {
-        let key = rootMatch[1];
-        const chordType = rootMatch[2];
-        const isMinor = chordType && (chordType.startsWith('m') || chordType === 'dim');
-        const normalizedRoot = MAPPING_TO_SHARP[key] || key;
+    // Use matchAll to find all occurrences and pick the first one
+    const matches = Array.from(line.matchAll(CHORD_REGEX));
+    if (matches.length > 0) {
+      const match = matches[0]; // Take the first match
+      const rootNote = match[1];
+      const chordSuffix = match[2]; 
+      
+      if (rootNote) {
+        const isMinor = chordSuffix && (chordSuffix.includes('m') || chordSuffix.includes('dim'));
+        const normalizedRoot = MAPPING_TO_SHARP[rootNote] || rootNote;
         return normalizedRoot + (isMinor ? 'm' : '');
       }
     }
