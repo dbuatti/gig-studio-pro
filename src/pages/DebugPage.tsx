@@ -8,7 +8,7 @@ import 'react-pdf/dist/Page/TextLayer.css';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, UploadCloud, FileText, Plus, ArrowRight, X, Ruler, Edit3, Trash2, ChevronLeft, ChevronRight, Settings2 } from 'lucide-react';
+import { Loader2, UploadCloud, FileText, Plus, ArrowRight, X, Ruler, Edit3, Trash2, ChevronLeft, ChevronRight, Settings2, Maximize, Minimize } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
@@ -39,6 +39,7 @@ const DebugPage: React.FC = () => {
   const [isLoadingPdf, setIsLoadingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false); // NEW: State for fullscreen mode
 
   const [links, setLinks] = useState<SheetLink[]>([]);
   const [isLinkEditorOpen, setIsLinkEditorOpen] = useState(false);
@@ -106,6 +107,7 @@ const DebugPage: React.FC = () => {
           currentDebugSongId = newId;
           localStorage.setItem(DEBUG_SONG_ID_KEY, newId);
           showSuccess("Debug song created for linking tests!");
+          console.log("[DebugPage] Debug song created with ID:", newId);
         } catch (err: any) {
           console.error("[DebugPage] Failed to create debug song:", err.message);
           showError("Failed to create debug song. Linking might not work.");
@@ -292,7 +294,7 @@ const DebugPage: React.FC = () => {
 
     console.log("[DebugPage] Deleting all links for song ID:", debugSongId);
     try {
-      const { error } = await supabase.from('sheet_links').delete().eq('song_id', debugSongId).eq('user_id', user.id);
+      const { error } = await supabase.from('sheet_links').delete().eq('song_id', debugSongId).eq('user_id', user.id); // Corrected to user.id
       if (error) throw error;
       showSuccess("All links deleted successfully.");
       setLinks([]);
@@ -303,127 +305,162 @@ const DebugPage: React.FC = () => {
     }
   };
 
+  // NEW: Fullscreen toggle logic
+  const toggleFullScreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => {
+        showError(`Error attempting to enable fullscreen mode: ${err.message} (${err.name})`);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  }, []);
+
+  // NEW: Listen for fullscreen change events
+  useEffect(() => {
+    const handleFullScreenChange = () => {
+      setIsFullScreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullScreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullScreenChange);
+  }, []);
+
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col p-6 md:p-10">
-      <div className="flex items-center justify-between mb-8">
+    <div className={cn("flex flex-col", isFullScreen ? "fixed inset-0 z-[100] bg-background" : "min-h-screen p-6 md:p-10")}>
+      <div className={cn("flex items-center justify-between mb-8", isFullScreen && "px-6 py-4 bg-card border-b border-border")}>
         <div className="flex items-center gap-4">
           <FileText className="w-6 h-6 text-indigo-600" />
           <h1 className="text-2xl font-black uppercase tracking-tight">Linking Debug Page</h1>
         </div>
-        <Button variant="ghost" onClick={() => navigate('/')} className="text-muted-foreground hover:text-foreground gap-2">
-          <ChevronLeft className="w-4 h-4" /> Back to Dashboard
-        </Button>
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="ghost" 
+            onClick={toggleFullScreen} 
+            className="text-muted-foreground hover:text-foreground gap-2"
+            title={isFullScreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+          >
+            {isFullScreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+            {isFullScreen ? "Exit Fullscreen" : "Fullscreen"}
+          </Button>
+          <Button variant="ghost" onClick={() => navigate('/')} className="text-muted-foreground hover:text-foreground gap-2">
+            <ChevronLeft className="w-4 h-4" /> Back to Dashboard
+          </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-        {/* PDF Upload & Info */}
-        <div className="lg:col-span-1 bg-card p-6 rounded-[2rem] border border-border shadow-lg space-y-6">
-          <h2 className="text-xl font-black uppercase tracking-tight text-foreground">Test PDF</h2>
-          <div className="space-y-4">
-            <Label htmlFor="pdf-upload" className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-              <UploadCloud className="w-4 h-4" /> Upload Test PDF
-            </Label>
-            <div className="flex gap-2">
-              <Input
-                id="pdf-upload"
-                type="file"
-                accept="application/pdf"
-                onChange={handleFileChange}
-                ref={fileInputRef}
-                className="flex-1 h-10 text-xs bg-secondary border-border text-foreground file:text-foreground file:bg-accent file:border-border file:rounded-md"
-                disabled={isUploading}
-              />
-              {testPdfUrl && (
-                <Button variant="destructive" size="icon" onClick={handleClearStoredPdf} disabled={isUploading}>
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              )}
+      {!isFullScreen && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+          {/* PDF Upload & Info */}
+          <div className="lg:col-span-1 bg-card p-6 rounded-[2rem] border border-border shadow-lg space-y-6">
+            <h2 className="text-xl font-black uppercase tracking-tight text-foreground">Test PDF</h2>
+            <div className="space-y-4">
+              <Label htmlFor="pdf-upload" className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+                <UploadCloud className="w-4 h-4" /> Upload Test PDF
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  id="pdf-upload"
+                  type="file"
+                  accept="application/pdf"
+                  onChange={handleFileChange}
+                  ref={fileInputRef}
+                  className="flex-1 h-10 text-xs bg-secondary border-border text-foreground file:text-foreground file:bg-accent file:border-border file:rounded-md"
+                  disabled={isUploading}
+                />
+                {testPdfUrl && (
+                  <Button variant="destructive" size="icon" onClick={handleClearStoredPdf} disabled={isUploading}>
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+              {isUploading && <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />}
             </div>
-            {isUploading && <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />}
+
+            {testPdfUrl && (
+              <div className="space-y-4 pt-4 border-t border-border">
+                <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+                  <FileText className="w-4 h-4" /> Current PDF
+                </Label>
+                <p className="text-sm font-mono text-foreground break-all">{testPdfUrl}</p>
+                <p className="text-xs text-muted-foreground">Debug Song ID: <span className="font-mono">{debugSongId}</span></p>
+                <p className="text-xs text-muted-foreground">Total Links: <span className="font-mono">{links.length}</span></p>
+                <Button variant="destructive" onClick={handleClearAllLinks} disabled={links.length === 0}>
+                  <Trash2 className="w-4 h-4 mr-2" /> Delete All Links
+                </Button>
+              </div>
+            )}
           </div>
 
-          {testPdfUrl && (
+          {/* Link Management Controls */}
+          <div className="lg:col-span-2 bg-card p-6 rounded-[2rem] border border-border shadow-lg space-y-6">
+            <h2 className="text-xl font-black uppercase tracking-tight text-foreground">Link Management</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Button
+                onClick={() => setIsLinkEditorOpen(true)}
+                disabled={!testPdfUrl || !pdfDocument}
+                className="h-14 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-[10px] gap-2 rounded-xl shadow-lg"
+              >
+                <Plus className="w-4 h-4" /> Create New Link
+              </Button>
+              <Button
+                onClick={() => setIsEditingLinksMode(prev => !prev)}
+                disabled={!testPdfUrl || !pdfDocument || links.length === 0}
+                className={cn(
+                  "h-14 font-black uppercase tracking-widest text-[10px] gap-2 rounded-xl shadow-lg",
+                  isEditingLinksMode ? "bg-red-600 hover:bg-red-700 text-white" : "bg-secondary hover:bg-accent text-foreground"
+                )}
+              >
+                {isEditingLinksMode ? "Exit Edit Mode" : "Edit/Delete Links"}
+              </Button>
+              <Button
+                onClick={() => setIsLinkSizeModalOpen(true)}
+                className="h-14 bg-secondary hover:bg-accent text-foreground font-black uppercase tracking-widest text-[10px] gap-2 rounded-xl shadow-lg"
+              >
+                <Ruler className="w-4 h-4" /> Link Size Settings
+              </Button>
+            </div>
+
             <div className="space-y-4 pt-4 border-t border-border">
               <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-                <FileText className="w-4 h-4" /> Current PDF
+                <Settings2 className="w-4 h-4" /> PDF Navigation
               </Label>
-              <p className="text-sm font-mono text-foreground break-all">{testPdfUrl}</p>
-              <p className="text-xs text-muted-foreground">Debug Song ID: <span className="font-mono">{debugSongId}</span></p>
-              <p className="text-xs text-muted-foreground">Total Links: <span className="font-mono">{links.length}</span></p>
-              <Button variant="destructive" onClick={handleClearAllLinks} disabled={links.length === 0}>
-                <Trash2 className="w-4 h-4 mr-2" /> Delete All Links
-              </Button>
-            </div>
-          )}
-        </div>
-
-        {/* Link Management Controls */}
-        <div className="lg:col-span-2 bg-card p-6 rounded-[2rem] border border-border shadow-lg space-y-6">
-          <h2 className="text-xl font-black uppercase tracking-tight text-foreground">Link Management</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Button
-              onClick={() => setIsLinkEditorOpen(true)}
-              disabled={!testPdfUrl || !pdfDocument}
-              className="h-14 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-[10px] gap-2 rounded-xl shadow-lg"
-            >
-              <Plus className="w-4 h-4" /> Create New Link
-            </Button>
-            <Button
-              onClick={() => setIsEditingLinksMode(prev => !prev)}
-              disabled={!testPdfUrl || !pdfDocument || links.length === 0}
-              className={cn(
-                "h-14 font-black uppercase tracking-widest text-[10px] gap-2 rounded-xl shadow-lg",
-                isEditingLinksMode ? "bg-red-600 hover:bg-red-700 text-white" : "bg-secondary hover:bg-accent text-foreground"
-              )}
-            >
-              {isEditingLinksMode ? <X className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
-              {isEditingLinksMode ? "Exit Edit Mode" : "Edit/Delete Links"}
-            </Button>
-            <Button
-              onClick={() => setIsLinkSizeModalOpen(true)}
-              className="h-14 bg-secondary hover:bg-accent text-foreground font-black uppercase tracking-widest text-[10px] gap-2 rounded-xl shadow-lg"
-            >
-              <Ruler className="w-4 h-4" /> Link Size Settings
-            </Button>
-          </div>
-
-          <div className="space-y-4 pt-4 border-t border-border">
-            <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-              <Settings2 className="w-4 h-4" /> PDF Navigation
-            </Label>
-            <div className="flex items-center gap-4">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setPdfCurrentPage(prev => Math.max(1, prev - 1))}
-                disabled={pdfCurrentPage <= 1}
-                className="h-10 w-10 rounded-xl bg-secondary hover:bg-accent text-foreground"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </Button>
-              <Input
-                type="number"
-                value={pdfCurrentPage}
-                onChange={(e) => setPdfCurrentPage(Math.max(1, Math.min(pdfNumPages || 1, parseInt(e.target.value) || 1)))}
-                className="flex-1 h-10 text-center text-lg font-bold bg-secondary border-border text-foreground"
-              />
-              <span className="text-lg text-muted-foreground">/ {pdfNumPages || '?'}</span>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setPdfCurrentPage(prev => Math.min(prev + 1, pdfNumPages || 1))}
-                disabled={pdfCurrentPage >= (pdfNumPages || 1)}
-                className="h-10 w-10 rounded-xl bg-secondary hover:bg-accent text-foreground"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </Button>
+              <div className="flex items-center gap-4">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setPdfCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={pdfCurrentPage <= 1}
+                  className="h-10 w-10 rounded-xl bg-secondary hover:bg-accent text-foreground"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </Button>
+                <Input
+                  type="number"
+                  value={pdfCurrentPage}
+                  onChange={(e) => setPdfCurrentPage(Math.max(1, Math.min(pdfNumPages || 1, parseInt(e.target.value) || 1)))}
+                  className="flex-1 h-10 text-center text-lg font-bold bg-secondary border-border text-foreground"
+                />
+                <span className="text-lg text-muted-foreground">/ {pdfNumPages || '?'}</span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setPdfCurrentPage(prev => Math.min(prev + 1, pdfNumPages || 1))}
+                  disabled={pdfCurrentPage >= (pdfNumPages || 1)}
+                  className="h-10 w-10 rounded-xl bg-secondary hover:bg-accent text-foreground"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </Button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* PDF Viewer */}
-      <div ref={pdfContainerRef} className="flex-1 bg-slate-900 rounded-[2rem] border-4 border-border shadow-2xl overflow-hidden relative flex items-center justify-center min-h-[500px]">
+      <div ref={pdfContainerRef} className={cn(
+        "flex-1 bg-slate-900 rounded-[2rem] border-4 border-border shadow-2xl overflow-hidden relative flex items-center justify-center",
+        isFullScreen ? "rounded-none border-0" : "min-h-[500px]"
+      )}>
         {isLoadingPdf && <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />}
         {pdfError && <div className="text-red-400 text-center p-4">{pdfError}</div>}
         {testPdfUrl && !isLoadingPdf && !pdfError && (
