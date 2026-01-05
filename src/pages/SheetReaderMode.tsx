@@ -266,7 +266,7 @@ const SheetReaderMode: React.FC = () => {
         const { data: setlistsData, error: setlistsError } = await supabase
           .from('setlists')
           .select('id')
-          .eq('user_id', user.id)
+          .eq('user.id', user.id)
           .limit(1);
 
         if (setlistsError || !setlistsData || setlistsData.length === 0) {
@@ -683,9 +683,9 @@ const SheetReaderMode: React.FC = () => {
               touchAction: 'pan-y', // Allow vertical scrolling within the page, but bind horizontal for drag
               width: '100%', // Ensure it takes full width for drag context
               height: '100%',
-              display: 'flex', // Use flex to center the PDF page
-              justifyContent: 'center', // Center horizontally
-              alignItems: 'center', // Center vertically
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: isBrowserFullScreen ? 'flex-start' : 'center', // Conditional alignment
             }} 
             className="relative"
           >
