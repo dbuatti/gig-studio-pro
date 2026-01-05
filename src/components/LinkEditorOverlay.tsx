@@ -16,10 +16,6 @@ import { useAuth } from '@/components/AuthProvider';
 import { showSuccess, showError } from '@/utils/toast';
 import { useSettings } from '@/hooks/use-settings';
 
-// Ensure PDF.js worker source is configured
-// This is now handled globally in App.tsx
-// pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
-
 interface LinkPoint {
   page: number;
   x: number; // Normalized 0-1
@@ -67,7 +63,6 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
   const [pdfNumPages, setPdfNumPages] = useState<number | null>(null);
   const [pdfScale, setPdfScale] = useState(1.0); // Scale for rendering PDF pages
   const [isCreatingLink, setIsCreatingLink] = useState(false);
-  const [isLoadingPdf, setIsLoadingPdf] = useState(true);
   const [pdfError, setPdfError] = useState<string | null>(null);
 
   const leftPageRef = useRef<HTMLDivElement>(null);
@@ -94,13 +89,6 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
         console.log("[LinkEditorOverlay] Initialized for creating new link.");
       }
       setPdfError(null);
-      // When opening, if chartUrl is available, start loading PDF
-      if (chartUrl) {
-        setIsLoadingPdf(true);
-      } else {
-        setIsLoadingPdf(false);
-        setPdfError("No chart URL provided.");
-      }
     } else {
       // When closing, clear PDF document to free resources
       setPdfDocument(null);
@@ -157,7 +145,6 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
     // console.log("[LinkEditorOverlay] PDF loaded successfully:", pdf); // Removed verbose log
     setPdfDocument(pdf); // Set local pdfDocument
     setPdfNumPages(pdf.numPages);
-    setIsLoadingPdf(false);
     if (pdfContainerRef.current) {
       calculatePdfScale(pdf, pdfContainerRef.current, 1);
     }
@@ -166,7 +153,6 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
   const handleDocumentLoadError = useCallback((error: any) => {
     console.error("[LinkEditorOverlay] Error loading PDF:", error);
     setPdfError("Failed to load PDF. Please check the URL or file.");
-    setIsLoadingPdf(false);
   }, []);
 
   const handleTap = useCallback((
@@ -210,7 +196,7 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
           target_x: targetPoint.x,
           target_y: targetPoint.y,
           link_size: globalLinkSize,
-        }).eq('id', editingLink.id).eq('user.id', user.id); // Corrected to user.id
+        }).eq('id', editingLink.id).eq('user_id', user.id); // Corrected to user.id
         if (error) throw error;
         showSuccess("Link updated successfully!");
         console.log("[LinkEditorOverlay] Link updated:", editingLink.id);
@@ -291,34 +277,32 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
         <span className="text-[9px] font-mono text-slate-400 uppercase">Page {pageNumber} / {pdfNumPages || '?'}</span>
       </div>
       <div className="flex-1 relative overflow-hidden flex items-center justify-center" ref={pageRef}>
-        {isLoadingPdf ? (
-          <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
-        ) : pdfError ? (
+        {pdfError ? (
           <div className="text-red-400 text-center p-4">{pdfError}</div>
+        ) : !chartUrl ? (
+          <div className="text-slate-500 text-sm italic">No chart available.</div>
         ) : (
           <div
             className="relative w-full h-full flex items-center justify-center overflow-auto"
             onClick={(e) => handleTap(e, type, pageNumber, pageRef)}
           >
-            {chartUrl && ( // Render Document if chartUrl is available
-              <Document
-                file={chartUrl} // Use chartUrl here
-                onLoadSuccess={handleDocumentLoadSuccess}
-                onLoadError={handleDocumentLoadError}
-                loading={<Loader2 className="w-12 h-12 animate-spin text-indigo-500" />}
-                className="flex items-center justify-center"
-              >
-                {pdfDocument && ( // Render Page only if pdfDocument is loaded
-                  <Page
-                    pageNumber={pageNumber}
-                    scale={pdfScale}
-                    renderAnnotationLayer={false}
-                    renderTextLayer={false}
-                    loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
-                  />
-                )}
-              </Document>
-            )}
+            <Document
+              file={chartUrl} // Use chartUrl here
+              onLoadSuccess={handleDocumentLoadSuccess}
+              onLoadError={handleDocumentLoadError}
+              loading={<Loader2 className="w-12 h-12 animate-spin text-indigo-500" />}
+              className="flex items-center justify-center"
+            >
+              {pdfDocument && ( // Render Page only if pdfDocument is loaded
+                <Page
+                  pageNumber={pageNumber}
+                  scale={pdfScale}
+                  renderAnnotationLayer={false}
+                  renderTextLayer={false}
+                  loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
+                />
+              )}
+            </Document>
             {point && point.page === pageNumber && (
               <div style={getLinkDotStyle(point, type, pageNumber)} />
             )}
