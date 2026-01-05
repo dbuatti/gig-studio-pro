@@ -18,8 +18,8 @@ import LinkDisplayOverlay, { SheetLink } from '@/components/LinkDisplayOverlay';
 import LinkSizeModal from '@/components/LinkSizeModal';
 import { useSettings } from '@/hooks/use-settings';
 import { useNavigate } from 'react-router-dom';
-import { useSpring, animated } from '@react-spring/web'; // NEW
-import { useDrag } from '@use-gesture/react'; // NEW
+import { useSpring, animated } from '@react-spring/web';
+import { useDrag } from '@use-gesture/react';
 
 // Configure PDF.js worker source
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
@@ -54,9 +54,8 @@ const DebugPage: React.FC = () => {
   const overlayWrapperRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // NEW: Refs for swipe logic
-  const swipeThreshold = 50; // Pixels for horizontal swipe to register
-  const navigatedRef = useRef(false); // Ref to prevent multiple navigations per swipe
+  const swipeThreshold = 50;
+  const navigatedRef = useRef(false);
 
   useEffect(() => {
     const initializeDebugSong = async () => {
@@ -334,6 +333,12 @@ const DebugPage: React.FC = () => {
     if (!down) { // Drag has ended
       if (navigatedRef.current) {
         navigatedRef.current = false;
+      } else {
+        // If it's not a drag (movement is small) and no navigation happened, it's a tap
+        const isTap = Math.abs(mx) < 10; // Small threshold for tap detection
+        if (isTap) {
+          toggleFullScreen();
+        }
       }
       return;
     }
@@ -365,9 +370,9 @@ const DebugPage: React.FC = () => {
     }
   }, {
     threshold: 5,
-    filterTaps: true, // This ensures onClick is only called for taps
+    filterTaps: false, // No longer need filterTaps if handling tap manually
     axis: 'x',
-    onClick: toggleFullScreen // This will handle taps for fullscreen
+    // No onClick here, handled within the drag callback
   });
 
   return (
@@ -514,16 +519,16 @@ const DebugPage: React.FC = () => {
         {pdfError && <div className="text-red-400 text-center p-4">{pdfError}</div>}
         {testPdfUrl && !isLoadingPdf && !pdfError && (
           <div className="relative w-full h-full flex items-center justify-center overflow-auto">
-            <animated.div // NEW: Apply animated.div and bind here
+            <animated.div
                 {...bind()}
                 style={{
-                    touchAction: 'none', // Disable all touch actions on this element for precise control
+                    touchAction: 'none',
                     width: '100%',
                     height: '100%',
                     display: 'flex',
                     justifyContent: 'center',
                     alignItems: 'flex-start',
-                    paddingTop: isFullScreen ? '0px' : '0px', // No dynamic padding needed here for debug
+                    paddingTop: isFullScreen ? '0px' : '0px',
                 }}
                 className="relative"
             >
