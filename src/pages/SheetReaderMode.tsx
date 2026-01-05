@@ -26,11 +26,12 @@ import RepertoireSearchModal from '@/components/RepertoireSearchModal';
 import FullScreenSongInfo from '@/components/FullScreenSongInfo';
 import { AnimatePresence } from 'framer-motion';
 import { Document, Page, pdfjs } from 'react-pdf';
-import { PDFDocumentProxy } from 'pdfjs-dist/types/src/display/api'; // Corrected import path for PDFDocumentProxy
+import { PDFDocumentProxy } from 'pdfjs-dist/types/src/display/api';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import { useSpring, animated } from '@react-spring/web';
 import { useDrag } from '@use-gesture/react';
+import SheetReaderAudioPlayer from '@/components/SheetReaderAudioPlayer'; // NEW: Import the audio player
 
 // Configure PDF.js worker source to point to the file in the public directory
 // Ensure 'pdf.worker.min.js' is copied to your project's 'public' directory.
@@ -70,6 +71,7 @@ const SheetReaderMode: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Changed to false
   const [isRepertoireSearchModalOpen, setIsRepertoireSearchModalOpen] = useState(false);
   const [isInfoOverlayVisible, setIsInfoOverlayVisible] = useState(true); // NEW: State for info overlay visibility
+  const [isAudioPlayerVisible, setIsAudioPlayerVisible] = useState(true); // NEW: State for audio player visibility
 
   const [readerKeyPreference, setReaderKeyPreference] = useState<'sharps' | 'flats'>(
     globalKeyPreference === 'neutral' ? 'sharps' : globalKeyPreference
@@ -213,7 +215,7 @@ const SheetReaderMode: React.FC = () => {
       let activeSetlistSongsList: SetlistSong[] = [];
 
       // Always fetch full master repertoire
-      const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user_id', user.id).order('title');
+      const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user.id', user.id).order('title');
       if (masterError) throw masterError;
       masterRepertoireList = (masterData || []).map((d: any) => ({
         id: d.id,
@@ -479,6 +481,7 @@ const SheetReaderMode: React.FC = () => {
       setIsBrowserFullScreen(prev => !prev);
       // For standalone, we always show info overlay by default when toggling fullscreen
       setIsInfoOverlayVisible(true); 
+      setIsAudioPlayerVisible(true); // NEW: Show audio player in standalone fullscreen
       return;
     }
 
@@ -492,9 +495,11 @@ const SheetReaderMode: React.FC = () => {
       } else {
         setIsInfoOverlayVisible(true); // Keep visible for chords by default
       }
+      setIsAudioPlayerVisible(true); // NEW: Show audio player when entering browser fullscreen
     } else {
       document.exitFullscreen();
       setIsInfoOverlayVisible(false); // Always hide info overlay when exiting fullscreen
+      setIsAudioPlayerVisible(false); // NEW: Hide audio player when exiting browser fullscreen
     }
   }, [selectedChartType]);
 
@@ -505,6 +510,7 @@ const SheetReaderMode: React.FC = () => {
         setIsBrowserFullScreen(!!document.fullscreenElement);
         if (!document.fullscreenElement) {
           setIsInfoOverlayVisible(false); // Ensure info overlay is hidden when exiting fullscreen
+          setIsAudioPlayerVisible(false); // NEW: Ensure audio player is hidden when exiting fullscreen
         }
       }
     };
@@ -578,6 +584,11 @@ const SheetReaderMode: React.FC = () => {
             e.preventDefault();
             onOpenCurrentSongStudio();
           }
+          break;
+        case 'p':
+        case 'P':
+          e.preventDefault();
+          setIsAudioPlayerVisible(prev => !prev); // Toggle audio player visibility
           break;
       }
     };
@@ -731,6 +742,7 @@ const SheetReaderMode: React.FC = () => {
           className={cn(
             "flex-1 bg-black relative overflow-hidden", // overflow-hidden for the animated.div to handle swipe
             isBrowserFullScreen ? "mt-0" : "mt-[72px]", // Adjusted margin-top for new header height
+            isAudioPlayerVisible && currentSong ? "pb-24" : "pb-0", // NEW: Add padding-bottom if player is visible
             "overscroll-behavior-x-contain"
           )}
           onClick={toggleBrowserFullScreen} // Add onClick handler here
@@ -866,6 +878,26 @@ const SheetReaderMode: React.FC = () => {
       />
 
       <PreferencesModal isOpen={isPreferencesOpen} onClose={() => setIsPreferencesOpen(false)} />
+
+      {/* NEW: Audio Player at the bottom */}
+      <SheetReaderAudioPlayer
+        currentSong={currentSong}
+        isPlaying={isPlaying}
+        progress={progress}
+        duration={duration}
+        onTogglePlayback={audioEngine.togglePlayback}
+        onNext={handleNext}
+        onPrevious={handlePrev}
+        onSeek={audioEngine.setProgress}
+        volume={volume}
+        setVolume={setVolume}
+        pitch={effectivePitch}
+        setPitch={setPitch}
+        isLoadingAudio={isLoadingAudio}
+        readerKeyPreference={readerKeyPreference}
+        effectiveTargetKey={effectiveTargetKey}
+        isPlayerVisible={isAudioPlayerVisible && !isBrowserFullScreen} // Only show if not in browser fullscreen
+      />
     </div>
   );
 };
