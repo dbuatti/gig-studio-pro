@@ -477,7 +477,8 @@ const SheetReaderMode: React.FC = () => {
     
     if (isStandalone) {
       setIsBrowserFullScreen(prev => !prev);
-      setIsInfoOverlayVisible(true); // Show info overlay when entering fullscreen
+      // For standalone, we always show info overlay by default when toggling fullscreen
+      setIsInfoOverlayVisible(true); 
       return;
     }
 
@@ -485,12 +486,17 @@ const SheetReaderMode: React.FC = () => {
       document.documentElement.requestFullscreen().catch(err => {
         showError(`Error attempting to enable fullscreen mode: ${err.message} (${err.name})`);
       });
-      setIsInfoOverlayVisible(true); // Show info overlay when entering fullscreen
+      // When entering fullscreen, hide info overlay if it's a PDF/leadsheet
+      if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
+        setIsInfoOverlayVisible(false);
+      } else {
+        setIsInfoOverlayVisible(true); // Keep visible for chords by default
+      }
     } else {
       document.exitFullscreen();
-      setIsInfoOverlayVisible(false); // Hide info overlay when exiting fullscreen
+      setIsInfoOverlayVisible(false); // Always hide info overlay when exiting fullscreen
     }
-  }, []);
+  }, [selectedChartType]);
 
   useEffect(() => {
     const handleFullScreenChange = () => {
@@ -505,6 +511,18 @@ const SheetReaderMode: React.FC = () => {
     document.addEventListener('fullscreenchange', handleFullScreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullScreenChange);
   }, []);
+
+  // NEW: Effect to manage info overlay visibility when song or chart type changes in fullscreen
+  useEffect(() => {
+    if (isBrowserFullScreen) {
+      if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
+        setIsInfoOverlayVisible(false); // Auto-hide for PDFs/leadsheets in fullscreen
+      } else {
+        setIsInfoOverlayVisible(true); // Auto-show for chords in fullscreen
+      }
+    }
+  }, [currentSong?.id, selectedChartType, isBrowserFullScreen]);
+
 
   const onOpenCurrentSongStudio = useCallback(() => {
     if (currentSong) {
