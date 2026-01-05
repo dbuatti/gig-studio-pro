@@ -218,9 +218,9 @@ const SheetReaderMode: React.FC = () => {
       
       // 1. Apply settings immediately (these setters update the Tone.js engine directly)
       audioEngine.setPitch(currentSong.pitch || 0);
-      audioEngine.setTempo(currentSong.tempo || 1);
-      // audioEngine.setVolume(currentSong.volume || -6); // REMOVED: Let useToneAudio manage its own volume state
-      audioEngine.setFineTune(currentSong.fineTune || 0);
+      audioEngine.setTempo(currentSong.tempo || 1); 
+        // Removed audioEngine.setVolume(currentSong.volume || -6); // REMOVED: Let useToneAudio manage its own volume state
+        audioEngine.setFineTune(currentSong.fineTune || 0);
 
       // 2. Load audio if URL exists
       if (urlToLoad) {
@@ -357,7 +357,7 @@ const SheetReaderMode: React.FC = () => {
             genre: masterSong.genre,
             isSyncing: false,
             isMetadataConfirmed: masterSong.is_metadata_confirmed,
-            isKeyConfirmed: masterSong.is_key_confirmed,
+            isKeyConfirmed: master.is_key_confirmed,
             notes: masterSong.notes,
             lyrics: masterSong.lyrics,
             resources: masterSong.resources || [],
@@ -706,12 +706,12 @@ const SheetReaderMode: React.FC = () => {
   // NEW: Effect for ResizeObserver
   useEffect(() => {
     const container = chartContainerRef.current;
-    if (!container || !pdfDocument) return;
+    if (!container || !pdfDocument) return; // Use pdfDocument here
 
     const resizeObserver = new ResizeObserver(entries => {
       for (let entry of entries) {
         if (entry.target === container) {
-          calculatePdfScale(pdfDocument, container, pdfCurrentPage);
+          calculatePdfScale(pdfDocument, container, pdfCurrentPage); // Use pdfDocument and pdfCurrentPage here
         }
       }
     });
@@ -721,7 +721,7 @@ const SheetReaderMode: React.FC = () => {
     return () => {
       resizeObserver.unobserve(container);
     };
-  }, [pdfDocument, pdfCurrentPage, calculatePdfScale]);
+  }, [pdfDocument, pdfCurrentPage, calculatePdfScale]); // Use pdfDocument and pdfCurrentPage in dependencies
 
 
   // --- Gesture Implementation ---
@@ -886,7 +886,7 @@ const SheetReaderMode: React.FC = () => {
                   console.log("[SheetReaderMode] Attempting to load PDF from URL:", url); // Log PDF URL
                   if (url) {
                     return (
-                      <div className="w-full h-full overflow-x-auto overflow-y-hidden flex justify-center items-center"> {/* Allow horizontal scroll for wide pages */}
+                      <div className="w-full h-full overflow-x-auto overflow-y-hidden flex justify-center items-center relative"> {/* Add relative to this wrapper */}
                         <Document
                           file={url}
                           onLoadSuccess={async (pdf) => { // Store pdf instance
@@ -918,14 +918,16 @@ const SheetReaderMode: React.FC = () => {
                           />
                         </Document>
                         {/* NEW: LinkDisplayOverlay for PDF charts */}
-                        <LinkDisplayOverlay
-                          links={links}
-                          currentPage={pdfCurrentPage}
-                          onNavigateToPage={handleNavigateToPage}
-                          onLinkDeleted={fetchLinks} // Refresh links after deletion
-                          isEditingMode={isEditingLinksMode}
-                          onEditLink={(link) => showInfo(`Editing link ${link.id} is not yet implemented.`)} // Placeholder for edit
-                        />
+                        <div className="absolute inset-0 z-30 pointer-events-none"> {/* New wrapper for overlay */}
+                          <LinkDisplayOverlay
+                            links={links}
+                            currentPage={pdfCurrentPage}
+                            onNavigateToPage={handleNavigateToPage}
+                            onLinkDeleted={fetchLinks} // Refresh links after deletion
+                            isEditingMode={isEditingLinksMode}
+                            onEditLink={(link) => showInfo(`Editing link ${link.id} is not yet implemented.`)} // Placeholder for edit
+                          />
+                        </div>
                       </div>
                     );
                   }
