@@ -206,14 +206,22 @@ const SheetReaderMode: React.FC = () => {
   useEffect(() => {
     if (currentSong) {
       const urlToLoad = currentSong.audio_url || currentSong.previewUrl;
+      
+      // 1. Apply settings immediately (these setters update the Tone.js engine directly)
+      audioEngine.setPitch(currentSong.pitch || 0);
+      audioEngine.setTempo(currentSong.tempo || 1);
+      audioEngine.setVolume(currentSong.volume || -6);
+      audioEngine.setFineTune(currentSong.fineTune || 0);
+
+      // 2. Load audio if URL exists
       if (urlToLoad) {
         console.log("[SheetReaderMode] Current song changed, loading audio:", urlToLoad);
-        // Reset audio engine before loading new audio
-        audioEngine.resetEngine();
+        // Removed audioEngine.resetEngine() from here.
+        // audioEngine.loadFromUrl will handle if it needs to re-fetch or just update pitch.
         audioEngine.loadFromUrl(urlToLoad, currentSong.pitch || 0);
       } else {
         console.log("[SheetReaderMode] Current song has no audio link, resetting engine.");
-        audioEngine.resetEngine();
+        audioEngine.resetEngine(); // Keep this if there's no URL to ensure player is cleared
         showWarning("Selected song has no audio link.");
       }
     } else {
