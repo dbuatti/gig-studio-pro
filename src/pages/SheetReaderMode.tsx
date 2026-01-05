@@ -357,7 +357,7 @@ const SheetReaderMode: React.FC = () => {
             genre: masterSong.genre,
             isSyncing: false,
             isMetadataConfirmed: masterSong.is_metadata_confirmed,
-            isKeyConfirmed: master.is_key_confirmed,
+            isKeyConfirmed: masterSong.is_key_confirmed, // Corrected from 'master.is_key_confirmed'
             notes: masterSong.notes,
             lyrics: masterSong.lyrics,
             resources: masterSong.resources || [],
