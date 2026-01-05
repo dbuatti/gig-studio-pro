@@ -186,6 +186,20 @@ export function useSettings() {
     }
   }, [user]);
 
+  const updateAllSheetLinksSize = useCallback(async (newSize: 'small' | 'medium' | 'large' | 'extra-large') => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from('sheet_links')
+        .update({ link_size: newSize })
+        .eq('user_id', user.id);
+      if (error) throw error;
+      console.log(`[useSettings] All sheet links updated to size: ${newSize}`);
+    } catch (err: any) {
+      console.error("[useSettings] Failed to update all sheet links size:", err.message);
+    }
+  }, [user]);
+
   return {
     ...settings,
     setKeyPreference: (pref: KeyPreference) => updateSetting('keyPreference', pref),
@@ -208,6 +222,7 @@ export function useSettings() {
     setUgChordsTextAlign: (align: 'left' | 'center' | 'right') => updateSetting('ugChordsTextAlign', align),
     setPreventStageKeyOverwrite: (prevent: boolean) => updateSetting('preventStageKeyOverwrite', prevent),
     setLinkSize: (size: 'small' | 'medium' | 'large' | 'extra-large') => updateSetting('linkSize', size), // NEW
+    updateAllSheetLinksSize, // NEW: Expose the function
     isFetchingSettings,
   };
 }

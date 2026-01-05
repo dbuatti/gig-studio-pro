@@ -13,13 +13,17 @@ import { showSuccess } from '@/utils/toast';
 interface LinkSizeModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onLinkSizeUpdated: () => void; // NEW: Callback to trigger parent refresh
 }
 
-const LinkSizeModal: React.FC<LinkSizeModalProps> = ({ isOpen, onClose }) => {
-  const { linkSize, setLinkSize } = useSettings();
+const LinkSizeModal: React.FC<LinkSizeModalProps> = ({ isOpen, onClose, onLinkSizeUpdated }) => {
+  const { linkSize, setLinkSize, updateAllSheetLinksSize } = useSettings();
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    await setLinkSize(linkSize); // Update user profile setting
+    await updateAllSheetLinksSize(linkSize); // Update all existing links in DB
     showSuccess("Link size updated!");
+    onLinkSizeUpdated(); // Trigger parent to re-fetch links
     onClose();
   };
 

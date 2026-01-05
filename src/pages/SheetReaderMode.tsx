@@ -226,7 +226,6 @@ const SheetReaderMode: React.FC = () => {
 
       // 2. Load audio if URL exists
       if (urlToLoad) {
-        // console.log("[SheetReaderMode] Current song changed, loading audio:", urlToLoad); // Removed verbose log
         // Removed audioEngine.resetEngine() from here.
         // audioEngine.loadFromUrl will handle if it needs to re-fetch or just update pitch.
         audioEngine.loadFromUrl(urlToLoad, currentSong.pitch || 0);
@@ -926,7 +925,7 @@ const SheetReaderMode: React.FC = () => {
                             onRenderSuccess={(page) => {
                               setIsChartContentLoading(false);
                             }}
-                            inputRef={pageRef} // Pass ref to the rendered page div
+                            inputRef={pageRef} // Pass ref to the rendered PDF page div
                           />
                         </Document>
                         {/* NEW: LinkDisplayOverlay for PDF charts */}
@@ -939,7 +938,7 @@ const SheetReaderMode: React.FC = () => {
                             isEditingMode={isEditingLinksMode}
                             onEditLink={(link) => showInfo(`Editing link ${link.id} is not yet implemented.`)} // Placeholder for edit
                             pageContainerRef={pageRef} // Pass the ref
-                            pdfScale={pdfScale || 1}
+                            pdfScale={pdfScale}
                             overlayWrapperRef={overlayWrapperRef} // PASS NEW REF
                           />
                         </div>
@@ -1045,6 +1044,7 @@ const SheetReaderMode: React.FC = () => {
       <LinkSizeModal
         isOpen={isLinkSizeModalOpen}
         onClose={() => setIsLinkSizeModalOpen(false)}
+        onLinkSizeUpdated={fetchLinks}
       />
     </div>
   );

@@ -527,6 +527,7 @@ const DebugPage: React.FC = () => {
       <LinkSizeModal
         isOpen={isLinkSizeModalOpen}
         onClose={() => setIsLinkSizeModalOpen(false)}
+        onLinkSizeUpdated={fetchLinks}
       />
     </div>
   );
