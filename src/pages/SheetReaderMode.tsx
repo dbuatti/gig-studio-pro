@@ -702,6 +702,7 @@ const SheetReaderMode: React.FC = () => {
                   duration={duration}
                   readerKeyPreference={readerKeyPreference}
                   onChartReady={() => setIsChartContentLoading(false)}
+                  isFullScreen={isBrowserFullScreen} // Pass isFullScreen prop
                 />
               ) : (
                 (() => {

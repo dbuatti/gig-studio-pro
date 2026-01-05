@@ -18,6 +18,7 @@ interface UGChordsReaderProps {
   duration: number;
   readerKeyPreference?: KeyPreference;
   onChartReady?: () => void;
+  isFullScreen?: boolean; // NEW: Add isFullScreen prop
 }
 
 const UGChordsReader = React.memo(({
@@ -28,6 +29,7 @@ const UGChordsReader = React.memo(({
   targetKey,
   readerKeyPreference,
   onChartReady,
+  isFullScreen, // NEW: Destructure isFullScreen
 }: UGChordsReaderProps) => {
   const { 
     keyPreference: globalKeyPreference,
@@ -80,7 +82,8 @@ const UGChordsReader = React.memo(({
       ref={scrollContainerRef}
       className={cn(
         "h-full w-full bg-slate-950 p-4 md:p-12 overflow-y-auto border border-white/10 font-mono custom-scrollbar block",
-        isMobile ? "text-sm" : "text-base"
+        isMobile ? "text-sm" : "text-base",
+        isFullScreen && "pt-16" // NEW: Add padding-top when in fullscreen
       )}
       style={{ 
         fontFamily: resolvedConfig.fontFamily,
