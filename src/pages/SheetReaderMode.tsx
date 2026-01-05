@@ -32,6 +32,7 @@ import { useSpring, animated } from '@react-spring/web';
 import { useDrag } from '@use-gesture/react';
 
 // Configure PDF.js worker source to point to the file in the public directory
+// Ensure 'pdf.worker.min.js' is copied to your project's 'public' directory.
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 console.log("[SheetReaderMode] pdfjs.GlobalWorkerOptions.workerSrc set to:", pdfjs.GlobalWorkerOptions.workerSrc);
 
