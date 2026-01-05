@@ -51,13 +51,72 @@ const DebugPage: React.FC = () => {
 
   // Ensure a debug song ID exists for link creation
   useEffect(() => {
-    if (!debugSongId && user) {
-      const newId = crypto.randomUUID();
-      setDebugSongId(newId);
-      localStorage.setItem(DEBUG_SONG_ID_KEY, newId);
-      console.log("[DebugPage] Generated new debug song ID:", newId);
+    const initializeDebugSong = async () => {
+      if (!user) return;
+
+      let currentDebugSongId = localStorage.getItem(DEBUG_SONG_ID_KEY);
+      let songExistsInDb = false;
+
+      if (currentDebugSongId) {
+        // Check if the song exists in the repertoire table
+        const { data, error } = await supabase
+          .from('repertoire')
+          .select('id')
+          .eq('id', currentDebugSongId)
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (data) {
+          songExistsInDb = true;
+        } else if (error && error.code !== 'PGRST116') { // PGRST116 means "no rows found"
+          console.error("[DebugPage] Error checking debug song existence:", error.message);
+          showError("Failed to check debug song existence.");
+          currentDebugSongId = null; // Force creation of a new one if DB check fails
+        }
+      }
+
+      if (!currentDebugSongId || !songExistsInDb) {
+        const newId = crypto.randomUUID();
+        console.log("[DebugPage] Creating new debug song in repertoire with ID:", newId);
+        try {
+          const { error: insertError } = await supabase
+            .from('repertoire')
+            .insert({
+              id: newId,
+              user_id: user.id,
+              title: "Debug Song for Link Testing",
+              artist: "Dyad AI",
+              original_key: "C",
+              target_key: "C",
+              pitch: 0,
+              bpm: "120",
+              genre: "Test",
+              is_active: true,
+              is_metadata_confirmed: true,
+              is_key_confirmed: true,
+              lyrics: "This is a dummy song for testing sheet music links.",
+              preview_url: "", // No audio needed for link testing
+              extraction_status: "completed", // Mark as completed to avoid processing
+              is_in_library: false, // Mark as not in main library
+            });
+
+          if (insertError) throw insertError;
+          currentDebugSongId = newId;
+          localStorage.setItem(DEBUG_SONG_ID_KEY, newId);
+          showSuccess("Debug song created for linking tests!");
+        } catch (err: any) {
+          console.error("[DebugPage] Failed to create debug song:", err.message);
+          showError("Failed to create debug song. Linking might not work.");
+          return; // Abort if debug song creation fails
+        }
+      }
+      setDebugSongId(currentDebugSongId);
+    };
+
+    if (user) {
+      initializeDebugSong();
     }
-  }, [debugSongId, user]);
+  }, [user]);
 
   // Fetch links when PDF URL or song ID changes
   const fetchLinks = useCallback(async () => {
@@ -411,7 +470,7 @@ const DebugPage: React.FC = () => {
           chartUrl={testPdfUrl}
           pdfDocument={pdfDocument}
           onLinkCreated={fetchLinks}
-          // Pass editingLink if we implement editing functionality
+          editingLink={editingLink} // Pass editingLink for editing functionality
         />
       )}
 
