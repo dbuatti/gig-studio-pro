@@ -31,12 +31,11 @@ import 'react-pdf/dist/Page/TextLayer.css';
 import { useSpring, animated } from '@react-spring/web';
 import { useDrag } from '@use-gesture/react';
 
+// CORRECTED: Import the worker entry directly from pdfjs-dist
+import pdfWorker from 'pdfjs-dist/build/pdf.worker.entry';
+
 // Configure PDF.js worker source using the locally bundled worker
-// CORRECTED: Use new URL() to correctly reference the worker file for Vite
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.js',
-  import.meta.url,
-).toString();
+pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 export type ChartType = 'pdf' | 'leadsheet' | 'chords';
 
@@ -696,7 +695,7 @@ const SheetReaderMode: React.FC = () => {
           )}
         >
           <animated.div 
-            {...bind}  
+            {...bind()}  
             style={{ 
               x: springX, 
               touchAction: 'none'
