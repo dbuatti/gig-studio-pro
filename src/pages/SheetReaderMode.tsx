@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
 import { calculateReadiness, syncToMasterRepertoire } from '@/utils/repertoireSync';
-import { showError, showSuccess, showInfo } from '@/utils/toast';
+import { showError, showSuccess, showInfo, showWarning } from '@/utils/toast';
 import UGChordsReader from '@/components/UGChordsReader';
 import { useToneAudio } from '@/hooks/use-tone-audio';
 import { calculateSemitones } from '@/utils/keyUtils';
@@ -201,6 +201,26 @@ const SheetReaderMode: React.FC = () => {
   useEffect(() => {
     setAudioPitch(effectivePitch);
   }, [effectivePitch, setAudioPitch]);
+
+  // NEW: Effect to load audio when currentSong changes
+  useEffect(() => {
+    if (currentSong) {
+      const urlToLoad = currentSong.audio_url || currentSong.previewUrl;
+      if (urlToLoad) {
+        console.log("[SheetReaderMode] Current song changed, loading audio:", urlToLoad);
+        // Reset audio engine before loading new audio
+        audioEngine.resetEngine();
+        audioEngine.loadFromUrl(urlToLoad, currentSong.pitch || 0);
+      } else {
+        console.log("[SheetReaderMode] Current song has no audio link, resetting engine.");
+        audioEngine.resetEngine();
+        showWarning("Selected song has no audio link.");
+      }
+    } else {
+      console.log("[SheetReaderMode] No current song, resetting audio engine.");
+      audioEngine.resetEngine();
+    }
+  }, [currentSong, audioEngine, showWarning]); // Add showWarning to dependencies
 
   const fetchSongs = useCallback(async () => {
     if (!user) return;
