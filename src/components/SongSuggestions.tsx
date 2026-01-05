@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Sparkles, Loader2, Music, Search, Target, CheckCircle2, ListPlus, Trash2, RotateCcw, X, Library } from 'lucide-react'; 
+import { Sparkles, Loader2, Music, Search, Target, CheckCircle2, ListPlus, Trash2, RotateCcw, X } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
@@ -18,14 +18,12 @@ let sessionIgnoredCache: any[] = [];
 let sessionInitialLoadAttempted = false;
 
 interface SongSuggestionsProps {
-  repertoire: SetlistSong[]; // Master repertoire
+  repertoire: SetlistSong[];
   onSelectSuggestion: (query: string) => void;
-  onAddExistingSongToSetlist?: (song: SetlistSong) => void; // Renamed and clarified
-  onAddNewSongToMasterAndSetlist?: (newSongData: Partial<SetlistSong>) => void; // NEW
-  currentSetlistSongs?: SetlistSong[]; // Songs in the active setlist
+  onAddExistingSong?: (song: SetlistSong) => void;
 }
 
-export const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectSuggestion, onAddExistingSongToSetlist, onAddNewSongToMasterAndSetlist, currentSetlistSongs }) => {
+const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectSuggestion, onAddExistingSong }) => {
   const [rawSuggestions, setRawSuggestions] = useState<any[]>(sessionSuggestionsCache || []);
   const [ignoredSuggestions, setIgnoredSuggestions] = useState<any[]>(sessionIgnoredCache);
   const [isLoadingInitial, setIsLoadingInitial] = useState(true); // For initial load
@@ -36,28 +34,19 @@ export const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, on
   const getSongKey = (s: { name: string; artist?: string }) => 
     `${s.name.trim().toLowerCase()}-${(s.artist || "").trim().toLowerCase()}`;
 
-  const masterRepertoireKeys = useMemo(() => {
+  const existingKeys = useMemo(() => {
     return new Set(repertoire.map(s => getSongKey(s)));
   }, [repertoire]);
 
-  const currentSetlistKeys = useMemo(() => {
-    return new Set(currentSetlistSongs?.map(s => getSongKey(s)) || []);
-  }, [currentSetlistSongs]);
-
   const suggestions = useMemo(() => {
-    return rawSuggestions.map(s => {
-      const masterSong = repertoire.find(r => getSongKey(r) === getSongKey(s)); // Find the actual master song
-      return {
-        ...s,
-        masterSong: masterSong, // Store the master song object if found
-        isInMasterRepertoire: !!masterSong,
-        isInCurrentSetlist: currentSetlistKeys.has(getSongKey(s)),
-      };
-    });
-  }, [rawSuggestions, repertoire, currentSetlistKeys]);
+    return rawSuggestions.map(s => ({
+      ...s,
+      isDuplicate: existingKeys.has(getSongKey(s))
+    }));
+  }, [rawSuggestions, existingKeys]);
 
   const duplicateCount = useMemo(() => 
-    suggestions.filter(s => s.isInCurrentSetlist).length, 
+    suggestions.filter(s => s.isDuplicate).length, 
   [suggestions]);
 
   const seedSong = useMemo(() => 
@@ -94,7 +83,7 @@ export const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, on
           combined.forEach(s => {
             const key = getSongKey(s);
             const isIgnored = sessionIgnoredCache.some(i => getSongKey(i) === key);
-            if (!masterRepertoireKeys.has(key) && !currentSetlistKeys.has(key) && !isIgnored && !uniqueMap.has(key)) {
+            if (!existingKeys.has(key) && !isIgnored && !uniqueMap.has(key)) {
               uniqueMap.set(key, s);
             }
           });
@@ -118,7 +107,7 @@ export const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, on
         setIsLoadingInitial(false);
       }
     }
-  }, [repertoire, seedSong, masterRepertoireKeys, currentSetlistKeys]);
+  }, [repertoire, seedSong, existingKeys]);
 
   useEffect(() => {
     if (repertoire.length > 0 && !sessionInitialLoadAttempted && rawSuggestions.length === 0) {
@@ -145,8 +134,8 @@ export const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, on
   };
 
   const handleClearDuplicates = () => {
-    const duplicates = rawSuggestions.filter(s => masterRepertoireKeys.has(getSongKey(s)) || currentSetlistKeys.has(getSongKey(s)));
-    const filtered = rawSuggestions.filter(s => !masterRepertoireKeys.has(getSongKey(s)) && !currentSetlistKeys.has(getSongKey(s)));
+    const duplicates = rawSuggestions.filter(s => existingKeys.has(getSongKey(s)));
+    const filtered = rawSuggestions.filter(s => !existingKeys.has(getSongKey(s)));
     
     const newIgnored = [...ignoredSuggestions, ...duplicates];
     setIgnoredSuggestions(newIgnored);
@@ -247,28 +236,21 @@ export const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, on
                   key={i}
                   className={cn(
                     "group p-4 border rounded-2xl transition-all shadow-sm relative overflow-hidden",
-                    song.isInCurrentSetlist 
-                      ? "bg-emerald-500/10 border-emerald-500/20"
-                      : song.isInMasterRepertoire 
-                        ? "bg-indigo-500/10 border-indigo-500/20"
-                        : "bg-card border-border hover:border-primary/20"
+                    song.isDuplicate 
+                      ? "bg-secondary/50 border-border opacity-60"
+                      : "bg-card border-border hover:border-primary/20"
                   )}
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <h4 className="text-sm font-black uppercase tracking-tight truncate text-foreground">{song.name}</h4>
-                        {song.isInCurrentSetlist && <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
-                        {song.isInMasterRepertoire && !song.isInCurrentSetlist && <Library className="w-3 h-3 text-indigo-500" />}
+                        {song.isDuplicate && <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
                       </div>
                       <p className="text-[10px] font-black text-primary uppercase tracking-widest mt-0.5">{song.artist}</p>
-                      {song.isInCurrentSetlist ? (
-                        <span className="inline-block mt-2 text-[8px] font-black bg-emerald-500/20 text-emerald-600 px-2 py-0.5 rounded-full uppercase tracking-tighter">
-                          Already in Active Gig
-                        </span>
-                      ) : song.isInMasterRepertoire ? (
-                        <span className="inline-block mt-2 text-[8px] font-black bg-indigo-500/20 text-indigo-600 px-2 py-0.5 rounded-full uppercase tracking-tighter">
-                          Already in Master Library
+                      {song.isDuplicate ? (
+                        <span className="inline-block mt-2 text-[8px] font-black bg-emerald-50/20 text-emerald-600 px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                          Already in Set
                         </span>
                       ) : song.reason && (
                         <p className="text-[9px] text-muted-foreground font-bold uppercase mt-2 leading-relaxed">
@@ -288,7 +270,7 @@ export const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, on
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                       
-                      {!song.isInCurrentSetlist && ( // Only show "Add" or "Add to Setlist" if not already in current setlist
+                      {!song.isDuplicate && (
                         <>
                           <Button 
                             variant="ghost" 
@@ -299,56 +281,44 @@ export const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, on
                           >
                             <Search className="w-3.5 h-3.5" />
                           </Button>
-                          {song.isInMasterRepertoire ? (
-                            // If in master repertoire, add to current setlist
-                            onAddExistingSongToSetlist && (
-                              <Button
-                                onClick={() => onAddExistingSongToSetlist(song.masterSong!)} // Pass the actual master song
-                                className="h-8 px-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] rounded-lg gap-2 shadow-sm"
-                              >
-                                <ListPlus className="w-3.5 h-3.5" /> Add to Setlist
-                              </Button>
-                            )
-                          ) : (
-                            // If not in master repertoire, add as a new song (which will first sync to master)
-                            onAddNewSongToMasterAndSetlist && (
-                              <Button
-                                onClick={() => onAddNewSongToMasterAndSetlist({
-                                  name: song.name,
-                                  artist: song.artist,
-                                  previewUrl: "",
-                                  pitch: 0,
-                                  originalKey: "C",
-                                  targetKey: "C",
-                                  isPlayed: false,
-                                  isSyncing: true,
-                                  isMetadataConfirmed: false,
-                                  isKeyConfirmed: false,
-                                  duration_seconds: 0,
-                                  notes: "",
-                                  lyrics: "",
-                                  resources: [],
-                                  user_tags: [],
-                                  is_pitch_linked: true,
-                                  isApproved: false,
-                                  preferred_reader: null,
-                                  ug_chords_config: DEFAULT_UG_CHORDS_CONFIG,
-                                  is_ug_chords_present: false,
-                                  highest_note_original: null,
-                                  is_ug_link_verified: false,
-                                  metadata_source: null,
-                                  sync_status: 'IDLE',
-                                  last_sync_log: null,
-                                  auto_synced: false,
-                                  is_sheet_verified: false,
-                                  sheet_music_url: null,
-                                  extraction_status: 'idle', 
-                                })}
-                                className="h-8 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-[10px] rounded-lg gap-2 shadow-sm"
-                              >
-                                <ListPlus className="w-3.5 h-3.5" /> Add New
-                              </Button>
-                            )
+                          {onAddExistingSong && (
+                            <Button
+                              onClick={() => onAddExistingSong({
+                                id: crypto.randomUUID(),
+                                name: song.name,
+                                artist: song.artist,
+                                previewUrl: "",
+                                pitch: 0,
+                                originalKey: "C",
+                                targetKey: "C",
+                                isPlayed: false,
+                                isSyncing: true,
+                                isMetadataConfirmed: false,
+                                isKeyConfirmed: false,
+                                duration_seconds: 0,
+                                notes: "",
+                                lyrics: "",
+                                resources: [],
+                                user_tags: [],
+                                is_pitch_linked: true,
+                                isApproved: false,
+                                preferred_reader: null,
+                                ug_chords_config: DEFAULT_UG_CHORDS_CONFIG,
+                                is_ug_chords_present: false,
+                                highest_note_original: null,
+                                is_ug_link_verified: false,
+                                metadata_source: null,
+                                sync_status: 'IDLE',
+                                last_sync_log: null,
+                                auto_synced: false,
+                                is_sheet_verified: false,
+                                sheet_music_url: null,
+                                extraction_status: 'idle', 
+                              })}
+                              className="h-8 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-[10px] rounded-lg gap-2 shadow-sm"
+                            >
+                              <ListPlus className="w-3.5 h-3.5" /> Add
+                            </Button>
                           )}
                         </>
                       )}
@@ -368,3 +338,5 @@ export const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, on
     </div>
   );
 };
+
+export default SongSuggestions;
