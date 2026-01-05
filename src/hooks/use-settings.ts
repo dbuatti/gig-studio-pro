@@ -26,7 +26,8 @@ export interface GlobalSettings {
   ugChordsChordColor: string;
   ugChordsLineSpacing: number;
   ugChordsTextAlign: 'left' | 'center' | 'right';
-  preventStageKeyOverwrite: boolean; // NEW: Add this setting
+  preventStageKeyOverwrite: boolean;
+  linkSize: 'small' | 'medium' | 'large' | 'extra-large'; // NEW: Link size setting
 }
 
 const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
@@ -48,7 +49,8 @@ const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   ugChordsChordColor: DEFAULT_UG_CHORDS_CONFIG.chordColor,
   ugChordsLineSpacing: DEFAULT_UG_CHORDS_CONFIG.lineSpacing,
   ugChordsTextAlign: DEFAULT_UG_CHORDS_CONFIG.textAlign,
-  preventStageKeyOverwrite: false, // NEW: Default to false
+  preventStageKeyOverwrite: false,
+  linkSize: 'medium', // NEW: Default link size
 };
 
 export function useSettings() {
@@ -76,7 +78,8 @@ export function useSettings() {
               goal_lyrics_count, goal_ug_chords_count, goal_ug_links_count, goal_highest_note_count,
               goal_original_key_count, goal_target_key_count, default_dashboard_view,
               ug_chords_font_family, ug_chords_font_size, ug_chords_chord_bold, ug_chords_chord_color,
-              ug_chords_line_spacing, ug_chords_text_align, prevent_stage_key_overwrite
+              ug_chords_line_spacing, ug_chords_text_align, prevent_stage_key_overwrite,
+              link_size
             `)
             .eq('id', user.id)
             .single();
@@ -104,7 +107,8 @@ export function useSettings() {
             if (data.ug_chords_chord_color) loadedSettings.ugChordsChordColor = data.ug_chords_chord_color;
             if (data.ug_chords_line_spacing !== undefined) loadedSettings.ugChordsLineSpacing = data.ug_chords_line_spacing;
             if (data.ug_chords_text_align) loadedSettings.ugChordsTextAlign = data.ug_chords_text_align;
-            if (data.prevent_stage_key_overwrite !== undefined) loadedSettings.preventStageKeyOverwrite = data.prevent_stage_key_overwrite; // NEW
+            if (data.prevent_stage_key_overwrite !== undefined) loadedSettings.preventStageKeyOverwrite = data.prevent_stage_key_overwrite;
+            if (data.link_size) loadedSettings.linkSize = data.link_size as 'small' | 'medium' | 'large' | 'extra-large'; // NEW
             
             setSettings(prev => {
               const newSettings = { ...prev, ...loadedSettings };
@@ -170,7 +174,8 @@ export function useSettings() {
           ugChordsChordColor: 'ug_chords_chord_color',
           ugChordsLineSpacing: 'ug_chords_line_spacing',
           ugChordsTextAlign: 'ug_chords_text_align',
-          preventStageKeyOverwrite: 'prevent_stage_key_overwrite', // NEW
+          preventStageKeyOverwrite: 'prevent_stage_key_overwrite',
+          linkSize: 'link_size', // NEW
         };
         const dbColumn = dbKeyMap[key];
         const { error } = await supabase
@@ -201,7 +206,8 @@ export function useSettings() {
     setUgChordsChordColor: (color: string) => updateSetting('ugChordsChordColor', color),
     setUgChordsLineSpacing: (spacing: number) => updateSetting('ugChordsLineSpacing', spacing),
     setUgChordsTextAlign: (align: 'left' | 'center' | 'right') => updateSetting('ugChordsTextAlign', align),
-    setPreventStageKeyOverwrite: (prevent: boolean) => updateSetting('preventStageKeyOverwrite', prevent), // NEW
+    setPreventStageKeyOverwrite: (prevent: boolean) => updateSetting('preventStageKeyOverwrite', prevent),
+    setLinkSize: (size: 'small' | 'medium' | 'large' | 'extra-large') => updateSetting('linkSize', size), // NEW
     isFetchingSettings,
   };
 }
