@@ -66,7 +66,7 @@ const SheetReaderMode: React.FC = () => {
   const [isBrowserFullScreen, setIsBrowserFullScreen] = useState(false);
   const [isStudioPanelOpen, setIsStudioPanel] = useState(false);
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Changed to false
   const [isRepertoireSearchModalOpen, setIsRepertoireSearchModalOpen] = useState(false);
 
   const [readerKeyPreference, setReaderKeyPreference] = useState<'sharps' | 'flats'>(
@@ -209,7 +209,7 @@ const SheetReaderMode: React.FC = () => {
       let activeSetlistSongsList: SetlistSong[] = [];
 
       // Always fetch full master repertoire
-      const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user_id', user.id).order('title');
+      const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user.id', user.id).order('title');
       if (masterError) throw masterError;
       masterRepertoireList = (masterData || []).map((d: any) => ({
         id: d.id,
