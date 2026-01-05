@@ -32,7 +32,7 @@ import { useSpring, animated } from '@react-spring/web';
 import { useDrag } from '@use-gesture/react';
 
 // Import the worker directly using Vite's ?url suffix
-import pdfWorker from '/node_modules/pdfjs-dist/build/pdf.worker.min.js?url';
+import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.js?url';
 
 // Configure PDF.js worker source to point to the imported URL
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
