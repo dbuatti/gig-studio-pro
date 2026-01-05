@@ -834,7 +834,13 @@ const SheetReaderMode: React.FC = () => {
           effectiveTargetKey={effectiveTargetKey}
           isAudioPlayerVisible={isAudioPlayerVisible}
           onToggleAudioPlayer={() => setIsAudioPlayerVisible(prev => !prev)}
-          onAddLink={() => setIsLinkEditorOpen(true)} // NEW: Pass handler to open link editor
+          onAddLink={() => {
+            if (currentSong?.pdfUrl && pdfDocument) {
+              setIsLinkEditorOpen(true);
+            } else {
+              showInfo("Please select a song with a PDF chart to add links.");
+            }
+          }} // NEW: Pass handler to open link editor
           onToggleLinkEditMode={() => setIsEditingLinksMode(prev => !prev)} // NEW: Pass handler to toggle link edit mode
           onOpenLinkSizeModal={() => setIsLinkSizeModalOpen(true)} // NEW: Pass handler to open link size modal
           isEditingLinksMode={isEditingLinksMode} // NEW: Pass current link editing mode

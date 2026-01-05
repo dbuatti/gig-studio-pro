@@ -216,7 +216,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-slate-900 border-white/10 text-white z-[300] p-2 rounded-xl">
-              <DropdownMenuItem onClick={onAddLink} className="text-xs font-bold uppercase h-10 rounded-xl gap-2">
+              <DropdownMenuItem onClick={onAddLink} className="text-xs font-bold uppercase h-10 rounded-xl gap-2" disabled={!hasPdf}>
                 <Plus className="w-4 h-4" /> Add New Link
               </DropdownMenuItem>
               <DropdownMenuItem onClick={onToggleLinkEditMode} className="text-xs font-bold uppercase h-10 rounded-xl gap-2">
