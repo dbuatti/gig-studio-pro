@@ -5,9 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { 
-  Filter, Music, Youtube, FileText, 
-  X, Star, Save, Trash2, ListFilter, 
-  Target, AlertCircle, FileSearch, ShieldCheck, Check, Guitar, Type
+  Filter, Music, Youtube, FileText, CheckCircle2, 
+  X, Star, Save, Trash2, Headphones, Sparkles, Hash,
+  CircleDashed, ChevronDown, ListFilter, Music2, 
+  VideoOff, FileX2, VolumeX, BarChart3, TrendingUp, TrendingDown,
+  Target, AlertCircle, Link as LinkIcon, FileSearch, ShieldCheck, Check, Guitar, Type
 } from 'lucide-react';
 import { 
   DropdownMenu, 
