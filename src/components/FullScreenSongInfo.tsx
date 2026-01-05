@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { X, ChevronDown } from 'lucide-react'; // Removed Music icon
+import { X, ChevronDown, Maximize, Minimize } from 'lucide-react';
 import { SetlistSong } from '@/components/SetlistManager';
 import { formatKey, ALL_KEYS_SHARP, ALL_KEYS_FLAT } from '@/utils/keyUtils';
 import { KeyPreference } from '@/hooks/use-settings';
@@ -11,7 +11,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 
 interface FullScreenSongInfoProps {
   song: SetlistSong;
-  onExitFullScreen: () => void; // This prop now means 'onHideOverlay'
+  onHideInfoOverlay: () => void; // Renamed prop
+  onExitBrowserFullScreen: () => void; // New prop
   readerKeyPreference: KeyPreference;
   onUpdateKey: (newTargetKey: string) => void;
   setIsOverlayOpen: (isOpen: boolean) => void;
@@ -20,7 +21,8 @@ interface FullScreenSongInfoProps {
 
 const FullScreenSongInfo: React.FC<FullScreenSongInfoProps> = ({
   song,
-  onExitFullScreen, // Renamed conceptually to onHideOverlay
+  onHideInfoOverlay, // Use renamed prop
+  onExitBrowserFullScreen, // Use new prop
   readerKeyPreference,
   onUpdateKey,
   setIsOverlayOpen,
@@ -36,11 +38,11 @@ const FullScreenSongInfo: React.FC<FullScreenSongInfoProps> = ({
       const weekday = now.toLocaleDateString('en-US', { weekday: 'short' });
       const day = now.getDate();
       const month = now.toLocaleDateString('en-US', { month: 'short' });
-      setCurrentDate(`${weekday} ${day} ${month}`); // Format: "Fri 2 Jan"
+      setCurrentDate(`${weekday} ${day} ${month}`);
     };
 
-    updateDateTime(); // Set initial time
-    const intervalId = setInterval(updateDateTime, 1000); // Update every second
+    updateDateTime();
+    const intervalId = setInterval(updateDateTime, 1000);
 
     return () => clearInterval(intervalId);
   }, []);
@@ -71,6 +73,9 @@ const FullScreenSongInfo: React.FC<FullScreenSongInfoProps> = ({
             >
               <span className="flex items-center gap-2">
                 {displayKey}
+                <span className="text-slate-400 text-[10px]">
+                  {song.pitch > 0 ? `+${song.pitch}` : song.pitch < 0 ? song.pitch : ''}
+                </span>
                 <ChevronDown className="w-3 h-3 opacity-50" />
               </span>
             </Button>
@@ -86,14 +91,26 @@ const FullScreenSongInfo: React.FC<FullScreenSongInfoProps> = ({
           </DropdownMenuPortal>
         </DropdownMenu>
 
+        {/* NEW: Button to hide info overlay */}
         <Button
           variant="ghost"
           size="icon"
-          onClick={onExitFullScreen} // This now triggers hiding the info overlay
+          onClick={onHideInfoOverlay}
           className="rounded-full hover:bg-white/10 text-white/70 hover:text-white h-9 w-9 shrink-0"
           title="Hide Info Overlay"
         >
           <X className="w-4 h-4" />
+        </Button>
+
+        {/* NEW: Button to exit browser fullscreen */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onExitBrowserFullScreen}
+          className="rounded-full hover:bg-white/10 text-white/70 hover:text-white h-9 w-9 shrink-0"
+          title="Exit Fullscreen"
+        >
+          <Minimize className="w-4 h-4" />
         </Button>
       </div>
     </div>

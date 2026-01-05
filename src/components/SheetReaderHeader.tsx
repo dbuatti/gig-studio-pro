@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuPortal, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { cn } from '@/lib/utils';
 import { formatKey, ALL_KEYS_SHARP, ALL_KEYS_FLAT } from '@/utils/keyUtils';
-import { ArrowLeft, Search, ListMusic, ChevronDown, Minus, Plus, FileText, Headphones, Link as LinkIcon, Ruler, Edit3, Trash2 } from 'lucide-react'; // NEW: Import LinkIcon, Ruler, Edit3, Trash2
+import { ArrowLeft, Search, ListMusic, ChevronDown, Minus, Plus, FileText, Headphones, Link as LinkIcon, Ruler, Edit3, Trash2, Maximize, Minimize } from 'lucide-react';
 import { SetlistSong } from '@/components/SetlistManager';
 import { KeyPreference } from '@/hooks/use-settings';
 
@@ -29,10 +29,10 @@ interface SheetReaderHeaderProps {
   onToggleAudioPlayer: () => void;
   isFullScreen: boolean;
   onToggleFullScreen: () => void;
-  onAddLink: () => void; // NEW: Prop for adding a new link
-  onToggleLinkEditMode: () => void; // NEW: Prop for toggling link edit mode
-  onOpenLinkSizeModal: () => void; // NEW: Prop for opening link size modal
-  isEditingLinksMode: boolean; // NEW: Prop to indicate if in link editing mode
+  onAddLink: () => void;
+  onToggleLinkEditMode: () => void;
+  onOpenLinkSizeModal: () => void;
+  isEditingLinksMode: boolean;
 }
 
 const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
@@ -54,10 +54,10 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   onToggleAudioPlayer,
   isFullScreen,
   onToggleFullScreen,
-  onAddLink, // NEW
-  onToggleLinkEditMode, // NEW
-  onOpenLinkSizeModal, // NEW
-  isEditingLinksMode, // NEW
+  onAddLink,
+  onToggleLinkEditMode,
+  onOpenLinkSizeModal,
+  isEditingLinksMode,
 }) => {
   const displayKey = effectiveTargetKey ? formatKey(effectiveTargetKey, readerKeyPreference) : null;
   const keysToUse = readerKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
@@ -251,6 +251,17 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
           title="Search Repertoire"
         >
           <Search className="w-5 h-5" />
+        </Button>
+
+        {/* NEW: Fullscreen Toggle Button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onToggleFullScreen}
+          className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
+          title={isFullScreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+        >
+          {isFullScreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
         </Button>
       </div>
     </div>
