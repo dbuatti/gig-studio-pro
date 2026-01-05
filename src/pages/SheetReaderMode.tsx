@@ -649,43 +649,21 @@ const SheetReaderMode: React.FC = () => {
       >
         <SheetReaderHeader
           currentSong={currentSong!}
-          onClose={() => navigate('/')}
+          onClose={() => navigate('/')} // Keep onClose for now, might be used by other components or for a different exit strategy
           onOpenRepertoireSearch={() => setIsRepertoireSearchModalOpen(true)}
           onOpenCurrentSongStudio={onOpenCurrentSongStudio}
-          onPrevSong={handlePrev}
-          onNextSong={handleNext}
           isLoading={!currentSong}
-          keyPreference={globalKeyPreference}
+          keyPreference={globalKeyPreference} // Still pass global preference, even if not directly used in header
           onUpdateKey={handleUpdateKey}
-          isFullScreen={isBrowserFullScreen}
-          onToggleFullScreen={toggleBrowserFullScreen}
+          isFullScreen={isBrowserFullScreen} // Still pass for internal logic
+          onToggleFullScreen={toggleBrowserFullScreen} // Still pass for internal logic
           setIsOverlayOpen={setIsOverlayOpen}
-          isOverrideActive={forceReaderResource !== 'default'}
           pitch={effectivePitch}
           setPitch={setPitch}
-          isPlaying={isPlaying}
-          isLoadingAudio={isLoadingAudio}
-          onTogglePlayback={audioEngine.togglePlayback}
-          onLoadAudio={loadFromUrl}
-          progress={progress}
-          duration={duration}
-          onSetProgress={setAudioProgress}
-          onStopPlayback={stopPlayback}
-          volume={volume}
-          setVolume={setVolume}
-          tempo={tempo}
           readerKeyPreference={readerKeyPreference}
-          setReaderKeyPreference={setReaderKeyPreference}
           isSidebarOpen={isSidebarOpen && !isBrowserFullScreen}
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-          onSavePreference={handleSaveReaderPreference}
-          audioEngine={audioEngine}
           effectiveTargetKey={effectiveTargetKey}
-          onPullKey={handlePullKey}
-          pdfCurrentPage={pdfCurrentPage}
-          setPdfCurrentPage={setPdfCurrentPage}
-          selectedChartType={selectedChartType}
-          pdfNumPages={pdfNumPages}
         />
 
         {/* Chart Container */}
@@ -693,7 +671,7 @@ const SheetReaderMode: React.FC = () => {
           ref={chartContainerRef}
           className={cn(
             "flex-1 bg-black relative overflow-hidden", // overflow-hidden for the animated.div to handle swipe
-            isBrowserFullScreen ? "mt-0" : "mt-[112px]",
+            isBrowserFullScreen ? "mt-0" : "mt-[72px]", // Adjusted margin-top for new header height
             "overscroll-behavior-x-contain"
           )}
         >
