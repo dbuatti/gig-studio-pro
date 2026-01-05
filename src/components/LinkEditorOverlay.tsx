@@ -54,7 +54,7 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
   editingLink, // NEW: Destructure editingLink
 }) => {
   const { user } = useAuth();
-  const { linkSize: globalLinkSize } = useSettings(); // Get global link size
+  const { linkSize: globalLinkSize } = useSettings();
 
   const [sourcePoint, setSourcePoint] = useState<LinkPoint | null>(null);
   const [targetPoint, setTargetPoint] = useState<LinkPoint | null>(null);
@@ -118,7 +118,6 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
 
       // Choose the smaller scale to ensure the entire page fits within the container
       setPdfScale(Math.min(scaleX, scaleY));
-      // console.log("[LinkEditorOverlay] PDF scale calculated:", Math.min(scaleX, scaleY)); // Removed verbose log
     } catch (error) {
       console.error("[LinkEditorOverlay] Error calculating PDF scale:", error);
     }
@@ -146,7 +145,6 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
 
 
   const handleDocumentLoadSuccess = useCallback((pdf: PDFDocumentProxy) => {
-    // console.log("[LinkEditorOverlay] PDF loaded successfully:", pdf); // Removed verbose log
     setPdfDocument(pdf); // Set local pdfDocument
     setPdfNumPages(pdf.numPages);
     calculatePdfScale(pdf, 1); // Calculate scale for the first page
@@ -173,12 +171,12 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
 
     if (type === 'source') {
       setSourcePoint(newPoint);
-      console.log("[LinkEditorOverlay] Source point set:", newPoint);
+      console.log("[LinkEditorOverlay] Source point set:", newPoint, "Current targetPoint:", targetPoint);
     } else {
       setTargetPoint(newPoint);
-      console.log("[LinkEditorOverlay] Target point set:", newPoint);
+      console.log("[LinkEditorOverlay] Target point set:", newPoint, "Current sourcePoint:", sourcePoint);
     }
-  }, []);
+  }, [targetPoint, sourcePoint]);
 
   const handleSaveLink = async () => {
     if (!user || !songId || !sourcePoint || !targetPoint) {
@@ -230,6 +228,7 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
   };
 
   const getLinkDotStyle = useCallback((point: LinkPoint | null, type: 'source' | 'target', currentPage: number): CSSProperties => {
+    console.log(`[getLinkDotStyle] Type: ${type}, Page: ${currentPage}, Point:`, point);
     if (!point || point.page !== currentPage) {
       // Return a minimal, valid CSSProperties object if no point, or point is on a different page
       return { display: 'none' }; 

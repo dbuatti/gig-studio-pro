@@ -98,13 +98,6 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
     if (song.audio_url !== undefined) dbUpdates.audio_url = song.audio_url;
     if (song.extraction_status !== undefined) dbUpdates.extraction_status = song.extraction_status;
 
-    // console.log(`[repertoireSync] Sending payload for "${dbUpdates.title}":`, { // Removed verbose log
-    //   orig_key: dbUpdates.original_key, 
-    //   target_key: dbUpdates.target_key,
-    //   orig_ts: dbUpdates.original_key_updated_at,
-    //   target_ts: dbUpdates.target_key_updated_at 
-    // });
-
     const { data, error } = await supabase
       .from('repertoire')
       .upsert(dbUpdates, { onConflict: 'user_id,title,artist' })
@@ -114,10 +107,6 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
     if (error) throw error;
 
     const result = data;
-    // console.log(`[repertoireSync] Received response for "${result.title}". Updated targets:`, { // Removed verbose log
-    //   orig_ts: result.original_key_updated_at,
-    //   target_ts: result.target_key_updated_at
-    // });
 
     syncedSongs.push({
       id: song.id || result.id,
