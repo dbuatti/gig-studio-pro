@@ -37,22 +37,22 @@ serve(async (req) => {
     
     let prompt = "";
     if (seedSong) {
-      prompt = `Act as a professional music curator. Based specifically on the vibe, genre, and era of the song "${seedSong.name}" by ${seedSong.artist}, suggest 10 similar tracks for a live set.
+      prompt = `Act as a professional music curator. Based specifically on the vibe, genre, and era of the song "${seedSong.name}" by ${seedSong.artist}, suggest 20 diverse tracks for a live set.
       
       CRITICAL: You MUST NOT suggest any of these songs which are ALREADY in the user's library or have been dismissed.
       Here is the list of songs to EXCLUDE (format: "title-artist", all lowercase, trimmed):
       ${excludeListItems}
       
-      Focus on tracks that would transition well from the seed song.
+      Focus on tracks that would transition well from the seed song, but ensure a wide variety of suggestions.
       Return ONLY a JSON array of objects: [{"name": "Song Title", "artist": "Artist Name", "reason": "Connection to ${seedSong.name}"}]. No markdown.`;
     } else {
-      prompt = `Act as a professional music curator. Based on this existing repertoire: [${existingTitles.join(', ')}], suggest 10 similar songs that would fit this artist's style. 
+      prompt = `Act as a professional music curator. Based on this existing repertoire: [${existingTitles.join(', ')}], suggest 20 diverse songs that would fit this artist's style. 
       
       CRITICAL: You MUST NOT suggest any songs that are already in the library or have been dismissed.
       Here is the list of songs to EXCLUDE (format: "title-artist", all lowercase, trimmed):
       ${excludeListItems}
       
-      Suggest entirely new tracks.
+      Suggest entirely new and diverse tracks.
       Return ONLY a JSON array of objects: [{"name": "Song Title", "artist": "Artist Name", "reason": "Short reason why"}]. No markdown.`;
     }
 
