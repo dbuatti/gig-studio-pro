@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
@@ -477,14 +477,15 @@ const SheetReaderMode: React.FC = () => {
     return 'pdf';
   }, [forceReaderResource]);
 
-  const getChartUrlForType = useCallback((song: SetlistSong, type: ChartType): string | null => {
-    switch (type) {
-      case 'pdf': return song.pdfUrl;
-      case 'leadsheet': return song.leadsheetUrl;
-      case 'chords': return null; // Chords are handled by UGChordsReader, not an iframe URL
+  const currentChartDisplayUrl = useMemo(() => {
+    if (!currentSong) return null;
+    switch (selectedChartType) {
+      case 'pdf': return currentSong.pdfUrl || currentSong.sheet_music_url;
+      case 'leadsheet': return currentSong.leadsheetUrl;
+      case 'chords': return null; // Chords are handled by UGChordsReader
       default: return null;
     }
-  }, []);
+  }, [currentSong, selectedChartType]);
 
   useEffect(() => {
     if (currentSong) {
@@ -622,6 +623,14 @@ const SheetReaderMode: React.FC = () => {
     showSuccess(`Reader preference saved to ${pref === 'sharps' ? 'Sharps' : 'Flats'}`);
   }, [setGlobalKeyPreference, globalKeyPreference]);
 
+  const onAddLink = useCallback(() => {
+    if (currentChartDisplayUrl && pdfDocument) {
+      setIsLinkEditorOpen(true);
+    } else {
+      showInfo("No PDF available to add links.");
+    }
+  }, [currentChartDisplayUrl, pdfDocument]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -658,7 +667,7 @@ const SheetReaderMode: React.FC = () => {
         case 'l': // NEW: 'L' key to toggle link editor
         case 'L':
           e.preventDefault();
-          if (currentSong?.pdfUrl) {
+          if (currentChartDisplayUrl && pdfDocument) { // Use currentChartDisplayUrl here
             setIsLinkEditorOpen(prev => !prev);
           } else {
             showInfo("No PDF available to add links.");
@@ -667,7 +676,7 @@ const SheetReaderMode: React.FC = () => {
         case 'e': // NEW: 'E' key to toggle link editing mode
         case 'E':
           e.preventDefault();
-          if (currentSong?.pdfUrl) {
+          if (currentChartDisplayUrl) { // Use currentChartDisplayUrl here
             setIsEditingLinksMode(prev => !prev);
             showInfo(`Link editing mode ${isEditingLinksMode ? 'disabled' : 'enabled'}.`);
           } else {
@@ -678,7 +687,7 @@ const SheetReaderMode: React.FC = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentSong, onOpenCurrentSongStudio, handlePrev, handleNext, selectedChartType, pdfNumPages, isEditingLinksMode]);
+  }, [currentSong, onOpenCurrentSongStudio, handlePrev, handleNext, selectedChartType, pdfNumPages, isEditingLinksMode, currentChartDisplayUrl, onAddLink]);
 
   // NEW: Function to calculate PDF scale
   const calculatePdfScale = useCallback(async (pdf: PDFDocumentProxy, container: HTMLDivElement, pageNumber: number) => {
@@ -834,13 +843,7 @@ const SheetReaderMode: React.FC = () => {
           effectiveTargetKey={effectiveTargetKey}
           isAudioPlayerVisible={isAudioPlayerVisible}
           onToggleAudioPlayer={() => setIsAudioPlayerVisible(prev => !prev)}
-          onAddLink={() => {
-            if (currentSong?.pdfUrl && pdfDocument) {
-              setIsLinkEditorOpen(true);
-            } else {
-              showInfo("Please select a song with a PDF chart to add links.");
-            }
-          }} // NEW: Pass handler to open link editor
+          onAddLink={onAddLink} // NEW: Pass handler to open link editor
           onToggleLinkEditMode={() => setIsEditingLinksMode(prev => !prev)} // NEW: Pass handler to toggle link edit mode
           onOpenLinkSizeModal={() => setIsLinkSizeModalOpen(true)} // NEW: Pass handler to open link size modal
           isEditingLinksMode={isEditingLinksMode} // NEW: Pass current link editing mode
@@ -861,7 +864,7 @@ const SheetReaderMode: React.FC = () => {
             {...bind()}  
             style={{ 
               // Removed x: springX
-              // Removed touchAction: 'none', // NEW: Disable all touch actions on this element for precise control
+              touchAction: 'none', // NEW: Disable all touch actions on this element for precise control
               width: '100%', // Ensure it takes full width for drag context
               height: '100%',
               display: 'flex', 
@@ -888,7 +891,7 @@ const SheetReaderMode: React.FC = () => {
                 />
               ) : (
                 (() => {
-                  const url = getChartUrlForType(currentSong, selectedChartType);
+                  const url = currentChartDisplayUrl; // Use currentChartDisplayUrl here
                   console.log("[SheetReaderMode] Attempting to load PDF from URL:", url); // Log PDF URL
                   if (url) {
                     return (
@@ -1021,12 +1024,12 @@ const SheetReaderMode: React.FC = () => {
       />
 
       {/* NEW: Link Editor Overlay */}
-      {currentSong?.pdfUrl && pdfDocument && (
+      {currentChartDisplayUrl && pdfDocument && (
         <LinkEditorOverlay
           isOpen={isLinkEditorOpen}
           onClose={() => setIsLinkEditorOpen(false)}
           songId={currentSong.master_id || currentSong.id}
-          pdfUrl={currentSong.pdfUrl}
+          chartUrl={currentChartDisplayUrl} // Pass the correct URL
           pdfDocument={pdfDocument}
           onLinkCreated={fetchLinks} // Refresh links after creation
         />

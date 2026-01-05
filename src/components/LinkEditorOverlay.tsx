@@ -29,7 +29,7 @@ interface LinkEditorOverlayProps {
   isOpen: boolean;
   onClose: () => void;
   songId: string;
-  pdfUrl: string;
+  chartUrl: string; // Renamed from pdfUrl
   pdfDocument: PDFDocumentProxy | null; // Pass the PDFDocumentProxy directly
   onLinkCreated: () => void;
 }
@@ -38,7 +38,7 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
   isOpen,
   onClose,
   songId,
-  pdfUrl,
+  chartUrl, // Use chartUrl
   pdfDocument: propPdfDocument, // Use propPdfDocument to distinguish from local state
   onLinkCreated,
 }) => {
@@ -265,7 +265,7 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
           >
             {localPdfDocument && (
               <Document
-                file={pdfUrl}
+                file={chartUrl} // Use chartUrl here
                 onLoadSuccess={handleDocumentLoadSuccess}
                 onLoadError={handleDocumentLoadError}
                 loading={<Loader2 className="w-12 h-12 animate-spin text-indigo-500" />}
