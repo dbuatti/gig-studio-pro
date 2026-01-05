@@ -220,8 +220,8 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
         </div>
       </div>
 
-      <ScrollArea className="h-[500px]">
-        <div className="space-y-2 pr-4 pl-4">
+      <ScrollArea className="h-[500px] px-4">
+        <div className="space-y-2">
           {isLoadingInitial && rawSuggestions.length === 0 ? (
             <div className="py-20 flex flex-col items-center gap-4 text-center">
               <Loader2 className="w-8 h-8 animate-spin text-primary opacity-20" />
