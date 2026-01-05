@@ -26,6 +26,7 @@ import RepertoireSearchModal from '@/components/RepertoireSearchModal';
 import FullScreenSongInfo from '@/components/FullScreenSongInfo';
 import { AnimatePresence } from 'framer-motion';
 import { Document, Page, pdfjs } from 'react-pdf';
+import { PDFDocumentProxy } from 'pdfjs-dist/types/src/display/api'; // Corrected import path for PDFDocumentProxy
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import { useSpring, animated } from '@react-spring/web';
@@ -78,7 +79,8 @@ const SheetReaderMode: React.FC = () => {
   const [isChartContentLoading, setIsChartContentLoading] = useState(false);
   const [pdfCurrentPage, setPdfCurrentPage] = useState(1);
   const [pdfNumPages, setPdfNumPages] = useState<number | null>(null);
-  // Removed pdfContainerHeight state as we'll use clientWidth directly
+  const [pdfScale, setPdfScale] = useState<number | null>(null); // NEW: State for PDF scale
+  const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null); // NEW: State for PDF document instance
 
   const audioEngine = useToneAudio(true);
   const {
@@ -110,7 +112,8 @@ const SheetReaderMode: React.FC = () => {
   useEffect(() => {
     setPdfCurrentPage(1);
     setPdfNumPages(null); // Reset total pages too
-    // Removed reset for pdfContainerHeight
+    setPdfScale(null); // NEW: Reset PDF scale
+    setPdfDocument(null); // NEW: Reset PDF document instance
   }, [currentSong?.id]);
 
   const handleLocalSongUpdate = useCallback((songId: string, updates: Partial<SetlistSong>) => {
@@ -564,7 +567,49 @@ const SheetReaderMode: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentSong, onOpenCurrentSongStudio, handlePrev, handleNext, selectedChartType, pdfNumPages]);
 
-  // Removed useEffect for window resize to recalculate PDF container height
+  // NEW: Function to calculate PDF scale
+  const calculatePdfScale = useCallback(async (pdf: PDFDocumentProxy, container: HTMLDivElement, pageNumber: number) => {
+    if (!container || !pdf) return;
+
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+
+    try {
+      const page = await pdf.getPage(pageNumber);
+      const viewport = page.getViewport({ scale: 1 });
+      const pageWidth = viewport.width;
+      const pageHeight = viewport.height;
+
+      const scaleX = containerWidth / pageWidth;
+      const scaleY = containerHeight / pageHeight;
+
+      // Choose the smaller scale to ensure the entire page fits within the container
+      setPdfScale(Math.min(scaleX, scaleY));
+    } catch (error) {
+      console.error("[SheetReaderMode] Error calculating PDF scale:", error);
+    }
+  }, []);
+
+  // NEW: Effect for ResizeObserver
+  useEffect(() => {
+    const container = chartContainerRef.current;
+    if (!container || !pdfDocument) return;
+
+    const resizeObserver = new ResizeObserver(entries => {
+      for (let entry of entries) {
+        if (entry.target === container) {
+          calculatePdfScale(pdfDocument, container, pdfCurrentPage);
+        }
+      }
+    });
+
+    resizeObserver.observe(container);
+
+    return () => {
+      resizeObserver.unobserve(container);
+    };
+  }, [pdfDocument, pdfCurrentPage, calculatePdfScale]);
+
 
   // --- Gesture Implementation ---
   const bind = useDrag(({ first, down, movement: [mx], direction: [dx], velocity: [vx], cancel }) => {
@@ -699,7 +744,7 @@ const SheetReaderMode: React.FC = () => {
                   duration={duration}
                   readerKeyPreference={readerKeyPreference}
                   onChartReady={() => setIsChartContentLoading(false)}
-                  isFullScreen={isBrowserFullScreen} // Pass isFullScreen prop
+                  isFullScreen={isBrowserFullScreen && !isInfoOverlayVisible} // Pass isFullScreen prop, also consider info overlay
                 />
               ) : (
                 (() => {
@@ -710,10 +755,14 @@ const SheetReaderMode: React.FC = () => {
                       <div className="w-full h-full overflow-x-auto overflow-y-hidden flex justify-center items-center"> {/* Allow horizontal scroll for wide pages */}
                         <Document
                           file={url}
-                          onLoadSuccess={({ numPages }) => {
-                            console.log("[SheetReaderMode] PDF Document loaded successfully. Pages:", numPages); // Log success
-                            setPdfNumPages(numPages);
+                          onLoadSuccess={async (pdf) => { // Store pdf instance
+                            console.log("[SheetReaderMode] PDF Document loaded successfully. Pages:", pdf.numPages); // Log success
+                            setPdfNumPages(pdf.numPages);
+                            setPdfDocument(pdf); // Store the PDF document instance
                             setIsChartContentLoading(false);
+                            if (chartContainerRef.current) {
+                              await calculatePdfScale(pdf, chartContainerRef.current, pdfCurrentPage);
+                            }
                           }}
                           onLoadError={(error) => {
                             console.error("[SheetReaderMode] Error loading PDF Document:", error); // Log error
@@ -725,7 +774,7 @@ const SheetReaderMode: React.FC = () => {
                         >
                           <Page
                             pageNumber={pdfCurrentPage}
-                            width={chartContainerRef.current?.clientWidth || undefined} // NEW: Scale by width
+                            scale={pdfScale || 1} // NEW: Use the calculated scale
                             renderAnnotationLayer={true}
                             renderTextLayer={true}
                             loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
