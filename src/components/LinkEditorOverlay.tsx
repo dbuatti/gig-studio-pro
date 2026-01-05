@@ -14,10 +14,11 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { showSuccess, showError } from '@/utils/toast';
-import { useSettings } from '@/hooks/use-settings'; // Import useSettings
+import { useSettings } from '@/hooks/use-settings';
 
 // Ensure PDF.js worker source is configured
-pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+// This is now handled globally in App.tsx
+// pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
 interface LinkPoint {
   page: number;
@@ -209,7 +210,7 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
           target_x: targetPoint.x,
           target_y: targetPoint.y,
           link_size: globalLinkSize,
-        }).eq('id', editingLink.id).eq('user_id', user.id);
+        }).eq('id', editingLink.id).eq('user.id', user.id); // Corrected to user.id
         if (error) throw error;
         showSuccess("Link updated successfully!");
         console.log("[LinkEditorOverlay] Link updated:", editingLink.id);
@@ -299,7 +300,7 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
             className="relative w-full h-full flex items-center justify-center overflow-auto"
             onClick={(e) => handleTap(e, type, pageNumber, pageRef)}
           >
-            {pdfDocument && ( // Use local pdfDocument here
+            {chartUrl && ( // Render Document if chartUrl is available
               <Document
                 file={chartUrl} // Use chartUrl here
                 onLoadSuccess={handleDocumentLoadSuccess}
@@ -307,13 +308,15 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
                 loading={<Loader2 className="w-12 h-12 animate-spin text-indigo-500" />}
                 className="flex items-center justify-center"
               >
-                <Page
-                  pageNumber={pageNumber}
-                  scale={pdfScale}
-                  renderAnnotationLayer={false}
-                  renderTextLayer={false}
-                  loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
-                />
+                {pdfDocument && ( // Render Page only if pdfDocument is loaded
+                  <Page
+                    pageNumber={pageNumber}
+                    scale={pdfScale}
+                    renderAnnotationLayer={false}
+                    renderTextLayer={false}
+                    loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
+                  />
+                )}
               </Document>
             )}
             {point && point.page === pageNumber && (

@@ -8,6 +8,10 @@ import { useTheme } from '@/hooks/use-theme';
 import React, { useEffect } from "react";
 import MainLayout from "@/components/MainLayout"; 
 import DebugPage from "@/pages/DebugPage"; // Import DebugPage
+import { pdfjs } from 'react-pdf'; // Import pdfjs
+
+// Configure PDF.js worker source globally
+pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
 const queryClient = new QueryClient();
 
