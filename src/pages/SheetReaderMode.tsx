@@ -727,12 +727,9 @@ const SheetReaderMode: React.FC = () => {
                   const url = getChartUrlForType(currentSong, selectedChartType);
                   console.log("[SheetReaderMode] Attempting to load PDF from URL:", url); // Log PDF URL
                   if (url) {
-                    const containerWidth = chartContainerRef.current?.offsetWidth || 0;
                     // Always render 1 page
-                    const pageWidth = containerWidth; 
-
                     return (
-                      <div className="w-full h-full flex items-center justify-center gap-2">
+                      <div className="w-full h-full flex items-center justify-center">
                         <Document
                           file={url}
                           onLoadSuccess={({ numPages }) => {
@@ -750,7 +747,7 @@ const SheetReaderMode: React.FC = () => {
                         >
                           <Page
                             pageNumber={pdfCurrentPage}
-                            width={pageWidth || undefined}
+                            width={chartContainerRef.current?.offsetWidth || undefined} // Use container width
                             renderAnnotationLayer={true}
                             renderTextLayer={true}
                             loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
