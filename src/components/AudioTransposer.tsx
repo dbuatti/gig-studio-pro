@@ -202,7 +202,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
         </div>
       </div>
       
-      <div className="p-6 space-y-6 pb-24 md:pb-6">
+      <div className="p-6 space-y-6 pb-24 md:pb-6 bg-background"> {/* Changed to bg-background */}
         <div className="flex items-center justify-between">
           <div>
             <h2 className="flex items-center gap-2 text-xl font-black uppercase tracking-tight text-foreground">
@@ -263,10 +263,10 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
         </Tabs>
 
         {file && (
-          <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300 border-t pt-6">
+          <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300 border-t pt-6 border-border"> {/* Added border-border */}
             <div className="flex flex-col items-center gap-5">
               {activeVideoId && (
-                <div className="w-full aspect-video rounded-xl overflow-hidden shadow-lg border border-border bg-black">
+                <div className="w-full aspect-video rounded-xl overflow-hidden shadow-lg border border-border bg-background"> {/* Changed to bg-background */}
                   <iframe width="100%" height="100%" src={`https://www.youtube.com/embed/${activeVideoId}`} frameBorder="0" allowFullScreen />
                 </div>
               )}
@@ -295,8 +295,8 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
               <Slider value={[progress]} max={100} step={0.1} onValueChange={([v]) => setProgress(v)} />
             </div>
 
-            <div className="bg-secondary p-5 rounded-2xl border border-border space-y-4">
-              <div className="flex items-center justify-between border-b pb-2 mb-2">
+            <div className="bg-card p-5 rounded-2xl border border-border space-y-4"> {/* Changed to bg-card */}
+              <div className="flex items-center justify-between border-b pb-2 mb-2 border-border"> {/* Added border-border */}
                 <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
                   <LinkIcon className="w-3.5 h-3.5 text-primary" /> Manual Metadata Links
                 </span>
@@ -350,7 +350,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-6 bg-secondary p-5 rounded-2xl border border-border">
+            <div className="grid grid-cols-1 gap-6 bg-card p-5 rounded-2xl border border-border"> {/* Changed to bg-card */}
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
@@ -364,7 +364,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <button onClick={() => handleOctaveShift('down')} className="h-7 px-2 hover:bg-accent rounded text-[10px] font-black uppercase text-muted-foreground hover:text-primary transition-colors border-r">- oct</button>
+                            <button onClick={() => handleOctaveShift('down')} className="h-7 px-2 hover:bg-accent rounded text-[10px] font-black uppercase text-muted-foreground hover:text-primary transition-colors border-r border-border">- oct</button> {/* Added border-border */}
                           </TooltipTrigger>
                           <TooltipContent className="text-[9px] font-black uppercase"> -12 ST</TooltipContent>
                         </Tooltip>
@@ -391,7 +391,7 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-6 pt-4 border-t">
+              <div className="grid grid-cols-2 gap-6 pt-4 border-t border-border"> {/* Added border-border */}
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Tempo</Label>

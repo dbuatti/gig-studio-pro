@@ -676,6 +676,48 @@ const Index = () => {
     }
   };
 
+  const handleBulkRefreshAudio = async () => {
+    if (!userId) {
+      showError("User not authenticated.");
+      return;
+    }
+
+    const songsToQueue = masterRepertoire.filter(s => 
+      !!s.youtubeUrl && (!s.audio_url || s.extraction_status !== 'completed') && s.extraction_status !== 'processing' && s.extraction_status !== 'queued'
+    );
+
+    if (songsToQueue.length === 0) {
+      showInfo("No tracks found with YouTube links but missing audio to queue for extraction.");
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to queue audio extraction for ${songsToQueue.length} tracks?`)) {
+      return;
+    }
+
+    setIsRepertoireBulkQueuingAudio(true);
+    showInfo(`Queueing ${songsToQueue.length} tracks for background audio extraction...`);
+
+    try {
+      const { error } = await supabase
+        .from('repertoire')
+        .update({ 
+          extraction_status: 'queued', 
+          last_sync_log: 'Queued for background audio extraction.' 
+        })
+        .in('id', songsToQueue.map(s => s.id));
+
+      if (error) throw error;
+
+      showSuccess(`Queued ${songsToQueue.length} audio extraction tasks successfully.`);
+      await fetchSetlistsAndRepertoire(); // Refresh data to show updated status
+    } catch (err: any) {
+      showError(`Failed to queue audio extraction: ${err.message}`);
+    } finally {
+      setIsRepertoireBulkQueuingAudio(false);
+    }
+  };
+
   const handleBulkClearAutoLinks = async () => {
     const autoPopulated = masterRepertoire.filter(s => s.metadata_source === 'auto_populated');
     if (autoPopulated.length === 0) {
@@ -704,33 +746,6 @@ const Index = () => {
       showError(`Clear Failed: ${err.message}`);
     } finally {
       setIsRepertoireClearingAutoLinks(false);
-    }
-  };
-
-  const handleBulkRefreshAudio = async () => {
-    const songsToQueue = masterRepertoire.filter(s => {
-      const hasLink = !!s.youtubeUrl;
-      const hasAudio = !!s.audio_url;
-      const status = (s.extraction_status || "").toLowerCase();
-      return hasLink && (!hasAudio || status !== 'completed') && status !== 'processing' && status !== 'queued';
-    });
-
-    if (songsToQueue.length === 0) {
-      showInfo("No eligible tracks found missing audio.");
-      return;
-    }
-
-    setIsRepertoireBulkQueuingAudio(true);
-
-    try {
-      const { error } = await supabase.from('repertoire').update({ extraction_status: 'queued', last_sync_log: 'Queued via Repertoire Automation Hub.' }).in('id', songsToQueue.map(s => s.id));
-      if (error) throw error;
-      await fetchSetlistsAndRepertoire();
-      showSuccess(`Queued ${songsToQueue.length} extractions.`);
-    } catch (err: any) {
-      showError(`Queueing Failed: ${err.message}`);
-    } finally {
-      setIsRepertoireBulkQueuingAudio(false);
     }
   };
 
@@ -935,7 +950,7 @@ const Index = () => {
 
       {isAudioTransposerModalOpen && (
         <Dialog open={isAudioTransposerModalOpen} onOpenChange={setIsAudioTransposerModalOpen}>
-          <DialogContent className="max-w-4xl w-[95vw] h-[90vh] bg-slate-950 border-white/10 text-white rounded-[2rem] p-0 overflow-hidden flex flex-col shadow-2xl">
+          <DialogContent className="max-w-4xl w-[95vw] h-[90vh] bg-popover border-border text-foreground rounded-[2rem] p-0 overflow-hidden flex flex-col shadow-2xl">
             <DialogHeader className="p-6 bg-indigo-600 shrink-0 relative"><button onClick={() => setIsAudioTransposerModalOpen(false)} className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 text-white/70"><X className="w-5 h-5" /></button>
                 <div className="flex items-center gap-3 mb-2"><div className="bg-white/20 p-2 rounded-xl backdrop-blur-md"><Music className="w-6 h-6 text-white" /></div><DialogTitle className="text-2xl font-black uppercase tracking-tight text-white">Audio Transposer</DialogTitle></div>
                 <DialogDescription className="text-indigo-100 font-medium">Load audio and adjust parameters.</DialogDescription></DialogHeader>
