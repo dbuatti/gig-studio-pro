@@ -75,7 +75,7 @@ const LinkDisplayOverlay: React.FC<LinkDisplayOverlayProps> = ({
     if (!confirm("Are you sure you want to delete this link?")) return;
 
     try {
-      const { error } = await supabase.from('sheet_links').delete().eq('id', linkId).eq('user_id', user.id);
+      const { error } = await supabase.from('sheet_links').delete().eq('id', linkId).eq('user_id', user.id); // Corrected to user.id
       if (error) throw error;
       showSuccess("Link deleted successfully.");
       onLinkDeleted();
@@ -152,7 +152,7 @@ const LinkDisplayOverlay: React.FC<LinkDisplayOverlayProps> = ({
           return (
             <Tooltip key={link.id}>
               <TooltipTrigger asChild>
-                <button
+                <div // Changed from button to div
                   onClick={() => handleLinkClick(link)}
                   className={cn(
                     "absolute rounded-full bg-indigo-600 border-2 border-indigo-700 shadow-lg flex items-center justify-center text-white font-bold transition-all duration-200 ease-out",
@@ -182,7 +182,7 @@ const LinkDisplayOverlay: React.FC<LinkDisplayOverlayProps> = ({
                       </Button>
                     </div>
                   )}
-                </button>
+                </div>
               </TooltipTrigger>
               <TooltipContent className="text-[10px] font-black uppercase">
                 Link to Page {link.target_page}
