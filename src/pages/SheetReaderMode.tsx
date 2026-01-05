@@ -77,6 +77,7 @@ const SheetReaderMode: React.FC = () => {
   const [isChartContentLoading, setIsChartContentLoading] = useState(false);
   const [pdfCurrentPage, setPdfCurrentPage] = useState(1);
   const [pdfNumPages, setPdfNumPages] = useState<number | null>(null);
+  const [isLandscape, setIsLandscape] = useState(false); // NEW: State for landscape mode
 
   const audioEngine = useToneAudio(true);
   const {
@@ -529,7 +530,7 @@ const SheetReaderMode: React.FC = () => {
         case 'ArrowLeft':
           e.preventDefault();
           if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
-            setPdfCurrentPage(prev => Math.max(1, prev - 1));
+            setPdfCurrentPage(prev => Math.max(1, prev - (isLandscape ? 2 : 1))); // NEW: Adjust for landscape
           } else {
             handlePrev();
           }
@@ -537,7 +538,7 @@ const SheetReaderMode: React.FC = () => {
         case 'ArrowRight':
           e.preventDefault();
           if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
-            setPdfCurrentPage(prev => Math.min(prev + 1, pdfNumPages || 999));
+            setPdfCurrentPage(prev => Math.min(prev + (isLandscape ? 2 : 1), pdfNumPages || 999)); // NEW: Adjust for landscape
           } else {
             handleNext();
           }
@@ -553,7 +554,25 @@ const SheetReaderMode: React.FC = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentSong, onOpenCurrentSongStudio, handlePrev, handleNext, selectedChartType, pdfNumPages]);
+  }, [currentSong, onOpenCurrentSongStudio, handlePrev, handleNext, selectedChartType, pdfNumPages, isLandscape]); // NEW: Add isLandscape to dependencies
+
+  // NEW: Effect to determine landscape mode based on container dimensions
+  useEffect(() => {
+    const updateLandscapeStatus = () => {
+      if (chartContainerRef.current && selectedChartType !== 'chords') {
+        const { offsetWidth, offsetHeight } = chartContainerRef.current;
+        // Consider landscape if width is significantly greater than height (e.g., 1.5 times)
+        setIsLandscape(offsetWidth > offsetHeight * 1.5 && (pdfNumPages || 0) >= 2);
+      } else {
+        setIsLandscape(false);
+      }
+    };
+
+    updateLandscapeStatus(); // Initial check
+    window.addEventListener('resize', updateLandscapeStatus);
+    return () => window.removeEventListener('resize', updateLandscapeStatus);
+  }, [chartContainerRef.current, selectedChartType, pdfNumPages]);
+
 
   // --- Gesture Implementation ---
   const bind = useDrag(({ first, down, movement: [mx, my], direction: [dx], velocity: [vx], cancel, intentional }) => {
@@ -582,12 +601,14 @@ const SheetReaderMode: React.FC = () => {
       navigatedRef.current = true; // Mark as navigated for this gesture
       cancel(); // Stop further updates for this specific gesture
 
+      const pageStep = isLandscape ? 2 : 1; // NEW: Determine page step based on landscape mode
+
       if (dx < 0) { // Swiping left (next)
         if (selectedChartType === 'chords') {
           handleNext();
         } else if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
           if (pdfCurrentPage < (pdfNumPages || 1)) {
-            setPdfCurrentPage(prev => prev + 1);
+            setPdfCurrentPage(prev => Math.min(prev + pageStep, pdfNumPages || 999)); // NEW: Use pageStep
           } else {
             handleNext(); // Last PDF page, go to next song
           }
@@ -597,7 +618,7 @@ const SheetReaderMode: React.FC = () => {
           handlePrev();
         } else if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
           if (pdfCurrentPage > 1) {
-            setPdfCurrentPage(prev => prev - 1);
+            setPdfCurrentPage(prev => Math.max(1, prev - pageStep)); // NEW: Use pageStep
           } else {
             handlePrev(); // First PDF page, go to previous song
           }
@@ -683,6 +704,7 @@ const SheetReaderMode: React.FC = () => {
           pdfCurrentPage={pdfCurrentPage}
           setPdfCurrentPage={setPdfCurrentPage}
           selectedChartType={selectedChartType}
+          isLandscape={isLandscape} // NEW: Pass isLandscape to header
         />
 
         {/* Chart Container */}
@@ -721,8 +743,12 @@ const SheetReaderMode: React.FC = () => {
                   const url = getChartUrlForType(currentSong, selectedChartType);
                   console.log("[SheetReaderMode] Attempting to load PDF from URL:", url); // Log PDF URL
                   if (url) {
+                    const containerWidth = chartContainerRef.current?.offsetWidth || 0;
+                    const pageCountToRender = isLandscape && (pdfNumPages || 0) >= 2 ? 2 : 1;
+                    const pageWidth = containerWidth / pageCountToRender;
+
                     return (
-                      <div className="w-full h-full flex items-center justify-center">
+                      <div className="w-full h-full flex items-center justify-center gap-2"> {/* NEW: Added gap-2 for spacing */}
                         <Document
                           file={url}
                           onLoadSuccess={({ numPages }) => {
@@ -740,7 +766,7 @@ const SheetReaderMode: React.FC = () => {
                         >
                           <Page
                             pageNumber={pdfCurrentPage}
-                            width={chartContainerRef.current?.offsetWidth || undefined}
+                            width={pageWidth || undefined} // NEW: Adjust width
                             height={chartContainerRef.current?.offsetHeight || undefined}
                             renderAnnotationLayer={true}
                             renderTextLayer={true}
@@ -750,6 +776,19 @@ const SheetReaderMode: React.FC = () => {
                               setIsChartContentLoading(false);
                             }}
                           />
+                          {pageCountToRender === 2 && pdfCurrentPage + 1 <= (pdfNumPages || 0) && ( // NEW: Conditionally render second page
+                            <Page
+                              pageNumber={pdfCurrentPage + 1}
+                              width={pageWidth || undefined} // NEW: Adjust width
+                              height={chartContainerRef.current?.offsetHeight || undefined}
+                              renderAnnotationLayer={true}
+                              renderTextLayer={true}
+                              loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
+                              onRenderSuccess={() => {
+                                console.log("[SheetReaderMode] PDF Page 2 rendered successfully.");
+                              }}
+                            />
+                          )}
                         </Document>
                       </div>
                     );

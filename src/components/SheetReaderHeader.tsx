@@ -16,7 +16,7 @@ import { AudioEngineControls } from '@/hooks/use-tone-audio';
 // FIX: Import ChartType directly from the local file or define it locally if not exported
 // Since SheetReaderMode exports it as default, we can import it as default or define it here.
 // To avoid circular dependency issues, defining it locally is safer if it's just a type.
-type ChartType = 'pdf' | 'leadsheet' | 'web' | 'chords';
+type ChartType = 'pdf' | 'leadsheet' | 'chords';
 
 interface SheetReaderHeaderProps {
   currentSong: SetlistSong | null;
@@ -57,6 +57,7 @@ interface SheetReaderHeaderProps {
   pdfCurrentPage: number;
   setPdfCurrentPage: React.Dispatch<React.SetStateAction<number>>;
   selectedChartType: ChartType;
+  isLandscape: boolean; // NEW: Add isLandscape prop
 }
 
 const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
@@ -98,6 +99,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   pdfCurrentPage,
   setPdfCurrentPage,
   selectedChartType,
+  isLandscape, // NEW: Destructure isLandscape
 }) => {
   const displayKey = effectiveTargetKey ? formatKey(effectiveTargetKey, readerKeyPreference) : null;
   const keysToUse = readerKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
@@ -122,11 +124,11 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   };
 
   const handlePrevPdfPage = () => {
-    setPdfCurrentPage(prev => Math.max(1, prev - 1));
+    setPdfCurrentPage(prev => Math.max(1, prev - (isLandscape ? 2 : 1))); // NEW: Adjust for landscape
   };
 
   const handleNextPdfPage = () => {
-    setPdfCurrentPage(prev => Math.min(prev + 1, 999));
+    setPdfCurrentPage(prev => Math.min(prev + (isLandscape ? 2 : 1), 999)); // NEW: Adjust for landscape
   };
 
   if (isFullScreen) return null;
