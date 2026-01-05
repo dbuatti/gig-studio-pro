@@ -31,11 +31,11 @@ import 'react-pdf/dist/Page/TextLayer.css';
 import { useSpring, animated } from '@react-spring/web';
 import { useDrag } from '@use-gesture/react';
 
-// CORRECTED: Import the worker entry directly from pdfjs-dist
-import pdfWorker from 'pdfjs-dist/build/pdf.worker.entry';
-
-// Configure PDF.js worker source using the locally bundled worker
-pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
+// Configure PDF.js worker source using a URL, which Vite can handle
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.js',
+  import.meta.url,
+).toString();
 
 export type ChartType = 'pdf' | 'leadsheet' | 'chords';
 
@@ -703,63 +703,61 @@ const SheetReaderMode: React.FC = () => {
             className="h-full w-full relative"
           >
             {currentSong ? (
-              <>
-                {selectedChartType === 'chords' ? (
-                  <UGChordsReader
-                    chordsText={currentSong.ug_chords_text || ""}
-                    config={currentSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
-                    isMobile={false}
-                    originalKey={currentSong.originalKey}
-                    targetKey={effectiveTargetKey}
-                    isPlaying={isPlaying}
-                    progress={progress}
-                    duration={duration}
-                    readerKeyPreference={readerKeyPreference}
-                    onChartReady={() => setIsChartContentLoading(false)}
-                  />
-                ) : (
-                  (() => {
-                    const url = getChartUrlForType(currentSong, selectedChartType);
-                    if (url) {
-                      return (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Document
-                            file={url}
-                            onLoadSuccess={({ numPages }) => {
-                              setPdfNumPages(numPages);
-                              setIsChartContentLoading(false);
-                            }}
-                            onLoadError={(error) => {
-                              console.error("Error loading PDF:", error);
-                              showError("Failed to load PDF document.");
-                              setIsChartContentLoading(false);
-                            }}
-                            loading={<Loader2 className="w-12 h-12 animate-spin text-indigo-500" />}
-                            className="w-full h-full flex items-center justify-center"
-                          >
-                            <Page
-                              pageNumber={pdfCurrentPage}
-                              width={chartContainerRef.current?.offsetWidth || undefined}
-                              height={chartContainerRef.current?.offsetHeight || undefined}
-                              renderAnnotationLayer={true}
-                              renderTextLayer={true}
-                              loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
-                              onRenderSuccess={() => {
-                                setIsChartContentLoading(false);
-                              }}
-                            />
-                          </Document>
-                        </div>
-                      );
-                    }
+              selectedChartType === 'chords' ? (
+                <UGChordsReader
+                  chordsText={currentSong.ug_chords_text || ""}
+                  config={currentSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
+                  isMobile={false}
+                  originalKey={currentSong.originalKey}
+                  targetKey={effectiveTargetKey}
+                  isPlaying={isPlaying}
+                  progress={progress}
+                  duration={duration}
+                  readerKeyPreference={readerKeyPreference}
+                  onChartReady={() => setIsChartContentLoading(false)}
+                />
+              ) : (
+                (() => {
+                  const url = getChartUrlForType(currentSong, selectedChartType);
+                  if (url) {
                     return (
-                      <div className="h-full flex items-center justify-center text-slate-500 text-sm italic">
-                        <p>No {selectedChartType} available for this track.</p>
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Document
+                          file={url}
+                          onLoadSuccess={({ numPages }) => {
+                            setPdfNumPages(numPages);
+                            setIsChartContentLoading(false);
+                          }}
+                          onLoadError={(error) => {
+                            console.error("Error loading PDF:", error);
+                            showError("Failed to load PDF document.");
+                            setIsChartContentLoading(false);
+                          }}
+                          loading={<Loader2 className="w-12 h-12 animate-spin text-indigo-500" />}
+                          className="w-full h-full flex items-center justify-center"
+                        >
+                          <Page
+                            pageNumber={pdfCurrentPage}
+                            width={chartContainerRef.current?.offsetWidth || undefined}
+                            height={chartContainerRef.current?.offsetHeight || undefined}
+                            renderAnnotationLayer={true}
+                            renderTextLayer={true}
+                            loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
+                            onRenderSuccess={() => {
+                              setIsChartContentLoading(false);
+                            }}
+                          />
+                        </Document>
                       </div>
                     );
-                  })()
-                )}
-              </>
+                  }
+                  return (
+                    <div className="h-full flex items-center justify-center text-slate-500 text-sm italic">
+                      <p>No {selectedChartType} available for this track.</p>
+                    </div>
+                  );
+                })()
+              )
             ) : (
               <div className="h-full flex items-center justify-center text-slate-500 text-sm italic">
                 <p>No song selected or available.</p>
