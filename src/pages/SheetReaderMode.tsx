@@ -220,7 +220,6 @@ const SheetReaderMode: React.FC = () => {
         // audioEngine.loadFromUrl will handle if it needs to re-fetch or just update pitch.
         audioEngine.loadFromUrl(urlToLoad, currentSong.pitch || 0);
       } else {
-        console.log("[SheetReaderMode] Current song has no audio link, resetting engine.");
         audioEngine.resetEngine(); // Keep this if there's no URL to ensure player is cleared
         showWarning("Selected song has no audio link.");
       }
@@ -785,7 +784,7 @@ const SheetReaderMode: React.FC = () => {
             {...bind()}  
             style={{ 
               // Removed x: springX
-              touchAction: 'none', // NEW: Disable all touch actions on this element for precise control
+              // Removed touchAction: 'none', // NEW: Disable all touch actions on this element for precise control
               width: '100%', // Ensure it takes full width for drag context
               height: '100%',
               display: 'flex', 

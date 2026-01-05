@@ -92,7 +92,7 @@ const UGChordsReader = React.memo(({
         lineHeight: resolvedConfig.lineSpacing,
         textAlign: resolvedConfig.textAlign as any,
         color: readableChordColor || "#ffffff",
-        touchAction: 'none' // NEW: Disable all touch actions on this element
+        // Removed touchAction: 'none'
       }}
     >
       {chordsText ? (
