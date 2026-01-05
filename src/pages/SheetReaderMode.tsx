@@ -33,6 +33,8 @@ import { useDrag } from '@use-gesture/react';
 
 // Configure PDF.js worker source to point to the file in the public directory
 pdfjs.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.js`;
+console.log("[SheetReaderMode] pdfjs.GlobalWorkerOptions.workerSrc set to:", pdfjs.GlobalWorkerOptions.workerSrc);
+
 
 export type ChartType = 'pdf' | 'leadsheet' | 'chords';
 
@@ -716,17 +718,19 @@ const SheetReaderMode: React.FC = () => {
               ) : (
                 (() => {
                   const url = getChartUrlForType(currentSong, selectedChartType);
+                  console.log("[SheetReaderMode] Attempting to load PDF from URL:", url); // Log PDF URL
                   if (url) {
                     return (
                       <div className="w-full h-full flex items-center justify-center">
                         <Document
                           file={url}
                           onLoadSuccess={({ numPages }) => {
+                            console.log("[SheetReaderMode] PDF Document loaded successfully. Pages:", numPages); // Log success
                             setPdfNumPages(numPages);
                             setIsChartContentLoading(false);
                           }}
                           onLoadError={(error) => {
-                            console.error("Error loading PDF:", error);
+                            console.error("[SheetReaderMode] Error loading PDF Document:", error); // Log error
                             showError("Failed to load PDF document.");
                             setIsChartContentLoading(false);
                           }}
@@ -741,6 +745,7 @@ const SheetReaderMode: React.FC = () => {
                             renderTextLayer={true}
                             loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
                             onRenderSuccess={() => {
+                              console.log("[SheetReaderMode] PDF Page rendered successfully."); // Log page render success
                               setIsChartContentLoading(false);
                             }}
                           />
