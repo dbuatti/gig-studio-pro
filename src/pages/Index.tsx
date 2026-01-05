@@ -599,23 +599,11 @@ const Index = () => {
         throw new Error("Master sync failed to return a valid song ID.");
       }
       
-      if (activeSetlist) {
-        const { error: junctionError } = await supabase.from('setlist_songs').insert({
-          setlist_id: activeSetlist.id,
-          song_id: syncedSong.master_id,
-          sort_order: activeSetlist.songs.length,
-          isPlayed: false,
-          is_confirmed: false
-        });
-
-        if (junctionError) throw junctionError;
-        
-        await fetchSetlistsAndRepertoire(false); 
-        showSuccess(`"${name}" added to gig.`);
-      } else {
-        await fetchSetlistsAndRepertoire(false); 
-        showSuccess(`"${name}" added to master repertoire.`);
-      }
+      // Removed the logic to add to activeSetlist here.
+      // The song is now only added to the master repertoire.
+      await fetchSetlistsAndRepertoire(false); 
+      showSuccess(`"${name}" added to master repertoire.`);
+      
     } catch (err: any) {
       showError(`Import failed: ${err.message || 'Database connection error'}`);
     }
@@ -812,7 +800,7 @@ const Index = () => {
               <SetlistSelector setlists={allSetlists} currentId={activeSetlistId || ''} onSelect={handleSelectSetlist} onCreate={() => { setNewSetlistName(""); setIsCreatingSetlist(true); }} onDelete={(id) => setDeleteSetlistConfirmId(id)} />
               <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
                 <Button variant="outline" size="sm" onClick={() => setIsRepertoirePickerOpen(true)} className="h-10 px-6 rounded-xl border-indigo-100 dark:border-slate-800 bg-white dark:bg-slate-950 text-indigo-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-sm"><Plus className="w-3.5 h-3.5" /> Add from Library</Button>
-                <ImportSetlist isOpen={isImportSetlistOpen} onClose={() => setIsImportSetlistOpen(false)} onImport={async (songs) => { if (!userId || !activeSetlist) return; try { const newSongs = await syncToMasterRepertoire(userId, songs); const junctionInserts = newSongs.map((s, index) => ({ setlist_id: activeSetlist.id, song_id: s.master_id || s.id, sort_order: activeSetlist.songs.length + index, isPlayed: false, is_confirmed: false })); await supabase.from('setlist_songs').insert(junctionInserts); await fetchSetlistsAndRepertoire(); showSuccess("Imported!"); setIsImportSetlistOpen(false); } catch (err: any) { showError(`Failed: ${err.message}`); } }} />
+                <ImportSetlist isOpen={isImportSetlistOpen} onClose={() => setIsImportSetlistOpen(false)} onImport={async (songs) => { if (!userId) return; try { const newSongs = await syncToMasterRepertoire(userId, songs); const junctionInserts = newSongs.map((s, index) => ({ setlist_id: activeSetlist!.id, song_id: s.master_id || s.id, sort_order: activeSetlist!.songs.length + index, isPlayed: false, is_confirmed: false })); await supabase.from('setlist_songs').insert(junctionInserts); await fetchSetlistsAndRepertoire(); showSuccess("Imported!"); setIsImportSetlistOpen(false); } catch (err: any) { showError(`Failed: ${err.message}`); } }} />
               </div>
             </div>
 
