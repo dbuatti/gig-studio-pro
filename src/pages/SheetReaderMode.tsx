@@ -32,11 +32,9 @@ import { useSpring, animated } from '@react-spring/web';
 import { useDrag } from '@use-gesture/react';
 
 // Configure PDF.js worker source using the locally bundled worker
-// This uses the URL constructor with import.meta.url for more robust asset resolution with Vite.
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.js',
-  import.meta.url,
-).toString();
+// CORRECTED: Import the worker entry file directly for Vite compatibility
+import pdfWorker from 'pdfjs-dist/build/pdf.worker.entry';
+pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 export type ChartType = 'pdf' | 'leadsheet' | 'chords';
 
