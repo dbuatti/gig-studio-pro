@@ -160,8 +160,9 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input 
+            autoFocus
             placeholder="Search iTunes library..." 
-            className="pl-9 h-11 border-indigo-100 bg-white dark:bg-slate-900 focus-visible:ring-indigo-500"
+            className="pl-9 h-11 border-border bg-background focus-visible:ring-primary text-foreground"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -176,13 +177,13 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
       </form>
 
       {results.length > 0 && (
-        <Card className="border-slate-200 dark:border-slate-800 overflow-hidden shadow-inner bg-slate-100 dark:bg-slate-900/30">
+        <Card className="border-border overflow-hidden shadow-inner bg-card">
           <ScrollArea className="h-[450px]">
             <div className="p-2 space-y-1">
               <TooltipProvider>
                 {results.map((song) => (
-                  <div key={song.trackId} className="flex flex-col border-b last:border-0 border-slate-200 dark:border-slate-800">
-                    <div className="w-full flex items-center gap-3 p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all group">
+                  <div key={song.trackId} className="flex flex-col border-b last:border-0 border-border">
+                    <div className="w-full flex items-center gap-3 p-2 hover:bg-accent rounded-lg transition-all group">
                       <button
                         onClick={() => handleAddClick(song)}
                         className="flex flex-1 items-center gap-3 text-left min-w-0"
@@ -190,12 +191,12 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
                         <img 
                           src={song.artworkUrl60} 
                           alt={song.trackName} 
-                          className="w-10 h-10 rounded-md shadow-sm group-hover:scale-105 transition-transform" 
+                          className="w-10 h-10 rounded-md shadow-sm group-hover:scale-105 transition-transform object-cover" 
                         />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold truncate text-slate-900 dark:text-white">{song.trackName}</p>
+                          <p className="text-sm font-bold truncate text-foreground">{song.trackName}</p>
                           <p className="text-[10px] text-muted-foreground truncate uppercase tracking-wider font-semibold">{song.artistName}</p>
-                          <p className="text-[8px] text-indigo-500 font-black uppercase tracking-tighter mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">Click to Add to Gig</p>
+                          <p className="text-[8px] text-primary font-black uppercase tracking-tighter mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">Click to Add to Gig</p>
                         </div>
                       </button>
 
@@ -206,7 +207,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
                               onClick={() => toggleExpand(song)}
                               className={cn(
                                 "p-2 rounded-md transition-all",
-                                expandingId === song.trackId ? "bg-indigo-600 text-white shadow-lg" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500"
+                                expandingId === song.trackId ? "bg-indigo-600 text-white shadow-lg" : "hover:bg-accent text-muted-foreground"
                               )}
                             >
                               <LinkIcon className="w-4 h-4" />
@@ -219,7 +220,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
                           <TooltipTrigger asChild>
                             <button
                               onClick={() => handlePreviewClick(song)}
-                              className="p-2 hover:bg-indigo-600 hover:text-white text-indigo-400 rounded-md transition-all"
+                              className="p-2 hover:bg-primary hover:text-primary-foreground text-primary rounded-md transition-all"
                             >
                               <Music className="w-4 h-4" />
                             </button>
@@ -231,24 +232,24 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
 
                     {expandingId === song.trackId && (
                       <div className="px-3 pb-3 animate-in slide-in-from-top-2 duration-300">
-                        <div className="p-4 bg-slate-100 dark:bg-slate-900 rounded-xl border-2 border-indigo-200 dark:border-indigo-900/20 shadow-sm space-y-4">
-                          <div className="flex items-center justify-between border-b pb-2 border-slate-200 dark:border-slate-800">
-                            <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Library Engine Configuration</span>
-                            {ytSearchLoading && <Loader2 className="w-3 h-3 animate-spin text-indigo-500" />}
+                        <div className="p-4 bg-secondary rounded-xl border-2 border-primary/20 shadow-sm space-y-4">
+                          <div className="flex items-center justify-between border-b pb-2 border-border">
+                            <span className="text-[10px] font-black text-primary uppercase tracking-widest">Library Engine Configuration</span>
+                            {ytSearchLoading && <Loader2 className="w-3 h-3 animate-spin text-primary" />}
                           </div>
 
                           <div className="space-y-4">
                             {/* YouTube Section */}
                             <div className="space-y-2">
-                              <Label className="text-[9px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                                <Youtube className="w-3 h-3 text-red-600" /> YouTube Master / Reference
+                              <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                                <Youtube className="w-3 h-3 text-destructive" /> YouTube Master / Reference
                               </Label>
                               <div className="flex gap-2">
                                 <div className="relative flex-1">
                                   <LinkIcon className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
                                   <Input 
                                     placeholder="Paste video URL..." 
-                                    className="h-9 pl-7 text-[10px] bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white"
+                                    className="h-9 pl-7 text-[10px] bg-background border-border text-foreground"
                                     value={manualYtUrl}
                                     onChange={(e) => setManualYtUrl(e.target.value)}
                                   />
@@ -256,7 +257,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
                                 <Button 
                                   variant="outline" 
                                   size="sm" 
-                                  className="h-9 border-slate-200 dark:border-slate-800 text-slate-600 hover:bg-red-50 hover:text-red-600 text-[10px] font-bold uppercase"
+                                  className="h-9 border-border text-muted-foreground hover:bg-destructive/10 hover:text-destructive text-[10px] font-bold uppercase"
                                   onClick={() => openYoutubeSearch(song.trackName, song.artistName)}
                                 >
                                   <Search className="w-3 h-3 mr-1" /> Find
@@ -266,7 +267,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
 
                             {/* UG Section */}
                             <div className="space-y-2">
-                              <Label className="text-[9px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                              <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                                 <FileText className="w-3 h-3 text-orange-500" /> Ultimate Guitar Tab Link
                               </Label>
                               <div className="flex gap-2">
@@ -274,7 +275,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
                                   <LinkIcon className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
                                   <Input 
                                     placeholder="Paste UG tab URL..." 
-                                    className="h-9 pl-7 text-[10px] bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white"
+                                    className="h-9 pl-7 text-[10px] bg-background border-border text-foreground"
                                     value={manualUgUrl}
                                     onChange={(e) => setManualUgUrl(e.target.value)}
                                   />
@@ -282,7 +283,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
                                 <Button 
                                   variant="outline" 
                                   size="sm" 
-                                  className="h-9 border-slate-200 dark:border-slate-800 text-slate-600 hover:bg-orange-50 hover:text-orange-600 text-[10px] font-bold uppercase"
+                                  className="h-9 border-border text-muted-foreground hover:bg-orange-500/10 hover:text-orange-500 text-[10px] font-bold uppercase"
                                   onClick={() => openUgSearch(song.trackName, song.artistName)}
                                 >
                                   <Search className="w-3 h-3 mr-1" /> Find

@@ -62,7 +62,7 @@ const GlobalLibrary: React.FC<GlobalLibraryProps> = ({ onImport }) => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Globe className="w-4 h-4 text-emerald-500" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Community Library</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Community Library</span>
           </div>
           {isLoading && <Loader2 className="w-3 h-3 animate-spin text-emerald-500" />}
         </div>
@@ -71,7 +71,7 @@ const GlobalLibrary: React.FC<GlobalLibraryProps> = ({ onImport }) => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <Input 
             placeholder="Search verified community tracks..." 
-            className="pl-9 h-10 border-slate-200 dark:border-slate-800 bg-white dark:bg-transparent text-xs focus-visible:ring-emerald-500"
+            className="pl-9 h-10 border-border bg-background text-xs focus-visible:ring-emerald-500 text-foreground"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -90,36 +90,36 @@ const GlobalLibrary: React.FC<GlobalLibraryProps> = ({ onImport }) => {
               return (
                 <div 
                   key={song.id}
-                  className="group p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl hover:border-emerald-200 transition-all shadow-sm"
+                  className="group p-4 bg-card border border-border rounded-2xl hover:border-emerald-200 transition-all shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <h4 className="text-sm font-black uppercase tracking-tight truncate text-slate-900 dark:text-white">{song.title}</h4>
+                        <h4 className="text-sm font-black uppercase tracking-tight truncate text-foreground">{song.title}</h4>
                         {readiness >= 90 && <ShieldCheck className="w-3 h-3 text-emerald-500" />}
-                        {isProcessing && <CloudDownload className="w-3.5 h-3.5 text-indigo-500 animate-bounce" />}
-                        {isExtractionFailed && <AlertTriangle className="w-3.5 h-3.5 text-red-500" />}
+                        {isProcessing && <CloudDownload className="w-3.5 h-3.5 text-primary animate-bounce" />}
+                        {isExtractionFailed && <AlertTriangle className="w-3.5 h-3.5 text-destructive" />}
                       </div>
-                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-0.5">{song.artist}</p>
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-0.5">{song.artist}</p>
                       
                       <div className="flex items-center gap-3 mt-3">
-                        <div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-md border border-slate-200 dark:border-slate-700">
-                          <User className="w-2.5 h-2.5 text-slate-500" />
-                          <span className="text-[9px] font-bold text-slate-600 dark:text-slate-500 uppercase">{song.profiles?.first_name || 'Artist'}</span>
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 bg-secondary rounded-md border border-border">
+                          <User className="w-2.5 h-2.5 text-muted-foreground" />
+                          <span className="text-[9px] font-bold text-muted-foreground uppercase">{song.profiles?.first_name || 'Artist'}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <Star className="w-2.5 h-2.5 text-amber-500 fill-amber-500" />
-                          <span className="text-[9px] font-black text-slate-600 dark:text-slate-500">{readiness}% READY</span>
+                          <span className="text-[9px] font-black text-muted-foreground">{readiness}% READY</span>
                         </div>
-                        {song.pdf_url && <FileText className="w-2.5 h-2.5 text-indigo-400" />}
+                        {song.pdf_url && <FileText className="w-2.5 h-2.5 text-primary" />}
                       </div>
                       {isExtractionFailed && song.last_sync_log && (
-                        <p className="text-[8px] text-red-400 mt-1 truncate max-w-[150px]">Error: {song.last_sync_log}</p>
+                        <p className="text-[8px] text-destructive mt-1 truncate max-w-[150px]">Error: {song.last_sync_log}</p>
                       )}
                     </div>
 
                     <div className="flex flex-col items-end gap-2 shrink-0">
-                      <span className="text-[10px] font-mono font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
+                      <span className="text-[10px] font-mono font-black bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded">
                         {displayKey}
                       </span>
                       <Button 
@@ -144,7 +144,7 @@ const GlobalLibrary: React.FC<GlobalLibraryProps> = ({ onImport }) => {
                           last_sync_log: song.last_sync_log,
                           audio_url: song.audio_url, // Map audio_url
                         })}
-                        className="h-8 px-3 text-[9px] font-black uppercase bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-xl gap-1.5 transition-all"
+                        className="h-8 px-3 text-[9px] font-black uppercase bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white rounded-xl gap-1.5 transition-all"
                       >
                         <Plus className="w-3 h-3" /> Clone Track
                       </Button>
@@ -158,7 +158,7 @@ const GlobalLibrary: React.FC<GlobalLibraryProps> = ({ onImport }) => {
               !isLoading && (
                 <div className="py-20 text-center opacity-30">
                   <Globe className="w-10 h-10 mb-4 mx-auto" />
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em]">No community matches found</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">No community matches found</p>
                 </div>
               )
             ) : (
@@ -167,8 +167,8 @@ const GlobalLibrary: React.FC<GlobalLibraryProps> = ({ onImport }) => {
                   <Globe className="w-6 h-6" />
                 </div>
                 <div className="space-y-1">
-                  <p className="text-[11px] font-black uppercase tracking-[0.1em]">Verified Community Sourcing</p>
-                  <p className="text-[10px] text-slate-400 font-medium leading-relaxed">Search thousands of tracks with master audio and charts already linked by other pros.</p>
+                  <p className="text-[11px] font-black uppercase tracking-[0.1em] text-foreground">Verified Community Sourcing</p>
+                  <p className="text-[10px] text-muted-foreground font-medium leading-relaxed">Search thousands of tracks with master audio and charts already linked by other pros.</p>
                 </div>
               </div>
             )

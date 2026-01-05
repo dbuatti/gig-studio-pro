@@ -143,7 +143,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center opacity-40 px-6">
         <Music className="w-10 h-10 mb-4" />
-        <p className="text-[10px] font-black uppercase tracking-[0.2em]">Add songs to your library to get AI recommendations</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Add songs to your library to get AI recommendations</p>
       </div>
     );
   }
@@ -153,8 +153,8 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
       <div className="space-y-3 px-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 flex-shrink-0">
-            <Sparkles className="w-4 h-4 text-indigo-500" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">AI Discover Engine</span>
+            <Sparkles className="w-4 h-4 text-primary" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">AI Discover Engine</span>
           </div>
           <div className="flex gap-2">
             {duplicateCount > 0 && (
@@ -173,7 +173,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
               size="sm" 
               onClick={() => fetchSuggestions(true, false)} 
               disabled={isLoading}
-              className="h-7 text-[9px] font-black uppercase hover:bg-indigo-50 text-indigo-600 flex-shrink-0"
+              className="h-7 text-[9px] font-black uppercase hover:bg-primary/10 text-primary flex-shrink-0"
             >
               {isLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <RotateCcw className="w-3 h-3 mr-1" />} 
               {isLoading ? "Fetching..." : "Refresh"}
@@ -181,25 +181,25 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
           </div>
         </div>
 
-        <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800 space-y-2">
+        <div className="bg-card p-3 rounded-xl border border-border space-y-2">
           <div className="flex items-center justify-between">
-            <Label className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-400 flex items-center gap-1.5">
+            <Label className="text-[8px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-1.5">
               <Target className="w-3 h-3" /> Search Mode
             </Label>
             {seedSongId && (
               <button 
                 onClick={() => { setSeedSongId(null); fetchSuggestions(true, false); }}
-                className="text-[8px] font-black text-indigo-500 uppercase hover:text-indigo-600"
+                className="text-[8px] font-black text-primary uppercase hover:text-primary/80"
               >
                 Clear Seed
               </button>
             )}
           </div>
           <Select value={seedSongId || "profile"} onValueChange={(val) => { setSeedSongId(val === "profile" ? null : val); fetchSuggestions(true, false); }}>
-            <SelectTrigger className="h-8 text-[10px] font-bold bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800">
+            <SelectTrigger className="h-8 text-[10px] font-bold bg-background border-border text-foreground">
               <SelectValue placeholder="Suggest based on entire profile" />
             </SelectTrigger>
-            <SelectContent className="max-h-[300px]">
+            <SelectContent className="max-h-[300px] bg-popover border-border text-foreground">
               <SelectItem value="profile" className="text-[10px] font-bold">Entire Profile Vibe</SelectItem>
               {repertoire.map(s => (
                 <SelectItem key={s.id} value={s.id} className="text-[10px] font-medium">
@@ -215,8 +215,8 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
         <div className="space-y-2 pr-4 pl-4">
           {isLoading && rawSuggestions.length === 0 ? (
             <div className="py-20 flex flex-col items-center gap-4 text-center">
-              <Loader2 className="w-8 h-8 animate-spin text-indigo-500 opacity-20" />
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+              <Loader2 className="w-8 h-8 animate-spin text-primary opacity-20" />
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                 {seedSong ? `Finding tracks like "${seedSong.name}"...` : "Analyzing your sonic profile..."}
               </p>
             </div>
@@ -228,23 +228,23 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
                   className={cn(
                     "group p-4 border rounded-2xl transition-all shadow-sm relative overflow-hidden",
                     song.isDuplicate 
-                      ? "bg-slate-50/50 dark:bg-slate-900/30 border-slate-100 dark:border-slate-800 opacity-60"
-                      : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:border-indigo-200"
+                      ? "bg-secondary/50 border-border opacity-60"
+                      : "bg-card border-border hover:border-primary/20"
                   )}
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <h4 className="text-sm font-black uppercase tracking-tight truncate">{song.name}</h4>
+                        <h4 className="text-sm font-black uppercase tracking-tight truncate text-foreground">{song.name}</h4>
                         {song.isDuplicate && <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
                       </div>
-                      <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mt-0.5">{song.artist}</p>
+                      <p className="text-[10px] font-black text-primary uppercase tracking-widest mt-0.5">{song.artist}</p>
                       {song.isDuplicate ? (
                         <span className="inline-block mt-2 text-[8px] font-black bg-emerald-50/20 text-emerald-600 px-2 py-0.5 rounded-full uppercase tracking-tighter">
                           Already in Set
                         </span>
                       ) : song.reason && (
-                        <p className="text-[9px] text-slate-400 font-bold uppercase mt-2 leading-relaxed">
+                        <p className="text-[9px] text-muted-foreground font-bold uppercase mt-2 leading-relaxed">
                           {song.reason}
                         </p>
                       )}
@@ -255,7 +255,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
                         variant="ghost" 
                         size="icon" 
                         onClick={() => handleDismissSuggestion(song)}
-                        className="h-8 w-8 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                        className="h-8 w-8 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                         title="Dismiss suggestion"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -267,7 +267,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
                             variant="ghost" 
                             size="icon" 
                             onClick={() => onSelectSuggestion(`${song.artist} ${song.name}`)}
-                            className="h-8 w-8 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white"
+                            className="h-8 w-8 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground"
                             title="Preview track"
                           >
                             <Search className="w-3.5 h-3.5" />
@@ -317,7 +317,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
                   </div>
                   {isLoading && (
                     <div className="absolute inset-0 bg-black/5 flex items-center justify-center backdrop-blur-[1px]">
-                      <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
+                      <Loader2 className="w-4 h-4 animate-spin text-primary" />
                     </div>
                   )}
                 </div>
@@ -325,7 +325,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
             ) : (
               <div className="py-20 text-center opacity-30">
                 <Sparkles className="w-10 h-10 mb-4 mx-auto" />
-                <p className="text-[10px] font-black uppercase tracking-[0.2em]">Discovery pool empty. Refresh to get new tracks.</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Discovery pool empty. Refresh to get new tracks.</p>
               </div>
             )
           )}
