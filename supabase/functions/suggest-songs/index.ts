@@ -25,9 +25,12 @@ serve(async (req) => {
       throw new Error("Missing API Key configuration.");
     }
 
-    // Prepare lists of songs to exclude
-    const existingTitles = repertoire.map((s: any) => `${s.name || 'Unknown'} - ${s.artist || 'Unknown'}`);
-    const ignoredTitles = ignored.map((s: any) => `${s.name || 'Unknown'} - ${s.artist || 'Unknown'}`);
+    // Prepare lists of songs to exclude, ensuring consistent formatting (lowercase, trimmed, 'title-artist' format)
+    const formatForExclusion = (s: any) => 
+      `${(s.name || 'Unknown').trim().toLowerCase()}-${(s.artist || 'Unknown').trim().toLowerCase()}`;
+
+    const existingTitles = repertoire.map(formatForExclusion);
+    const ignoredTitles = ignored.map(formatForExclusion);
     
     const excludeListString = [...existingTitles, ...ignoredTitles].join(', ');
     
@@ -35,14 +38,14 @@ serve(async (req) => {
     if (seedSong) {
       prompt = `Act as a professional music curator. Based specifically on the vibe, genre, and era of the song "${seedSong.name}" by ${seedSong.artist}, suggest 10 similar tracks for a live set.
       
-      CRITICAL: You MUST NOT suggest any of these songs which are ALREADY in the user's library or have been dismissed: [${excludeListString}].
+      CRITICAL: You MUST NOT suggest any of these songs which are ALREADY in the user's library or have been dismissed. The format for excluded songs is "title-artist" (all lowercase, trimmed). Excluded songs: [${excludeListString}].
       
       Focus on tracks that would transition well from the seed song.
       Return ONLY a JSON array of objects: [{"name": "Song Title", "artist": "Artist Name", "reason": "Connection to ${seedSong.name}"}]. No markdown.`;
     } else {
       prompt = `Act as a professional music curator. Based on this existing repertoire: [${existingTitles.join(', ')}], suggest 10 similar songs that would fit this artist's style. 
       
-      CRITICAL: You MUST NOT suggest any songs that are already in the library or have been dismissed: [${excludeListString}]. Suggest entirely new tracks.
+      CRITICAL: You MUST NOT suggest any songs that are already in the library or have been dismissed. The format for excluded songs is "title-artist" (all lowercase, trimmed). Excluded songs: [${excludeListString}]. Suggest entirely new tracks.
       
       Return ONLY a JSON array of objects: [{"name": "Song Title", "artist": "Artist Name", "reason": "Short reason why"}]. No markdown.`;
     }
