@@ -63,11 +63,17 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
     }
     
     try {
+      // Combine existing repertoire and explicitly ignored suggestions for the AI
+      const combinedIgnored = [
+        ...repertoire.map(s => ({ name: s.name, artist: s.artist })),
+        ...ignoredSuggestions
+      ];
+
       const { data, error } = await supabase.functions.invoke('suggest-songs', {
         body: { 
           repertoire: repertoire.slice(0, 50),
           seedSong: seedSong ? { name: seedSong.name, artist: seedSong.artist } : null,
-          ignored: sessionIgnoredCache
+          ignored: combinedIgnored // Pass the combined list
         } 
       });
 
@@ -107,7 +113,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
         setIsLoadingInitial(false);
       }
     }
-  }, [repertoire, seedSong, existingKeys]);
+  }, [repertoire, seedSong, existingKeys, ignoredSuggestions]); // Added ignoredSuggestions to dependencies
 
   useEffect(() => {
     if (repertoire.length > 0 && !sessionInitialLoadAttempted && rawSuggestions.length === 0) {
