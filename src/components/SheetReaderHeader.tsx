@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { ArrowLeft, Search, Music, ChevronLeft, ChevronRight, Loader2, ChevronDown, Maximize2, Minimize2, Bug, Hash, Sparkles, ListMusic, Play, Pause, Gauge, Volume2, Activity, RotateCcw, FileText, Minus, Plus } from 'lucide-react';
@@ -54,6 +54,18 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   const displayKey = effectiveTargetKey ? formatKey(effectiveTargetKey, readerKeyPreference) : null;
   const keysToUse = readerKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
 
+  const activeKeyItemRef = useRef<HTMLDivElement>(null);
+
+  const handleDropdownOpenChange = (open: boolean) => {
+    setIsOverlayOpen(open);
+    if (open && activeKeyItemRef.current) {
+      // Use a slight delay to ensure the dropdown content is rendered before scrolling
+      setTimeout(() => {
+        activeKeyItemRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }, 100); 
+    }
+  };
+
   return (
     <div
       className="fixed top-0 left-0 right-0 z-60 bg-slate-900/80 backdrop-blur-xl border-b border-white/10 px-6 py-3 flex items-center justify-between shadow-lg animate-in slide-in-from-top duration-300 h-[72px]"
@@ -72,26 +84,25 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
         >
           <ListMusic className="w-5 h-5" />
         </Button>
+        
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onOpenCurrentSongStudio}
+          disabled={!currentSong}
+          className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
+          title="Open Current Song in Studio"
+        >
+          <FileText className="w-5 h-5" />
+        </Button>
       </div>
 
-      {/* Center Section: Song Title and Studio Button */}
+      {/* Center Section: Song Title */}
       <div className="flex-1 text-center min-w-0 px-4">
         {isLoading ? (
           <Skeleton className="h-6 w-48 mx-auto bg-white/10" />
         ) : currentSong ? (
-          <h2 className="text-lg font-black uppercase tracking-tight text-white line-clamp-1 flex items-center justify-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onOpenCurrentSongStudio}
-              disabled={!currentSong}
-              className="h-8 w-8 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 shrink-0"
-              title="Open Current Song in Studio"
-            >
-              <FileText className="w-4 h-4" />
-            </Button>
-            {currentSong.name}
-          </h2>
+          <h2 className="text-lg font-black uppercase tracking-tight text-white line-clamp-1">{currentSong.name}</h2>
         ) : (
           <p className="text-sm font-bold text-slate-500">No Song Selected</p>
         )}
@@ -104,7 +115,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
             <Button variant="ghost" size="icon" onClick={() => setPitch(pitch - 1)} className="h-9 w-9 rounded-lg hover:bg-white/10 text-slate-400" title="Transpose Down">
               <Minus className="w-4 h-4" />
             </Button>
-            <DropdownMenu onOpenChange={setIsOverlayOpen}>
+            <DropdownMenu onOpenChange={handleDropdownOpenChange}>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
@@ -123,7 +134,15 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
                 <DropdownMenuContent align="end" className="bg-slate-900 border-white/10 text-white z-[300] max-h-60 overflow-y-auto custom-scrollbar">
                   <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-slate-500">Stage Key</DropdownMenuLabel>
                   {keysToUse.map(k => (
-                    <DropdownMenuItem key={k} onSelect={() => onUpdateKey(k)} className="font-mono font-bold cursor-pointer">
+                    <DropdownMenuItem 
+                      key={k} 
+                      onSelect={() => onUpdateKey(k)} 
+                      className={cn(
+                        "font-mono font-bold cursor-pointer",
+                        k === displayKey && "bg-indigo-600 text-white hover:bg-indigo-700" // Highlight current key
+                      )}
+                      ref={k === displayKey ? activeKeyItemRef : null} // Assign ref to active item
+                    >
                       {k}
                     </DropdownMenuItem>
                   ))}
