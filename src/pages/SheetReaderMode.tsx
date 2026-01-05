@@ -720,7 +720,7 @@ const SheetReaderMode: React.FC = () => {
             {...bind()}  
             style={{ 
               x: springX, 
-              touchAction: 'none'
+              touchAction: 'pan-y' // Changed from 'none' to 'pan-y'
             }} 
             className="h-full w-full relative"
           >
