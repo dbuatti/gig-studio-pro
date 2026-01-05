@@ -210,7 +210,7 @@ const SheetReaderMode: React.FC = () => {
       // 1. Apply settings immediately (these setters update the Tone.js engine directly)
       audioEngine.setPitch(currentSong.pitch || 0);
       audioEngine.setTempo(currentSong.tempo || 1);
-      audioEngine.setVolume(currentSong.volume || -6);
+      // audioEngine.setVolume(currentSong.volume || -6); // REMOVED: Let useToneAudio manage its own volume state
       audioEngine.setFineTune(currentSong.fineTune || 0);
 
       // 2. Load audio if URL exists

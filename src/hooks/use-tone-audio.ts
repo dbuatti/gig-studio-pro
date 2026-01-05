@@ -35,7 +35,7 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
   const [pitch, setPitchState] = useState(0);
   const [fineTune, setFineTuneState] = useState(0);
   const [tempo, setTempoState] = useState(1);
-  const [volume, setVolumeState] = useState(-6);
+  const [volume, setVolumeState] = useState(-6); // Initial default volume
   const [currentUrl, setCurrentUrlState] = useState<string>("");
   const [isLoadingAudio, setIsLoadingAudioState] = useState(false);
 
@@ -81,6 +81,7 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     setCurrentUrlState("");
     isLoadingAudioRef.current = false;
     setIsLoadingAudioState(false);
+    // setVolumeState(-6); // REMOVED: Do not reset volume on engine reset
     console.log("[AudioEngine] Engine fully reset.");
   }, []);
 
@@ -121,12 +122,12 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     setDuration(audioBuffer.duration);
     setPitchState(initialPitch);
     setTempoState(1);
-    setVolumeState(-6);
+    // setVolumeState(-6); // REMOVED: Do not reset volume on audio buffer load
     setFineTuneState(0);
     
     playerRef.current.detune = (initialPitch * 100);
     playerRef.current.playbackRate = 1;
-    playerRef.current.volume.value = -6;
+    playerRef.current.volume.value = volume; // Use the current volume state
     
     isLoadingAudioRef.current = false;
     setIsLoadingAudioState(false);
@@ -135,7 +136,7 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
       showSuccess("Audio Loaded");
     }
     console.log("[AudioEngine] Audio ready for playback. Duration:", audioBuffer.duration);
-  }, [suppressToasts]);
+  }, [volume, suppressToasts]); // Added volume to dependencies
 
   const loadFromUrl = useCallback(async (url: string, initialPitch: number = 0, force: boolean = false) => {
     if (!url) {
@@ -179,7 +180,7 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
       isLoadingAudioRef.current = false;
       setIsLoadingAudioState(false);
     } 
-  }, [loadAudioBuffer, fineTune]);
+  }, [loadAudioBuffer, fineTune, pitch]); // Added pitch to dependencies
 
   const togglePlayback = useCallback(async () => {
     console.log(`[AudioEngine] Toggle Playback triggered. Current state: ${isPlaying ? 'Playing' : 'Stopped'}`);
