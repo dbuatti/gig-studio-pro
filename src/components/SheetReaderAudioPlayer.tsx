@@ -3,7 +3,6 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Progress } from "@/components/ui/progress"; // This import will be changed
 import {
   Play, Pause, SkipBack, SkipForward, Volume2, Minus, Plus, Loader2,
 } from 'lucide-react';
@@ -24,8 +23,8 @@ interface SheetReaderAudioPlayerProps {
   onSeek: (progress: number) => void;
   volume: number; // dB, e.g., -60 to 0
   setVolume: (volume: number) => void;
-  pitch: number; // semitones
-  setPitch: (pitch: number) => void;
+  pitch: number; // semitones - still passed but not controlled here
+  setPitch: (pitch: number) => void; // still passed but not controlled here
   isLoadingAudio: boolean;
   readerKeyPreference: KeyPreference;
   effectiveTargetKey: string;
@@ -43,8 +42,8 @@ const SheetReaderAudioPlayer: React.FC<SheetReaderAudioPlayerProps> = ({
   onSeek,
   volume,
   setVolume,
-  pitch,
-  setPitch,
+  pitch, // still passed but not controlled here
+  setPitch, // still passed but not controlled here
   isLoadingAudio,
   readerKeyPreference,
   effectiveTargetKey,
@@ -117,19 +116,9 @@ const SheetReaderAudioPlayer: React.FC<SheetReaderAudioPlayerProps> = ({
         </Button>
       </div>
 
-      {/* Right Section: Volume & Pitch */}
+      {/* Right Section: Volume Control */}
       <div className="flex items-center gap-4 flex-1 justify-end">
-        <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl p-1">
-          <Button variant="ghost" size="icon" onClick={() => setPitch(pitch - 1)} disabled={isDisabled} className="h-9 w-9 rounded-lg hover:bg-white/10 text-slate-400" title="Transpose Down">
-            <Minus className="w-4 h-4" />
-          </Button>
-          <span className="text-xs font-mono font-bold text-indigo-400 min-w-[30px] text-center">{pitch > 0 ? `+${pitch}` : pitch} ST</span>
-          <Button variant="ghost" size="icon" onClick={() => setPitch(pitch + 1)} disabled={isDisabled} className="h-9 w-9 rounded-lg hover:bg-white/10 text-slate-400" title="Transpose Up">
-            <Plus className="w-4 h-4" />
-          </Button>
-        </div>
-
-        <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl p-1">
+        <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl p-1 w-48">
           <Volume2 className="w-4 h-4 text-slate-400 ml-1" />
           <Slider
             value={[volume]}
@@ -137,7 +126,7 @@ const SheetReaderAudioPlayer: React.FC<SheetReaderAudioPlayerProps> = ({
             max={0}
             step={1}
             onValueChange={([v]) => setVolume(v)}
-            className="w-24"
+            className="flex-1"
             disabled={isDisabled}
           />
         </div>
