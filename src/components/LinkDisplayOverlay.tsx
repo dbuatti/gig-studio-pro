@@ -55,7 +55,8 @@ const LinkDisplayOverlay: React.FC<LinkDisplayOverlayProps> = ({
 
   const handleLinkClick = useCallback((link: SheetLink) => {
     if (isEditingMode) {
-      onEditLink(link);
+      // In editing mode, clicking the dot itself doesn't navigate, but opens edit/delete options
+      // The actual edit/delete actions are handled by the buttons that appear on hover.
       return;
     }
     onNavigateToPage(link.target_page, link.target_x, link.target_y);
@@ -65,9 +66,10 @@ const LinkDisplayOverlay: React.FC<LinkDisplayOverlayProps> = ({
       setFlashingTargetId(null);
     }, 1500);
     console.log("[LinkDisplayOverlay] Navigating via link: ", link.id);
-  }, [isEditingMode, onEditLink, onNavigateToPage]);
+  }, [isEditingMode, onNavigateToPage]);
 
-  const handleDeleteLink = useCallback(async (linkId: string) => {
+  const handleDeleteLink = useCallback(async (linkId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent parent click handler from firing
     if (!user) {
       showError("Authentication required to delete links.");
       return;
@@ -86,18 +88,26 @@ const LinkDisplayOverlay: React.FC<LinkDisplayOverlayProps> = ({
     }
   }, [user, onLinkDeleted]);
 
-  const getLinkDotStyle = useCallback((link: SheetLink, type: 'source' | 'target', currentPage: number): CSSProperties => {
-    const point = type === 'source' ? { x: link.source_x, y: link.source_y, page: link.source_page } : { x: link.target_x, y: link.target_y, page: link.target_page };
+  const handleEditLinkClick = useCallback((link: SheetLink, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent parent click handler from firing
+    onEditLink(link);
+  }, [onEditLink]);
 
-    if (!point || point.page !== currentPage || !pageContainerRef.current || !overlayWrapperRef.current) {
+  const getLinkDotStyle = useCallback((link: SheetLink, type: 'source' | 'target', currentPage: number): CSSProperties => {
+    if (!link || (type === 'source' && link.source_page !== currentPage) || (type === 'target' && link.target_page !== currentPage)) {
       return { display: 'none' };
     }
 
-    const pageElement = pageContainerRef.current;
-    const pageRect = pageElement.getBoundingClientRect(); // Rect of the rendered PDF page div
-
+    const point = type === 'source' ? { x: link.source_x, y: link.source_y } : { x: link.target_x, y: link.target_y };
+    const pdfPageContentElement = pageContainerRef.current;
     const overlayWrapperElement = overlayWrapperRef.current;
-    const overlayWrapperRect = overlayWrapperElement.getBoundingClientRect(); // Rect of the overlay's parent
+
+    if (!point || !pdfPageContentElement || !overlayWrapperElement) {
+      return { display: 'none' };
+    }
+
+    const pageRect = pdfPageContentElement.getBoundingClientRect();
+    const overlayWrapperRect = overlayWrapperElement.getBoundingClientRect();
 
     // Calculate the pixel position of the point relative to the viewport
     const absX = pageRect.left + point.x * pageRect.width;
@@ -136,9 +146,9 @@ const LinkDisplayOverlay: React.FC<LinkDisplayOverlayProps> = ({
       fontSize: '10px',
       fontWeight: 'bold',
       boxShadow: '0 0 10px rgba(0,0,0,0.3)',
-      cursor: 'pointer',
+      cursor: isEditingMode ? 'grab' : 'pointer', // Cursor changes in edit mode
     };
-  }, [currentPage, pageContainerRef, overlayWrapperRef, globalLinkSize]);
+  }, [currentPage, pageContainerRef, overlayWrapperRef, globalLinkSize, isEditingMode]);
 
   return (
     <TooltipProvider>
@@ -152,10 +162,10 @@ const LinkDisplayOverlay: React.FC<LinkDisplayOverlayProps> = ({
           return (
             <Tooltip key={link.id}>
               <TooltipTrigger asChild>
-                <div // Changed from button to div
+                <div // This is now a div, not a button
                   onClick={() => handleLinkClick(link)}
                   className={cn(
-                    "absolute rounded-full bg-indigo-600 border-2 border-indigo-700 shadow-lg flex items-center justify-center text-white font-bold transition-all duration-200 ease-out",
+                    "absolute rounded-full bg-indigo-600 border-2 border-indigo-700 shadow-lg flex items-center justify-center text-white font-bold transition-all duration-200 ease-out group", // Added group class
                     isEditingMode ? "opacity-100 cursor-grab" : "opacity-80 hover:opacity-100 active:scale-95",
                   )}
                   style={getLinkDotStyle(link, 'source', currentPage)}
@@ -163,12 +173,12 @@ const LinkDisplayOverlay: React.FC<LinkDisplayOverlayProps> = ({
                 >
                   <ArrowRight className="w-3 h-3" />
                   {isEditingMode && (
-                    <div className="absolute -top-8 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute -top-8 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-auto"> {/* Added pointer-events-auto */}
                       <Button 
                         variant="ghost" 
                         size="icon" 
                         className="h-6 w-6 bg-white/20 hover:bg-white/30 text-white rounded-full"
-                        onClick={(e) => { e.stopPropagation(); onEditLink(link); }}
+                        onClick={(e) => handleEditLinkClick(link, e)} // Pass event to stop propagation
                       >
                         <Edit3 className="w-3 h-3" />
                       </Button>
@@ -176,7 +186,7 @@ const LinkDisplayOverlay: React.FC<LinkDisplayOverlayProps> = ({
                         variant="ghost" 
                         size="icon" 
                         className="h-6 w-6 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-full"
-                        onClick={(e) => { e.stopPropagation(); handleDeleteLink(link.id); }}
+                        onClick={(e) => handleDeleteLink(link.id, e)} // Pass event to stop propagation
                       >
                         <Trash2 className="w-3 h-3" />
                       </Button>
