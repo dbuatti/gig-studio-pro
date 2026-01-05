@@ -3,7 +3,7 @@
 import React, { useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { ArrowLeft, Search, Music, ChevronLeft, ChevronRight, Loader2, ChevronDown, Maximize2, Minimize2, Bug, Hash, Sparkles, ListMusic, Play, Pause, Gauge, Volume2, Activity, RotateCcw, FileText, Minus, Plus } from 'lucide-react';
+import { ArrowLeft, Search, Music, ChevronLeft, ChevronRight, Loader2, ChevronDown, Maximize2, Minimize2, Bug, Hash, Sparkles, ListMusic, Play, Pause, Gauge, Volume2, Activity, RotateCcw, FileText, Minus, Plus, Headphones } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatKey, ALL_KEYS_SHARP, ALL_KEYS_FLAT } from '@/utils/keyUtils';
 import { SetlistSong } from './SetlistManager';
@@ -32,6 +32,8 @@ interface SheetReaderHeaderProps {
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
   effectiveTargetKey: string;
+  isAudioPlayerVisible: boolean; // NEW: Prop to indicate audio player visibility
+  onToggleAudioPlayer: () => void; // NEW: Prop to toggle audio player visibility
 }
 
 const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
@@ -50,6 +52,8 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   isSidebarOpen,
   onToggleSidebar,
   effectiveTargetKey,
+  isAudioPlayerVisible, // NEW
+  onToggleAudioPlayer, // NEW
 }) => {
   const displayKey = effectiveTargetKey ? formatKey(effectiveTargetKey, readerKeyPreference) : null;
   const keysToUse = readerKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
@@ -160,6 +164,19 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
             </Button>
           </div>
         )}
+        {/* NEW: Toggle Audio Player Button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onToggleAudioPlayer}
+          className={cn(
+            "h-10 w-10 rounded-xl transition-all",
+            isAudioPlayerVisible ? "bg-indigo-600 text-white hover:bg-indigo-700" : "bg-white/5 hover:bg-white/10 text-slate-400"
+          )}
+          title="Toggle Audio Player (P)"
+        >
+          <Headphones className="w-5 h-5" />
+        </Button>
         <Button variant="ghost" size="icon" onClick={onOpenRepertoireSearch} className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400" title="Search Repertoire">
           <Search className="w-5 h-5" />
         </Button>
