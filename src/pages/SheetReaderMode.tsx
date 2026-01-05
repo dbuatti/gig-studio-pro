@@ -766,8 +766,8 @@ const SheetReaderMode: React.FC = () => {
                         >
                           <Page
                             pageNumber={pdfCurrentPage}
-                            width={pageWidth || undefined} // NEW: Adjust width
-                            height={chartContainerRef.current?.offsetHeight || undefined}
+                            width={pageWidth || undefined} // Keep width
+                            // Removed height prop
                             renderAnnotationLayer={true}
                             renderTextLayer={true}
                             loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
@@ -779,8 +779,8 @@ const SheetReaderMode: React.FC = () => {
                           {pageCountToRender === 2 && pdfCurrentPage + 1 <= (pdfNumPages || 0) && ( // NEW: Conditionally render second page
                             <Page
                               pageNumber={pdfCurrentPage + 1}
-                              width={pageWidth || undefined} // NEW: Adjust width
-                              height={chartContainerRef.current?.offsetHeight || undefined}
+                              width={pageWidth || undefined} // Keep width
+                              // Removed height prop
                               renderAnnotationLayer={true}
                               renderTextLayer={true}
                               loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
