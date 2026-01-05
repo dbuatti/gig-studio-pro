@@ -32,23 +32,31 @@ serve(async (req) => {
     const existingTitles = repertoire.map(formatForExclusion);
     const ignoredTitles = ignored.map(formatForExclusion);
     
-    const excludeListString = [...existingTitles, ...ignoredTitles].join(', ');
+    // Change this to a newline-separated list for the prompt
+    const excludeListItems = [...existingTitles, ...ignoredTitles].map(item => `- ${item}`).join('\n');
     
     let prompt = "";
     if (seedSong) {
       prompt = `Act as a professional music curator. Based specifically on the vibe, genre, and era of the song "${seedSong.name}" by ${seedSong.artist}, suggest 10 similar tracks for a live set.
       
-      CRITICAL: You MUST NOT suggest any of these songs which are ALREADY in the user's library or have been dismissed. The format for excluded songs is "title-artist" (all lowercase, trimmed). Excluded songs: [${excludeListString}].
+      CRITICAL: You MUST NOT suggest any of these songs which are ALREADY in the user's library or have been dismissed.
+      Here is the list of songs to EXCLUDE (format: "title-artist", all lowercase, trimmed):
+      ${excludeListItems}
       
       Focus on tracks that would transition well from the seed song.
       Return ONLY a JSON array of objects: [{"name": "Song Title", "artist": "Artist Name", "reason": "Connection to ${seedSong.name}"}]. No markdown.`;
     } else {
       prompt = `Act as a professional music curator. Based on this existing repertoire: [${existingTitles.join(', ')}], suggest 10 similar songs that would fit this artist's style. 
       
-      CRITICAL: You MUST NOT suggest any songs that are already in the library or have been dismissed. The format for excluded songs is "title-artist" (all lowercase, trimmed). Excluded songs: [${excludeListString}]. Suggest entirely new tracks.
+      CRITICAL: You MUST NOT suggest any songs that are already in the library or have been dismissed.
+      Here is the list of songs to EXCLUDE (format: "title-artist", all lowercase, trimmed):
+      ${excludeListItems}
       
+      Suggest entirely new tracks.
       Return ONLY a JSON array of objects: [{"name": "Song Title", "artist": "Artist Name", "reason": "Short reason why"}]. No markdown.`;
     }
+
+    console.log("[suggest-songs] Exclude List sent to AI:\n", excludeListItems); // Diagnostic log
 
     let lastError = null;
 
