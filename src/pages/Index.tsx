@@ -552,7 +552,7 @@ const Index = () => {
       const isAlreadyInList = targetSetlist.songs.some(s => (s.master_id && s.master_id === songToUpdate.master_id) || s.id === songToUpdate.id);
       if (!isAlreadyInList) {
         try {
-          await supabase.from('setlist_songs').insert({ setlist_id: setlistId, song_id: songToUpdate.master_id || songToUpdate.id, sort_order: targetSetlist.songs.length, isPlayed: false, is_confirmed: false });
+          await supabase.from('setlist_songs').insert({ setlist_id: setlistId, song_id: songToUpdate.master_id || songToUpdate.id, sort_order: 0, isPlayed: false, is_confirmed: false });
         } catch (error: any) {
           showError(`Failed to add: ${error.message}`);
           return;
