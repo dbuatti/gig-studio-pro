@@ -224,7 +224,7 @@ const Index = () => {
       const { data: repertoireData, error: repertoireError } = await supabase
         .from('repertoire')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', userId) // Corrected from 'user.id' to 'user_id'
         .order('title');
 
       if (repertoireError) throw repertoireError;
@@ -343,7 +343,7 @@ const Index = () => {
       // 1. Apply settings immediately (these setters update the Tone.js engine directly)
       audio.setPitch(activeSongForPerformance.pitch || 0);
       audio.setTempo(activeSongForPerformance.tempo || 1);
-      audio.setVolume(activeSongForPerformance.volume || -6);
+      // audio.setVolume(activeSongForPerformance.volume || -6); // REMOVED: Let useToneAudio manage its own volume state
       audio.setFineTune(activeSongForPerformance.fineTune || 0);
 
       // 2. Load audio if URL exists
@@ -525,7 +525,7 @@ const Index = () => {
       const { error } = await supabase.from('setlist_songs').insert({ setlist_id: activeSetlist.id, song_id: songToUse.master_id || songToUse.id, sort_order: activeSetlist.songs.length, isPlayed: false, is_confirmed: false });
       if (error) throw error;
       await fetchSetlistsAndRepertoire();
-      showSuccess(`Added "${songToAdd.name}" to setlist.`);
+      showSuccess(`"${songToAdd.name}" added to setlist.`);
       setIsRepertoirePickerOpen(false);
     } catch (err: any) {
       showError(`Failed to add song: ${err.message}`);

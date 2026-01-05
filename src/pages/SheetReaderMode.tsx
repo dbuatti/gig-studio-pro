@@ -243,7 +243,7 @@ const SheetReaderMode: React.FC = () => {
       let activeSetlistSongsList: SetlistSong[] = [];
 
       // Always fetch full master repertoire
-      const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user.id', user.id).order('title');
+      const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user_id', user.id).order('title');
       if (masterError) throw masterError;
       masterRepertoireList = (masterData || []).map((d: any) => ({
         id: d.id,
@@ -566,6 +566,10 @@ const SheetReaderMode: React.FC = () => {
     }
   }, [currentSong]);
 
+  const onOpenRepertoireSearch = () => {
+    setIsRepertoireSearchModalOpen(true);
+  };
+
   const handleSelectSongFromRepertoireSearch = useCallback((song: SetlistSong) => {
     const idx = allSongs.findIndex(s => s.id === song.id || s.master_id === song.master_id);
     if (idx !== -1) {
@@ -748,7 +752,7 @@ const SheetReaderMode: React.FC = () => {
         <SheetReaderHeader
           currentSong={currentSong!}
           onClose={() => navigate('/')} // Keep onClose for now, might be used by other components or for a different exit strategy
-          onOpenRepertoireSearch={() => setIsRepertoireSearchModalOpen(true)}
+          onOpenRepertoireSearch={onOpenRepertoireSearch}
           onOpenCurrentSongStudio={onOpenCurrentSongStudio}
           isLoading={!currentSong}
           keyPreference={globalKeyPreference} // Still pass global preference, even if not directly used in header
