@@ -90,7 +90,7 @@ const SheetReaderMode: React.FC = () => {
 
   // Refs for PDF scrolling and swipe detection
   const chartContainerRef = useRef<HTMLDivElement>(null);
-  const swipeThreshold = 80; // Pixels for horizontal swipe to register
+  const swipeThreshold = 50; // Pixels for horizontal swipe to register (reduced for trackpad)
   const navigatedRef = useRef(false); // Ref to prevent multiple navigations per swipe
 
   // Animation for horizontal drag
@@ -571,39 +571,44 @@ const SheetReaderMode: React.FC = () => {
   }, []);
 
   // --- Gesture Implementation ---
-  const bind = useDrag(({ first, down, movement: [mx, my], direction: [dx], velocity: [vx], cancel, intentional }) => {
-    console.log(`[Drag Event] first: ${first}, down: ${down}, mx: ${mx.toFixed(2)}, my: ${my.toFixed(2)}, dx: ${dx.toFixed(2)}, vx: ${vx.toFixed(2)}, navigatedRef: ${navigatedRef.current}`);
+  const bind = useDrag(({ first, down, movement: [mx], direction: [dx], velocity: [vx], cancel }) => {
+    // console.log(`[Drag Event] first: ${first}, down: ${down}, mx: ${mx.toFixed(2)}, dx: ${dx.toFixed(2)}, vx: ${vx.toFixed(2)}, navigatedRef: ${navigatedRef.current}`);
 
-    // Reset navigatedRef unconditionally at the very beginning of a new gesture
     if (first) {
-      navigatedRef.current = false;
+      navigatedRef.current = false; // Reset at the start of a new gesture
     }
 
     api.start({ x: down ? mx : 0, immediate: down });
 
-    // Only process swipe if intentional and primarily horizontal
-    if (!intentional || Math.abs(mx) < Math.abs(my)) {
+    if (!down) { // Drag has ended
+      if (navigatedRef.current) {
+        navigatedRef.current = false; // Ensure reset after navigation
+      }
       return;
     }
 
-    const isFastSwipe = Math.abs(vx) > 0.3; // velocity in pixels/ms
-    const isLongSwipe = Math.abs(mx) > swipeThreshold;
-    const isMediumFastSwipe = Math.abs(mx) > swipeThreshold / 2 && isFastSwipe; // Moved at least half threshold AND fast
+    // Only trigger navigation once per swipe
+    if (navigatedRef.current) {
+      return;
+    }
 
-    // The core condition for triggering navigation
-    const shouldTriggerNavigation = (isLongSwipe || isMediumFastSwipe) && !navigatedRef.current;
+    const isFastSwipe = Math.abs(vx) > 0.2; // velocity in pixels/ms (adjusted for trackpad)
+    const isLongSwipe = Math.abs(mx) > swipeThreshold;
+    
+    // A swipe is considered valid if it's either long OR fast enough
+    const shouldTriggerNavigation = isLongSwipe || isFastSwipe;
     
     if (shouldTriggerNavigation) {
       navigatedRef.current = true; // Mark as navigated for this gesture
       cancel(); // Stop further updates for this specific gesture
 
-      const pageStep = 1; // Always step by 1
+      const pageStep = 1;
 
       if (dx < 0) { // Swiping left (next)
         if (selectedChartType === 'chords') {
           handleNext();
         } else if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
-          if (pdfCurrentPage < (pdfNumPages || 1)) { // Check if not on last PDF page
+          if (pdfCurrentPage < (pdfNumPages || 1)) {
             setPdfCurrentPage(prev => Math.min(prev + pageStep, pdfNumPages || 999));
           } else {
             handleNext(); // Last PDF page, go to next song
@@ -613,44 +618,20 @@ const SheetReaderMode: React.FC = () => {
         if (selectedChartType === 'chords') {
           handlePrev();
         } else if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
-          if (pdfCurrentPage > 1) { // Check if not on first PDF page
+          if (pdfCurrentPage > 1) {
             setPdfCurrentPage(prev => Math.max(1, prev - pageStep));
           } else {
             handlePrev(); // First PDF page, go to previous song
           }
         }
       }
-      api.start({ x: 0 });
+      api.start({ x: 0 }); // Snap back to original position
     }
   }, {
-    threshold: 20,        // Initial movement before drag starts
+    threshold: 5,         // Lower threshold for trackpad sensitivity
     filterTaps: true,     // Ignore quick taps
     axis: 'x',            // Lock to horizontal
   });
-
-  // Effect to reset navigatedRef when the drag gesture ends
-  useEffect(() => {
-    const handleDragEndReset = () => {
-      if (navigatedRef.current) {
-        navigatedRef.current = false;
-      }
-    };
-
-    // Attach to the element that receives the drag events
-    const targetElement = chartContainerRef.current?.querySelector('.react-pdf__Document');
-    if (targetElement) {
-      targetElement.addEventListener('pointerup', handleDragEndReset);
-      targetElement.addEventListener('pointercancel', handleDragEndReset);
-    }
-
-    return () => {
-      if (targetElement) {
-        targetElement.removeEventListener('pointerup', handleDragEndReset);
-        targetElement.removeEventListener('pointercancel', handleDragEndReset);
-      }
-    };
-  }, [bind]);
-
 
   if (initialLoading) return <div className="h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
 
