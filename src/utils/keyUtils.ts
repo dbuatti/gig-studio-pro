@@ -54,19 +54,18 @@ export const formatKey = (key: string | undefined, preference: KeyPreference): s
   if (normKey === "TBC") return "TBC";
 
   const isMinor = normKey.endsWith('m');
-  const root = isMinor ? normKey.slice(0, -1) : normKey;
+  let root = isMinor ? normKey.slice(0, -1) : normKey;
   
-  // Resolve neutral to sharps if it makes it to this level
   const concretePref = preference === 'neutral' ? 'sharps' : preference;
   
-  let newRoot = root;
+  // Explicitly convert root to preferred notation
   if (concretePref === 'flats') {
-    newRoot = MAPPING_TO_FLAT[root] || root;
-  } else {
-    newRoot = MAPPING_TO_SHARP[root] || root;
+    root = MAPPING_TO_FLAT[root] || root;
+  } else { // concretePref is 'sharps'
+    root = MAPPING_TO_SHARP[root] || root;
   }
 
-  return isMinor ? `${newRoot}m` : newRoot;
+  return isMinor ? `${root}m` : root;
 };
 
 export const calculateSemitones = (original: string | undefined, target: string | undefined): number => {
@@ -98,20 +97,34 @@ export const transposeKey = (key: string | undefined, semitones: number, prefere
   if (normKey === "TBC") return "TBC";
   
   const isMinor = normKey.endsWith('m');
-  const root = isMinor ? normKey.slice(0, -1) : normKey;
+  let root = isMinor ? normKey.slice(0, -1) : normKey;
   
-  const normalizedRoot = MAPPING_TO_SHARP[root] || root; // Always convert to sharp for calculation
-  let idx = SHARP_KEYS.indexOf(normalizedRoot);
+  const concretePref = preference === 'neutral' ? 'sharps' : preference;
+
+  // Explicitly convert flat roots to sharp equivalents if preference is 'sharps'
+  if (concretePref === 'sharps' && MAPPING_TO_SHARP[root]) {
+    root = MAPPING_TO_SHARP[root];
+  } else if (concretePref === 'flats' && MAPPING_TO_FLAT[root]) {
+    root = MAPPING_TO_FLAT[root];
+  }
+
+  let idx = SHARP_KEYS.indexOf(root); // Now 'root' should be in SHARP_KEYS if it's a sharp key
   
-  if (idx === -1) return normKey; 
-  
+  if (idx === -1) {
+    // If not found in SHARP_KEYS, try FLAT_KEYS for initial index, then convert to sharp
+    idx = FLAT_KEYS.indexOf(root);
+    if (idx !== -1) {
+      root = SHARP_KEYS[idx]; // Convert to sharp equivalent for consistent indexing
+      idx = SHARP_KEYS.indexOf(root);
+    }
+  }
+
+  if (idx === -1) return normKey; // Fallback if still not found
+
   let newIdx = (idx + semitones) % 12;
   if (newIdx < 0) newIdx += 12;
   
   const newRootSharp = SHARP_KEYS[newIdx];
-  
-  // Resolve neutral to sharps if it makes it to this level
-  const concretePref = preference === 'neutral' ? 'sharps' : preference;
   
   // Now format the new root based on the preference
   const newRootFormatted = concretePref === 'flats' ? (MAPPING_TO_FLAT[newRootSharp] || newRootSharp) : newRootSharp;
