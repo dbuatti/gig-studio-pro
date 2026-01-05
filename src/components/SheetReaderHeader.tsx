@@ -58,7 +58,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
     <div
       className="fixed top-0 left-0 right-0 z-60 bg-slate-900/80 backdrop-blur-xl border-b border-white/10 px-6 py-3 flex items-center justify-between shadow-lg animate-in slide-in-from-top duration-300 h-[72px]"
     >
-      {/* Left Section: Sidebar Toggle & Studio Button */}
+      {/* Left Section: Sidebar Toggle */}
       <div className="flex items-center gap-4 shrink-0">
         <Button
           variant="ghost"
@@ -72,25 +72,26 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
         >
           <ListMusic className="w-5 h-5" />
         </Button>
-        
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onOpenCurrentSongStudio}
-          disabled={!currentSong}
-          className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
-          title="Open Current Song in Studio"
-        >
-          <FileText className="w-5 h-5" />
-        </Button>
       </div>
 
-      {/* Center Section: Song Title */}
+      {/* Center Section: Song Title and Studio Button */}
       <div className="flex-1 text-center min-w-0 px-4">
         {isLoading ? (
           <Skeleton className="h-6 w-48 mx-auto bg-white/10" />
         ) : currentSong ? (
-          <h2 className="text-lg font-black uppercase tracking-tight text-white line-clamp-1">{currentSong.name}</h2>
+          <h2 className="text-lg font-black uppercase tracking-tight text-white line-clamp-1 flex items-center justify-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onOpenCurrentSongStudio}
+              disabled={!currentSong}
+              className="h-8 w-8 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 shrink-0"
+              title="Open Current Song in Studio"
+            >
+              <FileText className="w-4 h-4" />
+            </Button>
+            {currentSong.name}
+          </h2>
         ) : (
           <p className="text-sm font-bold text-slate-500">No Song Selected</p>
         )}
