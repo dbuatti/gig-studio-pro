@@ -721,7 +721,7 @@ const SheetReaderMode: React.FC = () => {
             {...bind()}  
             style={{ 
               // Removed x: springX
-              touchAction: 'pan-y', // Allow vertical scrolling within the page, but bind horizontal for drag
+              touchAction: 'none', // NEW: Disable all touch actions on this element for precise control
               width: '100%', // Ensure it takes full width for drag context
               height: '100%',
               display: 'flex', 
