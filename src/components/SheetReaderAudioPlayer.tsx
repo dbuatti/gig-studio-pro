@@ -11,6 +11,7 @@ import { SetlistSong } from '@/components/SetlistManager';
 import { formatKey } from '@/utils/keyUtils';
 import { KeyPreference } from '@/hooks/use-settings';
 import { CustomProgress } from '@/components/CustomProgress'; // NEW: Import CustomProgress
+import { CustomSlider } from '@/components/CustomSlider'; // NEW: Import CustomSlider
 
 interface SheetReaderAudioPlayerProps {
   currentSong: SetlistSong | null;
@@ -120,7 +121,7 @@ const SheetReaderAudioPlayer: React.FC<SheetReaderAudioPlayerProps> = ({
       <div className="flex items-center gap-4 flex-1 justify-end">
         <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl p-1 w-48">
           <Volume2 className="w-4 h-4 text-slate-400 ml-1" />
-          <Slider
+          <CustomSlider
             value={[volume]}
             min={-60}
             max={0}
