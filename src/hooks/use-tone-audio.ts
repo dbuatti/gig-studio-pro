@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import * as Tone from 'tone';
 import { showSuccess, showError } from '@/utils/toast';
 

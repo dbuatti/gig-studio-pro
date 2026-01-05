@@ -2,12 +2,10 @@
 
 import React, { useState } from 'react';
 import { SetlistSong } from './SetlistManager';
-import { Clock, Music, Target, PieChart, BarChart3, Download, Loader2 } from 'lucide-react';
+import { Music, Target, PieChart, BarChart3 } from 'lucide-react';
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { Input } from './ui/input';
-import { Button } from './ui/button';
-import { calculateReadiness } from '@/utils/repertoireSync';
 
 interface SetlistStatsProps {
   songs: SetlistSong[];

@@ -163,7 +163,7 @@ export function useSettings() {
           goalOriginalKeyCount: 'goal_original_key_count', 
           goalTargetKeyCount: 'goal_target_key_count',     
           defaultDashboardView: 'default_dashboard_view',
-          // NEW: Map UG Chords Display Settings to DB columns
+          // NEW: Map UG Chords Display Settings
           ugChordsFontFamily: 'ug_chords_font_family',
           ugChordsFontSize: 'ug_chords_font_size',
           ugChordsChordBold: 'ug_chords_chord_bold',
@@ -173,7 +173,7 @@ export function useSettings() {
           preventStageKeyOverwrite: 'prevent_stage_key_overwrite', // NEW
         };
         const dbColumn = dbKeyMap[key];
-        const { error } = await supabase
+        const { error: _error } = await supabase
           .from('profiles')
           .update({ [dbColumn]: value })
           .eq('id', user.id);

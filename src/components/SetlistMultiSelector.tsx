@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
-import { ListMusic, Check, Plus, Loader2, AlertTriangle } from 'lucide-react';
+import { ListMusic, Check, Loader2, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { SetlistSong } from './SetlistManager';
@@ -32,7 +32,7 @@ const isValidUuid = (uuid: string | undefined | null): boolean => {
 };
 
 const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
-  songMasterId, // Keep this prop for now, but primarily use songToAssign.master_id for DB
+  songMasterId: _songMasterId, // Renamed to _songMasterId to mark as unused
   allSetlists,
   songToAssign,
   onUpdateSetlistSongs,

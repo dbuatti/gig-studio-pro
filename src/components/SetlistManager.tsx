@@ -1,14 +1,13 @@
 "use client";
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
-import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, CircleDashed, CheckCircle2, Volume2, ChevronUp, ChevronDown, Search, LayoutList, SortAsc, AlertTriangle, Loader2, Guitar, CloudDownload, Edit3, Filter, MoreVertical, Settings2, Check, ShieldCheck, Clock, Star } from 'lucide-react'; // Added Star import
-import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, formatKey, transposeKey, calculateSemitones } from '@/utils/keyUtils';
+import { ListMusic, Trash2, Play, ArrowRight, CircleDashed, CheckCircle2, Volume2, ChevronUp, ChevronDown, Search, LayoutList, SortAsc, AlertTriangle, Loader2, CloudDownload, Edit3, Filter, MoreVertical, Settings2, Check, ShieldCheck, Clock, Star } from 'lucide-react';
+import { formatKey } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
 import { showSuccess } from '@/utils/toast';
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
-import { RESOURCE_TYPES, DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
+import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import SetlistFilters, { FilterState, DEFAULT_FILTERS } from './SetlistFilters';
@@ -123,13 +122,14 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   onRemove,
   onSelect,
   onEdit,
-  onUpdateKey,
+  onUpdateKey: _onUpdateKey, // Renamed to _onUpdateKey to mark as unused
   onTogglePlayed,
+  onLinkAudio: _onLinkAudio, // Renamed to _onLinkAudio to mark as unused
   onUpdateSong,
-  onSyncProData,
+  onSyncProData: _onSyncProData, // Renamed to _onSyncProData to mark as unused
   onReorder,
   currentSongId,
-  onOpenAdmin,
+  onOpenAdmin: _onOpenAdmin, // Renamed to _onOpenAdmin to mark as unused
   sortMode,
   setSortMode,
   activeFilters,
@@ -149,7 +149,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  const isItunesPreview = (url: string) => url && (url.includes('apple.com') || url.includes('itunes-assets'));
+  const _isItunesPreview = (url: string) => url && (url.includes('apple.com') || url.includes('itunes-assets')); // Renamed to _isItunesPreview to mark as unused
 
   const handleMove = (id: string, direction: 'up' | 'down') => {
     if (sortMode !== 'none' || searchTerm) return; // Only allow manual reorder when sortMode is 'none' and no search term
@@ -173,13 +173,13 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     if (!showHeatmap) return "";
 
     const readiness = calculateReadiness(song);
-    const hasAudio = !!song.audio_url; // Check audio_url for full audio
+    const _hasAudio = !!song.audio_url; // Check audio_url for full audio
     const hasYoutubeLink = !!song.youtubeUrl && song.youtubeUrl.trim() !== "";
     const hasUgLink = !!song.ugUrl && song.ugUrl.trim() !== "";
     const hasUgChordsText = !!song.ug_chords_text && song.ug_chords_text.trim().length > 0;
     const hasSheetLink = !!(song.pdfUrl || song.leadsheetUrl || song.sheet_music_url);
 
-    if (!hasAudio || !hasYoutubeLink || (hasUgLink && !hasUgChordsText) || readiness < 40) {
+    if (!_hasAudio || !hasYoutubeLink || (hasUgLink && !hasUgChordsText) || readiness < 40) {
       return "bg-red-500/10 border-red-500/20";
     }
 
@@ -294,7 +294,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
             const isSelected = currentSongId === song.id;
             const readinessScore = calculateReadiness(song);
             const isFullyReady = readinessScore === 100;
-            const hasAudio = !!song.audio_url; // Check audio_url for full audio
+            const _hasAudio = !!song.audio_url; // Check audio_url for full audio
             const currentPref = song.key_preference || globalPreference;
             const displayTargetKey = formatKey(song.targetKey || song.originalKey, currentPref);
             const isProcessing = song.extraction_status === 'processing' || song.extraction_status === 'queued';
@@ -398,7 +398,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    {hasAudio && <Volume2 className="w-3.5 h-3.5 text-indigo-500" />}
+                    {_hasAudio && <Volume2 className="w-3.5 h-3.5 text-indigo-500" />}
                     <Button 
                       size="sm"
                       className={cn(
@@ -438,7 +438,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                   const isSelected = currentSongId === song.id;
                   const readinessScore = calculateReadiness(song);
                   const isFullyReady = readinessScore === 100;
-                  const hasAudio = !!song.audio_url; // Check audio_url for full audio
+                  const _hasAudio = !!song.audio_url; // Check audio_url for full audio
                   const currentPref = song.key_preference || globalPreference;
                   const displayOrigKey = formatKey(song.originalKey, currentPref);
                   const displayTargetKey = formatKey(song.targetKey || song.originalKey, currentPref);
