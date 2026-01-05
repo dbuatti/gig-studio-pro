@@ -7,6 +7,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { cn } from '@/lib/utils';
 import { formatKey, ALL_KEYS_SHARP, ALL_KEYS_FLAT } from '@/utils/keyUtils';
 import { ArrowLeft, Search, ListMusic, ChevronDown, Minus, Plus, FileText, Headphones } from 'lucide-react';
+import { SetlistSong } from '@/components/SetlistManager'; // Import SetlistSong
+import { KeyPreference } from '@/hooks/use-settings'; // Import KeyPreference
 
 interface SheetReaderHeaderProps {
   currentSong: SetlistSong | null;
@@ -14,6 +16,7 @@ interface SheetReaderHeaderProps {
   onOpenRepertoireSearch: () => void;
   onOpenCurrentSongStudio: () => void;
   isLoading: boolean;
+  keyPreference: KeyPreference; // Added missing prop
   onUpdateKey: (newTargetKey: string) => void;
   setIsOverlayOpen: (isOpen: boolean) => void;
   pitch: number;
@@ -25,6 +28,7 @@ interface SheetReaderHeaderProps {
   isAudioPlayerVisible: boolean;
   onToggleAudioPlayer: () => void;
   isFullScreen: boolean;
+  onToggleFullScreen: () => void; // Added missing prop
 }
 
 const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
@@ -33,6 +37,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   onOpenRepertoireSearch,
   onOpenCurrentSongStudio,
   isLoading,
+  keyPreference, // Destructure the prop
   onUpdateKey,
   setIsOverlayOpen,
   pitch,
@@ -44,6 +49,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   isAudioPlayerVisible,
   onToggleAudioPlayer,
   isFullScreen,
+  onToggleFullScreen,
 }) => {
   const displayKey = effectiveTargetKey ? formatKey(effectiveTargetKey, readerKeyPreference) : null;
   const keysToUse = readerKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
