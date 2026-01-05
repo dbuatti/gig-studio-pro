@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { SetlistSong, UGChordsConfig } from '@/components/SetlistManager';
 import { Button } from '@/components/ui/button';
-import { Music, Loader2, AlertCircle, X, ExternalLink, ShieldCheck, FileText, Layout, Guitar, ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import { Music, Loader2, AlertCircle, X, ExternalLink, ShieldCheck, FileText, Layout, Guitar, ChevronLeft, ChevronRight, Download, Link as LinkIcon, Ruler, Edit3, Trash2 } from 'lucide-react'; // NEW: Import LinkIcon, Ruler, Edit3, Trash2
 import { cn } from '@/lib/utils';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
@@ -31,7 +31,10 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import { useSpring, animated } from '@react-spring/web';
 import { useDrag } from '@use-gesture/react';
-import SheetReaderAudioPlayer from '@/components/SheetReaderAudioPlayer'; // NEW: Import the audio player
+import SheetReaderAudioPlayer from '@/components/SheetReaderAudioPlayer';
+import LinkEditorOverlay from '@/components/LinkEditorOverlay'; // NEW: Import LinkEditorOverlay
+import LinkDisplayOverlay, { SheetLink } from '@/components/LinkDisplayOverlay'; // NEW: Import LinkDisplayOverlay and SheetLink
+import LinkSizeModal from '@/components/LinkSizeModal'; // NEW: Import LinkSizeModal
 
 // Configure PDF.js worker source to point to the file in the public directory
 // Ensure 'pdf.worker.min.js' is copied to your project's 'public' directory.
@@ -70,8 +73,8 @@ const SheetReaderMode: React.FC = () => {
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Changed to false
   const [isRepertoireSearchModalOpen, setIsRepertoireSearchModalOpen] = useState(false);
-  const [isInfoOverlayVisible, setIsInfoOverlayVisible] = useState(true); // NEW: State for info overlay visibility
-  const [isAudioPlayerVisible, setIsAudioPlayerVisible] = useState(true); // NEW: State for audio player visibility
+  const [isInfoOverlayVisible, setIsInfoOverlayVisible] = useState(true);
+  const [isAudioPlayerVisible, setIsAudioPlayerVisible] = useState(true);
 
   const [readerKeyPreference, setReaderKeyPreference] = useState<'sharps' | 'flats'>(
     globalKeyPreference === 'neutral' ? 'sharps' : globalKeyPreference
@@ -81,8 +84,13 @@ const SheetReaderMode: React.FC = () => {
   const [isChartContentLoading, setIsChartContentLoading] = useState(false);
   const [pdfCurrentPage, setPdfCurrentPage] = useState(1);
   const [pdfNumPages, setPdfNumPages] = useState<number | null>(null);
-  const [pdfScale, setPdfScale] = useState<number | null>(null); // NEW: State for PDF scale
-  const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null); // NEW: State for PDF document instance
+  const [pdfScale, setPdfScale] = useState<number | null>(null);
+  const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
+
+  const [links, setLinks] = useState<SheetLink[]>([]); // NEW: State for sheet links
+  const [isLinkEditorOpen, setIsLinkEditorOpen] = useState(false); // NEW: State for link editor modal
+  const [isLinkSizeModalOpen, setIsLinkSizeModalOpen] = useState(false); // NEW: State for link size modal
+  const [isEditingLinksMode, setIsEditingLinksMode] = useState(false); // NEW: State for annotation/edit mode
 
   const audioEngine = useToneAudio(true);
   const {
@@ -116,6 +124,7 @@ const SheetReaderMode: React.FC = () => {
     setPdfNumPages(null); // Reset total pages too
     setPdfScale(null); // NEW: Reset PDF scale
     setPdfDocument(null); // NEW: Reset PDF document instance
+    setLinks([]); // NEW: Clear links when song changes
   }, [currentSong?.id]);
 
   const handleLocalSongUpdate = useCallback((songId: string, updates: Partial<SetlistSong>) => {
@@ -425,6 +434,31 @@ const SheetReaderMode: React.FC = () => {
     fetchSongs();
   }, [fetchSongs, navigate]);
 
+  // NEW: Fetch links for the current song
+  const fetchLinks = useCallback(async () => {
+    if (!user || !currentSong?.master_id || selectedChartType === 'chords') {
+      setLinks([]);
+      return;
+    }
+    try {
+      const { data, error } = await supabase
+        .from('sheet_links')
+        .select('*')
+        .eq('song_id', currentSong.master_id)
+        .eq('user_id', user.id);
+      
+      if (error) throw error;
+      setLinks(data || []);
+    } catch (err: any) {
+      console.error("[SheetReaderMode] Error fetching links:", err.message);
+      showError("Failed to load links.");
+    }
+  }, [user, currentSong?.master_id, selectedChartType]);
+
+  useEffect(() => {
+    fetchLinks();
+  }, [fetchLinks]);
+
   const getBestChartType = useCallback((song: SetlistSong): ChartType => {
     if (forceReaderResource === 'force-pdf' && song.pdfUrl) return 'pdf';
     if (forceReaderResource === 'force-ug' && (song.ugUrl || song.ug_chords_text)) return 'chords';
@@ -621,11 +655,30 @@ const SheetReaderMode: React.FC = () => {
           e.preventDefault();
           setIsAudioPlayerVisible(prev => !prev); // Toggle audio player visibility
           break;
+        case 'l': // NEW: 'L' key to toggle link editor
+        case 'L':
+          e.preventDefault();
+          if (currentSong?.pdfUrl) {
+            setIsLinkEditorOpen(prev => !prev);
+          } else {
+            showInfo("No PDF available to add links.");
+          }
+          break;
+        case 'e': // NEW: 'E' key to toggle link editing mode
+        case 'E':
+          e.preventDefault();
+          if (currentSong?.pdfUrl) {
+            setIsEditingLinksMode(prev => !prev);
+            showInfo(`Link editing mode ${isEditingLinksMode ? 'disabled' : 'enabled'}.`);
+          } else {
+            showInfo("No PDF available to edit links.");
+          }
+          break;
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentSong, onOpenCurrentSongStudio, handlePrev, handleNext, selectedChartType, pdfNumPages]);
+  }, [currentSong, onOpenCurrentSongStudio, handlePrev, handleNext, selectedChartType, pdfNumPages, isEditingLinksMode]);
 
   // NEW: Function to calculate PDF scale
   const calculatePdfScale = useCallback(async (pdf: PDFDocumentProxy, container: HTMLDivElement, pageNumber: number) => {
@@ -734,6 +787,20 @@ const SheetReaderMode: React.FC = () => {
     axis: 'x',            // Lock to horizontal
   });
 
+  const handleNavigateToPage = useCallback((pageNumber: number, x?: number, y?: number) => {
+    setPdfCurrentPage(pageNumber);
+    if (chartContainerRef.current && x !== undefined && y !== undefined) {
+      // Scroll to the target point, accounting for the page's position within the scrollable area
+      const targetX = x * chartContainerRef.current.scrollWidth - chartContainerRef.current.clientWidth / 2;
+      const targetY = y * chartContainerRef.current.scrollHeight - chartContainerRef.current.clientHeight / 2;
+      chartContainerRef.current.scrollTo({
+        left: targetX,
+        top: targetY,
+        behavior: 'smooth'
+      });
+    }
+  }, []);
+
   if (initialLoading) return <div className="h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
 
   return (
@@ -765,8 +832,12 @@ const SheetReaderMode: React.FC = () => {
           isSidebarOpen={isSidebarOpen && !isBrowserFullScreen}
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           effectiveTargetKey={effectiveTargetKey}
-          isAudioPlayerVisible={isAudioPlayerVisible} // NEW
-          onToggleAudioPlayer={() => setIsAudioPlayerVisible(prev => !prev)} // NEW
+          isAudioPlayerVisible={isAudioPlayerVisible}
+          onToggleAudioPlayer={() => setIsAudioPlayerVisible(prev => !prev)}
+          onAddLink={() => setIsLinkEditorOpen(true)} // NEW: Pass handler to open link editor
+          onToggleLinkEditMode={() => setIsEditingLinksMode(prev => !prev)} // NEW: Pass handler to toggle link edit mode
+          onOpenLinkSizeModal={() => setIsLinkSizeModalOpen(true)} // NEW: Pass handler to open link size modal
+          isEditingLinksMode={isEditingLinksMode} // NEW: Pass current link editing mode
         />
 
         {/* Chart Container */}
@@ -846,6 +917,15 @@ const SheetReaderMode: React.FC = () => {
                             }}
                           />
                         </Document>
+                        {/* NEW: LinkDisplayOverlay for PDF charts */}
+                        <LinkDisplayOverlay
+                          links={links}
+                          currentPage={pdfCurrentPage}
+                          onNavigateToPage={handleNavigateToPage}
+                          onLinkDeleted={fetchLinks} // Refresh links after deletion
+                          isEditingMode={isEditingLinksMode}
+                          onEditLink={(link) => showInfo(`Editing link ${link.id} is not yet implemented.`)} // Placeholder for edit
+                        />
                       </div>
                     );
                   }
@@ -870,7 +950,7 @@ const SheetReaderMode: React.FC = () => {
       {isBrowserFullScreen && isInfoOverlayVisible && currentSong && (
         <FullScreenSongInfo
           song={currentSong}
-          onExitFullScreen={() => setIsInfoOverlayVisible(false)} // NEW: This now hides the info overlay
+          onExitFullScreen={() => setIsInfoOverlayVisible(false)}
           readerKeyPreference={readerKeyPreference}
           onUpdateKey={handleUpdateKey}
           setIsOverlayOpen={setIsOverlayOpen}
@@ -929,7 +1009,25 @@ const SheetReaderMode: React.FC = () => {
         isLoadingAudio={isLoadingAudio}
         readerKeyPreference={readerKeyPreference}
         effectiveTargetKey={effectiveTargetKey}
-        isPlayerVisible={isAudioPlayerVisible && !isBrowserFullScreen} // Only show if not in browser fullscreen
+        isPlayerVisible={isAudioPlayerVisible && !isBrowserFullScreen}
+      />
+
+      {/* NEW: Link Editor Overlay */}
+      {currentSong?.pdfUrl && pdfDocument && (
+        <LinkEditorOverlay
+          isOpen={isLinkEditorOpen}
+          onClose={() => setIsLinkEditorOpen(false)}
+          songId={currentSong.master_id || currentSong.id}
+          pdfUrl={currentSong.pdfUrl}
+          pdfDocument={pdfDocument}
+          onLinkCreated={fetchLinks} // Refresh links after creation
+        />
+      )}
+
+      {/* NEW: Link Size Modal */}
+      <LinkSizeModal
+        isOpen={isLinkSizeModalOpen}
+        onClose={() => setIsLinkSizeModalOpen(false)}
       />
     </div>
   );

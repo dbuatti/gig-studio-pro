@@ -15,6 +15,7 @@ import SetlistFilters, { FilterState, DEFAULT_FILTERS } from './SetlistFilters';
 import { calculateReadiness } from '@/utils/repertoireSync';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import SetlistMultiSelector from './SetlistMultiSelector'; // Re-added import for SetlistMultiSelector
+import { SheetLink } from './LinkDisplayOverlay'; // NEW: Import SheetLink
 
 export interface UGChordsConfig {
   fontFamily: string;
@@ -83,6 +84,7 @@ export interface SetlistSong {
   highest_note_updated_at?: string;
   original_key_updated_at?: string;
   target_key_updated_at?: string;
+  links?: SheetLink[]; // NEW: Add links property
 }
 
 // Define the Setlist interface here

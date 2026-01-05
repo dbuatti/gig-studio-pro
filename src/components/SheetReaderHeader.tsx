@@ -6,9 +6,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuPortal, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { cn } from '@/lib/utils';
 import { formatKey, ALL_KEYS_SHARP, ALL_KEYS_FLAT } from '@/utils/keyUtils';
-import { ArrowLeft, Search, ListMusic, ChevronDown, Minus, Plus, FileText, Headphones } from 'lucide-react';
-import { SetlistSong } from '@/components/SetlistManager'; // Import SetlistSong
-import { KeyPreference } from '@/hooks/use-settings'; // Import KeyPreference
+import { ArrowLeft, Search, ListMusic, ChevronDown, Minus, Plus, FileText, Headphones, Link as LinkIcon, Ruler, Edit3, Trash2 } from 'lucide-react'; // NEW: Import LinkIcon, Ruler, Edit3, Trash2
+import { SetlistSong } from '@/components/SetlistManager';
+import { KeyPreference } from '@/hooks/use-settings';
 
 interface SheetReaderHeaderProps {
   currentSong: SetlistSong | null;
@@ -16,7 +16,7 @@ interface SheetReaderHeaderProps {
   onOpenRepertoireSearch: () => void;
   onOpenCurrentSongStudio: () => void;
   isLoading: boolean;
-  keyPreference: KeyPreference; // Added missing prop
+  keyPreference: KeyPreference;
   onUpdateKey: (newTargetKey: string) => void;
   setIsOverlayOpen: (isOpen: boolean) => void;
   pitch: number;
@@ -28,7 +28,11 @@ interface SheetReaderHeaderProps {
   isAudioPlayerVisible: boolean;
   onToggleAudioPlayer: () => void;
   isFullScreen: boolean;
-  onToggleFullScreen: () => void; // Added missing prop
+  onToggleFullScreen: () => void;
+  onAddLink: () => void; // NEW: Prop for adding a new link
+  onToggleLinkEditMode: () => void; // NEW: Prop for toggling link edit mode
+  onOpenLinkSizeModal: () => void; // NEW: Prop for opening link size modal
+  isEditingLinksMode: boolean; // NEW: Prop to indicate if in link editing mode
 }
 
 const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
@@ -37,7 +41,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   onOpenRepertoireSearch,
   onOpenCurrentSongStudio,
   isLoading,
-  keyPreference, // Destructure the prop
+  keyPreference,
   onUpdateKey,
   setIsOverlayOpen,
   pitch,
@@ -50,6 +54,10 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   onToggleAudioPlayer,
   isFullScreen,
   onToggleFullScreen,
+  onAddLink, // NEW
+  onToggleLinkEditMode, // NEW
+  onOpenLinkSizeModal, // NEW
+  isEditingLinksMode, // NEW
 }) => {
   const displayKey = effectiveTargetKey ? formatKey(effectiveTargetKey, readerKeyPreference) : null;
   const keysToUse = readerKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
@@ -63,6 +71,8 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
       }, 100);
     }
   };
+
+  const hasPdf = !!currentSong?.pdfUrl || !!currentSong?.leadsheetUrl || !!currentSong?.sheet_music_url;
 
   return (
     <div
@@ -187,6 +197,37 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
               <Plus className="w-4 h-4" />
             </Button>
           </div>
+        )}
+
+        {/* NEW: Link Management Dropdown */}
+        {hasPdf && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  "h-10 w-10 rounded-xl transition-all",
+                  isEditingLinksMode ? "bg-indigo-600 text-white hover:bg-indigo-700" : "bg-white/5 hover:bg-white/10 text-slate-400"
+                )}
+                title="Link Tools"
+              >
+                <LinkIcon className="w-5 h-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-slate-900 border-white/10 text-white z-[300] p-2 rounded-xl">
+              <DropdownMenuItem onClick={onAddLink} className="text-xs font-bold uppercase h-10 rounded-xl gap-2">
+                <Plus className="w-4 h-4" /> Add New Link
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onToggleLinkEditMode} className="text-xs font-bold uppercase h-10 rounded-xl gap-2">
+                {isEditingLinksMode ? <Trash2 className="w-4 h-4 text-red-400" /> : <Edit3 className="w-4 h-4" />}
+                {isEditingLinksMode ? "Exit Edit Mode" : "Edit/Delete Links"}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onOpenLinkSizeModal} className="text-xs font-bold uppercase h-10 rounded-xl gap-2">
+                <Ruler className="w-4 h-4" /> Link Size Settings
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
 
         <Button
