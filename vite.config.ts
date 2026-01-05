@@ -18,6 +18,7 @@ export default defineConfig(() => ({
     },
   },
   optimizeDeps: {
-    include: ['pdfjs-dist'], // Include the whole package for optimization
+    // Removed pdfjs-dist from include as it's now a static asset
+    // include: ['pdfjs-dist'], 
   },
 }));
