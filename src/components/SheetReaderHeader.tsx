@@ -77,7 +77,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
         isFullScreen && "hidden" // NEW: Hide header when in fullscreen
       )}
     >
-      {/* Left Section: Sidebar Toggle */}
+      {/* Left Section: Sidebar Toggle and Back Button */}
       <div className="flex items-center gap-4 shrink-0">
         <Button
           variant="ghost"
@@ -92,7 +92,16 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
           <ListMusic className="w-5 h-5" />
         </Button>
         
-        {/* Removed the "Open Current Song in Studio" button from here */}
+        {/* NEW: Back to Dashboard Button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onClose} // This will navigate back to the dashboard
+          className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
+          title="Back to Dashboard"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
       </div>
 
       {/* Center Section: Song Title and Studio Button */}
