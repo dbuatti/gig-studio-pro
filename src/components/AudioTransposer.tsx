@@ -12,7 +12,7 @@ import AudioVisualizer from './AudioVisualizer';
 import SongSearch from './SongSearch';
 import MyLibrary from './MyLibrary';
 import GlobalLibrary from './GlobalLibrary';
-import SongSuggestions from './SongSuggestions';
+import { SongSuggestions } from './SongSuggestions'; // Corrected import
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SetlistSong } from './SetlistManager';
@@ -36,26 +36,28 @@ export interface AudioTransposerRef {
 
 interface AudioTransposerProps {
   onAddToSetlist?: (previewUrl: string, name: string, artist: string, youtubeUrl?: string, ugUrl?: string, appleMusicUrl?: string, genre?: string, pitch?: number, audioUrl?: string, extractionStatus?: 'idle' | 'PENDING' | 'queued' | 'processing' | 'completed' | 'failed') => void;
-  onAddExistingSong?: (song: SetlistSong) => void;
-  onUpdateSongKey?: (songId: string, newTargetKey: string) => void;
+  onAddExistingSong?: (song: SetlistSong) => void; // This is for adding existing master songs to current setlist
+  // onUpdateSongKey?: (songId: string, newTargetKey: string) => void; // Removed unused prop
   onSongEnded?: () => void;
   onPlaybackChange?: (isPlaying: boolean) => void;
   repertoire?: SetlistSong[];
   currentSong?: SetlistSong | null;
   onOpenAdmin?: () => void;
   currentList?: { id: string; name: string; songs: SetlistSong[] };
+  onImportGlobal?: (song: Partial<SetlistSong>) => void; // NEW: Add onImportGlobal prop
 }
 
 const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({ 
   onAddToSetlist, 
   onAddExistingSong, 
-  onUpdateSongKey,
+  // onUpdateSongKey, // Removed unused prop
   onSongEnded, 
   onPlaybackChange,
   repertoire = [],
   currentSong,
   onOpenAdmin,
-  currentList
+  currentList,
+  onImportGlobal // NEW: Destructure onImportGlobal
 }, ref) => {
   const isMobile = useIsMobile();
   const audio = useToneAudio(true);
@@ -147,15 +149,24 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
     setActiveTab("search");
   };
 
-  const handleImportGlobal = (songData: Partial<SetlistSong>) => {
-    if (onAddExistingSong) {
-      const { id, master_id, ...dataToClone } = songData;
-      const newSong = {
-        ...dataToClone,
-        id: Math.random().toString(36).substr(2, 9),
-        isPlayed: false
-      } as SetlistSong;
-      onAddExistingSong(newSong);
+  const handleAddExistingSongToSetlist = (song: SetlistSong) => {
+    onAddExistingSong?.(song);
+  };
+
+  const handleAddNewSongToMasterAndSetlist = (newSongData: Partial<SetlistSong>) => {
+    if (onAddToSetlist) {
+      onAddToSetlist(
+        newSongData.previewUrl || '',
+        newSongData.name || '',
+        newSongData.artist || '',
+        newSongData.youtubeUrl,
+        newSongData.ugUrl,
+        newSongData.appleMusicUrl,
+        newSongData.genre,
+        newSongData.pitch,
+        newSongData.audio_url,
+        newSongData.extraction_status
+      );
     }
   };
 
@@ -240,11 +251,17 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
           </TabsContent>
 
           <TabsContent value="community" className="mt-0 space-y-4">
-            <GlobalLibrary onImport={handleImportGlobal} />
+            <GlobalLibrary onImport={onImportGlobal!} /> {/* NEW: Pass onImportGlobal */}
           </TabsContent>
 
           <TabsContent value="suggestions" className="mt-0 space-y-4">
-            <SongSuggestions repertoire={repertoire} onSelectSuggestion={handleSelectSuggestion} />
+            <SongSuggestions 
+              repertoire={repertoire} 
+              onSelectSuggestion={handleSelectSuggestion} 
+              onAddExistingSongToSetlist={handleAddExistingSongToSetlist}
+              onAddNewSongToMasterAndSetlist={handleAddNewSongToMasterAndSetlist}
+              currentSetlistSongs={currentList?.songs}
+            />
           </TabsContent>
 
           <TabsContent value="repertoire" className="mt-0 space-y-4">

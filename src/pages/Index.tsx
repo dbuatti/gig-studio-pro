@@ -599,15 +599,48 @@ const Index = () => {
         throw new Error("Master sync failed to return a valid song ID.");
       }
       
-      // Removed the logic to add to activeSetlist here.
-      // The song is now only added to the master repertoire.
+      // Now, add the newly synced master song to the active setlist
+      if (activeSetlist) {
+        const isAlreadyInSetlist = activeSetlist.songs.some(s => s.master_id === syncedSong.master_id);
+        if (!isAlreadyInSetlist) {
+          await supabase.from('setlist_songs').insert({ 
+            setlist_id: activeSetlist.id, 
+            song_id: syncedSong.master_id, 
+            sort_order: activeSetlist.songs.length, 
+            isPlayed: false, 
+            is_confirmed: false 
+          });
+          showSuccess(`"${name}" added to master repertoire and active setlist.`);
+        } else {
+          showSuccess(`"${name}" added to master repertoire (already in setlist).`);
+        }
+      } else {
+        showSuccess(`"${name}" added to master repertoire.`);
+      }
+
       await fetchSetlistsAndRepertoire(false); 
-      showSuccess(`"${name}" added to master repertoire.`);
       
     } catch (err: any) {
       showError(`Import failed: ${err.message || 'Database connection error'}`);
     }
   };
+
+  // Adapter function for onImportGlobal prop
+  const handleImportGlobalAdapter = useCallback(async (songData: Partial<SetlistSong>) => {
+    await handleImportNewSong(
+      songData.previewUrl || '',
+      songData.name || '',
+      songData.artist || '',
+      songData.youtubeUrl,
+      songData.ugUrl,
+      songData.appleMusicUrl,
+      songData.genre,
+      songData.pitch,
+      songData.audio_url,
+      songData.extraction_status
+    );
+  }, [handleImportNewSong]);
+
 
   const handleDeleteMasterSong = async (songId: string) => {
     if (!userId) return;
@@ -710,7 +743,8 @@ const Index = () => {
       if (error) throw error;
 
       showSuccess(`Queued ${songsToQueue.length} audio extraction tasks successfully.`);
-      await fetchSetlistsAndRepertoire(); // Refresh data to show updated status
+      await fetchSetlistsAndRepertoire(); 
+      
     } catch (err: any) {
       showError(`Failed to queue audio extraction: ${err.message}`);
     } finally {
@@ -741,243 +775,486 @@ const Index = () => {
 
       if (error) throw error;
       await fetchSetlistsAndRepertoire();
-      showSuccess("Auto-populated links cleared.");
+      showSuccess("Auto-links cleared.");
     } catch (err: any) {
-      showError(`Clear Failed: ${err.message}`);
+      showError(`Clear failed: ${err.message}`);
     } finally {
       setIsRepertoireClearingAutoLinks(false);
     }
   };
 
-  const handleOpenReader = useCallback((initialSongId?: string) => {
-    sessionStorage.setItem('from_dashboard', 'true');
-    const params = new URLSearchParams();
-    if (initialSongId) params.set('id', initialSongId);
-    if (activeDashboardView === 'gigs') params.set('filterApproved', 'true');
-    navigate(`/sheet-reader/${initialSongId ? initialSongId : ''}?${params.toString()}`);
-  }, [navigate, activeDashboardView]);
-
-  const handleOpenPerformanceOverlay = useCallback(() => {
-    if (!activeSetlist || activeSetlist.songs.length === 0) {
-      showWarning("Please select a setlist with songs.");
-      return;
-    }
-    if (!activeSongForPerformance) setActiveSongForPerformance(activeSetlist.songs[0]);
-    setIsPerformanceOverlayOpen(true);
-  }, [activeSetlist, activeSongForPerformance]);
-
-  const handleViewChange = (newView: string) => {
-    setSearchParams({ view: newView });
-    audio.stopPlayback();
-  };
-
-  const hasPlayableSong = !!activeSongForPerformance?.audio_url || !!activeSongForPerformance?.previewUrl;
-  const hasReadableChart = !!activeSongForPerformance && (!!activeSongForPerformance.pdfUrl || !!activeSongForPerformance.leadsheetUrl || !!activeSongForPerformance.ugUrl || !!activeSongForPerformance.ug_chords_text || !!activeSongForPerformance.sheet_music_url);
-
   if (loading || authLoading || isFetchingSettings) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-16 h-16 animate-spin text-indigo-500" />
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col relative">
-      <div className="flex-1 flex flex-col p-6 md:p-10 overflow-y-auto custom-scrollbar">
-        <div className="flex items-center justify-between mb-8">
+    <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
+      {/* Sidebar */}
+      <aside className={cn(
+        "w-full lg:w-[350px] xl:w-[400px] flex flex-col border-r border-border shrink-0 bg-card transition-all duration-300",
+        floatingDockMenuOpen && "lg:ml-[100px]"
+      )}>
+        <div className="p-6 border-b border-border bg-secondary flex items-center justify-between shrink-0">
           <div className="flex items-center gap-4">
-            <LayoutDashboard className="w-6 h-6 text-indigo-600" />
-            <h1 className="text-2xl font-black uppercase tracking-tight">Gig Studio Dashboard</h1>
+            <div className="bg-indigo-600 p-2 rounded-xl shadow-lg shadow-indigo-600/20">
+              <LayoutDashboard className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-black uppercase tracking-tight">Gig Studio</h1>
+              <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">Performance Dashboard</p>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            <Button variant="outline" size="sm" onClick={() => setIsKeyManagementOpen(true)} className="h-9 px-4 rounded-xl border-indigo-100 dark:border-slate-800 bg-white dark:bg-slate-950 text-indigo-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-sm"><Hash className="w-3.5 h-3.5" /> Key Matrix</Button>
-            <Button variant="outline" size="sm" onClick={() => setIsResourceAuditOpen(true)} className="h-9 px-4 rounded-xl border-indigo-100 dark:border-slate-800 bg-white dark:bg-slate-950 text-indigo-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-sm"><AlertCircle className="w-3.5 h-3.5" /> Audit Matrix</Button>
-            <Button variant="outline" size="sm" onClick={() => setIsPreferencesOpen(true)} className="h-9 px-4 rounded-xl border-indigo-100 dark:border-slate-800 bg-white dark:bg-slate-950 text-indigo-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-sm"><Settings2 className="w-3.5 h-3.5" /> Preferences</Button>
-            <Button variant="outline" size="sm" onClick={() => setIsUserGuideOpen(true)} className="h-9 px-4 rounded-xl border-indigo-100 dark:border-slate-800 bg-white dark:bg-slate-950 text-indigo-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-sm"><BookOpen className="w-3.5 h-3.5" /> Guide</Button>
-          </div>
+          <Button variant="ghost" size="icon" onClick={() => setIsPreferencesOpen(true)} className="rounded-full hover:bg-accent">
+            <Settings2 className="w-5 h-5 text-muted-foreground" />
+          </Button>
         </div>
 
-        {isGoalTrackerEnabled && <GoalTracker repertoire={masterRepertoire} />}
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+          <div className="p-6 space-y-8">
+            {isGoalTrackerEnabled && <GoalTracker repertoire={masterRepertoire} />}
 
-        {activeDashboardView === 'gigs' && activeSongForPerformance && (
-          <ActiveSongBanner song={activeSongForPerformance} isPlaying={audio.isPlaying} onTogglePlayback={audio.togglePlayback} onClear={() => { setActiveSongForPerformance(null); audio.stopPlayback(); }} isLoadingAudio={audio.isLoadingAudio} />
+            <div className="flex items-center justify-between">
+              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+                {activeDashboardView === 'gigs' ? 'Active Gig Setlists' : 'Master Repertoire'}
+              </h3>
+              <div className="flex bg-secondary p-1 rounded-xl">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSearchParams({ view: 'gigs' })}
+                  className={cn(
+                    "text-[9px] font-black uppercase h-8 px-4 rounded-lg gap-2",
+                    activeDashboardView === 'gigs' ? "bg-background dark:bg-card shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <ListMusic className="w-3 h-3" /> Gigs
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSearchParams({ view: 'repertoire' })}
+                  className={cn(
+                    "text-[9px] font-black uppercase h-8 px-4 rounded-lg gap-2",
+                    activeDashboardView === 'repertoire' ? "bg-background dark:bg-card shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Library className="w-3 h-3" /> Repertoire
+                </Button>
+              </div>
+            </div>
+
+            {activeDashboardView === 'gigs' ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <SetlistSelector
+                    setlists={allSetlists.map(s => ({ id: s.id, name: s.name }))}
+                    currentId={activeSetlistId || ''}
+                    onSelect={handleSelectSetlist}
+                    onCreate={() => setIsCreatingSetlist(true)}
+                    onDelete={(id) => setDeleteSetlistConfirmId(id)}
+                  />
+                  {activeSetlist && (
+                    <Button variant="ghost" size="icon" onClick={() => setIsSetlistSettingsOpen(true)} className="h-10 w-10 rounded-xl bg-secondary hover:bg-accent text-muted-foreground">
+                      <Settings2 className="w-5 h-5" />
+                    </Button>
+                  )}
+                </div>
+
+                {activeSetlist ? (
+                  <>
+                    <SetlistStats
+                      songs={activeSetlist.songs}
+                      goalSeconds={activeSetlist.time_goal}
+                      onUpdateGoal={async (seconds) => {
+                        if (!userId) return;
+                        try {
+                          await supabase.from('setlists').update({ time_goal: seconds }).eq('id', activeSetlist.id);
+                          setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, time_goal: seconds } : s));
+                          showSuccess("Setlist goal updated!");
+                        } catch (err: any) {
+                          showError(`Failed to update goal: ${err.message}`);
+                        }
+                      }}
+                    />
+                    <SetlistManager
+                      songs={activeSetlist.songs}
+                      onRemove={handleRemoveSongFromSetlist}
+                      onSelect={handleSelectSongForPlayback}
+                      onEdit={handleEditSong}
+                      onUpdateKey={handleUpdateSongKey}
+                      onTogglePlayed={handleTogglePlayed}
+                      onLinkAudio={() => setIsAudioTransposerModalOpen(true)}
+                      onUpdateSong={handleUpdateSongInSetlist}
+                      onSyncProData={async (song) => {
+                        showError("Pro Sync not yet implemented for individual songs.");
+                      }}
+                      onReorder={handleReorderSongs}
+                      currentSongId={activeSongForPerformance?.id}
+                      onOpenAdmin={onOpenAdmin}
+                      sortMode={sortMode}
+                      setSortMode={setSortMode}
+                      activeFilters={activeFilters}
+                      setActiveFilters={setActiveFilters}
+                      searchTerm={searchTerm}
+                      setSearchTerm={setSearchTerm}
+                      showHeatmap={showHeatmap}
+                      allSetlists={allSetlists}
+                      onUpdateSetlistSongs={handleUpdateSetlistSongs}
+                      onOpenSortModal={() => setIsSetlistSortModalOpen(true)} // NEW: Open sort modal
+                    />
+                    <Button
+                      onClick={() => setIsRepertoirePickerOpen(true)}
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 h-12 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-indigo-600/20 gap-3"
+                    >
+                      <Plus className="w-4 h-4" /> Add from Repertoire
+                    </Button>
+                    <Button
+                      onClick={() => setIsImportSetlistOpen(true)}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 h-12 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-emerald-600/20 gap-3"
+                    >
+                      <ListMusic className="w-4 h-4" /> Smart Import
+                    </Button>
+                    <Button
+                      onClick={() => setIsResourceAuditOpen(true)}
+                      className="w-full bg-orange-600 hover:bg-orange-700 h-12 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-orange-600/20 gap-3"
+                    >
+                      <AlertCircle className="w-4 h-4" /> Resource Audit
+                    </Button>
+                  </>
+                ) : (
+                  <div className="py-20 text-center opacity-30">
+                    <ListMusic className="w-12 h-12 mx-auto mb-4" />
+                    <p className="text-sm font-black uppercase tracking-widest text-muted-foreground">No Setlist Selected</p>
+                    <Button onClick={() => setIsCreatingSetlist(true)} className="mt-6 bg-indigo-600 hover:bg-indigo-700 h-12 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-indigo-600/20 gap-3">
+                      <Plus className="w-4 h-4" /> Create New Setlist
+                    </Button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <RepertoireView
+                repertoire={masterRepertoire}
+                onEditSong={handleEditSong}
+                allSetlists={allSetlists}
+                onUpdateSetlistSongs={handleUpdateSetlistSongs}
+                onRefreshRepertoire={() => fetchSetlistsAndRepertoire()}
+                onAddSong={(song) => handleAddSongToSetlist(song)}
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+                sortMode={sortMode}
+                setSortMode={setSortMode}
+                activeFilters={activeFilters}
+                setActiveFilters={setActiveFilters}
+                onAutoLink={handleBulkAutoLink}
+                onGlobalAutoSync={handleBulkGlobalAutoSync}
+                onBulkRefreshAudio={handleBulkRefreshAudio}
+                onClearAutoLinks={handleBulkClearAutoLinks}
+                isBulkDownloading={isRepertoireBulkQueuingAudio}
+                missingAudioCount={missingAudioCount}
+                onOpenAdmin={onOpenAdmin}
+                onDeleteSong={handleDeleteMasterSong}
+              />
+            )}
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col bg-background relative overflow-hidden">
+        {activeSongForPerformance && (
+          <ActiveSongBanner
+            song={activeSongForPerformance}
+            isPlaying={audio.isPlaying}
+            onTogglePlayback={audio.togglePlayback}
+            onClear={() => setActiveSongForPerformance(null)}
+            isLoadingAudio={audio.isLoadingAudio}
+          />
         )}
 
-        <Tabs value={activeDashboardView} onValueChange={handleViewChange} className="w-full mt-8">
-          <TabsList className="grid w-full grid-cols-2 h-12 bg-slate-900 p-1 rounded-xl mb-6">
-            <TabsTrigger value="gigs" className="text-sm font-black uppercase tracking-tight gap-2 h-10 rounded-lg"><ListMusic className="w-4 h-4" /> Gigs</TabsTrigger>
-            <TabsTrigger value="repertoire" className="text-sm font-black uppercase tracking-tight gap-2 h-10 rounded-lg"><Library className="w-4 h-4" /> Repertoire</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="gigs" className="mt-0 space-y-8">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <SetlistSelector setlists={allSetlists} currentId={activeSetlistId || ''} onSelect={handleSelectSetlist} onCreate={() => { setNewSetlistName(""); setIsCreatingSetlist(true); }} onDelete={(id) => setDeleteSetlistConfirmId(id)} />
-              <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                <Button variant="outline" size="sm" onClick={() => setIsRepertoirePickerOpen(true)} className="h-10 px-6 rounded-xl border-indigo-100 dark:border-slate-800 bg-white dark:bg-slate-950 text-indigo-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-sm"><Plus className="w-3.5 h-3.5" /> Add from Library</Button>
-                <ImportSetlist isOpen={isImportSetlistOpen} onClose={() => setIsImportSetlistOpen(false)} onImport={async (songs) => { if (!userId) return; try { const newSongs = await syncToMasterRepertoire(userId, songs); const junctionInserts = newSongs.map((s, index) => ({ setlist_id: activeSetlist!.id, song_id: s.master_id || s.id, sort_order: activeSetlist!.songs.length + index, isPlayed: false, is_confirmed: false })); await supabase.from('setlist_songs').insert(junctionInserts); await fetchSetlistsAndRepertoire(); showSuccess("Imported!"); setIsImportSetlistOpen(false); } catch (err: any) { showError(`Failed: ${err.message}`); } }} />
-              </div>
+        <div className="flex-1 flex items-center justify-center p-6 overflow-y-auto custom-scrollbar">
+          <div className="w-full max-w-4xl bg-card rounded-[2.5rem] border-4 border-border shadow-2xl p-10 text-center space-y-8">
+            <div className="bg-indigo-600/10 w-20 h-20 rounded-full flex items-center justify-center mx-auto text-indigo-400 shadow-xl shadow-indigo-600/20">
+              <Music className="w-10 h-10" />
             </div>
-
-            {isFilterActive && (
-              <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <AlertTriangle className="w-5 h-5 text-amber-400" />
-                  <p className="text-sm font-bold text-amber-400 uppercase tracking-tight">
-                    Filters Active: Showing a subset of {activeSetlist?.songs.length || 0} tracks.
-                  </p>
-                </div>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => { setSearchTerm(""); setActiveFilters(DEFAULT_FILTERS); }}
-                  className="text-amber-400 hover:bg-amber-500/20 text-[10px] font-black uppercase"
-                >
-                  Clear All Filters
-                </Button>
-              </div>
-            )}
-
-            <SetlistStats songs={activeSetlist?.songs || []} goalSeconds={activeSetlist?.time_goal} onUpdateGoal={async (newGoal) => { if (!userId || !activeSetlist) return; try { await supabase.from('setlists').update({ time_goal: newGoal }).eq('id', activeSetlist.id).eq('user_id', userId); setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, time_goal: newGoal } : s)); showSuccess("Goal updated!"); } catch (err: any) { showError(`Failed: ${err.message}`); } }} />
-            <SetlistManager 
-              songs={filteredAndSortedSongs} 
-              onRemove={handleRemoveSongFromSetlist} 
-              onSelect={handleSelectSongForPlayback} 
-              onEdit={handleEditSong} 
-              onUpdateKey={handleUpdateSongKey} 
-              onTogglePlayed={handleTogglePlayed} 
-              onLinkAudio={() => {}} 
-              onUpdateSong={handleUpdateSongInSetlist} 
-              onSyncProData={async (song) => { if (!userId) return; try { const synced = await syncToMasterRepertoire(userId, [song]); setMasterRepertoire(prev => prev.map(s => s.id === synced[0].id ? synced[0] : s)); await fetchSetlistsAndRepertoire(); showSuccess("Synced!"); } catch (err: any) { showError(`Failed: ${err.message}`); } }} 
-              onReorder={handleReorderSongs} 
-              currentSongId={activeSongForPerformance?.id} 
-              sortMode={sortMode} 
-              setSortMode={setSortMode} 
-              activeFilters={activeFilters} 
-              setActiveFilters={setActiveFilters} 
-              searchTerm={searchTerm} 
-              setSearchTerm={setSearchTerm} 
-              showHeatmap={showHeatmap} 
-              allSetlists={allSetlists} 
-              onUpdateSetlistSongs={handleUpdateSetlistSongs} 
-              onOpenSortModal={() => setIsSetlistSortModalOpen(true)} // NEW: Pass handler to open sort modal
-            />
-          </TabsContent>
-
-          <TabsContent value="repertoire" className="mt-0 space-y-8">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              {/* RepertoireView handles its own header/search/filter display now, but we need the filter warning here */}
+            <h2 className="text-4xl font-black uppercase tracking-tight text-foreground">Welcome to Gig Studio</h2>
+            <p className="text-muted-foreground text-lg font-medium max-w-xl mx-auto">
+              Select a song from your setlist or repertoire to begin, or use the search tools to discover new tracks.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button
+                onClick={() => setIsAudioTransposerModalOpen(true)}
+                className="bg-indigo-600 hover:bg-indigo-700 h-14 px-8 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-indigo-600/30 gap-3"
+              >
+                <Search className="w-4 h-4" /> Discover New Music
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => navigate('/sheet-reader')}
+                className="h-14 px-8 rounded-2xl border-border bg-secondary hover:bg-accent font-black uppercase tracking-widest text-xs text-foreground gap-3"
+              >
+                <BookOpen className="w-4 h-4" /> Open Sheet Reader
+              </Button>
             </div>
-            
-            {isFilterActive && (
-              <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <AlertTriangle className="w-5 h-5 text-amber-400" />
-                  <p className="text-sm font-bold text-amber-400 uppercase tracking-tight">
-                    Filters Active: Showing a subset of {masterRepertoire.length} tracks.
-                  </p>
-                </div>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => { setSearchTerm(""); setActiveFilters(DEFAULT_FILTERS); }}
-                  className="text-amber-400 hover:bg-amber-500/20 text-[10px] font-black uppercase"
-                >
-                  Clear All Filters
-                </Button>
-              </div>
-            )}
+          </div>
+        </div>
+      </main>
 
-            <RepertoireView 
-              repertoire={masterRepertoire} 
-              onEditSong={handleEditSong} 
-              allSetlists={allSetlists} 
-              onUpdateSetlistSongs={handleUpdateSetlistSongs} 
-              onRefreshRepertoire={() => fetchSetlistsAndRepertoire()} 
-              onAddSong={async (newSong) => { if (!userId) return; try { const synced = await syncToMasterRepertoire(userId, [newSong]); setMasterRepertoire(prev => [...prev, synced[0]]); } catch (err: any) { showError(`Failed: ${err.message}`); } }} 
-              searchTerm={searchTerm} 
-              setSearchTerm={setSearchTerm} 
-              sortMode={sortMode} 
-              setSortMode={setSortMode} 
-              activeFilters={activeFilters} 
-              setActiveFilters={setActiveFilters}
-              onAutoLink={handleBulkAutoLink}
-              onGlobalAutoSync={handleBulkGlobalAutoSync}
-              onBulkRefreshAudio={handleBulkRefreshAudio}
-              onClearAutoLinks={handleBulkClearAutoLinks}
-              isBulkDownloading={isRepertoireAutoLinking || isRepertoireGlobalAutoSyncing || isRepertoireBulkQueuingAudio}
-              missingAudioCount={missingAudioCount}
-              onOpenAdmin={onOpenAdmin}
-              onDeleteSong={handleDeleteMasterSong}
+      {/* Modals */}
+      <Dialog open={isCreatingSetlist} onOpenChange={setIsCreatingSetlist}>
+        <DialogContent className="bg-popover border-border text-foreground rounded-[2rem]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black uppercase tracking-tight">Create New Setlist</DialogTitle>
+            <DialogDescription className="text-muted-foreground">Enter a name for your new gig setlist.</DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <Label htmlFor="new-setlist-name" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Setlist Name</Label>
+            <Input
+              id="new-setlist-name"
+              value={newSetlistName}
+              onChange={(e) => setNewSetlistName(e.target.value)}
+              placeholder="E.g., Wedding Reception - Oct 2024"
+              className="h-11 bg-background border-border text-foreground"
             />
-          </TabsContent>
-        </Tabs>
-      </div>
-
-      <FloatingCommandDock onOpenSearch={() => setIsAudioTransposerModalOpen(true)} onOpenPractice={() => {}} onOpenReader={handleOpenReader} onOpenAdmin={onOpenAdmin} onOpenPreferences={() => setIsPreferencesOpen(true)} onToggleHeatmap={() => setShowHeatmap(prev => !prev)} onOpenUserGuide={() => setIsUserGuideOpen(true)} showHeatmap={showHeatmap} viewMode={activeDashboardView} hasPlayableSong={hasPlayableSong} hasReadableChart={hasReadableChart} isPlaying={audio.isPlaying} onTogglePlayback={audio.togglePlayback} currentSongHighestNote={activeSongForPerformance?.highest_note_original || undefined} currentSongPitch={activeSongForPerformance?.pitch} onSafePitchToggle={handleSafePitchToggle} activeSongId={activeSongForPerformance?.id} onSetMenuOpen={setFloatingDockMenuOpen} isMenuOpen={floatingDockMenuOpen} onOpenPerformance={handleOpenPerformanceOverlay} />
-
-      <AlertDialog open={isCreatingSetlist} onOpenChange={setIsCreatingSetlist}>
-        <AlertDialogContent className="bg-slate-900 border-white/10 text-white rounded-[2rem]">
-          <AlertDialogHeader><div className="bg-indigo-600/10 w-12 h-12 rounded-2xl flex items-center justify-center text-indigo-500 mb-4"><ListMusic className="w-6 h-6" /></div><AlertDialogTitle className="text-xl font-black uppercase tracking-tight">Create New Setlist</AlertDialogTitle><AlertDialogDescription className="text-slate-400">Enter a name for your new gig setlist.</AlertDialogDescription></AlertDialogHeader>
-          <div className="py-4"><Input placeholder="E.G. Wedding Gig" value={newSetlistName} onChange={(e) => setNewSetlistName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleCreateSetlist()} className="bg-white/5 border-white/10 h-12 rounded-xl" /></div>
-          <AlertDialogFooter className="mt-6"><AlertDialogCancel className="rounded-xl bg-white/5 font-bold uppercase text-[10px]">Cancel</AlertDialogCancel><AlertDialogAction onClick={handleCreateSetlist} disabled={!newSetlistName.trim()} className="rounded-xl bg-indigo-600 font-black uppercase text-[10px]">Create</AlertDialogAction></AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setIsCreatingSetlist(false)} className="font-bold uppercase text-[10px] tracking-widest">Cancel</Button>
+            <Button onClick={handleCreateSetlist} disabled={!newSetlistName.trim()} className="bg-indigo-600 hover:bg-indigo-700 font-black uppercase text-[10px] tracking-widest">Create</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!deleteSetlistConfirmId} onOpenChange={(open) => !open && setDeleteSetlistConfirmId(null)}>
-        <AlertDialogContent className="bg-slate-900 border-white/10 text-white rounded-[2rem]">
-          <AlertDialogHeader><div className="bg-red-500/10 w-12 h-12 rounded-2xl flex items-center justify-center text-red-500 mb-4"><AlertCircle className="w-6 h-6" /></div><AlertDialogTitle className="text-xl font-black uppercase tracking-tight">Delete Setlist?</AlertDialogTitle><AlertDialogDescription className="text-slate-400">This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
-          <AlertDialogFooter className="mt-6"><AlertDialogCancel className="rounded-xl bg-white/5 font-bold uppercase text-[10px]">Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteSetlist(deleteSetlistConfirmId!)} className="rounded-xl bg-red-600 font-black uppercase text-[10px]">Delete</AlertDialogAction></AlertDialogFooter>
+        <AlertDialogContent className="bg-card border-border text-foreground rounded-[2rem]">
+          <AlertDialogHeader>
+            <div className="bg-destructive/10 w-12 h-12 rounded-2xl flex items-center justify-center text-destructive mb-4">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <AlertDialogTitle className="text-xl font-black uppercase tracking-tight">Delete Setlist?</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              This will permanently delete the setlist and all its associated songs. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-6">
+            <AlertDialogCancel className="rounded-xl border-border bg-secondary hover:bg-accent hover:text-foreground font-bold uppercase text-[10px] tracking-widest">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { if (deleteSetlistConfirmId) handleDeleteSetlist(deleteSetlistConfirmId); }} className="rounded-xl bg-destructive hover:bg-destructive-foreground text-white font-black uppercase text-[10px] tracking-widest">Confirm Deletion</AlertDialogAction>
+          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {activeSetlist && <SetlistSettingsModal isOpen={isSetlistSettingsOpen} onClose={() => setIsSetlistSettingsOpen(false)} setlistId={activeSetlist.id} setlistName={activeSetlist.name} onDelete={(id) => { setDeleteSetlistConfirmId(id); setIsSetlistSettingsOpen(false); }} onRename={(id) => { setRenameSetlistId(id); setNewSetlistNameForRename(activeSetlist.name); }} />}
+      <SetlistSettingsModal
+        isOpen={isSetlistSettingsOpen}
+        onClose={() => setIsSetlistSettingsOpen(false)}
+        setlistId={activeSetlistId}
+        setlistName={activeSetlist?.name || "Current Setlist"}
+        onDelete={(id) => setDeleteSetlistConfirmId(id)}
+        onRename={async (id) => {
+          const newName = prompt("Enter new setlist name:");
+          if (newName && userId) {
+            try {
+              await supabase.from('setlists').update({ name: newName }).eq('id', id);
+              setAllSetlists(prev => prev.map(s => s.id === id ? { ...s, name: newName } : s));
+              showSuccess("Setlist renamed!");
+            } catch (err: any) {
+              showError(`Failed to rename: ${err.message}`);
+            }
+          }
+        }}
+      />
 
-      <RepertoirePicker isOpen={isRepertoirePickerOpen} onClose={() => setIsRepertoirePickerOpen(false)} repertoire={masterRepertoire} currentSetlistSongs={activeSetlist?.songs || []} onAdd={handleAddSongToSetlist} />
-      <ResourceAuditModal isOpen={isResourceAuditOpen} onClose={() => setIsResourceAuditOpen(false)} songs={masterRepertoire} onVerify={async (songId, updates) => { if (!userId) return; const current = masterRepertoire.find(s => s.id === songId); if (!current) return; const updated = { ...current, ...updates }; await syncToMasterRepertoire(userId, [updated as SetlistSong]); await fetchSetlistsAndRepertoire(); }} onRefreshRepertoire={() => fetchSetlistsAndRepertoire()} />
-      <AdminPanel isOpen={isAdminPanelOpen} onClose={() => setIsAdminPanelOpen(false)} onRefreshRepertoire={() => fetchSetlistsAndRepertoire()} />
-      <PreferencesModal isOpen={isPreferencesOpen} onClose={() => setIsPreferencesOpen(false)} />
-      <UserGuideModal isOpen={isUserGuideOpen} onClose={() => setIsUserGuideOpen(false)} />
-      <KeyManagementModal isOpen={isKeyManagementOpen} onClose={() => setIsKeyManagementOpen(false)} repertoire={masterRepertoire} onUpdateKey={handleUpdateMasterKey} keyPreference={globalKeyPreference} />
+      <RepertoirePicker
+        isOpen={isRepertoirePickerOpen}
+        onClose={() => setIsRepertoirePickerOpen(false)}
+        repertoire={masterRepertoire}
+        currentSetlistSongs={activeSetlist?.songs || []}
+        onAdd={handleAddSongToSetlist}
+      />
 
-      {isSongStudioModalOpen && (
-        <SongStudioModal isOpen={isSongStudioModalOpen} onClose={() => { setIsSongStudioModalOpen(false); setSongStudioDefaultTab(undefined); }} gigId={songStudioModalGigId} songId={songStudioModalSongId} visibleSongs={activeDashboardView === 'gigs' ? filteredAndSortedSongs : masterRepertoire} onSelectSong={setSongStudioModalSongId} allSetlists={allSetlists} masterRepertoire={masterRepertoire} onUpdateSetlistSongs={handleUpdateSetlistSongs} defaultTab={songStudioDefaultTab} preventStageKeyOverwrite={preventStageKeyOverwrite} />
-      )}
+      <ImportSetlist
+        isOpen={isImportSetlistOpen}
+        onClose={() => setIsImportSetlistOpen(false)}
+        onImport={async (songs) => {
+          if (!userId || !activeSetlist) {
+            showError("No active setlist or user session.");
+            return;
+          }
+          showInfo(`Importing ${songs.length} songs...`);
+          for (const song of songs) {
+            await handleImportNewSong(
+              song.previewUrl,
+              song.name,
+              song.artist || "Unknown Artist",
+              song.youtubeUrl,
+              song.ugUrl,
+              song.appleMusicUrl,
+              song.genre,
+              song.pitch,
+              song.audio_url,
+              song.extraction_status
+            );
+          }
+          showSuccess("Import complete!");
+        }}
+      />
 
-      {isPerformanceOverlayOpen && activeSetlist && activeSongForPerformance && (
-        <PerformanceOverlay songs={activeSetlist.songs} currentIndex={activeSetlist.songs.findIndex(s => s.id === activeSongForPerformance.id)} isPlaying={audio.isPlaying} progress={audio.progress} duration={audio.duration} onTogglePlayback={audio.togglePlayback} onNext={() => { const idx = (activeSetlist.songs.findIndex(s => s.id === activeSongForPerformance.id) + 1) % activeSetlist.songs.length; setActiveSongForPerformance(activeSetlist.songs[idx]); }} onPrevious={() => { const idx = (activeSetlist.songs.findIndex(s => s.id === activeSongForPerformance.id) - 1 + activeSetlist.songs.length) % activeSetlist.songs.length; setActiveSongForPerformance(activeSetlist.songs[idx]); }} onShuffle={() => { const shuffled = [...activeSetlist.songs].sort(() => Math.random() - 0.5); setAllSetlists(prev => prev.map(s => s.id === activeSetlist.id ? { ...s, songs: shuffled } : s)); setActiveSongForPerformance(shuffled[0]); }} onClose={() => { setIsPerformanceOverlayOpen(false); audio.stopPlayback(); }} onUpdateSong={handleUpdateSongInSetlist} onUpdateKey={handleUpdateSongKey} analyzer={audio.analyzer} gigId={activeSetlist.id} isLoadingAudio={audio.isLoadingAudio} />
-      )}
+      <ResourceAuditModal
+        isOpen={isResourceAuditOpen}
+        onClose={() => setIsResourceAuditOpen(false)}
+        songs={masterRepertoire}
+        onVerify={async (songId, updates) => {
+          if (!userId) return;
+          const current = masterRepertoire.find(s => s.id === songId);
+          if (!current) return;
+          try {
+            await syncToMasterRepertoire(userId, [{ ...current, ...updates } as SetlistSong]);
+            await fetchSetlistsAndRepertoire();
+          } catch (err: any) {
+            showError(`Failed to verify: ${err.message}`);
+          }
+        }}
+        onOpenStudio={(songId) => handleEditSong(masterRepertoire.find(s => s.id === songId)!, 'details')}
+        onRefreshRepertoire={() => fetchSetlistsAndRepertoire()}
+      />
 
-      {isAudioTransposerModalOpen && (
-        <Dialog open={isAudioTransposerModalOpen} onOpenChange={setIsAudioTransposerModalOpen}>
-          <DialogContent className="max-w-4xl w-[95vw] h-[90vh] bg-popover border-border text-foreground rounded-[2rem] p-0 overflow-hidden flex flex-col shadow-2xl">
-            <DialogHeader className="p-6 bg-indigo-600 shrink-0 relative"><button onClick={() => setIsAudioTransposerModalOpen(false)} className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 text-white/70"><X className="w-5 h-5" /></button>
-                <div className="flex items-center gap-3 mb-2"><div className="bg-white/20 p-2 rounded-xl backdrop-blur-md"><Music className="w-6 h-6 text-white" /></div><DialogTitle className="text-2xl font-black uppercase tracking-tight text-white">Audio Transposer</DialogTitle></div>
-                <DialogDescription className="text-indigo-100 font-medium">Load audio and adjust parameters.</DialogDescription></DialogHeader>
-            <div className="flex-1 overflow-hidden">
-              <AudioTransposer 
-                repertoire={masterRepertoire} 
-                currentSong={null} 
-                onAddToSetlist={handleImportNewSong}
-                onAddExistingSong={(song) => {
-                   handleAddSongToSetlist(song);
-                   // Modal logic handled here now
-                }}
-              />
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+      <AdminPanel
+        isOpen={isAdminPanelOpen}
+        onClose={() => setIsAdminPanelOpen(false)}
+        onRefreshRepertoire={() => fetchSetlistsAndRepertoire()}
+      />
 
-      {activeSetlist && (
-        <SetlistSortModal
-          isOpen={isSetlistSortModalOpen}
-          onClose={() => setIsSetlistSortModalOpen(false)}
-          songs={activeSetlist.songs}
-          onReorder={handleReorderSongs}
-          setlistName={activeSetlist.name}
-        />
-      )}
+      <PreferencesModal
+        isOpen={isPreferencesOpen}
+        onClose={() => setIsPreferencesOpen(false)}
+      />
+
+      <UserGuideModal
+        isOpen={isUserGuideOpen}
+        onClose={() => setIsUserGuideOpen(false)}
+      />
+
+      <SongStudioModal
+        isOpen={isSongStudioModalOpen}
+        onClose={() => setIsSongStudioModalOpen(false)}
+        gigId={songStudioModalGigId}
+        songId={songStudioModalSongId}
+        visibleSongs={activeSetlist?.songs || masterRepertoire}
+        onSelectSong={(id) => {
+          const song = (activeSetlist?.songs || masterRepertoire).find(s => s.id === id || s.master_id === id);
+          if (song) {
+            setSongStudioModalSongId(song.master_id || song.id);
+          }
+        }}
+        allSetlists={allSetlists}
+        masterRepertoire={masterRepertoire}
+        onUpdateSetlistSongs={handleUpdateSetlistSongs}
+        defaultTab={songStudioDefaultTab}
+        handleAutoSave={async (updates) => {
+          if (!userId || !songStudioModalSongId) return;
+          const current = masterRepertoire.find(s => s.id === songStudioModalSongId);
+          if (!current) return;
+          try {
+            await syncToMasterRepertoire(userId, [{ ...current, ...updates } as SetlistSong]);
+            await fetchSetlistsAndRepertoire();
+          } catch (err: any) {
+            showError(`Auto-save failed: ${err.message}`);
+          }
+        }}
+        preventStageKeyOverwrite={preventStageKeyOverwrite}
+      />
+
+      <KeyManagementModal
+        isOpen={isKeyManagementOpen}
+        onClose={() => setIsKeyManagementOpen(false)}
+        repertoire={masterRepertoire}
+        onUpdateKey={handleUpdateMasterKey}
+        keyPreference={globalKeyPreference}
+      />
+
+      <PerformanceOverlay
+        songs={filteredAndSortedSongs}
+        currentIndex={activeSetlist?.songs.findIndex(s => s.id === activeSongForPerformance?.id) || 0}
+        isPlaying={audio.isPlaying}
+        progress={audio.progress}
+        duration={audio.duration}
+        onTogglePlayback={audio.togglePlayback}
+        onNext={() => {
+          const currentIdx = filteredAndSortedSongs.findIndex(s => s.id === activeSongForPerformance?.id);
+          const nextIdx = (currentIdx + 1) % filteredAndSortedSongs.length;
+          handleSelectSongForPlayback(filteredAndSortedSongs[nextIdx]);
+        }}
+        onPrevious={() => {
+          const currentIdx = filteredAndSortedSongs.findIndex(s => s.id === activeSongForPerformance?.id);
+          const prevIdx = (currentIdx - 1 + filteredAndSortedSongs.length) % filteredAndSortedSongs.length;
+          handleSelectSongForPlayback(filteredAndSortedSongs[prevIdx]);
+        }}
+        onShuffle={() => {
+          if (!activeSetlist) return;
+          const shuffled = [...activeSetlist.songs].sort(() => Math.random() - 0.5);
+          handleReorderSongs(shuffled);
+        }}
+        onClose={() => setIsPerformanceOverlayOpen(false)}
+        onUpdateSong={handleUpdateSongInSetlist}
+        onUpdateKey={handleUpdateSongKey}
+        analyzer={audio.analyzer}
+        onOpenAdmin={onOpenAdmin}
+        gigId={activeSetlistId}
+        isLoadingAudio={audio.isLoadingAudio}
+      />
+
+      <AudioTransposer
+        ref={audioTransposerRef}
+        onAddToSetlist={handleImportNewSong}
+        onAddExistingSong={handleAddSongToSetlist}
+        // onUpdateSongKey={handleUpdateMasterKey} // Removed unused prop
+        onSongEnded={() => {
+          // Logic for when a song ends in the transposer preview
+        }}
+        onPlaybackChange={(playing) => {
+          // Handle playback state changes if needed
+        }}
+        repertoire={masterRepertoire}
+        currentList={activeSetlist}
+        onImportGlobal={handleImportGlobalAdapter}
+      />
+
+      <SetlistSortModal
+        isOpen={isSetlistSortModalOpen}
+        onClose={() => setIsSetlistSortModalOpen(false)}
+        songs={activeSetlist?.songs || []}
+        onReorder={handleReorderSongs}
+        setlistName={activeSetlist?.name || "Current Setlist"}
+      />
+
+      <FloatingCommandDock
+        onOpenSearch={() => setIsAudioTransposerModalOpen(true)}
+        onOpenPractice={() => {
+          sessionStorage.setItem('from_dashboard', 'true');
+          navigate('/sheet-reader');
+        }}
+        onOpenReader={() => {
+          sessionStorage.setItem('from_dashboard', 'true');
+          navigate('/sheet-reader');
+        }}
+        onOpenAdmin={() => setIsAdminPanelOpen(true)}
+        onOpenPreferences={() => setIsPreferencesOpen(true)}
+        onToggleHeatmap={() => setShowHeatmap(prev => !prev)}
+        onOpenUserGuide={() => setIsUserGuideOpen(true)}
+        showHeatmap={showHeatmap}
+        viewMode={activeDashboardView}
+        hasPlayableSong={!!activeSongForPerformance?.previewUrl}
+        hasReadableChart={!!activeSongForPerformance?.pdfUrl || !!activeSongForPerformance?.ugUrl || !!activeSongForPerformance?.ug_chords_text}
+        isPlaying={audio.isPlaying}
+        onTogglePlayback={audio.togglePlayback}
+        currentSongHighestNote={activeSongForPerformance?.highest_note_original}
+        currentSongPitch={activeSongForPerformance?.pitch}
+        onSafePitchToggle={handleSafePitchToggle}
+        onSetMenuOpen={setFloatingDockMenuOpen}
+        isMenuOpen={floatingDockMenuOpen}
+        onOpenPerformance={() => setIsPerformanceOverlayOpen(true)}
+      />
     </div>
   );
 };
