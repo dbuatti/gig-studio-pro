@@ -57,7 +57,7 @@ interface SheetReaderHeaderProps {
   pdfCurrentPage: number;
   setPdfCurrentPage: React.Dispatch<React.SetStateAction<number>>;
   selectedChartType: ChartType;
-  isLandscape: boolean; // NEW: Add isLandscape prop
+  // Removed isLandscape prop
 }
 
 const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
@@ -99,7 +99,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   pdfCurrentPage,
   setPdfCurrentPage,
   selectedChartType,
-  isLandscape, // NEW: Destructure isLandscape
+  // Removed isLandscape
 }) => {
   const displayKey = effectiveTargetKey ? formatKey(effectiveTargetKey, readerKeyPreference) : null;
   const keysToUse = readerKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
@@ -124,11 +124,11 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   };
 
   const handlePrevPdfPage = () => {
-    setPdfCurrentPage(prev => Math.max(1, prev - (isLandscape ? 2 : 1))); // NEW: Adjust for landscape
+    setPdfCurrentPage(prev => Math.max(1, prev - 1)); // Always step by 1
   };
 
   const handleNextPdfPage = () => {
-    setPdfCurrentPage(prev => Math.min(prev + (isLandscape ? 2 : 1), 999)); // NEW: Adjust for landscape
+    setPdfCurrentPage(prev => Math.min(prev + 1, 999)); // Always step by 1
   };
 
   if (isFullScreen) return null;
@@ -155,7 +155,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
           <ListMusic className="w-5 h-5" />
         </Button>
 
-        {/* NEW: PDF Page Navigation or Song Navigation */}
+        {/* PDF Page Navigation or Song Navigation */}
         {(selectedChartType === 'pdf' || selectedChartType === 'leadsheet') ? (
           <>
             <Button 
