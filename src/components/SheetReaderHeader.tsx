@@ -94,11 +94,11 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
       </div>
 
       {/* Center Section: Song Title and Studio Button */}
-      <div className="flex-1 text-center min-w-0 px-4">
+      <div className="flex-1 flex items-center justify-center min-w-0 px-4">
         {isLoading ? (
           <Skeleton className="h-6 w-48 mx-auto bg-white/10" />
         ) : currentSong ? (
-          <h2 className="text-lg font-black uppercase tracking-tight text-white line-clamp-1 flex items-center justify-center gap-2">
+          <div className="flex items-center gap-2">
             {/* NEW: Back to Dashboard Button */}
             <Button
               variant="ghost"
@@ -109,7 +109,9 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
             >
               <ArrowLeft className="w-3.5 h-3.5" />
             </Button>
-            {currentSong.name}
+            <h2 className="text-lg font-black uppercase tracking-tight text-white line-clamp-1 flex-1 text-center min-w-0">
+              {currentSong.name}
+            </h2>
             <Button
               variant="ghost"
               size="icon"
@@ -120,7 +122,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
             >
               <FileText className="w-3.5 h-3.5" />
             </Button>
-          </h2>
+          </div>
         ) : (
           <p className="text-sm font-bold text-slate-500">No Song Selected</p>
         )}
