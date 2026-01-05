@@ -31,12 +31,9 @@ import 'react-pdf/dist/Page/TextLayer.css';
 import { useSpring, animated } from '@react-spring/web';
 import { useDrag } from '@use-gesture/react';
 
-// Import the worker directly using Vite's ?url suffix
-import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.js?url';
-
-// Configure PDF.js worker source to point to the imported URL
-pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
-console.log("[SheetReaderMode] pdfjs.GlobalWorkerOptions.workerSrc set to:", pdfWorker);
+// Configure PDF.js worker source to point to the file in the public directory
+pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+console.log("[SheetReaderMode] pdfjs.GlobalWorkerOptions.workerSrc set to:", pdfjs.GlobalWorkerOptions.workerSrc);
 
 
 export type ChartType = 'pdf' | 'leadsheet' | 'chords';
