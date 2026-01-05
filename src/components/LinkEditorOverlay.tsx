@@ -25,6 +25,20 @@ interface LinkPoint {
   y: number; // Normalized 0-1
 }
 
+export interface SheetLink {
+  id: string;
+  user_id: string;
+  song_id: string;
+  source_page: number;
+  source_x: number; // Normalized 0-1
+  source_y: number; // Normalized 0-1
+  target_page: number;
+  target_x: number; // Normalized 0-1
+  target_y: number; // Normalized 0-1
+  link_size: 'small' | 'medium' | 'large' | 'extra-large';
+  created_at: string;
+}
+
 interface LinkEditorOverlayProps {
   isOpen: boolean;
   onClose: () => void;
@@ -32,6 +46,7 @@ interface LinkEditorOverlayProps {
   chartUrl: string; // Renamed from pdfUrl
   pdfDocument: PDFDocumentProxy | null; // Pass the PDFDocumentProxy directly
   onLinkCreated: () => void;
+  editingLink?: SheetLink | null; // NEW: Optional prop for editing existing links
 }
 
 const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
@@ -41,9 +56,10 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
   chartUrl, // Use chartUrl
   pdfDocument: propPdfDocument, // Use propPdfDocument to distinguish from local state
   onLinkCreated,
+  editingLink, // NEW: Destructure editingLink
 }) => {
   const { user } = useAuth();
-  const { linkSize } = useSettings(); // Use linkSize from settings
+  const { linkSize: globalLinkSize } = useSettings(); // Get global link size
 
   const [sourcePoint, setSourcePoint] = useState<LinkPoint | null>(null);
   const [targetPoint, setTargetPoint] = useState<LinkPoint | null>(null);
@@ -75,13 +91,22 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
     }
   }, [propPdfDocument]);
 
-  // Reset state when modal opens/closes
+  // Reset state when modal opens/closes or editingLink changes
   useEffect(() => {
     if (isOpen) {
-      setSourcePoint(null);
-      setTargetPoint(null);
-      setLeftPageNum(1);
-      setRightPageNum(1);
+      if (editingLink) {
+        setSourcePoint({ page: editingLink.source_page, x: editingLink.source_x, y: editingLink.source_y });
+        setTargetPoint({ page: editingLink.target_page, x: editingLink.target_x, y: editingLink.target_y });
+        setLeftPageNum(editingLink.source_page);
+        setRightPageNum(editingLink.target_page);
+        console.log("[LinkEditorOverlay] Initialized for editing link:", editingLink.id);
+      } else {
+        setSourcePoint(null);
+        setTargetPoint(null);
+        setLeftPageNum(1);
+        setRightPageNum(1);
+        console.log("[LinkEditorOverlay] Initialized for creating new link.");
+      }
       setPdfError(null);
       if (localPdfDocument) {
         setPdfNumPages(localPdfDocument.numPages);
@@ -90,7 +115,7 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
         setIsLoadingPdf(true);
       }
     }
-  }, [isOpen, localPdfDocument]);
+  }, [isOpen, localPdfDocument, editingLink]);
 
   const calculatePdfScale = useCallback(async (pdf: PDFDocumentProxy, container: HTMLDivElement, pageNumber: number) => {
     if (!container || !pdf) return;
@@ -109,6 +134,7 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
 
       // Choose the smaller scale to ensure the entire page fits within the container
       setPdfScale(Math.min(scaleX, scaleY));
+      // console.log("[LinkEditorOverlay] PDF scale calculated:", Math.min(scaleX, scaleY)); // Removed verbose log
     } catch (error) {
       console.error("[LinkEditorOverlay] Error calculating PDF scale:", error);
     }
@@ -135,21 +161,21 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
   }, [localPdfDocument, leftPageNum, calculatePdfScale]);
 
 
-  const handleDocumentLoadSuccess = (pdf: PDFDocumentProxy) => {
-    console.log("[LinkEditorOverlay] PDF loaded successfully:", pdf);
+  const handleDocumentLoadSuccess = useCallback((pdf: PDFDocumentProxy) => {
+    // console.log("[LinkEditorOverlay] PDF loaded successfully:", pdf); // Removed verbose log
     setLocalPdfDocument(pdf);
     setPdfNumPages(pdf.numPages);
     setIsLoadingPdf(false);
     if (pdfContainerRef.current) {
       calculatePdfScale(pdf, pdfContainerRef.current, 1);
     }
-  };
+  }, [calculatePdfScale]);
 
-  const handleDocumentLoadError = (error: any) => {
+  const handleDocumentLoadError = useCallback((error: any) => {
     console.error("[LinkEditorOverlay] Error loading PDF:", error);
     setPdfError("Failed to load PDF. Please check the URL or file.");
     setIsLoadingPdf(false);
-  };
+  }, []);
 
   const handleTap = useCallback((
     e: React.MouseEvent<HTMLDivElement>,
@@ -167,12 +193,14 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
 
     if (type === 'source') {
       setSourcePoint(newPoint);
+      console.log("[LinkEditorOverlay] Source point set:", newPoint);
     } else {
       setTargetPoint(newPoint);
+      console.log("[LinkEditorOverlay] Target point set:", newPoint);
     }
   }, []);
 
-  const handleCreateLink = async () => {
+  const handleSaveLink = async () => {
     if (!user || !songId || !sourcePoint || !targetPoint) {
       showError("Both source and target points are required.");
       return;
@@ -180,25 +208,42 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
 
     setIsCreatingLink(true);
     try {
-      const { error } = await supabase.from('sheet_links').insert({
-        user_id: user.id,
-        song_id: songId,
-        source_page: sourcePoint.page,
-        source_x: sourcePoint.x,
-        source_y: sourcePoint.y,
-        target_page: targetPoint.page,
-        target_x: targetPoint.x,
-        target_y: targetPoint.y,
-        link_size: linkSize, // Use the global link size setting
-      });
-
-      if (error) throw error;
-
-      showSuccess("Link created successfully!");
+      if (editingLink) {
+        // Update existing link
+        const { error } = await supabase.from('sheet_links').update({
+          source_page: sourcePoint.page,
+          source_x: sourcePoint.x,
+          source_y: sourcePoint.y,
+          target_page: targetPoint.page,
+          target_x: targetPoint.x,
+          target_y: targetPoint.y,
+          link_size: globalLinkSize,
+        }).eq('id', editingLink.id).eq('user_id', user.id);
+        if (error) throw error;
+        showSuccess("Link updated successfully!");
+        console.log("[LinkEditorOverlay] Link updated:", editingLink.id);
+      } else {
+        // Create new link
+        const { error } = await supabase.from('sheet_links').insert({
+          user_id: user.id,
+          song_id: songId,
+          source_page: sourcePoint.page,
+          source_x: sourcePoint.x,
+          source_y: sourcePoint.y,
+          target_page: targetPoint.page,
+          target_x: targetPoint.x,
+          target_y: targetPoint.y,
+          link_size: globalLinkSize,
+        });
+        if (error) throw error;
+        showSuccess("Link created successfully!");
+        console.log("[LinkEditorOverlay] New link created for song ID:", songId);
+      }
       onLinkCreated();
       onClose();
     } catch (err: any) {
-      showError(`Failed to create link: ${err.message}`);
+      console.error("[LinkEditorOverlay] Failed to save link:", err.message);
+      showError(`Failed to save link: ${err.message}`);
     } finally {
       setIsCreatingLink(false);
     }
@@ -215,7 +260,7 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
       'medium': 24,
       'large': 32,
       'extra-large': 40,
-    }[linkSize];
+    }[globalLinkSize];
 
     return {
       position: 'absolute',
@@ -237,7 +282,7 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
       boxShadow: '0 0 10px rgba(0,0,0,0.3)',
       cursor: 'pointer',
     };
-  }, [linkSize]);
+  }, [globalLinkSize]);
 
   const renderPdfPanel = (
     type: 'source' | 'target',
@@ -316,7 +361,9 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
             <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">
               <Plus className="w-6 h-6 text-white" />
             </div>
-            <DialogTitle className="text-2xl font-black uppercase tracking-tight text-white">Create New Link</DialogTitle>
+            <DialogTitle className="text-2xl font-black uppercase tracking-tight text-white">
+              {editingLink ? "Edit Link" : "Create New Link"}
+            </DialogTitle>
           </div>
           <DialogDescription className="text-indigo-100 font-medium">
             Tap on the left page for the blue source, and on the right for the orange target.
@@ -333,12 +380,12 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
             Cancel
           </Button>
           <Button
-            onClick={handleCreateLink}
+            onClick={handleSaveLink}
             disabled={isCreatingLink || !sourcePoint || !targetPoint}
             className="flex-[2] bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-[0.2em] text-xs h-12 rounded-xl shadow-xl shadow-indigo-500/20 gap-3"
           >
             {isCreatingLink ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-            Create Link
+            {editingLink ? "Save Changes" : "Create Link"}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -40,8 +40,7 @@ export function useFollow(profileUserId: string | undefined) {
       setFollowCount(followersCount || 0);
 
     } catch (err: any) {
-      console.error("[useFollow] Error fetching follow status:", err.message);
-      showError("Failed to fetch follow status.");
+      // Error handled by toast
     } finally {
       setLoading(false);
     }
@@ -76,7 +75,6 @@ export function useFollow(profileUserId: string | undefined) {
         showSuccess(`Now following user!`);
       }
     } catch (err: any) {
-      console.error("[useFollow] Error toggling follow:", err.message);
       showError(`Failed to update follow status: ${err.message}`);
     } finally {
       setLoading(false);

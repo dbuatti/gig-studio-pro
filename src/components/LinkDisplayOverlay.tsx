@@ -58,6 +58,7 @@ const LinkDisplayOverlay: React.FC<LinkDisplayOverlayProps> = ({
     flashTimeoutRef.current = setTimeout(() => {
       setFlashingTargetId(null);
     }, 1500); // Flash for 1.5 seconds
+    console.log("[LinkDisplayOverlay] Navigating via link:", link.id);
   }, [isEditingMode, onEditLink, onNavigateToPage]);
 
   const handleDeleteLink = useCallback(async (linkId: string) => {
@@ -72,7 +73,9 @@ const LinkDisplayOverlay: React.FC<LinkDisplayOverlayProps> = ({
       if (error) throw error;
       showSuccess("Link deleted successfully.");
       onLinkDeleted();
+      console.log("[LinkDisplayOverlay] Link deleted:", linkId);
     } catch (err: any) {
+      console.error("[LinkDisplayOverlay] Failed to delete link:", err.message);
       showError(`Failed to delete link: ${err.message}`);
     }
   }, [user, onLinkDeleted]);

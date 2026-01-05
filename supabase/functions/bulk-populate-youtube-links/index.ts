@@ -38,7 +38,7 @@ serve(async (req) => {
       throw new Error("Invalid song list provided.");
     }
 
-    console.log("[bulk-populate-youtube-links] Starting discovery for batch:", songIds.length);
+    // console.log("[bulk-populate-youtube-links] Starting discovery for batch:", songIds.length); // Removed verbose log
 
     const results = [];
     const EXCLUDED_KEYWORDS = ['cover', 'tutorial', 'karaoke', 'lesson', 'instrumental', 'remix', 'mashup'];
@@ -46,7 +46,7 @@ serve(async (req) => {
     for (const id of songIds) {
       // Basic UUID validation to prevent DB errors
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
-        console.warn("[bulk-populate-youtube-links] Skipping invalid ID:", id);
+        // console.warn("[bulk-populate-youtube-links] Skipping invalid ID:", id); // Removed verbose log
         continue;
       }
 
@@ -73,7 +73,7 @@ serve(async (req) => {
             refDurationSec = topItunes ? Math.floor(topItunes.trackTimeMillis / 1000) : 0;
           }
         } catch (e) {
-          console.error("[bulk-populate-youtube-links] iTunes fetch failed:", e);
+          // console.error("[bulk-populate-youtube-links] iTunes fetch failed:", e); // Removed verbose log
         }
 
         // 2. Refined Multi-Pass Search

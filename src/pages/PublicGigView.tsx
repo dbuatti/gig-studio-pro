@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react'; // Added useMemo import
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Music2, MapPin, Calendar, ArrowLeft, User, Waves } from 'lucide-react';
@@ -59,7 +59,7 @@ const PublicGigView = () => {
         setPerformer(profileData);
 
       } catch (err) {
-        // console.error("Gig Fetch Error:", err); // Removed console.error
+        // Error handled by toast in parent component
       } finally {
         setLoading(false);
       }

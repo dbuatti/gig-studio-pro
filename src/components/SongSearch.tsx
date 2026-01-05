@@ -16,7 +16,7 @@ interface SongSearchProps {
   externalQuery?: string;
 }
 
-const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, externalQuery }) => {
+export const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, externalQuery }) => {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -45,7 +45,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
       const data = await response.json();
       setResults(data.results || []);
     } catch (err) {
-      // Silence error
+      // Error handled by toast in parent component
     } finally {
       setIsLoading(false);
     }
@@ -89,7 +89,9 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
       for (const instance of instances) {
         if (success) break;
         try {
-          const searchQuery = encodeURIComponent(`${artist} ${track} official music video`);
+          const artistName = (artist || "").replace(/&/g, 'and');
+          const trackName = (track || "").replace(/&/g, 'and');
+          const searchQuery = encodeURIComponent(`${artistName} ${trackName} official music video`);
           const targetUrl = encodeURIComponent(`${instance}/api/v1/search?q=${searchQuery}`);
           
           const controller = new AbortController();
@@ -102,10 +104,10 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
           clearTimeout(timeoutId);
           if (!response.ok) continue;
           
-          const data = await response.json();
-          const rawData = typeof data.contents === 'string' ? JSON.parse(data.contents) : data;
+          const raw = await response.json();
+          const data = typeof raw.contents === 'string' ? JSON.parse(raw.contents) : raw;
           
-          const videos = rawData?.filter?.((item: any) => item.type === "video").slice(0, 3);
+          const videos = data?.filter?.((item: any) => item.type === "video").slice(0, 3);
           
           if (videos && videos.length > 0) {
             setYtResults(videos);
@@ -133,7 +135,7 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
   };
 
   const handleAddClick = (song: any) => {
-    console.log("[Search] User clicked 'Add' for song:", song.trackName);
+    // console.log("[Search] User clicked 'Add' for song:", song.trackName); // Removed verbose log
     onAddToSetlist(
       song.previewUrl, 
       song.trackName, 
@@ -146,11 +148,11 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
   };
 
   const handlePreviewClick = (song: any) => {
-    console.log("[Search] Preview button clicked:", {
-      name: song.trackName,
-      artist: song.artistName,
-      previewUrl: song.previewUrl
-    });
+    // console.log("[Search] Preview button clicked:", { // Removed verbose log
+    //   name: song.trackName,
+    //   artist: song.artistName,
+    //   previewUrl: song.previewUrl
+    // });
     onSelectSong(song.previewUrl, song.trackName, song.artistName);
   };
 
@@ -244,59 +246,26 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
                               <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                                 <Youtube className="w-3 h-3 text-destructive" /> YouTube Master / Reference
                               </Label>
-                              <div className="flex gap-2">
-                                <div className="relative flex-1">
-                                  <LinkIcon className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-                                  <Input 
-                                    placeholder="Paste video URL..." 
-                                    className="h-9 pl-7 text-[10px] bg-background border-border text-foreground"
-                                    value={manualYtUrl}
-                                    onChange={(e) => setManualYtUrl(e.target.value)}
-                                  />
-                                </div>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
-                                  className="h-9 border-border text-muted-foreground hover:bg-destructive/10 hover:text-destructive text-[10px] font-bold uppercase"
-                                  onClick={() => openYoutubeSearch(song.trackName, song.artistName)}
-                                >
-                                  <Search className="w-3 h-3 mr-1" /> Find
-                                </Button>
-                              </div>
+                              <Input 
+                                placeholder="Paste video URL..." 
+                                className="h-8 text-[10px] bg-background border-border" 
+                                value={manualYtUrl} 
+                                onChange={(e) => setManualYtUrl(e.target.value)}
+                              />
                             </div>
 
-                            {/* UG Section */}
+                            {/* Ultimate Guitar Section */}
                             <div className="space-y-2">
                               <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                                <FileText className="w-3 h-3 text-orange-500" /> Ultimate Guitar Tab Link
+                                <FileText className="w-3 h-3 text-primary" /> Ultimate Guitar Tab
                               </Label>
-                              <div className="flex gap-2">
-                                <div className="relative flex-1">
-                                  <LinkIcon className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-                                  <Input 
-                                    placeholder="Paste UG tab URL..." 
-                                    className="h-9 pl-7 text-[10px] bg-background border-border text-foreground"
-                                    value={manualUgUrl}
-                                    onChange={(e) => setManualUgUrl(e.target.value)}
-                                  />
-                                </div>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
-                                  className="h-9 border-border text-muted-foreground hover:bg-orange-500/10 hover:text-orange-500 text-[10px] font-bold uppercase"
-                                  onClick={() => openUgSearch(song.trackName, song.artistName)}
-                                >
-                                  <Search className="w-3 h-3 mr-1" /> Find
-                                </Button>
-                              </div>
+                              <Input 
+                                placeholder="Paste UG Tab Link..." 
+                                className="h-8 text-[10px] bg-background border-border" 
+                                value={manualUgUrl} 
+                                onChange={(e) => setManualUgUrl(e.target.value)}
+                              />
                             </div>
-
-                            <Button 
-                              onClick={() => handleAddClick(song)}
-                              className="w-full bg-indigo-600 hover:bg-indigo-700 h-9 font-black uppercase tracking-widest text-[10px] gap-2 shadow-lg shadow-indigo-600/20"
-                            >
-                              <Plus className="w-3.5 h-3.5" /> Add to Gig with Links
-                            </Button>
                           </div>
                         </div>
                       </div>
@@ -311,5 +280,3 @@ const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSetlist, e
     </div>
   );
 };
-
-export default SongSearch;

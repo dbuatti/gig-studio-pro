@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { SetlistSong, UGChordsConfig } from '@/components/SetlistManager';
 import { Button } from '@/components/ui/button';
-import { Music, Loader2, AlertCircle, X, ExternalLink, ShieldCheck, FileText, Layout, Guitar, ChevronLeft, ChevronRight, Download, Link as LinkIcon, Ruler, Edit3, Trash2 } from 'lucide-react'; // NEW: Import LinkIcon, Ruler, Edit3, Trash2
+import { Music, Loader2, AlertCircle, X, ExternalLink, ShieldCheck, FileText, Layout, Guitar, ChevronLeft, ChevronRight, Download, Link as LinkIcon, Ruler, Edit3, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
@@ -32,14 +32,14 @@ import 'react-pdf/dist/Page/TextLayer.css';
 import { useSpring, animated } from '@react-spring/web';
 import { useDrag } from '@use-gesture/react';
 import SheetReaderAudioPlayer from '@/components/SheetReaderAudioPlayer';
-import LinkEditorOverlay from '@/components/LinkEditorOverlay'; // NEW: Import LinkEditorOverlay
-import LinkDisplayOverlay, { SheetLink } from '@/components/LinkDisplayOverlay'; // NEW: Import LinkDisplayOverlay and SheetLink
-import LinkSizeModal from '@/components/LinkSizeModal'; // NEW: Import LinkSizeModal
+import LinkEditorOverlay from '@/components/LinkEditorOverlay';
+import LinkDisplayOverlay, { SheetLink } from '@/components/LinkDisplayOverlay';
+import LinkSizeModal from '@/components/LinkSizeModal';
 
 // Configure PDF.js worker source to point to the file in the public directory
 // Ensure 'pdf.worker.min.js' is copied to your project's 'public' directory.
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
-console.log("[SheetReaderMode] pdfjs.GlobalWorkerOptions.workerSrc set to:", pdfjs.GlobalWorkerOptions.workerSrc);
+// console.log("[SheetReaderMode] pdfjs.GlobalWorkerOptions.workerSrc set to:", pdfjs.GlobalWorkerOptions.workerSrc); // Removed verbose log
 
 
 export type ChartType = 'pdf' | 'leadsheet' | 'chords';
@@ -87,10 +87,10 @@ const SheetReaderMode: React.FC = () => {
   const [pdfScale, setPdfScale] = useState<number | null>(null);
   const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
 
-  const [links, setLinks] = useState<SheetLink[]>([]); // NEW: State for sheet links
-  const [isLinkEditorOpen, setIsLinkEditorOpen] = useState(false); // NEW: State for link editor modal
-  const [isLinkSizeModalOpen, setIsLinkSizeModalOpen] = useState(false); // NEW: State for link size modal
-  const [isEditingLinksMode, setIsEditingLinksMode] = useState(false); // NEW: State for annotation/edit mode
+  const [links, setLinks] = useState<SheetLink[]>([]);
+  const [isLinkEditorOpen, setIsLinkEditorOpen] = useState(false);
+  const [isLinkSizeModalOpen, setIsLinkSizeModalOpen] = useState(false);
+  const [isEditingLinksMode, setIsEditingLinksMode] = useState(false);
 
   const audioEngine = useToneAudio(true);
   const {
@@ -224,7 +224,7 @@ const SheetReaderMode: React.FC = () => {
 
       // 2. Load audio if URL exists
       if (urlToLoad) {
-        console.log("[SheetReaderMode] Current song changed, loading audio:", urlToLoad);
+        // console.log("[SheetReaderMode] Current song changed, loading audio:", urlToLoad); // Removed verbose log
         // Removed audioEngine.resetEngine() from here.
         // audioEngine.loadFromUrl will handle if it needs to re-fetch or just update pitch.
         audioEngine.loadFromUrl(urlToLoad, currentSong.pitch || 0);
@@ -233,7 +233,7 @@ const SheetReaderMode: React.FC = () => {
         showWarning("Selected song has no audio link.");
       }
     } else {
-      console.log("[SheetReaderMode] No current song, resetting audio engine.");
+      // console.log("[SheetReaderMode] No current song, resetting audio engine."); // Removed verbose log
       audioEngine.resetEngine();
     }
   }, [currentSong, audioEngine, showWarning]); // Add showWarning to dependencies
@@ -508,10 +508,10 @@ const SheetReaderMode: React.FC = () => {
 
   const handleNext = useCallback(() => {
     if (allSongs.length > 0) {
-      console.log(`[SheetReaderMode] handleNext called. Current index: ${currentIndex}`);
+      // console.log(`[SheetReaderMode] handleNext called. Current index: ${currentIndex}`); // Removed verbose log
       setCurrentIndex((prevIndex) => {
         const newIndex = (prevIndex + 1) % allSongs.length;
-        console.log(`[SheetReaderMode] New index after next: ${newIndex}`);
+        // console.log(`[SheetReaderMode] New index after next: ${newIndex}`); // Removed verbose log
         return newIndex;
       });
       stopPlayback();
@@ -523,10 +523,10 @@ const SheetReaderMode: React.FC = () => {
 
   const handlePrev = useCallback(() => {
     if (allSongs.length > 0) {
-      console.log(`[SheetReaderMode] handlePrev called. Current index: ${currentIndex}`);
+      // console.log(`[SheetReaderMode] handlePrev called. Current index: ${currentIndex}`); // Removed verbose log
       setCurrentIndex((prevIndex) => {
         const newIndex = (prevIndex - 1 + allSongs.length) % allSongs.length;
-        console.log(`[SheetReaderMode] New index after prev: ${newIndex}`);
+        // console.log(`[SheetReaderMode] New index after prev: ${newIndex}`); // Removed verbose log
         return newIndex;
       });
       stopPlayback();
@@ -735,7 +735,7 @@ const SheetReaderMode: React.FC = () => {
 
   // --- Gesture Implementation ---
   const bind = useDrag(({ first, down, movement: [mx], direction: [dx], velocity: [vx], cancel }) => {
-    // console.log(`[Drag Event] first: ${first}, down: ${down}, mx: ${mx.toFixed(2)}, dx: ${dx.toFixed(2)}, vx: ${vx.toFixed(2)}, navigatedRef: ${navigatedRef.current}`);
+    // console.log(`[Drag Event] first: ${first}, down: ${down}, mx: ${mx.toFixed(2)}, dx: ${dx.toFixed(2)}, vx: ${vx.toFixed(2)}, navigatedRef: ${navigatedRef.current}`); // Removed verbose log
 
     if (first) {
       navigatedRef.current = false; // Reset at the start of a new gesture
@@ -892,14 +892,14 @@ const SheetReaderMode: React.FC = () => {
               ) : (
                 (() => {
                   const url = currentChartDisplayUrl; // Use currentChartDisplayUrl here
-                  console.log("[SheetReaderMode] Attempting to load PDF from URL:", url); // Log PDF URL
+                  // console.log("[SheetReaderMode] Attempting to load PDF from URL:", url); // Removed verbose log
                   if (url) {
                     return (
                       <div className="w-full h-full overflow-x-auto overflow-y-hidden flex justify-center items-center relative"> {/* Add relative to this wrapper */}
                         <Document
                           file={url}
                           onLoadSuccess={async (pdf) => { // Store pdf instance
-                            console.log("[SheetReaderMode] PDF Document loaded successfully. Pages:", pdf.numPages); // Log success
+                            // console.log("[SheetReaderMode] PDF Document loaded successfully. Pages:", pdf.numPages); // Removed verbose log
                             setPdfNumPages(pdf.numPages);
                             setPdfDocument(pdf); // Store the PDF document instance
                             setIsChartContentLoading(false);
@@ -1027,11 +1027,11 @@ const SheetReaderMode: React.FC = () => {
       {currentChartDisplayUrl && pdfDocument && (
         <LinkEditorOverlay
           isOpen={isLinkEditorOpen}
-          onClose={() => setIsLinkEditorOpen(false)}
+          onClose={() => { setIsLinkEditorOpen(false); }}
           songId={currentSong.master_id || currentSong.id}
-          chartUrl={currentChartDisplayUrl} // Pass the correct URL
+          chartUrl={currentChartDisplayUrl}
           pdfDocument={pdfDocument}
-          onLinkCreated={fetchLinks} // Refresh links after creation
+          onLinkCreated={fetchLinks}
         />
       )}
 

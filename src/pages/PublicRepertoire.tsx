@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Loader2, UserCircle2, Calendar } from 'lucide-react'; // Added Calendar import
+import { Loader2, UserCircle2, Calendar } from 'lucide-react';
 import PublicRepertoireView from '@/components/PublicRepertoireView';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -47,7 +47,7 @@ const PublicRepertoire = () => {
       if (sError) throw sError;
       setSongs(songData || []);
     } catch (err) {
-      // console.error("Public Fetch Error:", err); // Removed console.error
+      // Error handled by toast in parent component
     } finally {
       setLoading(false);
     }
@@ -96,7 +96,7 @@ const PublicRepertoire = () => {
     </div>
   );
 
-  return <PublicRepertoireView profile={profile} songs={songs} themes={THEMES} />; // NEW: Pass themes
+  return <PublicRepertoireView profile={profile} songs={songs} themes={THEMES} />;
 };
 
 export default PublicRepertoire;

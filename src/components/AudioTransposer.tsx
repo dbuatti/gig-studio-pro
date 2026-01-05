@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Play, Pause, RotateCcw, Volume2, Waves, Settings2, Link as LinkIcon, Globe, Search, Youtube, PlusCircle, Library, Sparkles, Check, FileText, Subtitles, ChevronUp, ChevronDown, Printer, ListPlus, CloudDownload, AlertTriangle } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import AudioVisualizer from './AudioVisualizer';
-import SongSearch from './SongSearch';
+import { SongSearch } from './SongSearch'; // Corrected import to named export
 import MyLibrary from './MyLibrary';
 import GlobalLibrary from './GlobalLibrary';
 import SongSuggestions from './SongSuggestions';

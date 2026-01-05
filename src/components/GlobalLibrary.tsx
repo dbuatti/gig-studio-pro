@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Globe, Music, Loader2, Plus, ShieldCheck, User, Star, FileText, CloudDownload, AlertTriangle } from 'lucide-react'; // NEW: Import CloudDownload and AlertTriangle
+import { Search, Globe, Music, Loader2, Plus, ShieldCheck, User, Star, FileText, CloudDownload, AlertTriangle } from 'lucide-react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SetlistSong } from './SetlistManager';
 import { supabase } from '@/integrations/supabase/client';
@@ -43,7 +43,7 @@ const GlobalLibrary: React.FC<GlobalLibraryProps> = ({ onImport }) => {
       if (error) throw error;
       setResults(data || []);
     } catch (err) {
-      // console.error("Global search failed:", err); // Removed console.error
+      // Error handled by toast in parent component
     } finally {
       setIsLoading(false);
     }

@@ -56,7 +56,7 @@ serve(async (req) => {
       Return ONLY a JSON array of objects: [{"name": "Song Title", "artist": "Artist Name", "reason": "Short reason why"}]. No markdown.`;
     }
 
-    console.log("[suggest-songs] Exclude List sent to AI:\n", excludeListItems); // Diagnostic log
+    // console.log("[suggest-songs] Exclude List sent to AI:\n", excludeListItems); // Removed verbose log
 
     let lastError = null;
 

@@ -283,11 +283,11 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     }
   };
 
-  const isFramable = (url: string | null | undefined) => {
+  const isFramable = useCallback((url: string | null | undefined) => {
     if (!url) return true;
     const blockedSites = ['ultimate-guitar.com', 'musicnotes.com', 'sheetmusicplus.com'];
     return !blockedSites.some(site => url.includes(site));
-  };
+  }, []);
 
   if (loading) return <div className="h-full flex items-center justify-center bg-slate-950"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
 

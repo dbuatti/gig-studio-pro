@@ -27,7 +27,7 @@ serve(async (req) => {
       throw new Error("Invalid song list provided.");
     }
 
-    console.log("[global-auto-sync] Processing batch of size:", songIds.length);
+    // console.log("[global-auto-sync] Processing batch of size:", songIds.length); // Removed verbose log
 
     const results = [];
 

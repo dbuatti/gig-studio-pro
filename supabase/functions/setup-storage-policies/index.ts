@@ -24,7 +24,7 @@ serve(async (req) => {
     const bucketName = 'public_audio'
     
     // @ts-ignore: Deno console log
-    console.log(`[Setup] Checking bucket: ${bucketName}`);
+    // console.log(`[Setup] Checking bucket: ${bucketName}`); // Removed verbose log
 
     const { data: existingBuckets, error: listError } = await supabaseAdmin.storage.listBuckets()
     if (listError) throw listError

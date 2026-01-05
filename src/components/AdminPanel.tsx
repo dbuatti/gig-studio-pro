@@ -658,7 +658,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
                           <div className="space-y-3">
                             <Textarea value={clipboardContent} onChange={(e) => startTransition(() => setClipboardContent(e.target.value))} placeholder="Paste cookie string or asset content here..." className="min-h-[150px] bg-slate-900 border-white/10 font-mono text-[10px] rounded-2xl text-white resize-none"/>
                             <Button type="submit" disabled={isGithubUploading || !clipboardContent || isPending} className="w-full bg-indigo-600 hover:bg-indigo-700 h-12 rounded-xl font-black uppercase tracking-widest text-xs gap-3">
-                              {isGithubUploading || isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />} 
                               {isGithubUploading || isPending ? 'PUSHING...' : 'PUSH TO REPOSITORY'}
                             </Button>
                           </div>

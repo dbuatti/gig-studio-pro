@@ -92,18 +92,18 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
     if (song.duration_seconds !== undefined) dbUpdates.duration_seconds = Math.round(song.duration_seconds || 0);
     if (song.isApproved !== undefined) dbUpdates.is_approved = song.isApproved;
     if (song.preferred_reader !== undefined) dbUpdates.preferred_reader = song.preferred_reader;
-    if (song.ug_chords_config !== undefined) dbUpdates.ug_chords_config = song.ug_chords_config; // NEW
+    if (song.ug_chords_config !== undefined) dbUpdates.ug_chords_config = song.ug_chords_config;
     if (song.is_ug_chords_present !== undefined) dbUpdates.is_ug_chords_present = song.is_ug_chords_present;
-    if (song.key_preference !== undefined) dbUpdates.key_preference = song.key_preference; // NEW
+    if (song.key_preference !== undefined) dbUpdates.key_preference = song.key_preference;
     if (song.audio_url !== undefined) dbUpdates.audio_url = song.audio_url;
     if (song.extraction_status !== undefined) dbUpdates.extraction_status = song.extraction_status;
 
-    console.log(`[repertoireSync] Sending payload for "${dbUpdates.title}":`, { 
-      orig_key: dbUpdates.original_key, 
-      target_key: dbUpdates.target_key,
-      orig_ts: dbUpdates.original_key_updated_at,
-      target_ts: dbUpdates.target_key_updated_at 
-    });
+    // console.log(`[repertoireSync] Sending payload for "${dbUpdates.title}":`, { // Removed verbose log
+    //   orig_key: dbUpdates.original_key, 
+    //   target_key: dbUpdates.target_key,
+    //   orig_ts: dbUpdates.original_key_updated_at,
+    //   target_ts: dbUpdates.target_key_updated_at 
+    // });
 
     const { data, error } = await supabase
       .from('repertoire')
@@ -114,10 +114,10 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
     if (error) throw error;
 
     const result = data;
-    console.log(`[repertoireSync] Received response for "${result.title}". Updated targets:`, {
-      orig_ts: result.original_key_updated_at,
-      target_ts: result.target_key_updated_at
-    });
+    // console.log(`[repertoireSync] Received response for "${result.title}". Updated targets:`, { // Removed verbose log
+    //   orig_ts: result.original_key_updated_at,
+    //   target_ts: result.target_key_updated_at
+    // });
 
     syncedSongs.push({
       id: song.id || result.id,

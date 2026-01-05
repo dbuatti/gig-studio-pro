@@ -146,7 +146,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   const isMobile = useIsMobile();
   const { keyPreference: globalPreference } = useSettings();
   
-  console.log("SetlistManager: globalPreference =", globalPreference); // Debug log
+  // console.log("SetlistManager: globalPreference =", globalPreference); // Removed verbose log
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -154,7 +154,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   const isItunesPreview = (url: string) => url && (url.includes('apple.com') || url.includes('itunes-assets'));
 
   const handleMove = (id: string, direction: 'up' | 'down') => {
-    if (sortMode !== 'none' || searchTerm) return; // Only allow manual reorder when sortMode is 'none' and no search term
+    if (sortMode !== 'manual' || searchTerm) return; // Only allow manual reorder when sortMode is 'manual' and no search term
     
     const index = processedSongs.findIndex(s => s.id === id);
     if (index === -1) return;
@@ -169,7 +169,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     showSuccess("Setlist reordered!"); // Success toast for reordering
   };
 
-  const isReorderingEnabled = sortMode === 'none' && !searchTerm; // Only enable up/down arrows in 'none' mode without search
+  const isReorderingEnabled = sortMode === 'manual' && !searchTerm; // Only enable up/down arrows in 'manual' mode without search
 
   const getHeatmapClass = (song: SetlistSong) => {
     if (!showHeatmap) return "";

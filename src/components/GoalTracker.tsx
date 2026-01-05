@@ -30,14 +30,14 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
   const stats = useMemo(() => {
     // Current local date in YYYY-MM-DD format
     const todayStr = new Date().toLocaleDateString('en-CA');
-    console.log(`[GoalTracker] Diagnostic: Local Today is "${todayStr}". Repertoire size: ${repertoire.length}`);
+    // console.log(`[GoalTracker] Diagnostic: Local Today is "${todayStr}". Repertoire size: ${repertoire.length}`); // Removed verbose log
 
     const isToday = (timestamp: string | undefined | null, field: string) => {
       if (!timestamp) return false;
       const localDateStr = new Date(timestamp).toLocaleDateString('en-CA');
       const match = localDateStr === todayStr;
       if (match) {
-        // console.debug(`[GoalTracker] Match found for ${field}: ${timestamp} (Local: ${localDateStr})`);
+        // console.debug(`[GoalTracker] Match found for ${field}: ${timestamp} (Local: ${localDateStr})`); // Removed verbose log
       }
       return match;
     };
@@ -51,7 +51,7 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
       targetKey: repertoire.filter(s => s.targetKey && s.targetKey !== "TBC" && isToday(s.target_key_updated_at, 'target_key')).length
     };
 
-    console.log("[GoalTracker] Summary counts for today:", counts);
+    // console.log("[GoalTracker] Summary counts for today:", counts); // Removed verbose log
 
     return [
       { 

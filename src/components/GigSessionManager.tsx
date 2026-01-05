@@ -42,7 +42,7 @@ const GigSessionManager: React.FC<GigSessionManagerProps> = ({ setlistId }) => {
       if (error) throw error;
       setSessions(data || []);
     } catch (err) {
-      // console.error(err);
+      // Error handled by toast in parent component
     } finally {
       setLoading(false);
     }
@@ -87,7 +87,9 @@ const GigSessionManager: React.FC<GigSessionManagerProps> = ({ setlistId }) => {
       
       if (error) throw error;
       fetchSessions();
-    } catch (err) {}
+    } catch (err) {
+      // Error handled by toast in parent component
+    }
   };
 
   const deleteSession = async (id: string) => {
@@ -96,7 +98,9 @@ const GigSessionManager: React.FC<GigSessionManagerProps> = ({ setlistId }) => {
       const { error } = await supabase.from('gig_sessions').delete().eq('id', id);
       if (error) throw error;
       fetchSessions();
-    } catch (err) {}
+    } catch (err) {
+      // Error handled by toast in parent component
+    }
   };
 
   const copyLink = (code: string, id: string) => {

@@ -13,6 +13,7 @@ import SheetReaderMode from "@/pages/SheetReaderMode";
 import SongStudio from "@/pages/SongStudio";
 import GigEntry from "@/pages/GigEntry";
 import PublicGigView from "@/pages/PublicGigView";
+import DebugPage from "@/pages/DebugPage"; // Import DebugPage
 
 const RENDER_WORKER_URL = "https://yt-audio-api-1-wedr.onrender.com";
 
@@ -64,21 +65,10 @@ const MainLayout = () => {
         <Route path="/gig/:code" element={<PublicGigView />} />
         <Route path="/setlist/:id" element={<PublicGigView />} />
         <Route path="/dashboard" element={<Navigate to="/" replace />} />
-        <Route path="/profile" element={
-          <ProtectedRoute>
-            <Profile />
-          </ProtectedRoute>
-        } />
-        <Route path="/sheet-reader/:songId?" element={
-          <ProtectedRoute>
-            <SheetReaderMode />
-          </ProtectedRoute>
-        } />
-        <Route path="/gig/:gigId/song/:songId" element={
-          <ProtectedRoute>
-            <SongStudio />
-          </ProtectedRoute>
-        } />
+        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="/sheet-reader/:songId?" element={<ProtectedRoute><SheetReaderMode /></ProtectedRoute>} />
+        <Route path="/gig/:gigId/song/:songId" element={<ProtectedRoute><SongStudio /></ProtectedRoute>} />
+        <Route path="/debug" element={<ProtectedRoute><DebugPage /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>
