@@ -457,10 +457,14 @@ const DebugPage: React.FC = () => {
       )}
 
       {/* PDF Viewer */}
-      <div ref={pdfContainerRef} className={cn(
-        "flex-1 bg-slate-900 rounded-[2rem] border-4 border-border shadow-2xl overflow-hidden relative flex items-center justify-center",
-        isFullScreen ? "rounded-none border-0" : "min-h-[500px]"
-      )}>
+      <div 
+        ref={pdfContainerRef} 
+        className={cn(
+          "flex-1 bg-slate-900 rounded-[2rem] border-4 border-border shadow-2xl overflow-hidden relative flex items-center justify-center",
+          isFullScreen ? "rounded-none border-0" : "min-h-[500px]"
+        )}
+        onClick={toggleFullScreen} // NEW: Add onClick handler here
+      >
         {isLoadingPdf && <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />}
         {pdfError && <div className="text-red-400 text-center p-4">{pdfError}</div>}
         {testPdfUrl && !isLoadingPdf && !pdfError && (
