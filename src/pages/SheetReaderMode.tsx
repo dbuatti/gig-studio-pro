@@ -81,107 +81,6 @@ const SheetReaderMode: React.FC = () => {
   );
   
   const [selectedChartType, setSelectedChartType] = useState<ChartType>('pdf');
-<dyad-problem-report summary="2 problems">
-<problem file="src/pages/SheetReaderMode.tsx" line="236" column="6" code="1128">Declaration or statement expected.</problem>
-<problem file="src/pages/SheetReaderMode.tsx" line="236" column="47" code="1005">';' expected.</problem>
-</dyad-problem-report><think>**Analyzing TypeScript Errors**
-
-I've hit a snag. Currently, I'm focusing on two TypeScript compile-time errors in `src/pages/SheetReaderMode.tsx` at line 236: a `TS1128` and a `TS1005` error.  I'm trying to decipher these, considering declaration expectations and missing semicolons. I need to understand the source code.
-
-
-**Resolving Syntax Issues**
-
-I've pinpointed the cause of the TypeScript errors. It's a missing closing brace within the `useEffect` hook's callback, specifically after the `if (currentSong)` condition. This is causing both the `TS1128` (declaration expected) and `TS1005` (semicolon expected) errors. I'll insert the missing `}` before the dependency array. I'm focusing on ensuring proper bracket closure now.
-
-
-</think>You're absolutely right! It seems a closing curly brace for the `if (currentSong)` block was indeed missing, causing those syntax errors. My apologies for that oversight.
-
-I've added the missing `}` to correctly close the `if` statement within the `useEffect` hook.
-
-<dyad-write path="src/pages/SheetReaderMode.tsx" description="Adding a missing closing curly brace for the 'if' statement within a useEffect hook.">
-"use client";
-
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/components/AuthProvider';
-import { SetlistSong, UGChordsConfig } from '@/components/SetlistManager';
-import { Button } from '@/components/ui/button';
-import { Music, Loader2, AlertCircle, X, ExternalLink, ShieldCheck, FileText, Layout, Guitar, ChevronLeft, ChevronRight, Download, Link as LinkIcon, Ruler, Edit3, Trash2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
-import { useSettings, KeyPreference } from '@/hooks/use-settings';
-import { calculateReadiness, syncToMasterRepertoire } from '@/utils/repertoireSync';
-import { showError, showSuccess, showInfo, showWarning } from '@/utils/toast';
-import UGChordsReader from '@/components/UGChordsReader';
-import { useToneAudio } from '@/hooks/use-tone-audio';
-import { calculateSemitones } from '@/utils/keyUtils';
-import { useReaderSettings, ReaderResourceForce } from '@/hooks/use-reader-settings';
-import PreferencesModal from '@/components/PreferencesModal';
-import SongStudioModal from '@/components/SongStudioModal';
-import SheetReaderHeader from '@/components/SheetReaderHeader';
-import SheetReaderSidebar from '@/components/SheetReaderSidebar';
-import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
-import { extractKeyFromChords } from '@/utils/chordUtils';
-import RepertoireSearchModal from '@/components/RepertoireSearchModal';
-import FullScreenSongInfo from '@/components/FullScreenSongInfo';
-import { AnimatePresence } from 'framer-motion';
-import { Document, Page, pdfjs } from 'react-pdf';
-import { PDFDocumentProxy } from 'pdfjs-dist/types/src/display/api';
-import 'react-pdf/dist/Page/AnnotationLayer.css';
-import 'react-pdf/dist/Page/TextLayer.css';
-import { useSpring, animated } from '@react-spring/web';
-import { useDrag } from '@use-gesture/react';
-import SheetReaderAudioPlayer from '@/components/SheetReaderAudioPlayer';
-import LinkEditorOverlay from '@/components/LinkEditorOverlay';
-import LinkDisplayOverlay, { SheetLink } from '@/components/LinkDisplayOverlay';
-import LinkSizeModal from '@/components/LinkSizeModal';
-
-// Configure PDF.js worker source to point to the file in the public directory
-// Ensure 'pdf.worker.min.js' is copied to your project's 'public' directory.
-pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
-// console.log("[SheetReaderMode] pdfjs.GlobalWorkerOptions.workerSrc set to:", pdfjs.GlobalWorkerOptions.workerSrc); // Removed verbose log
-
-
-export type ChartType = 'pdf' | 'leadsheet' | 'chords';
-
-const SheetReaderMode: React.FC = () => {
-  const navigate = useNavigate();
-  const { songId: routeSongId } = useParams<{ songId?: string }>();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const { user } = useAuth();
-  const { 
-    keyPreference: globalKeyPreference,
-    ugChordsFontFamily,
-    ugChordsFontSize,
-    ugChordsChordBold,
-    ugChordsChordColor,
-    ugChordsLineSpacing,
-    ugChordsTextAlign,
-    preventStageKeyOverwrite,
-    setKeyPreference: setGlobalKeyPreference
-  } = useSettings();
-  const { forceReaderResource } = useReaderSettings();
-
-  const [allSongs, setAllSongs] = useState<SetlistSong[]>([]);
-  const [fullMasterRepertoire, setFullMasterRepertoire] = useState<SetlistSong[]>([]);
-  const [currentSetlistSongs, setCurrentSetlistSongs] = useState<SetlistSong[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [initialLoading, setInitialLoading] = useState(true);
-  const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
-  const [isBrowserFullScreen, setIsBrowserFullScreen] = useState(false);
-  const [isStudioPanelOpen, setIsStudioPanel] = useState(false);
-  const [isOverlayOpen, setIsOverlayOpen] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Changed to false
-  const [isRepertoireSearchModalOpen, setIsRepertoireSearchModalOpen] = useState(false);
-  const [isInfoOverlayVisible, setIsInfoOverlayVisible] = useState(true);
-  const [isAudioPlayerVisible, setIsAudioPlayerVisible] = useState(true);
-
-  const [readerKeyPreference, setReaderKeyPreference] = useState<'sharps' | 'flats'>(
-    globalKeyPreference === 'neutral' ? 'sharps' : globalKeyPreference
-  );
-  
-  const [selectedChartType, setSelectedChartType] = useState<ChartType>('pdf');
   const [isChartContentLoading, setIsChartContentLoading] = useState(false);
   const [pdfCurrentPage, setPdfCurrentPage] = useState(1);
   const [pdfNumPages, setPdfNumPages] = useState<number | null>(null);
@@ -334,6 +233,9 @@ const SheetReaderMode: React.FC = () => {
         audioEngine.resetEngine(); // Keep this if there's no URL to ensure player is cleared
         showWarning("Selected song has no audio link.");
       }
+    } else {
+      // console.log("[SheetReaderMode] No current song, resetting audio engine."); // Removed verbose log
+      audioEngine.resetEngine();
     }
   }, [currentSong, audioEngine, showWarning]); // Add showWarning to dependencies
 
@@ -970,7 +872,6 @@ const SheetReaderMode: React.FC = () => {
               justifyContent: 'center', 
               alignItems: 'flex-start', // Changed to flex-start to allow padding-top to work
               paddingTop: isBrowserFullScreen && isInfoOverlayVisible ? '64px' : '0px', // Dynamic padding
-              overflowY: 'hidden', // Added this line to explicitly disable vertical scrolling
             }} 
             className="relative"
           >
