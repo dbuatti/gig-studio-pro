@@ -44,14 +44,14 @@ import KeyManagementModal from '@/components/KeyManagementModal';
 import PerformanceOverlay from '@/components/PerformanceOverlay';
 import AudioTransposer, { AudioTransposerRef } from '@/components/AudioTransposer';
 import GoalTracker from '@/components/GoalTracker';
-import SetlistSortModal from '@/components/SetlistSortModal'; // NEW: Import SetlistSortModal
+import SetlistSortModal from '@/components/SetlistSortModal';
 
 const Index = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, loading: authLoading } = useAuth();
   const isMobile = useIsMobile();
-  const { keyPreference: globalKeyPreference, safePitchMaxNote, isSafePitchEnabled, isFetchingSettings, isGoalTrackerEnabled, defaultDashboardView, preventStageKeyOverwrite } = useSettings(); // NEW: Get preventStageKeyOverwrite
+  const { keyPreference: globalKeyPreference, safePitchMaxNote, isSafePitchEnabled, isFetchingSettings, isGoalTrackerEnabled, defaultDashboardView, preventStageKeyOverwrite } = useSettings();
   const audio = useToneAudio();
 
   const [allSetlists, setAllSetlists] = useState<Setlist[]>([]);
@@ -77,7 +77,7 @@ const Index = () => {
   const [isKeyManagementOpen, setIsKeyManagementOpen] = useState(false);
   const [isPerformanceOverlayOpen, setIsPerformanceOverlayOpen] = useState(false);
   const [isAudioTransposerModalOpen, setIsAudioTransposerModalOpen] = useState(false);
-  const [isSetlistSortModalOpen, setIsSetlistSortModalOpen] = useState(false); // NEW: State for sort modal
+  const [isSetlistSortModalOpen, setIsSetlistSortModalOpen] = useState(false);
   const audioTransposerRef = useRef<AudioTransposerRef>(null);
 
   const [newSetlistName, setNewSetlistName] = useState("");
@@ -88,7 +88,7 @@ const Index = () => {
 
   // --- PERSISTENT STATE INITIALIZATION ---
   const [searchTerm, setSearchTerm] = useState(() => localStorage.getItem('gig_search_term') || "");
-  const [sortMode, setSortMode] = useState<'none' | 'ready' | 'work' | 'manual'>(() => (localStorage.getItem('gig_sort_mode') as 'none' | 'ready' | 'work' | 'manual') || 'none'); // NEW: Add 'manual'
+  const [sortMode, setSortMode] = useState<'none' | 'ready' | 'work' | 'manual'>(() => (localStorage.getItem('gig_sort_mode') as 'none' | 'ready' | 'work' | 'manual') || 'none');
   const [activeFilters, setActiveFilters] = useState<FilterState>(() => {
     const saved = localStorage.getItem('gig_active_filters');
     try {
@@ -167,7 +167,7 @@ const Index = () => {
       const hasPdf = !!s.pdfUrl || !!s.leadsheetUrl || !!s.sheet_music_url;
       const hasUg = !!s.ugUrl;
       const hasUgChords = !!s.ug_chords_text && s.ug_chords_text.trim().length > 0;
-      const hasLyrics = !!s.lyrics && s.lyrics.length > 20; // Check for lyrics presence
+      const hasLyrics = !!s.lyrics && s.lyrics.length > 20;
 
       if (activeFilters.readiness > 0 && readiness < activeFilters.readiness) return false;
       if (activeFilters.isConfirmed === 'yes' && !s.isKeyConfirmed) return false;
@@ -187,10 +187,12 @@ const Index = () => {
       if (activeFilters.hasUg === 'no' && hasUg) return false;
       if (activeFilters.hasUgChords === 'yes' && !hasUgChords) return false;
       if (activeFilters.hasUgChords === 'no' && hasUgChords) return false;
-      
-      // NEW: Apply Lyrics filter
       if (activeFilters.hasLyrics === 'yes' && !hasLyrics) return false;
       if (activeFilters.hasLyrics === 'no' && hasLyrics) return false;
+      if (activeFilters.hasHighestNote === 'yes' && !s.highest_note_original) return false; // NEW
+      if (activeFilters.hasHighestNote === 'no' && s.highest_note_original) return false; // NEW
+      if (activeFilters.hasOriginalKey === 'yes' && (!s.originalKey || s.originalKey === 'TBC')) return false; // NEW
+      if (activeFilters.hasOriginalKey === 'no' && (s.originalKey && s.originalKey !== 'TBC')) return false; // NEW
       
       return true;
     });
@@ -224,7 +226,7 @@ const Index = () => {
       const { data: repertoireData, error: repertoireError } = await supabase
         .from('repertoire')
         .select('*')
-        .eq('user_id', userId) // Corrected from 'user.id' to 'user_id'
+        .eq('user_id', userId)
         .order('title');
 
       if (repertoireError) throw repertoireError;
@@ -262,7 +264,7 @@ const Index = () => {
         isApproved: d.is_approved,
         preferred_reader: d.preferred_reader,
         ug_chords_text: d.ug_chords_text,
-        ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG, // NEW: Map ug_chords_config
+        ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
         is_ug_chords_present: d.is_ug_chords_present,
         highest_note_original: d.highest_note_original,
         is_ug_link_verified: d.is_ug_link_verified,
@@ -290,7 +292,7 @@ const Index = () => {
           .from('setlist_songs')
           .select('*')
           .eq('setlist_id', setlist.id)
-          .order('sort_order', { ascending: true }); // IMPORTANT: Order by sort_order
+          .order('sort_order', { ascending: true });
 
         if (junctionError) continue;
 
@@ -299,8 +301,8 @@ const Index = () => {
           if (!masterSong) return null;
           return {
             ...masterSong,
-            id: junction.id, // Use junction ID for setlist-specific operations
-            master_id: masterSong.id, // Keep master ID for linking to repertoire
+            id: junction.id,
+            master_id: masterSong.id,
             isPlayed: junction.isPlayed || false,
           };
         }).filter(Boolean) as SetlistSong[];
@@ -343,13 +345,10 @@ const Index = () => {
       // 1. Apply settings immediately (these setters update the Tone.js engine directly)
       audio.setPitch(activeSongForPerformance.pitch || 0);
       audio.setTempo(activeSongForPerformance.tempo || 1);
-      // audio.setVolume(activeSongForPerformance.volume || -6); // REMOVED: Let useToneAudio manage its own volume state
       audio.setFineTune(activeSongForPerformance.fineTune || 0);
 
       // 2. Load audio if URL exists
       if (urlToLoad) {
-        // Pass the pitch to loadFromUrl so it can initialize the player detune correctly upon buffer load
-        // IMPORTANT: Removed force: true to prevent redundant fetching if URL is the same.
         audio.loadFromUrl(urlToLoad, activeSongForPerformance.pitch || 0);
       } else {
         audio.resetEngine();
@@ -483,7 +482,7 @@ const Index = () => {
     if (!current) return;
     try {
       const updated = { ...current, ...updates };
-      if (updates.targetKey !== undefined) { // If targetKey is being updated, mark as confirmed
+      if (updates.targetKey !== undefined) {
         updated.isKeyConfirmed = true;
       }
       await syncToMasterRepertoire(userId, [updated as SetlistSong]);
@@ -599,8 +598,6 @@ const Index = () => {
         throw new Error("Master sync failed to return a valid song ID.");
       }
       
-      // Removed the logic to add to activeSetlist here.
-      // The song is now only added to the master repertoire.
       await fetchSetlistsAndRepertoire(false); 
       showSuccess(`"${name}" added to master repertoire.`);
       
@@ -710,7 +707,7 @@ const Index = () => {
       if (error) throw error;
 
       showSuccess(`Queued ${songsToQueue.length} audio extraction tasks successfully.`);
-      await fetchSetlistsAndRepertoire(); // Refresh data to show updated status
+      await fetchSetlistsAndRepertoire();
     } catch (err: any) {
       showError(`Failed to queue audio extraction: ${err.message}`);
     } finally {
@@ -774,6 +771,14 @@ const Index = () => {
   const hasPlayableSong = !!activeSongForPerformance?.audio_url || !!activeSongForPerformance?.previewUrl;
   const hasReadableChart = !!activeSongForPerformance && (!!activeSongForPerformance.pdfUrl || !!activeSongForPerformance.leadsheetUrl || !!activeSongForPerformance.ugUrl || !!activeSongForPerformance.ug_chords_text || !!activeSongForPerformance.sheet_music_url);
 
+  // NEW: Function to apply filters based on goal clicks
+  const handleApplyGoalFilter = useCallback((filters: Partial<FilterState>) => {
+    setActiveFilters(prev => ({ ...DEFAULT_FILTERS, ...filters }));
+    setSearchTerm(""); // Clear search term when applying goal filters
+    setSortMode('work'); // Sort by work needed to highlight relevant songs
+    showInfo("Filters applied based on your goal progress!");
+  }, []);
+
   if (loading || authLoading || isFetchingSettings) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -798,7 +803,7 @@ const Index = () => {
           </div>
         </div>
 
-        {isGoalTrackerEnabled && <GoalTracker repertoire={masterRepertoire} />}
+        {isGoalTrackerEnabled && <GoalTracker repertoire={masterRepertoire} onFilterApply={handleApplyGoalFilter} />}
 
         {activeDashboardView === 'gigs' && activeSongForPerformance && (
           <ActiveSongBanner song={activeSongForPerformance} isPlaying={audio.isPlaying} onTogglePlayback={audio.togglePlayback} onClear={() => { setActiveSongForPerformance(null); audio.stopPlayback(); }} isLoadingAudio={audio.isLoadingAudio} />
@@ -860,13 +865,12 @@ const Index = () => {
               showHeatmap={showHeatmap} 
               allSetlists={allSetlists} 
               onUpdateSetlistSongs={handleUpdateSetlistSongs} 
-              onOpenSortModal={() => setIsSetlistSortModalOpen(true)} // NEW: Pass handler to open sort modal
+              onOpenSortModal={() => setIsSetlistSortModalOpen(true)}
             />
           </TabsContent>
 
           <TabsContent value="repertoire" className="mt-0 space-y-8">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              {/* RepertoireView handles its own header/search/filter display now, but we need the filter warning here */}
             </div>
             
             {isFilterActive && (
@@ -961,7 +965,6 @@ const Index = () => {
                 onAddToSetlist={handleImportNewSong}
                 onAddExistingSong={(song) => {
                    handleAddSongToSetlist(song);
-                   // Modal logic handled here now
                 }}
               />
             </div>

@@ -18,7 +18,7 @@ import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { showSuccess } from '@/utils/toast';
 import SetlistFilters, { FilterState, DEFAULT_FILTERS } from './SetlistFilters';
-import SetlistExporter from './SetlistExporter'; // Import SetlistExporter (Automation Hub)
+import SetlistExporter from './SetlistExporter';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
@@ -31,8 +31,8 @@ interface RepertoireViewProps {
   onAddSong: (song: SetlistSong) => void;
   searchTerm: string;
   setSearchTerm: (term: string) => void;
-  sortMode: 'none' | 'ready' | 'work' | 'manual'; // FIX: Added 'manual' to sortMode type
-  setSortMode: (mode: 'none' | 'ready' | 'work' | 'manual') => void; // FIX: Added 'manual' to setSortMode type
+  sortMode: 'none' | 'ready' | 'work' | 'manual';
+  setSortMode: (mode: 'none' | 'ready' | 'work' | 'manual') => void;
   activeFilters: FilterState;
   setActiveFilters: (filters: FilterState) => void;
   // Automation Hub Props
@@ -43,7 +43,7 @@ interface RepertoireViewProps {
   isBulkDownloading?: boolean;
   missingAudioCount?: number;
   onOpenAdmin?: () => void;
-  onDeleteSong: (songId: string) => Promise<void>; // NEW: Prop for actual deletion
+  onDeleteSong: (songId: string) => Promise<void>;
 }
 
 const RepertoireView: React.FC<RepertoireViewProps> = ({
@@ -89,7 +89,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
       const hasPdf = !!s.pdfUrl || !!s.leadsheetUrl || !!s.sheet_music_url;
       const hasUg = !!s.ugUrl;
       const hasUgChords = !!s.ug_chords_text && s.ug_chords_text.trim().length > 0;
-      const hasLyrics = !!s.lyrics && s.lyrics.length > 20; // Check for lyrics presence
+      const hasLyrics = !!s.lyrics && s.lyrics.length > 20;
 
       if (activeFilters.readiness > 0 && readiness < activeFilters.readiness) return false;
       if (activeFilters.isConfirmed === 'yes' && !s.isKeyConfirmed) return false;
@@ -109,10 +109,12 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
       if (activeFilters.hasUg === 'no' && hasUg) return false;
       if (activeFilters.hasUgChords === 'yes' && !hasUgChords) return false;
       if (activeFilters.hasUgChords === 'no' && hasUgChords) return false;
-      
-      // Apply Lyrics filter
       if (activeFilters.hasLyrics === 'yes' && !hasLyrics) return false;
       if (activeFilters.hasLyrics === 'no' && hasLyrics) return false;
+      if (activeFilters.hasHighestNote === 'yes' && !s.highest_note_original) return false; // NEW
+      if (activeFilters.hasHighestNote === 'no' && s.highest_note_original) return false; // NEW
+      if (activeFilters.hasOriginalKey === 'yes' && (!s.originalKey || s.originalKey === 'TBC')) return false; // NEW
+      if (activeFilters.hasOriginalKey === 'no' && (s.originalKey && s.originalKey !== 'TBC')) return false; // NEW
       
       return true;
     });
@@ -336,7 +338,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                         <div className="flex items-center justify-center gap-4 h-full">
                           <div className="text-center min-w-[32px]">
                             <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mb-0.5">Orig</p>
-                            <span className="text-xs font-mono font-bold text-muted-foreground block leading-none">{displayOrigKey}</span>
+                            <span className="text-xs font-mono font-bold text-foreground">{displayOrigKey}</span>
                           </div>
                           <div className="flex flex-col items-center justify-center opacity-30">
                             <ArrowRight className="w-3 h-3 text-muted-foreground mb-0.5" />

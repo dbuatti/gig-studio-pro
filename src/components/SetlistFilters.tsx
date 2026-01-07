@@ -34,7 +34,9 @@ export interface FilterState {
   isApproved: 'all' | 'yes' | 'no';
   readiness: number; 
   hasUgChords: 'all' | 'yes' | 'no';
-  hasLyrics: 'all' | 'yes' | 'no'; // NEW
+  hasLyrics: 'all' | 'yes' | 'no';
+  hasHighestNote: 'all' | 'yes' | 'no'; // NEW
+  hasOriginalKey: 'all' | 'yes' | 'no'; // NEW
 }
 
 export const DEFAULT_FILTERS: FilterState = {
@@ -47,7 +49,9 @@ export const DEFAULT_FILTERS: FilterState = {
   isApproved: 'all',
   readiness: 0,
   hasUgChords: 'all',
-  hasLyrics: 'all', // NEW
+  hasLyrics: 'all',
+  hasHighestNote: 'all', // NEW
+  hasOriginalKey: 'all', // NEW
 };
 
 interface SetlistFiltersProps {
@@ -362,6 +366,63 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
             </DropdownMenuContent>
           </DropdownMenu>
 
+          {/* NEW: Highest Note Toggle (Icon only) */}
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className={cn(
+                      "h-9 w-9 rounded-xl border transition-all",
+                      activeFilters.hasHighestNote !== 'all' ? "bg-blue-600 text-white shadow-lg" : "bg-card border-border text-muted-foreground"
+                    )}
+                  >
+                    <Music2 className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent className="text-[10px] font-black uppercase">Highest Note</TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-popover border-border text-foreground">
+              <DropdownMenuRadioGroup value={activeFilters.hasHighestNote} onValueChange={(v) => onFilterChange({ ...activeFilters, hasHighestNote: v as any })}>
+                <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Has Highest Note</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-10 rounded-xl text-destructive">Missing Highest Note</DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* NEW: Original Key Toggle (Icon only) */}
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className={cn(
+                      "h-9 w-9 rounded-xl border transition-all",
+                      activeFilters.hasOriginalKey !== 'all' ? "bg-amber-600 text-white shadow-lg" : "bg-card border-border text-muted-foreground"
+                    )}
+                  >
+                    <Hash className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent className="text-[10px] font-black uppercase">Original Key</TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-popover border-border text-foreground">
+              <DropdownMenuRadioGroup value={activeFilters.hasOriginalKey} onValueChange={(v) => onFilterChange({ ...activeFilters, hasOriginalKey: v as any })}>
+                <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Has Original Key</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-10 rounded-xl text-destructive">Missing Original Key</DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+
           {!isDefault && (
             <Button 
               variant="ghost" 
@@ -460,6 +521,26 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                 onClick={() => onFilterChange({ ...activeFilters, hasLyrics: 'all' })}
               >
                 Lyrics: {activeFilters.hasLyrics} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
+              </Badge>
+            )}
+            {/* NEW: Highest Note Badge */}
+            {activeFilters.hasHighestNote !== 'all' && (
+              <Badge 
+                variant="secondary" 
+                className="bg-blue-50 text-blue-600 border-blue-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
+                onClick={() => onFilterChange({ ...activeFilters, hasHighestNote: 'all' })}
+              >
+                Highest Note: {activeFilters.hasHighestNote} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
+              </Badge>
+            )}
+            {/* NEW: Original Key Badge */}
+            {activeFilters.hasOriginalKey !== 'all' && (
+              <Badge 
+                variant="secondary" 
+                className="bg-amber-50 text-amber-600 border-amber-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
+                onClick={() => onFilterChange({ ...activeFilters, hasOriginalKey: 'all' })}
+              >
+                Original Key: {activeFilters.hasOriginalKey} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
               </Badge>
             )}
           </div>

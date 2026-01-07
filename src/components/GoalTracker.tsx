@@ -9,12 +9,25 @@ import {
   Music, Sparkles, CheckCircle2, Hash
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
+import { FilterState } from './SetlistFilters'; // Import FilterState
+
+interface GoalStat {
+  label: string;
+  icon: JSX.Element;
+  current: number;
+  target: number;
+  barColor: string;
+  textColor: string;
+  lightBg: string;
+  filter: Partial<FilterState>; // Explicitly type the filter property
+}
 
 interface GoalTrackerProps {
   repertoire: SetlistSong[];
+  onFilterApply: (filters: Partial<FilterState>) => void; // NEW: Callback for applying filters
 }
 
-const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
+const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire, onFilterApply }) => {
   const { 
     isGoalTrackerEnabled,
     goalLyricsCount,
@@ -27,31 +40,23 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
 
   if (!isGoalTrackerEnabled) return null;
 
-  const stats = useMemo(() => {
-    // Current local date in YYYY-MM-DD format
+  const stats = useMemo((): GoalStat[] => { // Add type annotation here
     const todayStr = new Date().toLocaleDateString('en-CA');
-    // console.log(`[GoalTracker] Diagnostic: Local Today is "${todayStr}". Repertoire size: ${repertoire.length}`); // Removed verbose log
 
-    const isToday = (timestamp: string | undefined | null, field: string) => {
+    const isToday = (timestamp: string | undefined | null) => {
       if (!timestamp) return false;
       const localDateStr = new Date(timestamp).toLocaleDateString('en-CA');
-      const match = localDateStr === todayStr;
-      if (match) {
-        // console.debug(`[GoalTracker] Match found for ${field}: ${timestamp} (Local: ${localDateStr})`); // Removed verbose log
-      }
-      return match;
+      return localDateStr === todayStr;
     };
 
     const counts = {
-      lyrics: repertoire.filter(s => (s.lyrics || "").length > 20 && isToday(s.lyrics_updated_at, 'lyrics')).length,
-      chords: repertoire.filter(s => (s.ug_chords_text || "").length > 10 && isToday(s.chords_updated_at, 'chords')).length,
-      links: repertoire.filter(s => !!s.ugUrl && isToday(s.ug_link_updated_at, 'ug_link')).length,
-      highestNote: repertoire.filter(s => !!s.highest_note_original && isToday(s.highest_note_updated_at, 'highest_note')).length,
-      originalKey: repertoire.filter(s => s.originalKey && s.originalKey !== "TBC" && isToday(s.original_key_updated_at, 'orig_key')).length,
-      targetKey: repertoire.filter(s => s.targetKey && s.targetKey !== "TBC" && isToday(s.target_key_updated_at, 'target_key')).length
+      lyrics: repertoire.filter(s => (s.lyrics || "").length > 20 && isToday(s.lyrics_updated_at)).length,
+      chords: repertoire.filter(s => (s.ug_chords_text || "").length > 10 && isToday(s.chords_updated_at)).length,
+      links: repertoire.filter(s => !!s.ugUrl && isToday(s.ug_link_updated_at)).length,
+      highestNote: repertoire.filter(s => !!s.highest_note_original && isToday(s.highest_note_updated_at)).length,
+      originalKey: repertoire.filter(s => s.originalKey && s.originalKey !== "TBC" && isToday(s.original_key_updated_at)).length,
+      targetKey: repertoire.filter(s => s.targetKey && s.targetKey !== "TBC" && isToday(s.target_key_updated_at)).length
     };
-
-    // console.log("[GoalTracker] Summary counts for today:", counts); // Removed verbose log
 
     return [
       { 
@@ -61,7 +66,8 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
         target: goalLyricsCount, 
         barColor: 'bg-pink-500',
         textColor: 'text-pink-500',
-        lightBg: 'bg-pink-500/10'
+        lightBg: 'bg-pink-500/10',
+        filter: { hasLyrics: 'no' }
       },
       { 
         label: 'Chords Mapped', 
@@ -70,7 +76,8 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
         target: goalUgChordsCount, 
         barColor: 'bg-indigo-500',
         textColor: 'text-indigo-500',
-        lightBg: 'bg-indigo-500/10'
+        lightBg: 'bg-indigo-500/10',
+        filter: { hasUgChords: 'no' }
       },
       { 
         label: 'UG Links Bound', 
@@ -79,7 +86,8 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
         target: goalUgLinksCount, 
         barColor: 'bg-orange-500',
         textColor: 'text-orange-500',
-        lightBg: 'bg-orange-500/10'
+        lightBg: 'bg-orange-500/10',
+        filter: { hasUg: 'no' }
       },
       { 
         label: 'Range Analyzed', 
@@ -88,7 +96,8 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
         target: goalHighestNoteCount, 
         barColor: 'bg-emerald-500',
         textColor: 'text-emerald-500',
-        lightBg: 'bg-emerald-500/10'
+        lightBg: 'bg-emerald-500/10',
+        filter: { hasHighestNote: 'no' }
       },
       { 
         label: 'Original Keys Set', 
@@ -97,7 +106,8 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
         target: goalOriginalKeyCount, 
         barColor: 'bg-amber-500',
         textColor: 'text-amber-500',
-        lightBg: 'bg-amber-500/10'
+        lightBg: 'bg-amber-500/10',
+        filter: { hasOriginalKey: 'no' }
       },
       { 
         label: 'Stage Keys Bound', 
@@ -106,7 +116,8 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
         target: goalTargetKeyCount, 
         barColor: 'bg-blue-500',
         textColor: 'text-blue-500',
-        lightBg: 'bg-blue-500/10'
+        lightBg: 'bg-blue-500/10',
+        filter: { isConfirmed: 'no' }
       }
     ];
   }, [repertoire, goalLyricsCount, goalUgChordsCount, goalUgLinksCount, goalHighestNoteCount, goalOriginalKeyCount, goalTargetKeyCount]);
@@ -147,7 +158,11 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
           const isComplete = goal.current >= goal.target;
 
           return (
-            <div key={i} className="p-4 bg-secondary/50 rounded-2xl border border-border/50 space-y-3 group hover:border-indigo-500/30 transition-all">
+            <button 
+              key={i} 
+              onClick={() => onFilterApply(goal.filter)} // Make clickable
+              className="p-4 bg-secondary/50 rounded-2xl border border-border/50 space-y-3 group hover:border-indigo-500/30 transition-all text-left"
+            >
               <div className="flex items-center justify-between">
                 <div className={cn("p-2 rounded-lg", goal.lightBg, goal.textColor)}>
                   {goal.icon}
@@ -170,7 +185,7 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire }) => {
                   indicatorClassName={isComplete ? "bg-emerald-500" : goal.barColor}
                 />
               </div>
-            </div>
+            </button>
           );
         })}
       </div>

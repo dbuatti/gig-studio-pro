@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, CircleDashed, CheckCircle2, Volume2, ChevronUp, ChevronDown, Search, LayoutList, SortAsc, AlertTriangle, Loader2, Guitar, CloudDownload, Edit3, Filter, MoreVertical, Settings2, Check, ShieldCheck, Clock, Star } from 'lucide-react'; // Added Star import
+import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, CircleDashed, CheckCircle2, Volume2, ChevronUp, ChevronDown, Search, LayoutList, SortAsc, AlertTriangle, Loader2, Guitar, CloudDownload, Edit3, Filter, MoreVertical, Settings2, Check, ShieldCheck, Clock, Star } from 'lucide-react';
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, formatKey, transposeKey, calculateSemitones } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
 import { showSuccess } from '@/utils/toast';
@@ -14,8 +14,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import SetlistFilters, { FilterState, DEFAULT_FILTERS } from './SetlistFilters';
 import { calculateReadiness } from '@/utils/repertoireSync';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import SetlistMultiSelector from './SetlistMultiSelector'; // Re-added import for SetlistMultiSelector
-import { SheetLink } from './LinkDisplayOverlay'; // NEW: Import SheetLink
+import SetlistMultiSelector from './SetlistMultiSelector';
+import { SheetLink } from './LinkDisplayOverlay';
 
 export interface UGChordsConfig {
   fontFamily: string;
@@ -52,7 +52,7 @@ export interface SetlistSong {
   user_tags?: string[];
   is_pitch_linked?: boolean; 
   duration_seconds?: number;
-  key_preference?: KeyPreference; // NEW: Add key_preference
+  key_preference?: KeyPreference;
   is_active?: boolean;
   fineTune?: number;
   tempo?: number;
@@ -60,7 +60,7 @@ export interface SetlistSong {
   isApproved?: boolean;
   preferred_reader?: 'ug' | 'ls' | 'fn' | null;
   ug_chords_text?: string;
-  ug_chords_config?: UGChordsConfig; // NEW: Add ug_chords_config
+  ug_chords_config?: UGChordsConfig;
   is_ug_chords_present?: boolean;
   highest_note_original?: string;
   is_ug_link_verified?: boolean; 
@@ -84,10 +84,9 @@ export interface SetlistSong {
   highest_note_updated_at?: string;
   original_key_updated_at?: string;
   target_key_updated_at?: string;
-  links?: SheetLink[]; // NEW: Add links property
+  links?: SheetLink[];
 }
 
-// Define the Setlist interface here
 export interface Setlist {
   id: string;
   name: string;
@@ -115,9 +114,9 @@ interface SetlistManagerProps {
   searchTerm: string;
   setSearchTerm: (term: string) => void;
   showHeatmap: boolean;
-  allSetlists: Setlist[]; // Add allSetlists prop
-  onUpdateSetlistSongs: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>; // Add onUpdateSetlistSongs prop
-  onOpenSortModal: () => void; // NEW: Add prop to open sort modal
+  allSetlists: Setlist[];
+  onUpdateSetlistSongs: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>;
+  onOpenSortModal: () => void;
 }
 
 const SetlistManager: React.FC<SetlistManagerProps> = ({
@@ -139,22 +138,20 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   searchTerm,
   setSearchTerm,
   showHeatmap,
-  allSetlists, // Destructure allSetlists
-  onUpdateSetlistSongs, // Destructure onUpdateSetlistSongs
-  onOpenSortModal, // NEW: Destructure onOpenSortModal
+  allSetlists,
+  onUpdateSetlistSongs,
+  onOpenSortModal,
 }) => {
   const isMobile = useIsMobile();
   const { keyPreference: globalPreference } = useSettings();
   
-  // console.log("SetlistManager: globalPreference =", globalPreference); // Removed verbose log
-
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const isItunesPreview = (url: string) => url && (url.includes('apple.com') || url.includes('itunes-assets'));
 
   const handleMove = (id: string, direction: 'up' | 'down') => {
-    if (sortMode !== 'manual' || searchTerm) return; // Only allow manual reorder when sortMode is 'manual' and no search term
+    if (sortMode !== 'manual' || searchTerm) return;
     
     const index = processedSongs.findIndex(s => s.id === id);
     if (index === -1) return;
@@ -166,16 +163,16 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     [newSongs[index], newSongs[targetIndex]] = [newSongs[targetIndex], newSongs[index]];
     onReorder(newSongs);
-    showSuccess("Setlist reordered!"); // Success toast for reordering
+    showSuccess("Setlist reordered!");
   };
 
-  const isReorderingEnabled = sortMode === 'manual' && !searchTerm; // Only enable up/down arrows in 'manual' mode without search
+  const isReorderingEnabled = sortMode === 'manual' && !searchTerm;
 
   const getHeatmapClass = (song: SetlistSong) => {
     if (!showHeatmap) return "";
 
     const readiness = calculateReadiness(song);
-    const hasAudio = !!song.audio_url; // Check audio_url for full audio
+    const hasAudio = !!song.audio_url;
     const hasYoutubeLink = !!song.youtubeUrl && song.youtubeUrl.trim() !== "";
     const hasUgLink = !!song.ugUrl && song.ugUrl.trim() !== "";
     const hasUgChordsText = !!song.ug_chords_text && song.ug_chords_text.trim().length > 0;
@@ -192,7 +189,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     return "";
   };
 
-  // --- SAFEGUARD: Deduplicate songs for rendering ---
   const uniqueRenderedSongs = useMemo(() => {
     const seen = new Set();
     return processedSongs.filter(song => {
@@ -222,7 +218,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
             </Button>
             <Button 
               variant="ghost" size="sm" 
-              onClick={() => setSortMode('manual')} // NEW: Manual Sort Button
+              onClick={() => setSortMode('manual')}
               className={cn(
                 "h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg",
                 sortMode === 'manual' && "bg-background dark:bg-secondary shadow-sm text-indigo-600"
@@ -272,7 +268,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
               className="h-10 sm:h-9 pl-9 text-[11px] font-bold bg-card dark:bg-card border-border dark:border-border rounded-xl focus-visible:ring-indigo-500"
             />
           </div>
-          {sortMode === 'manual' && ( // NEW: Button to open sort modal when in manual mode
+          {sortMode === 'manual' && (
             <Button 
               onClick={onOpenSortModal}
               className="h-10 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] tracking-widest gap-2 shadow-lg shadow-indigo-600/20"
@@ -296,7 +292,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
             const isSelected = currentSongId === song.id;
             const readinessScore = calculateReadiness(song);
             const isFullyReady = readinessScore === 100;
-            const hasAudio = !!song.audio_url; // Check audio_url for full audio
+            const hasAudio = !!song.audio_url;
             const currentPref = song.key_preference || globalPreference;
             const displayTargetKey = formatKey(song.targetKey || song.originalKey, currentPref);
             const isProcessing = song.extraction_status === 'processing' || song.extraction_status === 'queued';
@@ -440,7 +436,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                   const isSelected = currentSongId === song.id;
                   const readinessScore = calculateReadiness(song);
                   const isFullyReady = readinessScore === 100;
-                  const hasAudio = !!song.audio_url; // Check audio_url for full audio
+                  const hasAudio = !!song.audio_url;
                   const currentPref = song.key_preference || globalPreference;
                   const displayOrigKey = formatKey(song.originalKey, currentPref);
                   const displayTargetKey = formatKey(song.targetKey || song.originalKey, currentPref);
@@ -526,7 +522,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         <div className="flex items-center justify-center gap-4 h-full">
                           <div className="text-center min-w-[32px]">
                             <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mb-0.5">Orig</p>
-                            <span className="text-xs font-mono font-bold text-muted-foreground block leading-none">{displayOrigKey}</span>
+                            <span className="text-xs font-mono font-bold text-foreground">{displayOrigKey}</span>
                           </div>
                           <div className="flex flex-col items-center justify-center opacity-30">
                             <ArrowRight className="w-3 h-3 text-muted-foreground mb-0.5" />
@@ -555,7 +551,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                           <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground hover:text-indigo-600 hover:bg-indigo-50 transition-colors inline-flex items-center justify-center" onClick={(e) => { e.stopPropagation(); onEdit(song); }}>
                             <Edit3 className="w-4 h-4" />
                           </Button>
-                          {/* NEW: Bin Icon for Remove */}
                           <Button 
                             variant="ghost" 
                             size="icon" 
