@@ -20,6 +20,9 @@ export interface AudioEngineControls {
   setVolume: (v: number) => void;
   setFineTune: (f: number) => void;
   setProgress: (p: number) => void;
+  // NEW: Compressor controls
+  setCompressorThreshold: (t: number) => void;
+  setCompressorRatio: (r: number) => void;
   
   loadAudioBuffer: (buffer: AudioBuffer, initialPitch?: number) => void;
   loadFromUrl: (url: string, initialPitch?: number, force?: boolean) => Promise<void>;
@@ -38,6 +41,9 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
   const [volume, setVolumeState] = useState(-6); // Initial default volume
   const [currentUrl, setCurrentUrlState] = useState<string>("");
   const [isLoadingAudio, setIsLoadingAudioState] = useState(false);
+  // NEW: Compressor state
+  const [compressorThreshold, setCompressorThresholdState] = useState(-24);
+  const [compressorRatio, setCompressorRatioState] = useState(4);
 
   // Refs for internal state tracking to stabilize callbacks
   const currentUrlRef = useRef<string>("");
@@ -46,6 +52,8 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
   const analyzerRef = useRef<Tone.Analyser | null>(null);
   const currentBufferRef = useRef<AudioBuffer | null>(null);
   const requestRef = useRef<number>();
+  // NEW: Compressor ref
+  const compressorRef = useRef<Tone.Compressor | null>(null);
   
   const playbackStartTimeRef = useRef<number>(0);
   const playbackOffsetRef = useRef<number>(0);
@@ -57,8 +65,17 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     if (!analyzerRef.current) {
       analyzerRef.current = new Tone.Analyser("fft", 256);
     }
+    // NEW: Initialize compressor
+    if (!compressorRef.current) {
+      compressorRef.current = new Tone.Compressor({
+        threshold: compressorThreshold,
+        ratio: compressorRatio,
+        attack: 0.003,
+        release: 0.25
+      }).toDestination();
+    }
     return true;
-  }, []);
+  }, [compressorThreshold, compressorRatio]);
 
   const resetEngine = useCallback(() => {
     if (playerRef.current) {
@@ -84,6 +101,7 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     return () => {
       resetEngine();
       analyzerRef.current?.dispose();
+      compressorRef.current?.dispose(); // NEW: Dispose compressor
     };
   }, [resetEngine]);
 
@@ -92,6 +110,14 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
       playerRef.current.volume.value = volume;
     }
   }, [volume]);
+
+  // NEW: Update compressor settings when state changes
+  useEffect(() => {
+    if (compressorRef.current) {
+      compressorRef.current.threshold.value = compressorThreshold;
+      compressorRef.current.ratio.value = compressorRatio;
+    }
+  }, [compressorThreshold, compressorRatio]);
 
   const loadAudioBuffer = useCallback((audioBuffer: AudioBuffer, initialPitch: number = 0) => {
     
@@ -103,12 +129,19 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     }
     
     currentBufferRef.current = audioBuffer;
-    playerRef.current = new Tone.GrainPlayer(audioBuffer).toDestination();
+    // NEW: Connect player to compressor, then compressor to analyzer, then analyzer to destination
+    playerRef.current = new Tone.GrainPlayer(audioBuffer).connect(compressorRef.current!).connect(analyzerRef.current!);
     
-    if (!analyzerRef.current) {
-      analyzerRef.current = new Tone.Analyser("fft", 256);
-    }
-    playerRef.current.connect(analyzerRef.current!);
+    // Ensure analyzer is connected to destination if compressor is not used, or if analyzer is the final node
+    // In this setup, compressor is the final node before destination, and analyzer is connected before it.
+    // So, player -> compressor -> analyzer -> destination is incorrect.
+    // It should be player -> analyzer -> compressor -> destination OR player -> compressor -> analyzer (for visualization) and compressor -> destination.
+    // Let's go with: player -> analyzer (for visualization) AND player -> compressor -> destination.
+    // This means the analyzer will see the *uncompressed* signal, which is often desired for visualization.
+    playerRef.current.disconnect(); // Disconnect from previous connections
+    playerRef.current.connect(analyzerRef.current!); // Connect to analyzer for visualization
+    playerRef.current.connect(compressorRef.current!); // Connect to compressor for output
+
     playerRef.current.grainSize = 0.18;
     playerRef.current.overlap = 0.1;
     
@@ -273,6 +306,15 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     }
   }, [duration, isPlaying]);
 
+  // NEW: Setters for compressor
+  const setCompressorThreshold = useCallback((t: number) => {
+    setCompressorThresholdState(t);
+  }, []);
+
+  const setCompressorRatio = useCallback((r: number) => {
+    setCompressorRatioState(r);
+  }, []);
+
   return {
     isPlaying,
     progress,
@@ -290,6 +332,8 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     setVolume,
     setFineTune,
     setProgress: setProgressHandler,
+    setCompressorThreshold, // NEW
+    setCompressorRatio,     // NEW
     loadAudioBuffer,
     loadFromUrl,
     togglePlayback,
