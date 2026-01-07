@@ -914,7 +914,7 @@ const SheetReaderMode: React.FC = () => {
                             setIsChartContentLoading(false);
                           }}
                           loading={<Loader2 className="w-12 h-12 animate-spin text-indigo-500" />}
-                          className="flex items-center justify-center" // Center the document itself
+                          className="flex items-center justify-center w-full h-full" // Center the document itself and ensure it fills parent
                         >
                           <Page
                             pageNumber={pdfCurrentPage}
