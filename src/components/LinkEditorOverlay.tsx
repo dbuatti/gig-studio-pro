@@ -353,7 +353,11 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-6xl w-[95vw] h-[90vh] p-0 bg-slate-950 border-white/10 overflow-hidden rounded-[2rem] shadow-2xl flex flex-col">
+      <DialogContent 
+        className="max-w-6xl w-[95vw] h-[90vh] p-0 bg-slate-950 border-white/10 overflow-hidden rounded-[2rem] shadow-2xl flex flex-col"
+        aria-labelledby="link-editor-title"
+        aria-describedby="link-editor-description"
+      >
         <DialogHeader className="p-6 bg-indigo-600 shrink-0 relative">
           <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 text-white/70">
             <X className="w-5 h-5" />
@@ -362,11 +366,11 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
             <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">
               <Plus className="w-6 h-6 text-white" />
             </div>
-            <DialogTitle className="text-2xl font-black uppercase tracking-tight text-white">
+            <DialogTitle id="link-editor-title" className="text-2xl font-black uppercase tracking-tight text-white">
               {editingLink ? "Edit Link" : "Create New Link"}
             </DialogTitle>
           </div>
-          <DialogDescription className="text-indigo-100 font-medium">
+          <DialogDescription id="link-editor-description" className="text-indigo-100 font-medium">
             Tap on the left page for the blue source, and on the right for the orange target.
           </DialogDescription>
         </DialogHeader>

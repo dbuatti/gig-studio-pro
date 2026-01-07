@@ -27,7 +27,11 @@ const SetlistSettingsModal: React.FC<SetlistSettingsModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl w-[90vw] bg-popover border-border text-foreground rounded-[2rem] p-0 overflow-hidden flex flex-col shadow-2xl">
+      <DialogContent 
+        className="max-w-2xl w-[90vw] bg-popover border-border text-foreground rounded-[2rem] p-0 overflow-hidden flex flex-col shadow-2xl"
+        aria-labelledby="setlist-settings-title"
+        aria-describedby="setlist-settings-description"
+      >
         <div className="p-8 bg-indigo-600 shrink-0 relative">
           <button 
             onClick={onClose}
@@ -41,9 +45,9 @@ const SetlistSettingsModal: React.FC<SetlistSettingsModalProps> = ({
               <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">
                 <Settings className="w-6 h-6 text-white" />
               </div>
-              <DialogTitle className="text-2xl font-black uppercase tracking-tight text-white">Setlist Settings</DialogTitle>
+              <DialogTitle id="setlist-settings-title" className="text-2xl font-black uppercase tracking-tight text-white">Setlist Settings</DialogTitle>
             </div>
-            <DialogDescription className="text-indigo-100 font-medium">
+            <DialogDescription id="setlist-settings-description" className="text-indigo-100 font-medium">
               Administrative controls and public access for <span className="text-white font-bold">"{setlistName}"</span>.
             </DialogDescription>
           </DialogHeader>

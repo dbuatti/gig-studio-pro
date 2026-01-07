@@ -475,15 +475,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-6xl w-[95vw] h-[95vh] md:h-[92vh] bg-slate-950 border-white/10 text-white rounded-[2rem] p-0 overflow-hidden shadow-2xl flex flex-col">
+      <DialogContent 
+        className="max-w-6xl w-[95vw] h-[95vh] md:h-[92vh] bg-slate-950 border-white/10 text-white rounded-[2rem] p-0 overflow-hidden shadow-2xl flex flex-col"
+        aria-labelledby="admin-panel-title"
+        aria-describedby="admin-panel-description"
+      >
         <div className="bg-red-600 p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between shrink-0 gap-4">
           <div className="flex items-center gap-4 md:gap-6">
             <div className="bg-white/20 p-2 md:p-3 rounded-2xl backdrop-blur-md">
               <ShieldAlert className="w-6 h-6 md:w-8 md:h-8 text-white" />
             </div>
             <div>
-              <DialogTitle className="text-xl md:text-2xl font-black uppercase tracking-tight">System Core Admin</DialogTitle>
-              <DialogDescription className="text-red-100 font-medium text-xs md:text-sm">Infrastructure Maintenance</DialogDescription>
+              <DialogTitle id="admin-panel-title" className="text-xl md:text-2xl font-black uppercase tracking-tight">System Core Admin</DialogTitle>
+              <DialogDescription id="admin-panel-description" className="text-red-100 font-medium text-xs md:text-sm">Infrastructure Maintenance</DialogDescription>
             </div>
           </div>
           <div className="flex gap-2 bg-black/20 p-1 rounded-xl overflow-x-auto no-scrollbar self-start md:self-center">

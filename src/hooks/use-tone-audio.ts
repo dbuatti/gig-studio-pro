@@ -64,15 +64,16 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     }
     if (!analyzerRef.current) {
       analyzerRef.current = new Tone.Analyser("fft", 256);
+      // Analyzer does not connect to destination directly, it's for visualization
     }
-    // NEW: Initialize compressor
+    // NEW: Initialize compressor and connect it to destination
     if (!compressorRef.current) {
       compressorRef.current = new Tone.Compressor({
         threshold: compressorThreshold,
         ratio: compressorRatio,
         attack: 0.003,
         release: 0.25
-      }).toDestination();
+      }).toDestination(); // Connect compressor to destination here
     }
     return true;
   }, [compressorThreshold, compressorRatio]);
@@ -129,18 +130,18 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     }
     
     currentBufferRef.current = audioBuffer;
-    // NEW: Connect player to compressor, then compressor to analyzer, then analyzer to destination
-    playerRef.current = new Tone.GrainPlayer(audioBuffer).connect(compressorRef.current!).connect(analyzerRef.current!);
     
-    // Ensure analyzer is connected to destination if compressor is not used, or if analyzer is the final node
-    // In this setup, compressor is the final node before destination, and analyzer is connected before it.
-    // So, player -> compressor -> analyzer -> destination is incorrect.
-    // It should be player -> analyzer -> compressor -> destination OR player -> compressor -> analyzer (for visualization) and compressor -> destination.
-    // Let's go with: player -> analyzer (for visualization) AND player -> compressor -> destination.
-    // This means the analyzer will see the *uncompressed* signal, which is often desired for visualization.
-    playerRef.current.disconnect(); // Disconnect from previous connections
-    playerRef.current.connect(analyzerRef.current!); // Connect to analyzer for visualization
-    playerRef.current.connect(compressorRef.current!); // Connect to compressor for output
+    // Ensure engine is initialized before creating player and connecting nodes
+    // This is crucial to ensure Tone.getContext() is valid
+    initEngine(); // Call initEngine to ensure context and nodes are ready
+
+    playerRef.current = new Tone.GrainPlayer(audioBuffer);
+    
+    // Connect player to analyzer for visualization (parallel path)
+    playerRef.current.connect(analyzerRef.current!); 
+    
+    // Connect player to compressor (main audio path)
+    playerRef.current.connect(compressorRef.current!);
 
     playerRef.current.grainSize = 0.18;
     playerRef.current.overlap = 0.1;
@@ -160,7 +161,7 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     if (!suppressToasts) {
       showSuccess("Audio Loaded");
     }
-  }, [volume, suppressToasts]);
+  }, [volume, suppressToasts, initEngine]); // Add initEngine to dependencies
 
   const loadFromUrl = useCallback(async (url: string, initialPitch: number = 0, force: boolean = false) => {
     if (!url) {
@@ -183,6 +184,9 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     setIsLoadingAudioState(true);
     
     try {
+      // Ensure Tone.js context is running before decoding audio
+      await initEngine(); // Ensure engine is initialized and context is running
+
       const response = await fetch(url);
       if (!response.ok) {
         console.error(`[AudioEngine] Fetch failed with status: ${response.status} ${response.statusText}. URL: ${url}`);
@@ -200,7 +204,7 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
       isLoadingAudioRef.current = false;
       setIsLoadingAudioState(false);
     } 
-  }, [loadAudioBuffer, fineTune, pitch]);
+  }, [loadAudioBuffer, fineTune, pitch, initEngine]); // Add initEngine to dependencies
 
   const togglePlayback = useCallback(async () => {
     await initEngine();
@@ -302,6 +306,7 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
         playbackStartTimeRef.current = Tone.now();
         playerRef.current.start(0, offset);
       } else {
+        // If not playing, just update the offset for when play is next pressed
       }
     }
   }, [duration, isPlaying]);

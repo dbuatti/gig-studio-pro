@@ -36,15 +36,19 @@ const LinkSizeModal: React.FC<LinkSizeModalProps> = ({ isOpen, onClose, onLinkSi
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md bg-popover text-foreground border-border rounded-[2rem]">
+      <DialogContent 
+        className="max-w-md bg-popover text-foreground border-border rounded-[2rem]"
+        aria-labelledby="link-size-title"
+        aria-describedby="link-size-description"
+      >
         <DialogHeader>
           <div className="flex items-center gap-3 mb-2">
             <div className="bg-indigo-600 p-2 rounded-xl">
               <Ruler className="w-5 h-5 text-white" />
             </div>
-            <DialogTitle className="text-2xl font-black uppercase tracking-tight">Link & Button Size</DialogTitle>
+            <DialogTitle id="link-size-title" className="text-2xl font-black uppercase tracking-tight">Link & Button Size</DialogTitle>
           </div>
-          <DialogDescription className="text-muted-foreground">
+          <DialogDescription id="link-size-description" className="text-muted-foreground">
             Adjust the visual size of interactive elements on your sheet music.
           </DialogDescription>
         </DialogHeader>
