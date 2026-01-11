@@ -10,7 +10,7 @@ import { useSettings, KeyPreference } from '@/hooks/use-settings';
 import { 
   Settings2, Hash, LogOut, ShieldCheck, Youtube, Key, Target, 
   Type, ListMusic, Library, LayoutDashboard, ArrowRight, Palette, 
-  AlignLeft, AlignCenter, AlignRight, Moon, Sun, Loader2, Globe 
+  AlignLeft, AlignCenter, AlignRight, Moon, Sun, Loader2, Globe, MonitorX 
 } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { cn } from '@/lib/utils';
@@ -47,6 +47,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
     ugChordsLineSpacing, setUgChordsLineSpacing,
     ugChordsTextAlign, setUgChordsTextAlign,
     preventStageKeyOverwrite, setPreventStageKeyOverwrite,
+    disablePortraitPdfScroll, setDisablePortraitPdfScroll, // NEW
     isFetchingSettings 
   } = useSettings();
   const { user, signOut } = useAuth();
@@ -253,6 +254,24 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
                   checked={preventStageKeyOverwrite} 
                   onCheckedChange={setPreventStageKeyOverwrite}
                   className="data-[state=checked]:bg-emerald-600"
+                />
+              </div>
+
+              {/* NEW: Disable Portrait PDF Scroll toggle */}
+              <div className="flex items-center justify-between p-4 bg-card rounded-2xl border border-border">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-100 dark:bg-indigo-600/10 rounded-lg">
+                    <MonitorX className="w-4 h-4 text-indigo-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-foreground">Fix PDF in Portrait</p>
+                    <p className="text-[9px] text-muted-foreground uppercase font-black">Disable vertical scroll for PDFs</p>
+                  </div>
+                </div>
+                <Switch 
+                  checked={disablePortraitPdfScroll} 
+                  onCheckedChange={setDisablePortraitPdfScroll}
+                  className="data-[state=checked]:bg-indigo-600"
                 />
               </div>
 

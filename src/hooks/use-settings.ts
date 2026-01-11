@@ -18,7 +18,7 @@ export interface GlobalSettings {
   goalHighestNoteCount: number;
   goalOriginalKeyCount: number;
   goalTargetKeyCount: number;
-  goalPdfsCount: number; // NEW
+  goalPdfsCount: number;
   defaultDashboardView: 'gigs' | 'repertoire';
   ugChordsFontFamily: string;
   ugChordsFontSize: number;
@@ -28,6 +28,7 @@ export interface GlobalSettings {
   ugChordsTextAlign: 'left' | 'center' | 'right';
   preventStageKeyOverwrite: boolean;
   linkSize: 'small' | 'medium' | 'large' | 'extra-large';
+  disablePortraitPdfScroll: boolean; // NEW
 }
 
 const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
@@ -41,7 +42,7 @@ const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   goalHighestNoteCount: 10,
   goalOriginalKeyCount: 10,
   goalTargetKeyCount: 10,
-  goalPdfsCount: 5, // NEW
+  goalPdfsCount: 5,
   defaultDashboardView: 'gigs',
   ugChordsFontFamily: DEFAULT_UG_CHORDS_CONFIG.fontFamily,
   ugChordsFontSize: DEFAULT_UG_CHORDS_CONFIG.fontSize,
@@ -51,6 +52,7 @@ const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   ugChordsTextAlign: DEFAULT_UG_CHORDS_CONFIG.textAlign,
   preventStageKeyOverwrite: false,
   linkSize: 'medium',
+  disablePortraitPdfScroll: false, // NEW
 };
 
 export function useSettings() {
@@ -79,7 +81,7 @@ export function useSettings() {
               goal_original_key_count, goal_target_key_count, goal_pdfs_count, default_dashboard_view,
               ug_chords_font_family, ug_chords_font_size, ug_chords_chord_bold, ug_chords_chord_color,
               ug_chords_line_spacing, ug_chords_text_align, prevent_stage_key_overwrite,
-              link_size
+              link_size, disable_portrait_pdf_scroll
             `)
             .eq('id', user.id)
             .single();
@@ -99,7 +101,7 @@ export function useSettings() {
             if (data.goal_highest_note_count !== undefined) loadedSettings.goalHighestNoteCount = data.goal_highest_note_count;
             if (data.goal_original_key_count !== undefined) loadedSettings.goalOriginalKeyCount = data.goal_original_key_count;
             if (data.goal_target_key_count !== undefined) loadedSettings.goalTargetKeyCount = data.goal_target_key_count;
-            if (data.goal_pdfs_count !== undefined) loadedSettings.goalPdfsCount = data.goal_pdfs_count; // NEW
+            if (data.goal_pdfs_count !== undefined) loadedSettings.goalPdfsCount = data.goal_pdfs_count;
             if (data.default_dashboard_view) loadedSettings.defaultDashboardView = data.default_dashboard_view as 'gigs' | 'repertoire';
             if (data.ug_chords_font_family) loadedSettings.ugChordsFontFamily = data.ug_chords_font_family;
             if (data.ug_chords_font_size !== undefined) loadedSettings.ugChordsFontSize = data.ug_chords_font_size;
@@ -109,6 +111,7 @@ export function useSettings() {
             if (data.ug_chords_text_align) loadedSettings.ugChordsTextAlign = data.ug_chords_text_align;
             if (data.prevent_stage_key_overwrite !== undefined) loadedSettings.preventStageKeyOverwrite = data.prevent_stage_key_overwrite;
             if (data.link_size) loadedSettings.linkSize = data.link_size as 'small' | 'medium' | 'large' | 'extra-large';
+            if (data.disable_portrait_pdf_scroll !== undefined) loadedSettings.disablePortraitPdfScroll = data.disable_portrait_pdf_scroll;
             
             setSettings(prev => {
               const newSettings = { ...prev, ...loadedSettings };
@@ -166,7 +169,7 @@ export function useSettings() {
           goalHighestNoteCount: 'goal_highest_note_count',
           goalOriginalKeyCount: 'goal_original_key_count', 
           goalTargetKeyCount: 'goal_target_key_count',
-          goalPdfsCount: 'goal_pdfs_count', // NEW
+          goalPdfsCount: 'goal_pdfs_count',
           defaultDashboardView: 'default_dashboard_view',
           ugChordsFontFamily: 'ug_chords_font_family',
           ugChordsFontSize: 'ug_chords_font_size',
@@ -176,6 +179,7 @@ export function useSettings() {
           ugChordsTextAlign: 'ug_chords_text_align',
           preventStageKeyOverwrite: 'prevent_stage_key_overwrite',
           linkSize: 'link_size',
+          disablePortraitPdfScroll: 'disable_portrait_pdf_scroll',
         };
         const dbColumn = dbKeyMap[key];
         await supabase
@@ -211,7 +215,7 @@ export function useSettings() {
     setGoalHighestNoteCount: (count: number) => updateSetting('goalHighestNoteCount', count),
     setGoalOriginalKeyCount: (count: number) => updateSetting('goalOriginalKeyCount', count),
     setGoalTargetKeyCount: (count: number) => updateSetting('goalTargetKeyCount', count),
-    setGoalPdfsCount: (count: number) => updateSetting('goalPdfsCount', count), // NEW
+    setGoalPdfsCount: (count: number) => updateSetting('goalPdfsCount', count),
     setDefaultDashboardView: (view: 'gigs' | 'repertoire') => updateSetting('defaultDashboardView', view),
     setUgChordsFontFamily: (font: string) => updateSetting('ugChordsFontFamily', font),
     setUgChordsFontSize: (size: number) => updateSetting('ugChordsFontSize', size),
@@ -221,6 +225,7 @@ export function useSettings() {
     setUgChordsTextAlign: (align: 'left' | 'center' | 'right') => updateSetting('ugChordsTextAlign', align),
     setPreventStageKeyOverwrite: (prevent: boolean) => updateSetting('preventStageKeyOverwrite', prevent),
     setLinkSize: (size: 'small' | 'medium' | 'large' | 'extra-large') => updateSetting('linkSize', size),
+    setDisablePortraitPdfScroll: (disable: boolean) => updateSetting('disablePortraitPdfScroll', disable), // NEW
     updateAllSheetLinksSize,
     isFetchingSettings,
   };

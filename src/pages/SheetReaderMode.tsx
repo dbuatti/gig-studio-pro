@@ -55,6 +55,7 @@ const SheetReaderMode: React.FC = () => {
     ugChordsLineSpacing,
     ugChordsTextAlign,
     preventStageKeyOverwrite,
+    disablePortraitPdfScroll, // NEW
     setKeyPreference: setGlobalKeyPreference
   } = useSettings();
   const { forceReaderResource } = useReaderSettings();
@@ -72,6 +73,7 @@ const SheetReaderMode: React.FC = () => {
   const [isRepertoireSearchModalOpen, setIsRepertoireSearchModalOpen] = useState(false);
   const [isInfoOverlayVisible, setIsInfoOverlayVisible] = useState(true);
   const [isAudioPlayerVisible, setIsAudioPlayerVisible] = useState(true);
+  const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth); // NEW
 
   const [readerKeyPreference, setReaderKeyPreference] = useState<'sharps' | 'flats'>(
     globalKeyPreference === 'neutral' ? 'sharps' : globalKeyPreference
@@ -105,6 +107,15 @@ const SheetReaderMode: React.FC = () => {
   const navigatedRef = useRef(false);
 
   const [{}, api] = useSpring(() => ({ x: 0 }));
+
+  // NEW: Detect orientation changes
+  useEffect(() => {
+    const handleResize = () => {
+      setIsPortrait(window.innerHeight > window.innerWidth);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     if (currentSong?.key_preference) {
@@ -739,6 +750,9 @@ const SheetReaderMode: React.FC = () => {
 
   if (initialLoading) return <div className="h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
 
+  // NEW: Determine if scroll should be disabled
+  const shouldDisableScroll = disablePortraitPdfScroll && isPortrait && (selectedChartType === 'pdf' || selectedChartType === 'leadsheet');
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-white relative">
       <div className={cn("fixed left-0 top-0 h-full w-[300px] z-50 transition-transform duration-300", 
@@ -780,7 +794,8 @@ const SheetReaderMode: React.FC = () => {
             "flex-1 bg-black relative overflow-hidden", 
             isBrowserFullScreen ? "mt-0" : "mt-[72px]", 
             isAudioPlayerVisible && currentSong ? "pb-24" : "pb-0", 
-            "overscroll-behavior-x-contain"
+            "overscroll-behavior-x-contain",
+            shouldDisableScroll ? "overflow-y-hidden" : "overflow-y-auto" // NEW: Conditional scroll disable
           )}
           onClick={toggleBrowserFullScreen} 
         >
