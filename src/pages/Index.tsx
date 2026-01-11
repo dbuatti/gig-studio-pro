@@ -98,24 +98,44 @@ const Index = () => {
 
   const playNextShuffle = useCallback(() => {
     if (!isShuffleAllMode) return;
-    const playableSongs = masterRepertoire.filter(s => !!s.audio_url);
-    if (playableSongs.length === 0) {
-      showError("No audio tracks found in repertoire.");
+    
+    const pool = masterRepertoire.filter(s => !!s.audio_url || !!s.previewUrl);
+    
+    if (pool.length === 0) {
+      showError("No playable tracks found in repertoire.");
       setIsShuffleAllMode(false);
       return;
     }
-    const nextSong = playableSongs[Math.floor(Math.random() * playableSongs.length)];
+
+    // Try to pick a different song if possible to ensure variety
+    const currentId = activeSongForPerformance?.master_id || activeSongForPerformance?.id;
+    const otherSongs = pool.filter(s => (s.master_id || s.id) !== currentId);
+    
+    const nextSong = otherSongs.length > 0 
+      ? otherSongs[Math.floor(Math.random() * otherSongs.length)]
+      : pool[0];
+
     setActiveSongForPerformance(nextSong);
-  }, [isShuffleAllMode, masterRepertoire]);
+  }, [isShuffleAllMode, masterRepertoire, activeSongForPerformance]);
 
   const audio = useToneAudio(true, playNextShuffle);
 
   const handleToggleShuffleAll = () => {
     const nextState = !isShuffleAllMode;
     setIsShuffleAllMode(nextState);
+    
     if (nextState) {
       showSuccess("Shuffle All Mode Active");
-      playNextShuffle();
+      
+      // Select song directly here to ensure the logic runs with the correct 'nextState'
+      const pool = masterRepertoire.filter(s => !!s.audio_url || !!s.previewUrl);
+      if (pool.length > 0) {
+        const nextSong = pool[Math.floor(Math.random() * pool.length)];
+        setActiveSongForPerformance(nextSong);
+      } else {
+        showError("No playable tracks found in repertoire.");
+        setIsShuffleAllMode(false);
+      }
     } else {
       showInfo("Shuffle All Mode Disabled");
     }
