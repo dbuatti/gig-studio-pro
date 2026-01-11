@@ -113,18 +113,18 @@ const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport, isOpen, onClose
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-3xl bg-popover border-none shadow-2xl rounded-[2rem] p-0 overflow-hidden">
-        <div className="bg-indigo-600 p-8 flex items-center justify-between text-white shrink-0">
+        <DialogHeader className="bg-indigo-600 p-8 flex items-center justify-between text-white shrink-0">
           <div className="flex items-center gap-4">
             <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-md">
               <ListPlus className="w-8 h-8" />
             </div>
-            <div>
+            <div className="text-left">
               <DialogTitle className="text-2xl font-black uppercase tracking-tight">Gig Ingest Engine</DialogTitle>
               <DialogDescription className="text-indigo-100 font-medium">Supporting OnSong, Markdown, and Plain Text formats.</DialogDescription>
             </div>
           </div>
-          <Wand2 className="w-8 h-8 opacity-20 animate-pulse" />
-        </div>
+          <Wand2 className="w-8 h-8 opacity-20 animate-pulse hidden sm:block" />
+        </DialogHeader>
         
         <div className="p-8 space-y-6">
           <div className="grid grid-cols-2 gap-4">
@@ -174,7 +174,7 @@ const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport, isOpen, onClose
             <AlertCircle className="w-6 h-6 text-indigo-600 shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-black text-indigo-900 dark:text-indigo-300 uppercase tracking-tight">Intelligence Report</p>
-              <p className="text-[11px] text-indigo-700/80 dark:text-indigo-400/80 mt-1 leading-relaxed">
+              <p className="text-[11px] text-indigo-700/80 dark:text-indigo-400/80 mt-1 leading-relaxed text-left">
                 The engine will attempt to extract the song name, artist, and musical key automatically. After import, the AI background worker will verify these details and link professional reference audio.
               </p>
             </div>

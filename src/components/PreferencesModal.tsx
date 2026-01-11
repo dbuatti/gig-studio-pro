@@ -37,7 +37,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
     goalHighestNoteCount, setGoalHighestNoteCount,
     goalOriginalKeyCount, setGoalOriginalKeyCount,
     goalTargetKeyCount, setGoalTargetKeyCount,
-    goalPdfsCount, setGoalPdfsCount, // NEW
+    goalPdfsCount, setGoalPdfsCount,
     defaultDashboardView, setDefaultDashboardView,
     ugChordsFontFamily, setUgChordsFontFamily,
     ugChordsFontSize, setUgChordsFontSize,
@@ -86,6 +86,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
     return (
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
         <DialogContent className="max-w-md bg-popover text-foreground border-border rounded-[2rem] flex items-center justify-center h-60">
+          <DialogTitle className="sr-only">Loading Preferences</DialogTitle>
           <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
         </DialogContent>
       </Dialog>
