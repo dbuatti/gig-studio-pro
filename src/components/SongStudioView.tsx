@@ -188,11 +188,19 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
         metadata_source: data.metadata_source,
         sync_status: data.sync_status,
         last_sync_log: data.last_sync_log,
+        auto_synced: data.auto_synced,
+        is_sheet_verified: data.is_sheet_verified,
+        sheet_music_url: data.sheet_music_url,
+        extraction_status: data.extraction_status,
+        extraction_error: data.extraction_error,
         audio_url: data.audio_url,
         lyrics_updated_at: data.lyrics_updated_at,
         chords_updated_at: data.chords_updated_at,
         ug_link_updated_at: data.ug_link_updated_at,
         highest_note_updated_at: data.highest_note_updated_at,
+        original_key_updated_at: data.original_key_updated_at,
+        target_key_updated_at: data.target_key_updated_at,
+        pdf_updated_at: data.pdf_updated_at,
       };
       
       setSong(targetSong);
@@ -340,7 +348,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           activeTab={activeTab}
           song={song}
           formData={formData}
-          handleAutoSave={activeAutoSave}
+          handleAutoSave={handleAutoSave}
           onUpdateKey={setTargetKey}
           audioEngine={audio}
           isMobile={isMobile}
