@@ -17,22 +17,20 @@ import { SetlistSong } from './SetlistManager';
 import { cn } from '@/lib/utils';
 
 interface SetlistMultiSelectorProps {
-  songMasterId: string; // This prop is currently song.id, which can be temporary.
-                        // We should rely on songToAssign.master_id for DB operations.
+  songMasterId: string; 
   allSetlists: { id: string; name: string; songs: SetlistSong[] }[];
-  songToAssign: SetlistSong | null; // Allow songToAssign to be null
-  onUpdateSetlistSongs: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>;
+  songToAssign: SetlistSong | null; 
+  onUpdateSetlistSongs?: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>;
 }
 
 // Helper to validate UUID
 const isValidUuid = (uuid: string | undefined | null): boolean => {
   if (!uuid) return false;
-  // Regex for UUID v4 (Supabase generates v4 UUIDs)
-  return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/i.test(uuid);
+  return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/i.test(uuid);
 };
 
 const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
-  songMasterId, // Keep this prop for now, but primarily use songToAssign.master_id for DB
+  songMasterId, 
   allSetlists,
   songToAssign,
   onUpdateSetlistSongs,
@@ -40,7 +38,6 @@ const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
   const [assignedSetlistIds, setAssignedSetlistIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
 
-  // If no song is assigned, render a disabled button
   if (!songToAssign) {
     return (
       <Button
@@ -56,14 +53,12 @@ const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
     );
   }
 
-  // Now, songToAssign is guaranteed to be not null below this point
-  // Use songToAssign.master_id for database operations, as it's the actual UUID from 'repertoire'
-  const repertoireDbId = songToAssign.master_id; 
+  const repertoireDbId = songToAssign.master_id || songToAssign.id; 
   const isRepertoireSongValid = isValidUuid(repertoireDbId);
 
   const fetchAssignments = useCallback(async () => {
     if (!isRepertoireSongValid) {
-      setAssignedSetlistIds(new Set()); // Clear assignments if song is not valid
+      setAssignedSetlistIds(new Set()); 
       setLoading(false);
       return;
     }
@@ -72,7 +67,7 @@ const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
       const { data, error } = await supabase
         .from('setlist_songs')
         .select('setlist_id')
-        .eq('song_id', repertoireDbId); // Use repertoireDbId here
+        .eq('song_id', repertoireDbId);
 
       if (error) throw error;
 
@@ -80,14 +75,13 @@ const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
       setAssignedSetlistIds(currentAssignments);
     } catch (err) {
       console.error("Failed to fetch setlist assignments:", err);
-      showError("Failed to load setlist assignments.");
     } finally {
       setLoading(false);
     }
-  }, [repertoireDbId, isRepertoireSongValid]); // Added isRepertoireSongValid to dependencies
+  }, [repertoireDbId, isRepertoireSongValid]);
 
   useEffect(() => {
-    if (repertoireDbId) { // Only fetch if repertoireDbId is available
+    if (repertoireDbId) { 
       fetchAssignments();
     }
   }, [repertoireDbId, fetchAssignments]);
@@ -101,21 +95,23 @@ const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
     setLoading(true);
     try {
       if (isChecked) {
-        // Add to setlist_songs junction table
         const { error } = await supabase
           .from('setlist_songs')
-          .insert({ setlist_id: setlistId, song_id: repertoireDbId, sort_order: 0, is_confirmed: false }); // Use repertoireDbId here
+          .insert({ setlist_id: setlistId, song_id: repertoireDbId, sort_order: 0, is_confirmed: false }); 
         if (error) throw error;
         setAssignedSetlistIds(prev => new Set(prev).add(setlistId));
         showSuccess(`Added to "${allSetlists.find(s => s.id === setlistId)?.name}"`);
-        await onUpdateSetlistSongs(setlistId, songToAssign, 'add'); // Update the setlist's songs array
+        
+        // Defensive check before calling update callback
+        if (typeof onUpdateSetlistSongs === 'function') {
+          await onUpdateSetlistSongs(setlistId, songToAssign, 'add');
+        }
       } else {
-        // Remove from setlist_songs junction table
         const { error } = await supabase
           .from('setlist_songs')
           .delete()
           .eq('setlist_id', setlistId)
-          .eq('song_id', repertoireDbId); // Use repertoireDbId here
+          .eq('song_id', repertoireDbId); 
         if (error) throw error;
         setAssignedSetlistIds(prev => {
           const newSet = new Set(prev);
@@ -123,7 +119,11 @@ const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
           return newSet;
         });
         showSuccess(`Removed from "${allSetlists.find(s => s.id === setlistId)?.name}"`);
-        await onUpdateSetlistSongs(setlistId, songToAssign, 'remove'); // Update the setlist's songs array
+        
+        // Defensive check before calling update callback
+        if (typeof onUpdateSetlistSongs === 'function') {
+          await onUpdateSetlistSongs(setlistId, songToAssign, 'remove');
+        }
       }
     } catch (err: any) {
       console.error("Failed to update setlist assignment:", err);
@@ -145,7 +145,7 @@ const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
             assignedCount > 0
               ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/20"
               : "bg-white/5 hover:bg-white/10 text-slate-400 border border-white/10",
-            !isRepertoireSongValid && "opacity-50 cursor-not-allowed" // Visual cue for invalid songs
+            !isRepertoireSongValid && "opacity-50 cursor-not-allowed" 
           )}
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (

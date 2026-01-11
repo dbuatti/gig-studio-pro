@@ -23,7 +23,7 @@ interface SongStudioConsolidatedHeaderProps {
   onOpenProSync: () => void;
   gigId: string | 'library';
   allSetlists: Setlist[];
-  onUpdateSetlistSongs: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>;
+  onUpdateSetlistSongs?: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>;
   onAutoSave: (updates: Partial<SetlistSong>) => void;
 }
 
@@ -156,7 +156,7 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
             <Switch 
               checked={formData.isApproved || false} 
               onCheckedChange={(v) => onAutoSave({ isApproved: v })} 
-              className="data-[state=checked]:bg-emerald-500" 
+              className="data-[state=checked]:bg-emerald-50" 
             />
           </div>
         )}

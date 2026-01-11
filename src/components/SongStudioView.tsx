@@ -120,12 +120,12 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     if (Object.keys(pending).length > 0) {
       performSave(pending);
     }
-    // Only stop if we're using the INTERNAL engine
-    if (!externalAudioEngine) {
-      audio.stopPlayback();
-    }
+    
+    // Stop playback on close to ensure studio previews don't persist in dashboard
+    audio.stopPlayback();
+    
     onClose();
-  }, [onClose, audio, performSave, externalAudioEngine]);
+  }, [onClose, audio, performSave]);
 
   const fetchData = async () => {
     if (!user) return;
@@ -193,8 +193,6 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
       setSong(targetSong);
       setFormData(targetSong);
       
-      // OPTIMIZATION: Only auto-load if we're on the audio/config tabs AND the song being edited 
-      // isn't the one already playing in the shared engine.
       const isAudioContext = activeTab === 'audio' || activeTab === 'config';
       const audioUrl = targetSong.audio_url || targetSong.previewUrl;
       const isDifferentUrl = audioUrl && audioUrl !== audio.currentUrl;
@@ -213,7 +211,6 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     fetchData();
   }, [songId, gigId]);
 
-  // Load audio if user switches to playback tabs after initial fetch
   useEffect(() => {
     if (loading || !song) return;
     const isAudioContext = activeTab === 'audio' || activeTab === 'config';
@@ -240,7 +237,6 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   });
 
   useEffect(() => {
-    // If we're editing the song currently playing, sync the engine pitch
     const audioUrl = song?.audio_url || song?.previewUrl;
     if (audioUrl === audio.currentUrl) {
       audio.setPitch(pitch);
@@ -301,7 +297,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           onOpenProSync={() => setIsProSyncOpen(true)}
           gigId={gigId}
           allSetlists={allSetlists}
-          onUpdateSetlistSongs={onUpdateSetlistSongs!}
+          onUpdateSetlistSongs={onUpdateSetlistSongs}
           onAutoSave={activeAutoSave}
         />
       </header>
