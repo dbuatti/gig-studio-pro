@@ -84,6 +84,7 @@ export interface SetlistSong {
   highest_note_updated_at?: string;
   original_key_updated_at?: string;
   target_key_updated_at?: string;
+  pdf_updated_at?: string; // NEW
   links?: SheetLink[];
 }
 

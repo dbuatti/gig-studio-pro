@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
-import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants'; // Import default config
+import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 
 export type KeyPreference = 'flats' | 'sharps' | 'neutral';
 
@@ -18,8 +18,8 @@ export interface GlobalSettings {
   goalHighestNoteCount: number;
   goalOriginalKeyCount: number;
   goalTargetKeyCount: number;
+  goalPdfsCount: number; // NEW
   defaultDashboardView: 'gigs' | 'repertoire';
-  // NEW: Global UG Chords Display Settings
   ugChordsFontFamily: string;
   ugChordsFontSize: number;
   ugChordsChordBold: boolean;
@@ -27,7 +27,7 @@ export interface GlobalSettings {
   ugChordsLineSpacing: number;
   ugChordsTextAlign: 'left' | 'center' | 'right';
   preventStageKeyOverwrite: boolean;
-  linkSize: 'small' | 'medium' | 'large' | 'extra-large'; // NEW: Link size setting
+  linkSize: 'small' | 'medium' | 'large' | 'extra-large';
 }
 
 const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
@@ -41,8 +41,8 @@ const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   goalHighestNoteCount: 10,
   goalOriginalKeyCount: 10,
   goalTargetKeyCount: 10,
+  goalPdfsCount: 5, // NEW
   defaultDashboardView: 'gigs',
-  // NEW: Default values for UG Chords Display
   ugChordsFontFamily: DEFAULT_UG_CHORDS_CONFIG.fontFamily,
   ugChordsFontSize: DEFAULT_UG_CHORDS_CONFIG.fontSize,
   ugChordsChordBold: DEFAULT_UG_CHORDS_CONFIG.chordBold,
@@ -50,7 +50,7 @@ const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   ugChordsLineSpacing: DEFAULT_UG_CHORDS_CONFIG.lineSpacing,
   ugChordsTextAlign: DEFAULT_UG_CHORDS_CONFIG.textAlign,
   preventStageKeyOverwrite: false,
-  linkSize: 'medium', // NEW: Default link size
+  linkSize: 'medium',
 };
 
 export function useSettings() {
@@ -76,7 +76,7 @@ export function useSettings() {
             .select(`
               key_preference, safe_pitch_max_note, is_safe_pitch_enabled, is_goal_tracker_enabled, 
               goal_lyrics_count, goal_ug_chords_count, goal_ug_links_count, goal_highest_note_count,
-              goal_original_key_count, goal_target_key_count, default_dashboard_view,
+              goal_original_key_count, goal_target_key_count, goal_pdfs_count, default_dashboard_view,
               ug_chords_font_family, ug_chords_font_size, ug_chords_chord_bold, ug_chords_chord_color,
               ug_chords_line_spacing, ug_chords_text_align, prevent_stage_key_overwrite,
               link_size
@@ -99,8 +99,8 @@ export function useSettings() {
             if (data.goal_highest_note_count !== undefined) loadedSettings.goalHighestNoteCount = data.goal_highest_note_count;
             if (data.goal_original_key_count !== undefined) loadedSettings.goalOriginalKeyCount = data.goal_original_key_count;
             if (data.goal_target_key_count !== undefined) loadedSettings.goalTargetKeyCount = data.goal_target_key_count;
+            if (data.goal_pdfs_count !== undefined) loadedSettings.goalPdfsCount = data.goal_pdfs_count; // NEW
             if (data.default_dashboard_view) loadedSettings.defaultDashboardView = data.default_dashboard_view as 'gigs' | 'repertoire';
-            // NEW: Load UG Chords Display Settings
             if (data.ug_chords_font_family) loadedSettings.ugChordsFontFamily = data.ug_chords_font_family;
             if (data.ug_chords_font_size !== undefined) loadedSettings.ugChordsFontSize = data.ug_chords_font_size;
             if (data.ug_chords_chord_bold !== undefined) loadedSettings.ugChordsChordBold = data.ug_chords_chord_bold;
@@ -108,7 +108,7 @@ export function useSettings() {
             if (data.ug_chords_line_spacing !== undefined) loadedSettings.ugChordsLineSpacing = data.ug_chords_line_spacing;
             if (data.ug_chords_text_align) loadedSettings.ugChordsTextAlign = data.ug_chords_text_align;
             if (data.prevent_stage_key_overwrite !== undefined) loadedSettings.preventStageKeyOverwrite = data.prevent_stage_key_overwrite;
-            if (data.link_size) loadedSettings.linkSize = data.link_size as 'small' | 'medium' | 'large' | 'extra-large'; // NEW
+            if (data.link_size) loadedSettings.linkSize = data.link_size as 'small' | 'medium' | 'large' | 'extra-large';
             
             setSettings(prev => {
               const newSettings = { ...prev, ...loadedSettings };
@@ -165,9 +165,9 @@ export function useSettings() {
           goalUgLinksCount: 'goal_ug_links_count',
           goalHighestNoteCount: 'goal_highest_note_count',
           goalOriginalKeyCount: 'goal_original_key_count', 
-          goalTargetKeyCount: 'goal_target_key_count',     
+          goalTargetKeyCount: 'goal_target_key_count',
+          goalPdfsCount: 'goal_pdfs_count', // NEW
           defaultDashboardView: 'default_dashboard_view',
-          // NEW: Map UG Chords Display Settings to DB columns
           ugChordsFontFamily: 'ug_chords_font_family',
           ugChordsFontSize: 'ug_chords_font_size',
           ugChordsChordBold: 'ug_chords_chord_bold',
@@ -175,10 +175,10 @@ export function useSettings() {
           ugChordsLineSpacing: 'ug_chords_line_spacing',
           ugChordsTextAlign: 'ug_chords_text_align',
           preventStageKeyOverwrite: 'prevent_stage_key_overwrite',
-          linkSize: 'link_size', // NEW
+          linkSize: 'link_size',
         };
         const dbColumn = dbKeyMap[key];
-        const { error } = await supabase
+        await supabase
           .from('profiles')
           .update({ [dbColumn]: value })
           .eq('id', user.id);
@@ -194,7 +194,6 @@ export function useSettings() {
         .update({ link_size: newSize })
         .eq('user_id', user.id);
       if (error) throw error;
-      console.log(`[useSettings] All sheet links updated to size: ${newSize}`);
     } catch (err: any) {
       console.error("[useSettings] Failed to update all sheet links size:", err.message);
     }
@@ -212,8 +211,8 @@ export function useSettings() {
     setGoalHighestNoteCount: (count: number) => updateSetting('goalHighestNoteCount', count),
     setGoalOriginalKeyCount: (count: number) => updateSetting('goalOriginalKeyCount', count),
     setGoalTargetKeyCount: (count: number) => updateSetting('goalTargetKeyCount', count),
+    setGoalPdfsCount: (count: number) => updateSetting('goalPdfsCount', count), // NEW
     setDefaultDashboardView: (view: 'gigs' | 'repertoire') => updateSetting('defaultDashboardView', view),
-    // NEW: Setters for UG Chords Display Settings
     setUgChordsFontFamily: (font: string) => updateSetting('ugChordsFontFamily', font),
     setUgChordsFontSize: (size: number) => updateSetting('ugChordsFontSize', size),
     setUgChordsChordBold: (bold: boolean) => updateSetting('ugChordsChordBold', bold),
@@ -221,8 +220,8 @@ export function useSettings() {
     setUgChordsLineSpacing: (spacing: number) => updateSetting('ugChordsLineSpacing', spacing),
     setUgChordsTextAlign: (align: 'left' | 'center' | 'right') => updateSetting('ugChordsTextAlign', align),
     setPreventStageKeyOverwrite: (prevent: boolean) => updateSetting('preventStageKeyOverwrite', prevent),
-    setLinkSize: (size: 'small' | 'medium' | 'large' | 'extra-large') => updateSetting('linkSize', size), // NEW
-    updateAllSheetLinksSize, // NEW: Expose the function
+    setLinkSize: (size: 'small' | 'medium' | 'large' | 'extra-large') => updateSetting('linkSize', size),
+    updateAllSheetLinksSize,
     isFetchingSettings,
   };
 }

@@ -18,7 +18,7 @@ import { PURE_NOTES_SHARP, PURE_NOTES_FLAT } from '@/utils/keyUtils';
 import { useReaderSettings, ReaderResourceForce } from '@/hooks/use-reader-settings';
 import { useTheme } from '@/hooks/use-theme';
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { Slider } from "@/components/ui/slider"; // Import Slider
+import { Slider } from "@/components/ui/slider";
 
 interface PreferencesModalProps {
   isOpen: boolean;
@@ -37,15 +37,15 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
     goalHighestNoteCount, setGoalHighestNoteCount,
     goalOriginalKeyCount, setGoalOriginalKeyCount,
     goalTargetKeyCount, setGoalTargetKeyCount,
+    goalPdfsCount, setGoalPdfsCount, // NEW
     defaultDashboardView, setDefaultDashboardView,
-    // NEW: Global UG Chords Display Settings
     ugChordsFontFamily, setUgChordsFontFamily,
     ugChordsFontSize, setUgChordsFontSize,
     ugChordsChordBold, setUgChordsChordBold,
     ugChordsChordColor, setUgChordsChordColor,
     ugChordsLineSpacing, setUgChordsLineSpacing,
     ugChordsTextAlign, setUgChordsTextAlign,
-    preventStageKeyOverwrite, setPreventStageKeyOverwrite, // NEW
+    preventStageKeyOverwrite, setPreventStageKeyOverwrite,
     isFetchingSettings 
   } = useSettings();
   const { user, signOut } = useAuth();
@@ -155,6 +155,10 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
                       <Label className="text-[9px] font-black uppercase text-muted-foreground">Stage Key Goal</Label>
                       <Input type="number" value={goalTargetKeyCount} onChange={(e) => setGoalTargetKeyCount(parseInt(e.target.value) || 0)} className="h-9 text-xs bg-secondary border-border" />
                     </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[9px] font-black uppercase text-muted-foreground">PDF Goal</Label>
+                      <Input type="number" value={goalPdfsCount} onChange={(e) => setGoalPdfsCount(parseInt(e.target.value) || 0)} className="h-9 text-xs bg-secondary border-border" />
+                    </div>
                   </div>
                 </div>
               )}
@@ -188,7 +192,6 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
           <div className="space-y-4">
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Display Engine</h4>
             
-            {/* NEW: Default Dashboard View */}
             <div className="p-4 bg-card rounded-2xl border border-border space-y-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-indigo-100 dark:bg-indigo-600/10 rounded-lg">
@@ -232,7 +235,6 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
                 </ToggleGroup>
               </div>
 
-              {/* NEW: Prevent Stage Key Overwrite */}
               <div className="flex items-center justify-between p-4 bg-card rounded-2xl border border-border">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-emerald-100 dark:bg-emerald-600/10 rounded-lg">
@@ -262,7 +264,6 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
                 <Switch checked={theme === 'dark'} onCheckedChange={toggleTheme} />
               </div>
 
-              {/* NEW: Global UG Chords Display Settings */}
               <div className="p-4 bg-card rounded-2xl border border-border space-y-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-indigo-100 dark:bg-indigo-600/10 rounded-lg">

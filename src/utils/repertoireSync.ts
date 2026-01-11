@@ -36,9 +36,6 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
       updated_at: new Date().toISOString(),
     };
 
-    // Only include 'id' in the upsert payload if it's an update to an existing master record.
-    // If song.master_id is not present, it's a new client-side song, and we let Supabase
-    // handle the 'id' generation or update based on the 'onConflict' clause.
     if (song.master_id) {
       dbUpdates.id = song.master_id;
     }
@@ -48,7 +45,6 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
 
     const now = new Date().toISOString();
     
-    // Explicitly update timestamps for goals when fields are present in the update object
     if (song.lyrics !== undefined) {
       dbUpdates.lyrics = song.lyrics;
       dbUpdates.lyrics_updated_at = now;
@@ -72,6 +68,11 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
     if (song.targetKey !== undefined && song.targetKey !== "TBC") {
       dbUpdates.target_key = song.targetKey;
       dbUpdates.target_key_updated_at = now;
+    }
+
+    // NEW: Update pdf_updated_at when sheet music is added or changed
+    if (song.pdfUrl !== undefined || song.leadsheetUrl !== undefined || song.sheet_music_url !== undefined) {
+      dbUpdates.pdf_updated_at = now;
     }
 
     if (song.previewUrl !== undefined) dbUpdates.preview_url = song.previewUrl;
@@ -148,6 +149,7 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
       highest_note_updated_at: result.highest_note_updated_at,
       original_key_updated_at: result.original_key_updated_at,
       target_key_updated_at: result.target_key_updated_at,
+      pdf_updated_at: result.pdf_updated_at, // NEW
     } as any);
   }
 

@@ -6,10 +6,10 @@ import { useSettings } from '@/hooks/use-settings';
 import { CustomProgress } from "@/components/CustomProgress";
 import { 
   Target, Type, Music2, Link as LinkIcon, 
-  Music, Sparkles, CheckCircle2, Hash
+  Music, Sparkles, CheckCircle2, Hash, FileText
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
-import { FilterState } from './SetlistFilters'; // Import FilterState
+import { FilterState } from './SetlistFilters';
 
 interface GoalStat {
   label: string;
@@ -19,12 +19,12 @@ interface GoalStat {
   barColor: string;
   textColor: string;
   lightBg: string;
-  filter: Partial<FilterState>; // Explicitly type the filter property
+  filter: Partial<FilterState>;
 }
 
 interface GoalTrackerProps {
   repertoire: SetlistSong[];
-  onFilterApply: (filters: Partial<FilterState>) => void; // NEW: Callback for applying filters
+  onFilterApply: (filters: Partial<FilterState>) => void;
 }
 
 const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire, onFilterApply }) => {
@@ -35,12 +35,13 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire, onFilterApply }) 
     goalUgLinksCount,
     goalHighestNoteCount,
     goalOriginalKeyCount,
-    goalTargetKeyCount
+    goalTargetKeyCount,
+    goalPdfsCount // NEW
   } = useSettings();
 
   if (!isGoalTrackerEnabled) return null;
 
-  const stats = useMemo((): GoalStat[] => { // Add type annotation here
+  const stats = useMemo((): GoalStat[] => {
     const todayStr = new Date().toLocaleDateString('en-CA');
 
     const isToday = (timestamp: string | undefined | null) => {
@@ -55,7 +56,8 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire, onFilterApply }) 
       links: repertoire.filter(s => !!s.ugUrl && isToday(s.ug_link_updated_at)).length,
       highestNote: repertoire.filter(s => !!s.highest_note_original && isToday(s.highest_note_updated_at)).length,
       originalKey: repertoire.filter(s => s.originalKey && s.originalKey !== "TBC" && isToday(s.original_key_updated_at)).length,
-      targetKey: repertoire.filter(s => s.targetKey && s.targetKey !== "TBC" && isToday(s.target_key_updated_at)).length
+      targetKey: repertoire.filter(s => s.targetKey && s.targetKey !== "TBC" && isToday(s.target_key_updated_at)).length,
+      pdfs: repertoire.filter(s => (s.pdfUrl || s.leadsheetUrl || s.sheet_music_url) && isToday(s.pdf_updated_at)).length // NEW
     };
 
     return [
@@ -90,6 +92,16 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire, onFilterApply }) 
         filter: { hasUg: 'no' }
       },
       { 
+        label: 'PDFs Attached', 
+        icon: <FileText className="w-3 h-3" />, // NEW
+        current: counts.pdfs, 
+        target: goalPdfsCount, 
+        barColor: 'bg-blue-600',
+        textColor: 'text-blue-600',
+        lightBg: 'bg-blue-600/10',
+        filter: { hasPdf: 'no' }
+      },
+      { 
         label: 'Range Analyzed', 
         icon: <Music className="w-3 h-3" />, 
         current: counts.highestNote, 
@@ -120,7 +132,7 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire, onFilterApply }) 
         filter: { isConfirmed: 'no' }
       }
     ];
-  }, [repertoire, goalLyricsCount, goalUgChordsCount, goalUgLinksCount, goalHighestNoteCount, goalOriginalKeyCount, goalTargetKeyCount]);
+  }, [repertoire, goalLyricsCount, goalUgChordsCount, goalUgLinksCount, goalHighestNoteCount, goalOriginalKeyCount, goalTargetKeyCount, goalPdfsCount]);
 
   const overallProgress = useMemo(() => {
     const totalCurrent = stats.reduce((acc, g) => acc + Math.min(g.current, g.target), 0);
@@ -152,7 +164,7 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire, onFilterApply }) 
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 relative z-10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4 relative z-10">
         {stats.map((goal, i) => {
           const progress = goal.target > 0 ? (goal.current / goal.target) * 100 : 0;
           const isComplete = goal.current >= goal.target;
@@ -160,7 +172,7 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire, onFilterApply }) 
           return (
             <button 
               key={i} 
-              onClick={() => onFilterApply(goal.filter)} // Make clickable
+              onClick={() => onFilterApply(goal.filter)}
               className="p-4 bg-secondary/50 rounded-2xl border border-border/50 space-y-3 group hover:border-indigo-500/30 transition-all text-left"
             >
               <div className="flex items-center justify-between">
