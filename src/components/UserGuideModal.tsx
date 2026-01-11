@@ -19,7 +19,7 @@ const SHORTCUTS = [
   { key: '→', desc: 'Next Song (Performance Mode)' },
   { key: 'S', desc: 'Toggle Auto-Scroll (Performance Mode)' },
   { key: 'E', desc: 'Edit Active Song (Performance Mode)' },
-  { key: 'R', desc: 'Open Sheet Reader (Global)' },
+  { key: 'R', desc: 'Toggle Sheet Reader (Global)' },
   { key: 'H', desc: 'Toggle Repertoire Heatmap (Global)' },
   { key: 'K', desc: 'Toggle Shortcut Legend (Performance Mode)' },
   { key: 'ESC', desc: 'Exit Modals / Performance Mode' },

@@ -36,11 +36,8 @@ import LinkEditorOverlay from '@/components/LinkEditorOverlay';
 import LinkDisplayOverlay, { SheetLink } from '@/components/LinkDisplayOverlay';
 import LinkSizeModal from '@/components/LinkSizeModal';
 
-// Configure PDF.js worker source to point to the file in the public directory
-// Ensure 'pdf.worker.min.js' is copied to your project's 'public' directory.
+// Configure PDF.js worker source
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
-// console.log("[SheetReaderMode] pdfjs.GlobalWorkerOptions.workerSrc set to:", pdfjs.GlobalWorkerOptions.workerSrc); // Removed verbose log
-
 
 export type ChartType = 'pdf' | 'leadsheet' | 'chords';
 
@@ -71,7 +68,7 @@ const SheetReaderMode: React.FC = () => {
   const [isBrowserFullScreen, setIsBrowserFullScreen] = useState(false);
   const [isStudioPanelOpen, setIsStudioPanel] = useState(false);
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Changed to false
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isRepertoireSearchModalOpen, setIsRepertoireSearchModalOpen] = useState(false);
   const [isInfoOverlayVisible, setIsInfoOverlayVisible] = useState(true);
   const [isAudioPlayerVisible, setIsAudioPlayerVisible] = useState(true);
@@ -101,17 +98,14 @@ const SheetReaderMode: React.FC = () => {
 
   const currentSong = allSongs[currentIndex];
 
-  // Refs for PDF scrolling and swipe detection
   const chartContainerRef = useRef<HTMLDivElement>(null);
-  const pageRef = useRef<HTMLDivElement>(null); // Ref for the rendered PDF page div
-  const overlayWrapperRef = useRef<HTMLDivElement>(null); // NEW REF for LinkDisplayOverlay's parent
-  const swipeThreshold = 50; // Pixels for horizontal swipe to register (reduced for trackpad)
-  const navigatedRef = useRef(false); // Ref to prevent multiple navigations per swipe
+  const pageRef = useRef<HTMLDivElement>(null);
+  const overlayWrapperRef = useRef<HTMLDivElement>(null);
+  const swipeThreshold = 50;
+  const navigatedRef = useRef(false);
 
-  // Animation for horizontal drag - Removed x: springX from here
-  const [{}, api] = useSpring(() => ({ x: 0 })); // Keep api for gesture control, but not for visual x translation
+  const [{}, api] = useSpring(() => ({ x: 0 }));
 
-  // Sync state to current song's saved preference
   useEffect(() => {
     if (currentSong?.key_preference) {
       setReaderKeyPreference(currentSong.key_preference as 'sharps' | 'flats');
@@ -120,13 +114,12 @@ const SheetReaderMode: React.FC = () => {
     }
   }, [currentSong?.id, globalKeyPreference]);
 
-  // Reset PDF page and scale when current song changes
   useEffect(() => {
     setPdfCurrentPage(1);
-    setPdfNumPages(null); // Reset total pages too
-    setPdfScale(null); // NEW: Reset PDF scale
-    setPdfDocument(null); // NEW: Reset PDF document instance
-    setLinks([]); // NEW: Clear links when song changes
+    setPdfNumPages(null);
+    setPdfScale(null);
+    setPdfDocument(null);
+    setLinks([]);
   }, [currentSong?.id]);
 
   const handleLocalSongUpdate = useCallback((songId: string, updates: Partial<SetlistSong>) => {
@@ -213,31 +206,23 @@ const SheetReaderMode: React.FC = () => {
     setAudioPitch(effectivePitch);
   }, [effectivePitch, setAudioPitch]);
 
-  // NEW: Effect to load audio when currentSong changes
   useEffect(() => {
     if (currentSong) {
       const urlToLoad = currentSong.audio_url || currentSong.previewUrl;
-      
-      // 1. Apply settings immediately (these setters update the Tone.js engine directly)
       audioEngine.setPitch(currentSong.pitch || 0);
       audioEngine.setTempo(currentSong.tempo || 1); 
-        // Removed audioEngine.setVolume(currentSong.volume || -6); // REMOVED: Let useToneAudio manage its own volume state
-        audioEngine.setFineTune(currentSong.fineTune || 0);
+      audioEngine.setFineTune(currentSong.fineTune || 0);
 
-      // 2. Load audio if URL exists
       if (urlToLoad) {
-        // Removed audioEngine.resetEngine() from here.
-        // audioEngine.loadFromUrl will handle if it needs to re-fetch or just update pitch.
         audioEngine.loadFromUrl(urlToLoad, currentSong.pitch || 0);
       } else {
-        audioEngine.resetEngine(); // Keep this if there's no URL to ensure player is cleared
+        audioEngine.resetEngine();
         showWarning("Selected song has no audio link.");
       }
     } else {
-      // console.log("[SheetReaderMode] No current song, resetting audio engine."); // Removed verbose log
       audioEngine.resetEngine();
     }
-  }, [currentSong, audioEngine, showWarning]); // Add showWarning to dependencies
+  }, [currentSong, audioEngine, showWarning]);
 
   const fetchSongs = useCallback(async () => {
     if (!user) return;
@@ -251,7 +236,6 @@ const SheetReaderMode: React.FC = () => {
       let masterRepertoireList: SetlistSong[] = [];
       let activeSetlistSongsList: SetlistSong[] = [];
 
-      // Always fetch full master repertoire
       const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user_id', user.id).order('title');
       if (masterError) throw masterError;
       masterRepertoireList = (masterData || []).map((d: any) => ({
@@ -341,53 +325,9 @@ const SheetReaderMode: React.FC = () => {
           const masterSong = junction.repertoire;
           if (!masterSong) return null;
           return {
+            ...masterSong,
             id: junction.id,
             master_id: masterSong.id,
-            name: masterSong.title,
-            artist: masterSong.artist,
-            originalKey: masterSong.original_key ?? 'TBC',
-            targetKey: masterSong.target_key ?? masterSong.original_key ?? 'TBC',
-            pitch: masterSong.pitch ?? 0,
-            previewUrl: masterSong.extraction_status === 'completed' && masterSong.audio_url ? masterSong.audio_url : masterSong.preview_url,
-            youtubeUrl: masterSong.youtube_url,
-            ugUrl: masterSong.ug_url,
-            appleMusicUrl: masterSong.apple_music_url,
-            pdfUrl: masterSong.pdf_url,
-            leadsheetUrl: masterSong.leadsheet_url, // Corrected from 'master.leadsheet_url'
-            bpm: masterSong.bpm,
-            genre: masterSong.genre,
-            isSyncing: false,
-            isMetadataConfirmed: masterSong.is_metadata_confirmed,
-            isKeyConfirmed: masterSong.is_key_confirmed, // Corrected from 'master.is_key_confirmed'
-            notes: masterSong.notes,
-            lyrics: masterSong.lyrics,
-            resources: masterSong.resources || [],
-            user_tags: masterSong.user_tags || [],
-            is_pitch_linked: masterSong.is_pitch_linked ?? true,
-            duration_seconds: masterSong.duration_seconds,
-            key_preference: masterSong.key_preference,
-            is_active: masterSong.is_active,
-            isApproved: masterSong.is_approved,
-            preferred_reader: masterSong.preferred_reader,
-            ug_chords_text: masterSong.ug_chords_text,
-            ug_chords_config: masterSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
-            is_ug_chords_present: masterSong.is_ug_chords_present,
-            highest_note_original: masterSong.highest_note_original,
-            metadata_source: masterSong.metadata_source,
-            sync_status: masterSong.sync_status,
-            last_sync_log: masterSong.last_sync_log,
-            auto_synced: masterSong.auto_synced,
-            is_sheet_verified: masterSong.is_sheet_verified,
-            sheet_music_url: masterSong.sheet_music_url,
-            extraction_status: masterSong.extraction_status,
-            extraction_error: masterSong.extraction_error,
-            audio_url: masterSong.audio_url,
-            lyrics_updated_at: masterSong.lyrics_updated_at,
-            chords_updated_at: masterSong.chords_updated_at,
-            ug_link_updated_at: masterSong.ug_link_updated_at,
-            highest_note_updated_at: masterSong.highest_note_updated_at,
-            original_key_updated_at: masterSong.original_key_updated_at,
-            target_key_updated_at: masterSong.target_key_updated_at,
             isPlayed: junction.isPlayed || false,
           };
         }).filter(Boolean) as SetlistSong[];
@@ -435,7 +375,6 @@ const SheetReaderMode: React.FC = () => {
     fetchSongs();
   }, [fetchSongs, navigate]);
 
-  // NEW: Fetch links for the current song
   const fetchLinks = useCallback(async () => {
     if (!user || !currentSong?.master_id || selectedChartType === 'chords') {
       setLinks([]);
@@ -483,7 +422,7 @@ const SheetReaderMode: React.FC = () => {
     switch (selectedChartType) {
       case 'pdf': return currentSong.pdfUrl || currentSong.sheet_music_url;
       case 'leadsheet': return currentSong.leadsheetUrl;
-      case 'chords': return null; // Chords are handled by UGChordsReader
+      case 'chords': return null; 
       default: return null;
     }
   }, [currentSong, selectedChartType]);
@@ -509,10 +448,8 @@ const SheetReaderMode: React.FC = () => {
 
   const handleNext = useCallback(() => {
     if (allSongs.length > 0) {
-      // console.log(`[SheetReaderMode] handleNext called. Current index: ${currentIndex}`); // Removed verbose log
       setCurrentIndex((prevIndex) => {
         const newIndex = (prevIndex + 1) % allSongs.length;
-        // console.log(`[SheetReaderMode] New index after next: ${newIndex}`); // Removed verbose log
         return newIndex;
       });
       stopPlayback();
@@ -524,10 +461,8 @@ const SheetReaderMode: React.FC = () => {
 
   const handlePrev = useCallback(() => {
     if (allSongs.length > 0) {
-      // console.log(`[SheetReaderMode] handlePrev called. Current index: ${currentIndex}`); // Removed verbose log
       setCurrentIndex((prevIndex) => {
         const newIndex = (prevIndex - 1 + allSongs.length) % allSongs.length;
-        // console.log(`[SheetReaderMode] New index after prev: ${newIndex}`); // Removed verbose log
         return newIndex;
       });
       stopPlayback();
@@ -542,9 +477,8 @@ const SheetReaderMode: React.FC = () => {
     
     if (isStandalone) {
       setIsBrowserFullScreen(prev => !prev);
-      // For standalone, we always show info overlay by default when toggling fullscreen
       setIsInfoOverlayVisible(true); 
-      setIsAudioPlayerVisible(true); // NEW: Show audio player in standalone fullscreen
+      setIsAudioPlayerVisible(true); 
       return;
     }
 
@@ -552,17 +486,16 @@ const SheetReaderMode: React.FC = () => {
       document.documentElement.requestFullscreen().catch(err => {
         showError(`Error attempting to enable fullscreen mode: ${err.message} (${err.name})`);
       });
-      // When entering fullscreen, hide info overlay if it's a PDF/leadsheet
       if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
         setIsInfoOverlayVisible(false);
       } else {
-        setIsInfoOverlayVisible(true); // Keep visible for chords by default
+        setIsInfoOverlayVisible(true); 
       }
-      setIsAudioPlayerVisible(true); // NEW: Show audio player when entering browser fullscreen
+      setIsAudioPlayerVisible(true); 
     } else {
       document.exitFullscreen();
-      setIsInfoOverlayVisible(false); // Always hide info overlay when exiting fullscreen
-      setIsAudioPlayerVisible(false); // NEW: Hide audio player when exiting browser fullscreen
+      setIsInfoOverlayVisible(false); 
+      setIsAudioPlayerVisible(false); 
     }
   }, [selectedChartType]);
 
@@ -572,8 +505,8 @@ const SheetReaderMode: React.FC = () => {
       if (!isStandalone) {
         setIsBrowserFullScreen(!!document.fullscreenElement);
         if (!document.fullscreenElement) {
-          setIsInfoOverlayVisible(false); // Ensure info overlay is hidden when exiting fullscreen
-          setIsAudioPlayerVisible(false); // NEW: Ensure audio player is hidden when exiting fullscreen
+          setIsInfoOverlayVisible(false); 
+          setIsAudioPlayerVisible(false); 
         }
       }
     };
@@ -581,13 +514,12 @@ const SheetReaderMode: React.FC = () => {
     return () => document.removeEventListener('fullscreenchange', handleFullScreenChange);
   }, []);
 
-  // NEW: Effect to manage info overlay visibility when song or chart type changes in fullscreen
   useEffect(() => {
     if (isBrowserFullScreen) {
       if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
-        setIsInfoOverlayVisible(false); // Auto-hide for PDFs/leadsheets in fullscreen
+        setIsInfoOverlayVisible(false); 
       } else {
-        setIsInfoOverlayVisible(true); // Auto-show for chords in fullscreen
+        setIsInfoOverlayVisible(true); 
       }
     }
   }, [currentSong?.id, selectedChartType, isBrowserFullScreen]);
@@ -640,7 +572,7 @@ const SheetReaderMode: React.FC = () => {
         case 'ArrowLeft':
           e.preventDefault();
           if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
-            setPdfCurrentPage(prev => Math.max(1, prev - 1)); // Always step by 1
+            setPdfCurrentPage(prev => Math.max(1, prev - 1)); 
           } else {
             handlePrev();
           }
@@ -648,7 +580,7 @@ const SheetReaderMode: React.FC = () => {
         case 'ArrowRight':
           e.preventDefault();
           if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
-            setPdfCurrentPage(prev => Math.min(prev + 1, pdfNumPages || 999)); // Always step by 1
+            setPdfCurrentPage(prev => Math.min(prev + 1, pdfNumPages || 999)); 
           } else {
             handleNext();
           }
@@ -663,21 +595,26 @@ const SheetReaderMode: React.FC = () => {
         case 'p':
         case 'P':
           e.preventDefault();
-          setIsAudioPlayerVisible(prev => !prev); // Toggle audio player visibility
+          setIsAudioPlayerVisible(prev => !prev); 
           break;
-        case 'l': // NEW: 'L' key to toggle link editor
+        case 'r':
+        case 'R':
+          e.preventDefault();
+          navigate('/');
+          break;
+        case 'l': 
         case 'L':
           e.preventDefault();
-          if (currentChartDisplayUrl && pdfDocument) { // Use currentChartDisplayUrl here
+          if (currentChartDisplayUrl && pdfDocument) { 
             setIsLinkEditorOpen(prev => !prev);
           } else {
             showInfo("No PDF available to add links.");
           }
           break;
-        case 'e': // NEW: 'E' key to toggle link editing mode
+        case 'e': 
         case 'E':
           e.preventDefault();
-          if (currentChartDisplayUrl) { // Use currentChartDisplayUrl here
+          if (currentChartDisplayUrl) { 
             setIsEditingLinksMode(prev => !prev);
             showInfo(`Link editing mode ${isEditingLinksMode ? 'disabled' : 'enabled'}.`);
           } else {
@@ -688,9 +625,8 @@ const SheetReaderMode: React.FC = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentSong, onOpenCurrentSongStudio, handlePrev, handleNext, selectedChartType, pdfNumPages, isEditingLinksMode, currentChartDisplayUrl, onAddLink]);
+  }, [currentSong, onOpenCurrentSongStudio, handlePrev, handleNext, selectedChartType, pdfNumPages, isEditingLinksMode, currentChartDisplayUrl, onAddLink, navigate]);
 
-  // NEW: Function to calculate PDF scale
   const calculatePdfScale = useCallback(async (pdf: PDFDocumentProxy, container: HTMLDivElement, pageNumber: number) => {
     if (!container || !pdf) return;
 
@@ -706,22 +642,20 @@ const SheetReaderMode: React.FC = () => {
       const scaleX = containerWidth / pageWidth;
       const scaleY = containerHeight / pageHeight;
 
-      // Choose the smaller scale to ensure the entire page fits within the container
       setPdfScale(Math.min(scaleX, scaleY));
     } catch (error) {
       console.error("[SheetReaderMode] Error calculating PDF scale:", error);
     }
   }, []);
 
-  // NEW: Effect for ResizeObserver
   useEffect(() => {
     const container = chartContainerRef.current;
-    if (!container || !pdfDocument) return; // Use pdfDocument here
+    if (!container || !pdfDocument) return; 
 
     const resizeObserver = new ResizeObserver(entries => {
       for (let entry of entries) {
         if (entry.target === container) {
-          calculatePdfScale(pdfDocument, container, pdfCurrentPage); // Use pdfDocument and pdfCurrentPage here
+          calculatePdfScale(pdfDocument, container, pdfCurrentPage); 
         }
       }
     });
@@ -731,76 +665,68 @@ const SheetReaderMode: React.FC = () => {
     return () => {
       resizeObserver.unobserve(container);
     };
-  }, [pdfDocument, pdfCurrentPage, calculatePdfScale]); // Use pdfDocument and pdfCurrentPage in dependencies
+  }, [pdfDocument, pdfCurrentPage, calculatePdfScale]); 
 
 
-  // --- Gesture Implementation ---
   const bind = useDrag(({ first, down, movement: [mx], direction: [dx], velocity: [vx], cancel }) => {
-    // console.log(`[Drag Event] first: ${first}, down: ${down}, mx: ${mx.toFixed(2)}, dx: ${dx.toFixed(2)}, vx: ${vx.toFixed(2)}, navigatedRef: ${navigatedRef.current}`); // Removed verbose log
 
     if (first) {
-      navigatedRef.current = false; // Reset at the start of a new gesture
+      navigatedRef.current = false; 
     }
 
-    // Removed api.start({ x: down ? mx : 0, immediate: down }); to stop visual translation
-
-    if (!down) { // Drag has ended
+    if (!down) { 
       if (navigatedRef.current) {
-        navigatedRef.current = false; // Ensure reset after navigation
+        navigatedRef.current = false; 
       }
       return;
     }
 
-    // Only trigger navigation once per swipe
     if (navigatedRef.current) {
       return;
     }
 
-    const isFastSwipe = Math.abs(vx) > 0.2; // velocity in pixels/ms (adjusted for trackpad)
+    const isFastSwipe = Math.abs(vx) > 0.2; 
     const isLongSwipe = Math.abs(mx) > swipeThreshold;
     
-    // A swipe is considered valid if it's either long OR fast enough
     const shouldTriggerNavigation = isLongSwipe || isFastSwipe;
     
     if (shouldTriggerNavigation) {
-      navigatedRef.current = true; // Mark as navigated for this gesture
-      cancel(); // Stop further updates for this specific gesture
+      navigatedRef.current = true; 
+      cancel(); 
 
       const pageStep = 1;
 
-      if (dx < 0) { // Swiping left (next)
+      if (dx < 0) { 
         if (selectedChartType === 'chords') {
           handleNext();
         } else if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
           if (pdfCurrentPage < (pdfNumPages || 1)) {
             setPdfCurrentPage(prev => Math.min(prev + pageStep, pdfNumPages || 999));
           } else {
-            handleNext(); // Last PDF page, go to next song
+            handleNext(); 
           }
         }
-      } else { // Swiping right (previous)
+      } else { 
         if (selectedChartType === 'chords') {
           handlePrev();
         } else if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
           if (pdfCurrentPage > 1) {
             setPdfCurrentPage(prev => Math.max(1, prev - pageStep));
           } else {
-            handlePrev(); // First PDF page, go to previous song
+            handlePrev(); 
           }
         }
       }
-      // Removed api.start({ x: 0 }); // Snap back to original position
     }
   }, {
-    threshold: 5,         // Lower threshold for trackpad sensitivity
-    filterTaps: true,     // Ignore quick taps
-    axis: 'x',            // Lock to horizontal
+    threshold: 5,         
+    filterTaps: true,     
+    axis: 'x',            
   });
 
   const handleNavigateToPage = useCallback((pageNumber: number, x?: number, y?: number) => {
     setPdfCurrentPage(pageNumber);
     if (chartContainerRef.current && x !== undefined && y !== undefined) {
-      // Scroll to the target point, accounting for the page's position within the scrollable area
       const targetX = x * chartContainerRef.current.scrollWidth - chartContainerRef.current.clientWidth / 2;
       const targetY = y * chartContainerRef.current.scrollHeight - chartContainerRef.current.clientHeight / 2;
       chartContainerRef.current.scrollTo({
@@ -815,26 +741,24 @@ const SheetReaderMode: React.FC = () => {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-white relative">
-      {/* Sidebar */}
       <div className={cn("fixed left-0 top-0 h-full w-[300px] z-50 transition-transform duration-300", 
         isSidebarOpen && !isBrowserFullScreen ? "translate-x-0" : "-translate-x-full")}>
         <SheetReaderSidebar songs={allSongs} currentIndex={currentIndex} onSelectSong={(idx) => { setCurrentIndex(idx); stopPlayback(); }} isFullScreen={isBrowserFullScreen} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
       </div>
 
-      {/* Main Content */}
       <main className={cn("flex-1 flex flex-col overflow-hidden transition-all duration-300", 
         isSidebarOpen && !isBrowserFullScreen && "ml-[300px]")}
       >
         <SheetReaderHeader
           currentSong={currentSong!}
-          onClose={() => navigate('/')} // Keep onClose for now, might be used by other components or for a different exit strategy
+          onClose={() => navigate('/')} 
           onOpenRepertoireSearch={onOpenRepertoireSearch}
           onOpenCurrentSongStudio={onOpenCurrentSongStudio}
           isLoading={!currentSong}
-          keyPreference={globalKeyPreference} // Still pass global preference, even if not directly used in header
+          keyPreference={globalKeyPreference} 
           onUpdateKey={handleUpdateKey}
-          isFullScreen={isBrowserFullScreen} // Still pass for internal logic
-          onToggleFullScreen={toggleBrowserFullScreen} // Still pass for internal logic
+          isFullScreen={isBrowserFullScreen} 
+          onToggleFullScreen={toggleBrowserFullScreen} 
           setIsOverlayOpen={setIsOverlayOpen}
           pitch={effectivePitch}
           setPitch={setPitch}
@@ -844,34 +768,32 @@ const SheetReaderMode: React.FC = () => {
           effectiveTargetKey={effectiveTargetKey}
           isAudioPlayerVisible={isAudioPlayerVisible}
           onToggleAudioPlayer={() => setIsAudioPlayerVisible(prev => !prev)}
-          onAddLink={onAddLink} // NEW: Pass handler to open link editor
-          onToggleLinkEditMode={() => setIsEditingLinksMode(prev => !prev)} // NEW: Pass handler to toggle link edit mode
-          onOpenLinkSizeModal={() => setIsLinkSizeModalOpen(true)} // NEW: Pass handler to open link size modal
-          isEditingLinksMode={isEditingLinksMode} // NEW: Pass current link editing mode
+          onAddLink={onAddLink} 
+          onToggleLinkEditMode={() => setIsEditingLinksMode(prev => !prev)} 
+          onOpenLinkSizeModal={() => setIsLinkSizeModalOpen(true)} 
+          isEditingLinksMode={isEditingLinksMode} 
         />
 
-        {/* Chart Container */}
         <div
           ref={chartContainerRef}
           className={cn(
-            "flex-1 bg-black relative overflow-hidden", // overflow-hidden for the animated.div to handle swipe
-            isBrowserFullScreen ? "mt-0" : "mt-[72px]", // Adjusted margin-top for new header height
-            isAudioPlayerVisible && currentSong ? "pb-24" : "pb-0", // NEW: Add padding-bottom if player is visible
+            "flex-1 bg-black relative overflow-hidden", 
+            isBrowserFullScreen ? "mt-0" : "mt-[72px]", 
+            isAudioPlayerVisible && currentSong ? "pb-24" : "pb-0", 
             "overscroll-behavior-x-contain"
           )}
-          onClick={toggleBrowserFullScreen} // Add onClick handler here
+          onClick={toggleBrowserFullScreen} 
         >
           <animated.div 
             {...bind()}  
             style={{ 
-              // Removed x: springX
-              touchAction: 'none', // NEW: Disable all touch actions on this element for precise control
-              width: '100%', // Ensure it takes full width for drag context
+              touchAction: 'none', 
+              width: '100%', 
               height: '100%',
               display: 'flex', 
               justifyContent: 'center', 
-              alignItems: 'flex-start', // Changed to flex-start to allow padding-top to work
-              paddingTop: isBrowserFullScreen && isInfoOverlayVisible ? '64px' : '0px', // Dynamic padding
+              alignItems: 'flex-start', 
+              paddingTop: isBrowserFullScreen && isInfoOverlayVisible ? '64px' : '0px', 
             }} 
             className="relative"
           >
@@ -888,58 +810,55 @@ const SheetReaderMode: React.FC = () => {
                   duration={duration}
                   readerKeyPreference={readerKeyPreference}
                   onChartReady={() => setIsChartContentLoading(false)}
-                  isFullScreen={isBrowserFullScreen && !isInfoOverlayVisible} // Pass isFullScreen prop, also consider info overlay
+                  isFullScreen={isBrowserFullScreen && !isInfoOverlayVisible} 
                 />
               ) : (
                 (() => {
-                  const url = currentChartDisplayUrl; // Use currentChartDisplayUrl here
-                  // console.log("[SheetReaderMode] Attempting to load PDF from URL:", url); // Removed verbose log
+                  const url = currentChartDisplayUrl; 
                   if (url) {
                     return (
-                      <div className="w-full h-full overflow-x-auto overflow-y-hidden flex justify-center items-center relative"> {/* Add relative to this wrapper */}
+                      <div className="w-full h-full overflow-x-auto overflow-y-hidden flex justify-center items-center relative"> 
                         <Document
                           file={url}
-                          onLoadSuccess={async (pdf) => { // Store pdf instance
-                            // console.log("[SheetReaderMode] PDF Document loaded successfully. Pages:", pdf.numPages); // Removed verbose log
+                          onLoadSuccess={async (pdf) => { 
                             setPdfNumPages(pdf.numPages);
-                            setPdfDocument(pdf); // Store the PDF document instance
+                            setPdfDocument(pdf); 
                             setIsChartContentLoading(false);
                             if (chartContainerRef.current) {
                               await calculatePdfScale(pdf, chartContainerRef.current, pdfCurrentPage);
                             }
                           }}
                           onLoadError={(error) => {
-                            console.error("[SheetReaderMode] Error loading PDF Document:", error); // Log error
+                            console.error("[SheetReaderMode] Error loading PDF Document:", error); 
                             showError("Failed to load PDF document.");
                             setIsChartContentLoading(false);
                           }}
                           loading={<Loader2 className="w-12 h-12 animate-spin text-indigo-500" />}
-                          className="flex items-center justify-center w-full h-full" // Center the document itself and ensure it fills parent
+                          className="flex items-center justify-center w-full h-full" 
                         >
                           <Page
                             pageNumber={pdfCurrentPage}
-                            scale={pdfScale || 1} // NEW: Use the calculated scale
+                            scale={pdfScale || 1} 
                             renderAnnotationLayer={true}
                             renderTextLayer={true}
                             loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
                             onRenderSuccess={(page) => {
                               setIsChartContentLoading(false);
                             }}
-                            inputRef={pageRef} // Pass ref to the rendered PDF page div
+                            inputRef={pageRef} 
                           />
                         </Document>
-                        {/* NEW: LinkDisplayOverlay for PDF charts */}
-                        <div className="absolute inset-0 z-30" ref={overlayWrapperRef}> {/* New wrapper for overlay */} {/* REMOVED pointer-events-none */}
+                        <div className="absolute inset-0 z-30" ref={overlayWrapperRef}> 
                           <LinkDisplayOverlay
                             links={links}
                             currentPage={pdfCurrentPage}
                             onNavigateToPage={handleNavigateToPage}
-                            onLinkDeleted={fetchLinks} // Refresh links after deletion
+                            onLinkDeleted={fetchLinks} 
                             isEditingMode={isEditingLinksMode}
-                            onEditLink={(link) => showInfo(`Editing link ${link.id} is not yet implemented.`)} // Placeholder for edit
-                            pageContainerRef={pageRef} // Pass the ref
+                            onEditLink={(link) => showInfo(`Editing link ${link.id} is not yet implemented.`)} 
+                            pageContainerRef={pageRef} 
                             pdfScale={pdfScale}
-                            overlayWrapperRef={overlayWrapperRef} // PASS NEW REF
+                            overlayWrapperRef={overlayWrapperRef} 
                           />
                         </div>
                       </div>
@@ -1008,7 +927,6 @@ const SheetReaderMode: React.FC = () => {
 
       <PreferencesModal isOpen={isPreferencesOpen} onClose={() => setIsPreferencesOpen(false)} />
 
-      {/* NEW: Audio Player at the bottom */}
       <SheetReaderAudioPlayer
         currentSong={currentSong}
         isPlaying={isPlaying}
@@ -1028,7 +946,6 @@ const SheetReaderMode: React.FC = () => {
         isPlayerVisible={isAudioPlayerVisible && !isBrowserFullScreen}
       />
 
-      {/* NEW: Link Editor Overlay */}
       {currentChartDisplayUrl && pdfDocument && (
         <LinkEditorOverlay
           isOpen={isLinkEditorOpen}
@@ -1036,11 +953,9 @@ const SheetReaderMode: React.FC = () => {
           songId={currentSong.master_id || currentSong.id}
           chartUrl={currentChartDisplayUrl}
           onLinkCreated={fetchLinks}
-          // pdfDocument is no longer passed here
         />
       )}
 
-      {/* NEW: Link Size Modal */}
       <LinkSizeModal
         isOpen={isLinkSizeModalOpen}
         onClose={() => setIsLinkSizeModalOpen(false)}

@@ -21,8 +21,8 @@ interface FloatingCommandDockProps {
   onOpenReader: (initialSongId?: string) => void;
   onOpenAdmin: () => void;
   onOpenPreferences: () => void;
-  onToggleHeatmap: () => void;
   onOpenUserGuide: () => void;
+  onToggleHeatmap: () => void;
   showHeatmap: boolean;
   viewMode: 'repertoire' | 'gigs';
   hasPlayableSong: boolean;
@@ -175,8 +175,8 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     {
       id: 'practice',
       icon: isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />,
-      onClick: onOpenPerformance, // Changed to open PerformanceOverlay
-      disabled: false, // No longer disabled by hasPlayableSong
+      onClick: onOpenPerformance, 
+      disabled: false, 
       tooltip: isPlaying ? "Pause (Space)" : "Play (Space)",
       className: cn(
         "text-white shadow-xl scale-110",
@@ -195,8 +195,8 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
       id: 'reader',
       icon: <FileText className="w-5 h-5" />,
       onClick: () => onOpenReader(activeSongId || undefined),
-      disabled: false, // No longer disabled by hasReadableChart
-      tooltip: "Reader (R)",
+      disabled: false, 
+      tooltip: "Toggle Reader (R)",
       className: "bg-emerald-600 text-white border-emerald-500",
     },
     {
