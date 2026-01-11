@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { PDFDocumentProxy } from 'pdfjs-dist/types/src/display/api';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -21,7 +21,6 @@ import { useNavigate } from 'react-router-dom';
 import { useSpring, animated } from '@react-spring/web';
 import { useDrag } from '@use-gesture/react';
 
-// Configure PDF.js worker source
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
 const DEBUG_PDF_URL_KEY = 'debug_pdf_url';
@@ -65,7 +64,7 @@ const DebugPage: React.FC = () => {
       let songExistsInDb = false;
 
       if (currentDebugSongId) {
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from('repertoire')
           .select('id')
           .eq('id', currentDebugSongId)
@@ -74,16 +73,13 @@ const DebugPage: React.FC = () => {
 
         if (data) {
           songExistsInDb = true;
-        } else if (error && error.code !== 'PGRST116') {
-          console.error("[DebugPage] Error checking debug song existence:", error.message);
-          showError("Failed to check debug song existence.");
+        } else {
           currentDebugSongId = null;
         }
       }
 
       if (!currentDebugSongId || !songExistsInDb) {
         const newId = crypto.randomUUID();
-        console.log("[DebugPage] Creating new debug song in repertoire with ID:", newId);
         try {
           const { error: insertError } = await supabase
             .from('repertoire')
@@ -110,10 +106,8 @@ const DebugPage: React.FC = () => {
           currentDebugSongId = newId;
           localStorage.setItem(DEBUG_SONG_ID_KEY, newId);
           showSuccess("Debug song created for linking tests!");
-          console.log("[DebugPage] Debug song created with ID:", newId);
         } catch (err: any) {
-          console.error("[DebugPage] Failed to create debug song:", err.message);
-          showError("Failed to create debug song. Linking might not work.");
+          showError("Failed to create debug song.");
           return;
         }
       }
@@ -128,10 +122,8 @@ const DebugPage: React.FC = () => {
   const fetchLinks = useCallback(async () => {
     if (!user || !debugSongId || !testPdfUrl) {
       setLinks([]);
-      console.log("[DebugPage] Skipping link fetch: User, song ID, or PDF URL missing.");
       return;
     }
-    console.log("[DebugPage] Fetching links for song ID:", debugSongId);
     try {
       const { data, error } = await supabase
         .from('sheet_links')
@@ -141,9 +133,7 @@ const DebugPage: React.FC = () => {
       
       if (error) throw error;
       setLinks(data || []);
-      console.log("[DebugPage] Links fetched:", data.length);
     } catch (err: any) {
-      console.error("[DebugPage] Error fetching links:", err.message);
       showError("Failed to load links.");
     }
   }, [user, debugSongId, testPdfUrl]);
@@ -168,7 +158,6 @@ const DebugPage: React.FC = () => {
 
     setIsUploading(true);
     setPdfError(null);
-    console.log("[DebugPage] Starting PDF upload:", file.name);
 
     try {
       const fileName = `${user.id}/debug_pdf_${Date.now()}.pdf`;
@@ -186,14 +175,12 @@ const DebugPage: React.FC = () => {
       setTestPdfUrl(publicUrl);
       localStorage.setItem(DEBUG_PDF_URL_KEY, publicUrl);
       showSuccess("PDF uploaded and stored!");
-      console.log("[DebugPage] PDF uploaded successfully. URL:", publicUrl);
       setPdfDocument(null);
       setPdfCurrentPage(1);
       setPdfNumPages(null);
       setPdfScale(1.0);
       fetchLinks();
     } catch (err: any) {
-      console.error("[DebugPage] PDF upload failed:", err.message);
       showError(`PDF upload failed: ${err.message}`);
     } finally {
       setIsUploading(false);
@@ -204,7 +191,6 @@ const DebugPage: React.FC = () => {
   };
 
   const handleDocumentLoadSuccess = useCallback((pdf: PDFDocumentProxy) => {
-    console.log("[DebugPage] PDF Document loaded successfully. Pages:", pdf.numPages);
     setPdfDocument(pdf);
     setPdfNumPages(pdf.numPages);
     setIsLoadingPdf(false);
@@ -214,7 +200,6 @@ const DebugPage: React.FC = () => {
   }, [pdfCurrentPage]);
 
   const handleDocumentLoadError = useCallback((error: any) => {
-    console.error("[DebugPage] Error loading PDF Document:", error);
     setPdfError("Failed to load PDF. Please check the URL or file.");
     setIsLoadingPdf(false);
   }, []);
@@ -235,9 +220,8 @@ const DebugPage: React.FC = () => {
       const scaleY = containerHeight / pageHeight;
 
       setPdfScale(Math.min(scaleX, scaleY));
-      console.log("[DebugPage] PDF scale calculated:", Math.min(scaleX, scaleY));
     } catch (error) {
-      console.error("[DebugPage] Error calculating PDF scale:", error);
+      // Error handled silently
     }
   }, []);
 
@@ -262,13 +246,11 @@ const DebugPage: React.FC = () => {
 
   const handleNavigateToPage = useCallback((pageNumber: number, x?: number, y?: number) => {
     setPdfCurrentPage(pageNumber);
-    console.log(`[DebugPage] Navigating to page ${pageNumber} with coordinates X:${x}, Y:${y}`);
   }, []);
 
   const handleEditLink = useCallback((link: SheetLink) => {
     setEditingLink(link);
     setIsLinkEditorOpen(true);
-    console.log("[DebugPage] Editing link:", link.id);
   }, []);
 
   const handleClearStoredPdf = () => {
@@ -282,7 +264,6 @@ const DebugPage: React.FC = () => {
       setPdfError(null);
       setLinks([]);
       showSuccess("Stored PDF cleared.");
-      console.log("[DebugPage] Stored PDF URL cleared.");
     }
   };
 
@@ -293,15 +274,12 @@ const DebugPage: React.FC = () => {
     }
     if (!confirm("Are you sure you want to delete ALL links for this debug song?")) return;
 
-    console.log("[DebugPage] Deleting all links for song ID:", debugSongId);
     try {
       const { error } = await supabase.from('sheet_links').delete().eq('song_id', debugSongId).eq('user_id', user.id);
       if (error) throw error;
       showSuccess("All links deleted successfully.");
       setLinks([]);
-      console.log("[DebugPage] All links deleted.");
     } catch (err: any) {
-      console.error("[DebugPage] Failed to delete all links:", err.message);
       showError(`Failed to delete all links: ${err.message}`);
     }
   };
@@ -324,16 +302,15 @@ const DebugPage: React.FC = () => {
     return () => document.removeEventListener('fullscreenchange', handleFullScreenChange);
   }, []);
 
-  // NEW: useDrag hook for swipe navigation and tap for fullscreen
   const bind = useDrag(({ first, down, movement: [mx], direction: [dx], velocity: [vx], cancel, tap }) => {
     if (first) {
       navigatedRef.current = false;
     }
 
-    if (!down) { // Drag has ended
+    if (!down) { 
       if (navigatedRef.current) {
         navigatedRef.current = false;
-      } else if (tap) { // Check if it was a tap
+      } else if (tap) { 
         toggleFullScreen();
       }
       return;
@@ -354,11 +331,11 @@ const DebugPage: React.FC = () => {
 
       const pageStep = 1;
 
-      if (dx < 0) { // Swiping left (next page)
+      if (dx < 0) { 
         if (pdfCurrentPage < (pdfNumPages || 1)) {
           setPdfCurrentPage(prev => Math.min(prev + pageStep, pdfNumPages || 999));
         }
-      } else { // Swiping right (previous page)
+      } else { 
         if (pdfCurrentPage > 1) {
           setPdfCurrentPage(prev => Math.max(1, prev - pageStep));
         }
@@ -367,7 +344,6 @@ const DebugPage: React.FC = () => {
   }, {
     threshold: 5,
     axis: 'x',
-    // No onClick here, handled within the drag callback
   });
 
   return (
@@ -395,7 +371,6 @@ const DebugPage: React.FC = () => {
 
       {!isFullScreen && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-          {/* PDF Upload & Info */}
           <div className="lg:col-span-1 bg-card p-6 rounded-[2rem] border border-border shadow-lg space-y-6">
             <h2 className="text-xl font-black uppercase tracking-tight text-foreground">Test PDF</h2>
             <div className="space-y-4">
@@ -427,7 +402,6 @@ const DebugPage: React.FC = () => {
                   <FileText className="w-4 h-4" /> Current PDF
                 </Label>
                 <p className="text-sm font-mono text-foreground break-all">{testPdfUrl}</p>
-                <p className="text-xs text-muted-foreground">Debug Song ID: <span className="font-mono">{debugSongId}</span></p>
                 <p className="text-xs text-muted-foreground">Total Links: <span className="font-mono">{links.length}</span></p>
                 <Button variant="destructive" onClick={handleClearAllLinks} disabled={links.length === 0}>
                   <Trash2 className="w-4 h-4 mr-2" /> Delete All Links
@@ -436,7 +410,6 @@ const DebugPage: React.FC = () => {
             )}
           </div>
 
-          {/* Link Management Controls */}
           <div className="lg:col-span-2 bg-card p-6 rounded-[2rem] border border-border shadow-lg space-y-6">
             <h2 className="text-xl font-black uppercase tracking-tight text-foreground">Link Management</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -501,7 +474,6 @@ const DebugPage: React.FC = () => {
         </div>
       )}
 
-      {/* PDF Viewer */}
       <div 
         ref={pdfContainerRef} 
         className={cn(
@@ -522,7 +494,7 @@ const DebugPage: React.FC = () => {
                     display: 'flex',
                     justifyContent: 'center',
                     alignItems: 'flex-start',
-                    paddingTop: isFullScreen ? '0px' : '0px',
+                    paddingTop: '0px',
                 }}
                 className="relative"
             >
@@ -568,7 +540,6 @@ const DebugPage: React.FC = () => {
         )}
       </div>
 
-      {/* Link Editor Modal */}
       {testPdfUrl && pdfDocument && debugSongId && (
         <LinkEditorOverlay
           isOpen={isLinkEditorOpen}
@@ -580,7 +551,6 @@ const DebugPage: React.FC = () => {
         />
       )}
 
-      {/* Link Size Modal */}
       <LinkSizeModal
         isOpen={isLinkSizeModalOpen}
         onClose={() => setIsLinkSizeModalOpen(false)}

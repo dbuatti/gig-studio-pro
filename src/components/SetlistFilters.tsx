@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
@@ -35,8 +35,8 @@ export interface FilterState {
   readiness: number; 
   hasUgChords: 'all' | 'yes' | 'no';
   hasLyrics: 'all' | 'yes' | 'no';
-  hasHighestNote: 'all' | 'yes' | 'no'; // NEW
-  hasOriginalKey: 'all' | 'yes' | 'no'; // NEW
+  hasHighestNote: 'all' | 'yes' | 'no';
+  hasOriginalKey: 'all' | 'yes' | 'no';
 }
 
 export const DEFAULT_FILTERS: FilterState = {
@@ -50,8 +50,8 @@ export const DEFAULT_FILTERS: FilterState = {
   readiness: 0,
   hasUgChords: 'all',
   hasLyrics: 'all',
-  hasHighestNote: 'all', // NEW
-  hasOriginalKey: 'all', // NEW
+  hasHighestNote: 'all',
+  hasOriginalKey: 'all',
 };
 
 interface SetlistFiltersProps {
@@ -67,10 +67,6 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
       { id: 'stage-ready', name: 'Performance Ready', filters: { ...DEFAULT_FILTERS, readiness: 100, hasAudio: 'full', hasChart: 'yes', isConfirmed: 'yes', isApproved: 'yes', hasUgChords: 'yes', hasLyrics: 'yes' } }
     ];
   });
-
-  useEffect(() => {
-    console.log("[SetlistFilters] Active Filters Updated:", activeFilters);
-  }, [activeFilters]);
 
   const savePreset = () => {
     const name = prompt("Enter preset name:");
@@ -94,7 +90,6 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
     <TooltipProvider>
       <div className="space-y-6 animate-in fade-in slide-in-from-top-2 duration-500 bg-secondary p-4 rounded-2xl border border-border">
         <div className="flex flex-wrap items-center gap-3">
-          {/* Presets Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="h-9 px-4 rounded-xl border-border bg-card text-indigo-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-sm">
@@ -124,7 +119,6 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
 
           <div className="h-6 w-px bg-border mx-1 hidden md:block" />
 
-          {/* Readiness Slider - Expanded */}
           <div className="flex items-center gap-4 bg-card px-4 py-1.5 rounded-xl border border-border flex-1 min-w-[300px]">
             <div className="flex items-center gap-2 shrink-0">
                <AlertCircle className="w-3.5 h-3.5 text-orange-500" />
@@ -141,7 +135,6 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
 
           <div className="h-6 w-px bg-border mx-1 hidden lg:block" />
 
-          {/* Confirmed Toggle (Icon only) */}
           <DropdownMenu>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -169,7 +162,6 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Approved Toggle (Icon only) */}
           <DropdownMenu>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -197,7 +189,6 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Audio Toggle (Icon only) */}
           <DropdownMenu>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -226,7 +217,6 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Video Toggle (Icon only) */}
           <DropdownMenu>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -254,7 +244,6 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* PDF Toggle (Icon only) */}
           <DropdownMenu>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -282,7 +271,6 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* UG Toggle (Icon only) */}
           <DropdownMenu>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -310,7 +298,6 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* UG Chords Toggle (Icon only) */}
           <DropdownMenu>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -338,7 +325,6 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* NEW: Lyrics Toggle (Icon only) */}
           <DropdownMenu>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -366,7 +352,6 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* NEW: Highest Note Toggle (Icon only) */}
           <DropdownMenu>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -394,7 +379,6 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* NEW: Original Key Toggle (Icon only) */}
           <DropdownMenu>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -422,7 +406,6 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
             </DropdownMenuContent>
           </DropdownMenu>
 
-
           {!isDefault && (
             <Button 
               variant="ghost" 
@@ -435,7 +418,6 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
           )}
         </div>
 
-        {/* Active Filter Badges */}
         {!isDefault && (
           <div className="flex flex-wrap gap-2 px-1">
             <span className="text-[9px] font-black uppercase text-muted-foreground flex items-center gap-2 mr-2">
@@ -513,7 +495,6 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                 UG Chords: {activeFilters.hasUgChords} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
               </Badge>
             )}
-            {/* NEW: Lyrics Badge */}
             {activeFilters.hasLyrics !== 'all' && (
               <Badge 
                 variant="secondary" 
@@ -523,7 +504,6 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                 Lyrics: {activeFilters.hasLyrics} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
               </Badge>
             )}
-            {/* NEW: Highest Note Badge */}
             {activeFilters.hasHighestNote !== 'all' && (
               <Badge 
                 variant="secondary" 
@@ -533,7 +513,6 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                 Highest Note: {activeFilters.hasHighestNote} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
               </Badge>
             )}
-            {/* NEW: Original Key Badge */}
             {activeFilters.hasOriginalKey !== 'all' && (
               <Badge 
                 variant="secondary" 

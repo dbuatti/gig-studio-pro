@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Play, Pause, RotateCcw, Volume2, Waves, Settings2, Link as LinkIcon, Globe, Search, Youtube, PlusCircle, Library, Sparkles, Check, FileText, Subtitles, ChevronUp, ChevronDown, Printer, ListPlus, CloudDownload, AlertTriangle } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import AudioVisualizer from './AudioVisualizer';
-import { SongSearch } from './SongSearch'; // Corrected import to named export
+import { SongSearch } from './SongSearch';
 import MyLibrary from './MyLibrary';
 import GlobalLibrary from './GlobalLibrary';
 import SongSuggestions from './SongSuggestions';
@@ -85,20 +85,16 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
   };
 
   const loadFromUrl = async (targetUrl: string, name: string, artist: string, youtubeUrl?: string, originalKey?: string, ugUrl?: string, appleMusicUrl?: string, genre?: string, audioUrl?: string, extractionStatus?: 'idle' | 'PENDING' | 'queued' | 'processing' | 'completed' | 'failed') => {
-    console.log("[Transposer] Received request to load audio:", { targetUrl, name, artist });
-    
     resetEngine();
     const initialPitch = currentSong?.pitch || 0;
     const urlToLoad = (extractionStatus === 'completed' && audioUrl) ? audioUrl : targetUrl;
 
     if (!urlToLoad) {
-      console.warn("[Transposer] No valid URL provided for loading.");
       showError("No audio preview available for this track.");
       return;
     }
 
     try {
-      console.log("[Transposer] Invoking hookLoadFromUrl with:", urlToLoad);
       await hookLoadFromUrl(urlToLoad, initialPitch);
       
       setFile({ id: currentSong?.id, name, artist, url: targetUrl, originalKey, ugUrl, youtubeUrl, appleMusicUrl, genre, extraction_status: extractionStatus, last_sync_log: currentSong?.last_sync_log, audio_url: audioUrl });
@@ -111,12 +107,10 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
         setActiveVideoId(null);
       }
 
-      // Automatically start playback for search previews
-      console.log("[Transposer] Auto-starting playback...");
       await hookTogglePlayback();
       
     } catch (err) {
-      console.error("[Transposer] Error in loadFromUrl:", err);
+      // Error handled in hook
     }
   };
 
@@ -195,8 +189,6 @@ const AudioTransposer = forwardRef<AudioTransposerRef, AudioTransposerProps>(({
 
   return (
     <div className="flex flex-col h-full relative">
-      {/* Removed the "Performance Engine Ready" bar */}
-      
       <div className="p-6 space-y-6 pb-24 md:pb-6 bg-background">
         <div className="flex items-center justify-between">
           <div>

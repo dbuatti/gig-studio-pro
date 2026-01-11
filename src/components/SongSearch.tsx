@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Search, Music, Loader2, Youtube, ExternalLink, Link as LinkIcon, Check, PlayCircle, AlertCircle, RefreshCw, Plus, FileText, CloudDownload, AlertTriangle } from 'lucide-react'; 
+import { Search, Music, Loader2, Youtube, Link as LinkIcon, Plus, FileText } from 'lucide-react'; 
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
@@ -24,7 +24,6 @@ export const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSet
   
   const [ytSearchLoading, setYtSearchLoading] = useState(false);
   const [ytResults, setYtResults] = useState<any[]>([]);
-  const [ytError, setYtError] = useState(false);
   const [manualYtUrl, setManualYtUrl] = useState("");
   const [manualUgUrl, setManualUgUrl] = useState("");
 
@@ -45,7 +44,7 @@ export const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSet
       const data = await response.json();
       setResults(data.results || []);
     } catch (err) {
-      // Error handled by toast in parent component
+      // Handled silently
     } finally {
       setIsLoading(false);
     }
@@ -56,34 +55,14 @@ export const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSet
     performSearch(query);
   };
 
-  const openYoutubeSearch = (track: string, artist: string) => {
-    const searchQuery = encodeURIComponent(`${artist} ${track} official music video`);
-    window.open(`https://www.youtube.com/results?search_query=${searchQuery}`, '_blank');
-  };
-
-  const openUgSearch = (track: string, artist: string) => {
-    const searchQuery = encodeURIComponent(`${artist} ${track} chords`);
-    window.open(`https://www.ultimate-guitar.com/search.php?search_type=title&value=${searchQuery}`, '_blank');
-  };
-
   const fetchYoutubeResults = async (track: string, artist: string) => {
     setYtSearchLoading(true);
     setYtResults([]);
-    setYtError(false);
     
-    const proxies = [
-      "https://api.allorigins.win/get?url=",
-      "https://corsproxy.io/?"
-    ];
-    
-    const instances = [
-      'https://iv.ggtyler.dev',
-      'https://yewtu.be',
-      'https://invidious.flokinet.to'
-    ];
+    const proxies = ["https://api.allorigins.win/get?url=", "https://corsproxy.io/?"];
+    const instances = ['https://iv.ggtyler.dev', 'https://yewtu.be', 'https://invidious.flokinet.to'];
 
     let success = false;
-    
     for (const proxy of proxies) {
       if (success) break;
       for (const instance of instances) {
@@ -97,29 +76,21 @@ export const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSet
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 2500);
 
-          const response = await fetch(`${proxy}${targetUrl}`, {
-            signal: controller.signal
-          });
-          
+          const response = await fetch(`${proxy}${targetUrl}`, { signal: controller.signal });
           clearTimeout(timeoutId);
           if (!response.ok) continue;
           
           const raw = await response.json();
           const data = typeof raw.contents === 'string' ? JSON.parse(raw.contents) : raw;
-          
           const videos = data?.filter?.((item: any) => item.type === "video").slice(0, 3);
           
           if (videos && videos.length > 0) {
             setYtResults(videos);
             success = true;
           }
-        } catch (err) {
-          // Fail silently
-        }
+        } catch (err) {}
       }
     }
-
-    if (!success) setYtError(true);
     setYtSearchLoading(false);
   };
 
@@ -135,7 +106,6 @@ export const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSet
   };
 
   const handleAddClick = (song: any) => {
-    // console.log("[Search] User clicked 'Add' for song:", song.trackName); // Removed verbose log
     onAddToSetlist(
       song.previewUrl, 
       song.trackName, 
@@ -148,11 +118,6 @@ export const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSet
   };
 
   const handlePreviewClick = (song: any) => {
-    // console.log("[Search] Preview button clicked:", { // Removed verbose log
-    //   name: song.trackName,
-    //   artist: song.artistName,
-    //   previewUrl: song.previewUrl
-    // });
     onSelectSong(song.previewUrl, song.trackName, song.artistName);
   };
 
@@ -241,7 +206,6 @@ export const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSet
                           </div>
 
                           <div className="space-y-4">
-                            {/* YouTube Section */}
                             <div className="space-y-2">
                               <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                                 <Youtube className="w-3 h-3 text-destructive" /> YouTube Master / Reference
@@ -254,7 +218,6 @@ export const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSet
                               />
                             </div>
 
-                            {/* Ultimate Guitar Section */}
                             <div className="space-y-2">
                               <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                                 <FileText className="w-3 h-3 text-primary" /> Ultimate Guitar Tab
