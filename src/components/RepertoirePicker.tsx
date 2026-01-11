@@ -5,10 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { 
-  Search, Library, Plus, Check, Music, 
-  ShieldCheck, Star, X, Filter, CloudDownload, AlertTriangle 
-} from 'lucide-react';
+import { Search, Library, Plus, Check, Music, ShieldCheck, Star, X, CloudDownload, AlertTriangle } from 'lucide-react';
 import { SetlistSong } from './SetlistManager';
 import { cn } from "@/lib/utils";
 import { formatKey } from '@/utils/keyUtils';
@@ -55,13 +52,20 @@ const RepertoirePicker: React.FC<RepertoirePickerProps> = ({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-3xl w-[95vw] max-h-[85vh] bg-popover border-border text-foreground rounded-[2rem] p-0 overflow-hidden flex flex-col shadow-2xl">
         <div className="p-8 bg-indigo-600 shrink-0 relative">
-          <DialogHeader className="text-center">
-            <div className="flex items-center justify-center gap-3 mb-2">
+          <button 
+            onClick={onClose}
+            className="absolute top-6 right-6 p-2 rounded-full hover:bg-white/10 text-white/70 hover:text-white transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3 mb-2 text-2xl font-black uppercase tracking-tight text-white">
               <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">
                 <Library className="w-6 h-6 text-white" />
               </div>
-              <DialogTitle className="text-2xl font-black uppercase tracking-tight text-white">Repertoire Browser</DialogTitle>
-            </div>
+              Repertoire Browser
+            </DialogTitle>
             <DialogDescription className="text-indigo-100 font-medium">
               Push songs from your master library into your active gig.
             </DialogDescription>

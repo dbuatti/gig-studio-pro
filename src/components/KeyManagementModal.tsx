@@ -2,8 +2,7 @@
 
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Music, X, Settings2, Hash } from 'lucide-react';
+import { Music, X, Hash } from 'lucide-react';
 import { SetlistSong } from './SetlistManager';
 import { KeyPreference } from '@/hooks/use-settings';
 import KeyManagementMatrix from './KeyManagementMatrix';
@@ -32,12 +31,12 @@ const KeyManagementModal: React.FC<KeyManagementModalProps> = ({
           </button>
           
           <DialogHeader>
-            <div className="flex items-center gap-3 mb-2">
+            <DialogTitle className="flex items-center gap-3 mb-2 text-xl sm:text-2xl font-black uppercase tracking-tight text-white">
               <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">
                 <Hash className="w-6 h-6 text-white" />
               </div>
-              <DialogTitle className="text-xl sm:text-2xl font-black uppercase tracking-tight text-white">Harmonic Management Matrix</DialogTitle>
-            </div>
+              Harmonic Management Matrix
+            </DialogTitle>
             <DialogDescription className="text-indigo-100 font-medium text-xs sm:text-sm">
               Diagnose and set original and stage keys for your master repertoire.
             </DialogDescription>

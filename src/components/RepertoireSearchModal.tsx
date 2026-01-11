@@ -5,34 +5,32 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Search, Library, Music, Check, X, Star, ShieldCheck, CloudDownload, AlertTriangle, ListMusic
-} from 'lucide-react';
+import { Search, Library, Music, Check, X, Star, ShieldCheck, CloudDownload, AlertTriangle, ListMusic } from 'lucide-react';
 import { SetlistSong } from './SetlistManager';
 import { cn } from "@/lib/utils";
 import { formatKey } from '@/utils/keyUtils';
 import { useSettings } from '@/hooks/use-settings';
 import { calculateReadiness } from '@/utils/repertoireSync';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"; // NEW: Import Tabs
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"; 
 
 interface RepertoireSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
-  masterRepertoire: SetlistSong[]; // NEW: Full master repertoire
-  currentSetlistSongs: SetlistSong[]; // NEW: Songs from the current setlist (if applicable)
+  masterRepertoire: SetlistSong[]; 
+  currentSetlistSongs: SetlistSong[]; 
   onSelectSong: (song: SetlistSong) => void;
 }
 
 const RepertoireSearchModal: React.FC<RepertoireSearchModalProps> = ({
   isOpen,
   onClose,
-  masterRepertoire, // NEW
-  currentSetlistSongs, // NEW
+  masterRepertoire, 
+  currentSetlistSongs, 
   onSelectSong,
 }) => {
   const { keyPreference } = useSettings();
   const [query, setQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<'repertoire' | 'this-set'>('repertoire'); // NEW: State for active tab
+  const [activeTab, setActiveTab] = useState<'repertoire' | 'this-set'>('repertoire'); 
 
   const songsToDisplay = useMemo(() => {
     return activeTab === 'repertoire' ? masterRepertoire : currentSetlistSongs;
@@ -58,18 +56,18 @@ const RepertoireSearchModal: React.FC<RepertoireSearchModalProps> = ({
           </button>
           
           <DialogHeader>
-            <div className="flex items-center gap-3 mb-2">
+            <DialogTitle className="flex items-center gap-3 text-2xl font-black uppercase tracking-tight text-white mb-2">
               <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">
                 <Library className="w-6 h-6 text-white" />
               </div>
-              <DialogTitle className="text-2xl font-black uppercase tracking-tight text-white">Repertoire Browser</DialogTitle>
-            </div>
+              Repertoire Browser
+            </DialogTitle>
             <DialogDescription className="text-indigo-100 font-medium">
               Search and select any track from your master library.
             </DialogDescription>
           </DialogHeader>
           
-          <div className="flex flex-col gap-3 mt-6"> {/* Changed to flex-col to stack search and tabs */}
+          <div className="flex flex-col gap-3 mt-6"> 
             <div className="relative flex-1">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-300" />
               <Input
@@ -80,7 +78,6 @@ const RepertoireSearchModal: React.FC<RepertoireSearchModalProps> = ({
                 onChange={(e) => setQuery(e.target.value)}
               />
             </div>
-            {/* NEW: Tabs for modes */}
             <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'repertoire' | 'this-set')} className="w-full">
               <TabsList className="grid w-full grid-cols-2 h-10 bg-white/10 p-1 rounded-xl">
                 <TabsTrigger value="repertoire" className="text-sm font-black uppercase tracking-tight gap-2 h-8 rounded-lg">
@@ -88,7 +85,7 @@ const RepertoireSearchModal: React.FC<RepertoireSearchModalProps> = ({
                 </TabsTrigger>
                 <TabsTrigger 
                   value="this-set" 
-                  disabled={currentSetlistSongs.length === 0} // Disable if no current setlist songs
+                  disabled={currentSetlistSongs.length === 0} 
                   className="text-sm font-black uppercase tracking-tight gap-2 h-8 rounded-lg"
                 >
                   <ListMusic className="w-4 h-4" /> This Set
@@ -98,7 +95,7 @@ const RepertoireSearchModal: React.FC<RepertoireSearchModalProps> = ({
           </div>
         </div>
 
-        <div className="flex-1 overflow-hidden bg-secondary flex flex-col min-h-0"> {/* Added min-h-0 here */}
+        <div className="flex-1 overflow-hidden bg-secondary flex flex-col min-h-0"> 
           <ScrollArea className="h-full">
             <div className="p-6 space-y-2">
               {filteredItems.length > 0 ? (
@@ -109,7 +106,7 @@ const RepertoireSearchModal: React.FC<RepertoireSearchModalProps> = ({
                   const isExtractionFailed = song.extraction_status === 'failed';
 
                   return (
-                    <div // Changed from <button> to <div>
+                    <div 
                       key={song.id}
                       onClick={() => onSelectSong(song)}
                       className="w-full flex items-center gap-4 p-4 rounded-2xl transition-all border group bg-card border-border hover:border-border/50 hover:bg-accent dark:hover:bg-secondary text-left cursor-pointer"
@@ -118,7 +115,7 @@ const RepertoireSearchModal: React.FC<RepertoireSearchModalProps> = ({
                         <Music className="w-5 h-5" />
                       </div>
                       
-                      <div className="flex-1 min-w-0 max-w-[60%]"> {/* Added max-w to force truncation */}
+                      <div className="flex-1 min-w-0 max-w-[60%]"> 
                         <div className="flex items-center gap-2">
                           <h4 className="font-black text-sm uppercase tracking-tight truncate line-clamp-1 text-foreground flex-1 min-w-0">{song.name}</h4>
                           {readiness === 100 && <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />}

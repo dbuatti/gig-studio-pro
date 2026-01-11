@@ -1,47 +1,16 @@
 "use client";
 
 import React, { useState, useEffect, useTransition, useRef } from 'react'; 
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogDescription 
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { 
-  ShieldAlert, 
-  Loader2,
-  ShieldCheck,
-  History,
-  CheckCircle2,
-  Database,
-  Terminal,
-  AlertCircle,
-  Upload,
-  Zap,
-  HardDriveDownload,
-  AlertTriangle,
-  Play,
-  Settings2,
-  Wand2,
-  Box,
-  Link2,
-  Undo2,
-  Download,
-  CloudDownload,
-  RefreshCcw,
-  Activity
-} from 'lucide-react';
+import { ShieldAlert, Loader2, ShieldCheck, History, CheckCircle2, Database, Terminal, Upload, Zap, HardDriveDownload, AlertTriangle, Play, Wand2, Link2, Undo2, Download, CloudDownload, RefreshCcw, Activity } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError, showInfo } from '@/utils/toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { useAuth } from './AuthProvider';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { cleanYoutubeUrl } from '@/utils/youtubeUtils';
 
 interface AdminPanelProps {
   isOpen: boolean;
@@ -58,7 +27,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
   const [activeTab, setActiveTab] = useState<AdminTab>('vault');
   const [isPending, startTransition] = useTransition(); 
   
-  // Vault State
   const [isUploading, setIsUploading] = useState(false);
   const [cookieMetadata, setCookieMetadata] = useState<{
     size: number;
@@ -67,21 +35,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null); 
 
-  // Maintenance / Bulk Extraction State
   const [isQueuingAllExtraction, setIsQueuingAllExtraction] = useState(false); 
   const [isQueuingMissingExtraction, setIsQueuingMissingExtraction] = useState(false); 
   const [isQueuingStuckExtraction, setIsQueuingStuckExtraction] = useState(false); 
   const [maintenanceSongs, setMaintenanceSongs] = useState<any[]>([]);
   const [isWakingServer, setIsWakingServer] = useState(false);
 
-  // Automation State
   const [isAutoSyncing, setIsAutoSyncing] = useState(false);
   const [isPopulatingLinks, setIsPopulatingLinks] = useState(false);
   const [isClearingLinks, setIsClearingLinks] = useState(false);
   const [overwriteExisting, setOverwriteExisting] = useState(false);
   const [syncBatchSize, setSyncBatchSize] = useState(5);
 
-  // GitHub State
   const [githubToken, setGithubToken] = useState("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");
   const [githubRepo, setGithubRepo] = useState("dbuatti/yt-audio-api");
   const [githubFile, setGithubFile] = useState("cookies.txt");
@@ -477,18 +442,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent 
         className="max-w-6xl w-[95vw] h-[95vh] md:h-[92vh] bg-slate-950 border-white/10 text-white rounded-[2rem] p-0 overflow-hidden shadow-2xl flex flex-col"
-        aria-labelledby="admin-panel-title"
-        aria-describedby="admin-panel-description"
       >
         <div className="bg-red-600 p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between shrink-0 gap-4">
           <div className="flex items-center gap-4 md:gap-6">
             <div className="bg-white/20 p-2 md:p-3 rounded-2xl backdrop-blur-md">
               <ShieldAlert className="w-6 h-6 md:w-8 md:h-8 text-white" />
             </div>
-            <div>
-              <DialogTitle id="admin-panel-title" className="text-xl md:text-2xl font-black uppercase tracking-tight">System Core Admin</DialogTitle>
-              <DialogDescription id="admin-panel-description" className="text-red-100 font-medium text-xs md:text-sm">Infrastructure Maintenance</DialogDescription>
-            </div>
+            <DialogHeader>
+              <DialogTitle className="text-xl md:text-2xl font-black uppercase tracking-tight text-white">System Core Admin</DialogTitle>
+              <DialogDescription className="text-red-100 font-medium text-xs md:text-sm">Infrastructure Maintenance</DialogDescription>
+            </DialogHeader>
           </div>
           <div className="flex gap-2 bg-black/20 p-1 rounded-xl overflow-x-auto no-scrollbar self-start md:self-center">
              <Button 
@@ -680,12 +643,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
                           <input type="file" accept=".txt" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleSupabaseUpload(f); }} className="hidden" id="v-upload" ref={fileInputRef} />
                           <Button onClick={() => document.getElementById('v-upload')?.click()} disabled={isPending} className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 h-10 px-8 rounded-xl font-black uppercase text-[10px] shadow-lg">Upload Cookies.txt</Button>
                         </div>
-                        {isUploading || isPending && (
+                        {isUploading || (isPending && (
                           <div className="flex flex-col items-center py-12 gap-4">
                             <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
                             <p className="text-[10px] font-black uppercase tracking-widest animate-pulse text-indigo-400">Syncing Vault...</p>
                           </div>
-                        )}
+                        ))}
                         {cookieMetadata && (
                           <div className="space-y-4 animate-in slide-in-from-top-2">
                             <div className="space-y-1">

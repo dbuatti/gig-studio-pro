@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { Ruler, X, Check } from 'lucide-react';
+import { Ruler, Check } from 'lucide-react';
 import { useSettings } from '@/hooks/use-settings';
 import { cn } from '@/lib/utils';
 import { showSuccess } from '@/utils/toast';
@@ -13,17 +13,17 @@ import { showSuccess } from '@/utils/toast';
 interface LinkSizeModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onLinkSizeUpdated: () => void; // NEW: Callback to trigger parent refresh
+  onLinkSizeUpdated: () => void; 
 }
 
 const LinkSizeModal: React.FC<LinkSizeModalProps> = ({ isOpen, onClose, onLinkSizeUpdated }) => {
   const { linkSize, setLinkSize, updateAllSheetLinksSize } = useSettings();
 
   const handleSave = async () => {
-    await setLinkSize(linkSize); // Update user profile setting
-    await updateAllSheetLinksSize(linkSize); // Update all existing links in DB
+    await setLinkSize(linkSize); 
+    await updateAllSheetLinksSize(linkSize); 
     showSuccess("Link size updated!");
-    onLinkSizeUpdated(); // Trigger parent to re-fetch links
+    onLinkSizeUpdated(); 
     onClose();
   };
 
@@ -38,17 +38,15 @@ const LinkSizeModal: React.FC<LinkSizeModalProps> = ({ isOpen, onClose, onLinkSi
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent 
         className="max-w-md bg-popover text-foreground border-border rounded-[2rem]"
-        aria-labelledby="link-size-title"
-        aria-describedby="link-size-description"
       >
         <DialogHeader>
-          <div className="flex items-center gap-3 mb-2">
+          <DialogTitle className="flex items-center gap-3 text-2xl font-black uppercase tracking-tight">
             <div className="bg-indigo-600 p-2 rounded-xl">
               <Ruler className="w-5 h-5 text-white" />
             </div>
-            <DialogTitle id="link-size-title" className="text-2xl font-black uppercase tracking-tight">Link & Button Size</DialogTitle>
-          </div>
-          <DialogDescription id="link-size-description" className="text-muted-foreground">
+            Link & Button Size
+          </DialogTitle>
+          <DialogDescription className="text-muted-foreground">
             Adjust the visual size of interactive elements on your sheet music.
           </DialogDescription>
         </DialogHeader>

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Settings, ShieldCheck, QrCode, Trash2, Edit3, X } from 'lucide-react';
+import { Settings, ShieldCheck, Trash2, Edit3, X } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import GigSessionManager from './GigSessionManager';
 
@@ -29,8 +29,6 @@ const SetlistSettingsModal: React.FC<SetlistSettingsModalProps> = ({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent 
         className="max-w-2xl w-[90vw] bg-popover border-border text-foreground rounded-[2rem] p-0 overflow-hidden flex flex-col shadow-2xl"
-        aria-labelledby="setlist-settings-title"
-        aria-describedby="setlist-settings-description"
       >
         <div className="p-8 bg-indigo-600 shrink-0 relative">
           <button 
@@ -41,20 +39,19 @@ const SetlistSettingsModal: React.FC<SetlistSettingsModalProps> = ({
           </button>
           
           <DialogHeader>
-            <div className="flex items-center gap-3 mb-2">
+            <DialogTitle className="flex items-center gap-3 mb-2 text-2xl font-black uppercase tracking-tight text-white">
               <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">
                 <Settings className="w-6 h-6 text-white" />
               </div>
-              <DialogTitle id="setlist-settings-title" className="text-2xl font-black uppercase tracking-tight text-white">Setlist Settings</DialogTitle>
-            </div>
-            <DialogDescription id="setlist-settings-description" className="text-indigo-100 font-medium">
+              Setlist Settings
+            </DialogTitle>
+            <DialogDescription className="text-indigo-100 font-medium">
               Administrative controls and public access for <span className="text-white font-bold">"{setlistName}"</span>.
             </DialogDescription>
           </DialogHeader>
         </div>
 
         <div className="p-8 space-y-10 overflow-y-auto custom-scrollbar">
-          {/* Section: Management */}
           <section className="space-y-4">
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Core Management</h4>
             <div className="grid grid-cols-2 gap-4">
@@ -75,7 +72,6 @@ const SetlistSettingsModal: React.FC<SetlistSettingsModalProps> = ({
             </div>
           </section>
 
-          {/* Section: Gig Access (Relocated) */}
           <section className="space-y-4">
             <div className="flex items-center justify-between">
               <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Public Setlist Portals</h4>

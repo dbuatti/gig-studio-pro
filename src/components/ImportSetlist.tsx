@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { ClipboardPaste, AlertCircle, HelpCircle, ListPlus, Youtube, Wand2, Music } from 'lucide-react';
+import { ClipboardPaste, AlertCircle, ListPlus, Youtube, Wand2, Music } from 'lucide-react';
 import { SetlistSong } from './SetlistManager';
 
 interface ImportSetlistProps {
@@ -29,45 +29,29 @@ const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport, isOpen, onClose
       let originalKey = "C";
       let youtubeUrl = undefined;
 
-      // Pattern 1: Markdown Table | # | Title | Artist | Key | ...
       if (line.includes('|') && !line.includes('---') && !line.includes('Song Title')) {
         const columns = line.split('|').map(c => c.trim()).filter(c => c !== "");
         if (columns.length >= 2) {
-          // Detect if col 0 is a number, if so shift
           const startIdx = /^\d+$/.test(columns[0]) ? 1 : 0;
           title = columns[startIdx].replace(/\*\*/g, '');
           artist = columns[startIdx + 1]?.replace(/\*\*/g, '') || "Unknown Artist";
-          
-          // Look for key in remaining columns
           const possibleKey = columns.find((c, i) => i > startIdx + 1 && /^[A-G][#b]?m?$/.test(c));
           if (possibleKey) originalKey = possibleKey;
         }
-      } 
-      // Pattern 2: OnSong / Standard List "Artist - Title" or "Title - Artist"
-      else if (line.includes(' - ')) {
+      } else if (line.includes(' - ')) {
         const parts = line.split(' - ').map(p => p.trim());
-        // Simple heuristic: Usually longer part or part with spaces is title, 
-        // but often it's Artist - Title.
         artist = parts[0];
         title = parts[1];
-        
-        // Check for trailing key like "Artist - Title (G)"
         const keyMatch = line.match(/\((([A-G][#b]?m?))\)$/);
         if (keyMatch) originalKey = keyMatch[1];
-      }
-      // Pattern 3: Simple "Title by Artist"
-      else if (line.toLowerCase().includes(' by ')) {
+      } else if (line.toLowerCase().includes(' by ')) {
         const parts = line.split(/ by /i).map(p => p.trim());
         title = parts[0];
         artist = parts[1];
-      }
-      // Pattern 4: Just the title (with optional number prefix)
-      else {
-        // Remove leading numbers like "01. " or "1) "
+      } else {
         title = line.replace(/^\d+[\.\)\-\s]+/, '');
       }
 
-      // Cleanup Title/Artist (remove quotes, etc)
       title = title.replace(/^["']|["']$/g, '').trim();
       artist = artist.replace(/^["']|["']$/g, '').trim();
 
