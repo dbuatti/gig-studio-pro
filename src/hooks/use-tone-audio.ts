@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import * as Tone from 'tone';
 import { showSuccess, showError } from '@/utils/toast';
@@ -20,7 +22,6 @@ export interface AudioEngineControls {
   setVolume: (v: number) => void;
   setFineTune: (f: number) => void;
   setProgress: (p: number) => void;
-  // NEW: Compressor controls
   setCompressorThreshold: (t: number) => void;
   setCompressorRatio: (r: number) => void;
   
@@ -31,32 +32,35 @@ export interface AudioEngineControls {
   resetEngine: () => void;
 }
 
-export function useToneAudio(suppressToasts: boolean = false): AudioEngineControls {
+export function useToneAudio(suppressToasts: boolean = false, onEnded?: () => void): AudioEngineControls {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [pitch, setPitchState] = useState(0);
   const [fineTune, setFineTuneState] = useState(0);
   const [tempo, setTempoState] = useState(1);
-  const [volume, setVolumeState] = useState(-6); // Initial default volume
+  const [volume, setVolumeState] = useState(-6); 
   const [currentUrl, setCurrentUrlState] = useState<string>("");
   const [isLoadingAudio, setIsLoadingAudioState] = useState(false);
-  // NEW: Compressor state
   const [compressorThreshold, setCompressorThresholdState] = useState(-24);
   const [compressorRatio, setCompressorRatioState] = useState(4);
 
-  // Refs for internal state tracking to stabilize callbacks
   const currentUrlRef = useRef<string>("");
   const isLoadingAudioRef = useRef<boolean>(false);
   const playerRef = useRef<Tone.GrainPlayer | null>(null);
   const analyzerRef = useRef<Tone.Analyser | null>(null);
   const currentBufferRef = useRef<AudioBuffer | null>(null);
   const requestRef = useRef<number>();
-  // NEW: Compressor ref
   const compressorRef = useRef<Tone.Compressor | null>(null);
-  
+  const onEndedRef = useRef<(() => void) | undefined>(onEnded);
+
   const playbackStartTimeRef = useRef<number>(0);
   const playbackOffsetRef = useRef<number>(0);
+
+  // Sync onEnded callback to ref to avoid stale closure issues
+  useEffect(() => {
+    onEndedRef.current = onEnded;
+  }, [onEnded]);
 
   const initEngine = useCallback(async () => {
     if (Tone.getContext().state !== 'running') {
@@ -64,16 +68,14 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     }
     if (!analyzerRef.current) {
       analyzerRef.current = new Tone.Analyser("fft", 256);
-      // Analyzer does not connect to destination directly, it's for visualization
     }
-    // NEW: Initialize compressor and connect it to destination
     if (!compressorRef.current) {
       compressorRef.current = new Tone.Compressor({
         threshold: compressorThreshold,
         ratio: compressorRatio,
         attack: 0.003,
         release: 0.25
-      }).toDestination(); // Connect compressor to destination here
+      }).toDestination();
     }
     return true;
   }, [compressorThreshold, compressorRatio]);
@@ -102,7 +104,7 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     return () => {
       resetEngine();
       analyzerRef.current?.dispose();
-      compressorRef.current?.dispose(); // NEW: Dispose compressor
+      compressorRef.current?.dispose();
     };
   }, [resetEngine]);
 
@@ -112,7 +114,6 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     }
   }, [volume]);
 
-  // NEW: Update compressor settings when state changes
   useEffect(() => {
     if (compressorRef.current) {
       compressorRef.current.threshold.value = compressorThreshold;
@@ -121,8 +122,6 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
   }, [compressorThreshold, compressorRatio]);
 
   const loadAudioBuffer = useCallback((audioBuffer: AudioBuffer, initialPitch: number = 0) => {
-    
-    // Reset player but keep loading status for a moment
     if (playerRef.current) {
       playerRef.current.stop();
       playerRef.current.dispose();
@@ -130,19 +129,11 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     }
     
     currentBufferRef.current = audioBuffer;
-    
-    // Ensure engine is initialized before creating player and connecting nodes
-    // This is crucial to ensure Tone.getContext() is valid
-    initEngine(); // Call initEngine to ensure context and nodes are ready
+    initEngine();
 
     playerRef.current = new Tone.GrainPlayer(audioBuffer);
-    
-    // Connect player to analyzer for visualization (parallel path)
     playerRef.current.connect(analyzerRef.current!); 
-    
-    // Connect player to compressor (main audio path)
     playerRef.current.connect(compressorRef.current!);
-
     playerRef.current.grainSize = 0.18;
     playerRef.current.overlap = 0.1;
     
@@ -153,7 +144,7 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     
     playerRef.current.detune = (initialPitch * 100);
     playerRef.current.playbackRate = 1;
-    playerRef.current.volume.value = volume; // Use the current volume state
+    playerRef.current.volume.value = volume;
     
     isLoadingAudioRef.current = false;
     setIsLoadingAudioState(false);
@@ -161,16 +152,11 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     if (!suppressToasts) {
       showSuccess("Audio Loaded");
     }
-  }, [volume, suppressToasts, initEngine]); // Add initEngine to dependencies
+  }, [volume, suppressToasts, initEngine]);
 
   const loadFromUrl = useCallback(async (url: string, initialPitch: number = 0, force: boolean = false) => {
-    if (!url) {
-      return;
-    }
-
-    // Use refs to bail early if already loading or same URL is loaded
+    if (!url) return;
     if (!force && (isLoadingAudioRef.current || (url === currentUrlRef.current && currentBufferRef.current))) {
-      // If we bail, ensure pitch is still applied in case it changed since load
       if (playerRef.current) {
         playerRef.current.detune = (initialPitch * 100) + fineTune;
         setPitchState(initialPitch);
@@ -184,57 +170,21 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     setIsLoadingAudioState(true);
     
     try {
-      // Ensure Tone.js context is running before decoding audio
-      await initEngine(); // Ensure engine is initialized and context is running
-
+      await initEngine();
       const response = await fetch(url);
-      if (!response.ok) {
-        console.error(`[AudioEngine] Fetch failed with status: ${response.status} ${response.statusText}. URL: ${url}`);
-        throw new Error(`Fetch error: ${response.status}`);
-      }
-      
+      if (!response.ok) throw new Error(`Fetch error: ${response.status}`);
       const arrayBuffer = await response.arrayBuffer();
       const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
       loadAudioBuffer(audioBuffer, initialPitch);
     } catch (err) {
-      console.error("[AudioEngine] Fatal error during loadFromUrl:", err);
+      console.error("[AudioEngine] Error loadFromUrl:", err);
       showError("Audio load failed.");
       currentUrlRef.current = "";
       setCurrentUrlState("");
       isLoadingAudioRef.current = false;
       setIsLoadingAudioState(false);
     } 
-  }, [loadAudioBuffer, fineTune, pitch, initEngine]); // Add initEngine to dependencies
-
-  const togglePlayback = useCallback(async () => {
-    await initEngine();
-
-    if (!playerRef.current) {
-      if (currentUrlRef.current && !isLoadingAudioRef.current) {
-        // Attempt to load audio if URL is set but player isn't ready
-        await loadFromUrl(currentUrlRef.current, pitch, true);
-      }
-    }
-
-    if (!playerRef.current) {
-      showError("No audio loaded to play.");
-      console.error("[AudioEngine] Playback failed: No audio buffer available.");
-      return;
-    }
-
-    if (isPlaying) {
-      playerRef.current.stop();
-      const elapsed = (Tone.now() - playbackStartTimeRef.current) * tempo;
-      playbackOffsetRef.current += elapsed;
-      setIsPlaying(false);
-    } else {
-      const startTime = (progress / 100) * duration;
-      playbackOffsetRef.current = startTime;
-      playbackStartTimeRef.current = Tone.now();
-      playerRef.current.start(0, startTime);
-      setIsPlaying(true);
-    }
-  }, [isPlaying, progress, duration, tempo, initEngine, loadFromUrl, pitch]);
+  }, [loadAudioBuffer, fineTune, initEngine]);
 
   const stopPlayback = useCallback(() => {
     if (playerRef.current) {
@@ -253,6 +203,9 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
       
       if (currentSeconds >= duration) {
         stopPlayback();
+        if (onEndedRef.current) {
+          onEndedRef.current();
+        }
         return;
       }
       
@@ -267,6 +220,27 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
     }
     return () => { if (requestRef.current) cancelAnimationFrame(requestRef.current); };
   }, [isPlaying, animateProgress]);
+
+  const togglePlayback = useCallback(async () => {
+    await initEngine();
+    if (!playerRef.current && currentUrlRef.current && !isLoadingAudioRef.current) {
+      await loadFromUrl(currentUrlRef.current, pitch, true);
+    }
+    if (!playerRef.current) return;
+
+    if (isPlaying) {
+      playerRef.current.stop();
+      const elapsed = (Tone.now() - playbackStartTimeRef.current) * tempo;
+      playbackOffsetRef.current += elapsed;
+      setIsPlaying(false);
+    } else {
+      const startTime = (progress / 100) * duration;
+      playbackOffsetRef.current = startTime;
+      playbackStartTimeRef.current = Tone.now();
+      playerRef.current.start(0, startTime);
+      setIsPlaying(true);
+    }
+  }, [isPlaying, progress, duration, tempo, initEngine, loadFromUrl, pitch]);
 
   const setPitch = useCallback((p: number) => {
     setPitchState(p);
@@ -305,44 +279,18 @@ export function useToneAudio(suppressToasts: boolean = false): AudioEngineContro
         playerRef.current.stop();
         playbackStartTimeRef.current = Tone.now();
         playerRef.current.start(0, offset);
-      } else {
-        // If not playing, just update the offset for when play is next pressed
       }
     }
   }, [duration, isPlaying]);
 
-  // NEW: Setters for compressor
-  const setCompressorThreshold = useCallback((t: number) => {
-    setCompressorThresholdState(t);
-  }, []);
-
-  const setCompressorRatio = useCallback((r: number) => {
-    setCompressorRatioState(r);
-  }, []);
+  const setCompressorThreshold = useCallback((t: number) => setCompressorThresholdState(t), []);
+  const setCompressorRatio = useCallback((r: number) => setCompressorRatioState(r), []);
 
   return {
-    isPlaying,
-    progress,
-    duration,
-    pitch,
-    tempo,
-    volume,
-    fineTune,
-    analyzer: analyzerRef.current,
-    currentBuffer: currentBufferRef.current,
-    currentUrl,
-    isLoadingAudio,
-    setPitch,
-    setTempo,
-    setVolume,
-    setFineTune,
-    setProgress: setProgressHandler,
-    setCompressorThreshold, // NEW
-    setCompressorRatio,     // NEW
-    loadAudioBuffer,
-    loadFromUrl,
-    togglePlayback,
-    stopPlayback,
-    resetEngine,
+    isPlaying, progress, duration, pitch, tempo, volume, fineTune,
+    analyzer: analyzerRef.current, currentBuffer: currentBufferRef.current,
+    currentUrl, isLoadingAudio, setPitch, setTempo, setVolume, setFineTune,
+    setProgress: setProgressHandler, setCompressorThreshold, setCompressorRatio,
+    loadAudioBuffer, loadFromUrl, togglePlayback, stopPlayback, resetEngine,
   };
 }
