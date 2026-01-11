@@ -6,10 +6,10 @@ import { ArrowLeft, Check, Sparkles, Loader2, AlertCircle, ShieldAlert, Globe, X
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useToneAudio } from '@/hooks/use-tone-audio';
+import { useToneAudio, AudioEngineControls } from '@/hooks/use-tone-audio';
 import { useSettings } from '@/hooks/use-settings';
 import { SetlistSong, Setlist } from '@/components/SetlistManager';
-import { syncToMasterRepertoire } from '@/utils/repertoireSync';
+import { calculateReadiness, syncToMasterRepertoire } from '@/utils/repertoireSync';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { showError, showSuccess } from '@/utils/toast';
 import StudioTabContent from '@/components/StudioTabContent';
@@ -23,7 +23,7 @@ import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
 import { extractKeyFromChords } from '@/utils/chordUtils';
 import ProSyncSearch from './ProSyncSearch'; 
 import { formatKey } from '@/utils/keyUtils';
-import SongStudioConsolidatedHeader from '@/components/SongStudioConsolidatedHeader'; // Import the new consolidated header
+import SongStudioConsolidatedHeader from '@/components/SongStudioConsolidatedHeader';
 
 export type StudioTab = 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library';
 
@@ -36,11 +36,12 @@ interface SongStudioViewProps {
   visibleSongs?: SetlistSong[];
   onSelectSong?: (id: string) => void;
   allSetlists?: Setlist[];
-  masterRepertoire?: SetlistSong[]; // Corrected type
+  masterRepertoire?: SetlistSong[];
   onUpdateSetlistSongs?: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>;
   defaultTab?: StudioTab;
   handleAutoSave?: (updates: Partial<SetlistSong>) => void;
-  preventStageKeyOverwrite?: boolean; // NEW: Add this prop
+  preventStageKeyOverwrite?: boolean;
+  audioEngine?: AudioEngineControls; // Shared engine from parent
 }
 
 const SongStudioView: React.FC<SongStudioViewProps> = ({
@@ -56,16 +57,20 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   onUpdateSetlistSongs,
   defaultTab,
   handleAutoSave: externalAutoSave,
-  preventStageKeyOverwrite, // NEW: Destructure the prop
+  preventStageKeyOverwrite,
+  audioEngine: externalAudioEngine,
 }) => {
   const isMobile = useIsMobile();
   const { user } = useAuth();
-  const { keyPreference: globalKeyPreference } = useSettings(); // Removed preventStageKeyOverwrite from here
-  const audio = useToneAudio();
+  const { keyPreference: globalKeyPreference } = useSettings();
+  
+  // Use external engine if provided, otherwise create local one
+  const internalAudio = useToneAudio();
+  const audio = externalAudioEngine || internalAudio;
   
   const [song, setSong] = useState<SetlistSong | null>(null);
   const [formData, setFormData] = useState<Partial<SetlistSong>>({});
-  const [activeTab, setActiveTab] = useState<StudioTab>(defaultTab || 'config'); // Set default to 'config'
+  const [activeTab, setActiveTab] = useState<StudioTab>(defaultTab || 'config');
   const [loading, setLoading] = useState(true);
   const [activeChartType, setActiveChartType] = useState<'pdf' | 'leadsheet' | 'web' | 'ug'>('pdf');
   const [isProSyncOpen, setIsProSyncOpen] = useState(false); 
@@ -84,7 +89,6 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
 
     try {
       lastPendingUpdatesRef.current = {};
-      // Pass only the delta plus identifying fields for upsert consistency
       const identifyingUpdates = {
         ...currentUpdates,
         name: currentUpdates.name || targetSong.name,
@@ -96,9 +100,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
 
       setSong(syncedSong);
       setFormData(prev => ({ ...prev, ...currentUpdates, master_id: syncedSong.master_id }));
-    } catch (err: any) {
-      // Failure handled silently or via toast
-    }
+    } catch (err: any) {}
   };
 
   const handleAutoSave = useCallback((updates: Partial<SetlistSong>) => {
@@ -118,9 +120,12 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     if (Object.keys(pending).length > 0) {
       performSave(pending);
     }
-    audio.stopPlayback();
+    // Only stop if we're using the INTERNAL engine
+    if (!externalAudioEngine) {
+      audio.stopPlayback();
+    }
     onClose();
-  }, [onClose, audio, performSave]);
+  }, [onClose, audio, performSave, externalAudioEngine]);
 
   const fetchData = async () => {
     if (!user) return;
@@ -130,7 +135,6 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
       setSong(null);
       setFormData({});
       setLoading(false);
-      audio.stopPlayback();
       return;
     }
 
@@ -143,18 +147,15 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     try {
       const { data, error } = await supabase.from('repertoire').select('*').eq('id', songId).maybeSingle();
       if (error) throw error;
-      if (!data) {
-        showError("Error: The requested track could not be found.");
-        throw new Error("Track not found.");
-      }
+      if (!data) throw new Error("Track not found.");
 
       const targetSong: SetlistSong = {
         id: data.id, 
         master_id: data.id,
         name: data.title,
         artist: data.artist,
-        originalKey: data.original_key !== null ? data.original_key : 'TBC', 
-        targetKey: data.target_key !== null ? data.target_key : (data.original_key !== null ? data.original_key : 'TBC'), 
+        originalKey: data.original_key || 'TBC', 
+        targetKey: data.target_key || data.original_key || 'TBC', 
         pitch: data.pitch ?? 0,
         previewUrl: data.extraction_status === 'completed' && data.audio_url ? data.audio_url : data.preview_url,
         youtubeUrl: data.youtube_url,
@@ -184,31 +185,21 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
         ug_chords_config: data.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
         is_ug_chords_present: data.is_ug_chords_present,
         highest_note_original: data.highest_note_original,
-        is_ug_link_verified: data.is_ug_link_verified,
-        metadata_source: data.metadata_source,
-        sync_status: data.sync_status,
-        last_sync_log: data.last_sync_log,
-        auto_synced: data.auto_synced,
-        is_sheet_verified: data.is_sheet_verified,
-        sheet_music_url: data.sheet_music_url,
-        extraction_status: data.extraction_status,
-        extraction_error: data.extraction_error,
         audio_url: data.audio_url,
-        lyrics_updated_at: data.lyrics_updated_at,
-        chords_updated_at: data.chords_updated_at,
-        ug_link_updated_at: data.ug_link_updated_at,
-        highest_note_updated_at: data.highest_note_updated_at,
-        original_key_updated_at: data.original_key_updated_at,
-        target_key_updated_at: data.target_key_updated_at,
-        pdf_updated_at: data.pdf_updated_at,
+        extraction_status: data.extraction_status,
       };
       
       setSong(targetSong);
       setFormData(targetSong);
       
-      if (targetSong.audio_url || targetSong.previewUrl) {
-        const urlToLoad = targetSong.audio_url || targetSong.previewUrl;
-        await audio.loadFromUrl(urlToLoad, targetSong.pitch ?? 0, true);
+      // OPTIMIZATION: Only auto-load if we're on the audio/config tabs AND the song being edited 
+      // isn't the one already playing in the shared engine.
+      const isAudioContext = activeTab === 'audio' || activeTab === 'config';
+      const audioUrl = targetSong.audio_url || targetSong.previewUrl;
+      const isDifferentUrl = audioUrl && audioUrl !== audio.currentUrl;
+
+      if (isAudioContext && isDifferentUrl) {
+        await audio.loadFromUrl(audioUrl, targetSong.pitch ?? 0, true);
       }
     } catch (err: any) {
       onClose();
@@ -219,15 +210,19 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
 
   useEffect(() => {
     fetchData();
-    return () => {
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-      const pending = lastPendingUpdatesRef.current;
-      if (Object.keys(pending).length > 0) {
-        performSave(pending);
-      }
-      audio.stopPlayback();
-    };
   }, [songId, gigId]);
+
+  // Load audio if user switches to playback tabs after initial fetch
+  useEffect(() => {
+    if (loading || !song) return;
+    const isAudioContext = activeTab === 'audio' || activeTab === 'config';
+    const audioUrl = song.audio_url || song.previewUrl;
+    const isDifferentUrl = audioUrl && audioUrl !== audio.currentUrl;
+
+    if (isAudioContext && isDifferentUrl) {
+      audio.loadFromUrl(audioUrl, song.pitch ?? 0, true);
+    }
+  }, [activeTab, loading]);
 
   const {
     pitch,
@@ -240,12 +235,16 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     formData: formData,
     handleAutoSave: activeAutoSave,
     globalKeyPreference: globalKeyPreference,
-    preventStageKeyOverwrite: preventStageKeyOverwrite, // NEW: Pass the prop
+    preventStageKeyOverwrite: preventStageKeyOverwrite,
   });
 
   useEffect(() => {
-    audio.setPitch(pitch);
-  }, [pitch, audio]);
+    // If we're editing the song currently playing, sync the engine pitch
+    const audioUrl = song?.audio_url || song?.previewUrl;
+    if (audioUrl === audio.currentUrl) {
+      audio.setPitch(pitch);
+    }
+  }, [pitch, audio, song]);
 
   const handleProSyncSelect = async (itunesSong: any) => {
     const updates: Partial<SetlistSong> = {
@@ -263,7 +262,6 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
       const { data, error } = await supabase.functions.invoke('enrich-metadata', {
         body: { queries: [`${itunesSong.trackName} by ${itunesSong.artistName}`] }
       });
-      
       if (!error && data) {
         const result = Array.isArray(data) ? data[0] : data;
         if (result?.originalKey) {
@@ -277,18 +275,6 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     activeAutoSave(updates);
     setIsProSyncOpen(false);
     showSuccess("Pro Metadata Synced");
-  };
-
-  const handleDownloadAll = async () => {
-    showError("Download All functionality is not yet implemented.");
-  };
-
-  const handleUgPrint = () => {
-    if (formData.ugUrl) {
-      window.open(formData.ugUrl, '_blank');
-    } else {
-      showError("No Ultimate Guitar link available.");
-    }
   };
 
   const isFramable = useCallback((url: string | null | undefined) => {
@@ -348,7 +334,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           activeTab={activeTab}
           song={song}
           formData={formData}
-          handleAutoSave={handleAutoSave}
+          handleAutoSave={activeAutoSave}
           onUpdateKey={setTargetKey}
           audioEngine={audio}
           isMobile={isMobile}
@@ -357,8 +343,8 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           isFramable={isFramable}
           activeChartType={activeChartType}
           setActiveChartType={setActiveChartType}
-          handleUgPrint={handleUgPrint}
-          handleDownloadAll={handleDownloadAll}
+          handleUgPrint={() => {}}
+          handleDownloadAll={async () => {}}
           onSwitchTab={setActiveTab}
           pitch={pitch}
           setPitch={setPitch}

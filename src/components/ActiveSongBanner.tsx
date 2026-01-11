@@ -2,7 +2,12 @@
 
 import React from 'react';
 import { SetlistSong } from './SetlistManager';
-import { Music, Youtube, Copy, Play, Pause, Activity, Gauge, Sparkles, Tag, Apple, ExternalLink, X, CloudDownload, AlertTriangle, Loader2, FastForward } from 'lucide-react';
+import { 
+  Music, Youtube, Copy, Play, Pause, Activity, 
+  Gauge, Sparkles, Tag, Apple, ExternalLink, 
+  X, CloudDownload, AlertTriangle, Loader2, 
+  FastForward, SkipBack, SkipForward 
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { showSuccess } from '@/utils/toast';
 import { Badge } from '@/components/ui/badge';
@@ -17,9 +22,20 @@ interface ActiveSongBannerProps {
   onClear?: () => void;
   isLoadingAudio?: boolean;
   nextSongName?: string | null;
+  onNext?: () => void;
+  onPrevious?: () => void;
 }
 
-const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song, isPlaying, onTogglePlayback, onClear, isLoadingAudio, nextSongName }) => {
+const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ 
+  song, 
+  isPlaying, 
+  onTogglePlayback, 
+  onClear, 
+  isLoadingAudio, 
+  nextSongName,
+  onNext,
+  onPrevious
+}) => {
   const { keyPreference: globalPreference } = useSettings();
   if (!song) return null;
 
@@ -42,7 +58,7 @@ const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song, isPlaying, on
         <div className="bg-indigo-600 px-6 py-2 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Activity className="w-4 h-4 text-indigo-200 animate-pulse" />
-            <span className="text-[10px] font-black text-indigo-50 uppercase tracking-[0.3em] font-mono">Live Performance Telemetry</span>
+            <span className="text-[10px] font-black text-indigo-100 uppercase tracking-[0.3em] font-mono">Live Performance Telemetry</span>
           </div>
           <div className="flex gap-4 items-center">
             {nextSongName && (
@@ -68,22 +84,45 @@ const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song, isPlaying, on
         
         <div className="p-8 flex items-center justify-between gap-8 bg-gradient-to-br from-card to-indigo-950/30">
           <div className="flex items-center gap-6 min-w-0">
-            <Button 
-              onClick={onTogglePlayback}
-              disabled={isLoadingAudio}
-              className={cn(
-                "h-16 w-16 rounded-2xl flex items-center justify-center shrink-0 shadow-lg transition-all active:scale-95",
-                isLoadingAudio ? "bg-slate-600 cursor-not-allowed" : isPlaying ? "bg-red-600 hover:bg-red-700 shadow-red-600/20" : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20"
-              )}
-            >
-              {isLoadingAudio ? (
-                <Loader2 className="w-8 h-8 animate-spin text-white" />
-              ) : isPlaying ? (
-                <Pause className="w-8 h-8 text-white fill-current" />
-              ) : (
-                <Play className="w-8 h-8 text-white fill-current ml-1" />
-              )}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onPrevious}
+                className="h-10 w-10 rounded-full hover:bg-white/10 text-slate-400"
+                title="Previous Song"
+              >
+                <SkipBack className="w-5 h-5" />
+              </Button>
+
+              <Button 
+                onClick={onTogglePlayback}
+                disabled={isLoadingAudio}
+                className={cn(
+                  "h-16 w-16 rounded-2xl flex items-center justify-center shrink-0 shadow-lg transition-all active:scale-95",
+                  isLoadingAudio ? "bg-slate-600 cursor-not-allowed" : isPlaying ? "bg-red-600 hover:bg-red-700 shadow-red-600/20" : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20"
+                )}
+              >
+                {isLoadingAudio ? (
+                  <Loader2 className="w-8 h-8 animate-spin text-white" />
+                ) : isPlaying ? (
+                  <Pause className="w-8 h-8 text-white fill-current" />
+                ) : (
+                  <Play className="w-8 h-8 text-white fill-current ml-1" />
+                )}
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onNext}
+                className="h-10 w-10 rounded-full hover:bg-white/10 text-slate-400"
+                title="Next Song"
+              >
+                <SkipForward className="w-5 h-5" />
+              </Button>
+            </div>
+
             <div className="min-w-0">
               <h2 className="text-3xl font-black text-foreground uppercase tracking-tighter truncate leading-none">
                 {song.name}

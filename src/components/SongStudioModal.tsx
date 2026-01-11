@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import SongStudioView, { StudioTab } from './SongStudioView';
 import { useNavigate } from 'react-router-dom';
 import { SetlistSong, Setlist } from './SetlistManager';
+import { AudioEngineControls } from '@/hooks/use-tone-audio';
 
 interface SongStudioModalProps {
   isOpen: boolean;
@@ -18,7 +19,8 @@ interface SongStudioModalProps {
   onUpdateSetlistSongs?: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>;
   defaultTab?: StudioTab;
   handleAutoSave?: (updates: Partial<SetlistSong>) => void;
-  preventStageKeyOverwrite?: boolean; 
+  preventStageKeyOverwrite?: boolean;
+  audioEngine?: AudioEngineControls; // NEW: Share the dashboard audio engine
 }
 
 const SongStudioModal: React.FC<SongStudioModalProps> = ({ 
@@ -33,7 +35,8 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
   onUpdateSetlistSongs,
   defaultTab,
   handleAutoSave: externalAutoSave,
-  preventStageKeyOverwrite
+  preventStageKeyOverwrite,
+  audioEngine
 }) => {
   const navigate = useNavigate();
 
@@ -72,6 +75,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
           defaultTab={defaultTab}
           handleAutoSave={externalAutoSave}
           preventStageKeyOverwrite={preventStageKeyOverwrite}
+          audioEngine={audioEngine} // Pass shared engine
         />
       </DialogContent>
     </Dialog>
