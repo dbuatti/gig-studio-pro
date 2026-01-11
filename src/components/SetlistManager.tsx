@@ -58,6 +58,7 @@ export interface SetlistSong {
   tempo?: number;
   volume?: number;
   isApproved?: boolean;
+  is_ready_to_sing?: boolean;
   preferred_reader?: 'ug' | 'ls' | 'fn' | null;
   ug_chords_text?: string;
   ug_chords_config?: UGChordsConfig;

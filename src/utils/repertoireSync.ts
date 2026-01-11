@@ -10,6 +10,13 @@ const cleanMetadata = (val: string | undefined | null) => {
 
 export const calculateReadiness = (song: Partial<SetlistSong>): number => {
   let score = 0;
+  
+  // Penalize by 50% if not ready to sing
+  if (song.is_ready_to_sing === false) {
+    // We'll calculate the base score first then subtract. 
+    // Or just start with -50. Let's do base calculation then subtract.
+  }
+
   const status = (song.extraction_status || "").toLowerCase();
   if (song.audio_url && status === 'completed') score += 25;
   const hasLyrics = (song.lyrics || "").length > 20;
@@ -24,7 +31,12 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
   if (song.ugUrl && song.ugUrl.length > 0) score += 5;
   if (song.isMetadataConfirmed) score += 5;
   if (song.isApproved) score += 5;
-  return Math.min(100, score);
+
+  if (song.is_ready_to_sing === false) {
+    score -= 50;
+  }
+
+  return Math.max(0, Math.min(100, score));
 };
 
 export const syncToMasterRepertoire = async (userId: string, songsToSync: Partial<SetlistSong>[]): Promise<SetlistSong[]> => {
@@ -92,7 +104,9 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
     if (song.is_pitch_linked !== undefined) dbUpdates.is_pitch_linked = song.is_pitch_linked;
     if (song.duration_seconds !== undefined) dbUpdates.duration_seconds = Math.round(song.duration_seconds || 0);
     if (song.isApproved !== undefined) dbUpdates.is_approved = song.isApproved;
+    if (song.is_ready_to_sing !== undefined) dbUpdates.is_ready_to_sing = song.is_ready_to_sing;
     if (song.preferred_reader !== undefined) dbUpdates.preferred_reader = song.preferred_reader;
+    if (song.ug_chords_text !== undefined) dbUpdates.ug_chords_text = song.ug_chords_text;
     if (song.ug_chords_config !== undefined) dbUpdates.ug_chords_config = song.ug_chords_config;
     if (song.is_ug_chords_present !== undefined) dbUpdates.is_ug_chords_present = song.is_ug_chords_present;
     if (song.key_preference !== undefined) dbUpdates.key_preference = song.key_preference;
@@ -136,6 +150,7 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
       duration_seconds: result.duration_seconds,
       key_preference: result.key_preference, 
       isApproved: result.is_approved,
+      is_ready_to_sing: result.is_ready_to_sing,
       preferred_reader: result.preferred_reader,
       ug_chords_text: result.ug_chords_text,
       ug_chords_config: result.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,

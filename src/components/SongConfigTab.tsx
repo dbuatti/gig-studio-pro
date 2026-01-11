@@ -9,10 +9,11 @@ import { SetlistSong } from './SetlistManager';
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, calculateSemitones, formatKey, transposeKey, transposeNote, PURE_NOTES_SHARP, PURE_NOTES_FLAT } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
 import { useSettings } from '@/hooks/use-settings';
-import { Check, Hash, Music2, Link as LinkIcon, Play, Pause, RotateCcw, Music, CloudDownload, AlertTriangle } from 'lucide-react';
+import { Check, Hash, Music2, Link as LinkIcon, Play, Pause, RotateCcw, Music, CloudDownload, AlertTriangle, Mic2 } from 'lucide-react';
 import SongAssetMatrix from './SongAssetMatrix';
 import SongTagManager from './SongTagManager';
 import SheetMusicRecommender from './SheetMusicRecommender';
+import { Switch } from "@/components/ui/switch";
 
 interface SongConfigTabProps {
   song: SetlistSong | null;
@@ -107,6 +108,28 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
 
   return (
     <div className={cn("flex-1 p-6 md:p-8 space-y-8 md:space-y-10 overflow-y-auto")}>
+      <div className="flex items-center justify-between p-6 bg-indigo-600/10 border border-indigo-600/20 rounded-3xl shadow-xl">
+        <div className="flex items-center gap-4">
+          <div className="bg-indigo-600 p-3 rounded-2xl shadow-lg shadow-indigo-600/20">
+            <Mic2 className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <Label className="text-sm font-black uppercase tracking-tight text-white">Ready to Sing</Label>
+            <p className="text-[10px] text-slate-400 font-medium mt-0.5 uppercase tracking-widest">Vocal Performance Status</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className={cn("text-[10px] font-black uppercase tracking-widest", formData.is_ready_to_sing !== false ? "text-emerald-400" : "text-red-400")}>
+            {formData.is_ready_to_sing !== false ? "PRO READY" : "IN PROGRESS"}
+          </span>
+          <Switch 
+            checked={formData.is_ready_to_sing !== false} 
+            onCheckedChange={(v) => handleAutoSave({ is_ready_to_sing: v })}
+            className="data-[state=checked]:bg-emerald-500 scale-125"
+          />
+        </div>
+      </div>
+
       {audioSourceUrl ? (
         <div className="bg-slate-900/50 border border-white/10 rounded-3xl p-6 space-y-6 shadow-xl">
           <div className="flex items-center justify-between">

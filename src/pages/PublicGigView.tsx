@@ -91,7 +91,8 @@ const PublicGigView = () => {
     );
   }
 
-  const songs = (setlist.songs as SetlistSong[]) || [];
+  // EXCLUDE songs that are not ready to sing
+  const songs = ((setlist.songs as SetlistSong[]) || []).filter(s => s.is_ready_to_sing !== false);
   
   // NEW: Derive colors based on custom_theme or fallback to dynamic CSS variables
   const colors = useMemo(() => {

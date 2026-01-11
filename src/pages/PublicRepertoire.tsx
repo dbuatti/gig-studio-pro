@@ -42,6 +42,7 @@ const PublicRepertoire = () => {
         .select('*, extraction_status, last_sync_log')
         .eq('user_id', profileData.id)
         .eq('is_active', true)
+        .neq('is_ready_to_sing', false) // EXCLUDE songs that are not ready to sing
         .gte('readiness_score', threshold);
 
       if (sError) throw sError;
