@@ -19,7 +19,7 @@ import {
   X, AlertCircle, Music, Shuffle, Hash, Library, Plus 
 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'; // Fixed import path
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // Custom Components
 import SetlistSelector from '@/components/SetlistSelector';
@@ -43,7 +43,7 @@ import PerformanceOverlay from '@/components/PerformanceOverlay';
 import AudioTransposer, { AudioTransposerRef } from '@/components/AudioTransposer';
 import GoalTracker from '@/components/GoalTracker';
 import SetlistSortModal from '@/components/SetlistSortModal';
-import { calculateSemitones } from '@/utils/keyUtils'; // Imported missing utility
+import { calculateSemitones } from '@/utils/keyUtils';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -62,7 +62,6 @@ const Index = () => {
   
   const activeDashboardView = (searchParams.get('view') as 'gigs' | 'repertoire') || defaultDashboardView;
 
-  // Moved activeSetlist declaration up to avoid TS2448
   const activeSetlist = useMemo(() => allSetlists.find(l => l.id === activeSetlistId), [allSetlists, activeSetlistId]);
 
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
@@ -93,7 +92,6 @@ const Index = () => {
   });
   const [showHeatmap, setShowHeatmap] = useState(() => localStorage.getItem('gig_show_heatmap') === 'true');
 
-  // SHARED AUDIO LOGIC
   const playNextInList = useCallback(() => {
     if (!activeSetlist || activeSetlist.songs.length === 0) return;
     
@@ -107,12 +105,11 @@ const Index = () => {
       return;
     }
 
-    // Default: Play next in active setlist
     const currentIndex = activeSetlist.songs.findIndex(s => s.id === activeSongForPerformance?.id);
     if (currentIndex !== -1 && currentIndex < activeSetlist.songs.length - 1) {
       setActiveSongForPerformance(activeSetlist.songs[currentIndex + 1]);
     } else {
-      setActiveSongForPerformance(activeSetlist.songs[0]); // Loop back
+      setActiveSongForPerformance(activeSetlist.songs[0]);
     }
   }, [isShuffleAllMode, activeSetlist, activeSongForPerformance, masterRepertoire]);
 
@@ -163,6 +160,14 @@ const Index = () => {
         isApproved: d.is_approved, preferred_reader: d.preferred_reader, ug_chords_text: d.ug_chords_text,
         ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG, extraction_status: d.extraction_status,
         audio_url: d.audio_url,
+        // Map goal tracking timestamps
+        lyrics_updated_at: d.lyrics_updated_at,
+        chords_updated_at: d.chords_updated_at,
+        ug_link_updated_at: d.ug_link_updated_at,
+        highest_note_updated_at: d.highest_note_updated_at,
+        original_key_updated_at: d.original_key_updated_at,
+        target_key_updated_at: d.target_key_updated_at,
+        pdf_updated_at: d.pdf_updated_at,
       }));
       setMasterRepertoire(mappedRepertoire);
 
@@ -257,8 +262,8 @@ const Index = () => {
               onSelect={setActiveSongForPerformance} 
               onEdit={handleEditSong} 
               onUpdateKey={(id, k) => audio.setPitch(calculateSemitones(activeSetlist?.songs.find(s => s.id === id)?.originalKey, k))} 
-              onLinkAudio={() => {}} // Added missing prop
-              onSyncProData={async () => {}} // Added missing prop
+              onLinkAudio={() => {}}
+              onSyncProData={async () => {}}
               currentSongId={activeSongForPerformance?.id}
               sortMode={sortMode} setSortMode={setSortMode} activeFilters={activeFilters} setActiveFilters={setActiveFilters} searchTerm={searchTerm} setSearchTerm={setSearchTerm} showHeatmap={showHeatmap} allSetlists={allSetlists}
               onRemove={async (id) => { await supabase.from('setlist_songs').delete().eq('id', id); fetchSetlistsAndRepertoire(); }}
