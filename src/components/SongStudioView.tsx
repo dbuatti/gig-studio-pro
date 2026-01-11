@@ -180,6 +180,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
         tempo: data.tempo,
         volume: data.volume,
         isApproved: data.is_approved,
+        is_ready_to_sing: data.is_ready_to_sing,
         preferred_reader: data.preferred_reader,
         ug_chords_text: data.ug_chords_text,
         ug_chords_config: data.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
