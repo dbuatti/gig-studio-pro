@@ -36,7 +36,7 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire, onFilterApply }) 
     goalHighestNoteCount,
     goalOriginalKeyCount,
     goalTargetKeyCount,
-    goalPdfsCount // NEW
+    goalPdfsCount
   } = useSettings();
 
   if (!isGoalTrackerEnabled) return null;
@@ -57,7 +57,7 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire, onFilterApply }) 
       highestNote: repertoire.filter(s => !!s.highest_note_original && isToday(s.highest_note_updated_at)).length,
       originalKey: repertoire.filter(s => s.originalKey && s.originalKey !== "TBC" && isToday(s.original_key_updated_at)).length,
       targetKey: repertoire.filter(s => s.targetKey && s.targetKey !== "TBC" && isToday(s.target_key_updated_at)).length,
-      pdfs: repertoire.filter(s => (s.pdfUrl || s.leadsheetUrl || s.sheet_music_url) && isToday(s.pdf_updated_at)).length // NEW
+      pdfs: repertoire.filter(s => (s.pdfUrl || s.leadsheetUrl || s.sheet_music_url) && isToday(s.pdf_updated_at)).length
     };
 
     return [
@@ -79,7 +79,7 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire, onFilterApply }) 
         barColor: 'bg-indigo-500',
         textColor: 'text-indigo-500',
         lightBg: 'bg-indigo-500/10',
-        filter: { hasUgChords: 'no' }
+        filter: { hasUg: 'yes', hasUgChords: 'no' }
       },
       { 
         label: 'UG Links Bound', 
@@ -93,7 +93,7 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire, onFilterApply }) 
       },
       { 
         label: 'PDFs Attached', 
-        icon: <FileText className="w-3 h-3" />, // NEW
+        icon: <FileText className="w-3 h-3" />,
         current: counts.pdfs, 
         target: goalPdfsCount, 
         barColor: 'bg-blue-600',
