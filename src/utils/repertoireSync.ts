@@ -8,15 +8,17 @@ const cleanMetadata = (val: string | undefined | null) => {
   return val.trim().replace(/^["']+|["']+$/g, '');
 };
 
+/**
+ * Validates if a string is a valid UUID v4.
+ */
+const isValidUuid = (uuid: string | undefined | null): boolean => {
+  if (!uuid) return false;
+  return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/i.test(uuid);
+};
+
 export const calculateReadiness = (song: Partial<SetlistSong>): number => {
   let score = 0;
   
-  // Penalize by 50% if not ready to sing
-  if (song.is_ready_to_sing === false) {
-    // We'll calculate the base score first then subtract. 
-    // Or just start with -50. Let's do base calculation then subtract.
-  }
-
   const status = (song.extraction_status || "").toLowerCase();
   if (song.audio_url && status === 'completed') score += 25;
   const hasLyrics = (song.lyrics || "").length > 20;
@@ -48,12 +50,16 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
       updated_at: new Date().toISOString(),
     };
 
-    if (song.master_id) {
-      dbUpdates.id = song.master_id;
+    // Determine the target ID (prefer master_id from the object)
+    const targetId = song.master_id || song.id;
+    const isRealRecord = isValidUuid(targetId);
+
+    if (isRealRecord) {
+      dbUpdates.id = targetId;
     }
 
-    dbUpdates.title = cleanMetadata(song.name) || 'Untitled Track';
-    dbUpdates.artist = cleanMetadata(song.artist) || 'Unknown Artist';
+    if (song.name !== undefined) dbUpdates.title = cleanMetadata(song.name) || 'Untitled Track';
+    if (song.artist !== undefined) dbUpdates.artist = cleanMetadata(song.artist) || 'Unknown Artist';
 
     const now = new Date().toISOString();
     
@@ -81,8 +87,6 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
       dbUpdates.target_key = song.targetKey;
       dbUpdates.target_key_updated_at = now;
     }
-
-    // NEW: Update pdf_updated_at when sheet music is added or changed
     if (song.pdfUrl !== undefined || song.leadsheetUrl !== undefined || song.sheet_music_url !== undefined) {
       dbUpdates.pdf_updated_at = now;
     }
@@ -106,22 +110,40 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
     if (song.isApproved !== undefined) dbUpdates.is_approved = song.isApproved;
     if (song.is_ready_to_sing !== undefined) dbUpdates.is_ready_to_sing = song.is_ready_to_sing;
     if (song.preferred_reader !== undefined) dbUpdates.preferred_reader = song.preferred_reader;
-    if (song.ug_chords_text !== undefined) dbUpdates.ug_chords_text = song.ug_chords_text;
     if (song.ug_chords_config !== undefined) dbUpdates.ug_chords_config = song.ug_chords_config;
     if (song.is_ug_chords_present !== undefined) dbUpdates.is_ug_chords_present = song.is_ug_chords_present;
     if (song.key_preference !== undefined) dbUpdates.key_preference = song.key_preference;
     if (song.audio_url !== undefined) dbUpdates.audio_url = song.audio_url;
     if (song.extraction_status !== undefined) dbUpdates.extraction_status = song.extraction_status;
 
-    const { data, error } = await supabase
-      .from('repertoire')
-      .upsert(dbUpdates, { onConflict: 'user_id,title,artist' })
-      .select()
-      .single();
+    let result;
+    let error;
+
+    if (isRealRecord) {
+      // If we have a valid UUID, we perform a direct update on that record.
+      // This ensures that if the title/artist changes, we modify the existing row
+      // rather than letting the unique constraint 'user_id,title,artist' 
+      // trigger a new insert because the conflict wasn't met.
+      const { data, error: updateError } = await supabase
+        .from('repertoire')
+        .update(dbUpdates)
+        .eq('id', targetId)
+        .select()
+        .single();
+      result = data;
+      error = updateError;
+    } else {
+      // For new records or imports where ID is temporary, use upsert on the unique constraint.
+      const { data, error: upsertError } = await supabase
+        .from('repertoire')
+        .upsert(dbUpdates, { onConflict: 'user_id,title,artist' })
+        .select()
+        .single();
+      result = data;
+      error = upsertError;
+    }
 
     if (error) throw error;
-
-    const result = data;
 
     syncedSongs.push({
       id: song.id || result.id,
@@ -164,7 +186,7 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
       highest_note_updated_at: result.highest_note_updated_at,
       original_key_updated_at: result.original_key_updated_at,
       target_key_updated_at: result.target_key_updated_at,
-      pdf_updated_at: result.pdf_updated_at, // NEW
+      pdf_updated_at: result.pdf_updated_at,
     } as any);
   }
 
