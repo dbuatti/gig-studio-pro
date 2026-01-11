@@ -244,6 +244,14 @@ const Index = () => {
     return songs;
   }, [activeSetlist, searchTerm, sortMode, activeFilters]);
 
+  // Derived next song info for the banner
+  const nextSongInfo = useMemo(() => {
+    if (!activeSongForPerformance || !activeSetlist) return null;
+    const currentIndex = activeSetlist.songs.findIndex(s => s.id === activeSongForPerformance.id);
+    if (currentIndex === -1 || currentIndex === activeSetlist.songs.length - 1) return null;
+    return activeSetlist.songs[currentIndex + 1].name;
+  }, [activeSongForPerformance, activeSetlist]);
+
   const fetchSetlistsAndRepertoire = useCallback(async (isInitial = false) => {
     if (!userId) return;
     if (isInitial) setLoading(true);
@@ -757,7 +765,14 @@ const Index = () => {
         {isGoalTrackerEnabled && <GoalTracker repertoire={masterRepertoire} onFilterApply={handleApplyGoalFilter} />}
 
         {activeDashboardView === 'gigs' && activeSongForPerformance && (
-          <ActiveSongBanner song={activeSongForPerformance} isPlaying={audio.isPlaying} onTogglePlayback={audio.togglePlayback} onClear={() => { setActiveSongForPerformance(null); audio.stopPlayback(); setIsShuffleAllMode(false); }} isLoadingAudio={audio.isLoadingAudio} />
+          <ActiveSongBanner 
+            song={activeSongForPerformance} 
+            isPlaying={audio.isPlaying} 
+            onTogglePlayback={audio.togglePlayback} 
+            onClear={() => { setActiveSongForPerformance(null); audio.stopPlayback(); setIsShuffleAllMode(false); }} 
+            isLoadingAudio={audio.isLoadingAudio}
+            nextSongName={nextSongInfo}
+          />
         )}
 
         <Tabs value={activeDashboardView} onValueChange={handleViewChange} className="w-full mt-8">

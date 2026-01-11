@@ -175,9 +175,9 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     {
       id: 'practice',
       icon: isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />,
-      onClick: onOpenPerformance, 
+      onClick: onTogglePlayback, 
       disabled: false, 
-      tooltip: isPlaying ? "Pause (Space)" : "Play (Space)",
+      tooltip: isPlaying ? "Pause [Space]" : "Play [Space]",
       className: cn(
         "text-white shadow-xl scale-110",
         isPlaying ? "bg-red-600 border-red-500" : "bg-indigo-600 border-indigo-500"
@@ -188,7 +188,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
       icon: <Rocket className="w-5 h-5" />,
       onClick: onOpenPerformance,
       disabled: !activeSongId,
-      tooltip: "Stage Mode (P)",
+      tooltip: "Stage Mode [P]",
       className: "bg-orange-600 text-white border-orange-500",
     },
     {
@@ -196,7 +196,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
       icon: <FileText className="w-5 h-5" />,
       onClick: () => onOpenReader(activeSongId || undefined),
       disabled: false, 
-      tooltip: "Toggle Reader (R)",
+      tooltip: "Sheet Reader [R]",
       className: "bg-emerald-600 text-white border-emerald-500",
     },
     {
@@ -204,7 +204,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
       icon: <Search className="w-5 h-5" />,
       onClick: onOpenSearch,
       disabled: false,
-      tooltip: "Discovery",
+      tooltip: "Discovery Engine",
       className: "bg-slate-800 text-white border-white/10 hover:bg-indigo-600",
     },
   ];
@@ -212,10 +212,10 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   const secondaryButtons = [
     { id: 'automation', icon: <Zap className="w-4 h-4" />, onClick: onOpenAdmin, tooltip: "Automation Hub", className: "bg-purple-600/20 text-purple-400 border-purple-500/30" },
     { id: 'admin', icon: <ShieldCheck className="w-4 h-4" />, onClick: onOpenAdmin, tooltip: "Audit Matrix", className: "bg-red-900/40 text-red-400 border-red-500/30" },
-    { id: 'heatmap', icon: <Sparkles className="w-4 h-4" />, onClick: onToggleHeatmap, tooltip: "Heatmap (H)", className: cn(showHeatmap ? "bg-amber-500 text-black border-amber-400" : "bg-slate-800 text-amber-400 border-white/10") },
-    ...(isSafePitchEnabled ? [{ id: 'safe-pitch', icon: <ShieldAlert className="w-4 h-4" />, onClick: () => setIsSafePitchActive(!isSafePitchActive), tooltip: "Safe Pitch", className: cn(isSafePitchActive ? "bg-emerald-600 text-white border-emerald-400" : "bg-slate-800 text-emerald-400 border-white/10") }] : []),
-    { id: 'preferences', icon: <Settings className="w-4 h-4" />, onClick: onOpenPreferences, tooltip: "Prefs", className: "bg-slate-800 text-slate-300 border-white/10" },
-    { id: 'user-guide', icon: <BookOpen className="w-4 h-4" />, onClick: onOpenUserGuide, tooltip: "Guide", className: "bg-blue-600/20 text-blue-400 border-blue-500/30" },
+    { id: 'heatmap', icon: <Sparkles className="w-4 h-4" />, onClick: onToggleHeatmap, tooltip: "Toggle Heatmap [H]", className: cn(showHeatmap ? "bg-amber-500 text-black border-amber-400" : "bg-slate-800 text-amber-400 border-white/10") },
+    ...(isSafePitchEnabled ? [{ id: 'safe-pitch', icon: <ShieldAlert className="w-4 h-4" />, onClick: () => setIsSafePitchActive(!isSafePitchActive), tooltip: "Safe Pitch Mode", className: cn(isSafePitchActive ? "bg-emerald-600 text-white border-emerald-400" : "bg-slate-800 text-emerald-400 border-white/10") }] : []),
+    { id: 'preferences', icon: <Settings className="w-4 h-4" />, onClick: onOpenPreferences, tooltip: "Preferences", className: "bg-slate-800 text-slate-300 border-white/10" },
+    { id: 'user-guide', icon: <BookOpen className="w-4 h-4" />, onClick: onOpenUserGuide, tooltip: "User Guide", className: "bg-blue-600/20 text-blue-400 border-blue-500/30" },
   ];
 
   const getMenuClasses = (dir: MenuDirection) => {

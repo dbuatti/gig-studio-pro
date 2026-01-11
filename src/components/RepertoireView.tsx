@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Search, Library, Music, Settings2, Plus, Check, ShieldCheck,
-  Star, Filter, AlertTriangle, Loader2, CloudDownload, Edit3, ListMusic, ArrowRight, Trash2, Wand2
+  Star, Filter, AlertTriangle, Loader2, CloudDownload, Edit3, ListMusic, ArrowRight, Trash2, Wand2, X
 } from 'lucide-react';
 import { SetlistSong } from './SetlistManager';
 import { cn } from "@/lib/utils";
@@ -111,10 +111,10 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
       if (activeFilters.hasUgChords === 'no' && hasUgChords) return false;
       if (activeFilters.hasLyrics === 'yes' && !hasLyrics) return false;
       if (activeFilters.hasLyrics === 'no' && hasLyrics) return false;
-      if (activeFilters.hasHighestNote === 'yes' && !s.highest_note_original) return false; // NEW
-      if (activeFilters.hasHighestNote === 'no' && s.highest_note_original) return false; // NEW
-      if (activeFilters.hasOriginalKey === 'yes' && (!s.originalKey || s.originalKey === 'TBC')) return false; // NEW
-      if (activeFilters.hasOriginalKey === 'no' && (s.originalKey && s.originalKey !== 'TBC')) return false; // NEW
+      if (activeFilters.hasHighestNote === 'yes' && !s.highest_note_original) return false; 
+      if (activeFilters.hasHighestNote === 'no' && s.highest_note_original) return false; 
+      if (activeFilters.hasOriginalKey === 'yes' && (!s.originalKey || s.originalKey === 'TBC')) return false; 
+      if (activeFilters.hasOriginalKey === 'no' && (s.originalKey && s.originalKey !== 'TBC')) return false; 
       
       return true;
     });
@@ -234,8 +234,16 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                   placeholder="Search master repertoire..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="h-10 sm:h-9 pl-9 text-[11px] font-bold bg-card dark:bg-card border-border dark:border-border rounded-xl focus-visible:ring-indigo-500"
+                  className="h-10 sm:h-9 pl-9 pr-8 text-[11px] font-bold bg-card dark:bg-card border-border dark:border-border rounded-xl focus-visible:ring-indigo-500"
                 />
+                {searchTerm && (
+                  <button 
+                    onClick={() => setSearchTerm("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
               <Button
                 onClick={handleAddNewSong}

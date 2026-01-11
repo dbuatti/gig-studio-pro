@@ -2,23 +2,24 @@
 
 import React from 'react';
 import { SetlistSong } from './SetlistManager';
-import { Music, Youtube, Copy, Play, Pause, Activity, Gauge, Sparkles, Tag, Apple, ExternalLink, X, CloudDownload, AlertTriangle, Loader2 } from 'lucide-react';
+import { Music, Youtube, Copy, Play, Pause, Activity, Gauge, Sparkles, Tag, Apple, ExternalLink, X, CloudDownload, AlertTriangle, Loader2, FastForward } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { showSuccess } from '@/utils/toast';
 import { Badge } from '@/components/ui/badge';
 import { formatKey } from '@/utils/keyUtils';
 import { useSettings } from '@/hooks/use-settings';
-import { cn } from '@/lib/utils'; // Added missing import
+import { cn } from '@/lib/utils';
 
 interface ActiveSongBannerProps {
   song: SetlistSong | null;
   isPlaying?: boolean;
   onTogglePlayback?: () => void;
   onClear?: () => void;
-  isLoadingAudio?: boolean; // NEW PROP
+  isLoadingAudio?: boolean;
+  nextSongName?: string | null;
 }
 
-const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song, isPlaying, onTogglePlayback, onClear, isLoadingAudio }) => {
+const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song, isPlaying, onTogglePlayback, onClear, isLoadingAudio, nextSongName }) => {
   const { keyPreference: globalPreference } = useSettings();
   if (!song) return null;
 
@@ -44,6 +45,12 @@ const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({ song, isPlaying, on
             <span className="text-[10px] font-black text-indigo-50 uppercase tracking-[0.3em] font-mono">Live Performance Telemetry</span>
           </div>
           <div className="flex gap-4 items-center">
+            {nextSongName && (
+              <div className="flex items-center gap-2 px-3 py-1 bg-black/20 rounded-lg">
+                <FastForward className="w-3 h-3 text-indigo-300" />
+                <span className="text-[9px] font-black text-indigo-100 uppercase truncate max-w-[150px]">Next: {nextSongName}</span>
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
               <span className="text-[9px] font-mono text-indigo-100 font-bold uppercase">Engine: Stable</span>
