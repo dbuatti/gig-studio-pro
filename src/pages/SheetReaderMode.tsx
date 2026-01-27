@@ -248,7 +248,7 @@ const SheetReaderMode: React.FC = () => {
 
       masterRepertoireList = (masterData || []).map((d: any) => {
         console.log(`[SheetReaderMode] Raw Supabase data for song ${d.title}: pdf_url=${d.pdf_url}, sheet_music_url=${d.sheet_music_url}`);
-        return {
+        const mappedSong = {
           id: d.id,
           master_id: d.id,
           name: d.title,
@@ -296,6 +296,8 @@ const SheetReaderMode: React.FC = () => {
           original_key_updated_at: d.original_key_updated_at,
           target_key_updated_at: d.target_key_updated_at,
         };
+        console.log(`[SheetReaderMode] Mapped song ${mappedSong.name} (ID: ${mappedSong.id}): pdfUrl=${mappedSong.pdfUrl}, sheet_music_url=${mappedSong.sheet_music_url}`);
+        return mappedSong;
       });
       setFullMasterRepertoire(masterRepertoireList);
 
@@ -447,6 +449,7 @@ const SheetReaderMode: React.FC = () => {
 
   useEffect(() => {
     if (currentSong) {
+      console.log("[SheetReaderMode] Effect for chart type: currentSong.pdfUrl:", currentSong.pdfUrl, "currentSong.sheet_music_url:", currentSong.sheet_music_url);
       const bestType = getBestChartType(currentSong);
       if (selectedChartType !== bestType) {
         setSelectedChartType(bestType);
