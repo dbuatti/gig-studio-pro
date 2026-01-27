@@ -324,13 +324,17 @@ const SheetReaderMode: React.FC = () => {
         activeSetlistSongsList = (junctionData || []).map((junction: any) => {
           const masterSong = junction.repertoire;
           if (!masterSong) return null;
-          return {
-            ...masterSong,
+          const mappedSong: SetlistSong = {
+            ...masterSong, // Spread existing properties from repertoire
             id: junction.id, // Use setlist_songs.id for unique identification within the setlist
             master_id: masterSong.id, // Keep repertoire.id as master_id
             name: masterSong.title, // Override name with repertoire title
+            pdfUrl: masterSong.pdf_url, // Explicitly map pdf_url to pdfUrl
+            sheet_music_url: masterSong.sheet_music_url, // Explicitly map sheet_music_url
             isPlayed: junction.isPlayed || false,
           };
+          console.log(`[SheetReaderMode] Mapped setlist song ${mappedSong.name} (ID: ${mappedSong.id}): pdfUrl=${mappedSong.pdfUrl}, sheet_music_url=${mappedSong.sheet_music_url}`);
+          return mappedSong;
         }).filter(Boolean) as SetlistSong[];
         setCurrentSetlistSongs(activeSetlistSongsList);
         currentViewSongs = activeSetlistSongsList;
