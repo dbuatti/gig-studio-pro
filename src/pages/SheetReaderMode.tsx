@@ -48,12 +48,6 @@ const SheetReaderMode: React.FC = () => {
   const { user } = useAuth();
   const { 
     keyPreference: globalKeyPreference,
-    ugChordsFontFamily,
-    ugChordsFontSize,
-    ugChordsChordBold,
-    ugChordsChordColor,
-    ugChordsLineSpacing,
-    ugChordsTextAlign,
     preventStageKeyOverwrite,
     disablePortraitPdfScroll,
     setKeyPreference: setGlobalKeyPreference
@@ -162,7 +156,7 @@ const SheetReaderMode: React.FC = () => {
           handleLocalSongUpdate(currentSong.id, result[0]);
         }
       } catch (err) {
-        console.error("[SheetReader] Auto-save failed:", err);
+        // Silently handle background saves
       }
     }, [currentSong, user, handleLocalSongUpdate]),
     globalKeyPreference,
@@ -219,7 +213,6 @@ const SheetReaderMode: React.FC = () => {
   useEffect(() => {
     if (currentSong) {
       const urlToLoad = currentSong.audio_url || currentSong.previewUrl;
-      console.log(`[SheetReader] Loading audio for "${currentSong.name}":`, urlToLoad);
       audioEngine.setPitch(currentSong.pitch || 0);
       audioEngine.setTempo(currentSong.tempo || 1); 
       audioEngine.setFineTune(currentSong.fineTune || 0);
@@ -236,12 +229,8 @@ const SheetReaderMode: React.FC = () => {
   }, [currentSong]);
 
   const fetchSongs = useCallback(async () => {
-    if (!user) {
-      console.log("[SheetReader] fetchSongs called but no user session found.");
-      return;
-    }
+    if (!user) return;
     setInitialLoading(true);
-    console.log("[SheetReader] Fetching songs...");
 
     try {
       const filterApproved = searchParams.get('filterApproved');
@@ -253,8 +242,6 @@ const SheetReaderMode: React.FC = () => {
 
       const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user_id', user.id).order('title');
       if (masterError) throw masterError;
-      
-      console.log(`[SheetReader] Fetched ${masterData?.length || 0} master repertoire tracks.`);
 
       masterRepertoireList = (masterData || []).map((d: any) => ({
         id: d.id,
@@ -308,7 +295,6 @@ const SheetReaderMode: React.FC = () => {
       setFullMasterRepertoire(masterRepertoireList);
 
       if (filterApproved === 'true') {
-        console.log("[SheetReader] Filtering for approved songs in active setlist...");
         const { data: setlistsData, error: setlistsError } = await supabase
           .from('setlists')
           .select('id')
@@ -316,7 +302,7 @@ const SheetReaderMode: React.FC = () => {
           .limit(1);
 
         if (setlistsError || !setlistsData || setlistsData.length === 0) {
-          throw new Error("No active setlist found for approved songs.");
+          throw new Error("No active setlist found.");
         }
         const activeSetlistId = setlistsData[0].id;
 
@@ -360,8 +346,6 @@ const SheetReaderMode: React.FC = () => {
         s.pdfUrl || s.leadsheetUrl || s.ug_chords_text || s.sheet_music_url
       );
 
-      console.log(`[SheetReader] Filtered ${readableSongs.length} readable songs.`);
-
       const uniqueSongsMap = new Map<string, SetlistSong>();
       readableSongs.forEach(song => {
         const key = song.master_id || song.id;
@@ -378,10 +362,8 @@ const SheetReaderMode: React.FC = () => {
         const idx = uniqueReadableSongs.findIndex(s => s.id === targetId || s.master_id === targetId);
         if (idx !== -1) initialIndex = idx;
       }
-      console.log(`[SheetReader] Initial Index set to: ${initialIndex}`);
       setCurrentIndex(initialIndex);
     } catch (err: any) {
-      console.error("[SheetReaderMode] Error fetching songs:", err);
       showError(`Failed to load songs: ${err.message}`);
     } finally {
       setInitialLoading(false);
@@ -390,9 +372,7 @@ const SheetReaderMode: React.FC = () => {
 
   useEffect(() => {
     const fromDashboard = sessionStorage.getItem('from_dashboard');
-    console.log("[SheetReader] from_dashboard check:", fromDashboard);
     if (!fromDashboard) {
-      console.warn("[SheetReader] Reader accessed without dashboard flag. Redirecting.");
       navigate('/', { replace: true });
       return;
     }
@@ -414,7 +394,6 @@ const SheetReaderMode: React.FC = () => {
       if (error) throw error;
       setLinks(data || []);
     } catch (err: any) {
-      console.error("[SheetReaderMode] Error fetching links:", err.message);
       showError("Failed to load links.");
     }
   }, [user, currentSong?.master_id, selectedChartType]);
@@ -574,11 +553,8 @@ const SheetReaderMode: React.FC = () => {
 
   const handleSaveReaderPreference = useCallback((pref: 'sharps' | 'flats') => {
     setReaderKeyPreference(pref);
-    if (globalKeyPreference !== 'neutral') {
-      setGlobalKeyPreference(pref);
-    }
     showSuccess(`Reader preference saved to ${pref === 'sharps' ? 'Sharps' : 'Flats'}`);
-  }, [setGlobalKeyPreference, globalKeyPreference]);
+  }, []);
 
   const onAddLink = useCallback(() => {
     if (currentChartDisplayUrl && pdfDocument) {
@@ -587,6 +563,10 @@ const SheetReaderMode: React.FC = () => {
       showInfo("No PDF available to add links.");
     }
   }, [currentChartDisplayUrl, pdfDocument]);
+
+  const handleChartReady = useCallback(() => {
+    setIsChartContentLoading(false);
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -668,7 +648,7 @@ const SheetReaderMode: React.FC = () => {
 
       setPdfScale(Math.min(scaleX, scaleY));
     } catch (error) {
-      console.error("[SheetReaderMode] Error calculating PDF scale:", error);
+      // Silently handle scale failures during resize
     }
   }, []);
 
@@ -836,10 +816,7 @@ const SheetReaderMode: React.FC = () => {
                   progress={progress}
                   duration={duration}
                   readerKeyPreference={readerKeyPreference}
-                  onChartReady={() => {
-                    console.log(`[SheetReader] Chords rendered for "${currentSong.name}"`);
-                    setIsChartContentLoading(false);
-                  }}
+                  onChartReady={handleChartReady}
                   isFullScreen={isBrowserFullScreen && !isInfoOverlayVisible} 
                 />
               ) : (
@@ -851,7 +828,6 @@ const SheetReaderMode: React.FC = () => {
                         <Document
                           file={url}
                           onLoadSuccess={async (pdf) => { 
-                            console.log(`[SheetReader] PDF Loaded: ${pdf.numPages} pages.`);
                             setPdfNumPages(pdf.numPages);
                             setPdfDocument(pdf); 
                             setIsChartContentLoading(false);
@@ -860,7 +836,6 @@ const SheetReaderMode: React.FC = () => {
                             }
                           }}
                           onLoadError={(error) => {
-                            console.error("[SheetReaderMode] Error loading PDF Document:", error); 
                             showError("Failed to load PDF document.");
                             setIsChartContentLoading(false);
                           }}
@@ -874,7 +849,6 @@ const SheetReaderMode: React.FC = () => {
                             renderTextLayer={true}
                             loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
                             onRenderSuccess={(page) => {
-                              console.log(`[SheetReader] Page ${pdfCurrentPage} rendered.`);
                               setIsChartContentLoading(false);
                             }}
                             inputRef={pageRef} 
