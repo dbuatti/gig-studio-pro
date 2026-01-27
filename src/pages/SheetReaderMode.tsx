@@ -124,6 +124,7 @@ const SheetReaderMode: React.FC = () => {
     setPdfScale(null);
     setPdfDocument(null);
     setLinks([]);
+    console.log("[SheetReaderMode] Resetting PDF state for new song:", currentSong?.id);
   }, [currentSong?.id]);
 
   const handleLocalSongUpdate = useCallback((songId: string, updates: Partial<SetlistSong>) => {
@@ -355,6 +356,7 @@ const SheetReaderMode: React.FC = () => {
       setCurrentIndex(initialIndex);
     } catch (err: any) {
       showError(`Failed to load songs: ${err.message}`);
+      console.error("[SheetReaderMode] Error fetching songs:", err);
     } finally {
       setInitialLoading(false);
     }
@@ -372,6 +374,7 @@ const SheetReaderMode: React.FC = () => {
   const fetchLinks = useCallback(async () => {
     if (!user || !currentSong?.master_id || selectedChartType === 'chords') {
       setLinks([]);
+      console.log("[SheetReaderMode] Not fetching links: no user, no master_id, or chart type is chords.");
       return;
     }
     try {
@@ -383,8 +386,10 @@ const SheetReaderMode: React.FC = () => {
       
       if (error) throw error;
       setLinks(data || []);
+      console.log("[SheetReaderMode] Successfully loaded links:", data?.length);
     } catch (err: any) {
       showError("Failed to load links.");
+      console.error("[SheetReaderMode] Error fetching links:", err);
     }
   }, [user, currentSong?.master_id, selectedChartType]);
 
@@ -412,12 +417,15 @@ const SheetReaderMode: React.FC = () => {
 
   const currentChartDisplayUrl = useMemo(() => {
     if (!currentSong) return null;
+    let url = null;
     switch (selectedChartType) {
-      case 'pdf': return currentSong.pdfUrl || currentSong.sheet_music_url;
-      case 'leadsheet': return currentSong.leadsheetUrl;
-      case 'chords': return null; 
-      default: return null;
+      case 'pdf': url = currentSong.pdfUrl || currentSong.sheet_music_url; break;
+      case 'leadsheet': url = currentSong.leadsheetUrl; break;
+      case 'chords': url = null; break; 
+      default: url = null; break;
     }
+    console.log("[SheetReaderMode] Determined currentChartDisplayUrl:", url, "for type:", selectedChartType);
+    return url;
   }, [currentSong, selectedChartType]);
 
   useEffect(() => {
@@ -426,10 +434,12 @@ const SheetReaderMode: React.FC = () => {
       if (selectedChartType !== bestType) {
         setSelectedChartType(bestType);
         setIsChartContentLoading(true);
+        console.log("[SheetReaderMode] Changing chart type to:", bestType);
       }
     } else {
       setSelectedChartType('pdf');
       setIsChartContentLoading(false);
+      console.log("[SheetReaderMode] No current song, defaulting chart type to pdf.");
     }
   }, [currentSong, getBestChartType, selectedChartType]);
 
@@ -443,6 +453,7 @@ const SheetReaderMode: React.FC = () => {
     if (allSongs.length > 0) {
       setCurrentIndex((prevIndex) => {
         const newIndex = (prevIndex + 1) % allSongs.length;
+        console.log("[SheetReaderMode] Navigating to next song. New index:", newIndex);
         return newIndex;
       });
       stopPlayback();
@@ -456,6 +467,7 @@ const SheetReaderMode: React.FC = () => {
     if (allSongs.length > 0) {
       setCurrentIndex((prevIndex) => {
         const newIndex = (prevIndex - 1 + allSongs.length) % allSongs.length;
+        console.log("[SheetReaderMode] Navigating to previous song. New index:", newIndex);
         return newIndex;
       });
       stopPlayback();
@@ -472,12 +484,14 @@ const SheetReaderMode: React.FC = () => {
       setIsBrowserFullScreen(prev => !prev);
       setIsInfoOverlayVisible(true); 
       setIsAudioPlayerVisible(true); 
+      console.log("[SheetReaderMode] Toggling standalone full screen.");
       return;
     }
 
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(err => {
         showError(`Error attempting to enable fullscreen mode: ${err.message} (${err.name})`);
+        console.error("[SheetReaderMode] Fullscreen error:", err);
       });
       if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
         setIsInfoOverlayVisible(false);
@@ -485,10 +499,12 @@ const SheetReaderMode: React.FC = () => {
         setIsInfoOverlayVisible(true); 
       }
       setIsAudioPlayerVisible(true); 
+      console.log("[SheetReaderMode] Entering browser full screen.");
     } else {
       document.exitFullscreen();
       setIsInfoOverlayVisible(false); 
       setIsAudioPlayerVisible(false); 
+      console.log("[SheetReaderMode] Exiting browser full screen.");
     }
   }, [selectedChartType]);
 
@@ -500,6 +516,9 @@ const SheetReaderMode: React.FC = () => {
         if (!document.fullscreenElement) {
           setIsInfoOverlayVisible(false); 
           setIsAudioPlayerVisible(false); 
+          console.log("[SheetReaderMode] Fullscreen exited via event.");
+        } else {
+          console.log("[SheetReaderMode] Fullscreen entered via event.");
         }
       }
     };
@@ -514,6 +533,7 @@ const SheetReaderMode: React.FC = () => {
       } else {
         setIsInfoOverlayVisible(true); 
       }
+      console.log("[SheetReaderMode] Fullscreen state changed, adjusting info overlay visibility.");
     }
   }, [currentSong?.id, selectedChartType, isBrowserFullScreen]);
 
@@ -521,23 +541,28 @@ const SheetReaderMode: React.FC = () => {
   const onOpenCurrentSongStudio = useCallback(() => {
     if (currentSong) {
       setIsStudioPanel(true);
+      console.log("[SheetReaderMode] Opening Song Studio for song:", currentSong.id);
     } else {
       showInfo("No song selected to open in Studio.");
+      console.warn("[SheetReaderMode] Attempted to open Studio with no song selected.");
     }
   }, [currentSong]);
 
   const onOpenRepertoireSearch = () => {
     setIsRepertoireSearchModalOpen(true);
+    console.log("[SheetReaderMode] Opening Repertoire Search modal.");
   };
 
   const handleSelectSongFromRepertoireSearch = useCallback((song: SetlistSong) => {
     const idx = allSongs.findIndex(s => s.id === song.id || s.master_id === song.master_id);
     if (idx !== -1) {
       setCurrentIndex(idx);
+      console.log("[SheetReaderMode] Selected song from search, setting current index:", idx);
     } else {
       // If the song is not in the current view (e.g., switching from gig to repertoire)
       // navigate to the repertoire view with the selected song
       navigate(`/sheet-reader/repertoire/${song.master_id || song.id}`);
+      console.log("[SheetReaderMode] Selected song from search, navigating to new route:", song.master_id || song.id);
     }
     stopPlayback();
     setIsRepertoireSearchModalOpen(false);
@@ -546,18 +571,22 @@ const SheetReaderMode: React.FC = () => {
   const handleSaveReaderPreference = useCallback((pref: 'sharps' | 'flats') => {
     setReaderKeyPreference(pref);
     showSuccess(`Reader preference saved to ${pref === 'sharps' ? 'Sharps' : 'Flats'}`);
+    console.log("[SheetReaderMode] Reader key preference saved:", pref);
   }, []);
 
   const onAddLink = useCallback(() => {
     if (currentChartDisplayUrl && pdfDocument) {
       setIsLinkEditorOpen(true);
+      console.log("[SheetReaderMode] Opening link editor.");
     } else {
       showInfo("No PDF available to add links.");
+      console.warn("[SheetReaderMode] Cannot add link, no PDF available.");
     }
   }, [currentChartDisplayUrl, pdfDocument]);
 
   const handleChartReady = useCallback(() => {
     setIsChartContentLoading(false);
+    console.log("[SheetReaderMode] Chart content is ready.");
   }, []);
 
   useEffect(() => {
@@ -568,17 +597,27 @@ const SheetReaderMode: React.FC = () => {
         case 'ArrowLeft':
           e.preventDefault();
           if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
-            setPdfCurrentPage(prev => Math.max(1, prev - 1)); 
+            setPdfCurrentPage(prev => {
+              const newPage = Math.max(1, prev - 1);
+              console.log("[SheetReaderMode] Keydown: ArrowLeft, PDF page:", newPage);
+              return newPage;
+            }); 
           } else {
             handlePrev();
+            console.log("[SheetReaderMode] Keydown: ArrowLeft, navigating to previous song.");
           }
           break;
         case 'ArrowRight':
           e.preventDefault();
           if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
-            setPdfCurrentPage(prev => Math.min(prev + 1, pdfNumPages || 999)); 
+            setPdfCurrentPage(prev => {
+              const newPage = Math.min(prev + 1, pdfNumPages || 999);
+              console.log("[SheetReaderMode] Keydown: ArrowRight, PDF page:", newPage);
+              return newPage;
+            }); 
           } else {
             handleNext();
+            console.log("[SheetReaderMode] Keydown: ArrowRight, navigating to next song.");
           }
           break;
         case 'i':
@@ -591,66 +630,90 @@ const SheetReaderMode: React.FC = () => {
         case 'p':
         case 'P':
           e.preventDefault();
-          setIsAudioPlayerVisible(prev => !prev); 
+          setIsAudioPlayerVisible(prev => {
+            console.log("[SheetReaderMode] Keydown: P, toggling audio player visibility to:", !prev);
+            return !prev;
+          }); 
           break;
         case 'r':
         case 'R':
           e.preventDefault();
           navigate('/');
+          console.log("[SheetReaderMode] Keydown: R, navigating to home.");
           break;
         case 'l': 
         case 'L':
           e.preventDefault();
           if (currentChartDisplayUrl && pdfDocument) { 
-            setIsLinkEditorOpen(prev => !prev);
+            setIsLinkEditorOpen(prev => {
+              console.log("[SheetReaderMode] Keydown: L, toggling link editor to:", !prev);
+              return !prev;
+            });
           } else {
             showInfo("No PDF available to add links.");
+            console.warn("[SheetReaderMode] Keydown: L, cannot open link editor, no PDF available.");
           }
           break;
         case 'e': 
         case 'E':
           e.preventDefault();
           if (currentChartDisplayUrl) { 
-            setIsEditingLinksMode(prev => !prev);
-            showInfo(`Link editing mode ${isEditingLinksMode ? 'disabled' : 'enabled'}.`);
+            setIsEditingLinksMode(prev => {
+              showInfo(`Link editing mode ${prev ? 'disabled' : 'enabled'}.`);
+              console.log("[SheetReaderMode] Keydown: E, toggling link editing mode to:", !prev);
+              return !prev;
+            });
           } else {
             showInfo("No PDF available to edit links.");
+            console.warn("[SheetReaderMode] Keydown: E, cannot toggle link editing, no PDF available.");
           }
           break;
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentSong, onOpenCurrentSongStudio, handlePrev, handleNext, selectedChartType, pdfNumPages, isEditingLinksMode, currentChartDisplayUrl, onAddLink, navigate]);
+  }, [currentSong, onOpenCurrentSongStudio, handlePrev, handleNext, selectedChartType, pdfNumPages, isEditingLinksMode, currentChartDisplayUrl, onAddLink, navigate, pdfDocument]);
 
   const calculatePdfScale = useCallback(async (pdf: PDFDocumentProxy, container: HTMLDivElement, pageNumber: number) => {
-    if (!container || !pdf) return;
+    if (!container || !pdf) {
+      console.warn("[SheetReaderMode] calculatePdfScale: Missing container or PDF document.");
+      return;
+    }
 
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
+    console.log("[SheetReaderMode] calculatePdfScale: container dimensions (W x H):", containerWidth, "x", containerHeight);
 
     try {
       const page = await pdf.getPage(pageNumber);
       const viewport = page.getViewport({ scale: 1 });
       const pageWidth = viewport.width;
       const pageHeight = viewport.height;
+      console.log("[SheetReaderMode] calculatePdfScale: page dimensions (W x H):", pageWidth, "x", pageHeight);
 
       const scaleX = containerWidth / pageWidth;
       const scaleY = containerHeight / pageHeight;
 
-      setPdfScale(Math.min(scaleX, scaleY));
+      const newScale = Math.min(scaleX, scaleY);
+      setPdfScale(newScale);
+      console.log("[SheetReaderMode] calculatePdfScale: Calculated new PDF scale:", newScale);
     } catch (error) {
+      console.error("[SheetReaderMode] Error calculating PDF scale:", error);
       // Silently handle scale failures during resize
     }
   }, []);
 
   useEffect(() => {
     const container = chartContainerRef.current;
-    if (!container || !pdfDocument) return; 
+    if (!container || !pdfDocument) {
+      console.log("[SheetReaderMode] ResizeObserver: Not observing, container or pdfDocument not ready.");
+      return; 
+    }
 
     const resizeObserver = new ResizeObserver(entries => {
       for (let entry of entries) {
         if (entry.target === container) {
+          console.log("[SheetReaderMode] ResizeObserver: Container resized, recalculating PDF scale.");
           calculatePdfScale(pdfDocument, container, pdfCurrentPage); 
         }
       }
@@ -659,6 +722,7 @@ const SheetReaderMode: React.FC = () => {
     resizeObserver.observe(container);
 
     return () => {
+      console.log("[SheetReaderMode] ResizeObserver: Disconnecting observer.");
       resizeObserver.unobserve(container);
     };
   }, [pdfDocument, pdfCurrentPage, calculatePdfScale]); 
@@ -668,16 +732,19 @@ const SheetReaderMode: React.FC = () => {
 
     if (first) {
       navigatedRef.current = false; 
+      console.log("[SheetReaderMode] Drag started.");
     }
 
     if (!down) { 
       if (navigatedRef.current) {
         navigatedRef.current = false; 
       }
+      console.log("[SheetReaderMode] Drag ended.");
       return;
     }
 
     if (navigatedRef.current) {
+      console.log("[SheetReaderMode] Drag: Navigation already triggered, ignoring further movement.");
       return;
     }
 
@@ -689,27 +756,40 @@ const SheetReaderMode: React.FC = () => {
     if (shouldTriggerNavigation) {
       navigatedRef.current = true; 
       cancel(); 
+      console.log("[SheetReaderMode] Drag: Swipe detected (long or fast), triggering navigation.");
 
       const pageStep = 1;
 
-      if (dx < 0) { 
+      if (dx < 0) { // Swiping left
         if (selectedChartType === 'chords') {
           handleNext();
+          console.log("[SheetReaderMode] Drag: Swiped left, next song (chords).");
         } else if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
           if (pdfCurrentPage < (pdfNumPages || 1)) {
-            setPdfCurrentPage(prev => Math.min(prev + pageStep, pdfNumPages || 999));
+            setPdfCurrentPage(prev => {
+              const newPage = Math.min(prev + pageStep, pdfNumPages || 999);
+              console.log("[SheetReaderMode] Drag: Swiped left, next PDF page:", newPage);
+              return newPage;
+            });
           } else {
             handleNext(); 
+            console.log("[SheetReaderMode] Drag: Swiped left, last PDF page, next song.");
           }
         }
-      } else { 
+      } else { // Swiping right
         if (selectedChartType === 'chords') {
           handlePrev();
+          console.log("[SheetReaderMode] Drag: Swiped right, previous song (chords).");
         } else if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
           if (pdfCurrentPage > 1) {
-            setPdfCurrentPage(prev => Math.max(1, prev - pageStep));
+            setPdfCurrentPage(prev => {
+              const newPage = Math.max(1, prev - pageStep);
+              console.log("[SheetReaderMode] Drag: Swiped right, previous PDF page:", newPage);
+              return newPage;
+            });
           } else {
             handlePrev(); 
+            console.log("[SheetReaderMode] Drag: Swiped right, first PDF page, previous song.");
           }
         }
       }
@@ -722,6 +802,7 @@ const SheetReaderMode: React.FC = () => {
 
   const handleNavigateToPage = useCallback((pageNumber: number, x?: number, y?: number) => {
     setPdfCurrentPage(pageNumber);
+    console.log("[SheetReaderMode] Navigating to PDF page:", pageNumber, "with coordinates:", x, y);
     if (chartContainerRef.current && x !== undefined && y !== undefined) {
       const targetX = x * chartContainerRef.current.scrollWidth - chartContainerRef.current.clientWidth / 2;
       const targetY = y * chartContainerRef.current.scrollHeight - chartContainerRef.current.clientHeight / 2;
@@ -730,6 +811,7 @@ const SheetReaderMode: React.FC = () => {
         top: targetY,
         behavior: 'smooth'
       });
+      console.log("[SheetReaderMode] Scrolling PDF container to target (X, Y):", targetX, targetY);
     }
   }, []);
 
@@ -815,6 +897,7 @@ const SheetReaderMode: React.FC = () => {
                 (() => {
                   const url = currentChartDisplayUrl; 
                   if (url) {
+                    console.log("[SheetReaderMode] Attempting to render PDF/Leadsheet from URL:", url);
                     return (
                       <div className="w-full h-full overflow-x-auto overflow-y-hidden flex justify-center items-center relative"> 
                         <Document
@@ -823,6 +906,7 @@ const SheetReaderMode: React.FC = () => {
                             setPdfNumPages(pdf.numPages);
                             setPdfDocument(pdf); 
                             setIsChartContentLoading(false);
+                            console.log("[SheetReaderMode] PDF Document loaded successfully. Pages:", pdf.numPages);
                             if (chartContainerRef.current) {
                               await calculatePdfScale(pdf, chartContainerRef.current, pdfCurrentPage);
                             }
@@ -830,6 +914,7 @@ const SheetReaderMode: React.FC = () => {
                           onLoadError={(error) => {
                             showError("Failed to load PDF document.");
                             setIsChartContentLoading(false);
+                            console.error("[SheetReaderMode] PDF Document failed to load:", error);
                           }}
                           loading={<Loader2 className="w-12 h-12 animate-spin text-indigo-500" />}
                           className="flex items-center justify-center w-full h-full" 
@@ -842,6 +927,7 @@ const SheetReaderMode: React.FC = () => {
                             loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
                             onRenderSuccess={(page) => {
                               setIsChartContentLoading(false);
+                              console.log("[SheetReaderMode] PDF Page rendered successfully:", page.pageNumber);
                             }}
                             inputRef={pageRef} 
                           />
@@ -862,6 +948,7 @@ const SheetReaderMode: React.FC = () => {
                       </div>
                     );
                   }
+                  console.log("[SheetReaderMode] No PDF/Leadsheet URL available for selected chart type.");
                   return (
                     <div className="h-full w-full flex flex-col items-center justify-center text-slate-500 text-sm italic gap-4">
                       <FileText className="w-12 h-12 opacity-20" />
