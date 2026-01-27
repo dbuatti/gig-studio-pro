@@ -55,7 +55,7 @@ const SheetReaderMode: React.FC = () => {
     ugChordsLineSpacing,
     ugChordsTextAlign,
     preventStageKeyOverwrite,
-    disablePortraitPdfScroll, // NEW
+    disablePortraitPdfScroll,
     setKeyPreference: setGlobalKeyPreference
   } = useSettings();
   const { forceReaderResource } = useReaderSettings();
@@ -73,7 +73,7 @@ const SheetReaderMode: React.FC = () => {
   const [isRepertoireSearchModalOpen, setIsRepertoireSearchModalOpen] = useState(false);
   const [isInfoOverlayVisible, setIsInfoOverlayVisible] = useState(true);
   const [isAudioPlayerVisible, setIsAudioPlayerVisible] = useState(true);
-  const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth); // NEW
+  const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
 
   const [readerKeyPreference, setReaderKeyPreference] = useState<'sharps' | 'flats'>(
     globalKeyPreference === 'neutral' ? 'sharps' : globalKeyPreference
@@ -108,7 +108,6 @@ const SheetReaderMode: React.FC = () => {
 
   const [{}, api] = useSpring(() => ({ x: 0 }));
 
-  // NEW: Detect orientation changes
   useEffect(() => {
     const handleResize = () => {
       setIsPortrait(window.innerHeight > window.innerWidth);
@@ -163,7 +162,7 @@ const SheetReaderMode: React.FC = () => {
           handleLocalSongUpdate(currentSong.id, result[0]);
         }
       } catch (err) {
-        console.error("Sheet Reader Auto-save failed:", err);
+        console.error("[SheetReader] Auto-save failed:", err);
       }
     }, [currentSong, user, handleLocalSongUpdate]),
     globalKeyPreference,
@@ -220,6 +219,7 @@ const SheetReaderMode: React.FC = () => {
   useEffect(() => {
     if (currentSong) {
       const urlToLoad = currentSong.audio_url || currentSong.previewUrl;
+      console.log(`[SheetReader] Loading audio for "${currentSong.name}":`, urlToLoad);
       audioEngine.setPitch(currentSong.pitch || 0);
       audioEngine.setTempo(currentSong.tempo || 1); 
       audioEngine.setFineTune(currentSong.fineTune || 0);
@@ -233,11 +233,15 @@ const SheetReaderMode: React.FC = () => {
     } else {
       audioEngine.resetEngine();
     }
-  }, [currentSong, audioEngine, showWarning]);
+  }, [currentSong]);
 
   const fetchSongs = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      console.log("[SheetReader] fetchSongs called but no user session found.");
+      return;
+    }
     setInitialLoading(true);
+    console.log("[SheetReader] Fetching songs...");
 
     try {
       const filterApproved = searchParams.get('filterApproved');
@@ -249,6 +253,9 @@ const SheetReaderMode: React.FC = () => {
 
       const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user_id', user.id).order('title');
       if (masterError) throw masterError;
+      
+      console.log(`[SheetReader] Fetched ${masterData?.length || 0} master repertoire tracks.`);
+
       masterRepertoireList = (masterData || []).map((d: any) => ({
         id: d.id,
         master_id: d.id,
@@ -301,6 +308,7 @@ const SheetReaderMode: React.FC = () => {
       setFullMasterRepertoire(masterRepertoireList);
 
       if (filterApproved === 'true') {
+        console.log("[SheetReader] Filtering for approved songs in active setlist...");
         const { data: setlistsData, error: setlistsError } = await supabase
           .from('setlists')
           .select('id')
@@ -352,6 +360,8 @@ const SheetReaderMode: React.FC = () => {
         s.pdfUrl || s.leadsheetUrl || s.ug_chords_text || s.sheet_music_url
       );
 
+      console.log(`[SheetReader] Filtered ${readableSongs.length} readable songs.`);
+
       const uniqueSongsMap = new Map<string, SetlistSong>();
       readableSongs.forEach(song => {
         const key = song.master_id || song.id;
@@ -368,6 +378,7 @@ const SheetReaderMode: React.FC = () => {
         const idx = uniqueReadableSongs.findIndex(s => s.id === targetId || s.master_id === targetId);
         if (idx !== -1) initialIndex = idx;
       }
+      console.log(`[SheetReader] Initial Index set to: ${initialIndex}`);
       setCurrentIndex(initialIndex);
     } catch (err: any) {
       console.error("[SheetReaderMode] Error fetching songs:", err);
@@ -379,7 +390,9 @@ const SheetReaderMode: React.FC = () => {
 
   useEffect(() => {
     const fromDashboard = sessionStorage.getItem('from_dashboard');
+    console.log("[SheetReader] from_dashboard check:", fromDashboard);
     if (!fromDashboard) {
+      console.warn("[SheetReader] Reader accessed without dashboard flag. Redirecting.");
       navigate('/', { replace: true });
       return;
     }
@@ -748,9 +761,8 @@ const SheetReaderMode: React.FC = () => {
     }
   }, []);
 
-  if (initialLoading) return <div className="h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
+  if (initialLoading) return <div className="h-screen bg-slate-950 flex flex-col items-center justify-center gap-4"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /><p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Initializing Reader Engine...</p></div>;
 
-  // NEW: Determine if scroll should be disabled
   const shouldDisableScroll = disablePortraitPdfScroll && isPortrait && (selectedChartType === 'pdf' || selectedChartType === 'leadsheet');
 
   return (
@@ -795,7 +807,7 @@ const SheetReaderMode: React.FC = () => {
             isBrowserFullScreen ? "mt-0" : "mt-[72px]", 
             isAudioPlayerVisible && currentSong ? "pb-24" : "pb-0", 
             "overscroll-behavior-x-contain",
-            shouldDisableScroll ? "overflow-y-hidden" : "overflow-y-auto" // NEW: Conditional scroll disable
+            shouldDisableScroll ? "overflow-y-hidden" : "overflow-y-auto"
           )}
           onClick={toggleBrowserFullScreen} 
         >
@@ -824,7 +836,10 @@ const SheetReaderMode: React.FC = () => {
                   progress={progress}
                   duration={duration}
                   readerKeyPreference={readerKeyPreference}
-                  onChartReady={() => setIsChartContentLoading(false)}
+                  onChartReady={() => {
+                    console.log(`[SheetReader] Chords rendered for "${currentSong.name}"`);
+                    setIsChartContentLoading(false);
+                  }}
                   isFullScreen={isBrowserFullScreen && !isInfoOverlayVisible} 
                 />
               ) : (
@@ -836,6 +851,7 @@ const SheetReaderMode: React.FC = () => {
                         <Document
                           file={url}
                           onLoadSuccess={async (pdf) => { 
+                            console.log(`[SheetReader] PDF Loaded: ${pdf.numPages} pages.`);
                             setPdfNumPages(pdf.numPages);
                             setPdfDocument(pdf); 
                             setIsChartContentLoading(false);
@@ -858,6 +874,7 @@ const SheetReaderMode: React.FC = () => {
                             renderTextLayer={true}
                             loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
                             onRenderSuccess={(page) => {
+                              console.log(`[SheetReader] Page ${pdfCurrentPage} rendered.`);
                               setIsChartContentLoading(false);
                             }}
                             inputRef={pageRef} 
@@ -880,15 +897,17 @@ const SheetReaderMode: React.FC = () => {
                     );
                   }
                   return (
-                    <div className="h-full w-full flex items-center justify-center text-slate-500 text-sm italic">
-                      <p>No {selectedChartType} available for this track.</p>
+                    <div className="h-full w-full flex flex-col items-center justify-center text-slate-500 text-sm italic gap-4">
+                      <FileText className="w-12 h-12 opacity-20" />
+                      <p>No {selectedChartType} asset linked for this track.</p>
                     </div>
                   );
                 })()
               )
             ) : (
-              <div className="h-full w-full flex items-center justify-center text-slate-500 text-sm italic">
-                <p>No song selected or available.</p>
+              <div className="h-full w-full flex flex-col items-center justify-center text-slate-500 text-sm italic gap-4">
+                <Music className="w-12 h-12 opacity-20" />
+                <p>No active song in selection pool.</p>
               </div>
             )}
           </animated.div>

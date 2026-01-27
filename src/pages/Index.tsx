@@ -160,7 +160,6 @@ const Index = () => {
         isApproved: d.is_approved, is_ready_to_sing: d.is_ready_to_sing, preferred_reader: d.preferred_reader, ug_chords_text: d.ug_chords_text,
         ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG, extraction_status: d.extraction_status,
         audio_url: d.audio_url,
-        // Map goal tracking timestamps
         lyrics_updated_at: d.lyrics_updated_at,
         chords_updated_at: d.chords_updated_at,
         ug_link_updated_at: d.ug_link_updated_at,
@@ -288,7 +287,11 @@ const Index = () => {
       </div>
 
       <FloatingCommandDock 
-        onOpenSearch={() => setIsAudioTransposerModalOpen(true)} onOpenPractice={() => {}} onOpenReader={(id) => navigate(`/sheet-reader/${id || ''}`)} 
+        onOpenSearch={() => setIsAudioTransposerModalOpen(true)} onOpenPractice={() => {}} 
+        onOpenReader={(id) => {
+          sessionStorage.setItem('from_dashboard', 'true');
+          navigate(`/sheet-reader/${id || ''}`);
+        }} 
         onOpenAdmin={() => setIsAdminPanelOpen(true)} onOpenPreferences={() => setIsPreferencesOpen(true)} onToggleHeatmap={() => setShowHeatmap(!showHeatmap)} 
         onOpenUserGuide={() => setIsUserGuideOpen(true)} showHeatmap={showHeatmap} viewMode={activeDashboardView} hasPlayableSong={!!activeSongForPerformance} isPlaying={audio.isPlaying} 
         onTogglePlayback={audio.togglePlayback} activeSongId={activeSongForPerformance?.id} onSetMenuOpen={setFloatingDockMenuOpen} isMenuOpen={floatingDockMenuOpen} 
