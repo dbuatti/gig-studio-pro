@@ -131,6 +131,7 @@ const GigSessionManager: React.FC<GigSessionManagerProps> = ({ setlistId }) => {
           value={newCode}
           onChange={(e) => setNewCode(e.target.value)}
           className="h-11 bg-card border-border text-xs font-black uppercase tracking-widest rounded-xl"
+          name="new_gig_code"
         />
         <Button 
           onClick={createSession} 
