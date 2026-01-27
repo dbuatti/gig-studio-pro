@@ -66,7 +66,7 @@ const MainLayout = () => {
         <Route path="/setlist/:id" element={<PublicGigView />} />
         <Route path="/dashboard" element={<Navigate to="/" replace />} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-        <Route path="/sheet-reader/:songId?" element={<ProtectedRoute><SheetReaderMode /></ProtectedRoute>} />
+        <Route path="/sheet-reader/:setlistId/:songId?" element={<ProtectedRoute><SheetReaderMode /></ProtectedRoute>} />
         <Route path="/gig/:gigId/song/:songId" element={<ProtectedRoute><SongStudio /></ProtectedRoute>} />
         <Route path="/debug" element={<ProtectedRoute><DebugPage /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />

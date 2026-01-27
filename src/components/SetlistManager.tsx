@@ -27,8 +27,8 @@ export interface UGChordsConfig {
 }
 
 export interface SetlistSong {
-  id: string;
-  master_id?: string;
+  id: string; // This is the setlist_songs.id
+  master_id?: string; // This is the repertoire.id
   name: string;
   artist?: string;
   previewUrl: string;
@@ -98,13 +98,13 @@ export interface Setlist {
 
 interface SetlistManagerProps {
   songs: SetlistSong[]; 
-  onRemove: (id: string) => void;
+  onRemove: (setlistSongId: string) => void; // Changed to setlist_songs.id
   onSelect: (song: SetlistSong) => void;
   onEdit: (song: SetlistSong) => void;
-  onUpdateKey: (id: string, targetKey: string) => void;
-  onTogglePlayed: (id: string) => void;
+  onUpdateKey: (setlistSongId: string, targetKey: string) => void; // Changed to setlist_songs.id
+  onTogglePlayed: (setlistSongId: string) => void; // Changed to setlist_songs.id
   onLinkAudio: (songName: string) => void;
-  onUpdateSong: (id: string, updates: Partial<SetlistSong>) => void;
+  onUpdateSong: (setlistSongId: string, updates: Partial<SetlistSong>) => void; // Changed to setlist_songs.id
   onSyncProData: (song: SetlistSong) => Promise<void>;
   onReorder: (newSongs: SetlistSong[]) => void;
   currentSongId?: string;
@@ -192,15 +192,9 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   };
 
   const uniqueRenderedSongs = useMemo(() => {
-    const seen = new Set();
-    return processedSongs.filter(song => {
-      const key = song.master_id || song.id;
-      if (seen.has(key)) {
-        return false;
-      }
-      seen.add(key);
-      return true;
-    });
+    // For SetlistManager, we want to display all songs in the setlist,
+    // even if they share the same master_id, as they are distinct entries in setlist_songs.
+    return processedSongs;
   }, [processedSongs]);
 
   return (
@@ -545,7 +539,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       <td className="px-6 text-right pr-10">
                         <div className="flex items-center justify-end gap-2 h-full">
                           <SetlistMultiSelector
-                            songMasterId={song.id}
+                            songMasterId={song.master_id || song.id}
                             allSetlists={allSetlists}
                             songToAssign={song}
                             onUpdateSetlistSongs={onUpdateSetlistSongs}
