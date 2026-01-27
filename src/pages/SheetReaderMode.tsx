@@ -43,7 +43,7 @@ export type ChartType = 'pdf' | 'leadsheet' | 'chords';
 
 const SheetReaderMode: React.FC = () => {
   const navigate = useNavigate();
-  const { songId: routeSongId } = useParams<{ songId?: string }>();
+  const { songId: routeSongId, setlistId: routeSetlistId } = useParams<{ songId?: string; setlistId?: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { 
@@ -56,7 +56,7 @@ const SheetReaderMode: React.FC = () => {
 
   const [allSongs, setAllSongs] = useState<SetlistSong[]>([]);
   const [fullMasterRepertoire, setFullMasterRepertoire] = useState<SetlistSong[]>([]);
-  const [currentSetlistSongs, setCurrentSetlistSongs] = useState<SetlistSong[]>([]);
+  const [currentSetlistSongs, setCurrentSetlistSongs] = useState<SetlistSong[]>([]); // This will hold songs if in gig mode
   const [currentIndex, setCurrentIndex] = useState(0);
   const [initialLoading, setInitialLoading] = useState(true);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
@@ -147,7 +147,7 @@ const SheetReaderMode: React.FC = () => {
       try {
         const result = await syncToMasterRepertoire(user.id, [{
           ...updates,
-          id: currentSong.id,
+          id: currentSong.master_id || currentSong.id, // Use master_id for repertoire updates
           name: currentSong.name,
           artist: currentSong.artist
         }]);
@@ -235,11 +235,13 @@ const SheetReaderMode: React.FC = () => {
     try {
       const filterApproved = searchParams.get('filterApproved');
       const targetId = routeSongId || searchParams.get('id');
+      const isGigMode = routeSetlistId && routeSetlistId !== 'repertoire';
 
       let currentViewSongs: SetlistSong[] = [];
       let masterRepertoireList: SetlistSong[] = [];
       let activeSetlistSongsList: SetlistSong[] = [];
 
+      // Always fetch full master repertoire for search/studio context
       const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user_id', user.id).order('title');
       if (masterError) throw masterError;
 
@@ -259,7 +261,6 @@ const SheetReaderMode: React.FC = () => {
         leadsheetUrl: d.leadsheet_url,
         bpm: d.bpm,
         genre: d.genre,
-        isSyncing: false,
         isMetadataConfirmed: d.is_metadata_confirmed,
         isKeyConfirmed: d.is_key_confirmed,
         notes: d.notes,
@@ -294,22 +295,11 @@ const SheetReaderMode: React.FC = () => {
       }));
       setFullMasterRepertoire(masterRepertoireList);
 
-      if (filterApproved === 'true') {
-        const { data: setlistsData, error: setlistsError } = await supabase
-          .from('setlists')
-          .select('id')
-          .eq('user_id', user.id)
-          .limit(1);
-
-        if (setlistsError || !setlistsData || setlistsData.length === 0) {
-          throw new Error("No active setlist found.");
-        }
-        const activeSetlistId = setlistsData[0].id;
-
+      if (isGigMode && routeSetlistId) {
         const { data: junctionData, error: junctionError } = await supabase
           .from('setlist_songs')
           .select(`
-            *,
+            id, isPlayed, sort_order,
             repertoire:song_id (
               id, title, artist, original_key, target_key, pitch, preview_url, youtube_url, ug_url, 
               apple_music_url, pdf_url, leadsheet_url, bpm, genre, is_metadata_confirmed, is_key_confirmed, 
@@ -321,7 +311,7 @@ const SheetReaderMode: React.FC = () => {
               ug_link_updated_at, highest_note_updated_at, original_key_updated_at, target_key_updated_at
             )
           `)
-          .eq('setlist_id', activeSetlistId)
+          .eq('setlist_id', routeSetlistId)
           .order('sort_order', { ascending: true });
 
         if (junctionError) throw junctionError;
@@ -331,24 +321,24 @@ const SheetReaderMode: React.FC = () => {
           if (!masterSong) return null;
           return {
             ...masterSong,
-            id: junction.id,
-            master_id: masterSong.id,
+            id: junction.id, // Use setlist_songs.id for unique identification within the setlist
+            master_id: masterSong.id, // Keep repertoire.id as master_id
+            name: masterSong.title, // Override name with repertoire title
             isPlayed: junction.isPlayed || false,
           };
         }).filter(Boolean) as SetlistSong[];
         setCurrentSetlistSongs(activeSetlistSongsList);
         currentViewSongs = activeSetlistSongsList;
       } else {
-        currentViewSongs = masterRepertoireList;
+        // Filter master repertoire for readable songs
+        currentViewSongs = masterRepertoireList.filter(s => 
+          s.pdfUrl || s.leadsheetUrl || s.ug_chords_text || s.sheet_music_url
+        );
       }
 
-      const readableSongs = currentViewSongs.filter(s => 
-        s.pdfUrl || s.leadsheetUrl || s.ug_chords_text || s.sheet_music_url
-      );
-
       const uniqueSongsMap = new Map<string, SetlistSong>();
-      readableSongs.forEach(song => {
-        const key = song.master_id || song.id;
+      currentViewSongs.forEach(song => {
+        const key = song.id; // Use the song's ID (setlist_songs.id or repertoire.id) for uniqueness in the reader
         if (key && !uniqueSongsMap.has(key)) {
           uniqueSongsMap.set(key, song);
         }
@@ -368,7 +358,7 @@ const SheetReaderMode: React.FC = () => {
     } finally {
       setInitialLoading(false);
     }
-  }, [user, routeSongId, searchParams]);
+  }, [user, routeSongId, routeSetlistId, searchParams]);
 
   useEffect(() => {
     const fromDashboard = sessionStorage.getItem('from_dashboard');
@@ -403,7 +393,7 @@ const SheetReaderMode: React.FC = () => {
   }, [fetchLinks]);
 
   const getBestChartType = useCallback((song: SetlistSong): ChartType => {
-    if (forceReaderResource === 'force-pdf' && song.pdfUrl) return 'pdf';
+    if (forceReaderResource === 'force-pdf' && (song.pdfUrl || song.sheet_music_url)) return 'pdf';
     if (forceReaderResource === 'force-ug' && (song.ugUrl || song.ug_chords_text)) return 'chords';
     if (forceReaderResource === 'force-chords' && song.ug_chords_text) return 'chords';
 
@@ -545,7 +535,9 @@ const SheetReaderMode: React.FC = () => {
     if (idx !== -1) {
       setCurrentIndex(idx);
     } else {
-      navigate(`/sheet-reader/${song.id}`);
+      // If the song is not in the current view (e.g., switching from gig to repertoire)
+      // navigate to the repertoire view with the selected song
+      navigate(`/sheet-reader/repertoire/${song.master_id || song.id}`);
     }
     stopPlayback();
     setIsRepertoireSearchModalOpen(false);
@@ -914,7 +906,7 @@ const SheetReaderMode: React.FC = () => {
                   isOpen={true}
                   onClose={() => setIsStudioPanel(false)}
                   gigId="library"
-                  songId={currentSong.id}
+                  songId={currentSong.master_id || currentSong.id} // Pass master_id for studio
                   visibleSongs={allSongs}
                   handleAutoSave={(updates) => handleLocalSongUpdate(currentSong.id, updates)}
                   preventStageKeyOverwrite={preventStageKeyOverwrite}
