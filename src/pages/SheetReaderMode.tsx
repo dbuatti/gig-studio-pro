@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
-import { UGChordsConfig } from '@/components/SetlistManager'; // Removed SetlistSong import
+import { SetlistSong, UGChordsConfig } from '@/components/SetlistManager'; // Now importing SetlistSong
 import { Button } from '@/components/ui/button';
 import { Music, Loader2, AlertCircle, X, ExternalLink, ShieldCheck, FileText, Layout, Guitar, ChevronLeft, ChevronRight, Download, Link as LinkIcon, Ruler, Edit3, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -41,56 +41,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
 export type ChartType = 'pdf' | 'leadsheet' | 'chords';
 
-// Explicitly define SetlistSong type here
-export type SetlistSong = {
-  id: string;
-  master_id?: string;
-  name: string;
-  artist: string;
-  originalKey?: string;
-  targetKey?: string;
-  pitch?: number;
-  previewUrl?: string;
-  youtubeUrl?: string;
-  ugUrl?: string;
-  appleMusicUrl?: string;
-  pdfUrl?: string; // Explicitly defined
-  leadsheetUrl?: string;
-  bpm?: string;
-  genre?: string;
-  isMetadataConfirmed?: boolean;
-  isKeyConfirmed?: boolean;
-  notes?: string;
-  lyrics?: string;
-  resources?: any[];
-  user_tags?: string[];
-  is_pitch_linked?: boolean;
-  duration_seconds?: number;
-  key_preference?: string;
-  is_active?: boolean;
-  isApproved?: boolean;
-  preferred_reader?: string;
-  ug_chords_text?: string;
-  ug_chords_config?: UGChordsConfig;
-  is_ug_chords_present?: boolean;
-  highest_note_original?: string;
-  metadata_source?: string;
-  sync_status?: string;
-  last_sync_log?: string;
-  auto_synced?: boolean;
-  is_sheet_verified?: boolean;
-  sheet_music_url?: string; // Explicitly defined
-  extraction_status?: string;
-  extraction_error?: string;
-  audio_url?: string;
-  lyrics_updated_at?: string;
-  chords_updated_at?: string;
-  ug_link_updated_at?: string;
-  highest_note_updated_at?: string;
-  original_key_updated_at?: string;
-  target_key_updated_at?: string;
-  isPlayed?: boolean; // From setlist_songs junction
-};
+// Removed local SetlistSong type definition, now importing from SetlistManager
 
 
 const SheetReaderMode: React.FC = () => {
