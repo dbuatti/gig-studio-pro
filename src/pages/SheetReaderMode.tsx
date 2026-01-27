@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
-import { SetlistSong, UGChordsConfig } from '@/components/SetlistManager'; // Now importing SetlistSong
+import { SetlistSong, UGChordsConfig } from '@/components/SetlistManager';
 import { Button } from '@/components/ui/button';
 import { Music, Loader2, AlertCircle, X, ExternalLink, ShieldCheck, FileText, Layout, Guitar, ChevronLeft, ChevronRight, Download, Link as LinkIcon, Ruler, Edit3, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -40,8 +40,6 @@ import LinkSizeModal from '@/components/LinkSizeModal';
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
 export type ChartType = 'pdf' | 'leadsheet' | 'chords';
-
-// Removed local SetlistSong type definition, now importing from SetlistManager
 
 
 const SheetReaderMode: React.FC = () => {
@@ -298,7 +296,6 @@ const SheetReaderMode: React.FC = () => {
           original_key_updated_at: d.original_key_updated_at,
           target_key_updated_at: d.target_key_updated_at,
         };
-        console.log(`[SheetReaderMode] Mapped song ${mappedSong.name} (ID: ${mappedSong.id}): pdfUrl=${mappedSong.pdfUrl}, sheet_music_url=${mappedSong.sheet_music_url}`);
         return mappedSong;
       });
       setFullMasterRepertoire(masterRepertoireList);
@@ -357,14 +354,36 @@ const SheetReaderMode: React.FC = () => {
 
       let initialIndex = 0;
       if (targetId) {
-        const idx = uniqueReadableSongs.findIndex(s => s.id === targetId || s.master_id === targetId);
-        if (idx !== -1) initialIndex = idx;
+        let foundIndex = uniqueReadableSongs.findIndex(s => s.id === targetId || s.master_id === targetId);
+        
+        if (foundIndex !== -1) {
+          const targetedSong = uniqueReadableSongs[foundIndex];
+          // If the targeted song doesn't have a PDF, but another song with the same name does,
+          // try to find and select that one instead.
+          if (!targetedSong.pdfUrl && !targetedSong.sheet_music_url) {
+            const songWithPdfIndex = uniqueReadableSongs.findIndex(s => 
+              s.name === targetedSong.name && 
+              s.artist === targetedSong.artist && 
+              (s.pdfUrl || s.sheet_music_url)
+            );
+            if (songWithPdfIndex !== -1) {
+              initialIndex = songWithPdfIndex;
+              showInfo(`Switched to a version of "${targetedSong.name}" with a PDF.`);
+              console.log("[SheetReaderMode] Switched to PDF version of song:", targetedSong.name, "new index:", initialIndex);
+            } else {
+              initialIndex = foundIndex; // Stick to the original if no PDF version found
+            }
+          } else {
+            initialIndex = foundIndex; // Use the targeted song if it has a PDF
+          }
+        }
+        console.log("[SheetReaderMode] Target ID:", targetId, "resolved to initialIndex:", initialIndex);
       }
       setCurrentIndex(initialIndex);
 
       const songAfterLoad = uniqueReadableSongs[initialIndex];
       if (songAfterLoad) {
-        console.log("[SheetReaderMode] Loaded song details:", {
+        console.log("[SheetReaderMode] Loaded song details (after index selection):", {
           id: songAfterLoad.id,
           name: songAfterLoad.name,
           pdfUrl: songAfterLoad.pdfUrl,
@@ -438,6 +457,7 @@ const SheetReaderMode: React.FC = () => {
 
   const currentChartDisplayUrl = useMemo(() => {
     if (!currentSong) return null;
+    console.log("[SheetReaderMode] currentChartDisplayUrl evaluation for song:", currentSong.name, "ID:", currentSong.id, "pdfUrl:", currentSong.pdfUrl, "sheet_music_url:", currentSong.sheet_music_url);
     let url = null;
     switch (selectedChartType) {
       case 'pdf': url = currentSong.pdfUrl || currentSong.sheet_music_url; break;
