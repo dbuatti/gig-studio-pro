@@ -354,6 +354,20 @@ const SheetReaderMode: React.FC = () => {
         if (idx !== -1) initialIndex = idx;
       }
       setCurrentIndex(initialIndex);
+
+      const songAfterLoad = uniqueReadableSongs[initialIndex];
+      if (songAfterLoad) {
+        console.log("[SheetReaderMode] Loaded song details:", {
+          id: songAfterLoad.id,
+          name: songAfterLoad.name,
+          pdfUrl: songAfterLoad.pdfUrl,
+          sheet_music_url: songAfterLoad.sheet_music_url,
+          leadsheetUrl: songAfterLoad.leadsheetUrl,
+          ug_chords_text_present: !!songAfterLoad.ug_chords_text,
+          preferred_reader: songAfterLoad.preferred_reader,
+        });
+      }
+
     } catch (err: any) {
       showError(`Failed to load songs: ${err.message}`);
       console.error("[SheetReaderMode] Error fetching songs:", err);
