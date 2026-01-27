@@ -44,6 +44,7 @@ import AudioTransposer, { AudioTransposerRef } from '@/components/AudioTranspose
 import GoalTracker from '@/components/GoalTracker';
 import SetlistSortModal from '@/components/SetlistSortModal';
 import { calculateSemitones } from '@/utils/keyUtils';
+import VisuallyHidden from '@/components/VisuallyHidden';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -305,6 +306,11 @@ const Index = () => {
       {isAudioTransposerModalOpen && (
         <AlertDialog open={isAudioTransposerModalOpen} onOpenChange={setIsAudioTransposerModalOpen}>
           <AlertDialogContent className="max-w-[95vw] w-[1200px] h-[90vh] p-0 bg-slate-950 border-white/10 overflow-hidden rounded-[2rem] shadow-2xl flex flex-col">
+            <AlertDialogHeader className="sr-only">
+              <VisuallyHidden>
+                <AlertDialogTitle>Audio Discovery Matrix</AlertDialogTitle>
+              </VisuallyHidden>
+            </AlertDialogHeader>
             <div className="flex justify-between items-center p-6 border-b border-white/5 bg-slate-900 shrink-0">
                <h3 className="text-xl font-black uppercase text-white">Audio Discovery Matrix</h3>
                <Button variant="ghost" onClick={() => setIsAudioTransposerModalOpen(false)} className="h-10 w-10 p-0 text-slate-400 hover:text-white">
