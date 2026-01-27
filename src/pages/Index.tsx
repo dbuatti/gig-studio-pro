@@ -287,7 +287,11 @@ const Index = () => {
       </div>
 
       <FloatingCommandDock 
-        onOpenSearch={() => setIsAudioTransposerModalOpen(true)} onOpenPractice={() => {}} 
+        onOpenSearch={() => {
+          console.log("[Dashboard] Opening Audio Transposer (Search) Modal");
+          setIsAudioTransposerModalOpen(true);
+        }} 
+        onOpenPractice={() => {}} 
         onOpenReader={(id) => {
           sessionStorage.setItem('from_dashboard', 'true');
           navigate(`/sheet-reader/${id || ''}`);
@@ -297,6 +301,43 @@ const Index = () => {
         onTogglePlayback={audio.togglePlayback} activeSongId={activeSongForPerformance?.id} onSetMenuOpen={setFloatingDockMenuOpen} isMenuOpen={floatingDockMenuOpen} 
         onOpenPerformance={() => setIsPerformanceOverlayOpen(true)} hasReadableChart={!!activeSongForPerformance}
       />
+
+      {isAudioTransposerModalOpen && (
+        <AlertDialog open={isAudioTransposerModalOpen} onOpenChange={setIsAudioTransposerModalOpen}>
+          <AlertDialogContent className="max-w-[95vw] w-[1200px] h-[90vh] p-0 bg-slate-950 border-white/10 overflow-hidden rounded-[2rem] shadow-2xl flex flex-col">
+            <div className="flex justify-between items-center p-6 border-b border-white/5 bg-slate-900 shrink-0">
+               <h3 className="text-xl font-black uppercase text-white">Audio Discovery Matrix</h3>
+               <Button variant="ghost" onClick={() => setIsAudioTransposerModalOpen(false)} className="h-10 w-10 p-0 text-slate-400 hover:text-white">
+                 <X className="w-6 h-6" />
+               </Button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+               <AudioTransposer 
+                 repertoire={masterRepertoire}
+                 currentSong={activeSongForPerformance}
+                 onAddToSetlist={(p, n, a, y, u, am, g, pi, au, es) => {
+                   if (activeDashboardView === 'repertoire' || !activeSetlistId) {
+                      syncToMasterRepertoire(userId!, [{ name: n, artist: a, previewUrl: p, youtubeUrl: y, ugUrl: u, appleMusicUrl: am, genre: g, pitch: pi, audio_url: au, extraction_status: es }]);
+                   } else {
+                      onUpdateSetlistSongs?.(activeSetlistId, { id: crypto.randomUUID(), name: n, artist: a, previewUrl: p, youtubeUrl: y, ugUrl: u, appleMusicUrl: am, genre: g, pitch: pi, audio_url: au, extraction_status: es } as any, 'add');
+                   }
+                   setIsAudioTransposerModalOpen(false);
+                   fetchSetlistsAndRepertoire();
+                 }}
+                 onAddExistingSong={async (s) => {
+                   if (activeSetlistId) {
+                     await supabase.from('setlist_songs').insert({ setlist_id: activeSetlistId, song_id: s.master_id || s.id, sort_order: 0 });
+                     showSuccess(`Added "${s.name}" to gig!`);
+                     setIsAudioTransposerModalOpen(false);
+                     fetchSetlistsAndRepertoire();
+                   }
+                 }}
+                 currentList={activeSetlist}
+               />
+            </div>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
 
       <SongStudioModal 
         isOpen={isSongStudioModalOpen} onClose={() => setIsSongStudioModalOpen(false)} 
