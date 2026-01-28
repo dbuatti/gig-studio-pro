@@ -3,7 +3,7 @@
 import React from 'react';
 import { SetlistSong, ChartType } from '@/components/SetlistManager';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, X, Search, Settings, Fullscreen, FullscreenExit, Volume2, VolumeX, Link, Edit3, Ruler, Plus, Minus, Layout, BookOpen, Guitar, FileText, ScrollText, Sheet, Music } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Search, Settings, Fullscreen, Minimize2, Volume2, VolumeX, Link, Edit3, Ruler, Plus, Minus, Layout, BookOpen, Guitar, FileText, ScrollText, Sheet, Music } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { KeyPreference } from '@/hooks/use-settings';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -294,7 +294,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon" onClick={onToggleFullScreen} className="text-slate-400 hover:bg-slate-800 hover:text-white">
-                {isFullScreen ? <FullscreenExit className="w-5 h-5" /> : <Fullscreen className="w-5 h-5" />}
+                {isFullScreen ? <Minimize2 className="w-5 h-5" /> : <Fullscreen className="w-5 h-5" />}
               </Button>
             </TooltipTrigger>
             <TooltipContent className="bg-slate-700 text-white border-slate-600">
