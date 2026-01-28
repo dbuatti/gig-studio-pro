@@ -1,25 +1,23 @@
 "use client";
 
-import React from 'react';
-import { SetlistSong, ChartType } from '@/components/SetlistManager';
-import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, X, Search, Settings, Fullscreen, Minimize2, Volume2, VolumeX, Link, Edit3, Ruler, Plus, Minus, Layout, BookOpen, Guitar, FileText, ScrollText, Sheet, Music } from 'lucide-react';
+import React, { useRef, useEffect } from 'react';
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuPortal, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { cn } from '@/lib/utils';
+import { formatKey, ALL_KEYS_SHARP, ALL_KEYS_FLAT } from '@/utils/keyUtils';
+import { ArrowLeft, Search, ListMusic, ChevronDown, Minus, Plus, FileText, Headphones, Link as LinkIcon, Ruler, Edit3, Trash2 } from 'lucide-react'; // NEW: Import LinkIcon, Ruler, Edit3, Trash2
+import { SetlistSong } from '@/components/SetlistManager';
 import { KeyPreference } from '@/hooks/use-settings';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Badge } from '@/components/ui/badge';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-type SheetReaderHeaderProps = {
-  currentSong: SetlistSong;
+interface SheetReaderHeaderProps {
+  currentSong: SetlistSong | null;
   onClose: () => void;
   onOpenRepertoireSearch: () => void;
   onOpenCurrentSongStudio: () => void;
   isLoading: boolean;
   keyPreference: KeyPreference;
-  onUpdateKey: (newKey: string) => void;
-  isFullScreen: boolean;
-  onToggleFullScreen: () => void;
+  onUpdateKey: (newTargetKey: string) => void;
   setIsOverlayOpen: (isOpen: boolean) => void;
   pitch: number;
   setPitch: (pitch: number) => void;
@@ -29,21 +27,13 @@ type SheetReaderHeaderProps = {
   effectiveTargetKey: string;
   isAudioPlayerVisible: boolean;
   onToggleAudioPlayer: () => void;
-  onAddLink: () => void;
-  onToggleLinkEditMode: () => void;
-  onOpenLinkSizeModal: () => void;
-  isEditingLinksMode: boolean;
-  selectedChartType: ChartType;
-  setSelectedChartType: (type: ChartType) => void;
-  pdfCurrentPage: number;
-  pdfNumPages: number | null;
-  onPrevPdfPage: () => void;
-  onNextPdfPage: () => void;
-  onZoomInPdf: () => void;
-  onZoomOutPdf: () => void;
-  canZoomIn: boolean;
-  canZoomOut: boolean;
-};
+  isFullScreen: boolean;
+  onToggleFullScreen: () => void;
+  onAddLink: () => void; // NEW: Prop for adding a new link
+  onToggleLinkEditMode: () => void; // NEW: Prop for toggling link edit mode
+  onOpenLinkSizeModal: () => void; // NEW: Prop for opening link size modal
+  isEditingLinksMode: boolean; // NEW: Prop to indicate if in link editing mode
+}
 
 const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   currentSong,
@@ -53,8 +43,6 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   isLoading,
   keyPreference,
   onUpdateKey,
-  isFullScreen,
-  onToggleFullScreen,
   setIsOverlayOpen,
   pitch,
   setPitch,
@@ -64,246 +52,208 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   effectiveTargetKey,
   isAudioPlayerVisible,
   onToggleAudioPlayer,
-  onAddLink,
-  onToggleLinkEditMode,
-  onOpenLinkSizeModal,
-  isEditingLinksMode,
-  selectedChartType,
-  setSelectedChartType,
-  pdfCurrentPage,
-  pdfNumPages,
-  onPrevPdfPage,
-  onNextPdfPage,
-  onZoomInPdf,
-  onZoomOutPdf,
-  canZoomIn,
-  canZoomOut,
+  isFullScreen,
+  onToggleFullScreen,
+  onAddLink, // NEW
+  onToggleLinkEditMode, // NEW
+  onOpenLinkSizeModal, // NEW
+  isEditingLinksMode, // NEW
 }) => {
-  const getChartTypeIcon = (type: ChartType) => {
-    switch (type) {
-      case 'pdf': return <FileText className="w-4 h-4" />;
-      case 'leadsheet': return <Sheet className="w-4 h-4" />;
-      case 'chords': return <Guitar className="w-4 h-4" />;
-      default: return <Layout className="w-4 h-4" />;
+  const displayKey = effectiveTargetKey ? formatKey(effectiveTargetKey, readerKeyPreference) : null;
+  const keysToUse = readerKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
+  const activeKeyItemRef = useRef<HTMLDivElement>(null);
+
+  const handleDropdownOpenChange = (open: boolean) => {
+    setIsOverlayOpen(open);
+    if (open && activeKeyItemRef.current) {
+      setTimeout(() => {
+        activeKeyItemRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }, 100);
     }
   };
 
-  const hasPdf = !!(currentSong?.pdfUrl || currentSong?.sheet_music_url);
-  const hasLeadsheet = !!currentSong?.leadsheetUrl;
-  const hasChords = !!currentSong?.ug_chords_text;
+  const hasPdf = !!currentSong?.pdfUrl || !!currentSong?.leadsheetUrl || !!currentSong?.sheet_music_url;
 
   return (
-    <header className={cn(
-      "fixed top-0 left-0 right-0 z-40 flex items-center justify-between h-[72px] px-4 bg-slate-900 border-b border-slate-800 transition-all duration-300",
-      isFullScreen && "h-16 px-2"
-    )}>
-      <div className="flex items-center gap-2">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={onToggleSidebar} className="text-slate-400 hover:bg-slate-800 hover:text-white">
-                <Layout className="w-5 h-5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent className="bg-slate-700 text-white border-slate-600">
-              Toggle Sidebar
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={onClose} className="text-slate-400 hover:bg-slate-800 hover:text-white">
-                <X className="w-5 h-5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent className="bg-slate-700 text-white border-slate-600">
-              Exit Reader
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={onOpenRepertoireSearch} className="text-slate-400 hover:bg-slate-800 hover:text-white">
-                <Search className="w-5 h-5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent className="bg-slate-700 text-white border-slate-600">
-              Search Repertoire
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={onOpenCurrentSongStudio} className="text-slate-400 hover:bg-slate-800 hover:text-white">
-                <Edit3 className="w-5 h-5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent className="bg-slate-700 text-white border-slate-600">
-              Open Song Studio
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+    <div
+      className={cn(
+        "fixed top-0 left-0 right-0 z-60 bg-slate-900/80 backdrop-blur-xl border-b border-white/10 px-6 py-3 flex items-center justify-between shadow-lg animate-in slide-in-from-top duration-300 h-[72px]",
+        isFullScreen && "hidden"
+      )}
+    >
+      {/* Left: Sidebar Toggle */}
+      <div className="flex items-center">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onToggleSidebar}
+          className={cn(
+            "h-10 w-10 rounded-xl transition-all",
+            isSidebarOpen ? "bg-indigo-600 text-white hover:bg-indigo-700" : "bg-white/5 hover:bg-white/10 text-slate-400"
+          )}
+          title="Toggle Song List"
+        >
+          <ListMusic className="w-5 h-5" />
+        </Button>
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center min-w-0 px-2">
-        {isLoading ? (
-          <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
-        ) : currentSong ? (
-          <>
-            <h2 className="text-lg font-bold text-white truncate max-w-full">{currentSong.name}</h2>
-            <p className="text-sm text-slate-400 truncate max-w-full">{currentSong.artist}</p>
-            <div className="flex items-center gap-2 mt-1">
-              {isEditingLinksMode && (
-                <Badge variant="secondary" className="bg-indigo-600 text-white">
-                  <Ruler className="w-3 h-3 mr-1" /> Editing Links
-                </Badge>
-              )}
-              {currentSong.originalKey && (
-                <Badge variant="secondary" className="bg-slate-700 text-slate-300">
-                  Original: {currentSong.originalKey}
-                </Badge>
-              )}
-              {effectiveTargetKey && effectiveTargetKey !== currentSong.originalKey && (
-                <Badge variant="secondary" className="bg-indigo-700 text-white">
-                  Stage: {effectiveTargetKey}
-                </Badge>
-              )}
-            </div>
-          </>
-        ) : (
-          <p className="text-slate-400">No song selected</p>
-        )}
-      </div>
-
-      <div className="flex items-center gap-2">
-        {/* Chart Type Selector */}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <ToggleGroup
-                type="single"
-                value={selectedChartType}
-                onValueChange={(value: ChartType) => value && setSelectedChartType(value)}
-                className="bg-slate-800 rounded-md p-1"
+      {/* Center: Song Title + Action Buttons */}
+      <div className="absolute inset-x-0 flex items-center justify-center pointer-events-none">
+        <div className="flex items-center gap-3 pointer-events-auto max-w-full">
+          {isLoading ? (
+            <Skeleton className="h-7 w-64 bg-white/10 rounded-lg" />
+          ) : currentSong ? (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onClose}
+                className="h-8 w-8 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 shrink-0"
+                title="Back to Dashboard"
               >
-                {hasPdf && (
-                  <ToggleGroupItem value="pdf" aria-label="PDF/Sheet Music" className="data-[state=on]:bg-indigo-600 data-[state=on]:text-white text-slate-400 hover:bg-slate-700">
-                    <FileText className="w-4 h-4" />
-                  </ToggleGroupItem>
-                )}
-                {hasLeadsheet && (
-                  <ToggleGroupItem value="leadsheet" aria-label="Leadsheet" className="data-[state=on]:bg-indigo-600 data-[state=on]:text-white text-slate-400 hover:bg-slate-700">
-                    <Sheet className="w-4 h-4" />
-                  </ToggleGroupItem>
-                )}
-                {hasChords && (
-                  <ToggleGroupItem value="chords" aria-label="UG Chords" className="data-[state=on]:bg-indigo-600 data-[state=on]:text-white text-slate-400 hover:bg-slate-700">
-                    <Guitar className="w-4 h-4" />
-                  </ToggleGroupItem>
-                )}
-              </ToggleGroup>
-            </TooltipTrigger>
-            <TooltipContent className="bg-slate-700 text-white border-slate-600">
-              Select Chart Type
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-
-        {/* PDF Navigation & Zoom Controls */}
-        {(selectedChartType === 'pdf' || selectedChartType === 'leadsheet') && pdfNumPages && pdfNumPages > 1 && (
-          <div className="flex items-center gap-1">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" onClick={onPrevPdfPage} disabled={pdfCurrentPage <= 1} className="text-slate-400 hover:bg-slate-800 hover:text-white">
-                    <ChevronLeft className="w-5 h-5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent className="bg-slate-700 text-white border-slate-600">
-                  Previous Page
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <span className="text-sm text-slate-300 whitespace-nowrap">{pdfCurrentPage} / {pdfNumPages}</span>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" onClick={onNextPdfPage} disabled={pdfCurrentPage >= (pdfNumPages || 1)} className="text-slate-400 hover:bg-slate-800 hover:text-white">
-                    <ChevronRight className="w-5 h-5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent className="bg-slate-700 text-white border-slate-600">
-                  Next Page
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-        )}
-
-        {(selectedChartType === 'pdf' || selectedChartType === 'leadsheet') && (
-          <div className="flex items-center gap-1">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" onClick={onZoomOutPdf} disabled={!canZoomOut} className="text-slate-400 hover:bg-slate-800 hover:text-white">
-                    <Minus className="w-5 h-5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent className="bg-slate-700 text-white border-slate-600">
-                  Zoom Out
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" onClick={onZoomInPdf} disabled={!canZoomIn} className="text-slate-400 hover:bg-slate-800 hover:text-white">
-                    <Plus className="w-5 h-5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent className="bg-slate-700 text-white border-slate-600">
-                  Zoom In
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-        )}
-
-        {/* Audio Player Toggle */}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={onToggleAudioPlayer} className="text-slate-400 hover:bg-slate-800 hover:text-white">
-                {isAudioPlayerVisible ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+                <ArrowLeft className="w-4 h-4" />
               </Button>
-            </TooltipTrigger>
-            <TooltipContent className="bg-slate-700 text-white border-slate-600">
-              {isAudioPlayerVisible ? 'Hide Audio Player' : 'Show Audio Player'}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
 
-        {/* Fullscreen Toggle */}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={onToggleFullScreen} className="text-slate-400 hover:bg-slate-800 hover:text-white">
-                {isFullScreen ? <Minimize2 className="w-5 h-5" /> : <Fullscreen className="w-5 h-5" />}
+              <h2 className="text-lg font-black uppercase tracking-tight text-white truncate max-w-md px-2 text-center">
+                {currentSong.name}
+              </h2>
+
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onOpenCurrentSongStudio}
+                disabled={!currentSong}
+                className="h-8 w-8 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 shrink-0"
+                title="Open in Studio"
+              >
+                <FileText className="w-4 h-4" />
               </Button>
-            </TooltipTrigger>
-            <TooltipContent className="bg-slate-700 text-white border-slate-600">
-              {isFullScreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+            </>
+          ) : (
+            <p className="text-sm font-bold text-slate-500">No Song Selected</p>
+          )}
+        </div>
       </div>
-    </header>
+
+      {/* Right: Controls */}
+      <div className="flex items-center gap-3">
+        {currentSong && (
+          <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setPitch(pitch - 1)}
+              className="h-9 w-9 rounded-lg hover:bg-white/10 text-slate-400"
+              title="Transpose Down"
+            >
+              <Minus className="w-4 h-4" />
+            </Button>
+
+            <DropdownMenu onOpenChange={handleDropdownOpenChange}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="bg-transparent text-xs font-black font-mono h-9 px-3 rounded-lg text-indigo-400 gap-1.5 hover:bg-transparent min-w-[70px]"
+                  title="Change Stage Key"
+                >
+                  <span className="flex items-center gap-1">
+                    {displayKey || <Skeleton className="h-4 w-10 bg-white/10" />}
+                    <span className="text-slate-400 text-[10px]">
+                      {pitch > 0 ? `+${pitch}` : pitch < 0 ? pitch : ''}
+                    </span>
+                    <ChevronDown className="w-3 h-3 opacity-50" />
+                  </span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuPortal>
+                <DropdownMenuContent align="end" className="bg-slate-900 border-white/10 text-white z-[300] max-h-60 overflow-y-auto custom-scrollbar">
+                  <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-slate-500">
+                    Stage Key
+                  </DropdownMenuLabel>
+                  {keysToUse.map((k) => (
+                    <DropdownMenuItem
+                      key={k}
+                      onSelect={() => onUpdateKey(k)}
+                      className={cn(
+                        "font-mono font-bold cursor-pointer",
+                        k === displayKey && "bg-indigo-600 text-white hover:bg-indigo-700"
+                      )}
+                      ref={k === displayKey ? activeKeyItemRef : null}
+                    >
+                      {k}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenuPortal>
+            </DropdownMenu>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setPitch(pitch + 1)}
+              className="h-9 w-9 rounded-lg hover:bg-white/10 text-slate-400"
+              title="Transpose Up"
+            >
+              <Plus className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
+
+        {/* NEW: Link Management Dropdown */}
+        {hasPdf && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  "h-10 w-10 rounded-xl transition-all",
+                  isEditingLinksMode ? "bg-indigo-600 text-white hover:bg-indigo-700" : "bg-white/5 hover:bg-white/10 text-slate-400"
+                )}
+                title="Link Tools"
+              >
+                <LinkIcon className="w-5 h-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-slate-900 border-white/10 text-white z-[300] p-2 rounded-xl">
+              <DropdownMenuItem onClick={onAddLink} className="text-xs font-bold uppercase h-10 rounded-xl gap-2" disabled={!hasPdf}>
+                <Plus className="w-4 h-4" /> Add New Link
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onToggleLinkEditMode} className="text-xs font-bold uppercase h-10 rounded-xl gap-2">
+                {isEditingLinksMode ? <Trash2 className="w-4 h-4 text-red-400" /> : <Edit3 className="w-4 h-4" />}
+                {isEditingLinksMode ? "Exit Edit Mode" : "Edit/Delete Links"}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onOpenLinkSizeModal} className="text-xs font-bold uppercase h-10 rounded-xl gap-2">
+                <Ruler className="w-4 h-4" /> Link Size Settings
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onToggleAudioPlayer}
+          className={cn(
+            "h-10 w-10 rounded-xl transition-all",
+            isAudioPlayerVisible ? "bg-indigo-600 text-white hover:bg-indigo-700" : "bg-white/5 hover:bg-white/10 text-slate-400"
+          )}
+          title="Toggle Audio Player (P)"
+        >
+          <Headphones className="w-5 h-5" />
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onOpenRepertoireSearch}
+          className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
+          title="Search Repertoire"
+        >
+          <Search className="w-5 h-5" />
+        </Button>
+      </div>
+    </div>
   );
 };
 
