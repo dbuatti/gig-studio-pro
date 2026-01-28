@@ -34,6 +34,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { X as ClearIcon } from 'lucide-react';
 
 export type UGChordsConfig = {
   fontSize: number;
@@ -43,6 +44,8 @@ export type UGChordsConfig = {
   lineSpacing: number;
   textAlign: 'left' | 'center' | 'right';
 };
+
+export type ChartType = 'pdf' | 'leadsheet' | 'chords';
 
 export type SetlistSong = {
   id: string;
@@ -121,6 +124,11 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   const [songToDelete, setSongToDelete] = useState<SetlistSong | null>(null);
   const [timeGoal, setTimeGoal] = useState(7200); // Default to 2 hours (7200 seconds)
   const { keyPreference: globalKeyPreference } = useSettings();
+
+  // New states for QoL improvements
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  const [isUpdatingName, setIsUpdatingName] = useState(false);
+  const [isUpdatingTimeGoal, setIsUpdatingTimeGoal] = useState(false);
 
   const fetchSetlist = useCallback(async () => {
     if (!user || gigId === 'library') {
@@ -353,6 +361,11 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   const handleDragStart = (e: React.DragEvent, index: number) => {
     e.dataTransfer.setData('songIndex', index.toString());
     e.dataTransfer.effectAllowed = 'move';
+    setDraggingIndex(index); // Set dragging index
+  };
+
+  const handleDragEnd = () => {
+    setDraggingIndex(null); // Clear dragging index
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -363,15 +376,18 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   const handleDrop = (e: React.DragEvent, dropIndex: number) => {
     e.preventDefault();
     const dragIndex = parseInt(e.dataTransfer.getData('songIndex'), 10);
+    if (dragIndex === dropIndex) return; // No change if dropped on itself
+
     const newSongs = [...setlistSongs];
     const [draggedSong] = newSongs.splice(dragIndex, 1);
     newSongs.splice(dropIndex, 0, draggedSong);
     handleReorderSongs(newSongs);
+    setDraggingIndex(null); // Clear dragging index after drop
   };
 
   const handleUpdateSetlistName = async () => {
-    if (!user || gigId === 'library') return;
-    setIsSaving(true);
+    if (!user || gigId === 'library' || setlistName === (setlistSongs.length > 0 ? setlistSongs[0].name : 'My Setlist')) return; // Prevent unnecessary saves
+    setIsUpdatingName(true);
     try {
       const { error } = await supabase
         .from('setlists')
@@ -383,16 +399,17 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       showError(`Failed to update setlist name: ${err.message}`);
       console.error("Error updating setlist name:", err);
     } finally {
-      setIsSaving(false);
+      setIsUpdatingName(false);
     }
   };
 
   const handleUpdateTimeGoal = async (value: number[]) => {
     const newTimeGoal = value[0] * 60; // Convert minutes to seconds
+    if (newTimeGoal === timeGoal) return; // Prevent unnecessary saves
     setTimeGoal(newTimeGoal);
 
     if (!user || gigId === 'library') return;
-    setIsSaving(true);
+    setIsUpdatingTimeGoal(true);
     try {
       const { error } = await supabase
         .from('setlists')
@@ -404,7 +421,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       showError(`Failed to update time goal: ${err.message}`);
       console.error("Error updating time goal:", err);
     } finally {
-      setIsSaving(false);
+      setIsUpdatingTimeGoal(false);
     }
   };
 
@@ -459,19 +476,25 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
           <div className="w-1/2 border-r border-slate-800 flex flex-col">
             <div className="p-4 border-b border-slate-800">
               {gigId !== 'library' && (
-                <Input
-                  placeholder="Setlist Name"
-                  value={setlistName}
-                  onChange={(e) => setSetlistName(e.target.value)}
-                  onBlur={handleUpdateSetlistName}
-                  className="mb-2 bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
-                />
+                <div className="relative mb-2">
+                  <Input
+                    placeholder="Setlist Name"
+                    value={setlistName}
+                    onChange={(e) => setSetlistName(e.target.value)}
+                    onBlur={handleUpdateSetlistName}
+                    className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 pr-8"
+                  />
+                  {isUpdatingName && <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-indigo-500" />}
+                </div>
               )}
               <div className="flex items-center justify-between text-sm text-slate-400">
                 <span>Total Duration: {formatDuration(totalDurationSeconds)}</span>
                 {gigId !== 'library' && (
                   <div className="flex items-center gap-2">
-                    <Label htmlFor="time-goal" className="whitespace-nowrap">Goal: {Math.floor(timeGoal / 60)} min</Label>
+                    <Label htmlFor="time-goal" className="whitespace-nowrap flex items-center gap-1">
+                      Goal: {Math.floor(timeGoal / 60)} min
+                      {isUpdatingTimeGoal && <Loader2 className="w-3 h-3 animate-spin text-indigo-500" />}
+                    </Label>
                     <Slider
                       id="time-goal"
                       min={15}
@@ -503,9 +526,13 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       key={song.id}
                       draggable
                       onDragStart={(e) => handleDragStart(e, index)}
+                      onDragEnd={handleDragEnd} // Add drag end handler
                       onDragOver={handleDragOver}
                       onDrop={(e) => handleDrop(e, index)}
-                      className="flex items-center justify-between p-3 bg-slate-800 rounded-md shadow-sm border border-slate-700 hover:bg-slate-700 transition-colors cursor-grab"
+                      className={cn(
+                        "flex items-center justify-between p-3 bg-slate-800 rounded-md shadow-sm border border-slate-700 hover:bg-slate-700 transition-colors cursor-grab",
+                        draggingIndex === index && "opacity-50 border-indigo-500" // Visual feedback for dragging
+                      )}
                     >
                       <div className="flex-1 min-w-0">
                         <p className="text-white font-medium truncate">{song.name}</p>
@@ -567,19 +594,34 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
           {/* Right Panel: Repertoire Search */}
           <div className="w-1/2 flex flex-col">
             <div className="p-4 border-b border-slate-800">
-              <Input
-                placeholder="Search repertoire..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
-                icon={<Search className="w-4 h-4 text-slate-500" />}
-              />
+              <div className="relative">
+                <Input
+                  placeholder="Search repertoire..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 pl-8 pr-8" // Adjusted padding
+                />
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                {searchTerm && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-0 top-1/2 -translate-y-1/2 w-8 h-8 text-slate-400 hover:text-white"
+                  >
+                    <ClearIcon className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
             </div>
             <ScrollArea className="flex-1 p-4">
               {filteredMasterRepertoire.length === 0 && searchTerm ? (
                 <p className="text-center text-slate-500 py-8">No songs found matching "{searchTerm}".</p>
               ) : filteredMasterRepertoire.length === 0 && !searchTerm ? (
-                <p className="text-center text-slate-500 py-8">Start typing to search your repertoire.</p>
+                <div className="text-center text-slate-500 py-8">
+                  <Search className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                  <p>Start typing to search your repertoire.</p>
+                </div>
               ) : (
                 <ul className="space-y-2">
                   {filteredMasterRepertoire.map((song) => (
@@ -654,15 +696,24 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                           )}
                         </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleAddSong(song)}
-                        disabled={isSaving}
-                        className="text-slate-400 hover:text-green-500 hover:bg-slate-700 ml-4"
-                      >
-                        {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlusCircle className="w-4 h-4" />}
-                      </Button>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleAddSong(song)}
+                              disabled={isSaving}
+                              className="text-slate-400 hover:text-green-500 hover:bg-slate-700 ml-4"
+                            >
+                              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlusCircle className="w-4 h-4" />}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent className="bg-slate-700 text-white border-slate-600">
+                            Add to {gigId === 'library' ? 'Library' : 'Setlist'}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </li>
                   ))}
                 </ul>
