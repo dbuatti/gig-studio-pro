@@ -123,15 +123,20 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   const { keyPreference: globalKeyPreference } = useSettings();
 
   const fetchSetlist = useCallback(async () => {
-    if (!user || gigId === 'library') {
+    if (!user) {
+      console.log("[SetlistManager/fetchSetlist] No user logged in, skipping fetch.");
+      setIsLoading(false);
+      return;
+    }
+    if (gigId === 'library') {
       setSetlistSongs(initialSetlistSongs);
       setIsLoading(false);
-      console.log("[SetlistManager/fetchSetlist] Library mode or no user. Initial songs count:", initialSetlistSongs.length);
+      console.log("[SetlistManager/fetchSetlist] Library mode. Initial songs count:", initialSetlistSongs.length);
       return;
     }
 
     setIsLoading(true);
-    console.log(`[SetlistManager/fetchSetlist] Fetching setlist for gigId: ${gigId}`);
+    console.log(`[SetlistManager/fetchSetlist] Fetching setlist for gigId: ${gigId} (User: ${user.id})`);
     try {
       const { data: setlistData, error: setlistError } = await supabase
         .from('setlists')
