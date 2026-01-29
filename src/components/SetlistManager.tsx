@@ -126,10 +126,12 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     if (!user || gigId === 'library') {
       setSetlistSongs(initialSetlistSongs);
       setIsLoading(false);
+      console.log("[SetlistManager/fetchSetlist] Library mode or no user. Initial songs count:", initialSetlistSongs.length);
       return;
     }
 
     setIsLoading(true);
+    console.log(`[SetlistManager/fetchSetlist] Fetching setlist for gigId: ${gigId}`);
     try {
       const { data: setlistData, error: setlistError } = await supabase
         .from('setlists')
@@ -164,7 +166,10 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
       const songs = (junctionData || []).map((junction: any) => {
         const masterSong = junction.repertoire;
-        if (!masterSong) return null;
+        if (!masterSong) {
+          console.warn(`[SetlistManager/fetchSetlist] Song junction ID ${junction.id} references missing repertoire entry.`);
+          return null;
+        }
         return {
           ...masterSong,
           id: junction.id, // Use setlist_songs.id for unique identification within the setlist
@@ -218,6 +223,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       }).filter(Boolean) as SetlistSong[];
 
       setSetlistSongs(songs);
+      console.log("[SetlistManager/fetchSetlist] Successfully loaded setlist songs count:", songs.length);
     } catch (err: any) {
       showError(`Failed to load setlist: ${err.message}`);
       console.error("Error fetching setlist:", err);
@@ -228,6 +234,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
   const fetchMasterRepertoire = useCallback(async () => {
     if (!user) return;
+    console.log("[SetlistManager/fetchMasterRepertoire] Fetching master repertoire...");
     try {
       const { data, error } = await supabase
         .from('repertoire')
@@ -235,7 +242,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
         .eq('user_id', user.id)
         .order('title');
       if (error) throw error;
-      setMasterRepertoire(data.map((d: any) => ({
+      const mappedRepertoire = data.map((d: any) => ({
         id: d.id,
         master_id: d.id,
         name: d.title,
@@ -283,6 +290,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
         original_key_updated_at: d.original_key_updated_at,
         target_key_updated_at: d.target_key_updated_at,
       })));
+      setMasterRepertoire(mappedRepertoire);
+      console.log("[SetlistManager/fetchMasterRepertoire] Successfully loaded master repertoire songs count:", mappedRepertoire.length);
     } catch (err: any) {
       showError(`Failed to load repertoire: ${err.message}`);
       console.error("Error fetching master repertoire:", err);
@@ -462,13 +471,19 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   };
 
   const filteredMasterRepertoire = useMemo(() => {
-    if (!searchTerm) return [];
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
-    return masterRepertoire.filter(song =>
+    const filtered = masterRepertoire.filter(song =>
       (song.name?.toLowerCase().includes(lowerCaseSearchTerm) ||
         song.artist?.toLowerCase().includes(lowerCaseSearchTerm)) &&
       !setlistSongs.some(setlistSong => setlistSong.master_id === song.id)
     );
+    
+    if (searchTerm) {
+      console.log(`[SetlistManager/filteredMasterRepertoire] Search: "${searchTerm}". Master count: ${masterRepertoire.length}. Filtered count: ${filtered.length}.`);
+    }
+    
+    if (!searchTerm) return [];
+    return filtered;
   }, [masterRepertoire, searchTerm, setlistSongs]);
 
   const getResourceIcon = (type: string) => {
