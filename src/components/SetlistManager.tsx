@@ -163,6 +163,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
         .order('sort_order', { ascending: true });
 
       if (junctionError) throw junctionError;
+      
+      console.log(`[SetlistManager/fetchSetlist] Raw junction data received: ${junctionData ? junctionData.length : 0} entries.`);
 
       const songs = (junctionData || []).map((junction: any) => {
         const masterSong = junction.repertoire;
