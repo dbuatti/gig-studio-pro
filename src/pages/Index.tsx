@@ -142,15 +142,24 @@ const Index = () => {
   };
 
   const fetchSetlistsAndRepertoire = useCallback(async (isInitial = false) => {
-    if (!userId) return;
+    if (!userId) {
+      console.log("[Index/fetchSetlistsAndRepertoire] No user ID, skipping fetch.");
+      return;
+    }
     if (isInitial) setLoading(true);
     
+    console.log(`[Index/fetchSetlistsAndRepertoire] Starting fetch for user: ${userId}`);
+
     try {
+      console.log("[Index/fetchSetlistsAndRepertoire] Fetching setlists...");
       const { data: setlistsData, error: setlistsError } = await supabase.from('setlists').select('*').eq('user_id', userId).order('created_at', { ascending: false });
       if (setlistsError) throw setlistsError;
+      console.log(`[Index/fetchSetlistsAndRepertoire] Setlists fetched: ${setlistsData?.length || 0} items.`, setlistsData);
 
+      console.log("[Index/fetchSetlistsAndRepertoire] Fetching master repertoire...");
       const { data: repertoireData, error: repertoireError } = await supabase.from('repertoire').select('*').eq('user_id', userId).order('title');
       if (repertoireError) throw repertoireError;
+      console.log(`[Index/fetchSetlistsAndRepertoire] Master repertoire fetched: ${repertoireData?.length || 0} items.`, repertoireData);
 
       const mappedRepertoire: SetlistSong[] = (repertoireData || []).map(d => ({
         id: d.id, master_id: d.id, name: d.title, artist: d.artist, originalKey: d.original_key || 'TBC',
@@ -173,32 +182,46 @@ const Index = () => {
         pdf_updated_at: d.pdf_updated_at,
       }));
       setMasterRepertoire(mappedRepertoire);
+      console.log(`[Index/fetchSetlistsAndRepertoire] Mapped master repertoire count: ${mappedRepertoire.length}`);
 
       const setlistsWithSongs: Setlist[] = [];
       for (const setlist of setlistsData || []) {
+        console.log(`[Index/fetchSetlistsAndRepertoire] Fetching songs for setlist: ${setlist.name} (ID: ${setlist.id})`);
         const { data: junctionData, error: junctionError } = await supabase.from('setlist_songs').select('*').eq('setlist_id', setlist.id).order('sort_order', { ascending: true });
         if (junctionError) throw junctionError;
+        console.log(`[Index/fetchSetlistsAndRepertoire] Junction data for setlist ${setlist.id}: ${junctionData?.length || 0} items.`, junctionData);
 
         const songs: SetlistSong[] = junctionData?.map(j => {
           const master = mappedRepertoire.find(r => r.id === j.song_id);
+          if (!master) {
+            console.warn(`[Index/fetchSetlistsAndRepertoire] Master song not found for junction ID: ${j.id}, song_id: ${j.song_id}. Skipping.`);
+          }
           return master ? { ...master, id: j.id, master_id: master.id, isPlayed: j.isPlayed || false } : null;
         }).filter(Boolean) as SetlistSong[] || [];
         setlistsWithSongs.push({ id: setlist.id, name: setlist.name, songs, time_goal: setlist.time_goal });
+        console.log(`[Index/fetchSetlistsAndRepertoire] Setlist ${setlist.name} has ${songs.length} songs.`);
       }
 
       setAllSetlists(setlistsWithSongs);
+      console.log(`[Index/fetchSetlistsAndRepertoire] All setlists with songs processed: ${setlistsWithSongs.length} setlists.`);
+
       const savedId = localStorage.getItem('active_setlist_id');
       if (savedId && setlistsWithSongs.some(s => s.id === savedId)) {
         setActiveSetlistId(savedId);
+        console.log(`[Index/fetchSetlistsAndRepertoire] Active setlist set to saved ID: ${savedId}`);
       } else if (setlistsWithSongs.length > 0) {
         setActiveSetlistId(setlistsWithSongs[0].id);
+        console.log(`[Index/fetchSetlistsAndRepertoire] Active setlist defaulted to first setlist: ${setlistsWithSongs[0].id}`);
       } else {
         setActiveSetlistId(null);
+        console.log("[Index/fetchSetlistsAndRepertoire] No setlists available, active setlist set to null.");
       }
     } catch (err: any) {
       showError(`Failed to load data: ${err.message}`);
+      console.error("[Index/fetchSetlistsAndRepertoire] Error during data fetch:", err);
     } finally {
       if (isInitial) setLoading(false);
+      console.log("[Index/fetchSetlistsAndRepertoire] Fetch complete.");
     }
   }, [userId]);
 
@@ -331,7 +354,10 @@ const Index = () => {
   };
 
   const filteredAndSortedSongs = useMemo(() => {
-    if (!activeSetlist) return [];
+    if (!activeSetlist) {
+      console.log("[Index/filteredAndSortedSongs] No active setlist, returning empty array.");
+      return [];
+    }
     let songs = [...activeSetlist.songs];
     const q = searchTerm.toLowerCase();
     if (q) songs = songs.filter(s => s.name.toLowerCase().includes(q) || s.artist?.toLowerCase().includes(q) || s.user_tags?.some(tag => tag.toLowerCase().includes(q)));
@@ -340,6 +366,7 @@ const Index = () => {
     else if (sortMode === 'work') songs.sort((a, b) => calculateReadiness(a) - calculateReadiness(b));
     else if (sortMode === 'none') songs.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     
+    console.log(`[Index/filteredAndSortedSongs] Active setlist: ${activeSetlist.name}, Songs count: ${songs.length}`);
     return songs;
   }, [activeSetlist, searchTerm, sortMode]);
 
@@ -495,7 +522,7 @@ const Index = () => {
               repertoire={masterRepertoire} onEditSong={handleEditSong} allSetlists={allSetlists} onRefreshRepertoire={() => fetchSetlistsAndRepertoire()} 
               searchTerm={searchTerm} setSearchTerm={setSearchTerm} sortMode={sortMode} setSortMode={setSortMode} activeFilters={activeFilters} setActiveFilters={setActiveFilters}
               onUpdateSetlistSongs={handleUpdateSetlistSongs}
-              onDeleteSong={async (id) => { await supabase.from('repertoire').delete().eq('id', id); fetchSetlistsAndRepertoire(); }}
+              onDeleteSong={async (id) => { await supabase.from('repertoire').delete().eq('id', id); fetchSetlistsAndRelistsAndRepertoire(); }}
               onAddSong={async (s) => { await syncToMasterRepertoire(userId!, [s]); fetchSetlistsAndRepertoire(); }}
               missingAudioCount={missingAudioCount}
               onOpenAdmin={() => setIsAdminPanelOpen(true)}
