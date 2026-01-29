@@ -101,3 +101,22 @@ export const transposeChord = (chord: string, semitones: number, keyPreference: 
   const transposedRoot = transposeNote(rootNote, semitones, keyPreference);
   return transposedRoot + suffix;
 };
+
+export const formatKey = (key: string, keyPreference: 'sharps' | 'flats'): string => {
+  if (!key) return '';
+
+  const normalized = normalizeKey(key);
+  const sharpIndex = NOTES_SHARP.indexOf(normalized);
+
+  if (sharpIndex === -1) {
+    return key; // Return original if not a recognized key
+  }
+
+  if (keyPreference === 'sharps') {
+    return NOTES_SHARP[sharpIndex];
+  } else {
+    // Find the flat equivalent if it exists, otherwise use sharp
+    const flatEquivalent = NOTES_FLAT.find(n => normalizeKey(n) === normalized);
+    return flatEquivalent || NOTES_SHARP[sharpIndex];
+  }
+};
