@@ -73,16 +73,16 @@ const KeepAliveWorker = () => {
 
 const RootRoute = () => {
   const { session, loading } = useAuth();
-  const navigate = useNavigate(); // FIX 1, 2, 3: Import navigate
+  const navigate = useNavigate();
   
   useEffect(() => {
     if (loading) return;
     if (session) {
-      navigate('/dashboard'); // FIX 1
+      navigate('/dashboard');
     } else {
-      navigate('/landing'); // FIX 2
+      navigate('/landing');
     }
-  }, [session, loading, navigate]); // FIX 3: navigate is now correctly defined
+  }, [session, loading, navigate]);
 
   return null; // Render nothing here, navigation handled by useEffect
 };
@@ -526,7 +526,7 @@ const Index = () => {
               onOpenSortModal={() => setIsSetlistSortModalOpen(true)}
               onRemove={handleRemoveSongFromSetlist}
               onUpdateSong={handleUpdateSongInSetlist}
-              onReorder={handleReorderSetlist} // FIX 5: Added missing onReorder prop
+              onReorder={handleReorderSetlist}
             />
           </TabsContent>
 
@@ -598,7 +598,7 @@ const Index = () => {
           onShuffle={() => {}} 
           onClose={() => setIsPerformanceOverlayOpen(false)} 
           onUpdateSong={(id, u) => handleUpdateSongInSetlist(id, u)} 
-          onUpdateKey={handleUpdateKey} // FIX 8: Passed handleUpdateKey instead of handleUpdateSongInSetlist
+          onUpdateKey={handleUpdateKey} // FIX 3: Passed handleUpdateKey which matches signature (id, targetKey)
           analyzer={audio.analyzer} 
           gigId={activeSetlist.id} 
         />
@@ -627,7 +627,7 @@ const Index = () => {
         setlistId={activeSetlistId} 
         setlistName={activeSetlist?.name || "Setlist"}
         onDelete={handleDeleteSetlist}
-        onRename={handleRenameSetlist} // FIX 9: Passed correct rename handler
+        onRename={handleRenameSetlist} // FIX 4: Passed correct rename handler
       />
       <KeyManagementModal 
         isOpen={isKeyManagementOpen} 
