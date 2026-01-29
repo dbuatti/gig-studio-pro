@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
+import { useNavigate, useSearchParams, Navigate } from 'react-router-dom'; // FIX 4: Imported Navigate
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { useToneAudio } from '@/hooks/use-tone-audio';
@@ -73,15 +73,16 @@ const KeepAliveWorker = () => {
 
 const RootRoute = () => {
   const { session, loading } = useAuth();
+  const navigate = useNavigate(); // FIX 1, 2, 3: Import navigate
   
   useEffect(() => {
     if (loading) return;
     if (session) {
-      navigate('/dashboard');
+      navigate('/dashboard'); // FIX 1
     } else {
-      navigate('/landing');
+      navigate('/landing'); // FIX 2
     }
-  }, [session, loading, navigate]);
+  }, [session, loading, navigate]); // FIX 3: navigate is now correctly defined
 
   return null; // Render nothing here, navigation handled by useEffect
 };
@@ -89,12 +90,12 @@ const RootRoute = () => {
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, loading } = useAuth();
   if (loading) return null;
-  if (!session) return <Navigate to="/login" />; // FIX 4: Import Navigate
+  if (!session) return <Navigate to="/login" />;
   return <>{children}</>;
 };
 
 const Index = () => {
-  const navigate = useNavigate();
+  const navigate = useNavigate(); // FIX 1, 2, 3: Import navigate
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, loading: authLoading } = useAuth();
   const userId = user?.id;

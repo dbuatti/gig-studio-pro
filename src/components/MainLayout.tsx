@@ -43,6 +43,7 @@ const KeepAliveWorker = () => {
 
 const RootRoute = () => {
   const { session, loading } = useAuth();
+  const navigate = useNavigate(); // Added navigate import here for RootRoute
   if (loading) return null;
   return session ? <Index /> : <Landing />;
 };
