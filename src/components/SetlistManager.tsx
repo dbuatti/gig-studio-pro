@@ -1,3 +1,5 @@
+"use client";
+
 @@ -498,13 +498,15 @@
            <div className="flex items-center justify-between text-sm text-slate-400">
              <span>Total Duration: {formatDuration(totalDurationSeconds)}</span>
@@ -13,14 +15,13 @@
                    onValueChange={handleUpdateTimeGoal}
                    className="w-[120px]"
                  />
-@@ -524,14 +526,16 @@
+@@ -524,14 +526,14 @@
            </div>
            <div className="flex items-center gap-2 w-full sm:w-auto">
              <div className="relative flex-1 sm:w-64 group">
 -              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground group-focus-within:text-indigo-500 transition-colors" />
--              <Input
 +              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground group-focus-within:text-indigo-500 transition-colors z-10" />
-+              <Input
+               <Input
                  placeholder="Search repertoire..."
                  value={searchTerm}
                  onChange={(e) => setSearchTerm(e.target.value)}
@@ -33,7 +34,7 @@
                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors z-10"
                  >
                    <X className="w-3.5 h-3.5" />
-@@ -543,7 +547,7 @@
+@@ -543,7 +545,7 @@
              <Button
                onClick={handleAddNewSong}
                className="h-10 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] tracking-widest gap-2 shadow-lg shadow-indigo-600/20"
@@ -41,7 +42,7 @@
                <Plus className="w-3.5 h-3.5" /> New Track
              </Button>
            </div>
-@@ -570,7 +574,7 @@
+@@ -570,7 +572,7 @@
                        key={song.id}
                        draggable
                        onDragStart={(e) => handleDragStart(e, index)}
@@ -52,7 +53,7 @@
                      >
                        <div className="flex-1 min-w-0">
                          <p className="text-white font-medium truncate">{song.name}</p>
-@@ -618,7 +622,7 @@
+@@ -618,7 +620,7 @@
                        <Button
                          variant="ghost"
                          size="icon"
@@ -60,7 +61,7 @@
                            setSongToDelete(song);
                            setIsConfirmDeleteOpen(true);
                          }}
-@@ -637,7 +641,7 @@
+@@ -637,7 +639,7 @@
            <div className="flex flex-col gap-3">
              <div className="flex items-center justify-between">
                <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Repertoire Search</Label>
