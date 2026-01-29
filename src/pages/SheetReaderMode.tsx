@@ -231,8 +231,13 @@ const SheetReaderMode: React.FC = () => {
   }, [currentSong]);
 
   const fetchSongs = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      console.log("[SheetReaderMode/fetchSongs] No user logged in, skipping fetch.");
+      setInitialLoading(false);
+      return;
+    }
     setInitialLoading(true);
+    console.log(`[SheetReaderMode/fetchSongs] Fetching songs for user: ${user.id}...`);
 
     try {
       const filterApproved = searchParams.get('filterApproved');
@@ -244,8 +249,16 @@ const SheetReaderMode: React.FC = () => {
       let activeSetlistSongsList: SetlistSong[] = [];
 
       // Always fetch full master repertoire for search/studio context
-      const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user_id', user.id).order('title');
+      const { data: masterData, error: masterError } = await supabase
+        .from('repertoire')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('is_in_library', true) // Apply filter here too
+        .order('title');
+      
       if (masterError) throw masterError;
+
+      console.log(`[SheetReaderMode/fetchSongs] Raw master repertoire data received: ${masterData ? masterData.length : 0} songs.`);
 
       masterRepertoireList = (masterData || []).map((d: any) => {
         const mappedSong: SetlistSong = {
@@ -338,11 +351,13 @@ const SheetReaderMode: React.FC = () => {
         }).filter(Boolean) as SetlistSong[];
         setCurrentSetlistSongs(activeSetlistSongsList);
         currentViewSongs = activeSetlistSongsList;
+        console.log(`[SheetReaderMode/fetchSongs] Loaded ${currentViewSongs.length} songs from setlist ${routeSetlistId}.`);
       } else {
         // Filter master repertoire for readable songs
         currentViewSongs = masterRepertoireList.filter(s => 
           s.pdfUrl || s.leadsheetUrl || s.ug_chords_text || s.sheet_music_url
         );
+        console.log(`[SheetReaderMode/fetchSongs] Loaded ${currentViewSongs.length} readable songs from master repertoire.`);
       }
 
       const uniqueSongsMap = new Map<string, SetlistSong>();
