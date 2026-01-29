@@ -1,13 +1,10 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/AuthProvider";
-import { useTheme } from '@/hooks/use-theme';
-import { pdfjs } from 'react-pdf'; 
-
-// Pages
-import Login from "@/pages/Login"; 
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import Index from "@/pages/Index";
+import Login from "@/pages/Login";
 import Landing from "@/pages/Landing";
 import NotFound from "@/pages/NotFound";
 import Profile from "@/pages/Profile";
@@ -16,19 +13,38 @@ import SheetReaderMode from "@/pages/SheetReaderMode";
 import SongStudio from "@/pages/SongStudio";
 import GigEntry from "@/pages/GigEntry";
 import PublicGigView from "@/pages/PublicGigView";
-import DebugPage from "@/pages/DebugPage"; 
+import DebugPage from "@/pages/DebugPage"; // Import DebugPage
 
-// Components
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import KeepAliveWorker from "@/components/KeepAliveWorker"; // Assuming KeepAliveWorker is moved/created
+const RENDER_WORKER_URL = "https://yt-audio-api-1-wedr.onrender.com";
 
-// Configure PDF.js worker source globally
-pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+const KeepAliveWorker = () => {
+  const { session } = useAuth();
 
-const queryClient = new QueryClient();
+  useEffect(() => {
+    if (!session) return;
+
+    const pingWorker = async () => {
+      try {
+        await fetch(RENDER_WORKER_URL, { mode: 'no-cors' });
+      } catch (e) {
+        // Silent fail on heartbeat
+      }
+    };
+
+    pingWorker();
+    const interval = setInterval(pingWorker, 10 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+  }, [session]);
+
+  return null;
+};
+
+const RootRoute = () => {
+  const { session, loading } = useAuth();
+  if (loading) return null;
+  return session ? <Index /> : <Landing />;
+};
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, loading } = useAuth();
@@ -37,37 +53,13 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const RootRoute = () => {
-  const { session, loading } = useAuth();
-  const navigate = useNavigate();
-  
-  useEffect(() => {
-    if (loading) return;
-    if (session) {
-      navigate('/dashboard');
-    } else {
-      navigate('/landing');
-    }
-  }, [session, loading, navigate]);
-
-  return null;
-};
-
-const AppRoutes = () => {
-  const { theme } = useTheme();
-
-  useEffect(() => {
-    document.documentElement.classList.remove('light', 'dark');
-    document.documentElement.classList.add(theme);
-  }, [theme]);
-
+const MainLayout = () => {
   return (
     <>
       <KeepAliveWorker />
       <Routes>
         <Route path="/" element={<RootRoute />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/landing" element={<Landing />} />
         <Route path="/repertoire/:slug" element={<PublicRepertoire />} />
         <Route path="/gig" element={<GigEntry />} />
         <Route path="/gig/:code" element={<PublicGigView />} />
@@ -81,6 +73,6 @@ const AppRoutes = () => {
       </Routes>
     </>
   );
-}
+};
 
-export default AppRoutes;
+export default MainLayout;
