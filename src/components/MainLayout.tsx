@@ -2,7 +2,7 @@
 
 import React, { useEffect } from "react";
 import { useAuth } from "@/components/AuthProvider";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import Index from "@/pages/Index";
 import Landing from "@/pages/Landing";
 import NotFound from "@/pages/NotFound";
@@ -43,7 +43,7 @@ const KeepAliveWorker = () => {
 
 const RootRoute = () => {
   const { session, loading } = useAuth();
-  const navigate = useNavigate(); // Added navigate import here for RootRoute
+  const navigate = useNavigate(); // FIX 6: Import useNavigate
   if (loading) return null;
   return session ? <Index /> : <Landing />;
 };
