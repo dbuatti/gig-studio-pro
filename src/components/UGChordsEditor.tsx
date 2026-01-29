@@ -7,7 +7,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { SetlistSong, UGChordsConfig } from './SetlistManager'; // Import UGChordsConfig
+import { SetlistSong, UGChordsConfig } from './SetlistManager';
 import { transposeChords, extractKeyFromChords } from '@/utils/chordUtils';
 import { useSettings } from '@/hooks/use-settings';
 import { cn } from "@/lib/utils";
@@ -102,6 +102,8 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
     return transposeChords(chordsText, n, resolvedPreference);
   }, [chordsText, formData.originalKey, targetKey, resolvedPreference]);
 
+  const readableChordColor = config.chordColor === "#000000" ? "#ffffff" : config.chordColor;
+
   useEffect(() => {
     if (chordsText !== formData.ug_chords_text) {
       handleAutoSave({ 
@@ -155,7 +157,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
   const handleOpenInUG = () => {
     let url = formData.ugUrl;
     if (!url) {
-      const query = encodeURIComponent(`${formData.artist || ''} ${formData.name || ''} chords`.trim());
+      const query = encodeURIComponent(`${formData.artist || ''} ${formData.name || ''} chords`);
       url = `https://www.ultimate-guitar.com/search.php?search_type=title&value=${query}`;
       showSuccess("Searching Ultimate Guitar...");
     } else {
@@ -325,8 +327,12 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
                 <Input
                   value={formData.ugUrl || ""}
                   onChange={(e) => handleAutoSave({ ugUrl: e.target.value })}
+                  onBlur={handleUgBlur}
                   placeholder="Paste Ultimate Guitar tab URL here..."
-                  className="w-full bg-black/40 border border-white/20 rounded-xl p-4 pl-10 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                  className={cn(
+                    "w-full bg-black/40 border border-white/20 rounded-xl p-4 pl-10 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm",
+                    formData.ugUrl ? "text-orange-400" : ""
+                  )}
                 />
               </div>
               <Button
@@ -381,9 +387,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
                   <span className={cn("text-[9px] font-black uppercase", resolvedPreference === 'sharps' ? "text-indigo-400" : "text-slate-500")}>#</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-mono font-bold text-indigo-400">
-                    {activeTransposeOffset > 0 ? '+' : ''}{activeTransposeOffset} ST
-                  </span>
+                  <span className="text-sm font-mono font-bold text-indigo-400">{activeTransposeOffset > 0 ? '+' : ''}{activeTransposeOffset} ST</span>
                   <Button 
                     variant="outline" 
                     size="sm" 
@@ -500,165 +504,6 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
               </div>
             </div>
           </div>
-
-          <div className="bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-3xl p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Palette className="w-4 h-4 text-indigo-500" />
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                Styling
-              </Label>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-[9px] font-bold text-slate-400 uppercase">Font Family</Label>
-                <Select 
-                  value={config.fontFamily} 
-                  onValueChange={(value) => setConfig(prev => ({ ...prev, fontFamily: value }))}
-                >
-                  <SelectTrigger className="h-9 text-xs bg-black/40 border border-white/20 text-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-slate-900 border border-white/10 text-white">
-                    <SelectItem value="monospace" className="text-xs">Monospace</SelectItem>
-                    <SelectItem value="sans-serif" className="text-xs">Sans Serif</SelectItem>
-                    <SelectItem value="serif" className="text-xs">Serif</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-[9px] font-bold text-slate-400 uppercase">Font Size</Label>
-                <div className="flex items-center gap-2">
-                  <Slider 
-                    value={[config.fontSize]} 
-                    min={12} 
-                    max={24} 
-                    step={1} 
-                    onValueChange={([value]) => setConfig(prev => ({ ...prev, fontSize: value }))}
-                    className="flex-1"
-                  />
-                  <span className="text-xs font-mono font-bold w-8 text-center text-white">{config.fontSize}px</span>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-[9px] font-bold text-slate-400 uppercase">Line Spacing</Label>
-                <div className="flex items-center gap-2">
-                  <Slider 
-                    value={[config.lineSpacing]} 
-                    min={1} 
-                    max={2.5} 
-                    step={0.1} 
-                    onValueChange={([value]) => setConfig(prev => ({ ...prev, lineSpacing: value }))}
-                    className="flex-1"
-                  />
-                  <span className="text-xs font-mono font-bold w-8 text-center text-white">{config.lineSpacing}x</span>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-[9px] font-bold text-slate-400 uppercase">Chord Bold</Label>
-                <div className="flex items-center gap-2">
-                  <Switch 
-                    checked={config.chordBold} 
-                    onCheckedChange={(checked) => setConfig(prev => ({ ...prev, chordBold: checked }))}
-                    className="data-[state=checked]:bg-indigo-600"
-                  />
-                  <span className="text-xs font-bold text-white">{config.chordBold ? 'ON' : 'OFF'}</span>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-[9px] font-bold text-slate-400 uppercase">Alignment</Label>
-                <div className="flex gap-1">
-                  <Button 
-                    variant={config.textAlign === "left" ? "default" : "outline"} 
-                    size="sm" 
-                    onClick={() => setConfig(prev => ({ ...prev, textAlign: "left" }))}
-                    className={cn(
-                      "h-8 w-8 p-0",
-                      config.textAlign === "left" 
-                        ? "bg-indigo-600 hover:bg-indigo-500 text-white" 
-                        : "border border-white/20 bg-white/10 text-slate-300 hover:bg-white/20"
-                    )}
-                  >
-                    <AlignLeft className="w-3.5 h-3.5" />
-                  </Button>
-                  <Button 
-                    variant={config.textAlign === "center" ? "default" : "outline"} 
-                    size="sm" 
-                    onClick={() => setConfig(prev => ({ ...prev, textAlign: "center" }))}
-                    className={cn(
-                      "h-8 w-8 p-0",
-                      config.textAlign === "center" 
-                        ? "bg-indigo-600 hover:bg-indigo-500 text-white" 
-                        : "border border-white/20 bg-white/10 text-slate-300 hover:bg-white/20"
-                    )}
-                  >
-                    <AlignCenter className="w-3.5 h-3.5" />
-                  </Button>
-                  <Button 
-                    variant={config.textAlign === "right" ? "default" : "outline"} 
-                    size="sm" 
-                    onClick={() => setConfig(prev => ({ ...prev, textAlign: "right" }))}
-                    className={cn(
-                      "h-8 w-8 p-0",
-                      config.textAlign === "right" 
-                        ? "bg-indigo-600 hover:bg-indigo-500 text-white" 
-                        : "border border-white/20 bg-white/10 text-slate-300 hover:bg-white/20"
-                    )}
-                  >
-                    <AlignRight className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-[9px] font-bold text-slate-400 uppercase">Chord Color</Label>
-                <div className="flex items-center gap-2">
-                  <Input 
-                    type="color" 
-                    value={config.chordColor} 
-                    onChange={(e) => setConfig(prev => ({ ...prev, chordColor: e.target.value }))}
-                    className="h-8 w-12 p-1 rounded border border-white/20 bg-black/40"
-                  />
-                  <span className="text-xs font-mono text-white">{config.chordColor}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-3xl p-6 flex flex-col flex-1">
-            <div className="flex items-center justify-between mb-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400" htmlFor="preview-area">
-                Live Preview
-              </Label>
-              <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">
-                {activeTransposeOffset > 0 ? '+' : ''}{activeTransposeOffset} ST
-              </span>
-            </div>
-            <div 
-              id="preview-area"
-              className="flex-1 bg-slate-950 rounded-xl p-4 overflow-auto border border-white/10 font-mono"
-              style={{ 
-                fontFamily: config.fontFamily, 
-                fontSize: `${config.fontSize}px`, 
-                lineHeight: config.lineSpacing,
-                textAlign: config.textAlign as any,
-                color: readableChordColor
-              }}
-            >
-              {transposedText ? (
-                <pre className="whitespace-pre-wrap font-inherit"> {/* Changed to whitespace-pre-wrap */}
-                  {transposedText}
-                </pre>
-              ) : (
-                <div className="h-full flex items-center justify-center text-slate-500 text-sm">
-                  <p>Chords will appear here after you paste them</p>
-                </div>
-              )}
-            </div>
-          </div>
         </div>
       </div>
     </div>
@@ -666,3 +511,124 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
 };
 
 export default UGChordsEditor;
+</dyad-file>
+
+<dyad-write path="src/components/UGChordsReader.tsx" description="Fixing import of UGChordsConfig from SetlistManager.">
+"use client";
+
+import React, { useMemo, useRef, useEffect } from 'react';
+import { cn } from '@/lib/utils';
+import { formatChordText, transposeChords } from '@/utils/chordUtils';
+import { calculateSemitones } from '@/utils/keyUtils';
+import { useSettings, KeyPreference } from '@/hooks/use-settings';
+import { UGChordsConfig } from './SetlistManager';
+import { Loader2 } from 'lucide-react';
+
+interface UGChordsReaderProps {
+  chordsText: string;
+  config?: UGChordsConfig;
+  isMobile: boolean;
+  originalKey?: string;
+  targetKey?: string;
+  isPlaying: boolean;
+  progress: number;
+  duration: number;
+  readerKeyPreference?: KeyPreference;
+  onChartReady?: () => void;
+  isFullScreen?: boolean; // NEW: Add isFullScreen prop
+}
+
+const UGChordsReader = React.memo(({
+  chordsText,
+  config: songConfig,
+  isMobile,
+  originalKey,
+  targetKey,
+  isPlaying,
+  progress,
+  duration,
+  readerKeyPreference,
+  onChartReady,
+  isFullScreen, // NEW: Destructure isFullScreen
+}: UGChordsReaderProps) => {
+  const { 
+    keyPreference: globalKeyPreference,
+    ugChordsFontFamily,
+    ugChordsFontSize,
+    ugChordsChordBold,
+    ugChordsChordColor,
+    ugChordsLineSpacing,
+    ugChordsTextAlign,
+  } = useSettings(); 
+  
+  const resolvedPreference = globalKeyPreference === 'neutral' 
+    ? (readerKeyPreference || 'sharps') 
+    : globalKeyPreference;
+
+  const resolvedConfig: UGChordsConfig = useMemo(() => ({
+    fontFamily: songConfig?.fontFamily || ugChordsFontFamily,
+    fontSize: songConfig?.fontSize || ugChordsFontSize,
+    chordBold: songConfig?.chordBold ?? ugChordsChordBold,
+    chordColor: songConfig?.chordColor || ugChordsChordColor,
+    lineSpacing: songConfig?.lineSpacing || ugChordsLineSpacing,
+    textAlign: songConfig?.textAlign || ugChordsTextAlign,
+  }), [songConfig, ugChordsFontFamily, ugChordsFontSize, ugChordsChordBold, ugChordsChordColor, ugChordsLineSpacing, ugChordsTextAlign]);
+
+  const activeKeyPreference = readerKeyPreference || globalKeyPreference;
+  
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLPreElement>(null);
+
+  const transposedChordsText = useMemo(() => {
+    if (!chordsText) return chordsText;
+    // Handle null/undefined keys gracefully
+    const safeOriginalKey = originalKey || 'C';
+    const safeTargetKey = targetKey || safeOriginalKey;
+    const n = calculateSemitones(safeOriginalKey, safeTargetKey);
+    // console.log(`[UGChordsReader] Transposing by ${n} semitones. Original: ${safeOriginalKey}, Target: ${safeTargetKey}`); // Removed verbose log
+    return transposeChords(chordsText, n, activeKeyPreference);
+  }, [chordsText, originalKey, targetKey, activeKeyPreference]);
+
+  const readableChordColor = resolvedConfig.chordColor === "#000000" ? "#ffffff" : resolvedConfig.chordColor;
+
+  useEffect(() => {
+    if (chordsText && onChartReady) {
+      const timer = setTimeout(() => onChartReady(), 10);
+      return () => clearTimeout(timer);
+    }
+  }, [chordsText, onChartReady]);
+
+  return (
+    <div 
+      ref={scrollContainerRef}
+      className={cn(
+        "h-full w-full bg-slate-950 overflow-y-auto font-mono custom-scrollbar block",
+        isMobile ? "text-sm" : "text-base",
+        isFullScreen ? "pt-0" : "pt-16" // Adjusted padding-top based on fullscreen and info overlay visibility
+      )}
+      style={{ 
+        fontFamily: resolvedConfig.fontFamily, 
+        fontSize: `${resolvedConfig.fontSize}px`, 
+        lineHeight: resolvedConfig.lineSpacing,
+        textAlign: resolvedConfig.textAlign as any,
+        color: readableChordColor || "#ffffff",
+        // Removed touchAction: 'none'
+      }}
+    >
+      {chordsText ? (
+        <pre 
+          ref={contentRef}
+          className="whitespace-pre-wrap font-inherit min-w-full"
+        >
+          {transposedChordsText}
+        </pre>
+      ) : (
+        <div className="h-full flex items-center justify-center text-slate-500 text-sm italic">
+          <p>No chord data available for this track.</p>
+        </div>
+      )}
+    </div>
+  );
+});
+
+export default UGChordsReader;
