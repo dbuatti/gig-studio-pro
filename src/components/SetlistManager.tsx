@@ -171,11 +171,10 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
           return null;
         }
         return {
-          ...masterSong,
           id: junction.id, // Use setlist_songs.id for unique identification within the setlist
           master_id: masterSong.id, // Keep repertoire.id as master_id
-          name: masterSong.title, // Override name with repertoire title
-          artist: masterSong.artist, // Ensure artist is mapped
+          name: masterSong.title, // Use title for name
+          artist: masterSong.artist, // Use artist
           originalKey: masterSong.original_key,
           targetKey: masterSong.target_key,
           pitch: masterSong.pitch,
@@ -183,7 +182,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
           youtubeUrl: masterSong.youtube_url,
           ugUrl: masterSong.ug_url,
           appleMusicUrl: masterSong.apple_music_url,
-          pdfUrl: masterSong.pdf_url, // Ensure pdfUrl is mapped
+          pdfUrl: masterSong.pdf_url,
           leadsheetUrl: masterSong.leadsheet_url,
           bpm: masterSong.bpm,
           genre: masterSong.genre,
@@ -208,7 +207,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
           last_sync_log: masterSong.last_sync_log,
           auto_synced: masterSong.auto_synced,
           is_sheet_verified: masterSong.is_sheet_verified,
-          sheet_music_url: masterSong.sheet_music_url, // Ensure sheet_music_url is mapped
+          sheet_music_url: masterSong.sheet_music_url,
           extraction_status: masterSong.extraction_status,
           extraction_error: masterSong.extraction_error,
           audio_url: masterSong.audio_url,
