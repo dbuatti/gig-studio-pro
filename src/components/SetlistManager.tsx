@@ -124,7 +124,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
   const fetchSetlist = useCallback(async () => {
     if (!user) {
-      console.log("[SetlistManager/fetchSetlist] ERROR: No user logged in. Cannot fetch setlist.");
+      console.log("[SetlistManager/fetchSetlist] ERROR: No user object available. Skipping fetch.");
       setIsLoading(false);
       return;
     }
@@ -136,7 +136,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     }
 
     setIsLoading(true);
-    console.log(`[SetlistManager/fetchSetlist] Fetching setlist for gigId: ${gigId} (User: ${user.id})`);
+    console.log(`[SetlistManager/fetchSetlist] Fetching setlist for gigId: ${gigId} (User ID: ${user.id})`);
     try {
       const { data: setlistData, error: setlistError } = await supabase
         .from('setlists')
@@ -240,10 +240,10 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
   const fetchMasterRepertoire = useCallback(async () => {
     if (!user) {
-      console.log("[SetlistManager/fetchMasterRepertoire] ERROR: No user logged in. Cannot fetch repertoire.");
+      console.log("[SetlistManager/fetchMasterRepertoire] ERROR: No user object available. Skipping fetch.");
       return;
     }
-    console.log(`[SetlistManager/fetchMasterRepertoire] Fetching master repertoire for user: ${user.id}...`);
+    console.log(`[SetlistManager/fetchMasterRepertoire] Fetching master repertoire for User ID: ${user.id}...`);
     try {
       const { data, error } = await supabase
         .from('repertoire')
