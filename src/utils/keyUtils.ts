@@ -121,3 +121,7 @@ export const formatKey = (key: string, keyPreference: 'sharps' | 'flats'): strin
     return flatEquivalent || NOTES_SHARP[sharpIndex];
   }
 };
+
+export const transposeKey = (key: string, semitones: number, keyPreference: 'sharps' | 'flats'): string => {
+  return transposeNote(key, semitones, keyPreference);
+};
