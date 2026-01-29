@@ -14,7 +14,7 @@ import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 // UI Components
 import { Button } from '@/components/ui/button';
 import { 
-  Loader2, Settings2, Hash, Library, Shuffle, LayoutDashboard
+  Loader2, Settings2, Hash, Library, Shuffle, LayoutDashboard, Plus
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -39,6 +39,7 @@ import RepertoirePicker from '@/components/RepertoirePicker';
 import ImportSetlist from '@/components/ImportSetlist';
 import ResourceAuditModal from '@/components/ResourceAuditModal';
 import SetlistSettingsModal from '@/components/SetlistSettingsModal';
+import SetlistSelector from '@/components/SetlistSelector';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -263,6 +264,12 @@ const Index = () => {
     }
   }, [userId, authLoading, fetchSetlistsAndRepertoire, navigate]);
 
+  useEffect(() => {
+    if (activeSetlistId) {
+      localStorage.setItem('active_setlist_id', activeSetlistId);
+    }
+  }, [activeSetlistId]);
+
   const handleEditSong = (song: SetlistSong, defaultTab?: StudioTab) => {
     setSongStudioModalSongId(song.master_id || song.id);
     setSongStudioModalGigId(activeDashboardView === 'gigs' ? activeSetlistId : 'library');
@@ -380,6 +387,53 @@ const Index = () => {
     }
   }, [userId, fetchSetlistsAndRepertoire]);
 
+  const handleCreateSetlist = useCallback(async () => {
+    if (!userId) return;
+    const name = prompt("Enter setlist name:");
+    if (!name) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('setlists')
+        .insert([{ user_id: userId, name, songs: [] }])
+        .select()
+        .single();
+      
+      if (error) throw error;
+      await fetchSetlistsAndRepertoire();
+      setActiveSetlistId(data.id);
+      showSuccess(`Setlist "${name}" created!`);
+    } catch (err: any) {
+      showError(`Failed to create setlist: ${err.message}`);
+    }
+  }, [userId, fetchSetlistsAndRepertoire]);
+
+  const handleDeleteSetlist = useCallback(async (id: string) => {
+    if (!confirm("Are you sure you want to delete this setlist?")) return;
+    
+    try {
+      await supabase.from('setlists').delete().eq('id', id);
+      await fetchSetlistsAndRepertoire();
+      showSuccess("Setlist deleted");
+    } catch (err: any) {
+      showError(`Failed to delete setlist: ${err.message}`);
+    }
+  }, [fetchSetlistsAndRepertoire]);
+
+  const handleRenameSetlist = useCallback(async (id: string) => {
+    const currentName = allSetlists.find(s => s.id === id)?.name;
+    const newName = prompt("Enter new name:", currentName);
+    if (!newName || newName === currentName) return;
+    
+    try {
+      await supabase.from('setlists').update({ name: newName }).eq('id', id);
+      await fetchSetlistsAndRepertoire();
+      showSuccess("Setlist renamed");
+    } catch (err: any) {
+      showError(`Failed to rename setlist: ${err.message}`);
+    }
+  }, [allSetlists, fetchSetlistsAndRepertoire]);
+
   const filteredAndSortedSongs = useMemo(() => {
     if (!activeSetlist) return [];
     let songs = [...activeSetlist.songs];
@@ -491,6 +545,26 @@ const Index = () => {
           </TabsList>
 
           <TabsContent value="gigs" className="mt-0 space-y-8">
+            {activeSetlistId && (
+              <div className="flex items-center justify-between">
+                <SetlistSelector
+                  setlists={allSetlists}
+                  currentId={activeSetlistId}
+                  onSelect={setActiveSetlistId}
+                  onCreate={handleCreateSetlist}
+                  onDelete={handleDeleteSetlist}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsSetlistSettingsOpen(true)}
+                  className="h-9 px-4 rounded-xl text-indigo-600"
+                >
+                  <Settings2 className="w-3.5 h-3.5 mr-2" /> Gig Settings
+                </Button>
+              </div>
+            )}
+            
             {activeSetlist && (
               <>
                 <SetlistStats 
@@ -534,6 +608,24 @@ const Index = () => {
                   onOpenSortModal={() => setIsSetlistSortModalOpen(true)}
                 />
               </>
+            )}
+            
+            {!activeSetlistId && allSetlists.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="bg-card p-12 rounded-[3rem] border border-border space-y-6 max-w-md">
+                  <div className="bg-indigo-600/10 w-16 h-16 rounded-2xl flex items-center justify-center text-indigo-600 mx-auto">
+                    <Library className="w-8 h-8" />
+                  </div>
+                  <h2 className="text-2xl font-black uppercase tracking-tight">No Setlists Yet</h2>
+                  <p className="text-muted-foreground font-medium">Create your first setlist to start organizing your gigs.</p>
+                  <Button 
+                    onClick={handleCreateSetlist}
+                    className="w-full bg-indigo-600 h-14 rounded-2xl font-black uppercase tracking-widest gap-2"
+                  >
+                    <Plus className="w-5 h-5" /> Create First Setlist
+                  </Button>
+                </div>
+              </div>
             )}
           </TabsContent>
 
@@ -649,13 +741,24 @@ const Index = () => {
       />
 
       {activeSetlist && (
-        <SetlistSortModal
-          isOpen={isSetlistSortModalOpen}
-          onClose={() => setIsSetlistSortModalOpen(false)}
-          songs={activeSetlist.songs}
-          onReorder={handleReorderSongs}
-          setlistName={activeSetlist.name}
-        />
+        <>
+          <SetlistSortModal
+            isOpen={isSetlistSortModalOpen}
+            onClose={() => setIsSetlistSortModalOpen(false)}
+            songs={activeSetlist.songs}
+            onReorder={handleReorderSongs}
+            setlistName={activeSetlist.name}
+          />
+          
+          <SetlistSettingsModal
+            isOpen={isSetlistSettingsOpen}
+            onClose={() => setIsSetlistSettingsOpen(false)}
+            setlistId={activeSetlist.id}
+            setlistName={activeSetlist.name}
+            onDelete={handleDeleteSetlist}
+            onRename={handleRenameSetlist}
+          />
+        </>
       )}
     </div>
   );
