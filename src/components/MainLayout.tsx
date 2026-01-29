@@ -14,6 +14,7 @@ import GigEntry from "@/pages/GigEntry";
 import PublicGigView from "@/pages/PublicGigView";
 import DebugPage from "@/pages/DebugPage"; // Import DebugPage
 import AudioTransposerModal from "@/components/AudioTransposerModal"; // NEW IMPORT
+import Login from "@/pages/Login"; // FIX 11: Import Login
 
 const RENDER_WORKER_URL = "https://yt-audio-api-1-wedr.onrender.com";
 

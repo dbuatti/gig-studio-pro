@@ -12,7 +12,6 @@ interface AudioTransposerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddExistingSong?: (song: SetlistSong) => void;
-  onOpenStudio?: (songId: string) => void;
   repertoire?: SetlistSong[];
   currentList?: { id: string; name: string; songs: SetlistSong[] };
   onAddToSetlist?: (previewUrl: string, name: string, artist: string, youtubeUrl?: string, ugUrl?: string, appleMusicUrl?: string, genre?: string, pitch?: number, audioUrl?: string, extractionStatus?: 'idle' | 'PENDING' | 'queued' | 'processing' | 'completed' | 'failed') => void;
@@ -22,7 +21,6 @@ const AudioTransposerModal: React.FC<AudioTransposerModalProps> = ({
   isOpen, 
   onClose, 
   onAddExistingSong, 
-  onOpenStudio,
   repertoire = [],
   currentList,
   onAddToSetlist
@@ -33,13 +31,6 @@ const AudioTransposerModal: React.FC<AudioTransposerModalProps> = ({
   const handleClose = () => {
     audioTransposerRef.current?.stopPlayback();
     onClose();
-  };
-
-  const handleOpenStudio = (songId: string) => {
-    onClose();
-    if (songId) {
-      onOpenStudio?.(songId);
-    }
   };
 
   return (
@@ -60,7 +51,6 @@ const AudioTransposerModal: React.FC<AudioTransposerModalProps> = ({
             ref={audioTransposerRef}
             onAddToSetlist={onAddToSetlist}
             onAddExistingSong={onAddExistingSong}
-            onOpenStudio={handleOpenStudio}
             repertoire={repertoire}
             currentList={currentList}
           />

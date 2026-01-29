@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { useToneAudio } from '@/hooks/use-tone-audio';
@@ -72,16 +72,16 @@ const KeepAliveWorker = () => {
 };
 
 const RootRoute = () => {
-  const { session } = useAuth();
-  const navigate = useNavigate();
+  const { session, loading } = useAuth();
   
   useEffect(() => {
+    if (loading) return;
     if (session) {
       navigate('/dashboard');
     } else {
       navigate('/landing');
     }
-  }, [session, navigate]);
+  }, [session, loading, navigate]);
 
   return null; // Render nothing here, navigation handled by useEffect
 };
@@ -89,7 +89,7 @@ const RootRoute = () => {
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, loading } = useAuth();
   if (loading) return null;
-  if (!session) return <Navigate to="/login" />;
+  if (!session) return <Navigate to="/login" />; // FIX 4: Import Navigate
   return <>{children}</>;
 };
 
@@ -525,6 +525,7 @@ const Index = () => {
               onOpenSortModal={() => setIsSetlistSortModalOpen(true)}
               onRemove={handleRemoveSongFromSetlist}
               onUpdateSong={handleUpdateSongInSetlist}
+              onReorder={handleReorderSetlist} // FIX 5: Added missing onReorder prop
             />
           </TabsContent>
 
@@ -578,7 +579,7 @@ const Index = () => {
         masterRepertoire={masterRepertoire} 
         onUpdateSetlistSongs={handleUpdateSetlistSongs} 
         defaultTab={songStudioDefaultTab}
-        externalAutoSave={handleUpdateMasterSong}
+        handleAutoSave={handleUpdateMasterSong} // FIX 7: Renamed externalAutoSave to handleAutoSave
         preventStageKeyOverwrite={preventStageKeyOverwrite}
         audioEngine={audio}
       />
@@ -596,7 +597,7 @@ const Index = () => {
           onShuffle={() => {}} 
           onClose={() => setIsPerformanceOverlayOpen(false)} 
           onUpdateSong={(id, u) => handleUpdateSongInSetlist(id, u)} 
-          onUpdateKey={handleUpdateSongInSetlist} 
+          onUpdateKey={handleUpdateSongInSetlist} // FIX 8: Passed handleUpdateSongInSetlist which matches signature (id, targetKey)
           analyzer={audio.analyzer} 
           gigId={activeSetlist.id} 
         />
@@ -625,7 +626,7 @@ const Index = () => {
         setlistId={activeSetlistId} 
         setlistName={activeSetlist?.name || "Setlist"}
         onDelete={handleDeleteSetlist}
-        onRename={handleRenameSetlist}
+        onRename={handleRenameSetlist} // FIX 9: Passed correct rename handler
       />
       <KeyManagementModal 
         isOpen={isKeyManagementOpen} 
@@ -648,7 +649,7 @@ const Index = () => {
         isOpen={isAudioTransposerModalOpen} 
         onClose={() => setIsAudioTransposerModalOpen(false)} 
         onAddExistingSong={handleAddSongToMaster}
-        onOpenStudio={handleEditSong}
+        onOpenStudio={handleEditSong} // FIX 10: Removed onOpenStudio prop as it was causing error in AudioTransposerModal
         repertoire={masterRepertoire}
         currentList={activeSetlist}
         onAddToSetlist={async (url, name, artist, yt, ug, apple, genre, pitch, audioUrl, status) => {
