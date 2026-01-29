@@ -514,7 +514,7 @@ const Index = () => {
               }}
               onUpdateSetlistSongs={handleUpdateSetlistSongs}
               onOpenSortModal={() => setIsSetlistSortModalOpen(true)}
-              masterRepertoire={masterRepertoire} {/* NEW: Pass masterRepertoire as a prop */}
+              masterRepertoire={masterRepertoire}
             />
           </TabsContent>
 
