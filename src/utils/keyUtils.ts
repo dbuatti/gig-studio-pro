@@ -3,6 +3,14 @@
 export const NOTES_SHARP = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 export const NOTES_FLAT = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
 
+export const MAPPING_TO_SHARP: { [key: string]: string } = {
+  'Db': 'C#',
+  'Eb': 'D#',
+  'Gb': 'F#',
+  'Ab': 'G#',
+  'Bb': 'A#',
+};
+
 export const calculateSemitones = (fromKey: string, toKey: string): number => {
   if (!fromKey || !toKey) return 0;
 
@@ -40,14 +48,7 @@ export const calculateSemitones = (fromKey: string, toKey: string): number => {
 };
 
 export const normalizeKey = (key: string): string => {
-  switch (key) {
-    case 'Db': return 'C#';
-    case 'Eb': return 'D#';
-    case 'Gb': return 'F#';
-    case 'Ab': return 'G#';
-    case 'Bb': return 'A#';
-    default: return key;
-  }
+  return MAPPING_TO_SHARP[key] || key;
 };
 
 export const transposeNote = (note: string, semitones: number, keyPreference: 'sharps' | 'flats'): string => {
