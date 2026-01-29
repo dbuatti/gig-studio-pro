@@ -200,11 +200,11 @@ const SetlistDisplay: React.FC<SetlistDisplayProps> = ({
     }
 
     if (sortMode === 'ready') {
-      filtered.sort((a, b) => calculateReadiness(b) - calculateReadiness(a));
+      songs.sort((a, b) => calculateReadiness(b) - calculateReadiness(a));
     } else if (sortMode === 'work') {
-      filtered.sort((a, b) => calculateReadiness(a) - calculateReadiness(b));
+      songs.sort((a, b) => calculateReadiness(a) - calculateReadiness(b));
     } else {
-      filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      songs.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     }
 
     return filtered;

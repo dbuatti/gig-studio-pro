@@ -557,7 +557,7 @@ const SetlistManagementModal: React.FC<SetlistManagementModalProps> = ({
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 ml-4">
+                        <div className="flex items-center gap-1 ml-4 shrink-0">
                           {gigId !== 'library' && (
                             <TooltipProvider>
                               <Tooltip>
