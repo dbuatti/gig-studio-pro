@@ -1,114 +1,135 @@
 "use client";
 
-import React, { useMemo, useRef, useEffect } from 'react';
+import React, { useMemo, useEffect } from 'react';
+import { calculateSemitones, transposeChord } from '@/utils/keyUtils';
 import { cn } from '@/lib/utils';
-import { formatChordText, transposeChords } from '@/utils/chordUtils';
-import { calculateSemitones } from '@/utils/keyUtils';
-import { useSettings, KeyPreference } from '@/hooks/use-settings';
-import { UGChordsConfig } from './SetlistManager';
+
+export interface UGChordsConfig {
+  fontSize: number;
+  chordBold: boolean;
+  textAlign: 'left' | 'center' | 'right';
+  chordColor: string;
+  fontFamily: string;
+  lineSpacing: number;
+}
 
 interface UGChordsReaderProps {
   chordsText: string;
-  config?: UGChordsConfig;
-  isMobile: boolean;
-  originalKey?: string;
-  targetKey?: string;
-  isPlaying: boolean;
-  progress: number;
-  duration: number;
-  readerKeyPreference?: KeyPreference;
+  config: UGChordsConfig;
+  isMobile: boolean; // Not used in this context, but kept for consistency
+  originalKey: string;
+  targetKey: string;
+  isPlaying: boolean; // Not used for transposition, but might be for future features
+  progress: number; // Not used for transposition
+  duration: number; // Not used for transposition
+  readerKeyPreference: 'sharps' | 'flats';
   onChartReady?: () => void;
-  isFullScreen?: boolean; // NEW: Add isFullScreen prop
+  isFullScreen?: boolean;
 }
 
-const UGChordsReader = React.memo(({
+const UGChordsReader: React.FC<UGChordsReaderProps> = ({
   chordsText,
-  config: songConfig,
-  isMobile,
+  config,
   originalKey,
   targetKey,
   readerKeyPreference,
   onChartReady,
-  isFullScreen, // NEW: Destructure isFullScreen
-}: UGChordsReaderProps) => {
-  const { 
-    keyPreference: globalKeyPreference,
-    ugChordsFontFamily,
-    ugChordsFontSize,
-    ugChordsChordBold,
-    ugChordsChordColor,
-    ugChordsLineSpacing,
-    ugChordsTextAlign,
-  } = useSettings(); 
-  
-  const resolvedPreference = globalKeyPreference === 'neutral' 
-    ? (readerKeyPreference || 'sharps') 
-    : globalKeyPreference;
-
-  const resolvedConfig: UGChordsConfig = useMemo(() => ({
-    fontFamily: songConfig?.fontFamily || ugChordsFontFamily,
-    fontSize: songConfig?.fontSize || ugChordsFontSize,
-    chordBold: songConfig?.chordBold ?? ugChordsChordBold,
-    chordColor: songConfig?.chordColor || ugChordsChordColor,
-    lineSpacing: songConfig?.lineSpacing || ugChordsLineSpacing,
-    textAlign: songConfig?.textAlign || ugChordsTextAlign,
-  }), [songConfig, ugChordsFontFamily, ugChordsFontSize, ugChordsChordBold, ugChordsChordColor, ugChordsLineSpacing, ugChordsTextAlign]);
-
-  const activeKeyPreference = readerKeyPreference || globalKeyPreference;
-  
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLPreElement>(null);
+  isFullScreen,
+}) => {
+  useEffect(() => {
+    onChartReady?.();
+  }, [chordsText, config, originalKey, targetKey, readerKeyPreference, onChartReady]);
 
   const transposedChordsText = useMemo(() => {
-    if (!chordsText) return chordsText;
-    // Handle null/undefined keys gracefully
-    const safeOriginalKey = originalKey || 'C';
-    const safeTargetKey = targetKey || safeOriginalKey;
-    const n = calculateSemitones(safeOriginalKey, safeTargetKey);
-    // console.log(`[UGChordsReader] Transposing by ${n} semitones. Original: ${safeOriginalKey}, Target: ${safeTargetKey}`); // Removed verbose log
-    return transposeChords(chordsText, n, activeKeyPreference);
-  }, [chordsText, originalKey, targetKey, activeKeyPreference]);
-
-  const readableChordColor = resolvedConfig.chordColor === "#000000" ? "#ffffff" : resolvedConfig.chordColor;
-
-  useEffect(() => {
-    if (chordsText && onChartReady) {
-      const timer = setTimeout(() => onChartReady(), 10);
-      return () => clearTimeout(timer);
+    if (!chordsText || !originalKey || !targetKey) {
+      return chordsText;
     }
-  }, [chordsText, onChartReady]);
+
+    const semitoneDiff = calculateSemitones(originalKey, targetKey);
+    if (semitoneDiff === 0) {
+      return chordsText;
+    }
+
+    // Regex to find chords, assuming they are enclosed in square brackets or stand alone
+    // This regex tries to capture common chord patterns like C, Am, G#, Bb, F#m7, Dsus4
+    // It looks for:
+    // - A-G (root note)
+    // - optionally followed by # or b (sharp/flat)
+    // - optionally followed by m (minor)
+    // - optionally followed by any other chord extensions (maj7, sus4, dim, etc.)
+    // This is a simplified regex and might need refinement for all edge cases.
+    const chordRegex = /\[([A-G][b#]?(?:m|maj|min|dim|aug|sus|add)?[0-9]*(?:\/[A-G][b#]?)?)\]|([A-G][b#]?(?:m|maj|min|dim|aug|sus|add)?[0-9]*(?:\/[A-G][b#]?)?)(?=\s|$|\n)/g;
+
+    return chordsText.replace(chordRegex, (match, bracketedChord, standaloneChord) => {
+      const chordToTranspose = bracketedChord || standaloneChord;
+      if (!chordToTranspose) return match;
+
+      const transposed = transposeChord(chordToTranspose, semitoneDiff, readerKeyPreference);
+      return bracketedChord ? `[${transposed}]` : transposed;
+    });
+  }, [chordsText, originalKey, targetKey, readerKeyPreference]);
+
+  const style = {
+    fontSize: `${config.fontSize}px`,
+    textAlign: config.textAlign,
+    lineHeight: config.lineSpacing,
+    fontFamily: config.fontFamily,
+  };
+
+  const renderTextWithChords = useMemo(() => {
+    // This function will render the text, applying specific styles to chords
+    // It's a bit more complex than just replacing, as we need to apply inline styles.
+    const lines = transposedChordsText.split('\n');
+    const chordHighlightRegex = /\[([A-G][b#]?(?:m|maj|min|dim|aug|sus|add)?[0-9]*(?:\/[A-G][b#]?)?)\]|([A-G][b#]?(?:m|maj|min|dim|aug|sus|add)?[0-9]*(?:\/[A-G][b#]?)?)(?=\s|$|\n)/g;
+
+    return lines.map((line, lineIndex) => {
+      const parts: React.ReactNode[] = [];
+      let lastIndex = 0;
+
+      line.replace(chordHighlightRegex, (match, bracketedChord, standaloneChord, offset) => {
+        // Add the text before the current chord
+        if (offset > lastIndex) {
+          parts.push(line.substring(lastIndex, offset));
+        }
+
+        parts.push(
+          <span
+            key={`${lineIndex}-${offset}-chord`}
+            style={{ color: config.chordColor, fontWeight: config.chordBold ? 'bold' : 'normal' }}
+            className="font-mono" // Assuming chords should be monospaced
+          >
+            {match}
+          </span>
+        );
+        lastIndex = offset + match.length;
+        return match; // Return match to keep replace function working
+      });
+
+      // Add any remaining text after the last chord
+      if (lastIndex < line.length) {
+        parts.push(line.substring(lastIndex));
+      }
+
+      return (
+        <p key={lineIndex} className="whitespace-pre-wrap">
+          {parts}
+        </p>
+      );
+    });
+  }, [transposedChordsText, config.chordColor, config.chordBold]);
+
 
   return (
-    <div 
-      ref={scrollContainerRef}
+    <div
       className={cn(
-        "h-full w-full bg-slate-950 p-4 md:p-12 overflow-y-auto border border-white/10 font-mono custom-scrollbar block",
-        isMobile ? "text-sm" : "text-base",
-        isFullScreen ? "pt-0" : "pt-16" // Adjusted padding-top based on fullscreen and info overlay visibility
+        "w-full h-full overflow-y-auto custom-scrollbar p-8 text-white",
+        isFullScreen ? "text-lg" : "text-base"
       )}
-      style={{ 
-        fontFamily: resolvedConfig.fontFamily, 
-        fontSize: `${resolvedConfig.fontSize}px`, 
-        lineHeight: resolvedConfig.lineSpacing,
-        textAlign: resolvedConfig.textAlign as any,
-        color: readableChordColor || "#ffffff",
-        // Removed touchAction: 'none'
-      }}
+      style={style}
     >
-      {chordsText ? (
-        <pre 
-          ref={contentRef}
-          className="whitespace-pre-wrap font-inherit min-w-full"
-        >
-          {transposedChordsText}
-        </pre>
-      ) : (
-        <div className="h-full flex items-center justify-center text-slate-500 text-sm italic">
-          <p>No chord data available for this track.</p>
-        </div>
-      )}
+      {renderTextWithChords}
     </div>
   );
-});
+};
 
 export default UGChordsReader;
