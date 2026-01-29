@@ -233,8 +233,11 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   }, [user, gigId, initialSetlistSongs]);
 
   const fetchMasterRepertoire = useCallback(async () => {
-    if (!user) return;
-    console.log("[SetlistManager/fetchMasterRepertoire] Fetching master repertoire...");
+    if (!user) {
+      console.log("[SetlistManager/fetchMasterRepertoire] No user logged in, skipping fetch.");
+      return;
+    }
+    console.log(`[SetlistManager/fetchMasterRepertoire] Fetching master repertoire for user: ${user.id}...`);
     try {
       const { data, error } = await supabase
         .from('repertoire')
