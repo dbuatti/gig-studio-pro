@@ -4,7 +4,6 @@ import React, { useEffect } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "@/pages/Index";
-import Login from "@/pages/Login";
 import Landing from "@/pages/Landing";
 import NotFound from "@/pages/NotFound";
 import Profile from "@/pages/Profile";
@@ -14,6 +13,7 @@ import SongStudio from "@/pages/SongStudio";
 import GigEntry from "@/pages/GigEntry";
 import PublicGigView from "@/pages/PublicGigView";
 import DebugPage from "@/pages/DebugPage"; // Import DebugPage
+import AudioTransposerModal from "@/components/AudioTransposerModal"; // NEW IMPORT
 
 const RENDER_WORKER_URL = "https://yt-audio-api-1-wedr.onrender.com";
 
@@ -60,6 +60,7 @@ const MainLayout = () => {
       <Routes>
         <Route path="/" element={<RootRoute />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/landing" element={<Landing />} />
         <Route path="/repertoire/:slug" element={<PublicRepertoire />} />
         <Route path="/gig" element={<GigEntry />} />
         <Route path="/gig/:code" element={<PublicGigView />} />
@@ -71,6 +72,9 @@ const MainLayout = () => {
         <Route path="/debug" element={<ProtectedRoute><DebugPage /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
+      {/* Global Modals that should render outside of main content flow */}
+      <AudioTransposerModal isOpen={false} onClose={() => {}} /> 
+      <div id="modal-root" /> {/* Placeholder for modals outside the main flow if needed, though most are integrated */}
     </>
   );
 };
