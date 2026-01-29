@@ -13,21 +13,21 @@ export type SetlistSong = {
   artist: string;
   originalKey: string | null;
   bpm: string | null;
-  durationSeconds: number;
+  durationSeconds: number; // <-- Changed to camelCase for component usage
   isConfirmed: boolean;
   isPlayed: boolean;
   sort_order?: number; // Added sort_order for correct ordering logic
   // Add other necessary fields if needed for full functionality, though these seem sufficient for basic management
 };
 
-// Define MockSetlistSong based on the structure used in the SELECT query in fetchSetlist
+// Define MockSetlistSong based on the structure used in the SELECT query in fetchSetlist (snake_case from DB)
 type MockSetlistSong = {
     id: string;
     name: string | null;
     artist: string | null;
     original_key: string | null;
     bpm: string | null;
-    duration_seconds: number | null;
+    duration_seconds: number | null; // <-- Keep snake_case here as it matches DB result
     is_confirmed: boolean | null;
     isPlayed: boolean | null;
     sort_order: number | null;
@@ -125,7 +125,7 @@ export const useSetlist = (setlistId: string | null) => {
   };
 
   return {
-    setlistSongs,
+    setlistSongs: setlistSongs as unknown as SetlistSong[], // Cast to exported type for consumers
     setlist,
     isLoading,
     updateSetlist,

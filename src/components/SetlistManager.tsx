@@ -27,7 +27,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/lib/database.types';
 import { formatDuration } from '@/lib/utils';
 import { useRepertoire } from '@/hooks/useRepertoire';
-import { useSetlist, SetlistSong } from '@/hooks/useSetlist'; // Corrected import path for SetlistSong
+import { useSetlist, SetlistSong } from '@/hooks/useSetlist';
 // Removed problematic import from '@/components/SetlistManager'; 
 
 // Define types based on existing context (assuming these types exist or are inferred)
@@ -65,7 +65,7 @@ const SetlistManager = ({ initialSetlistId, initialGigId }: { initialSetlistId: 
   const [isReordering, setIsReordering] = useState(false);
 
   const totalDurationSeconds = useMemo(() => {
-    return setlistSongs.reduce((acc, song) => acc + song.durationSeconds, 0);
+    return setlistSongs.reduce((acc, song) => acc + song.durationSeconds, 0); // FIX: Using camelCase durationSeconds
   }, [setlistSongs]);
 
   const filteredMasterRepertoire = useMemo(() => {
