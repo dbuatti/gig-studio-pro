@@ -138,17 +138,23 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     setIsLoading(true);
     console.log(`[SetlistManager/fetchSetlist] Fetching setlist for gigId: ${gigId} (User ID: ${user.id})`);
     try {
+      console.log("[SetlistManager/fetchSetlist] Querying 'setlists' table...");
       const { data: setlistData, error: setlistError } = await supabase
         .from('setlists')
         .select('name, time_goal')
         .eq('id', gigId)
         .single();
 
-      if (setlistError) throw setlistError;
+      if (setlistError) {
+        console.error("[SetlistManager/fetchSetlist] Error fetching setlist details:", setlistError);
+        throw setlistError;
+      }
+      console.log("[SetlistManager/fetchSetlist] Setlist details data:", setlistData);
 
       setSetlistName(setlistData?.name || 'My Setlist');
       setTimeGoal(setlistData?.time_goal || 7200);
 
+      console.log("[SetlistManager/fetchSetlist] Querying 'setlist_songs' table...");
       const { data: junctionData, error: junctionError } = await supabase
         .from('setlist_songs')
         .select(`
@@ -167,14 +173,17 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
         .eq('setlist_id', gigId)
         .order('sort_order', { ascending: true });
 
-      if (junctionError) throw junctionError;
+      if (junctionError) {
+        console.error("[SetlistManager/fetchSetlist] Error fetching setlist_songs junction data:", junctionError);
+        throw junctionError;
+      }
       
-      console.log(`[SetlistManager/fetchSetlist] Raw junction data received: ${junctionData ? junctionData.length : 0} entries.`);
+      console.log(`[SetlistManager/fetchSetlist] Raw junction data received: ${junctionData ? junctionData.length : 0} entries.`, junctionData);
 
       const songs = (junctionData || []).map((junction: any) => {
         const masterSong = junction.repertoire;
         if (!masterSong) {
-          console.warn(`[SetlistManager/fetchSetlist] Song junction ID ${junction.id} references missing repertoire entry, likely due to RLS or deletion.`);
+          console.warn(`[SetlistManager/fetchSetlist] Song junction ID ${junction.id} references missing repertoire entry, likely due to RLS or deletion. Skipping this song.`);
           return null;
         }
         return {
@@ -229,7 +238,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       }).filter(Boolean) as SetlistSong[];
 
       setSetlistSongs(songs);
-      console.log("[SetlistManager/fetchSetlist] Successfully mapped and loaded setlist songs count:", songs.length);
+      console.log("[SetlistManager/fetchSetlist] Successfully mapped and loaded setlist songs count:", songs.length, songs);
     } catch (err: any) {
       showError(`Failed to load setlist: ${err.message}`);
       console.error("Error fetching setlist:", err);
@@ -245,15 +254,19 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     }
     console.log(`[SetlistManager/fetchMasterRepertoire] Fetching master repertoire for User ID: ${user.id}...`);
     try {
+      console.log("[SetlistManager/fetchMasterRepertoire] Querying 'repertoire' table...");
       const { data, error } = await supabase
         .from('repertoire')
         .select('*')
         .eq('user_id', user.id)
         .eq('is_in_library', true)
         .order('title');
-      if (error) throw error;
+      if (error) {
+        console.error("[SetlistManager/fetchMasterRepertoire] Error fetching repertoire data:", error);
+        throw error;
+      }
       
-      console.log(`[SetlistManager/fetchMasterRepertoire] Raw data received: ${data ? data.length : 0} songs.`);
+      console.log(`[SetlistManager/fetchMasterRepertoire] Raw data received: ${data ? data.length : 0} songs.`, data);
 
       const mappedRepertoire = data.map((d: any) => ({
         id: d.id,
@@ -304,7 +317,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
         target_key_updated_at: d.target_key_updated_at,
       }));
       setMasterRepertoire(mappedRepertoire);
-      console.log("[SetlistManager/fetchMasterRepertoire] Successfully loaded master repertoire songs count:", mappedRepertoire.length);
+      console.log("[SetlistManager/fetchMasterRepertoire] Successfully loaded master repertoire songs count:", mappedRepertoire.length, mappedRepertoire);
     } catch (err: any) {
       showError(`Failed to load repertoire: ${err.message}`);
       console.error("Error fetching master repertoire:", err);
