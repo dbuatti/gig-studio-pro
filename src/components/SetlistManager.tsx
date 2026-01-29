@@ -169,7 +169,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       const songs = (junctionData || []).map((junction: any) => {
         const masterSong = junction.repertoire;
         if (!masterSong) {
-          console.warn(`[SetlistManager/fetchSetlist] Song junction ID ${junction.id} references missing repertoire entry.`);
+          console.warn(`[SetlistManager/fetchSetlist] Song junction ID ${junction.id} references missing repertoire entry, likely due to RLS or deletion.`);
           return null;
         }
         return {
