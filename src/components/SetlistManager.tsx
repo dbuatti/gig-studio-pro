@@ -240,9 +240,12 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
         .from('repertoire')
         .select('*')
         .eq('user_id', user.id)
-        .eq('is_in_library', true) // <-- Added filter here
+        .eq('is_in_library', true)
         .order('title');
       if (error) throw error;
+      
+      console.log(`[SetlistManager/fetchMasterRepertoire] Raw data received: ${data ? data.length : 0} songs.`);
+
       const mappedRepertoire = data.map((d: any) => ({
         id: d.id,
         master_id: d.id,
