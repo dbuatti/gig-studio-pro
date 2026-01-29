@@ -20,24 +20,6 @@ export function useHarmonicSync({ formData, handleAutoSave, globalKeyPreference,
   const [localTargetKey, setLocalTargetKey] = useState(formData.targetKey || originalKeyFromData);
 
   const sessionOverridesRef = useRef<Record<string, { pitch: number; targetKey: string }>>({});
-  const currentSongIdRef = useRef<string | undefined>(formData.id);
-
-  // Effect to handle song ID change: clear overrides if the ID changes
-  useEffect(() => {
-    if (formData.id !== currentSongIdRef.current) {
-      // Clear old song ID override if it exists
-      if (currentSongIdRef.current && sessionOverridesRef.current[currentSongIdRef.current]) {
-        delete sessionOverridesRef.current[currentSongIdRef.current];
-      }
-      currentSongIdRef.current = formData.id;
-      
-      // Reset local state based on new form data if pitch linking is off
-      if (!isPitchLinkedFromData) {
-        setLocalPitch(formData.pitch ?? 0);
-        setLocalTargetKey(formData.targetKey || originalKeyFromData);
-      }
-    }
-  }, [formData.id, isPitchLinkedFromData, originalKeyFromData]);
 
   useEffect(() => {
     if (!isPitchLinkedFromData) {
