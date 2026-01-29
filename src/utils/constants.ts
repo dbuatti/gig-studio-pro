@@ -1,14 +1,22 @@
 // src/utils/constants.ts
 
-import { UGChordsConfig } from '@/components/UGChordsReader';
+export const RESOURCE_TYPES = [
+  { value: 'youtube', label: 'YouTube Video' },
+  { value: 'apple_music', label: 'Apple Music' },
+  { value: 'spotify', label: 'Spotify' },
+  { value: 'ug_link', label: 'Ultimate Guitar Link' },
+  { value: 'pdf', label: 'PDF Chart' },
+  { value: 'leadsheet', label: 'Leadsheet' },
+  { value: 'lyrics', label: 'Lyrics' },
+  { value: 'audio', label: 'Audio File' },
+  { value: 'other', label: 'Other Link' },
+];
 
-export const DEFAULT_UG_CHORDS_CONFIG: UGChordsConfig = {
+export const DEFAULT_UG_CHORDS_CONFIG = {
   fontSize: 16,
   chordBold: true,
   textAlign: 'left',
-  chordColor: '#4f46e5', // A vibrant indigo for chords
+  chordColor: '#ffffff',
   fontFamily: 'monospace',
   lineSpacing: 1.5,
 };
-
-// Other constants can go here
