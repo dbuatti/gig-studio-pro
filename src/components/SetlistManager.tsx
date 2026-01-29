@@ -124,7 +124,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
   const fetchSetlist = useCallback(async () => {
     if (!user) {
-      console.log("[SetlistManager/fetchSetlist] No user logged in, skipping fetch.");
+      console.log("[SetlistManager/fetchSetlist] ERROR: No user logged in. Cannot fetch setlist.");
       setIsLoading(false);
       return;
     }
@@ -229,7 +229,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       }).filter(Boolean) as SetlistSong[];
 
       setSetlistSongs(songs);
-      console.log("[SetlistManager/fetchSetlist] Successfully loaded setlist songs count:", songs.length);
+      console.log("[SetlistManager/fetchSetlist] Successfully mapped and loaded setlist songs count:", songs.length);
     } catch (err: any) {
       showError(`Failed to load setlist: ${err.message}`);
       console.error("Error fetching setlist:", err);
@@ -240,7 +240,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
   const fetchMasterRepertoire = useCallback(async () => {
     if (!user) {
-      console.log("[SetlistManager/fetchMasterRepertoire] No user logged in, skipping fetch.");
+      console.log("[SetlistManager/fetchMasterRepertoire] ERROR: No user logged in. Cannot fetch repertoire.");
       return;
     }
     console.log(`[SetlistManager/fetchMasterRepertoire] Fetching master repertoire for user: ${user.id}...`);
