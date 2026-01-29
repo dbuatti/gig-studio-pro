@@ -1,8 +1,16 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { useAuth } from "@/components/AuthProvider";
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { AuthProvider } from "@/components/AuthProvider";
+import { useTheme } from '@/hooks/use-theme';
+import MainLayoutContent from "@/components/MainLayoutContent"; 
+import DebugPage from "@/pages/DebugPage"; 
+import { pdfjs } from 'react-pdf'; 
 import Index from "@/pages/Index";
 import Landing from "@/pages/Landing";
 import NotFound from "@/pages/NotFound";
@@ -12,9 +20,13 @@ import SheetReaderMode from "@/pages/SheetReaderMode";
 import SongStudio from "@/pages/SongStudio";
 import GigEntry from "@/pages/GigEntry";
 import PublicGigView from "@/pages/PublicGigView";
-import DebugPage from "@/pages/DebugPage"; // Import DebugPage
-import AudioTransposerModal from "@/components/AudioTransposerModal"; // NEW IMPORT
-import Login from "@/pages/Login"; // FIX 11: Import Login
+import Login from "@/pages/Login"; 
+import { useAuth } from "./AuthProvider";
+
+// Configure PDF.js worker source globally
+pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+
+const queryClient = new QueryClient();
 
 const RENDER_WORKER_URL = "https://yt-audio-api-1-wedr.onrender.com";
 
@@ -43,9 +55,18 @@ const KeepAliveWorker = () => {
 
 const RootRoute = () => {
   const { session, loading } = useAuth();
-  const navigate = useNavigate(); // FIX 6: Import useNavigate
-  if (loading) return null;
-  return session ? <Index /> : <Landing />;
+  const navigate = useNavigate();
+  
+  useEffect(() => {
+    if (loading) return;
+    if (session) {
+      navigate('/dashboard');
+    } else {
+      navigate('/landing');
+    }
+  }, [session, loading, navigate]);
+
+  return null;
 };
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -55,7 +76,14 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const MainLayout = () => {
+const MainLayoutContent = () => {
+  const { theme } = useTheme();
+
+  useEffect(() => {
+    document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.classList.add(theme);
+  }, [theme]);
+
   return (
     <>
       <KeepAliveWorker />
@@ -74,10 +102,23 @@ const MainLayout = () => {
         <Route path="/debug" element={<ProtectedRoute><DebugPage /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
-      {/* Global Modals that should render outside of main content flow */}
-      <AudioTransposerModal isOpen={false} onClose={() => {}} /> 
-      <div id="modal-root" /> {/* Placeholder for modals outside the main flow if needed, though most are integrated */}
     </>
+  );
+}
+
+const MainLayout = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner position="top-center" />
+          <BrowserRouter>
+            <MainLayoutContent />
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 };
 
