@@ -6,7 +6,6 @@ import { formatChordText, transposeChords } from '@/utils/chordUtils';
 import { calculateSemitones } from '@/utils/keyUtils';
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
 import { UGChordsConfig } from './SetlistManager';
-import { Loader2 } from 'lucide-react';
 
 interface UGChordsReaderProps {
   chordsText: string;
@@ -28,9 +27,6 @@ const UGChordsReader = React.memo(({
   isMobile,
   originalKey,
   targetKey,
-  isPlaying,
-  progress,
-  duration,
   readerKeyPreference,
   onChartReady,
   isFullScreen, // NEW: Destructure isFullScreen
@@ -86,7 +82,7 @@ const UGChordsReader = React.memo(({
     <div 
       ref={scrollContainerRef}
       className={cn(
-        "h-full w-full bg-slate-950 overflow-y-auto font-mono custom-scrollbar block",
+        "h-full w-full bg-slate-950 p-4 md:p-12 overflow-y-auto border border-white/10 font-mono custom-scrollbar block",
         isMobile ? "text-sm" : "text-base",
         isFullScreen ? "pt-0" : "pt-16" // Adjusted padding-top based on fullscreen and info overlay visibility
       )}

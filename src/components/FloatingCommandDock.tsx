@@ -202,10 +202,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     {
       id: 'search',
       icon: <Search className="w-5 h-5" />,
-      onClick: () => {
-        console.log("[FloatingDock] Search icon clicked");
-        onOpenSearch();
-      },
+      onClick: onOpenSearch,
       disabled: false,
       tooltip: "Discovery Engine",
       className: "bg-slate-800 text-white border-white/10 hover:bg-indigo-600",

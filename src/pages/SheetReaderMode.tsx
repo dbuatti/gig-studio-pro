@@ -41,23 +41,28 @@ pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
 export type ChartType = 'pdf' | 'leadsheet' | 'chords';
 
-
 const SheetReaderMode: React.FC = () => {
   const navigate = useNavigate();
-  const { songId: routeSongId, setlistId: routeSetlistId } = useParams<{ songId?: string; setlistId?: string }>();
+  const { songId: routeSongId } = useParams<{ songId?: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { 
     keyPreference: globalKeyPreference,
+    ugChordsFontFamily,
+    ugChordsFontSize,
+    ugChordsChordBold,
+    ugChordsChordColor,
+    ugChordsLineSpacing,
+    ugChordsTextAlign,
     preventStageKeyOverwrite,
-    disablePortraitPdfScroll,
+    disablePortraitPdfScroll, // NEW
     setKeyPreference: setGlobalKeyPreference
   } = useSettings();
   const { forceReaderResource } = useReaderSettings();
 
   const [allSongs, setAllSongs] = useState<SetlistSong[]>([]);
   const [fullMasterRepertoire, setFullMasterRepertoire] = useState<SetlistSong[]>([]);
-  const [currentSetlistSongs, setCurrentSetlistSongs] = useState<SetlistSong[]>([]); // This will hold songs if in gig mode
+  const [currentSetlistSongs, setCurrentSetlistSongs] = useState<SetlistSong[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [initialLoading, setInitialLoading] = useState(true);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
@@ -68,7 +73,7 @@ const SheetReaderMode: React.FC = () => {
   const [isRepertoireSearchModalOpen, setIsRepertoireSearchModalOpen] = useState(false);
   const [isInfoOverlayVisible, setIsInfoOverlayVisible] = useState(true);
   const [isAudioPlayerVisible, setIsAudioPlayerVisible] = useState(true);
-  const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
+  const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth); // NEW
 
   const [readerKeyPreference, setReaderKeyPreference] = useState<'sharps' | 'flats'>(
     globalKeyPreference === 'neutral' ? 'sharps' : globalKeyPreference
@@ -103,6 +108,7 @@ const SheetReaderMode: React.FC = () => {
 
   const [{}, api] = useSpring(() => ({ x: 0 }));
 
+  // NEW: Detect orientation changes
   useEffect(() => {
     const handleResize = () => {
       setIsPortrait(window.innerHeight > window.innerWidth);
@@ -125,7 +131,6 @@ const SheetReaderMode: React.FC = () => {
     setPdfScale(null);
     setPdfDocument(null);
     setLinks([]);
-    // console.log("[SheetReaderMode] Resetting PDF state for new song:", currentSong?.id);
   }, [currentSong?.id]);
 
   const handleLocalSongUpdate = useCallback((songId: string, updates: Partial<SetlistSong>) => {
@@ -149,7 +154,7 @@ const SheetReaderMode: React.FC = () => {
       try {
         const result = await syncToMasterRepertoire(user.id, [{
           ...updates,
-          id: currentSong.master_id || currentSong.id, // Use master_id for repertoire updates
+          id: currentSong.id,
           name: currentSong.name,
           artist: currentSong.artist
         }]);
@@ -158,7 +163,7 @@ const SheetReaderMode: React.FC = () => {
           handleLocalSongUpdate(currentSong.id, result[0]);
         }
       } catch (err) {
-        // Silently handle background saves
+        console.error("Sheet Reader Auto-save failed:", err);
       }
     }, [currentSong, user, handleLocalSongUpdate]),
     globalKeyPreference,
@@ -228,7 +233,7 @@ const SheetReaderMode: React.FC = () => {
     } else {
       audioEngine.resetEngine();
     }
-  }, [currentSong]);
+  }, [currentSong, audioEngine, showWarning]);
 
   const fetchSongs = useCallback(async () => {
     if (!user) return;
@@ -237,74 +242,80 @@ const SheetReaderMode: React.FC = () => {
     try {
       const filterApproved = searchParams.get('filterApproved');
       const targetId = routeSongId || searchParams.get('id');
-      const isGigMode = routeSetlistId && routeSetlistId !== 'repertoire';
 
       let currentViewSongs: SetlistSong[] = [];
       let masterRepertoireList: SetlistSong[] = [];
       let activeSetlistSongsList: SetlistSong[] = [];
 
-      // Always fetch full master repertoire for search/studio context
       const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user_id', user.id).order('title');
       if (masterError) throw masterError;
-
-      masterRepertoireList = (masterData || []).map((d: any) => {
-        const mappedSong: SetlistSong = {
-          id: d.id,
-          master_id: d.id,
-          name: d.title,
-          artist: d.artist,
-          originalKey: d.original_key ?? 'TBC',
-          targetKey: d.target_key ?? d.original_key ?? 'TBC',
-          pitch: d.pitch ?? 0,
-          previewUrl: d.extraction_status === 'completed' && d.audio_url ? d.audio_url : d.preview_url,
-          youtubeUrl: d.youtube_url,
-          ugUrl: d.ug_url,
-          appleMusicUrl: d.apple_music_url,
-          pdfUrl: d.pdf_url,
-          leadsheetUrl: d.leadsheet_url,
-          bpm: d.bpm,
-          genre: d.genre,
-          isMetadataConfirmed: d.is_metadata_confirmed,
-          isKeyConfirmed: d.is_key_confirmed,
-          notes: d.notes,
-          lyrics: d.lyrics,
-          resources: d.resources || [],
-          user_tags: d.user_tags || [],
-          is_pitch_linked: d.is_pitch_linked ?? true,
-          duration_seconds: d.duration_seconds,
-          key_preference: d.key_preference,
-          is_active: d.is_active,
-          isApproved: d.is_approved,
-          preferred_reader: d.preferred_reader,
-          ug_chords_text: d.ug_chords_text,
-          ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
-          is_ug_chords_present: d.is_ug_chords_present,
-          highest_note_original: d.highest_note_original,
-          metadata_source: d.metadata_source,
-          sync_status: d.sync_status,
-          last_sync_log: d.last_sync_log,
-          auto_synced: d.auto_synced,
-          is_sheet_verified: d.is_sheet_verified,
-          sheet_music_url: d.sheet_music_url,
-          extraction_status: d.extraction_status,
-          extraction_error: d.extraction_error,
-          audio_url: d.audio_url,
-          lyrics_updated_at: d.lyrics_updated_at,
-          chords_updated_at: d.chords_updated_at,
-          ug_link_updated_at: d.ug_link_updated_at,
-          highest_note_updated_at: d.highest_note_updated_at,
-          original_key_updated_at: d.original_key_updated_at,
-          target_key_updated_at: d.target_key_updated_at,
-        };
-        return mappedSong;
-      });
+      masterRepertoireList = (masterData || []).map((d: any) => ({
+        id: d.id,
+        master_id: d.id,
+        name: d.title,
+        artist: d.artist,
+        originalKey: d.original_key ?? 'TBC',
+        targetKey: d.target_key ?? d.original_key ?? 'TBC',
+        pitch: d.pitch ?? 0,
+        previewUrl: d.extraction_status === 'completed' && d.audio_url ? d.audio_url : d.preview_url,
+        youtubeUrl: d.youtube_url,
+        ugUrl: d.ug_url,
+        appleMusicUrl: d.apple_music_url,
+        pdfUrl: d.pdf_url,
+        leadsheetUrl: d.leadsheet_url,
+        bpm: d.bpm,
+        genre: d.genre,
+        isSyncing: false,
+        isMetadataConfirmed: d.is_metadata_confirmed,
+        isKeyConfirmed: d.is_key_confirmed,
+        notes: d.notes,
+        lyrics: d.lyrics,
+        resources: d.resources || [],
+        user_tags: d.user_tags || [],
+        is_pitch_linked: d.is_pitch_linked ?? true,
+        duration_seconds: d.duration_seconds,
+        key_preference: d.key_preference,
+        is_active: d.is_active,
+        isApproved: d.is_approved,
+        preferred_reader: d.preferred_reader,
+        ug_chords_text: d.ug_chords_text,
+        ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
+        is_ug_chords_present: d.is_ug_chords_present,
+        highest_note_original: d.highest_note_original,
+        metadata_source: d.metadata_source,
+        sync_status: d.sync_status,
+        last_sync_log: d.last_sync_log,
+        auto_synced: d.auto_synced,
+        is_sheet_verified: d.is_sheet_verified,
+        sheet_music_url: d.sheet_music_url,
+        extraction_status: d.extraction_status,
+        extraction_error: d.extraction_error,
+        audio_url: d.audio_url,
+        lyrics_updated_at: d.lyrics_updated_at,
+        chords_updated_at: d.chords_updated_at,
+        ug_link_updated_at: d.ug_link_updated_at,
+        highest_note_updated_at: d.highest_note_updated_at,
+        original_key_updated_at: d.original_key_updated_at,
+        target_key_updated_at: d.target_key_updated_at,
+      }));
       setFullMasterRepertoire(masterRepertoireList);
 
-      if (isGigMode && routeSetlistId) {
+      if (filterApproved === 'true') {
+        const { data: setlistsData, error: setlistsError } = await supabase
+          .from('setlists')
+          .select('id')
+          .eq('user_id', user.id)
+          .limit(1);
+
+        if (setlistsError || !setlistsData || setlistsData.length === 0) {
+          throw new Error("No active setlist found for approved songs.");
+        }
+        const activeSetlistId = setlistsData[0].id;
+
         const { data: junctionData, error: junctionError } = await supabase
           .from('setlist_songs')
           .select(`
-            id, isPlayed, sort_order,
+            *,
             repertoire:song_id (
               id, title, artist, original_key, target_key, pitch, preview_url, youtube_url, ug_url, 
               apple_music_url, pdf_url, leadsheet_url, bpm, genre, is_metadata_confirmed, is_key_confirmed, 
@@ -316,7 +327,7 @@ const SheetReaderMode: React.FC = () => {
               ug_link_updated_at, highest_note_updated_at, original_key_updated_at, target_key_updated_at
             )
           `)
-          .eq('setlist_id', routeSetlistId)
+          .eq('setlist_id', activeSetlistId)
           .order('sort_order', { ascending: true });
 
         if (junctionError) throw junctionError;
@@ -324,30 +335,26 @@ const SheetReaderMode: React.FC = () => {
         activeSetlistSongsList = (junctionData || []).map((junction: any) => {
           const masterSong = junction.repertoire;
           if (!masterSong) return null;
-          const mappedSong: SetlistSong = {
-            ...masterSong, // Spread existing properties from repertoire
-            id: junction.id, // Use setlist_songs.id for unique identification within the setlist
-            master_id: masterSong.id, // Keep repertoire.id as master_id
-            name: masterSong.title, // Override name with repertoire title
-            pdfUrl: masterSong.pdf_url, // Explicitly map pdf_url to pdfUrl
-            sheet_music_url: masterSong.sheet_music_url, // Explicitly map sheet_music_url
+          return {
+            ...masterSong,
+            id: junction.id,
+            master_id: masterSong.id,
             isPlayed: junction.isPlayed || false,
           };
-          // console.log(`[SheetReaderMode] Mapped setlist song ${mappedSong.name} (ID: ${mappedSong.id}): pdfUrl=${mappedSong.pdfUrl}, sheet_music_url=${mappedSong.sheet_music_url}`);
-          return mappedSong;
         }).filter(Boolean) as SetlistSong[];
         setCurrentSetlistSongs(activeSetlistSongsList);
         currentViewSongs = activeSetlistSongsList;
       } else {
-        // Filter master repertoire for readable songs
-        currentViewSongs = masterRepertoireList.filter(s => 
-          s.pdfUrl || s.leadsheetUrl || s.ug_chords_text || s.sheet_music_url
-        );
+        currentViewSongs = masterRepertoireList;
       }
 
+      const readableSongs = currentViewSongs.filter(s => 
+        s.pdfUrl || s.leadsheetUrl || s.ug_chords_text || s.sheet_music_url
+      );
+
       const uniqueSongsMap = new Map<string, SetlistSong>();
-      currentViewSongs.forEach(song => {
-        const key = song.id; // Use the song's ID (setlist_songs.id or repertoire.id) for uniqueness in the reader
+      readableSongs.forEach(song => {
+        const key = song.master_id || song.id;
         if (key && !uniqueSongsMap.has(key)) {
           uniqueSongsMap.set(key, song);
         }
@@ -358,53 +365,17 @@ const SheetReaderMode: React.FC = () => {
 
       let initialIndex = 0;
       if (targetId) {
-        let foundIndex = uniqueReadableSongs.findIndex(s => s.id === targetId || s.master_id === targetId);
-        
-        if (foundIndex !== -1) {
-          const targetedSong = uniqueReadableSongs[foundIndex];
-          // If the targeted song doesn't have a PDF, but another song with the same name does,
-          // try to find and select that one instead.
-          if (!targetedSong.pdfUrl && !targetedSong.sheet_music_url) {
-            const songWithPdfIndex = uniqueReadableSongs.findIndex(s => 
-              s.name === targetedSong.name && 
-              s.artist === targetedSong.artist && 
-              (s.pdfUrl || s.sheet_music_url)
-            );
-            if (songWithPdfIndex !== -1) {
-              initialIndex = songWithPdfIndex;
-              showInfo(`Switched to a version of "${targetedSong.name}" with a PDF.`);
-              // console.log("[SheetReaderMode] Switched to PDF version of song:", targetedSong.name, "new index:", initialIndex);
-            } else {
-              initialIndex = foundIndex; // Stick to the original if no PDF version found
-            }
-          } else {
-            initialIndex = foundIndex; // Use the targeted song if it has a PDF
-          }
-        }
-        // console.log("[SheetReaderMode] Target ID:", targetId, "resolved to initialIndex:", initialIndex);
+        const idx = uniqueReadableSongs.findIndex(s => s.id === targetId || s.master_id === targetId);
+        if (idx !== -1) initialIndex = idx;
       }
       setCurrentIndex(initialIndex);
-
-      const songAfterLoad = uniqueReadableSongs[initialIndex];
-      if (songAfterLoad) {
-        // console.log("[SheetReaderMode] Loaded song details (after index selection):", {
-        //   id: songAfterLoad.id,
-        //   name: songAfterLoad.name,
-        //   pdfUrl: songAfterLoad.pdfUrl,
-        //   sheet_music_url: songAfterLoad.sheet_music_url,
-        //   leadsheetUrl: songAfterLoad.leadsheetUrl,
-        //   ug_chords_text_present: !!songAfterLoad.ug_chords_text,
-        //   preferred_reader: songAfterLoad.preferred_reader,
-        // });
-      }
-
     } catch (err: any) {
-      showError(`Failed to load songs: ${err.message}`);
       console.error("[SheetReaderMode] Error fetching songs:", err);
+      showError(`Failed to load songs: ${err.message}`);
     } finally {
       setInitialLoading(false);
     }
-  }, [user, routeSongId, routeSetlistId, searchParams]);
+  }, [user, routeSongId, searchParams]);
 
   useEffect(() => {
     const fromDashboard = sessionStorage.getItem('from_dashboard');
@@ -418,7 +389,6 @@ const SheetReaderMode: React.FC = () => {
   const fetchLinks = useCallback(async () => {
     if (!user || !currentSong?.master_id || selectedChartType === 'chords') {
       setLinks([]);
-      // console.log("[SheetReaderMode] Not fetching links: no user, no master_id, or chart type is chords.");
       return;
     }
     try {
@@ -430,10 +400,9 @@ const SheetReaderMode: React.FC = () => {
       
       if (error) throw error;
       setLinks(data || []);
-      // console.log("[SheetReaderMode] Successfully loaded links:", data?.length);
     } catch (err: any) {
+      console.error("[SheetReaderMode] Error fetching links:", err.message);
       showError("Failed to load links.");
-      console.error("[SheetReaderMode] Error fetching links:", err);
     }
   }, [user, currentSong?.master_id, selectedChartType]);
 
@@ -442,7 +411,7 @@ const SheetReaderMode: React.FC = () => {
   }, [fetchLinks]);
 
   const getBestChartType = useCallback((song: SetlistSong): ChartType => {
-    if (forceReaderResource === 'force-pdf' && (song.pdfUrl || song.sheet_music_url)) return 'pdf';
+    if (forceReaderResource === 'force-pdf' && song.pdfUrl) return 'pdf';
     if (forceReaderResource === 'force-ug' && (song.ugUrl || song.ug_chords_text)) return 'chords';
     if (forceReaderResource === 'force-chords' && song.ug_chords_text) return 'chords';
 
@@ -461,31 +430,24 @@ const SheetReaderMode: React.FC = () => {
 
   const currentChartDisplayUrl = useMemo(() => {
     if (!currentSong) return null;
-    // console.log("[SheetReaderMode] currentChartDisplayUrl evaluation for song:", currentSong.name, "ID:", currentSong.id, "pdfUrl:", currentSong.pdfUrl, "sheet_music_url:", currentSong.sheet_music_url);
-    let url = null;
     switch (selectedChartType) {
-      case 'pdf': url = currentSong.pdfUrl || currentSong.sheet_music_url; break;
-      case 'leadsheet': url = currentSong.leadsheetUrl; break;
-      case 'chords': url = null; break; 
-      default: url = null; break;
+      case 'pdf': return currentSong.pdfUrl || currentSong.sheet_music_url;
+      case 'leadsheet': return currentSong.leadsheetUrl;
+      case 'chords': return null; 
+      default: return null;
     }
-    // console.log("[SheetReaderMode] Determined currentChartDisplayUrl:", url, "for type:", selectedChartType);
-    return url;
   }, [currentSong, selectedChartType]);
 
   useEffect(() => {
     if (currentSong) {
-      // console.log("[SheetReaderMode] Effect for chart type: currentSong.pdfUrl:", currentSong.pdfUrl, "currentSong.sheet_music_url:", currentSong.sheet_music_url);
       const bestType = getBestChartType(currentSong);
       if (selectedChartType !== bestType) {
         setSelectedChartType(bestType);
         setIsChartContentLoading(true);
-        // console.log("[SheetReaderMode] Changing chart type to:", bestType);
       }
     } else {
       setSelectedChartType('pdf');
       setIsChartContentLoading(false);
-      // console.log("[SheetReaderMode] No current song, defaulting chart type to pdf.");
     }
   }, [currentSong, getBestChartType, selectedChartType]);
 
@@ -499,7 +461,6 @@ const SheetReaderMode: React.FC = () => {
     if (allSongs.length > 0) {
       setCurrentIndex((prevIndex) => {
         const newIndex = (prevIndex + 1) % allSongs.length;
-        // console.log("[SheetReaderMode] Navigating to next song. New index:", newIndex);
         return newIndex;
       });
       stopPlayback();
@@ -513,7 +474,6 @@ const SheetReaderMode: React.FC = () => {
     if (allSongs.length > 0) {
       setCurrentIndex((prevIndex) => {
         const newIndex = (prevIndex - 1 + allSongs.length) % allSongs.length;
-        // console.log("[SheetReaderMode] Navigating to previous song. New index:", newIndex);
         return newIndex;
       });
       stopPlayback();
@@ -530,14 +490,12 @@ const SheetReaderMode: React.FC = () => {
       setIsBrowserFullScreen(prev => !prev);
       setIsInfoOverlayVisible(true); 
       setIsAudioPlayerVisible(true); 
-      // console.log("[SheetReaderMode] Toggling standalone full screen.");
       return;
     }
 
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(err => {
         showError(`Error attempting to enable fullscreen mode: ${err.message} (${err.name})`);
-        console.error("[SheetReaderMode] Fullscreen error:", err);
       });
       if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
         setIsInfoOverlayVisible(false);
@@ -545,12 +503,10 @@ const SheetReaderMode: React.FC = () => {
         setIsInfoOverlayVisible(true); 
       }
       setIsAudioPlayerVisible(true); 
-      // console.log("[SheetReaderMode] Entering browser full screen.");
     } else {
       document.exitFullscreen();
       setIsInfoOverlayVisible(false); 
       setIsAudioPlayerVisible(false); 
-      // console.log("[SheetReaderMode] Exiting browser full screen.");
     }
   }, [selectedChartType]);
 
@@ -562,9 +518,6 @@ const SheetReaderMode: React.FC = () => {
         if (!document.fullscreenElement) {
           setIsInfoOverlayVisible(false); 
           setIsAudioPlayerVisible(false); 
-          // console.log("[SheetReaderMode] Fullscreen exited via event.");
-        } else {
-          // console.log("[SheetReaderMode] Fullscreen entered via event.");
         }
       }
     };
@@ -579,7 +532,6 @@ const SheetReaderMode: React.FC = () => {
       } else {
         setIsInfoOverlayVisible(true); 
       }
-      // console.log("[SheetReaderMode] Fullscreen state changed, adjusting info overlay visibility.");
     }
   }, [currentSong?.id, selectedChartType, isBrowserFullScreen]);
 
@@ -587,28 +539,21 @@ const SheetReaderMode: React.FC = () => {
   const onOpenCurrentSongStudio = useCallback(() => {
     if (currentSong) {
       setIsStudioPanel(true);
-      // console.log("[SheetReaderMode] Opening Song Studio for song:", currentSong.id);
     } else {
       showInfo("No song selected to open in Studio.");
-      console.warn("[SheetReaderMode] Attempted to open Studio with no song selected.");
     }
   }, [currentSong]);
 
   const onOpenRepertoireSearch = () => {
     setIsRepertoireSearchModalOpen(true);
-    // console.log("[SheetReaderMode] Opening Repertoire Search modal.");
   };
 
   const handleSelectSongFromRepertoireSearch = useCallback((song: SetlistSong) => {
     const idx = allSongs.findIndex(s => s.id === song.id || s.master_id === song.master_id);
     if (idx !== -1) {
       setCurrentIndex(idx);
-      // console.log("[SheetReaderMode] Selected song from search, setting current index:", idx);
     } else {
-      // If the song is not in the current view (e.g., switching from gig to repertoire)
-      // navigate to the repertoire view with the selected song
-      navigate(`/sheet-reader/repertoire/${song.master_id || song.id}`);
-      // console.log("[SheetReaderMode] Selected song from search, navigating to new route:", song.master_id || song.id);
+      navigate(`/sheet-reader/${song.id}`);
     }
     stopPlayback();
     setIsRepertoireSearchModalOpen(false);
@@ -616,24 +561,19 @@ const SheetReaderMode: React.FC = () => {
 
   const handleSaveReaderPreference = useCallback((pref: 'sharps' | 'flats') => {
     setReaderKeyPreference(pref);
+    if (globalKeyPreference !== 'neutral') {
+      setGlobalKeyPreference(pref);
+    }
     showSuccess(`Reader preference saved to ${pref === 'sharps' ? 'Sharps' : 'Flats'}`);
-    // console.log("[SheetReaderMode] Reader key preference saved:", pref);
-  }, []);
+  }, [setGlobalKeyPreference, globalKeyPreference]);
 
   const onAddLink = useCallback(() => {
     if (currentChartDisplayUrl && pdfDocument) {
       setIsLinkEditorOpen(true);
-      // console.log("[SheetReaderMode] Opening link editor.");
     } else {
       showInfo("No PDF available to add links.");
-      console.warn("[SheetReaderMode] Cannot add link, no PDF available.");
     }
   }, [currentChartDisplayUrl, pdfDocument]);
-
-  const handleChartReady = useCallback(() => {
-    setIsChartContentLoading(false);
-    // console.log("[SheetReaderMode] Chart content is ready.");
-  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -643,27 +583,17 @@ const SheetReaderMode: React.FC = () => {
         case 'ArrowLeft':
           e.preventDefault();
           if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
-            setPdfCurrentPage(prev => {
-              const newPage = Math.max(1, prev - 1);
-              // console.log("[SheetReaderMode] Keydown: ArrowLeft, PDF page:", newPage);
-              return newPage;
-            }); 
+            setPdfCurrentPage(prev => Math.max(1, prev - 1)); 
           } else {
             handlePrev();
-            // console.log("[SheetReaderMode] Keydown: ArrowLeft, navigating to previous song.");
           }
           break;
         case 'ArrowRight':
           e.preventDefault();
           if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
-            setPdfCurrentPage(prev => {
-              const newPage = Math.min(prev + 1, pdfNumPages || 999);
-              // console.log("[SheetReaderMode] Keydown: ArrowRight, PDF page:", newPage);
-              return newPage;
-            }); 
+            setPdfCurrentPage(prev => Math.min(prev + 1, pdfNumPages || 999)); 
           } else {
             handleNext();
-            // console.log("[SheetReaderMode] Keydown: ArrowRight, navigating to next song.");
           }
           break;
         case 'i':
@@ -676,90 +606,66 @@ const SheetReaderMode: React.FC = () => {
         case 'p':
         case 'P':
           e.preventDefault();
-          setIsAudioPlayerVisible(prev => {
-            // console.log("[SheetReaderMode] Keydown: P, toggling audio player visibility to:", !prev);
-            return !prev;
-          }); 
+          setIsAudioPlayerVisible(prev => !prev); 
           break;
         case 'r':
         case 'R':
           e.preventDefault();
           navigate('/');
-          // console.log("[SheetReaderMode] Keydown: R, navigating to home.");
           break;
         case 'l': 
         case 'L':
           e.preventDefault();
           if (currentChartDisplayUrl && pdfDocument) { 
-            setIsLinkEditorOpen(prev => {
-              // console.log("[SheetReaderMode] Keydown: L, toggling link editor to:", !prev);
-              return !prev;
-            });
+            setIsLinkEditorOpen(prev => !prev);
           } else {
             showInfo("No PDF available to add links.");
-            console.warn("[SheetReaderMode] Keydown: L, cannot open link editor, no PDF available.");
           }
           break;
         case 'e': 
         case 'E':
           e.preventDefault();
           if (currentChartDisplayUrl) { 
-            setIsEditingLinksMode(prev => {
-              showInfo(`Link editing mode ${prev ? 'disabled' : 'enabled'}.`);
-              // console.log("[SheetReaderMode] Keydown: E, toggling link editing mode to:", !prev);
-              return !prev;
-            });
+            setIsEditingLinksMode(prev => !prev);
+            showInfo(`Link editing mode ${isEditingLinksMode ? 'disabled' : 'enabled'}.`);
           } else {
             showInfo("No PDF available to edit links.");
-            console.warn("[SheetReaderMode] Keydown: E, cannot toggle link editing, no PDF available.");
           }
           break;
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentSong, onOpenCurrentSongStudio, handlePrev, handleNext, selectedChartType, pdfNumPages, isEditingLinksMode, currentChartDisplayUrl, onAddLink, navigate, pdfDocument]);
+  }, [currentSong, onOpenCurrentSongStudio, handlePrev, handleNext, selectedChartType, pdfNumPages, isEditingLinksMode, currentChartDisplayUrl, onAddLink, navigate]);
 
   const calculatePdfScale = useCallback(async (pdf: PDFDocumentProxy, container: HTMLDivElement, pageNumber: number) => {
-    if (!container || !pdf) {
-      console.warn("[SheetReaderMode] calculatePdfScale: Missing container or PDF document.");
-      return;
-    }
+    if (!container || !pdf) return;
 
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
-    // console.log("[SheetReaderMode] calculatePdfScale: container dimensions (W x H):", containerWidth, "x", containerHeight);
 
     try {
       const page = await pdf.getPage(pageNumber);
       const viewport = page.getViewport({ scale: 1 });
       const pageWidth = viewport.width;
       const pageHeight = viewport.height;
-      // console.log("[SheetReaderMode] calculatePdfScale: page dimensions (W x H):", pageWidth, "x", pageHeight);
 
       const scaleX = containerWidth / pageWidth;
       const scaleY = containerHeight / pageHeight;
 
-      const newScale = Math.min(scaleX, scaleY);
-      setPdfScale(newScale);
-      // console.log("[SheetReaderMode] calculatePdfScale: Calculated new PDF scale:", newScale);
+      setPdfScale(Math.min(scaleX, scaleY));
     } catch (error) {
       console.error("[SheetReaderMode] Error calculating PDF scale:", error);
-      // Silently handle scale failures during resize
     }
   }, []);
 
   useEffect(() => {
     const container = chartContainerRef.current;
-    if (!container || !pdfDocument) {
-      // console.log("[SheetReaderMode] ResizeObserver: Not observing, container or pdfDocument not ready.");
-      return; 
-    }
+    if (!container || !pdfDocument) return; 
 
     const resizeObserver = new ResizeObserver(entries => {
       for (let entry of entries) {
         if (entry.target === container) {
-          // console.log("[SheetReaderMode] ResizeObserver: Container resized, recalculating PDF scale.");
           calculatePdfScale(pdfDocument, container, pdfCurrentPage); 
         }
       }
@@ -768,7 +674,6 @@ const SheetReaderMode: React.FC = () => {
     resizeObserver.observe(container);
 
     return () => {
-      // console.log("[SheetReaderMode] ResizeObserver: Disconnecting observer.");
       resizeObserver.unobserve(container);
     };
   }, [pdfDocument, pdfCurrentPage, calculatePdfScale]); 
@@ -778,19 +683,16 @@ const SheetReaderMode: React.FC = () => {
 
     if (first) {
       navigatedRef.current = false; 
-      // console.log("[SheetReaderMode] Drag started.");
     }
 
     if (!down) { 
       if (navigatedRef.current) {
         navigatedRef.current = false; 
       }
-      // console.log("[SheetReaderMode] Drag ended.");
       return;
     }
 
     if (navigatedRef.current) {
-      // console.log("[SheetReaderMode] Drag: Navigation already triggered, ignoring further movement.");
       return;
     }
 
@@ -802,40 +704,27 @@ const SheetReaderMode: React.FC = () => {
     if (shouldTriggerNavigation) {
       navigatedRef.current = true; 
       cancel(); 
-      // console.log("[SheetReaderMode] Drag: Swipe detected (long or fast), triggering navigation.");
 
       const pageStep = 1;
 
-      if (dx < 0) { // Swiping left
+      if (dx < 0) { 
         if (selectedChartType === 'chords') {
           handleNext();
-          // console.log("[SheetReaderMode] Drag: Swiped left, next song (chords).");
         } else if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
           if (pdfCurrentPage < (pdfNumPages || 1)) {
-            setPdfCurrentPage(prev => {
-              const newPage = Math.min(prev + pageStep, pdfNumPages || 999);
-              // console.log("[SheetReaderMode] Drag: Swiped left, next PDF page:", newPage);
-              return newPage;
-            });
+            setPdfCurrentPage(prev => Math.min(prev + pageStep, pdfNumPages || 999));
           } else {
             handleNext(); 
-            // console.log("[SheetReaderMode] Drag: Swiped left, last PDF page, next song.");
           }
         }
-      } else { // Swiping right
+      } else { 
         if (selectedChartType === 'chords') {
           handlePrev();
-          // console.log("[SheetReaderMode] Drag: Swiped right, previous song (chords).");
         } else if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
           if (pdfCurrentPage > 1) {
-            setPdfCurrentPage(prev => {
-              const newPage = Math.max(1, prev - pageStep);
-              // console.log("[SheetReaderMode] Drag: Swiped right, previous PDF page:", newPage);
-              return newPage;
-            });
+            setPdfCurrentPage(prev => Math.max(1, prev - pageStep));
           } else {
             handlePrev(); 
-            // console.log("[SheetReaderMode] Drag: Swiped right, first PDF page, previous song.");
           }
         }
       }
@@ -848,7 +737,6 @@ const SheetReaderMode: React.FC = () => {
 
   const handleNavigateToPage = useCallback((pageNumber: number, x?: number, y?: number) => {
     setPdfCurrentPage(pageNumber);
-    // console.log("[SheetReaderMode] Navigating to PDF page:", pageNumber, "with coordinates:", x, y);
     if (chartContainerRef.current && x !== undefined && y !== undefined) {
       const targetX = x * chartContainerRef.current.scrollWidth - chartContainerRef.current.clientWidth / 2;
       const targetY = y * chartContainerRef.current.scrollHeight - chartContainerRef.current.clientHeight / 2;
@@ -857,12 +745,12 @@ const SheetReaderMode: React.FC = () => {
         top: targetY,
         behavior: 'smooth'
       });
-      // console.log("[SheetReaderMode] Scrolling PDF container to target (X, Y):", targetX, targetY);
     }
   }, []);
 
-  if (initialLoading) return <div className="h-screen bg-slate-950 flex flex-col items-center justify-center gap-4"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /><p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Initializing Reader Engine...</p></div>;
+  if (initialLoading) return <div className="h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
 
+  // NEW: Determine if scroll should be disabled
   const shouldDisableScroll = disablePortraitPdfScroll && isPortrait && (selectedChartType === 'pdf' || selectedChartType === 'leadsheet');
 
   return (
@@ -907,7 +795,7 @@ const SheetReaderMode: React.FC = () => {
             isBrowserFullScreen ? "mt-0" : "mt-[72px]", 
             isAudioPlayerVisible && currentSong ? "pb-24" : "pb-0", 
             "overscroll-behavior-x-contain",
-            shouldDisableScroll ? "overflow-y-hidden" : "overflow-y-auto"
+            shouldDisableScroll ? "overflow-y-hidden" : "overflow-y-auto" // NEW: Conditional scroll disable
           )}
           onClick={toggleBrowserFullScreen} 
         >
@@ -936,14 +824,13 @@ const SheetReaderMode: React.FC = () => {
                   progress={progress}
                   duration={duration}
                   readerKeyPreference={readerKeyPreference}
-                  onChartReady={handleChartReady}
+                  onChartReady={() => setIsChartContentLoading(false)}
                   isFullScreen={isBrowserFullScreen && !isInfoOverlayVisible} 
                 />
               ) : (
                 (() => {
                   const url = currentChartDisplayUrl; 
                   if (url) {
-                    // console.log("[SheetReaderMode] Attempting to render PDF/Leadsheet from URL:", url);
                     return (
                       <div className="w-full h-full overflow-x-auto overflow-y-hidden flex justify-center items-center relative"> 
                         <Document
@@ -952,15 +839,14 @@ const SheetReaderMode: React.FC = () => {
                             setPdfNumPages(pdf.numPages);
                             setPdfDocument(pdf); 
                             setIsChartContentLoading(false);
-                            // console.log("[SheetReaderMode] PDF Document loaded successfully. Pages:", pdf.numPages);
                             if (chartContainerRef.current) {
                               await calculatePdfScale(pdf, chartContainerRef.current, pdfCurrentPage);
                             }
                           }}
                           onLoadError={(error) => {
+                            console.error("[SheetReaderMode] Error loading PDF Document:", error); 
                             showError("Failed to load PDF document.");
                             setIsChartContentLoading(false);
-                            console.error("[SheetReaderMode] PDF Document failed to load:", error);
                           }}
                           loading={<Loader2 className="w-12 h-12 animate-spin text-indigo-500" />}
                           className="flex items-center justify-center w-full h-full" 
@@ -973,7 +859,6 @@ const SheetReaderMode: React.FC = () => {
                             loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
                             onRenderSuccess={(page) => {
                               setIsChartContentLoading(false);
-                              // console.log("[SheetReaderMode] PDF Page rendered successfully:", page.pageNumber);
                             }}
                             inputRef={pageRef} 
                           />
@@ -994,19 +879,16 @@ const SheetReaderMode: React.FC = () => {
                       </div>
                     );
                   }
-                  // console.log("[SheetReaderMode] No PDF/Leadsheet URL available for selected chart type.");
                   return (
-                    <div className="h-full w-full flex flex-col items-center justify-center text-slate-500 text-sm italic gap-4">
-                      <FileText className="w-12 h-12 opacity-20" />
-                      <p>No {selectedChartType} asset linked for this track.</p>
+                    <div className="h-full w-full flex items-center justify-center text-slate-500 text-sm italic">
+                      <p>No {selectedChartType} available for this track.</p>
                     </div>
                   );
                 })()
               )
             ) : (
-              <div className="h-full w-full flex flex-col items-center justify-center text-slate-500 text-sm italic gap-4">
-                <Music className="w-12 h-12 opacity-20" />
-                <p>No active song in selection pool.</p>
+              <div className="h-full w-full flex items-center justify-center text-slate-500 text-sm italic">
+                <p>No song selected or available.</p>
               </div>
             )}
           </animated.div>
@@ -1039,7 +921,7 @@ const SheetReaderMode: React.FC = () => {
                   isOpen={true}
                   onClose={() => setIsStudioPanel(false)}
                   gigId="library"
-                  songId={currentSong.master_id || currentSong.id} // Pass master_id for studio
+                  songId={currentSong.id}
                   visibleSongs={allSongs}
                   handleAutoSave={(updates) => handleLocalSongUpdate(currentSong.id, updates)}
                   preventStageKeyOverwrite={preventStageKeyOverwrite}

@@ -44,7 +44,6 @@ import AudioTransposer, { AudioTransposerRef } from '@/components/AudioTranspose
 import GoalTracker from '@/components/GoalTracker';
 import SetlistSortModal from '@/components/SetlistSortModal';
 import { calculateSemitones } from '@/utils/keyUtils';
-import VisuallyHidden from '@/components/VisuallyHidden';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -55,7 +54,7 @@ const Index = () => {
 
   const [allSetlists, setAllSetlists] = useState<Setlist[]>([]);
   const [masterRepertoire, setMasterRepertoire] = useState<SetlistSong[]>([]);
-  const [activeSetlistId, setActiveSetlistId] = useState<string | null>(() => localStorage.getItem('active_setlist_id'));
+  const [activeSetlistId, setActiveSetlistId] = useState<string | null>(null);
   const [activeSongForPerformance, setActiveSongForPerformance] = useState<SetlistSong | null>(null);
   const [loading, setLoading] = useState(true);
   const [isShuffleAllMode, setIsShuffleAllMode] = useState(false);
@@ -146,11 +145,8 @@ const Index = () => {
     if (isInitial) setLoading(true);
     
     try {
-      const { data: setlistsData, error: setlistsError } = await supabase.from('setlists').select('*').eq('user_id', userId).order('created_at', { ascending: false });
-      if (setlistsError) throw setlistsError;
-
-      const { data: repertoireData, error: repertoireError } = await supabase.from('repertoire').select('*').eq('user_id', userId).order('title');
-      if (repertoireError) throw repertoireError;
+      const { data: setlistsData } = await supabase.from('setlists').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+      const { data: repertoireData } = await supabase.from('repertoire').select('*').eq('user_id', userId).order('title');
 
       const mappedRepertoire: SetlistSong[] = (repertoireData || []).map(d => ({
         id: d.id, master_id: d.id, name: d.title, artist: d.artist, originalKey: d.original_key || 'TBC',
@@ -164,6 +160,7 @@ const Index = () => {
         isApproved: d.is_approved, is_ready_to_sing: d.is_ready_to_sing, preferred_reader: d.preferred_reader, ug_chords_text: d.ug_chords_text,
         ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG, extraction_status: d.extraction_status,
         audio_url: d.audio_url,
+        // Map goal tracking timestamps
         lyrics_updated_at: d.lyrics_updated_at,
         chords_updated_at: d.chords_updated_at,
         ug_link_updated_at: d.ug_link_updated_at,
@@ -176,9 +173,7 @@ const Index = () => {
 
       const setlistsWithSongs: Setlist[] = [];
       for (const setlist of setlistsData || []) {
-        const { data: junctionData, error: junctionError } = await supabase.from('setlist_songs').select('*').eq('setlist_id', setlist.id).order('sort_order', { ascending: true });
-        if (junctionError) throw junctionError;
-
+        const { data: junctionData } = await supabase.from('setlist_songs').select('*').eq('setlist_id', setlist.id).order('sort_order', { ascending: true });
         const songs: SetlistSong[] = junctionData?.map(j => {
           const master = mappedRepertoire.find(r => r.id === j.song_id);
           return master ? { ...master, id: j.id, master_id: master.id, isPlayed: j.isPlayed || false } : null;
@@ -188,13 +183,8 @@ const Index = () => {
 
       setAllSetlists(setlistsWithSongs);
       const savedId = localStorage.getItem('active_setlist_id');
-      if (savedId && setlistsWithSongs.some(s => s.id === savedId)) {
-        setActiveSetlistId(savedId);
-      } else if (setlistsWithSongs.length > 0) {
-        setActiveSetlistId(setlistsWithSongs[0].id);
-      } else {
-        setActiveSetlistId(null);
-      }
+      if (savedId && setlistsWithSongs.some(s => s.id === savedId)) setActiveSetlistId(savedId);
+      else setActiveSetlistId(setlistsWithSongs[0]?.id || null);
     } catch (err: any) {
       showError(`Failed to load data: ${err.message}`);
     } finally {
@@ -207,122 +197,6 @@ const Index = () => {
     else if (!authLoading && !userId) navigate('/landing');
   }, [userId, authLoading, fetchSetlistsAndRepertoire]);
 
-  useEffect(() => {
-    if (activeSetlistId) {
-      localStorage.setItem('active_setlist_id', activeSetlistId);
-    } else {
-      localStorage.removeItem('active_setlist_id');
-    }
-  }, [activeSetlistId]);
-
-  const handleCreateSetlist = async () => {
-    const newSetName = prompt("Enter new setlist name:");
-    if (!newSetName?.trim()) {
-      showInfo("Setlist name cannot be empty.");
-      return;
-    }
-    if (!userId) {
-      showError("User not authenticated.");
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('setlists')
-        .insert({ user_id: userId, name: newSetName.trim(), songs: [] })
-        .select()
-        .single();
-
-      if (error) throw error;
-      showSuccess(`Setlist "${newSetName}" created!`);
-      fetchSetlistsAndRepertoire();
-      setActiveSetlistId(data.id);
-    } catch (err: any) {
-      showError(`Failed to create setlist: ${err.message}`);
-    }
-  };
-
-  const handleDeleteSetlist = async (setlistIdToDelete: string) => {
-    if (!userId) {
-      showError("User not authenticated.");
-      return;
-    }
-    if (!confirm("Are you sure you want to delete this setlist and all its songs? This action cannot be undone.")) {
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('setlists')
-        .delete()
-        .eq('id', setlistIdToDelete)
-        .eq('user_id', userId);
-
-      if (error) throw error;
-      showSuccess("Setlist deleted successfully!");
-      fetchSetlistsAndRepertoire();
-      if (activeSetlistId === setlistIdToDelete) {
-        setActiveSetlistId(allSetlists.find(s => s.id !== setlistIdToDelete)?.id || null);
-      }
-    } catch (err: any) {
-      showError(`Failed to delete setlist: ${err.message}`);
-    }
-  };
-
-  const handleRenameSetlist = async (setlistIdToRename: string) => {
-    const newName = prompt("Enter new name for the setlist:");
-    if (!newName?.trim()) {
-      showInfo("Setlist name cannot be empty.");
-      return;
-    }
-    if (!userId) {
-      showError("User not authenticated.");
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('setlists')
-        .update({ name: newName.trim() })
-        .eq('id', setlistIdToRename)
-        .eq('user_id', userId);
-
-      if (error) throw error;
-      showSuccess(`Setlist renamed to "${newName}"!`);
-      fetchSetlistsAndRepertoire();
-    } catch (err: any) {
-      showError(`Failed to rename setlist: ${err.message}`);
-    }
-  };
-
-  const handleUpdateSetlistSongs = useCallback(async (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => {
-    if (!userId || !song.master_id) {
-      showError("User not authenticated or song master ID missing.");
-      return;
-    }
-
-    try {
-      if (action === 'add') {
-        const { error } = await supabase
-          .from('setlist_songs')
-          .insert({ setlist_id: setlistId, song_id: song.master_id, sort_order: 0 });
-        if (error) throw error;
-        showSuccess(`Added "${song.name}" to setlist!`);
-      } else {
-        const { error } = await supabase
-          .from('setlist_songs')
-          .delete()
-          .eq('setlist_id', setlistId)
-          .eq('song_id', song.master_id);
-        if (error) throw error;
-        showSuccess(`Removed "${song.name}" from setlist.`);
-      }
-      fetchSetlistsAndRepertoire();
-    } catch (err: any) {
-      showError(`Failed to update setlist songs: ${err.message}`);
-    }
-  }, [userId, fetchSetlistsAndRepertoire]);
-
   const handleEditSong = (song: SetlistSong, defaultTab?: StudioTab) => {
     setSongStudioModalSongId(song.master_id || song.id);
     setSongStudioModalGigId(activeDashboardView === 'gigs' ? activeSetlistId : 'library');
@@ -334,7 +208,7 @@ const Index = () => {
     if (!activeSetlist) return [];
     let songs = [...activeSetlist.songs];
     const q = searchTerm.toLowerCase();
-    if (q) songs = songs.filter(s => s.name.toLowerCase().includes(q) || s.artist?.toLowerCase().includes(q) || s.user_tags?.some(tag => tag.toLowerCase().includes(q)));
+    if (q) songs = songs.filter(s => s.name.toLowerCase().includes(q) || s.artist?.toLowerCase().includes(q));
 
     if (sortMode === 'ready') songs.sort((a, b) => calculateReadiness(b) - calculateReadiness(a));
     else if (sortMode === 'work') songs.sort((a, b) => calculateReadiness(a) - calculateReadiness(b));
@@ -342,32 +216,6 @@ const Index = () => {
     
     return songs;
   }, [activeSetlist, searchTerm, sortMode]);
-
-  useEffect(() => {
-    localStorage.setItem('gig_search_term', searchTerm);
-  }, [searchTerm]);
-
-  useEffect(() => {
-    localStorage.setItem('gig_sort_mode', sortMode);
-  }, [sortMode]);
-
-  useEffect(() => {
-    localStorage.setItem('gig_active_filters', JSON.stringify(activeFilters));
-  }, [activeFilters]);
-
-  useEffect(() => {
-    localStorage.setItem('gig_show_heatmap', showHeatmap.toString());
-  }, [showHeatmap]);
-
-  const missingAudioCount = useMemo(() => {
-    return masterRepertoire.filter(s => !!s.youtubeUrl && (!s.audio_url || s.extraction_status !== 'completed') && s.extraction_status !== 'processing' && s.extraction_status !== 'queued').length;
-  }, [masterRepertoire]);
-
-  if (loading || isFetchingSettings) return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
-    </div>
-  );
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col relative">
@@ -408,84 +256,21 @@ const Index = () => {
           </TabsList>
 
           <TabsContent value="gigs" className="mt-0 space-y-8">
-            <div className="flex items-center justify-between mb-6">
-              {activeSetlistId ? (
-                <SetlistSelector 
-                  setlists={allSetlists} 
-                  currentId={activeSetlistId} 
-                  onSelect={setActiveSetlistId} 
-                  onCreate={handleCreateSetlist} 
-                  onDelete={handleDeleteSetlist} 
-                />
-              ) : (
-                <Button onClick={handleCreateSetlist} className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-[10px] h-10 px-6 rounded-xl shadow-lg shadow-indigo-600/20 gap-2">
-                  <Plus className="w-4 h-4" /> Create First Setlist
-                </Button>
-              )}
-              {activeSetlist && (
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setIsImportSetlistOpen(true)} className="gap-2 border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-bold uppercase tracking-tight shadow-sm hover:shadow-md transition-all">
-                    <ListMusic className="w-4 h-4" /> Smart Import
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => setIsRepertoirePickerOpen(true)} className="gap-2 border-emerald-200 text-emerald-600 hover:bg-emerald-50 font-bold uppercase tracking-tight shadow-sm hover:shadow-md transition-all">
-                    <Library className="w-4 h-4" /> Add from Library
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => setIsSetlistSettingsOpen(true)} className="gap-2 border-muted-foreground text-muted-foreground hover:bg-accent font-bold uppercase tracking-tight shadow-sm hover:shadow-md transition-all">
-                    <Settings2 className="w-4 h-4" /> Settings
-                  </Button>
-                </div>
-              )}
-            </div>
-            <SetlistStats songs={activeSetlist?.songs || []} onUpdateGoal={async (goal) => { if (activeSetlistId) await supabase.from('setlists').update({ time_goal: goal }).eq('id', activeSetlistId); fetchSetlistsAndRepertoire(); }} goalSeconds={activeSetlist?.time_goal} />
+            <SetlistStats songs={activeSetlist?.songs || []} />
             <SetlistManager 
               songs={filteredAndSortedSongs} 
               onSelect={setActiveSongForPerformance} 
               onEdit={handleEditSong} 
-              onUpdateKey={(id, k) => {
-                const songToUpdate = activeSetlist?.songs.find(s => s.id === id);
-                if (songToUpdate) {
-                  const newPitch = calculateSemitones(songToUpdate.originalKey || 'C', k);
-                  audio.setPitch(newPitch);
-                  syncToMasterRepertoire(userId!, [{ id: songToUpdate.master_id, targetKey: k, pitch: newPitch, isKeyConfirmed: true }]);
-                }
-              }} 
+              onUpdateKey={(id, k) => audio.setPitch(calculateSemitones(activeSetlist?.songs.find(s => s.id === id)?.originalKey, k))} 
               onLinkAudio={() => {}}
-              onSyncProData={async (song) => {
-                if (!userId) return;
-                try {
-                  const synced = await syncToMasterRepertoire(userId, [song]);
-                  if (synced.length > 0) {
-                    showSuccess(`Synced "${synced[0].name}" metadata.`);
-                    fetchSetlistsAndRepertoire();
-                  }
-                } catch (err: any) {
-                  showError(`Failed to sync: ${err.message}`);
-                }
-              }}
+              onSyncProData={async () => {}}
               currentSongId={activeSongForPerformance?.id}
               sortMode={sortMode} setSortMode={setSortMode} activeFilters={activeFilters} setActiveFilters={setActiveFilters} searchTerm={searchTerm} setSearchTerm={setSearchTerm} showHeatmap={showHeatmap} allSetlists={allSetlists}
-              onRemove={async (setlistSongId) => { await supabase.from('setlist_songs').delete().eq('id', setlistSongId); fetchSetlistsAndRepertoire(); }}
-              onUpdateSong={async (setlistSongId, updates) => { 
-                const songInSetlist = activeSetlist?.songs.find(s => s.id === setlistSongId);
-                if (songInSetlist?.master_id) {
-                  await syncToMasterRepertoire(userId!, [{...updates, id: songInSetlist.master_id}]); 
-                  fetchSetlistsAndRepertoire();
-                }
-              }}
-              onTogglePlayed={async (setlistSongId) => { 
-                const s = activeSetlist?.songs.find(x => x.id === setlistSongId); 
-                if (s) {
-                  await supabase.from('setlist_songs').update({ isPlayed: !s.isPlayed }).eq('id', setlistSongId); 
-                  fetchSetlistsAndRepertoire(); 
-                }
-              }}
-              onReorder={async (newSongs) => { 
-                for(let i=0; i<newSongs.length; i++) {
-                  await supabase.from('setlist_songs').update({sort_order: i}).eq('id', newSongs[i].id); 
-                }
-                fetchSetlistsAndRepertoire(); 
-              }}
-              onUpdateSetlistSongs={handleUpdateSetlistSongs}
+              onRemove={async (id) => { await supabase.from('setlist_songs').delete().eq('id', id); fetchSetlistsAndRepertoire(); }}
+              onUpdateSong={async (id, u) => { await syncToMasterRepertoire(userId!, [{...u, id: activeSetlist?.songs.find(s => s.id === id)?.master_id}]); fetchSetlistsAndRepertoire(); }}
+              onTogglePlayed={async (id) => { const s = activeSetlist?.songs.find(x => x.id === id); await supabase.from('setlist_songs').update({ isPlayed: !s?.isPlayed }).eq('id', id); fetchSetlistsAndRepertoire(); }}
+              onReorder={async (ns) => { for(let i=0; i<ns.length; i++) await supabase.from('setlist_songs').update({sort_order: i}).eq('id', ns[i].id); fetchSetlistsAndRepertoire(); }}
+              onUpdateSetlistSongs={async (sid, s, a) => { if(a==='add') await supabase.from('setlist_songs').insert({setlist_id: sid, song_id: s.master_id, sort_order: 0}); else await supabase.from('setlist_songs').delete().eq('setlist_id', sid).eq('song_id', s.master_id); fetchSetlistsAndRepertoire(); }}
               onOpenSortModal={() => setIsSetlistSortModalOpen(true)}
             />
           </TabsContent>
@@ -494,73 +279,21 @@ const Index = () => {
             <RepertoireView 
               repertoire={masterRepertoire} onEditSong={handleEditSong} allSetlists={allSetlists} onRefreshRepertoire={() => fetchSetlistsAndRepertoire()} 
               searchTerm={searchTerm} setSearchTerm={setSearchTerm} sortMode={sortMode} setSortMode={setSortMode} activeFilters={activeFilters} setActiveFilters={setActiveFilters}
-              onUpdateSetlistSongs={handleUpdateSetlistSongs}
+              onUpdateSetlistSongs={async (sid, s, a) => { if(a==='add') await supabase.from('setlist_songs').insert({setlist_id: sid, song_id: s.master_id, sort_order: 0}); else await supabase.from('setlist_songs').delete().eq('setlist_id', sid).eq('song_id', s.master_id); fetchSetlistsAndRepertoire(); }}
               onDeleteSong={async (id) => { await supabase.from('repertoire').delete().eq('id', id); fetchSetlistsAndRepertoire(); }}
               onAddSong={async (s) => { await syncToMasterRepertoire(userId!, [s]); fetchSetlistsAndRepertoire(); }}
-              missingAudioCount={missingAudioCount}
-              onOpenAdmin={() => setIsAdminPanelOpen(true)}
             />
           </TabsContent>
         </Tabs>
       </div>
 
       <FloatingCommandDock 
-        onOpenSearch={() => {
-          setIsAudioTransposerModalOpen(true);
-        }} 
-        onOpenPractice={() => {}} 
-        onOpenReader={(id) => {
-          sessionStorage.setItem('from_dashboard', 'true');
-          const targetSetlistId = activeDashboardView === 'gigs' && activeSetlistId ? activeSetlistId : 'repertoire';
-          navigate(`/sheet-reader/${targetSetlistId}/${id || ''}`);
-        }} 
+        onOpenSearch={() => setIsAudioTransposerModalOpen(true)} onOpenPractice={() => {}} onOpenReader={(id) => navigate(`/sheet-reader/${id || ''}`)} 
         onOpenAdmin={() => setIsAdminPanelOpen(true)} onOpenPreferences={() => setIsPreferencesOpen(true)} onToggleHeatmap={() => setShowHeatmap(!showHeatmap)} 
         onOpenUserGuide={() => setIsUserGuideOpen(true)} showHeatmap={showHeatmap} viewMode={activeDashboardView} hasPlayableSong={!!activeSongForPerformance} isPlaying={audio.isPlaying} 
         onTogglePlayback={audio.togglePlayback} activeSongId={activeSongForPerformance?.id} onSetMenuOpen={setFloatingDockMenuOpen} isMenuOpen={floatingDockMenuOpen} 
         onOpenPerformance={() => setIsPerformanceOverlayOpen(true)} hasReadableChart={!!activeSongForPerformance}
       />
-
-      {isAudioTransposerModalOpen && (
-        <AlertDialog open={isAudioTransposerModalOpen} onOpenChange={setIsAudioTransposerModalOpen}>
-          <AlertDialogContent className="max-w-[95vw] w-[1200px] h-[90vh] p-0 bg-slate-950 border-white/10 overflow-hidden rounded-[2rem] shadow-2xl flex flex-col">
-            <AlertDialogHeader className="sr-only">
-              <VisuallyHidden>
-                <AlertDialogTitle>Audio Discovery Matrix</AlertDialogTitle>
-              </VisuallyHidden>
-            </AlertDialogHeader>
-            <div className="flex justify-between items-center p-6 border-b border-white/5 bg-slate-900 shrink-0">
-               <h3 className="text-xl font-black uppercase text-white">Audio Discovery Matrix</h3>
-               <Button variant="ghost" onClick={() => setIsAudioTransposerModalOpen(false)} className="h-10 w-10 p-0 text-slate-400 hover:text-white">
-                 <X className="w-6 h-6" />
-               </Button>
-            </div>
-            <div className="flex-1 overflow-hidden">
-               <AudioTransposer 
-                 repertoire={masterRepertoire}
-                 currentSong={activeSongForPerformance}
-                 onAddToSetlist={(p, n, a, y, u, am, g, pi, au, es) => {
-                   if (activeDashboardView === 'repertoire' || !activeSetlistId) {
-                      syncToMasterRepertoire(userId!, [{ name: n, artist: a, previewUrl: p, youtubeUrl: y, ugUrl: u, appleMusicUrl: am, genre: g, pitch: pi, audio_url: au, extraction_status: es }]);
-                   } else {
-                      onUpdateSetlistSongs?.(activeSetlistId, { id: crypto.randomUUID(), name: n, artist: a, previewUrl: p, youtubeUrl: y, ugUrl: u, appleMusicUrl: am, genre: g, pitch: pi, audio_url: au, extraction_status: es } as any, 'add');
-                   }
-                   setIsAudioTransposerModalOpen(false);
-                   fetchSetlistsAndRepertoire();
-                 }}
-                 onAddExistingSong={async (s) => {
-                   if (activeSetlistId) {
-                     await supabase.from('setlist_songs').insert({ setlist_id: activeSetlistId, song_id: s.master_id || s.id, sort_order: 0 });
-                     showSuccess(`Added "${s.name}" to gig!`);
-                     setIsAudioTransposerModalOpen(false);
-                     fetchSetlistsAndRepertoire();
-                   }
-                 }}
-                 currentList={activeSetlist}
-               />
-            </div>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
 
       <SongStudioModal 
         isOpen={isSongStudioModalOpen} onClose={() => setIsSongStudioModalOpen(false)} 
@@ -568,7 +301,6 @@ const Index = () => {
         visibleSongs={activeDashboardView === 'gigs' ? filteredAndSortedSongs : masterRepertoire} 
         allSetlists={allSetlists} masterRepertoire={masterRepertoire} defaultTab={songStudioDefaultTab} 
         audioEngine={audio}
-        onUpdateSetlistSongs={handleUpdateSetlistSongs}
       />
 
       {isPerformanceOverlayOpen && activeSetlist && activeSongForPerformance && (
@@ -577,15 +309,6 @@ const Index = () => {
       
       <AdminPanel isOpen={isAdminPanelOpen} onClose={() => setIsAdminPanelOpen(false)} onRefreshRepertoire={() => fetchSetlistsAndRepertoire()} />
       <PreferencesModal isOpen={isPreferencesOpen} onClose={() => setIsPreferencesOpen(false)} />
-      <UserGuideModal isOpen={isUserGuideOpen} onClose={() => setIsUserGuideOpen(false)} />
-      <KeyManagementModal isOpen={isKeyManagementOpen} onClose={() => setIsKeyManagementOpen(false)} repertoire={masterRepertoire} onUpdateKey={async (songId, updates) => { await syncToMasterRepertoire(userId!, [{...updates, id: songId}]); fetchSetlistsAndRepertoire(); }} keyPreference={globalKeyPreference} />
-      <SetlistSortModal isOpen={isSetlistSortModalOpen} onClose={() => setIsSetlistSortModalOpen(false)} songs={activeSetlist?.songs || []} onReorder={async (newOrder) => { for(let i=0; i<newOrder.length; i++) await supabase.from('setlist_songs').update({sort_order: i}).eq('id', newOrder[i].id); fetchSetlistsAndRepertoire(); }} setlistName={activeSetlist?.name || "Current Setlist"} />
-      <RepertoirePicker isOpen={isRepertoirePickerOpen} onClose={() => setIsRepertoirePickerOpen(false)} repertoire={masterRepertoire} currentSetlistSongs={activeSetlist?.songs || []} onAdd={async (song) => { if (activeSetlistId) { await supabase.from('setlist_songs').insert({ setlist_id: activeSetlistId, song_id: song.master_id || song.id, sort_order: 0 }); showSuccess(`Added "${song.name}" to gig!`); fetchSetlistsAndRepertoire(); } }} />
-      <ImportSetlist isOpen={isImportSetlistOpen} onClose={() => setIsImportSetlistOpen(false)} onImport={async (songs) => { if (activeSetlistId) { const synced = await syncToMasterRepertoire(userId!, songs); for (const s of synced) await supabase.from('setlist_songs').insert({ setlist_id: activeSetlistId, song_id: s.master_id || s.id, sort_order: 0 }); showSuccess(`Imported ${synced.length} songs!`); fetchSetlistsAndRepertoire(); } }} />
-      <ResourceAuditModal isOpen={isResourceAuditOpen} onClose={() => setIsResourceAuditOpen(false)} songs={masterRepertoire} onVerify={async (songId, updates) => { await syncToMasterRepertoire(userId!, [{...updates, id: songId}]); fetchSetlistsAndRepertoire(); }} onRefreshRepertoire={() => fetchSetlistsAndRepertoire()} />
-      {activeSetlist && (
-        <SetlistSettingsModal isOpen={isSetlistSettingsOpen} onClose={() => setIsSetlistSettingsOpen(false)} setlistId={activeSetlist.id} setlistName={activeSetlist.name} onDelete={handleDeleteSetlist} onRename={handleRenameSetlist} />
-      )}
     </div>
   );
 };
