@@ -240,6 +240,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
         .from('repertoire')
         .select('*')
         .eq('user_id', user.id)
+        .eq('is_in_library', true) // <-- Added filter here
         .order('title');
       if (error) throw error;
       const mappedRepertoire = data.map((d: any) => ({
