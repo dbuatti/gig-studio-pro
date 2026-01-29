@@ -1,22 +1,19 @@
-// src/utils/constants.ts
+"use client";
 
 export const RESOURCE_TYPES = [
-  { value: 'youtube', label: 'YouTube Video' },
-  { value: 'apple_music', label: 'Apple Music' },
-  { value: 'spotify', label: 'Spotify' },
-  { value: 'ug_link', label: 'Ultimate Guitar Link' },
-  { value: 'pdf', label: 'PDF Chart' },
-  { value: 'leadsheet', label: 'Leadsheet' },
-  { value: 'lyrics', label: 'Lyrics' },
-  { value: 'audio', label: 'Audio File' },
-  { value: 'other', label: 'Other Link' },
+  { id: 'UG', label: 'Ultimate Guitar', color: 'bg-orange-500/10 text-orange-600 border-orange-500/20' },
+  { id: 'LYRICS', label: 'Has Lyrics', color: 'bg-pink-500/10 text-pink-600 border-pink-500/20' },
+  { id: 'LEAD', label: 'Lead Sheet', color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20' },
+  { id: 'UGP', label: 'UG Playlist', color: 'bg-yellow-500/10 text-yellow-700 border-yellow-500/20' },
+  { id: 'FS', label: 'ForScore', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-200' },
+  { id: 'PDF', label: 'Stage PDF', color: 'bg-red-500/10 text-red-700 border-red-200' },
 ];
 
 export const DEFAULT_UG_CHORDS_CONFIG = {
+  fontFamily: "monospace",
   fontSize: 16,
   chordBold: true,
-  textAlign: 'left',
-  chordColor: '#ffffff',
-  fontFamily: 'monospace',
   lineSpacing: 1.5,
+  chordColor: "#ffffff",
+  textAlign: "left" as "left" | "center" | "right"
 };

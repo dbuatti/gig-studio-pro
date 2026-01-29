@@ -2,39 +2,53 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useAuth } from '@/components/AuthProvider';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { PlusCircle, Loader2, Trash2, Edit, Check, X, Music, Search, ExternalLink, Link as LinkIcon, FileText, Youtube, Apple, Guitar, BookOpen, ScrollText, Sheet, File } from 'lucide-react';
+import { showError, showSuccess, showInfo } from '@/utils/toast';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { cn } from '@/lib/utils';
+import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
+import { calculateReadiness, syncToMasterRepertoire } from '@/utils/repertoireSync';
+import { useSettings } from '@/hooks/use-settings';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Slider } from '@/components/ui/slider';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Plus, Minus, Search, GripVertical, X, Check, Music, ListMusic } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { showSuccess, showError } from '@/utils/toast';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-  useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
-import { useAuth } from '@/components/AuthProvider';
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
-// Define the SetlistSong and Setlist interfaces
-export interface SetlistSong {
-  id: string; // This is the setlist_songs.id when in a setlist, or repertoire.id when in master repertoire
-  master_id: string; // This is always the repertoire.id
+export type UGChordsConfig = {
+  fontSize: number;
+  fontFamily: string;
+  chordBold: boolean;
+  chordColor: string;
+  lineSpacing: number;
+  textAlign: 'left' | 'center' | 'right';
+};
+
+export type SetlistSong = {
+  id: string;
+  master_id?: string; // The ID of the song in the master repertoire table
   name: string;
-  artist?: string;
+  artist: string;
   originalKey?: string;
   targetKey?: string;
   pitch?: number;
@@ -42,29 +56,24 @@ export interface SetlistSong {
   youtubeUrl?: string;
   ugUrl?: string;
   appleMusicUrl?: string;
-  pdfUrl?: string;
+  pdfUrl?: string; // Added pdfUrl
   leadsheetUrl?: string;
   bpm?: string;
   genre?: string;
-  isSyncing?: boolean;
   isMetadataConfirmed?: boolean;
   isKeyConfirmed?: boolean;
   notes?: string;
   lyrics?: string;
-  resources?: any[];
+  resources?: { type: string; url: string; label?: string }[];
   user_tags?: string[];
   is_pitch_linked?: boolean;
   duration_seconds?: number;
   key_preference?: string;
   is_active?: boolean;
-  fineTune?: number;
-  tempo?: number;
-  volume?: number;
   isApproved?: boolean;
-  is_ready_to_sing?: boolean;
   preferred_reader?: string;
   ug_chords_text?: string;
-  ug_chords_config?: any;
+  ug_chords_config?: UGChordsConfig;
   is_ug_chords_present?: boolean;
   highest_note_original?: string;
   metadata_source?: string;
@@ -72,7 +81,7 @@ export interface SetlistSong {
   last_sync_log?: string;
   auto_synced?: boolean;
   is_sheet_verified?: boolean;
-  sheet_music_url?: string;
+  sheet_music_url?: string; // Added sheet_music_url
   extraction_status?: string;
   extraction_error?: string;
   audio_url?: string;
@@ -82,106 +91,71 @@ export interface SetlistSong {
   highest_note_updated_at?: string;
   original_key_updated_at?: string;
   target_key_updated_at?: string;
-  pdf_updated_at?: string;
-  isPlayed?: boolean; // Specific to setlist_songs
-}
+  isPlayed?: boolean; // For setlist_songs junction
+};
 
-export interface Setlist {
-  id: string;
-  name: string;
-  songs: SetlistSong[];
-  time_goal?: number;
-}
-
-interface SetlistManagementModalProps {
+type SetlistManagementModalProps = {
+  gigId: string;
   isOpen: boolean;
   onClose: () => void;
-  gigId: string;
-  onSetlistUpdated: () => void;
-  masterRepertoire: SetlistSong[];
-}
-
-interface SortableItemProps {
-  song: SetlistSong;
-  onRemove: (setlistSongId: string) => void;
-}
-
-const SortableItem: React.FC<SortableItemProps> = ({ song, onRemove }) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: song.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    zIndex: isDragging ? 10 : 0,
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={cn(
-        "flex items-center justify-between p-3 bg-background rounded-xl border border-border shadow-sm",
-        isDragging && "ring-2 ring-indigo-500 ring-offset-2 ring-offset-card"
-      )}
-    >
-      <div className="flex items-center gap-3 min-w-0">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-muted-foreground hover:bg-accent cursor-grab"
-          {...listeners}
-          {...attributes}
-        >
-          <GripVertical className="w-4 h-4" />
-        </Button>
-        <div className="min-w-0">
-          <p className="text-sm font-bold truncate text-foreground">{song.name}</p>
-          <p className="text-xs text-muted-foreground truncate">{song.artist}</p>
-        </div>
-      </div>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8 text-destructive hover:bg-destructive/10"
-        onClick={() => onRemove(song.id)}
-      >
-        <Minus className="w-4 h-4" />
-      </Button>
-    </div>
-  );
+  onSetlistUpdated: (setlist: SetlistSong[]) => void;
+  initialSetlistSongs?: SetlistSong[];
+  masterRepertoire: SetlistSong[]; // NEW: Accept masterRepertoire as a prop
 };
 
 const SetlistManagementModal: React.FC<SetlistManagementModalProps> = ({
+  gigId,
   isOpen,
   onClose,
-  gigId,
   onSetlistUpdated,
-  masterRepertoire,
+  initialSetlistSongs = [],
+  masterRepertoire: masterRepertoireProp, // NEW: Destructure from props
 }) => {
   const { user } = useAuth();
-  const [currentSetlistSongs, setCurrentSetlistSongs] = useState<SetlistSong[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [setlistName, setSetlistName] = useState('My Setlist');
+  const [setlistSongs, setSetlistSongs] = useState<SetlistSong[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedSongToAdd, setSelectedSongToAdd] = useState<SetlistSong | null>(null);
+  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
+  const [songToDelete, setSongToDelete] = useState<SetlistSong | null>(null);
+  const [timeGoal, setTimeGoal] = useState(7200); // Default to 2 hours (7200 seconds)
+  const { keyPreference: globalKeyPreference } = useSettings();
 
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
+  const fetchSetlist = useCallback(async () => {
+    if (!user) {
+      console.log("[SetlistManagementModal/fetchSetlist] ERROR: No user object available. Skipping fetch.");
+      setIsLoading(false);
+      return;
+    }
+    if (gigId === 'library') {
+      setSetlistSongs(initialSetlistSongs);
+      setIsLoading(false);
+      console.log("[SetlistManagementModal/fetchSetlist] Library mode. Initial songs count:", initialSetlistSongs.length);
+      return;
+    }
 
-  const fetchCurrentSetlistSongs = useCallback(async () => {
-    if (!gigId) return;
-    setLoading(true);
+    setIsLoading(true);
+    console.log(`[SetlistManagementModal/fetchSetlist] Fetching setlist for gigId: ${gigId} (User ID: ${user.id})`);
     try {
+      console.log("[SetlistManagementModal/fetchSetlist] Querying 'setlists' table...");
+      const { data: setlistData, error: setlistError } = await supabase
+        .from('setlists')
+        .select('name, time_goal')
+        .eq('id', gigId)
+        .single();
+
+      if (setlistError) {
+        console.error("[SetlistManagementModal/fetchSetlist] Error fetching setlist details:", setlistError);
+        throw setlistError;
+      }
+      console.log("[SetlistManagementModal/fetchSetlist] Setlist details data:", setlistData);
+
+      setSetlistName(setlistData?.name || 'My Setlist');
+      setTimeGoal(setlistData?.time_goal || 7200);
+
+      console.log("[SetlistManagementModal/fetchSetlist] Querying 'setlist_songs' table...");
       const { data: junctionData, error: junctionError } = await supabase
         .from('setlist_songs')
         .select(`
@@ -200,225 +174,542 @@ const SetlistManagementModal: React.FC<SetlistManagementModalProps> = ({
         .eq('setlist_id', gigId)
         .order('sort_order', { ascending: true });
 
-      if (junctionError) throw junctionError;
+      if (junctionError) {
+        console.error("[SetlistManagementModal/fetchSetlist] Error fetching setlist_songs junction data:", junctionError);
+        throw junctionError;
+      }
+      
+      console.log(`[SetlistManagementModal/fetchSetlist] Raw junction data received: ${junctionData ? junctionData.length : 0} entries.`, junctionData);
 
-      const songs: SetlistSong[] = (junctionData || []).map((junction: any) => {
+      const songs = (junctionData || []).map((junction: any) => {
         const masterSong = junction.repertoire;
-        if (!masterSong) return null;
+        if (!masterSong) {
+          console.warn(`[SetlistManagementModal/fetchSetlist] Song junction ID ${junction.id} references missing repertoire entry, likely due to RLS or deletion. Skipping this song.`);
+          return null;
+        }
         return {
-          ...masterSong,
           id: junction.id, // Use setlist_songs.id for unique identification within the setlist
           master_id: masterSong.id, // Keep repertoire.id as master_id
-          name: masterSong.title,
+          name: masterSong.title, // Use title for name
+          artist: masterSong.artist, // Use artist
+          originalKey: masterSong.original_key,
+          targetKey: masterSong.target_key,
+          pitch: masterSong.pitch,
+          previewUrl: masterSong.preview_url,
+          youtubeUrl: masterSong.youtube_url,
+          ugUrl: masterSong.ug_url,
+          appleMusicUrl: masterSong.apple_music_url,
+          pdfUrl: masterSong.pdf_url,
+          leadsheetUrl: masterSong.leadsheet_url,
+          bpm: masterSong.bpm,
+          genre: masterSong.genre,
+          isMetadataConfirmed: masterSong.is_metadata_confirmed,
+          isKeyConfirmed: masterSong.is_key_confirmed,
+          notes: masterSong.notes,
+          lyrics: masterSong.lyrics,
+          resources: masterSong.resources || [],
+          user_tags: masterSong.user_tags || [],
+          is_pitch_linked: masterSong.is_pitch_linked,
+          duration_seconds: masterSong.duration_seconds,
+          key_preference: masterSong.key_preference,
+          is_active: masterSong.is_active,
+          isApproved: masterSong.is_approved,
+          preferred_reader: masterSong.preferred_reader,
+          ug_chords_text: masterSong.ug_chords_text,
+          ug_chords_config: masterSong.ug_chords_config,
+          is_ug_chords_present: masterSong.is_ug_chords_present,
+          highest_note_original: masterSong.highest_note_original,
+          metadata_source: masterSong.metadata_source,
+          sync_status: masterSong.sync_status,
+          last_sync_log: masterSong.last_sync_log,
+          auto_synced: masterSong.auto_synced,
+          is_sheet_verified: masterSong.is_sheet_verified,
+          sheet_music_url: masterSong.sheet_music_url,
+          extraction_status: masterSong.extraction_status,
+          extraction_error: masterSong.extraction_error,
+          audio_url: masterSong.audio_url,
+          lyrics_updated_at: masterSong.lyrics_updated_at,
+          chords_updated_at: masterSong.chords_updated_at,
+          ug_link_updated_at: masterSong.ug_link_updated_at,
+          highest_note_updated_at: masterSong.highest_note_updated_at,
+          original_key_updated_at: masterSong.original_key_updated_at,
+          target_key_updated_at: masterSong.target_key_updated_at,
           isPlayed: junction.isPlayed || false,
-          ug_chords_config: masterSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
         };
       }).filter(Boolean) as SetlistSong[];
-      setCurrentSetlistSongs(songs);
+
+      setSetlistSongs(songs);
+      console.log("[SetlistManagementModal/fetchSetlist] Successfully mapped and loaded setlist songs count:", songs.length, songs);
     } catch (err: any) {
-      showError(`Failed to load setlist songs: ${err.message}`);
+      showError(`Failed to load setlist: ${err.message}`);
+      console.error("Error fetching setlist:", err);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
-  }, [gigId]);
+  }, [user, gigId, initialSetlistSongs]);
 
   useEffect(() => {
     if (isOpen) {
-      fetchCurrentSetlistSongs();
+      fetchSetlist();
     }
-  }, [isOpen, fetchCurrentSetlistSongs]);
-
-  const availableSongs = useMemo(() => {
-    const currentSongMasterIds = new Set(currentSetlistSongs.map(s => s.master_id));
-    return masterRepertoire.filter(song =>
-      !currentSongMasterIds.has(song.id) &&
-      (song.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-       song.artist?.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
-  }, [masterRepertoire, currentSetlistSongs, searchTerm]);
+  }, [isOpen, fetchSetlist]);
 
   const handleAddSong = async (song: SetlistSong) => {
-    if (!user) return;
+    if (!user || gigId === 'library') {
+      setSetlistSongs(prev => [...prev, { ...song, id: `temp-${Date.now()}` }]);
+      setSelectedSongToAdd(null);
+      setSearchTerm('');
+      showSuccess(`${song.name} added to setlist.`);
+      return;
+    }
+
     setIsSaving(true);
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('setlist_songs')
-        .insert({ setlist_id: gigId, song_id: song.master_id || song.id, sort_order: currentSetlistSongs.length });
+        .insert({
+          setlist_id: gigId,
+          song_id: song.master_id || song.id,
+          sort_order: setlistSongs.length,
+        })
+        .select()
+        .single();
+
       if (error) throw error;
-      showSuccess(`Added "${song.name}" to setlist!`);
-      await fetchCurrentSetlistSongs();
-      onSetlistUpdated();
+
+      const newSetlistSong: SetlistSong = {
+        ...song,
+        id: data.id, // Use the new junction ID
+        master_id: song.master_id || song.id, // Keep the original master ID
+      };
+
+      setSetlistSongs(prev => [...prev, newSetlistSong]);
+      setSelectedSongToAdd(null);
+      setSearchTerm('');
+      showSuccess(`${song.name} added to setlist.`);
     } catch (err: any) {
       showError(`Failed to add song: ${err.message}`);
+      console.error("Error adding song to setlist:", err);
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleRemoveSong = async (setlistSongId: string) => {
-    if (!user) return;
+  const handleRemoveSong = async () => {
+    if (!songToDelete) return;
+
+    if (gigId === 'library') {
+      setSetlistSongs(prev => prev.filter(s => s.id !== songToDelete.id));
+      showSuccess(`${songToDelete.name} removed from setlist.`);
+      setSongToDelete(null);
+      setIsConfirmDeleteOpen(false);
+      return;
+    }
+
     setIsSaving(true);
     try {
       const { error } = await supabase
         .from('setlist_songs')
         .delete()
-        .eq('id', setlistSongId)
-        .eq('setlist_id', gigId);
+        .eq('id', songToDelete.id);
+
       if (error) throw error;
-      showSuccess(`Removed song from setlist.`);
-      await fetchCurrentSetlistSongs();
-      onSetlistUpdated();
+
+      setSetlistSongs(prev => prev.filter(s => s.id !== songToDelete.id));
+      showSuccess(`${songToDelete.name} removed from setlist.`);
     } catch (err: any) {
       showError(`Failed to remove song: ${err.message}`);
+      console.error("Error removing song from setlist:", err);
     } finally {
       setIsSaving(false);
+      setSongToDelete(null);
+      setIsConfirmDeleteOpen(false);
     }
   };
 
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (active.id === over?.id) return;
+  const handleReorderSongs = useCallback(async (newOrder: SetlistSong[]) => {
+    setSetlistSongs(newOrder);
 
-    const oldIndex = currentSetlistSongs.findIndex(song => song.id === active.id);
-    const newIndex = currentSetlistSongs.findIndex(song => song.id === over?.id);
+    if (gigId === 'library') return; // No backend sync for library mode
 
-    if (oldIndex === -1 || newIndex === -1) return;
+    // Debounce or batch updates for performance if many reorders happen quickly
+    const updates = newOrder.map((song, index) => ({
+      id: song.id,
+      sort_order: index,
+    }));
 
-    const newOrder = Array.from(currentSetlistSongs);
-    const [movedSong] = newOrder.splice(oldIndex, 1);
-    newOrder.splice(newIndex, 0, movedSong);
-
-    setCurrentSetlistSongs(newOrder); // Optimistic update
-
-    setIsSaving(true);
     try {
-      const updates = newOrder.map((song, index) => ({
-        id: song.id,
-        sort_order: index,
-      }));
-
       const { error } = await supabase
         .from('setlist_songs')
         .upsert(updates, { onConflict: 'id' });
 
       if (error) throw error;
-      showSuccess("Setlist reordered!");
-      onSetlistUpdated();
+      // showSuccess("Setlist order updated."); // Too chatty
     } catch (err: any) {
-      showError(`Failed to reorder setlist: ${err.message}`);
-      // Revert optimistic update on error
-      fetchCurrentSetlistSongs();
+      showError(`Failed to reorder songs: ${err.message}`);
+      console.error("Error reordering songs:", err);
+    }
+  }, [gigId]);
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    e.dataTransfer.setData('songIndex', index.toString());
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    const dragIndex = parseInt(e.dataTransfer.getData('songIndex'), 10);
+    const newSongs = [...setlistSongs];
+    const [draggedSong] = newSongs.splice(dragIndex, 1);
+    newSongs.splice(dropIndex, 0, draggedSong);
+    handleReorderSongs(newSongs);
+  };
+
+  const handleUpdateSetlistName = async () => {
+    if (!user || gigId === 'library') return;
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from('setlists')
+        .update({ name: setlistName })
+        .eq('id', gigId);
+      if (error) throw error;
+      showSuccess("Setlist name updated.");
+    } catch (err: any) {
+      showError(`Failed to update setlist name: ${err.message}`);
+      console.error("Error updating setlist name:", err);
     } finally {
       setIsSaving(false);
     }
   };
 
+  const handleUpdateTimeGoal = async (value: number[]) => {
+    const newTimeGoal = value[0] * 60; // Convert minutes to seconds
+    setTimeGoal(newTimeGoal);
+
+    if (!user || gigId === 'library') return;
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from('setlists')
+        .update({ time_goal: newTimeGoal })
+        .eq('id', gigId);
+      if (error) throw error;
+      showSuccess("Setlist time goal updated.");
+    } catch (err: any) {
+      showError(`Failed to update time goal: ${err.message}`);
+      console.error("Error updating time goal:", err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const totalDurationSeconds = useMemo(() => {
+    return setlistSongs.reduce((sum, song) => sum + (song.duration_seconds || 0), 0);
+  }, [setlistSongs]);
+
+  const formatDuration = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}m ${remainingSeconds}s`;
+  };
+
+  const filteredMasterRepertoire = useMemo(() => {
+    const lowerCaseSearchTerm = searchTerm.toLowerCase();
+    
+    const filtered = masterRepertoireProp.filter(song => { // UPDATED: Use masterRepertoireProp
+      const matchesSearch = !searchTerm || 
+        song.name?.toLowerCase().includes(lowerCaseSearchTerm) ||
+        song.artist?.toLowerCase().includes(lowerCaseSearchTerm);
+
+      // Check if the song is already in the current setlist (using master_id for comparison)
+      const isInSetlist = setlistSongs.some(setlistSong => setlistSong.master_id === song.id);
+
+      return matchesSearch && !isInSetlist;
+    });
+    
+    if (searchTerm) {
+      console.log(`[SetlistManagementModal/filteredMasterRepertoire] Search: "${searchTerm}". Master count: ${masterRepertoireProp.length}. Filtered count: ${filtered.length}.`);
+    } else {
+      console.log(`[SetlistManagementModal/filteredMasterRepertoire] No search term. Showing all available repertoire. Count: ${filtered.length}.`);
+    }
+    
+    return filtered;
+  }, [masterRepertoireProp, searchTerm, setlistSongs]); // UPDATED: Dependency array
+
+  const getResourceIcon = (type: string) => {
+    switch (type) {
+      case 'youtube': return <Youtube className="w-4 h-4 text-red-500" />;
+      case 'apple_music': return <Apple className="w-4 h-4 text-pink-500" />;
+      case 'ug_link': return <Guitar className="w-4 h-4 text-green-500" />;
+      case 'pdf': return <FileText className="w-4 h-4 text-blue-500" />;
+      case 'leadsheet': return <Sheet className="w-4 h-4 text-purple-500" />;
+      case 'sheet_music': return <BookOpen className="w-4 h-4 text-indigo-500" />;
+      case 'lyrics': return <ScrollText className="w-4 h-4 text-yellow-500" />;
+      case 'audio': return <Music className="w-4 h-4 text-cyan-500" />;
+      default: return <LinkIcon className="w-4 h-4 text-gray-500" />;
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw] w-[1200px] h-[90vh] p-0 bg-card border-border overflow-hidden rounded-[2rem] shadow-2xl flex flex-col">
-        <DialogHeader className="flex flex-row items-center justify-between p-6 border-b border-border bg-secondary shrink-0">
-          <DialogTitle className="text-xl font-black uppercase tracking-tight text-foreground flex items-center gap-3">
-            <ListMusic className="w-6 h-6 text-indigo-600" /> Manage Setlist
-            {isSaving && <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />}
+      <DialogContent className="sm:max-w-[800px] h-[90vh] flex flex-col p-0">
+        <DialogHeader className="p-6 pb-4 border-b border-slate-800">
+          <DialogTitle className="text-2xl font-bold text-white">
+            {gigId === 'library' ? 'Manage Library Songs' : 'Manage Setlist'}
           </DialogTitle>
-          <Button variant="ghost" size="icon" onClick={onClose} className="h-10 w-10 p-0 text-muted-foreground hover:text-foreground">
-            <X className="w-6 h-6" />
-          </Button>
+          <DialogDescription className="text-slate-400">
+            {gigId === 'library' ? 'Add, edit, or remove songs from your personal repertoire library.' : 'Add, remove, and reorder songs for your setlist.'}
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 grid grid-cols-2 gap-6 p-6 overflow-hidden">
-          {/* Current Setlist Songs */}
-          <div className="flex flex-col bg-background rounded-2xl border border-border shadow-inner overflow-hidden">
-            <div className="p-4 border-b border-border flex items-center justify-between bg-secondary">
-              <h3 className="text-sm font-black uppercase tracking-tight text-foreground">
-                Current Setlist ({currentSetlistSongs.length})
-              </h3>
-              {loading && <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Left Panel: Setlist/Library Songs */}
+          <div className="w-1/2 border-r border-slate-800 flex flex-col">
+            <div className="p-4 border-b border-slate-800">
+              {gigId !== 'library' && (
+                <Input
+                  placeholder="Setlist Name"
+                  value={setlistName}
+                  onChange={(e) => setSetlistName(e.target.value)}
+                  onBlur={handleUpdateSetlistName}
+                  className="mb-2 bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
+                />
+              )}
+              <div className="flex items-center justify-between text-sm text-slate-400">
+                <span>Total Duration: {formatDuration(totalDurationSeconds)}</span>
+                {gigId !== 'library' && (
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="time-goal" className="whitespace-nowrap">Goal: {Math.floor(timeGoal / 60)} min</Label>
+                    <Slider
+                      id="time-goal"
+                      min={15}
+                      max={240}
+                      step={15}
+                      value={[timeGoal / 60]}
+                      onValueChange={handleUpdateTimeGoal}
+                      className="w-[120px]"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
             <ScrollArea className="flex-1 p-4">
-              {loading ? (
+              {isLoading ? (
                 <div className="flex items-center justify-center h-full">
-                  <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+                  <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
                 </div>
-              ) : currentSetlistSongs.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-center">
-                  <Music className="w-12 h-12 mb-4 opacity-20" />
-                  <p className="text-sm font-medium">No songs in this setlist yet.</p>
-                  <p className="text-xs">Add some from the right panel!</p>
+              ) : setlistSongs.length === 0 ? (
+                <div className="text-center text-slate-500 py-8">
+                  <Music className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                  <p>{gigId === 'library' ? 'Your library is empty.' : 'Your setlist is empty.'}</p>
+                  <p>Add songs from the right panel.</p>
                 </div>
               ) : (
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
-                >
-                  <SortableContext
-                    items={currentSetlistSongs.map(song => song.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    <div className="space-y-3">
-                      {currentSetlistSongs.map((song) => (
-                        <SortableItem key={song.id} song={song} onRemove={handleRemoveSong} />
-                      ))}
-                    </div>
-                  </SortableContext>
-                </DndContext>
+                <ul className="space-y-2">
+                  {setlistSongs.map((song, index) => (
+                    <li
+                      key={song.id}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, index)}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, index)}
+                      className="flex items-center justify-between p-3 bg-slate-800 rounded-md shadow-sm border border-slate-700 hover:bg-slate-700 transition-colors cursor-grab"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white font-medium truncate">{song.name}</p>
+                        <p className="text-slate-400 text-sm truncate">{song.artist}</p>
+                        <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
+                          {song.originalKey && <Badge variant="secondary" className="bg-slate-700 text-slate-300">{song.originalKey}</Badge>}
+                          {song.targetKey && song.targetKey !== song.originalKey && <Badge variant="secondary" className="bg-indigo-700 text-white">Stage: {song.targetKey}</Badge>}
+                          {song.bpm && <Badge variant="secondary" className="bg-slate-700 text-slate-300">{song.bpm} BPM</Badge>}
+                          {song.duration_seconds && <Badge variant="secondary" className="bg-slate-700 text-slate-300">{formatDuration(song.duration_seconds)}</Badge>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 ml-4">
+                        {gigId !== 'library' && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Checkbox
+                                  checked={song.isPlayed}
+                                  onCheckedChange={async (checked) => {
+                                    const newSetlistSongs = setlistSongs.map(s =>
+                                      s.id === song.id ? { ...s, isPlayed: checked as boolean } : s
+                                    );
+                                    setSetlistSongs(newSetlistSongs);
+                                    try {
+                                      await supabase.from('setlist_songs').update({ isPlayed: checked }).eq('id', song.id);
+                                    } catch (err) {
+                                      showError("Failed to update song played status.");
+                                      console.error("Error updating isPlayed status:", err);
+                                    }
+                                  }}
+                                  className="data-[state=checked]:bg-indigo-500 data-[state=checked]:text-white border-slate-600"
+                                />
+                              </TooltipTrigger>
+                              <TooltipContent className="bg-slate-700 text-white border-slate-600">
+                                Mark as Played
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setSongToDelete(song);
+                            setIsConfirmDeleteOpen(true);
+                          }}
+                          className="text-slate-400 hover:text-red-500 hover:bg-slate-700"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               )}
             </ScrollArea>
           </div>
 
-          {/* Available Songs */}
-          <div className="flex flex-col bg-background rounded-2xl border border-border shadow-inner overflow-hidden">
-            <div className="p-4 border-b border-border flex items-center justify-between bg-secondary">
-              <h3 className="text-sm font-black uppercase tracking-tight text-foreground">
-                Available Songs ({availableSongs.length})
-              </h3>
-              <div className="relative w-48">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search songs..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 h-9 text-xs bg-card border-border"
-                />
-              </div>
+          {/* Right Panel: Repertoire Search */}
+          <div className="w-1/2 flex flex-col">
+            <div className="p-4 border-b border-slate-800">
+              <Input
+                placeholder="Search repertoire..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
+                icon={<Search className="w-4 h-4 text-slate-500" />}
+              />
             </div>
             <ScrollArea className="flex-1 p-4">
-              {availableSongs.length === 0 && searchTerm ? (
-                <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-center">
-                  <Search className="w-12 h-12 mb-4 opacity-20" />
-                  <p className="text-sm font-medium">No matching songs found.</p>
-                </div>
-              ) : availableSongs.length === 0 && !searchTerm ? (
-                <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-center">
-                  <Music className="w-12 h-12 mb-4 opacity-20" />
-                  <p className="text-sm font-medium">All songs are already in the setlist!</p>
-                </div>
+              {filteredMasterRepertoire.length === 0 && searchTerm ? (
+                <p className="text-center text-slate-500 py-8">No songs found matching "{searchTerm}".</p>
+              ) : filteredMasterRepertoire.length === 0 && !searchTerm ? (
+                <p className="text-center text-slate-500 py-8">Start typing to search your repertoire.</p>
               ) : (
-                <div className="space-y-3">
-                  {availableSongs.map((song) => (
-                    <div key={song.id} className="flex items-center justify-between p-3 bg-card rounded-xl border border-border shadow-sm">
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold truncate text-foreground">{song.name}</p>
-                        <p className="text-xs text-muted-foreground truncate">{song.artist}</p>
+                <ul className="space-y-2">
+                  {filteredMasterRepertoire.map((song) => (
+                    <li
+                      key={song.id}
+                      className="flex items-center justify-between p-3 bg-slate-800 rounded-md shadow-sm border border-slate-700"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white font-medium truncate">{song.name}</p>
+                        <p className="text-slate-400 text-sm truncate">{song.artist}</p>
+                        <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
+                          {song.originalKey && <Badge variant="secondary" className="bg-slate-700 text-slate-300">{song.originalKey}</Badge>}
+                          {song.bpm && <Badge variant="secondary" className="bg-slate-700 text-slate-300">{song.bpm} BPM</Badge>}
+                          {song.duration_seconds && <Badge variant="secondary" className="bg-slate-700 text-slate-300">{formatDuration(song.duration_seconds)}</Badge>}
+                        </div>
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {song.pdfUrl && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge variant="outline" className="bg-blue-900/30 text-blue-300 border-blue-800">
+                                    <FileText className="w-3 h-3 mr-1" /> PDF
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent className="bg-slate-700 text-white border-slate-600">
+                                  PDF available
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                          {song.sheet_music_url && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge variant="outline" className="bg-indigo-900/30 text-indigo-300 border-indigo-800">
+                                    <BookOpen className="w-3 h-3 mr-1" /> Sheet Music
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent className="bg-slate-700 text-white border-slate-600">
+                                  Sheet Music Link available
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                          {song.ug_chords_text && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge variant="outline" className="bg-green-900/30 text-green-300 border-green-800">
+                                    <Guitar className="w-3 h-3 mr-1" /> UG Chords
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent className="bg-slate-700 text-white border-slate-600">
+                                  Ultimate Guitar Chords available
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                          {song.leadsheetUrl && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge variant="outline" className="bg-purple-900/30 text-purple-300 border-purple-800">
+                                    <Sheet className="w-3 h-3 mr-1" /> Leadsheet
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent className="bg-slate-700 text-white border-slate-600">
+                                  Leadsheet available
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </div>
                       </div>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-indigo-600 hover:bg-indigo-600/10"
                         onClick={() => handleAddSong(song)}
                         disabled={isSaving}
+                        className="text-slate-400 hover:text-green-500 hover:bg-slate-700 ml-4"
                       >
-                        <Plus className="w-4 h-4" />
+                        {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlusCircle className="w-4 h-4" />}
                       </Button>
-                    </div>
+                    </li>
                   ))}
-                </div>
+                </ul>
               )}
             </ScrollArea>
           </div>
         </div>
+
+        <DialogFooter className="p-6 pt-4 border-t border-slate-800">
+          <Button variant="secondary" onClick={onClose} className="bg-slate-700 hover:bg-slate-600 text-white">
+            Close
+          </Button>
+        </DialogFooter>
       </DialogContent>
+
+      <AlertDialog open={isConfirmDeleteOpen} onOpenChange={setIsConfirmDeleteOpen}>
+        <AlertDialogContent className="bg-slate-900 text-white border-slate-700">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-500">Confirm Deletion</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-300">
+              Are you sure you want to remove "{songToDelete?.name}" from this {gigId === 'library' ? 'library' : 'setlist'}?
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-slate-700 text-white hover:bg-slate-600 border-slate-600">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRemoveSong} className="bg-red-600 hover:bg-red-700 text-white">
+              {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 };
