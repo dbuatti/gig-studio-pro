@@ -514,6 +514,7 @@ const Index = () => {
               }}
               onUpdateSetlistSongs={handleUpdateSetlistSongs}
               onOpenSortModal={() => setIsSetlistSortModalOpen(true)}
+              masterRepertoire={masterRepertoire} {/* NEW: Pass masterRepertoire as a prop */}
             />
           </TabsContent>
 
@@ -522,7 +523,7 @@ const Index = () => {
               repertoire={masterRepertoire} onEditSong={handleEditSong} allSetlists={allSetlists} onRefreshRepertoire={() => fetchSetlistsAndRepertoire()} 
               searchTerm={searchTerm} setSearchTerm={setSearchTerm} sortMode={sortMode} setSortMode={setSortMode} activeFilters={activeFilters} setActiveFilters={setActiveFilters}
               onUpdateSetlistSongs={handleUpdateSetlistSongs}
-              onDeleteSong={async (id) => { await supabase.from('repertoire').delete().eq('id', id); fetchSetlistsAndRelistsAndRepertoire(); }}
+              onDeleteSong={async (id) => { await supabase.from('repertoire').delete().eq('id', id); fetchSetlistsAndRepertoire(); }}
               onAddSong={async (s) => { await syncToMasterRepertoire(userId!, [s]); fetchSetlistsAndRepertoire(); }}
               missingAudioCount={missingAudioCount}
               onOpenAdmin={() => setIsAdminPanelOpen(true)}

@@ -100,6 +100,7 @@ type SetlistManagerProps = {
   onClose: () => void;
   onSetlistUpdated: (setlist: SetlistSong[]) => void;
   initialSetlistSongs?: SetlistSong[];
+  masterRepertoire: SetlistSong[]; // NEW: Accept masterRepertoire as a prop
 };
 
 const SetlistManager: React.FC<SetlistManagerProps> = ({
@@ -108,13 +109,14 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   onClose,
   onSetlistUpdated,
   initialSetlistSongs = [],
+  masterRepertoire: masterRepertoireProp, // NEW: Destructure from props
 }) => {
   const { user } = useAuth();
   const [setlistName, setSetlistName] = useState('My Setlist');
   const [setlistSongs, setSetlistSongs] = useState<SetlistSong[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [masterRepertoire, setMasterRepertoire] = useState<SetlistSong[]>([]);
+  // const [masterRepertoire, setMasterRepertoire] = useState<SetlistSong[]>([]); // REMOVED: No longer managed internally
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSongToAdd, setSelectedSongToAdd] = useState<SetlistSong | null>(null);
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
@@ -247,89 +249,90 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     }
   }, [user, gigId, initialSetlistSongs]);
 
-  const fetchMasterRepertoire = useCallback(async () => {
-    if (!user) {
-      console.log("[SetlistManager/fetchMasterRepertoire] ERROR: No user object available. Skipping fetch.");
-      return;
-    }
-    console.log(`[SetlistManager/fetchMasterRepertoire] Fetching master repertoire for User ID: ${user.id}...`);
-    try {
-      console.log("[SetlistManager/fetchMasterRepertoire] Querying 'repertoire' table...");
-      const { data, error } = await supabase
-        .from('repertoire')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('is_in_library', true)
-        .order('title');
-      if (error) {
-        console.error("[SetlistManager/fetchMasterRepertoire] Error fetching repertoire data:", error);
-        throw error;
-      }
+  // REMOVED: No longer fetching master repertoire internally
+  // const fetchMasterRepertoire = useCallback(async () => {
+  //   if (!user) {
+  //     console.log("[SetlistManager/fetchMasterRepertoire] ERROR: No user object available. Skipping fetch.");
+  //     return;
+  //   }
+  //   console.log(`[SetlistManager/fetchMasterRepertoire] Fetching master repertoire for User ID: ${user.id}...`);
+  //   try {
+  //     console.log("[SetlistManager/fetchMasterRepertoire] Querying 'repertoire' table...");
+  //     const { data, error } = await supabase
+  //       .from('repertoire')
+  //       .select('*')
+  //       .eq('user_id', user.id)
+  //       .eq('is_in_library', true) 
+  //       .order('title');
+  //     if (error) {
+  //       console.error("[SetlistManager/fetchMasterRepertoire] Error fetching repertoire data:", error);
+  //       throw error;
+  //     }
       
-      console.log(`[SetlistManager/fetchMasterRepertoire] Raw data received: ${data ? data.length : 0} songs.`, data);
+  //     console.log(`[SetlistManager/fetchMasterRepertoire] Raw data received: ${data ? data.length : 0} songs.`, data);
 
-      const mappedRepertoire = data.map((d: any) => ({
-        id: d.id,
-        master_id: d.id,
-        name: d.title,
-        artist: d.artist,
-        originalKey: d.original_key ?? 'TBC',
-        targetKey: d.target_key ?? d.original_key ?? 'TBC',
-        pitch: d.pitch ?? 0,
-        previewUrl: d.preview_url,
-        youtubeUrl: d.youtube_url,
-        ugUrl: d.ug_url,
-        appleMusicUrl: d.apple_music_url,
-        pdfUrl: d.pdf_url,
-        leadsheetUrl: d.leadsheet_url,
-        bpm: d.bpm,
-        genre: d.genre,
-        isMetadataConfirmed: d.is_metadata_confirmed,
-        isKeyConfirmed: d.is_key_confirmed,
-        notes: d.notes,
-        lyrics: d.lyrics,
-        resources: d.resources || [],
-        user_tags: d.user_tags || [],
-        is_pitch_linked: d.is_pitch_linked ?? true,
-        duration_seconds: d.duration_seconds,
-        key_preference: d.key_preference,
-        is_active: d.is_active,
-        isApproved: d.is_approved,
-        preferred_reader: d.preferred_reader,
-        ug_chords_text: d.ug_chords_text,
-        ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
-        is_ug_chords_present: d.is_ug_chords_present,
-        highest_note_original: d.highest_note_original,
-        metadata_source: d.metadata_source,
-        sync_status: d.sync_status,
-        last_sync_log: d.last_sync_log,
-        auto_synced: d.auto_synced,
-        is_sheet_verified: d.is_sheet_verified,
-        sheet_music_url: d.sheet_music_url,
-        extraction_status: d.extraction_status,
-        extraction_error: d.extraction_error,
-        audio_url: d.audio_url,
-        lyrics_updated_at: d.lyrics_updated_at,
-        chords_updated_at: d.chords_updated_at,
-        ug_link_updated_at: d.ug_link_updated_at,
-        highest_note_updated_at: d.highest_note_updated_at,
-        original_key_updated_at: d.original_key_updated_at,
-        target_key_updated_at: d.target_key_updated_at,
-      }));
-      setMasterRepertoire(mappedRepertoire);
-      console.log("[SetlistManager/fetchMasterRepertoire] Successfully loaded master repertoire songs count:", mappedRepertoire.length, mappedRepertoire);
-    } catch (err: any) {
-      showError(`Failed to load repertoire: ${err.message}`);
-      console.error("Error fetching master repertoire:", err);
-    }
-  }, [user]);
+  //     const mappedRepertoire = data.map((d: any) => ({
+  //       id: d.id,
+  //       master_id: d.id,
+  //       name: d.title,
+  //       artist: d.artist,
+  //       originalKey: d.original_key ?? 'TBC',
+  //       targetKey: d.target_key ?? d.original_key ?? 'TBC',
+  //       pitch: d.pitch ?? 0,
+  //       previewUrl: d.preview_url,
+  //       youtubeUrl: d.youtube_url,
+  //       ugUrl: d.ug_url,
+  //       appleMusicUrl: d.apple_music_url,
+  //       pdfUrl: d.pdf_url,
+  //       leadsheetUrl: d.leadsheet_url,
+  //       bpm: d.bpm,
+  //       genre: d.genre,
+  //       isMetadataConfirmed: d.is_metadata_confirmed,
+  //       isKeyConfirmed: d.is_key_confirmed,
+  //       notes: d.notes,
+  //       lyrics: d.lyrics,
+  //       resources: d.resources || [],
+  //       user_tags: d.user_tags || [],
+  //       is_pitch_linked: d.is_pitch_linked ?? true,
+  //       duration_seconds: d.duration_seconds,
+  //       key_preference: d.key_preference,
+  //       is_active: d.is_active,
+  //       isApproved: d.is_approved,
+  //       preferred_reader: d.preferred_reader,
+  //       ug_chords_text: d.ug_chords_text,
+  //       ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
+  //       is_ug_chords_present: d.is_ug_chords_present,
+  //       highest_note_original: d.highest_note_original,
+  //       metadata_source: d.metadata_source,
+  //       sync_status: d.sync_status,
+  //       last_sync_log: d.last_sync_log,
+  //       auto_synced: d.auto_synced,
+  //       is_sheet_verified: d.is_sheet_verified,
+  //       sheet_music_url: d.sheet_music_url,
+  //       extraction_status: d.extraction_status,
+  //       extraction_error: d.extraction_error,
+  //       audio_url: d.audio_url,
+  //       lyrics_updated_at: d.lyrics_updated_at,
+  //       chords_updated_at: d.chords_updated_at,
+  //       ug_link_updated_at: d.ug_link_updated_at,
+  //       highest_note_updated_at: d.highest_note_updated_at,
+  //       original_key_updated_at: d.original_key_updated_at,
+  //       target_key_updated_at: d.target_key_updated_at,
+  //     }));
+  //     setMasterRepertoire(mappedRepertoire);
+  //     console.log("[SetlistManager/fetchMasterRepertoire] Successfully loaded master repertoire songs count:", mappedRepertoire.length, mappedRepertoire);
+  //   } catch (err: any) {
+  //     showError(`Failed to load repertoire: ${err.message}`);
+  //     console.error("Error fetching master repertoire:", err);
+  //   }
+  // }, [user]);
 
   useEffect(() => {
     if (isOpen) {
       fetchSetlist();
-      fetchMasterRepertoire();
+      // fetchMasterRepertoire(); // REMOVED: No longer calling internally
     }
-  }, [isOpen, fetchSetlist, fetchMasterRepertoire]);
+  }, [isOpen, fetchSetlist]); // REMOVED: fetchMasterRepertoire from dependency array
 
   const handleAddSong = async (song: SetlistSong) => {
     if (!user || gigId === 'library') {
@@ -499,7 +502,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   const filteredMasterRepertoire = useMemo(() => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
     
-    const filtered = masterRepertoire.filter(song => {
+    const filtered = masterRepertoireProp.filter(song => { // UPDATED: Use masterRepertoireProp
       const matchesSearch = !searchTerm || 
         song.name?.toLowerCase().includes(lowerCaseSearchTerm) ||
         song.artist?.toLowerCase().includes(lowerCaseSearchTerm);
@@ -511,13 +514,13 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     });
     
     if (searchTerm) {
-      console.log(`[SetlistManager/filteredMasterRepertoire] Search: "${searchTerm}". Master count: ${masterRepertoire.length}. Filtered count: ${filtered.length}.`);
+      console.log(`[SetlistManager/filteredMasterRepertoire] Search: "${searchTerm}". Master count: ${masterRepertoireProp.length}. Filtered count: ${filtered.length}.`);
     } else {
       console.log(`[SetlistManager/filteredMasterRepertoire] No search term. Showing all available repertoire. Count: ${filtered.length}.`);
     }
     
     return filtered;
-  }, [masterRepertoire, searchTerm, setlistSongs]);
+  }, [masterRepertoireProp, searchTerm, setlistSongs]); // UPDATED: Dependency array
 
   const getResourceIcon = (type: string) => {
     switch (type) {
