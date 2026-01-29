@@ -8,7 +8,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 import { AuthProvider } from "@/components/AuthProvider";
 import { useTheme } from '@/hooks/use-theme';
-import MainLayoutContent from "@/components/MainLayoutContent"; 
+import AppRoutes from "@/components/AppRoutes"; 
 import { pdfjs } from 'react-pdf'; 
 
 // Configure PDF.js worker source globally
@@ -31,7 +31,7 @@ const App = () => {
           <Toaster />
           <Sonner position="top-center" />
           <BrowserRouter>
-            <MainLayoutContent />
+            <AppRoutes />
           </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>
