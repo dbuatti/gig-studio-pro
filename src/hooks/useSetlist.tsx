@@ -4,10 +4,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/lib/database.types';
 import { useAuth } from '@/components/AuthProvider';
-import { SetlistSong } from '@/components/SetlistManager'; // Assuming SetlistSong type is available here or defined locally
+// Removed import { SetlistSong } from '@/components/SetlistManager'; // Removed problematic import
 
 // Mock type for SetlistSong based on usage in SetlistManager.tsx
-type MockSetlistSong = {
+export type SetlistSong = {
   id: string;
   name: string;
   artist: string;
@@ -16,6 +16,7 @@ type MockSetlistSong = {
   durationSeconds: number;
   isConfirmed: boolean;
   isPlayed: boolean;
+  sort_order?: number; // Added sort_order for correct ordering logic
   // Add other necessary fields if needed for full functionality, though these seem sufficient for basic management
 };
 
@@ -39,7 +40,7 @@ export const useSetlist = (setlistId: string | null) => {
     try {
       const { data: setlistData, error: sError } = await supabase
         .from('setlists')
-        .select('*, songs:setlist_songs(id, name, artist, original_key, bpm, duration_seconds, is_confirmed, isPlayed)')
+        .select('*, songs:setlist_songs(id, name, artist, original_key, bpm, duration_seconds, is_confirmed, isPlayed, sort_order)') // Added sort_order here
         .eq('id', setlistId)
         .single();
 
@@ -84,6 +85,7 @@ export const useSetlist = (setlistId: string | null) => {
         durationSeconds: 210, // Default duration
         isConfirmed: false,
         isPlayed: false,
+        sort_order: sortOrder, // Set initial sort order
     };
     setSetlistSongs(prev => [...prev, newSong].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)));
   };

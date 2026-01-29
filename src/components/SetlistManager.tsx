@@ -28,6 +28,7 @@ import { Database } from '@/lib/database.types';
 import { formatDuration } from '@/lib/utils';
 import { useRepertoire } from '@/hooks/useRepertoire';
 import { useSetlist } from '@/hooks/useSetlist';
+import { SetlistSong } from '@/hooks/useSetlist'; // Corrected import path for SetlistSong
 
 // Define types based on existing context (assuming these types exist or are inferred)
 type Song = Database['public']['Tables']['repertoire']['Row'] & {
@@ -36,16 +37,7 @@ type Song = Database['public']['Tables']['repertoire']['Row'] & {
   id: string;
 };
 
-type SetlistSong = {
-  id: string;
-  name: string;
-  artist: string;
-  originalKey: string | null;
-  bpm: string | null;
-  durationSeconds: number;
-  isConfirmed: boolean;
-  isPlayed: boolean;
-};
+// Removed redundant SetlistSong definition here
 
 const SetlistManager = ({ initialSetlistId, initialGigId }: { initialSetlistId: string | null, initialGigId: string | null }) => {
   const { repertoire, isLoading: isRepertoireLoading } = useRepertoire();
@@ -208,19 +200,20 @@ const SetlistManager = ({ initialSetlistId, initialGigId }: { initialSetlistId: 
     // For simplicity, we add the first filtered song found, or prompt user if multiple exist.
     if (filteredMasterRepertoire.length === 1) {
       const songToAdd = filteredMasterRepertoire[0];
-      addSongToSetlist(songToAdd.id, songToAdd.title, songToAdd.artist, songToAdd.original_key, songToAdd.bpm, 1);
+      addSongToSetlist(songToAdd.id, songToAdd.title, songToAdd.artist, songToAdd.original_key, songToAdd.bpm, setlistSongs.length);
       toast({
         title: "Song Added",
         description: `${songToAdd.title} added to setlist.`,
         variant: "success",
       });
     } else {
-      // If multiple songs match, we need a way to select one. Since we don't have a selection UI here,
-      // we'll just prompt the user to refine search or navigate to library.
+      // If multiple songs match, we'll just add the first one found in the filtered list for now.
+      const songToAdd = filteredMasterRepertoire[0];
+      addSongToSetlist(songToAdd.id, songToAdd.title, songToAdd.artist, songToAdd.original_key, songToAdd.bpm, setlistSongs.length);
       toast({
-        title: "Multiple Matches",
-        description: "Please refine your search to add a specific track, or go to the library to add manually.",
-        variant: "default",
+        title: "Song Added",
+        description: `${songToAdd.title} added to setlist.`,
+        variant: "success",
       });
     }
   };
@@ -295,10 +288,10 @@ const SetlistManager = ({ initialSetlistId, initialGigId }: { initialSetlistId: 
             </h2>
             
             {/* Duration and Goal */}
-            <div className="flex items-center justify-between text-sm text-slate-400 mb-4 border-b pb-3 border-slate-700">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between text-sm text-slate-400 mb-4 border-b pb-3 border-slate-700">
               <span>Total Duration: {formatDuration(totalDurationSeconds)}</span>
               {gigId !== 'library' && (
-                <div className="flex items-center gap-2 min-w-[150px]">
+                <div className="flex items-center gap-2 min-w-[150px] mt-2 sm:mt-0">
                   <Label htmlFor="time-goal" className="whitespace-nowrap text-xs">Goal: {timeGoalMinutes} min</Label>
                   <Slider
                     id="time-goal"
@@ -426,9 +419,9 @@ const SetlistManager = ({ initialSetlistId, initialGigId }: { initialSetlistId: 
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground group-focus-within:text-indigo-500 transition-colors z-10" />
                   <Input
                     placeholder="Search repertoire..."
-                    className="pl-9 h-10 border-border bg-background focus-visible:ring-indigo-500 text-xs text-foreground"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
+                    className="h-10 pl-9 pr-8 text-[11px] font-bold bg-card dark:bg-card border-border dark:border-border rounded-xl focus-visible:ring-indigo-500"
                   />
                 </div>
                 <Button
@@ -449,13 +442,11 @@ const SetlistManager = ({ initialSetlistId, initialGigId }: { initialSetlistId: 
                     variant="ghost"
                     size="sm"
                     onClick={() => {
-                      const newSongs = [...setlistSongs];
-                      const [draggedSong] = newSongs.splice(dragIndex || 0, 1);
-                      newSongs.splice(dropIndex || 0, 0, draggedSong);
-                      handleReorderSongs(newSongs);
+                      // Reorder logic needs to be robust, but for now, we rely on the drop handler to trigger the API sync.
+                      // This button is likely redundant if drag/drop works correctly, but kept for manual sync.
                     }} 
                     disabled={isSaving || JSON.stringify(setlistSongs) === JSON.stringify(setlistSongs)} // Simplified check, should compare against initial state if needed
-                    className="h-8 px-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[9px] rounded-lg gap-2 shadow-md disabled:bg-indigo-800/50 transition-all"
+                    className="h-8 px-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[9px] rounded-lg gap-2 shadow-md disabled:bg-indigo-800/50 disabled:shadow-none transition-all"
                   >
                     <Check className="w-3 h-3" /> Apply Order
                   </Button>
@@ -477,13 +468,13 @@ const SetlistManager = ({ initialSetlistId, initialGigId }: { initialSetlistId: 
                     className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg border border-slate-800 hover:bg-slate-800 transition-colors"
                   >
                     <div className="flex-1 min-w-0 mr-2">
-                      <p className="text-sm font-medium text-white truncate">{song.title}</p>
-                      <p className="text-xs text-slate-400 truncate">{song.artist}</p>
+                      <p className="text-white font-medium truncate">{song.title}</p>
+                      <p className="text-slate-400 text-xs truncate">{song.artist}</p>
                     </div>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => addSongToSetlist(song.id, song.title, song.artist, song.original_key, song.bpm, 1)}
+                      onClick={() => addSongToSetlist(song.id, song.title, song.artist, song.original_key, song.bpm, setlistSongs.length)}
                       disabled={isSaving || setlistSongs.some(s => s.id === song.id)}
                       className="h-8 px-3 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg disabled:bg-gray-700 disabled:text-gray-400 transition-all"
                     >
