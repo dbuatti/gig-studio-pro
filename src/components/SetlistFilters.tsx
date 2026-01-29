@@ -37,15 +37,6 @@ export interface FilterState {
   hasLyrics: 'all' | 'yes' | 'no';
   hasHighestNote: 'all' | 'yes' | 'no';
   hasOriginalKey: 'all' | 'yes' | 'no';
-  // NEW FIELDS ADDED TO MATCH USAGE
-  hasChords: 'all' | 'yes' | 'no';
-  isPlayed: 'all' | 'yes' | 'no';
-  isNotPlayed: 'all' | 'yes' | 'no';
-  genre?: string;
-  minBpm?: number;
-  maxBpm?: number;
-  minReadiness?: number;
-  maxReadiness?: number;
 }
 
 export const DEFAULT_FILTERS: FilterState = {
@@ -61,10 +52,6 @@ export const DEFAULT_FILTERS: FilterState = {
   hasLyrics: 'all',
   hasHighestNote: 'all',
   hasOriginalKey: 'all',
-  // NEW DEFAULTS
-  hasChords: 'all',
-  isPlayed: 'all',
-  isNotPlayed: 'all',
 };
 
 interface SetlistFiltersProps {
@@ -124,9 +111,9 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                 </DropdownMenuItem>
               ))}
               <DropdownMenuSeparator className="bg-border" />
-              <DropdownMenuMenuItem onClick={savePreset} className="text-indigo-400 font-black uppercase text-[9px] tracking-widest h-10 px-3 cursor-pointer hover:bg-accent dark:hover:bg-secondary gap-2">
+              <DropdownMenuItem onClick={savePreset} className="text-indigo-400 font-black uppercase text-[9px] tracking-widest h-10 px-3 cursor-pointer hover:bg-accent dark:hover:bg-secondary gap-2">
                 <Save className="w-3.5 h-3.5" /> Save Current View
-              </DropdownMenuMenuItem>
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -239,7 +226,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                     size="icon" 
                     className={cn(
                       "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.hasVideo !== 'all' ? "bg-red-600 text-white shadow-lg" : "bg-card border-border text-muted-foreground"
+                      activeFilters.hasVideo !== 'all' ? "bg-destructive text-white shadow-lg" : "bg-card border-border text-muted-foreground"
                     )}
                   >
                     <Youtube className="w-4 h-4" />
@@ -533,78 +520,6 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                 onClick={() => onFilterChange({ ...activeFilters, hasOriginalKey: 'all' })}
               >
                 Original Key: {activeFilters.hasOriginalKey} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
-              </Badge>
-            )}
-            {activeFilters.hasChords !== 'all' && (
-              <Badge 
-                variant="secondary" 
-                className="bg-purple-50 text-purple-600 border-purple-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
-                onClick={() => onFilterChange({ ...activeFilters, hasChords: 'all' })}
-              >
-                UG Chords: {activeFilters.hasChords} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
-              </Badge>
-            )}
-            {activeFilters.isPlayed !== 'all' && (
-              <Badge 
-                variant="secondary" 
-                className="bg-green-50 text-green-600 border-green-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
-                onClick={() => onFilterChange({ ...activeFilters, isPlayed: 'all' })}
-              >
-                Played: {activeFilters.isPlayed} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
-              </Badge>
-            )}
-            {activeFilters.isNotPlayed !== 'all' && (
-              <Badge 
-                variant="secondary" 
-                className="bg-red-50 text-red-600 border-red-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
-                onClick={() => onFilterChange({ ...activeFilters, isNotPlayed: 'all' })}
-              >
-                Not Played: {activeFilters.isNotPlayed} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
-              </Badge>
-            )}
-            {activeFilters.genre && (
-              <Badge 
-                variant="secondary" 
-                className="bg-yellow-50 text-yellow-600 border-yellow-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
-                onClick={() => onFilterChange({ ...activeFilters, genre: undefined })}
-              >
-                Genre: {activeFilters.genre} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
-              </Badge>
-            )}
-            {activeFilters.minBpm && (
-              <Badge 
-                variant="secondary" 
-                className="bg-purple-50 text-purple-600 border-purple-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
-                onClick={() => onFilterChange({ ...activeFilters, minBpm: undefined })}
-              >
-                Min BPM: {activeFilters.minBpm} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
-              </Badge>
-            )}
-            {activeFilters.maxBpm && (
-              <Badge 
-                variant="secondary" 
-                className="bg-purple-50 text-purple-600 border-purple-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
-                onClick={() => onFilterChange({ ...activeFilters, maxBpm: undefined })}
-              >
-                Max BPM: {activeFilters.maxBpm} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
-              </Badge>
-            )}
-            {activeFilters.minReadiness !== undefined && (
-              <Badge 
-                variant="secondary" 
-                className="bg-orange-50 text-orange-600 border-orange-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
-                onClick={() => onFilterChange({ ...activeFilters, minReadiness: undefined })}
-              >
-                Min Ready: {activeFilters.minReadiness}% <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
-              </Badge>
-            )}
-            {activeFilters.maxReadiness !== undefined && (
-              <Badge 
-                variant="secondary" 
-                className="bg-orange-50 text-orange-600 border-orange-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
-                onClick={() => onFilterChange({ ...activeFilters, maxReadiness: undefined })}
-              >
-                Max Ready: {activeFilters.maxReadiness}% <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
               </Badge>
             )}
           </div>

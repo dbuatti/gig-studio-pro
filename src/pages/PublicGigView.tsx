@@ -5,7 +5,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Music2, MapPin, Calendar, ArrowLeft, User, Waves } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { SetlistSong } from '@/components/SetlistManagementModal'; // Renamed import
+import { SetlistSong } from '@/components/SetlistManager';
 import { cn } from '@/lib/utils';
 import { MadeWithDyad } from '@/components/SupportBanner';
 
