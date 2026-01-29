@@ -14,7 +14,6 @@ import {
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
-  DropdownMenuItem, 
   DropdownMenuTrigger,
   DropdownMenuSeparator,
   DropdownMenuLabel,
@@ -25,18 +24,15 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { cn } from "@/lib/utils";
 
 export interface FilterState {
-  hasAudio: 'all' | 'full' | 'itunes' | 'none';
-  hasVideo: 'all' | 'yes' | 'no';
-  hasChart: 'all' | 'yes' | 'no';
-  hasPdf: 'all' | 'yes' | 'no';
-  hasUg: 'all' | 'yes' | 'no';
-  isConfirmed: 'all' | 'yes' | 'no';
-  isApproved: 'all' | 'yes' | 'no';
-  readiness: number; 
-  hasUgChords: 'all' | 'yes' | 'no';
-  hasLyrics: 'all' | 'yes' | 'no';
-  hasHighestNote: 'all' | 'yes' | 'no';
-  hasOriginalKey: 'all' | 'yes' | 'no';
+// ... (rest of interface remains the same)
+  hasChords: 'all' | 'yes' | 'no';
+  isPlayed: 'all' | 'yes' | 'no';
+  isNotPlayed: 'all' | 'yes' | 'no';
+  genre?: string;
+  minBpm?: number;
+  maxBpm?: number;
+  minReadiness?: number;
+  maxReadiness?: number;
 }
 
 export const DEFAULT_FILTERS: FilterState = {
@@ -52,6 +48,10 @@ export const DEFAULT_FILTERS: FilterState = {
   hasLyrics: 'all',
   hasHighestNote: 'all',
   hasOriginalKey: 'all',
+  // NEW DEFAULTS
+  hasChords: 'all',
+  isPlayed: 'all',
+  isNotPlayed: 'all',
 };
 
 interface SetlistFiltersProps {
@@ -102,7 +102,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                 <DropdownMenuItem 
                   key={p.id} 
                   onClick={() => onFilterChange(p.filters)}
-                  className="flex items-center justify-between rounded-xl h-10 px-3 cursor-pointer hover:bg-accent dark:hover:bg-secondary"
+                  className="group flex items-center justify-between rounded-xl h-10 px-3 cursor-pointer hover:bg-accent dark:hover:bg-secondary"
                 >
                   <span className="text-xs font-bold uppercase">{p.name}</span>
                   <button onClick={(e) => deletePreset(p.id, e)} className="p-1 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
@@ -226,7 +226,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                     size="icon" 
                     className={cn(
                       "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.hasVideo !== 'all' ? "bg-destructive text-white shadow-lg" : "bg-card border-border text-muted-foreground"
+                      activeFilters.hasVideo !== 'all' ? "bg-red-600 text-white shadow-lg" : "bg-card border-border text-muted-foreground"
                     )}
                   >
                     <Youtube className="w-4 h-4" />
@@ -406,6 +406,87 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
             </DropdownMenuContent>
           </DropdownMenu>
 
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className={cn(
+                      "h-9 w-9 rounded-xl border transition-all",
+                      activeFilters.hasChords !== 'all' ? "bg-green-600 text-white shadow-lg" : "bg-card border-border text-muted-foreground"
+                    )}
+                  >
+                    <Guitar className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent className="text-[10px] font-black uppercase">UG Chords</TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-popover border-border text-foreground">
+              <DropdownMenuRadioGroup value={activeFilters.hasChords} onValueChange={(v) => onFilterChange({ ...activeFilters, hasChords: v as any })}>
+                <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Has Chords</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-10 rounded-xl text-destructive">Missing Chords</DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className={cn(
+                      "h-9 w-9 rounded-xl border transition-all",
+                      activeFilters.isPlayed !== 'all' ? "bg-green-600 text-white shadow-lg" : "bg-card border-border text-muted-foreground"
+                    )}
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent className="text-[10px] font-black uppercase">Played Status</TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-popover border-border text-foreground">
+              <DropdownMenuRadioGroup value={activeFilters.isPlayed} onValueChange={(v) => onFilterChange({ ...activeFilters, isPlayed: v as any, isNotPlayed: 'all' })}>
+                <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Played</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-10 rounded-xl text-destructive">Not Played</DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className={cn(
+                      "h-9 w-9 rounded-xl border transition-all",
+                      activeFilters.isNotPlayed !== 'all' ? "bg-red-600 text-white shadow-lg" : "bg-card border-border text-muted-foreground"
+                    )}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent className="text-[10px] font-black uppercase">Not Played Status</TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-popover border-border text-foreground">
+              <DropdownMenuRadioGroup value={activeFilters.isNotPlayed} onValueChange={(v) => onFilterChange({ ...activeFilters, isNotPlayed: v as any, isPlayed: 'all' })}>
+                <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Not Played</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-10 rounded-xl text-destructive">Played</DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           {!isDefault && (
             <Button 
               variant="ghost" 
@@ -420,7 +501,7 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
 
         {!isDefault && (
           <div className="flex flex-wrap gap-2 px-1">
-            <span className="text-[9px] font-black uppercase text-muted-foreground flex items-center gap-2 mr-2">
+            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2 mr-2">
               <ListFilter className="w-3 h-3" /> Active Criteria:
             </span>
             {activeFilters.readiness > 0 && (
@@ -520,6 +601,78 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                 onClick={() => onFilterChange({ ...activeFilters, hasOriginalKey: 'all' })}
               >
                 Original Key: {activeFilters.hasOriginalKey} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
+              </Badge>
+            )}
+            {activeFilters.hasChords !== 'all' && (
+              <Badge 
+                variant="secondary" 
+                className="bg-green-50 text-green-600 border-green-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
+                onClick={() => onFilterChange({ ...activeFilters, hasChords: 'all' })}
+              >
+                UG Chords: {activeFilters.hasChords} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
+              </Badge>
+            )}
+            {activeFilters.isPlayed !== 'all' && (
+              <Badge 
+                variant="secondary" 
+                className="bg-green-50 text-green-600 border-green-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
+                onClick={() => onFilterChange({ ...activeFilters, isPlayed: 'all' })}
+              >
+                Played: {activeFilters.isPlayed} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
+              </Badge>
+            )}
+            {activeFilters.isNotPlayed !== 'all' && (
+              <Badge 
+                variant="secondary" 
+                className="bg-red-50 text-red-600 border-red-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
+                onClick={() => onFilterChange({ ...activeFilters, isNotPlayed: 'all' })}
+              >
+                Not Played: {activeFilters.isNotPlayed} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
+              </Badge>
+            )}
+            {activeFilters.genre && (
+              <Badge 
+                variant="secondary" 
+                className="bg-yellow-50 text-yellow-600 border-yellow-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
+                onClick={() => onFilterChange({ ...activeFilters, genre: undefined })}
+              >
+                Genre: {activeFilters.genre} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
+              </Badge>
+            )}
+            {activeFilters.minBpm && (
+              <Badge 
+                variant="secondary" 
+                className="bg-purple-50 text-purple-600 border-purple-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
+                onClick={() => onFilterChange({ ...activeFilters, minBpm: undefined })}
+              >
+                Min BPM: {activeFilters.minBpm} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
+              </Badge>
+            )}
+            {activeFilters.maxBpm && (
+              <Badge 
+                variant="secondary" 
+                className="bg-purple-50 text-purple-600 border-purple-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
+                onClick={() => onFilterChange({ ...activeFilters, maxBpm: undefined })}
+              >
+                Max BPM: {activeFilters.maxBpm} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
+              </Badge>
+            )}
+            {activeFilters.minReadiness !== undefined && (
+              <Badge 
+                variant="secondary" 
+                className="bg-orange-50 text-orange-600 border-orange-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
+                onClick={() => onFilterChange({ ...activeFilters, minReadiness: undefined })}
+              >
+                Min Ready: {activeFilters.minReadiness}% <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
+              </Badge>
+            )}
+            {activeFilters.maxReadiness !== undefined && (
+              <Badge 
+                variant="secondary" 
+                className="bg-orange-50 text-orange-600 border-orange-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
+                onClick={() => onFilterChange({ ...activeFilters, maxReadiness: undefined })}
+              >
+                Max Ready: {activeFilters.maxReadiness}% <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
               </Badge>
             )}
           </div>

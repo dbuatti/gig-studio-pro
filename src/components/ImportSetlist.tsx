@@ -1,180 +1,197 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { ClipboardPaste, AlertCircle, ListPlus, Youtube, Wand2, Music } from 'lucide-react';
-import { SetlistSong } from './SetlistManager';
+import { SetlistSong } from './SetlistManagementModal';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/components/AuthProvider';
+import { showSuccess, showError } from '@/utils/toast';
+import { syncToMasterRepertoire } from '@/utils/repertoireSync'; // Import syncToMasterRepertoire
 
 interface ImportSetlistProps {
-  onImport: (songs: SetlistSong[]) => void;
   isOpen: boolean;
   onClose: () => void;
+  onImport: (songs: Partial<SetlistSong>[]) => Promise<void>;
 }
 
-const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport, isOpen, onClose }) => {
-  const [text, setText] = useState("");
-  const [includeYoutube, setIncludeYoutube] = useState(true);
+const ImportSetlist: React.FC<ImportSetlistProps> = ({ isOpen, onClose, onImport }) => {
+  const { user } = useAuth();
+  const [rawText, setRawText] = useState("");
+  const [isParsing, setIsParsing] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const [isYoutubeMode, setIsYoutubeMode] = useState(false);
+  const [parsedSongs, setParsedSongs] = useState<SetlistSong[]>([]);
 
-  const parseText = (content: string): SetlistSong[] => {
-    const lines = content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-    const newSongs: SetlistSong[] = [];
+  const handleParse = async () => {
+    if (!rawText.trim()) return;
+    setIsParsing(true);
+    setParsedSongs([]);
+    
+    const lines = rawText.split('\n').map(line => line.trim()).filter(line => line.length > 5);
+    const importedSongs: SetlistSong[] = [];
 
-    lines.forEach(line => {
-      let title = "";
+    for (const line of lines) {
+      let name = line;
       let artist = "Unknown Artist";
-      let originalKey = "C";
       let youtubeUrl = undefined;
+      let ugUrl = undefined;
 
-      if (line.includes('|') && !line.includes('---') && !line.includes('Song Title')) {
-        const columns = line.split('|').map(c => c.trim()).filter(c => c !== "");
-        if (columns.length >= 2) {
-          const startIdx = /^\d+$/.test(columns[0]) ? 1 : 0;
-          title = columns[startIdx].replace(/\*\*/g, '');
-          artist = columns[startIdx + 1]?.replace(/\*\*/g, '') || "Unknown Artist";
-          const possibleKey = columns.find((c, i) => i > startIdx + 1 && /^[A-G][#b]?m?$/.test(c));
-          if (possibleKey) originalKey = possibleKey;
+      // Simple heuristic: split by common delimiters if not in YouTube mode
+      if (!isYoutubeMode) {
+        const parts = line.split(/ - | by /i).map(p => p.trim());
+        if (parts.length >= 2) {
+          name = parts[0];
+          artist = parts.slice(1).join(' - ');
         }
-      } else if (line.includes(' - ')) {
-        const parts = line.split(' - ').map(p => p.trim());
-        artist = parts[0];
-        title = parts[1];
-        const keyMatch = line.match(/\((([A-G][#b]?m?))\)$/);
-        if (keyMatch) originalKey = keyMatch[1];
-      } else if (line.toLowerCase().includes(' by ')) {
-        const parts = line.split(/ by /i).map(p => p.trim());
-        title = parts[0];
-        artist = parts[1];
-      } else {
-        title = line.replace(/^\d+[\.\)\-\s]+/, '');
       }
 
-      title = title.replace(/^["']|["']$/g, '').trim();
-      artist = artist.replace(/^["']|["']$/g, '').trim();
-
-      if (title) {
-        if (includeYoutube) {
-          const ytMatch = line.match(/\((https:\/\/www\.youtube\.com\/watch\?v=[^)]+)\)/);
-          youtubeUrl = ytMatch ? ytMatch[1] : undefined;
+      // Simple URL detection (can be improved)
+      const urlMatch = line.match(/(https?:\/\/[^\s]+)/);
+      if (urlMatch) {
+        const url = urlMatch[0];
+        if (url.includes('youtube.com') || url.includes('youtu.be')) {
+          youtubeUrl = url;
+          name = line.replace(urlMatch[0], '').trim() || `${artist} Track`;
+        } else if (url.includes('ultimate-guitar.com')) {
+          ugUrl = url;
+          name = line.replace(urlMatch[0], '').trim() || `${artist} Tab`;
         }
-
-        newSongs.push({
-          id: crypto.randomUUID(),
-          name: title,
-          artist: artist,
-          previewUrl: "", 
-          youtubeUrl,
-          originalKey: originalKey,
-          targetKey: originalKey,
-          pitch: 0,
-          isPlayed: false,
-          isSyncing: true,
-          isMetadataConfirmed: false
-        });
       }
-    });
 
-    return newSongs;
+      if (name === "Unknown Artist Track" || name === "Unknown Artist Tab") {
+        name = line; // Fallback if parsing failed badly
+      }
+
+      importedSongs.push({
+        id: crypto.randomUUID(),
+        name: name,
+        artist: artist,
+        youtubeUrl: youtubeUrl,
+        ugUrl: ugUrl,
+        originalKey: 'TBC',
+        targetKey: 'TBC',
+        isPlayed: false,
+        is_ready_to_sing: true,
+        is_pitch_linked: true,
+        isKeyConfirmed: false,
+        isApproved: false,
+        extraction_status: 'idle',
+        sync_status: 'IDLE',
+        metadata_source: 'manual_import',
+      });
+    }
+
+    setParsedSongs(importedSongs);
+    setIsParsing(false);
   };
 
-  const handleImport = () => {
-    const songs = parseText(text);
-    if (songs.length > 0) {
-      onImport(songs);
+  const handleImportToMaster = async () => {
+    if (!user || parsedSongs.length === 0) return;
+    setIsAdding(true);
+    
+    const songsToSync = parsedSongs.map(s => ({
+      title: s.name,
+      artist: s.artist,
+      youtube_url: s.youtubeUrl,
+      ug_url: s.ugUrl,
+      original_key: s.originalKey,
+      target_key: s.targetKey,
+      is_pitch_linked: s.is_pitch_linked,
+      is_ready_to_sing: s.is_ready_to_sing,
+      metadata_source: 'manual_import',
+      sync_status: 'IDLE',
+      extraction_status: 'idle',
+    }));
+
+    try {
+      const syncedData = await syncToMasterRepertoire(user.id, songsToSync);
+      await onImport(syncedData);
+      showSuccess(`Successfully imported ${syncedData.length} songs to master repertoire.`);
       onClose();
-      setText("");
+    } catch (err: any) {
+      showError(`Import failed: ${err.message}`);
+    } finally {
+      setIsAdding(false);
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2 border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-bold uppercase tracking-tight shadow-sm hover:shadow-md transition-all">
-          <ClipboardPaste className="w-4 h-4" /> Smart Import
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-3xl bg-popover border-none shadow-2xl rounded-[2rem] p-0 overflow-hidden">
-        <DialogHeader className="bg-indigo-600 p-8 flex items-center justify-between text-white shrink-0">
-          <div className="flex items-center gap-4">
-            <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-md">
-              <ListPlus className="w-8 h-8" />
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-xl bg-popover border-border rounded-[2rem] p-0 shadow-2xl">
+        <DialogHeader className="p-6 bg-indigo-600/10 border-b border-border">
+          <DialogTitle className="flex items-center gap-3 text-2xl font-black uppercase tracking-tight text-white">
+            <div className="bg-indigo-600 p-2 rounded-xl">
+              <ClipboardPaste className="w-6 h-6 text-white" />
             </div>
-            <div className="text-left">
-              <DialogTitle className="text-2xl font-black uppercase tracking-tight">Gig Ingest Engine</DialogTitle>
-              <DialogDescription className="text-indigo-100 font-medium">Supporting OnSong, Markdown, and Plain Text formats.</DialogDescription>
-            </div>
-          </div>
-          <Wand2 className="w-8 h-8 opacity-20 animate-pulse hidden sm:block" />
+            Setlist Importer
+          </DialogTitle>
+          <DialogDescription className="text-indigo-200 font-medium">
+            Paste raw text or URLs to quickly populate a setlist or repertoire.
+          </DialogDescription>
         </DialogHeader>
-        
-        <div className="p-8 space-y-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-card border border-border rounded-2xl p-5 flex items-center justify-between shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="bg-red-100 dark:bg-red-600/10 p-2.5 rounded-xl">
-                  <Youtube className="w-5 h-5 text-destructive" />
-                </div>
-                <div>
-                  <Label htmlFor="yt-toggle" className="text-xs font-black uppercase tracking-widest text-muted-foreground">Audio Discovery</Label>
-                  <p className="text-[10px] text-muted-foreground font-bold uppercase mt-0.5">Auto-link Reference Media</p>
-                </div>
-              </div>
-              <Switch 
-                id="yt-toggle" 
-                checked={includeYoutube} 
-                onCheckedChange={setIncludeYoutube}
-                className="data-[state=checked]:bg-indigo-600"
-              />
-            </div>
 
-            <div className="bg-card border border-border rounded-2xl p-5 flex items-center gap-4 shadow-sm">
-              <div className="bg-emerald-100 dark:bg-emerald-600/10 p-2.5 rounded-xl">
-                <Music className="w-5 h-5 text-emerald-600" />
-              </div>
-              <div>
-                <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Auto-Metadata</Label>
-                <p className="text-[10px] text-muted-foreground font-bold uppercase mt-0.5">AI Engine Level 2 Active</p>
-              </div>
+        <div className="p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Input Mode</Label>
+            <div className="flex items-center gap-2">
+              <Switch checked={isYoutubeMode} onCheckedChange={setIsYoutubeMode} className="data-[state=checked]:bg-red-600" />
+              <Label htmlFor="yt-mode" className="text-xs font-bold text-foreground">YouTube/URL Focus</Label>
             </div>
           </div>
+          
+          <Textarea
+            placeholder={isYoutubeMode ? "Paste one YouTube URL per line..." : "Paste song list (e.g., Song Name - Artist, or URL)"}
+            value={rawText}
+            onChange={(e) => setRawText(e.target.value)}
+            className="min-h-[150px] bg-background border-border rounded-xl text-sm font-medium placeholder:text-slate-600"
+          />
 
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Pasted Content Buffer</Label>
-              <span className="text-[10px] font-black text-indigo-500 uppercase">Pro Tip: Use 'Artist - Title'</span>
-            </div>
-            <Textarea 
-              placeholder="Paste your OnSong list, Markdown table, or plain song list here..." 
-              className="min-h-[300px] font-mono text-sm bg-card border-border focus-visible:ring-indigo-500 rounded-2xl p-6 shadow-inner resize-none text-foreground"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-            />
-          </div>
-
-          <div className="flex items-start gap-4 p-5 bg-indigo-50 dark:bg-indigo-950/30 rounded-2xl border border-indigo-100 dark:border-indigo-900/50">
-            <AlertCircle className="w-6 h-6 text-indigo-600 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-black text-indigo-900 dark:text-indigo-300 uppercase tracking-tight">Intelligence Report</p>
-              <p className="text-[11px] text-indigo-700/80 dark:text-indigo-400/80 mt-1 leading-relaxed text-left">
-                The engine will attempt to extract the song name, artist, and musical key automatically. After import, the AI background worker will verify these details and link professional reference audio.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="p-8 bg-secondary border-t border-border flex flex-col sm:flex-row gap-4">
-          <Button variant="ghost" onClick={onClose} className="flex-1 font-black uppercase tracking-widest text-xs h-12 rounded-xl text-foreground hover:bg-accent dark:hover:bg-secondary">Discard</Button>
           <Button 
-            onClick={handleImport} 
-            className="flex-[2] bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-[0.2em] text-xs h-12 rounded-xl shadow-xl shadow-indigo-500/20 gap-3"
-            disabled={!text.trim()}
+            onClick={handleParse} 
+            disabled={isParsing || !rawText.trim()}
+            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-[10px] h-10 rounded-xl gap-2"
           >
-            <ListPlus className="w-4 h-4" /> Deploy to Setlist
+            {isParsing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+            Parse Input ({rawText.split('\n').filter(l => l.trim()).length} Lines)
           </Button>
+
+          {parsedSongs.length > 0 && (
+            <div className="border border-indigo-500/30 bg-indigo-900/10 p-4 rounded-2xl space-y-3">
+              <div className="flex items-center justify-between border-b border-indigo-500/20 pb-2">
+                <h5 className="text-sm font-bold text-indigo-300 flex items-center gap-2"><ListPlus className="w-4 h-4" /> Parsed Songs ({parsedSongs.length})</h5>
+                <p className="text-[9px] font-mono text-indigo-400">{parsedSongs.filter(s => s.youtubeUrl).length} YT links found</p>
+              </div>
+              <div className="max-h-40 overflow-y-auto space-y-1 pr-2">
+                {parsedSongs.map((song, index) => (
+                  <div key={index} className="flex items-center justify-between text-xs text-white/90">
+                    <span className="truncate flex-1">{song.name} - {song.artist}</span>
+                    {song.youtubeUrl && <Youtube className="w-3 h-3 text-red-400 ml-2 shrink-0" />}
+                    {song.ugUrl && <Guitar className="w-3 h-3 text-green-400 ml-1 shrink-0" />}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
+
+        <DialogFooter className="p-6 border-t border-border bg-secondary">
+          <Button onClick={onClose} variant="ghost" className="flex-1 font-black uppercase tracking-widest text-xs h-12 rounded-xl text-foreground hover:bg-accent">
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleImportToMaster} 
+            disabled={parsedSongs.length === 0 || isAdding}
+            className="flex-[2] bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-[0.2em] text-xs h-12 rounded-xl shadow-xl shadow-emerald-600/20 gap-3"
+          >
+            {isAdding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+            Import to Master Library ({parsedSongs.length})
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
