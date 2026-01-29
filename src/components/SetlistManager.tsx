@@ -2,8 +2,7 @@
            <div className="flex items-center justify-between text-sm text-slate-400">
              <span>Total Duration: {formatDuration(totalDurationSeconds)}</span>
              {gigId !== 'library' && (
--              <div className="flex items-center gap-2">
-+              <div className="flex items-center gap-2 min-w-[150px]">
+               <div className="flex items-center gap-2 min-w-[150px]">
                  <Label htmlFor="time-goal" className="whitespace-nowrap">Goal: {Math.floor(timeGoal / 60)} min</Label>
                  <Slider
                    id="time-goal"
