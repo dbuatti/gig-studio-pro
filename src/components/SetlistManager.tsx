@@ -22,7 +22,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
+import { Separator } => '@/components/ui/separator';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   AlertDialog,
@@ -289,7 +289,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
         highest_note_updated_at: d.highest_note_updated_at,
         original_key_updated_at: d.original_key_updated_at,
         target_key_updated_at: d.target_key_updated_at,
-      })); // Corrected: removed extra parenthesis
+      }));
       setMasterRepertoire(mappedRepertoire);
       console.log("[SetlistManager/fetchMasterRepertoire] Successfully loaded master repertoire songs count:", mappedRepertoire.length);
     } catch (err: any) {
@@ -472,17 +472,24 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
   const filteredMasterRepertoire = useMemo(() => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
-    const filtered = masterRepertoire.filter(song =>
-      (song.name?.toLowerCase().includes(lowerCaseSearchTerm) ||
-        song.artist?.toLowerCase().includes(lowerCaseSearchTerm)) &&
-      !setlistSongs.some(setlistSong => setlistSong.master_id === song.id)
-    );
+    
+    const filtered = masterRepertoire.filter(song => {
+      const matchesSearch = !searchTerm || 
+        song.name?.toLowerCase().includes(lowerCaseSearchTerm) ||
+        song.artist?.toLowerCase().includes(lowerCaseSearchTerm);
+
+      // Check if the song is already in the current setlist (using master_id for comparison)
+      const isInSetlist = setlistSongs.some(setlistSong => setlistSong.master_id === song.id);
+
+      return matchesSearch && !isInSetlist;
+    });
     
     if (searchTerm) {
       console.log(`[SetlistManager/filteredMasterRepertoire] Search: "${searchTerm}". Master count: ${masterRepertoire.length}. Filtered count: ${filtered.length}.`);
+    } else {
+      console.log(`[SetlistManager/filteredMasterRepertoire] No search term. Showing all available repertoire. Count: ${filtered.length}.`);
     }
     
-    if (!searchTerm) return [];
     return filtered;
   }, [masterRepertoire, searchTerm, setlistSongs]);
 
