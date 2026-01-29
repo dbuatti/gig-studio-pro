@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
-import { SetlistSong, UGChordsConfig } from '@/components/SetlistManager';
+import { SetlistSong, UGChordsConfig } from '@/components/SetlistManagementModal'; // Renamed import
 import { Button } from '@/components/ui/button';
 import { Music, Loader2, AlertCircle, X, ExternalLink, ShieldCheck, FileText, Layout, Guitar, ChevronLeft, ChevronRight, Download, Link as LinkIcon, Ruler, Edit3, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';

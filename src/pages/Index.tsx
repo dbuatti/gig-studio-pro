@@ -16,14 +16,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
   Loader2, ListMusic, Settings2, BookOpen, Search, LayoutDashboard, 
-  X, AlertCircle, Music, Shuffle, Hash, Library, Plus 
+  X, AlertCircle, Music, Shuffle, Hash, Library, Plus, Edit 
 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // Custom Components
 import SetlistSelector from '@/components/SetlistSelector';
-import SetlistManager, { SetlistSong, Setlist } from '@/components/SetlistManager';
+import SetlistManagementModal, { SetlistSong, Setlist } from '@/components/SetlistManagementModal'; // Renamed import
+import SetlistDisplay from '@/components/SetlistDisplay'; // New import
 import { FilterState, DEFAULT_FILTERS } from '@/components/SetlistFilters';
 import SetlistStats from '@/components/SetlistStats';
 import RepertoirePicker from '@/components/RepertoirePicker';
@@ -80,6 +81,7 @@ const Index = () => {
   const [isResourceAuditOpen, setIsResourceAuditOpen] = useState(false);
   const [isImportSetlistOpen, setIsImportSetlistOpen] = useState(false);
   const [isSetlistSettingsOpen, setIsSetlistSettingsOpen] = useState(false);
+  const [isSetlistManagementModalOpen, setIsSetlistManagementModalOpen] = useState(false); // New state for the modal
 
   const [searchTerm, setSearchTerm] = useState(() => localStorage.getItem('gig_search_term') || "");
   const [sortMode, setSortMode] = useState<'none' | 'ready' | 'work' | 'manual'>(() => (localStorage.getItem('gig_sort_mode') as 'none' | 'ready' | 'work' | 'manual') || 'none');
@@ -454,8 +456,8 @@ const Index = () => {
                   <Button variant="outline" size="sm" onClick={() => setIsImportSetlistOpen(true)} className="gap-2 border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-bold uppercase tracking-tight shadow-sm hover:shadow-md transition-all">
                     <ListMusic className="w-4 h-4" /> Smart Import
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => setIsRepertoirePickerOpen(true)} className="gap-2 border-emerald-200 text-emerald-600 hover:bg-emerald-50 font-bold uppercase tracking-tight shadow-sm hover:shadow-md transition-all">
-                    <Library className="w-4 h-4" /> Add from Library
+                  <Button variant="outline" size="sm" onClick={() => setIsSetlistManagementModalOpen(true)} className="gap-2 border-emerald-200 text-emerald-600 hover:bg-emerald-50 font-bold uppercase tracking-tight shadow-sm hover:shadow-md transition-all">
+                    <Edit className="w-4 h-4" /> Manage Setlist
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => setIsSetlistSettingsOpen(true)} className="gap-2 border-muted-foreground text-muted-foreground hover:bg-accent font-bold uppercase tracking-tight shadow-sm hover:shadow-md transition-all">
                     <Settings2 className="w-4 h-4" /> Settings
@@ -464,7 +466,7 @@ const Index = () => {
               )}
             </div>
             <SetlistStats songs={activeSetlist?.songs || []} onUpdateGoal={async (goal) => { if (activeSetlistId) await supabase.from('setlists').update({ time_goal: goal }).eq('id', activeSetlistId); fetchSetlistsAndRepertoire(); }} goalSeconds={activeSetlist?.time_goal} />
-            <SetlistManager 
+            <SetlistDisplay 
               songs={filteredAndSortedSongs} 
               onSelect={setActiveSongForPerformance} 
               onEdit={handleEditSong} 
@@ -476,7 +478,7 @@ const Index = () => {
                   syncToMasterRepertoire(userId!, [{ id: songToUpdate.master_id, targetKey: k, pitch: newPitch, isKeyConfirmed: true }]);
                 }
               }} 
-              onLinkAudio={() => {}}
+              onLinkAudio={() => {}} // Placeholder, implement if needed
               onSyncProData={async (song) => {
                 if (!userId) return;
                 try {
@@ -570,7 +572,7 @@ const Index = () => {
                    if (activeDashboardView === 'repertoire' || !activeSetlistId) {
                       syncToMasterRepertoire(userId!, [{ name: n, artist: a, previewUrl: p, youtubeUrl: y, ugUrl: u, appleMusicUrl: am, genre: g, pitch: pi, audio_url: au, extraction_status: es }]);
                    } else {
-                      onUpdateSetlistSongs?.(activeSetlistId, { id: crypto.randomUUID(), name: n, artist: a, previewUrl: p, youtubeUrl: y, ugUrl: u, appleMusicUrl: am, genre: g, pitch: pi, audio_url: au, extraction_status: es } as any, 'add');
+                      handleUpdateSetlistSongs(activeSetlistId, { id: crypto.randomUUID(), name: n, artist: a, previewUrl: p, youtubeUrl: y, ugUrl: u, appleMusicUrl: am, genre: g, pitch: pi, audio_url: au, extraction_status: es } as any, 'add');
                    }
                    setIsAudioTransposerModalOpen(false);
                    fetchSetlistsAndRepertoire();
@@ -613,6 +615,15 @@ const Index = () => {
       <ResourceAuditModal isOpen={isResourceAuditOpen} onClose={() => setIsResourceAuditOpen(false)} songs={masterRepertoire} onVerify={async (songId, updates) => { await syncToMasterRepertoire(userId!, [{...updates, id: songId}]); fetchSetlistsAndRepertoire(); }} onRefreshRepertoire={() => fetchSetlistsAndRepertoire()} />
       {activeSetlist && (
         <SetlistSettingsModal isOpen={isSetlistSettingsOpen} onClose={() => setIsSetlistSettingsOpen(false)} setlistId={activeSetlist.id} setlistName={activeSetlist.name} onDelete={handleDeleteSetlist} onRename={handleRenameSetlist} />
+      )}
+      {activeSetlist && (
+        <SetlistManagementModal 
+          isOpen={isSetlistManagementModalOpen} 
+          onClose={() => { setIsSetlistManagementModalOpen(false); fetchSetlistsAndRepertoire(); }} 
+          gigId={activeSetlist.id} 
+          onSetlistUpdated={fetchSetlistsAndRepertoire} 
+          masterRepertoire={masterRepertoire}
+        />
       )}
     </div>
   );

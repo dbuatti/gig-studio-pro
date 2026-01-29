@@ -94,7 +94,7 @@ export type SetlistSong = {
   isPlayed?: boolean; // For setlist_songs junction
 };
 
-type SetlistManagerProps = {
+type SetlistManagementModalProps = {
   gigId: string;
   isOpen: boolean;
   onClose: () => void;
@@ -103,7 +103,7 @@ type SetlistManagerProps = {
   masterRepertoire: SetlistSong[]; // NEW: Accept masterRepertoire as a prop
 };
 
-const SetlistManager: React.FC<SetlistManagerProps> = ({
+const SetlistManagementModal: React.FC<SetlistManagementModalProps> = ({
   gigId,
   isOpen,
   onClose,
@@ -116,7 +116,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   const [setlistSongs, setSetlistSongs] = useState<SetlistSong[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  // const [masterRepertoire, setMasterRepertoire] = useState<SetlistSong[]>([]); // REMOVED: No longer managed internally
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSongToAdd, setSelectedSongToAdd] = useState<SetlistSong | null>(null);
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
@@ -126,21 +125,21 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
   const fetchSetlist = useCallback(async () => {
     if (!user) {
-      console.log("[SetlistManager/fetchSetlist] ERROR: No user object available. Skipping fetch.");
+      console.log("[SetlistManagementModal/fetchSetlist] ERROR: No user object available. Skipping fetch.");
       setIsLoading(false);
       return;
     }
     if (gigId === 'library') {
       setSetlistSongs(initialSetlistSongs);
       setIsLoading(false);
-      console.log("[SetlistManager/fetchSetlist] Library mode. Initial songs count:", initialSetlistSongs.length);
+      console.log("[SetlistManagementModal/fetchSetlist] Library mode. Initial songs count:", initialSetlistSongs.length);
       return;
     }
 
     setIsLoading(true);
-    console.log(`[SetlistManager/fetchSetlist] Fetching setlist for gigId: ${gigId} (User ID: ${user.id})`);
+    console.log(`[SetlistManagementModal/fetchSetlist] Fetching setlist for gigId: ${gigId} (User ID: ${user.id})`);
     try {
-      console.log("[SetlistManager/fetchSetlist] Querying 'setlists' table...");
+      console.log("[SetlistManagementModal/fetchSetlist] Querying 'setlists' table...");
       const { data: setlistData, error: setlistError } = await supabase
         .from('setlists')
         .select('name, time_goal')
@@ -148,15 +147,15 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
         .single();
 
       if (setlistError) {
-        console.error("[SetlistManager/fetchSetlist] Error fetching setlist details:", setlistError);
+        console.error("[SetlistManagementModal/fetchSetlist] Error fetching setlist details:", setlistError);
         throw setlistError;
       }
-      console.log("[SetlistManager/fetchSetlist] Setlist details data:", setlistData);
+      console.log("[SetlistManagementModal/fetchSetlist] Setlist details data:", setlistData);
 
       setSetlistName(setlistData?.name || 'My Setlist');
       setTimeGoal(setlistData?.time_goal || 7200);
 
-      console.log("[SetlistManager/fetchSetlist] Querying 'setlist_songs' table...");
+      console.log("[SetlistManagementModal/fetchSetlist] Querying 'setlist_songs' table...");
       const { data: junctionData, error: junctionError } = await supabase
         .from('setlist_songs')
         .select(`
@@ -176,16 +175,16 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
         .order('sort_order', { ascending: true });
 
       if (junctionError) {
-        console.error("[SetlistManager/fetchSetlist] Error fetching setlist_songs junction data:", junctionError);
+        console.error("[SetlistManagementModal/fetchSetlist] Error fetching setlist_songs junction data:", junctionError);
         throw junctionError;
       }
       
-      console.log(`[SetlistManager/fetchSetlist] Raw junction data received: ${junctionData ? junctionData.length : 0} entries.`, junctionData);
+      console.log(`[SetlistManagementModal/fetchSetlist] Raw junction data received: ${junctionData ? junctionData.length : 0} entries.`, junctionData);
 
       const songs = (junctionData || []).map((junction: any) => {
         const masterSong = junction.repertoire;
         if (!masterSong) {
-          console.warn(`[SetlistManager/fetchSetlist] Song junction ID ${junction.id} references missing repertoire entry, likely due to RLS or deletion. Skipping this song.`);
+          console.warn(`[SetlistManagementModal/fetchSetlist] Song junction ID ${junction.id} references missing repertoire entry, likely due to RLS or deletion. Skipping this song.`);
           return null;
         }
         return {
@@ -240,7 +239,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       }).filter(Boolean) as SetlistSong[];
 
       setSetlistSongs(songs);
-      console.log("[SetlistManager/fetchSetlist] Successfully mapped and loaded setlist songs count:", songs.length, songs);
+      console.log("[SetlistManagementModal/fetchSetlist] Successfully mapped and loaded setlist songs count:", songs.length, songs);
     } catch (err: any) {
       showError(`Failed to load setlist: ${err.message}`);
       console.error("Error fetching setlist:", err);
@@ -249,90 +248,11 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     }
   }, [user, gigId, initialSetlistSongs]);
 
-  // REMOVED: No longer fetching master repertoire internally
-  // const fetchMasterRepertoire = useCallback(async () => {
-  //   if (!user) {
-  //     console.log("[SetlistManager/fetchMasterRepertoire] ERROR: No user object available. Skipping fetch.");
-  //     return;
-  //   }
-  //   console.log(`[SetlistManager/fetchMasterRepertoire] Fetching master repertoire for User ID: ${user.id}...`);
-  //   try {
-  //     console.log("[SetlistManager/fetchMasterRepertoire] Querying 'repertoire' table...");
-  //     const { data, error } = await supabase
-  //       .from('repertoire')
-  //       .select('*')
-  //       .eq('user_id', user.id)
-  //       .eq('is_in_library', true) 
-  //       .order('title');
-  //     if (error) {
-  //       console.error("[SetlistManager/fetchMasterRepertoire] Error fetching repertoire data:", error);
-  //       throw error;
-  //     }
-      
-  //     console.log(`[SetlistManager/fetchMasterRepertoire] Raw data received: ${data ? data.length : 0} songs.`, data);
-
-  //     const mappedRepertoire = data.map((d: any) => ({
-  //       id: d.id,
-  //       master_id: d.id,
-  //       name: d.title,
-  //       artist: d.artist,
-  //       originalKey: d.original_key ?? 'TBC',
-  //       targetKey: d.target_key ?? d.original_key ?? 'TBC',
-  //       pitch: d.pitch ?? 0,
-  //       previewUrl: d.preview_url,
-  //       youtubeUrl: d.youtube_url,
-  //       ugUrl: d.ug_url,
-  //       appleMusicUrl: d.apple_music_url,
-  //       pdfUrl: d.pdf_url,
-  //       leadsheetUrl: d.leadsheet_url,
-  //       bpm: d.bpm,
-  //       genre: d.genre,
-  //       isMetadataConfirmed: d.is_metadata_confirmed,
-  //       isKeyConfirmed: d.is_key_confirmed,
-  //       notes: d.notes,
-  //       lyrics: d.lyrics,
-  //       resources: d.resources || [],
-  //       user_tags: d.user_tags || [],
-  //       is_pitch_linked: d.is_pitch_linked ?? true,
-  //       duration_seconds: d.duration_seconds,
-  //       key_preference: d.key_preference,
-  //       is_active: d.is_active,
-  //       isApproved: d.is_approved,
-  //       preferred_reader: d.preferred_reader,
-  //       ug_chords_text: d.ug_chords_text,
-  //       ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
-  //       is_ug_chords_present: d.is_ug_chords_present,
-  //       highest_note_original: d.highest_note_original,
-  //       metadata_source: d.metadata_source,
-  //       sync_status: d.sync_status,
-  //       last_sync_log: d.last_sync_log,
-  //       auto_synced: d.auto_synced,
-  //       is_sheet_verified: d.is_sheet_verified,
-  //       sheet_music_url: d.sheet_music_url,
-  //       extraction_status: d.extraction_status,
-  //       extraction_error: d.extraction_error,
-  //       audio_url: d.audio_url,
-  //       lyrics_updated_at: d.lyrics_updated_at,
-  //       chords_updated_at: d.chords_updated_at,
-  //       ug_link_updated_at: d.ug_link_updated_at,
-  //       highest_note_updated_at: d.highest_note_updated_at,
-  //       original_key_updated_at: d.original_key_updated_at,
-  //       target_key_updated_at: d.target_key_updated_at,
-  //     }));
-  //     setMasterRepertoire(mappedRepertoire);
-  //     console.log("[SetlistManager/fetchMasterRepertoire] Successfully loaded master repertoire songs count:", mappedRepertoire.length, mappedRepertoire);
-  //   } catch (err: any) {
-  //     showError(`Failed to load repertoire: ${err.message}`);
-  //     console.error("Error fetching master repertoire:", err);
-  //   }
-  // }, [user]);
-
   useEffect(() => {
     if (isOpen) {
       fetchSetlist();
-      // fetchMasterRepertoire(); // REMOVED: No longer calling internally
     }
-  }, [isOpen, fetchSetlist]); // REMOVED: fetchMasterRepertoire from dependency array
+  }, [isOpen, fetchSetlist]);
 
   const handleAddSong = async (song: SetlistSong) => {
     if (!user || gigId === 'library') {
@@ -514,9 +434,9 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     });
     
     if (searchTerm) {
-      console.log(`[SetlistManager/filteredMasterRepertoire] Search: "${searchTerm}". Master count: ${masterRepertoireProp.length}. Filtered count: ${filtered.length}.`);
+      console.log(`[SetlistManagementModal/filteredMasterRepertoire] Search: "${searchTerm}". Master count: ${masterRepertoireProp.length}. Filtered count: ${filtered.length}.`);
     } else {
-      console.log(`[SetlistManager/filteredMasterRepertoire] No search term. Showing all available repertoire. Count: ${filtered.length}.`);
+      console.log(`[SetlistManagementModal/filteredMasterRepertoire] No search term. Showing all available repertoire. Count: ${filtered.length}.`);
     }
     
     return filtered;
@@ -794,4 +714,4 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   );
 };
 
-export default SetlistManager;
+export default SetlistManagementModal;
