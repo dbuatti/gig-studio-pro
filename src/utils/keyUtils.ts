@@ -6,6 +6,9 @@ export const NOTES_FLAT = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A',
 export const ALL_KEYS_SHARP = NOTES_SHARP;
 export const ALL_KEYS_FLAT = NOTES_FLAT;
 
+export const PURE_NOTES_SHARP = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+export const PURE_NOTES_FLAT = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+
 export const MAPPING_TO_SHARP: { [key: string]: string } = {
   'Db': 'C#',
   'Eb': 'D#',
