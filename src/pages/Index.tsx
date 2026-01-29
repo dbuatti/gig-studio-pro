@@ -23,7 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // Custom Components
 import SetlistSelector from '@/components/SetlistSelector';
-import SetlistManagementModal, { SetlistSong, Setlist } from '@/components/SetlistManagementModal'; // Renamed import
+import SetlistManagementModal, { SetlistSong, Setlist } from '@/components/SetlistManagementModal';
 import SetlistDisplay from '@/components/SetlistDisplay'; // New import
 import { FilterState, DEFAULT_FILTERS } from '@/components/SetlistFilters';
 import SetlistStats from '@/components/SetlistStats';
@@ -167,13 +167,41 @@ const Index = () => {
         id: d.id, master_id: d.id, name: d.title, artist: d.artist, originalKey: d.original_key || 'TBC',
         targetKey: d.target_key || d.original_key || 'TBC', pitch: d.pitch ?? 0,
         previewUrl: d.extraction_status === 'completed' && d.audio_url ? d.audio_url : d.preview_url,
-        youtubeUrl: d.youtube_url, ugUrl: d.ug_url, appleMusicUrl: d.apple_music_url, pdfUrl: d.pdf_url,
-        leadsheetUrl: d.leadsheet_url, bpm: d.bpm, genre: d.genre, isMetadataConfirmed: d.is_metadata_confirmed,
-        isKeyConfirmed: d.is_key_confirmed, notes: d.notes, lyrics: d.lyrics, resources: d.resources || [],
-        user_tags: d.user_tags || [], is_pitch_linked: d.is_pitch_linked ?? true, duration_seconds: d.duration_seconds,
-        key_preference: d.key_preference, is_active: d.is_active, fineTune: d.fineTune, tempo: d.tempo, volume: d.volume,
-        isApproved: d.is_approved, is_ready_to_sing: d.is_ready_to_sing, preferred_reader: d.preferred_reader, ug_chords_text: d.ug_chords_text,
-        ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG, extraction_status: d.extraction_status,
+        youtubeUrl: d.youtube_url,
+        ugUrl: d.ug_url,
+        appleMusicUrl: d.apple_music_url,
+        pdfUrl: d.pdf_url,
+        leadsheetUrl: d.leadsheet_url,
+        bpm: d.bpm,
+        genre: d.genre,
+        isMetadataConfirmed: d.is_metadata_confirmed,
+        isKeyConfirmed: d.is_key_confirmed,
+        notes: d.notes,
+        lyrics: d.lyrics,
+        resources: d.resources || [],
+        user_tags: d.user_tags || [],
+        is_pitch_linked: d.is_pitch_linked ?? true,
+        duration_seconds: d.duration_seconds,
+        key_preference: d.key_preference,
+        is_active: d.is_active,
+        fineTune: d.fineTune,
+        tempo: d.tempo,
+        volume: d.volume,
+        isApproved: d.is_approved,
+        is_ready_to_sing: d.is_ready_to_sing,
+        preferred_reader: d.preferred_reader,
+        ug_chords_text: d.ug_chords_text,
+        ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
+        is_ug_chords_present: d.is_ug_chords_present,
+        highest_note_original: d.highest_note_original,
+        metadata_source: d.metadata_source,
+        sync_status: d.sync_status,
+        last_sync_log: d.last_sync_log,
+        auto_synced: d.auto_synced,
+        is_sheet_verified: d.is_sheet_verified,
+        sheet_music_url: d.sheet_music_url,
+        extraction_status: d.extraction_status,
+        extraction_error: d.extraction_error,
         audio_url: d.audio_url,
         lyrics_updated_at: d.lyrics_updated_at,
         chords_updated_at: d.chords_updated_at,
@@ -181,7 +209,6 @@ const Index = () => {
         highest_note_updated_at: d.highest_note_updated_at,
         original_key_updated_at: d.original_key_updated_at,
         target_key_updated_at: d.target_key_updated_at,
-        pdf_updated_at: d.pdf_updated_at,
       }));
       setMasterRepertoire(mappedRepertoire);
       console.log(`[Index/fetchSetlistsAndRepertoire] Mapped master repertoire count: ${mappedRepertoire.length}`);
@@ -332,7 +359,7 @@ const Index = () => {
           .from('setlist_songs')
           .insert({ setlist_id: setlistId, song_id: song.master_id, sort_order: 0 });
         if (error) throw error;
-        showSuccess(`Added "${song.name}" to setlist!`);
+        showSuccess(`${song.name} added to setlist!`);
       } else {
         const { error } = await supabase
           .from('setlist_songs')
@@ -340,7 +367,7 @@ const Index = () => {
           .eq('setlist_id', setlistId)
           .eq('song_id', song.master_id);
         if (error) throw error;
-        showSuccess(`Removed "${song.name}" from setlist.`);
+        showSuccess(`${song.name} removed from setlist.`);
       }
       fetchSetlistsAndRepertoire();
     } catch (err: any) {
@@ -469,13 +496,13 @@ const Index = () => {
             <SetlistDisplay 
               songs={filteredAndSortedSongs} 
               onSelect={setActiveSongForPerformance} 
-              onEdit={handleEditSong} 
+              onEdit={(song) => handleEditSong(song, 'details')} 
               onUpdateKey={(id, k) => {
-                const songToUpdate = activeSetlist?.songs.find(s => s.id === id);
-                if (songToUpdate) {
-                  const newPitch = calculateSemitones(songToUpdate.originalKey || 'C', k);
+                const songInSetlist = activeSetlist?.songs.find(s => s.id === id);
+                if (songInSetlist?.master_id) {
+                  const newPitch = calculateSemitones(songInSetlist.originalKey || 'C', k);
                   audio.setPitch(newPitch);
-                  syncToMasterRepertoire(userId!, [{ id: songToUpdate.master_id, targetKey: k, pitch: newPitch, isKeyConfirmed: true }]);
+                  syncToMasterRepertoire(userId!, [{ id: songInSetlist.master_id, targetKey: k, pitch: newPitch, isKeyConfirmed: true }]);
                 }
               }} 
               onLinkAudio={() => {}} // Placeholder, implement if needed
@@ -495,10 +522,10 @@ const Index = () => {
               sortMode={sortMode} setSortMode={setSortMode} activeFilters={activeFilters} setActiveFilters={setActiveFilters} searchTerm={searchTerm} setSearchTerm={setSearchTerm} showHeatmap={showHeatmap} allSetlists={allSetlists}
               onRemove={async (setlistSongId) => { await supabase.from('setlist_songs').delete().eq('id', setlistSongId); fetchSetlistsAndRepertoire(); }}
               onUpdateSong={async (setlistSongId, updates) => { 
-                const songInSetlist = activeSetlist?.songs.find(s => s.id === setlistSongId);
+                const songInSetlist = activeSetlist?.songs.find(s => s.id === setlistSongId); 
                 if (songInSetlist?.master_id) {
                   await syncToMasterRepertoire(userId!, [{...updates, id: songInSetlist.master_id}]); 
-                  fetchSetlistsAndRepertoire();
+                  fetchSetlistsAndRepertoire(); 
                 }
               }}
               onTogglePlayed={async (setlistSongId) => { 
@@ -514,7 +541,6 @@ const Index = () => {
                 }
                 fetchSetlistsAndRepertoire(); 
               }}
-              onUpdateSetlistSongs={handleUpdateSetlistSongs}
               onOpenSortModal={() => setIsSetlistSortModalOpen(true)}
               masterRepertoire={masterRepertoire}
             />
@@ -597,12 +623,18 @@ const Index = () => {
         gigId={songStudioModalGigId} songId={songStudioModalSongId} 
         visibleSongs={activeDashboardView === 'gigs' ? filteredAndSortedSongs : masterRepertoire} 
         allSetlists={allSetlists} masterRepertoire={masterRepertoire} defaultTab={songStudioDefaultTab} 
+        handleAutoSave={(updates) => {
+          if (songStudioModalSongId) {
+            syncToMasterRepertoire(userId!, [{...updates, id: songStudioModalSongId}]);
+            fetchSetlistsAndRepertoire();
+          }
+        }}
+        preventStageKeyOverwrite={preventStageKeyOverwrite}
         audioEngine={audio}
-        onUpdateSetlistSongs={handleUpdateSetlistSongs}
       />
 
       {isPerformanceOverlayOpen && activeSetlist && activeSongForPerformance && (
-        <PerformanceOverlay songs={activeSetlist.songs} currentIndex={activeSetlist.songs.findIndex(s => s.id === activeSongForPerformance.id)} isPlaying={audio.isPlaying} progress={audio.progress} duration={audio.duration} onTogglePlayback={audio.togglePlayback} onNext={handleNextSong} onPrevious={handlePreviousSong} onShuffle={() => {}} onClose={() => setIsPerformanceOverlayOpen(false)} onUpdateSong={() => {}} onUpdateKey={() => {}} analyzer={audio.analyzer} gigId={activeSetlist.id} />
+        <PerformanceOverlay songs={activeSetlist.songs} currentIndex={activeSetlist.songs.findIndex(s => s.id === activeSongForPerformance.id)} isPlaying={audio.isPlaying} progress={audio.progress} duration={audio.duration} onTogglePlayback={audio.togglePlayback} onNext={handleNextSong} onPrevious={handlePreviousSong} onShuffle={handleToggleShuffleAll} onClose={() => setIsPerformanceOverlayOpen(false)} onUpdateSong={() => {}} onUpdateKey={() => {}} analyzer={audio.analyzer} gigId={activeSetlist.id} />
       )}
       
       <AdminPanel isOpen={isAdminPanelOpen} onClose={() => setIsAdminPanelOpen(false)} onRefreshRepertoire={() => fetchSetlistsAndRepertoire()} />

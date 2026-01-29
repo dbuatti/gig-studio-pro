@@ -92,6 +92,17 @@ export type SetlistSong = {
   original_key_updated_at?: string;
   target_key_updated_at?: string;
   isPlayed?: boolean; // For setlist_songs junction
+  tempo?: number; // Added for audio control sync
+  volume?: number; // Added for audio control sync
+  fineTune?: number; // Added for audio control sync
+  is_ready_to_sing?: boolean; // Added for performance status
+};
+
+export type Setlist = {
+  id: string;
+  name: string;
+  songs: SetlistSong[];
+  time_goal?: number;
 };
 
 type SetlistManagementModalProps = {
@@ -235,6 +246,10 @@ const SetlistManagementModal: React.FC<SetlistManagementModalProps> = ({
           original_key_updated_at: masterSong.original_key_updated_at,
           target_key_updated_at: masterSong.target_key_updated_at,
           isPlayed: junction.isPlayed || false,
+          tempo: masterSong.tempo, // Added tempo
+          volume: masterSong.volume, // Added volume
+          fineTune: masterSong.fineTune, // Added fineTune
+          is_ready_to_sing: masterSong.is_ready_to_sing, // Added is_ready_to_sing
         };
       }).filter(Boolean) as SetlistSong[];
 
@@ -425,7 +440,8 @@ const SetlistManagementModal: React.FC<SetlistManagementModalProps> = ({
     const filtered = masterRepertoireProp.filter(song => { // UPDATED: Use masterRepertoireProp
       const matchesSearch = !searchTerm || 
         song.name?.toLowerCase().includes(lowerCaseSearchTerm) ||
-        song.artist?.toLowerCase().includes(lowerCaseSearchTerm);
+        song.artist?.toLowerCase().includes(lowerCaseSearchTerm) ||
+        song.user_tags?.some(tag => tag.toLowerCase().includes(lowerCaseSearchTerm));
 
       // Check if the song is already in the current setlist (using master_id for comparison)
       const isInSetlist = setlistSongs.some(setlistSong => setlistSong.master_id === song.id);
@@ -485,7 +501,7 @@ const SetlistManagementModal: React.FC<SetlistManagementModalProps> = ({
                 <span>Total Duration: {formatDuration(totalDurationSeconds)}</span>
                 {gigId !== 'library' && (
                   <div className="flex items-center gap-2">
-                    <Label htmlFor="time-goal" className="whitespace-nowrap">Goal: {Math.floor(timeGoal / 60)} min</Label>
+                    <Label htmlFor="time-goal" className="whitespace-nowrap text-xs">Goal: {Math.floor(timeGoal / 60)} min</Label>
                     <Slider
                       id="time-goal"
                       min={15}
@@ -515,61 +531,67 @@ const SetlistManagementModal: React.FC<SetlistManagementModalProps> = ({
                   {setlistSongs.map((song, index) => (
                     <li
                       key={song.id}
-                      draggable
+                      draggable={gigId !== 'library'}
                       onDragStart={(e) => handleDragStart(e, index)}
                       onDragOver={handleDragOver}
                       onDrop={(e) => handleDrop(e, index)}
-                      className="flex items-center justify-between p-3 bg-slate-800 rounded-md shadow-sm border border-slate-700 hover:bg-slate-700 transition-colors cursor-grab"
+                      className={cn(
+                        "relative p-3 rounded-lg shadow-sm border",
+                        song.id === currentSongId ? "border-indigo-500 bg-indigo-900/20" : "border-slate-700 bg-slate-800 hover:bg-slate-700",
+                        gigId !== 'library' && 'cursor-grab'
+                      )}
                     >
-                      <div className="flex-1 min-w-0">
-                        <p className="text-white font-medium truncate">{song.name}</p>
-                        <p className="text-slate-400 text-sm truncate">{song.artist}</p>
-                        <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
-                          {song.originalKey && <Badge variant="secondary" className="bg-slate-700 text-slate-300">{song.originalKey}</Badge>}
-                          {song.targetKey && song.targetKey !== song.originalKey && <Badge variant="secondary" className="bg-indigo-700 text-white">Stage: {song.targetKey}</Badge>}
-                          {song.bpm && <Badge variant="secondary" className="bg-slate-700 text-slate-300">{song.bpm} BPM</Badge>}
-                          {song.duration_seconds && <Badge variant="secondary" className="bg-slate-700 text-slate-300">{formatDuration(song.duration_seconds)}</Badge>}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          {gigId !== 'library' && (
+                            <GripVertical className="w-4 h-4 text-slate-500 shrink-0 cursor-grab" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white font-medium truncate">{song.name}</p>
+                            <p className="text-slate-400 text-sm truncate">{song.artist}</p>
+                            <div className="flex flex-wrap gap-1 text-xs text-slate-500 mt-1">
+                              {song.originalKey && <Badge variant="secondary" className="bg-slate-700 text-slate-300">{song.originalKey}</Badge>}
+                              {song.targetKey && song.targetKey !== song.originalKey && <Badge variant="secondary" className="bg-indigo-700 text-white">Stage: {song.targetKey}</Badge>}
+                              {song.bpm && <Badge variant="secondary" className="bg-slate-700 text-slate-300">{song.bpm} BPM</Badge>}
+                              {song.duration_seconds && <Badge variant="secondary" className="bg-slate-700 text-slate-300">{formatDuration(song.duration_seconds)}</Badge>}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2 ml-4">
-                        {gigId !== 'library' && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Checkbox
-                                  checked={song.isPlayed}
-                                  onCheckedChange={async (checked) => {
-                                    const newSetlistSongs = setlistSongs.map(s =>
-                                      s.id === song.id ? { ...s, isPlayed: checked as boolean } : s
-                                    );
-                                    setSetlistSongs(newSetlistSongs);
-                                    try {
-                                      await supabase.from('setlist_songs').update({ isPlayed: checked }).eq('id', song.id);
-                                    } catch (err) {
-                                      showError("Failed to update song played status.");
-                                      console.error("Error updating isPlayed status:", err);
-                                    }
-                                  }}
-                                  className="data-[state=checked]:bg-indigo-500 data-[state=checked]:text-white border-slate-600"
-                                />
-                              </TooltipTrigger>
-                              <TooltipContent className="bg-slate-700 text-white border-slate-600">
-                                Mark as Played
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            setSongToDelete(song);
-                            setIsConfirmDeleteOpen(true);
-                          }}
-                          className="text-slate-400 hover:text-red-500 hover:bg-slate-700"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        <div className="flex items-center gap-2 ml-4">
+                          {gigId !== 'library' && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" onClick={() => onTogglePlayed(song.id)} className="h-8 w-8 rounded-lg text-slate-400 hover:bg-slate-700">
+                                    <CheckCircle className={cn("w-4 h-4", song.isPlayed ? "text-emerald-500" : "text-slate-600")} />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent className="bg-slate-700 text-white border-slate-600 text-[10px] uppercase">
+                                  {song.isPlayed ? 'Mark Unplayed' : 'Mark Played'}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => onEdit(song)}
+                            className="h-8 w-8 rounded-lg text-slate-400 hover:bg-slate-700"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setSongToDelete(song);
+                              setIsConfirmDeleteOpen(true);
+                            }}
+                            className="h-8 w-8 rounded-lg text-red-500 hover:bg-red-900/30"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     </li>
                   ))}
@@ -578,16 +600,26 @@ const SetlistManagementModal: React.FC<SetlistManagementModalProps> = ({
             </ScrollArea>
           </div>
 
-          {/* Right Panel: Repertoire Search */}
+          {/* Right Panel: Master Repertoire Search */}
           <div className="w-1/2 flex flex-col">
             <div className="p-4 border-b border-slate-800">
-              <Input
-                placeholder="Search repertoire..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
-                icon={<Search className="w-4 h-4 text-slate-500" />}
-              />
+              <div className="relative mb-2">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search master repertoire..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 h-10 bg-secondary border-border text-xs font-black uppercase tracking-widest rounded-xl"
+                />
+              </div>
+              <div className="flex items-center justify-between mt-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  Master Library ({masterRepertoire.length})
+                </p>
+                <Button variant="outline" size="sm" onClick={() => setIsRepertoirePickerOpen(true)} className="h-8 px-3 rounded-lg text-indigo-600 gap-1.5">
+                  <Plus className="w-3 h-3" /> Add From Master
+                </Button>
+              </div>
             </div>
             <ScrollArea className="flex-1 p-4">
               {filteredMasterRepertoire.length === 0 && searchTerm ? (
@@ -599,7 +631,7 @@ const SetlistManagementModal: React.FC<SetlistManagementModalProps> = ({
                   {filteredMasterRepertoire.map((song) => (
                     <li
                       key={song.id}
-                      className="flex items-center justify-between p-3 bg-slate-800 rounded-md shadow-sm border border-slate-700"
+                      className="flex items-center justify-between p-3 bg-secondary rounded-md shadow-sm border border-border hover:border-indigo-500/50 transition-all"
                     >
                       <div className="flex-1 min-w-0">
                         <p className="text-white font-medium truncate">{song.name}</p>
@@ -607,65 +639,9 @@ const SetlistManagementModal: React.FC<SetlistManagementModalProps> = ({
                         <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
                           {song.originalKey && <Badge variant="secondary" className="bg-slate-700 text-slate-300">{song.originalKey}</Badge>}
                           {song.bpm && <Badge variant="secondary" className="bg-slate-700 text-slate-300">{song.bpm} BPM</Badge>}
-                          {song.duration_seconds && <Badge variant="secondary" className="bg-slate-700 text-slate-300">{formatDuration(song.duration_seconds)}</Badge>}
-                        </div>
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {song.pdfUrl && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Badge variant="outline" className="bg-blue-900/30 text-blue-300 border-blue-800">
-                                    <FileText className="w-3 h-3 mr-1" /> PDF
-                                  </Badge>
-                                </TooltipTrigger>
-                                <TooltipContent className="bg-slate-700 text-white border-slate-600">
-                                  PDF available
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
-                          {song.sheet_music_url && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Badge variant="outline" className="bg-indigo-900/30 text-indigo-300 border-indigo-800">
-                                    <BookOpen className="w-3 h-3 mr-1" /> Sheet Music
-                                  </Badge>
-                                </TooltipTrigger>
-                                <TooltipContent className="bg-slate-700 text-white border-slate-600">
-                                  Sheet Music Link available
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
-                          {song.ug_chords_text && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Badge variant="outline" className="bg-green-900/30 text-green-300 border-green-800">
-                                    <Guitar className="w-3 h-3 mr-1" /> UG Chords
-                                  </Badge>
-                                </TooltipTrigger>
-                                <TooltipContent className="bg-slate-700 text-white border-slate-600">
-                                  Ultimate Guitar Chords available
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
-                          {song.leadsheetUrl && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Badge variant="outline" className="bg-purple-900/30 text-purple-300 border-purple-800">
-                                    <Sheet className="w-3 h-3 mr-1" /> Leadsheet
-                                  </Badge>
-                                </TooltipTrigger>
-                                <TooltipContent className="bg-slate-700 text-white border-slate-600">
-                                  Leadsheet available
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
+                          <Badge variant="secondary" className={cn("text-xs", calculateReadiness(song) >= 90 ? "bg-emerald-700 text-white" : "bg-indigo-700 text-white")}>
+                            {calculateReadiness(song)}%
+                          </Badge>
                         </div>
                       </div>
                       <Button
@@ -673,9 +649,9 @@ const SetlistManagementModal: React.FC<SetlistManagementModalProps> = ({
                         size="icon"
                         onClick={() => handleAddSong(song)}
                         disabled={isSaving}
-                        className="text-slate-400 hover:text-green-500 hover:bg-slate-700 ml-4"
+                        className="text-indigo-400 hover:text-indigo-300 hover:bg-indigo-900/30 ml-4"
                       >
-                        {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlusCircle className="w-4 h-4" />}
+                        <PlusCircle className="w-4 h-4" />
                       </Button>
                     </li>
                   ))}
@@ -685,33 +661,27 @@ const SetlistManagementModal: React.FC<SetlistManagementModalProps> = ({
           </div>
         </div>
 
-        <DialogFooter className="p-6 pt-4 border-t border-slate-800">
-          <Button variant="secondary" onClick={onClose} className="bg-slate-700 hover:bg-slate-600 text-white">
-            Close
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-
-      <AlertDialog open={isConfirmDeleteOpen} onOpenChange={setIsConfirmDeleteOpen}>
-        <AlertDialogContent className="bg-slate-900 text-white border-slate-700">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-red-500">Confirm Deletion</AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-300">
-              Are you sure you want to remove "{songToDelete?.name}" from this {gigId === 'library' ? 'library' : 'setlist'}?
-              This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="bg-slate-700 text-white hover:bg-slate-600 border-slate-600">Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRemoveSong} className="bg-red-600 hover:bg-red-700 text-white">
-              {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-              Remove
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </Dialog>
+        <AlertDialog open={isConfirmDeleteOpen} onOpenChange={setIsConfirmDeleteOpen}>
+          <AlertDialogContent className="bg-popover border-border text-foreground rounded-[2rem]">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-red-500">Confirm Deletion</AlertDialogTitle>
+              <AlertDialogDescription className="text-muted-foreground">
+                Are you sure you want to remove "{songToDelete?.name}" from this setlist?
+                This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="rounded-xl border-border bg-secondary hover:bg-accent font-bold uppercase text-[10px] tracking-widest">Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleRemoveSong} className="rounded-xl bg-destructive hover:bg-destructive/90 text-white font-black uppercase text-[10px] tracking-widest">
+                {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                Remove
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </div>
   );
 };
 
-export default SetlistManagementModal;
+export default SetlistDisplay;
