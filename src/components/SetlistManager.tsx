@@ -289,7 +289,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
         highest_note_updated_at: d.highest_note_updated_at,
         original_key_updated_at: d.original_key_updated_at,
         target_key_updated_at: d.target_key_updated_at,
-      })));
+      })); // Corrected: removed extra parenthesis
       setMasterRepertoire(mappedRepertoire);
       console.log("[SetlistManager/fetchMasterRepertoire] Successfully loaded master repertoire songs count:", mappedRepertoire.length);
     } catch (err: any) {
