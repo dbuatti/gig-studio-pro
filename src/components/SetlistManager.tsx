@@ -27,8 +27,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/lib/database.types';
 import { formatDuration } from '@/lib/utils';
 import { useRepertoire } from '@/hooks/useRepertoire';
-import { useSetlist } from '@/hooks/useSetlist';
-import { SetlistSong } from '@/hooks/useSetlist'; // Corrected import path for SetlistSong
+import { useSetlist, SetlistSong } from '@/hooks/useSetlist'; // Corrected import path for SetlistSong
+// Removed problematic import from '@/components/SetlistManager'; 
 
 // Define types based on existing context (assuming these types exist or are inferred)
 type Song = Database['public']['Tables']['repertoire']['Row'] & {
