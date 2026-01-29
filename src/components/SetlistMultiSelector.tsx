@@ -13,91 +13,177 @@ import {
 import { ListMusic, Check, Plus, Loader2, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
-import { SetlistSong } from './SetlistManagementModal';
+import { SetlistSong } from './SetlistManager';
 import { cn } from '@/lib/utils';
 
 interface SetlistMultiSelectorProps {
-  songMasterId: string;
+  songMasterId: string; 
   allSetlists: { id: string; name: string; songs: SetlistSong[] }[];
-  songToAssign: SetlistSong;
-  onUpdateSetlistSongs: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>;
+  songToAssign: SetlistSong | null; 
+  onUpdateSetlistSongs?: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>;
 }
 
+// Helper to validate UUID
+const isValidUuid = (uuid: string | undefined | null): boolean => {
+  if (!uuid) return false;
+  return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/i.test(uuid);
+};
+
 const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
-  songMasterId,
+  songMasterId, 
   allSetlists,
   songToAssign,
   onUpdateSetlistSongs,
 }) => {
-  const [open, setOpen] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
+  const [assignedSetlistIds, setAssignedSetlistIds] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(false);
 
-  const isSongInSetlist = (setlistId: string) => {
-    const setlist = allSetlists.find(l => l.id === setlistId);
-    if (!setlist) return false;
-    // Check if the song exists in the setlist using its master_id or its temporary ID if it's a new song in the setlist
-    return setlist.songs.some(s => s.master_id === songMasterId || s.id === songToAssign.id);
+  if (!songToAssign) {
+    return (
+      <Button
+        disabled={true}
+        className={cn(
+          "h-11 rounded-xl font-black uppercase text-[9px] tracking-widest gap-2 px-6 transition-all shadow-lg",
+          "opacity-50 cursor-not-allowed bg-white/5 text-slate-400 border border-white/10"
+        )}
+      >
+        <AlertTriangle className="w-4 h-4" />
+        NO SONG SELECTED
+      </Button>
+    );
+  }
+
+  const repertoireDbId = songToAssign.master_id || songToAssign.id; 
+  const isRepertoireSongValid = isValidUuid(repertoireDbId);
+
+  const fetchAssignments = useCallback(async () => {
+    if (!isRepertoireSongValid) {
+      setAssignedSetlistIds(new Set()); 
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('setlist_songs')
+        .select('setlist_id')
+        .eq('song_id', repertoireDbId);
+
+      if (error) throw error;
+
+      const currentAssignments = new Set(data.map(item => item.setlist_id));
+      setAssignedSetlistIds(currentAssignments);
+    } catch (err) {
+      console.error("Failed to fetch setlist assignments:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [repertoireDbId, isRepertoireSongValid]);
+
+  useEffect(() => {
+    if (repertoireDbId) { 
+      fetchAssignments();
+    }
+  }, [repertoireDbId, fetchAssignments]);
+
+  const handleAssignmentChange = async (setlistId: string, isChecked: boolean) => {
+    if (!isRepertoireSongValid) {
+      showError("Cannot assign: Song ID is invalid.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      if (isChecked) {
+        const { error } = await supabase
+          .from('setlist_songs')
+          .insert({ setlist_id: setlistId, song_id: repertoireDbId, sort_order: 0, is_confirmed: false }); 
+        if (error) throw error;
+        setAssignedSetlistIds(prev => new Set(prev).add(setlistId));
+        showSuccess(`Added to "${allSetlists.find(s => s.id === setlistId)?.name}"`);
+        
+        // Defensive check before calling update callback
+        if (typeof onUpdateSetlistSongs === 'function') {
+          await onUpdateSetlistSongs(setlistId, songToAssign, 'add');
+        }
+      } else {
+        const { error } = await supabase
+          .from('setlist_songs')
+          .delete()
+          .eq('setlist_id', setlistId)
+          .eq('song_id', repertoireDbId); 
+        if (error) throw error;
+        setAssignedSetlistIds(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(setlistId);
+          return newSet;
+        });
+        showSuccess(`Removed from "${allSetlists.find(s => s.id === setlistId)?.name}"`);
+        
+        // Defensive check before calling update callback
+        if (typeof onUpdateSetlistSongs === 'function') {
+          await onUpdateSetlistSongs(setlistId, songToAssign, 'remove');
+        }
+      }
+    } catch (err: any) {
+      console.error("Failed to update setlist assignment:", err);
+      showError(`Failed to update assignment: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleCheckboxChange = useCallback(async (setlistId: string, checked: boolean) => {
-    if (isUpdating) return;
-    setIsUpdating(true);
-    try {
-      const setlist = allSetlists.find(l => l.id === setlistId);
-      if (!setlist) throw new Error("Setlist not found.");
-
-      if (checked) {
-        // Add song to setlist
-        await onUpdateSetlistSongs(setlistId, songToAssign, 'add');
-      } else {
-        // Remove song from setlist
-        await onUpdateSetlistSongs(setlistId, songToAssign, 'remove');
-      }
-      setOpen(true); // Keep dropdown open after successful update
-    } catch (err: any) {
-      showError(`Failed to update setlist: ${err.message}`);
-      setOpen(true); // Keep dropdown open on error
-    } finally {
-      setIsUpdating(false);
-    }
-  }, [isUpdating, allSetlists, songToAssign, onUpdateSetlistSongs]);
-
-  const activeSetlistsCount = allSetlists.filter(l => isSongInSetlist(l.id)).length;
+  const assignedCount = assignedSetlistIds.size;
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
+    <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="h-9 w-9 rounded-xl text-muted-foreground hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
-          disabled={isUpdating}
+        <Button
+          disabled={loading || !isRepertoireSongValid}
+          className={cn(
+            "h-11 rounded-xl font-black uppercase text-[9px] tracking-widest gap-2 px-6 transition-all shadow-lg",
+            assignedCount > 0
+              ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/20"
+              : "bg-white/5 hover:bg-white/10 text-slate-400 border border-white/10",
+            !isRepertoireSongValid && "opacity-50 cursor-not-allowed" 
+          )}
         >
-          {activeSetlistsCount > 0 ? <Check className="w-4 h-4 text-indigo-600" /> : <Plus className="w-4 h-4" />}
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+            isRepertoireSongValid ? (
+              assignedCount > 0 ? <Check className="w-4 h-4" /> : <ListMusic className="w-4 h-4" />
+            ) : (
+              <AlertTriangle className="w-4 h-4" />
+            )
+          )}
+          {isRepertoireSongValid ? (
+            assignedCount > 0 ? `ASSIGNED TO ${assignedCount} GIGS` : "ADD TO SETLISTS"
+          ) : (
+            "INVALID SONG ID"
+          )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56 bg-popover border-border text-foreground rounded-xl p-2">
-        <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-muted-foreground px-3 py-2">
-          Assign to Setlist ({activeSetlistsCount}/{allSetlists.length})
+      <DropdownMenuContent align="end" className="w-56 bg-slate-950 border-white/10 text-white rounded-xl p-2">
+        <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-slate-500 px-3 py-2">
+          Assign to Gigs
         </DropdownMenuLabel>
-        <DropdownMenuSeparator className="bg-border" />
-        {isUpdating && (
-          <div className="flex items-center gap-2 p-3 text-indigo-400">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            <span className="text-xs font-bold">Updating...</span>
-          </div>
+        <DropdownMenuSeparator className="bg-white/5" />
+        {!isRepertoireSongValid ? (
+          <p className="text-xs text-red-500 px-3 py-2">Cannot assign: Song ID is invalid.</p>
+        ) : allSetlists.length === 0 ? (
+          <p className="text-xs text-slate-500 px-3 py-2">No setlists available.</p>
+        ) : (
+          allSetlists.map((setlist) => (
+            <DropdownMenuCheckboxItem
+              key={setlist.id}
+              checked={assignedSetlistIds.has(setlist.id)}
+              onCheckedChange={(checked) => handleAssignmentChange(setlist.id, checked)}
+              className="text-xs font-bold uppercase h-10 rounded-xl hover:bg-white/10"
+              disabled={loading}
+            >
+              {setlist.name}
+            </DropdownMenuCheckboxItem>
+          ))
         )}
-        {allSetlists.map((setlist) => (
-          <DropdownMenuCheckboxItem
-            key={setlist.id}
-            checked={isSongInSetlist(setlist.id)}
-            onCheckedChange={(checked) => handleCheckboxChange(setlist.id, checked)}
-            disabled={isUpdating}
-            className="text-xs font-bold uppercase h-10 rounded-lg px-3"
-          >
-            {setlist.name}
-          </DropdownMenuCheckboxItem>
-        ))}
       </DropdownMenuContent>
     </DropdownMenu>
   );

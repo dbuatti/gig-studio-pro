@@ -1,180 +1,162 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
-import { Input } from "@/components/ui/input";
+import React from 'react';
 import { Button } from "@/components/ui/button";
-import { Search, Library, Music, Loader2, Plus, ShieldCheck, User, Star, FileText, CloudDownload, AlertTriangle } from 'lucide-react';
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { SetlistSong } from './SetlistManager';
-import { supabase } from '@/integrations/supabase/client';
+import { 
+  Music, 
+  FileText, 
+  Download, 
+  Apple, 
+  Link2, 
+  ExternalLink, 
+  Printer, 
+  ClipboardPaste, 
+  Eye 
+} from 'lucide-react';
 import { cn } from "@/lib/utils";
-import { formatKey } from '@/utils/keyUtils';
-import { useSettings } from '@/hooks/use-settings';
+import { SetlistSong } from './SetlistManager';
+import { showSuccess } from '@/utils/toast';
 
 interface LibraryEngineProps {
-  onImport: (song: Partial<SetlistSong>) => void;
+  formData: Partial<SetlistSong>;
+  handleDownloadAll: () => Promise<void>;
+  isMobile: boolean;
+  setPreviewPdfUrl?: (url: string | null) => void;
+  handleUgPrint?: () => void; // Keep this prop for now, but its internal logic will change
 }
 
-const LibraryEngine: React.FC<LibraryEngineProps> = ({ onImport }) => {
-  const { keyPreference } = useSettings();
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-
-  const searchGlobal = async (searchTerm: string) => {
-    if (!searchTerm.trim()) {
-      setResults([]);
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('repertoire')
-        .select(`
-          *,
-          profiles!inner(first_name, last_name, is_repertoire_public)
-        `)
-        .or(`title.ilike.%${searchTerm}%,artist.ilike.%${searchTerm}%`)
-        .eq('profiles.is_repertoire_public', true)
-        .order('readiness_score', { ascending: false })
-        .limit(30);
-
-      if (error) throw error;
-      setResults(data || []);
-    } catch (err) {
-      // Error handled by toast in parent component
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (query) searchGlobal(query);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [query]);
-
+const LibraryEngine: React.FC<LibraryEngineProps> = ({ 
+  formData, 
+  handleDownloadAll, 
+  isMobile,
+  setPreviewPdfUrl,
+  handleUgPrint 
+}) => {
   return (
-    <div className="space-y-4">
-      <div className="space-y-3 px-1">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Globe className="w-4 h-4 text-emerald-500" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Community Library</span>
-          </div>
-          {isLoading && <Loader2 className="w-3 h-3 animate-spin text-emerald-500" />}
+    <div className="space-y-8 md:space-y-12 animate-in fade-in duration-500 h-full flex flex-col">
+      {/* HEADER SECTION */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h3 className="text-xl md:text-2xl font-black uppercase tracking-[0.2em] text-white">RESOURCE MATRIX</h3>
+          <p className="text-xs md:text-sm text-slate-500 mt-1 font-medium">Centralized management for all song assets and links.</p>
         </div>
-        
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-          <Input 
-            placeholder="Search verified community tracks..." 
-            className="pl-9 h-10 border-border bg-background text-xs focus-visible:ring-emerald-500 text-foreground"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </div>
+        <Button 
+          onClick={handleDownloadAll} 
+          className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] md:text-xs h-12 md:h-14 gap-2 px-8 md:px-10 rounded-xl md:rounded-2xl shadow-xl shadow-indigo-600/20"
+        >
+          <Download className="w-4 h-4" /> DOWNLOAD ALL ASSETS
+        </Button>
       </div>
 
-      <ScrollArea className="h-[500px]">
-        <div className="space-y-2 pr-4">
-          {results.length > 0 ? (
-            results.map((song) => {
-              const displayKey = formatKey(song.target_key || song.original_key, keyPreference);
-              const readiness = song.readiness_score || 0;
-              const isProcessing = song.extraction_status === 'processing' || song.extraction_status === 'queued';
-              const isExtractionFailed = song.extraction_status === 'failed';
-              
-              return (
-                <div 
-                  key={song.id}
-                  className="group p-4 bg-card border border-border rounded-2xl hover:border-emerald-200 transition-all shadow-sm"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-sm font-black uppercase tracking-tight truncate text-foreground">{song.title}</h4>
-                        {readiness >= 90 && <ShieldCheck className="w-3 h-3 text-emerald-500" />}
-                        {isProcessing && <CloudDownload className="w-3.5 h-3.5 text-primary animate-bounce" />}
-                        {isExtractionFailed && <AlertTriangle className="w-3.5 h-3.5 text-destructive" />}
-                      </div>
-                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-0.5">{song.artist}</p>
-                      
-                      <div className="flex items-center gap-3 mt-3">
-                        <div className="flex items-center gap-1.5 px-2 py-0.5 bg-secondary rounded-md border border-border">
-                          <User className="w-2.5 h-2.5 text-muted-foreground" />
-                          <span className="text-[9px] font-bold text-muted-foreground uppercase">{song.profiles?.first_name || 'Artist'}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <Star className="w-2.5 h-2.5 text-amber-500 fill-amber-500" />
-                          <span className="text-[9px] font-black text-muted-foreground">{readiness}% READY</span>
-                        </div>
-                        {song.pdf_url && <FileText className="w-2.5 h-2.5 text-primary" />}
-                      </div>
-                      {isExtractionFailed && song.last_sync_log && (
-                        <p className="text-[8px] text-destructive mt-1 truncate max-w-[150px]">Error: {song.last_sync_log}</p>
-                      )}
-                    </div>
-
-                    <div className="flex flex-col items-end gap-2 shrink-0">
-                      <span className="text-[10px] font-mono font-black bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded">
-                        {displayKey}
-                      </span>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => onImport({
-                          name: song.title,
-                          artist: song.artist,
-                          originalKey: song.original_key,
-                          targetKey: song.target_key,
-                          bpm: song.bpm,
-                          lyrics: song.lyrics,
-                          // Prioritize audio_url if extraction is completed, otherwise fallback to preview_url
-                          previewUrl: song.extraction_status === 'completed' && song.audio_url ? song.audio_url : song.preview_url,
-                          youtubeUrl: song.youtube_url,
-                          ugUrl: song.ug_url,
-                          pdfUrl: song.pdf_url,
-                          user_tags: song.user_tags,
-                          duration_seconds: song.duration_seconds,
-                          isMetadataConfirmed: true,
-                          extraction_status: song.extraction_status,
-                          last_sync_log: song.last_sync_log,
-                          audio_url: song.audio_url, // Map audio_url
-                        })}
-                        className="h-8 px-3 text-[9px] font-black uppercase bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white rounded-xl gap-1.5 transition-all"
-                      >
-                        <Plus className="w-3 h-3" /> Clone Track
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          ) : (
-            query ? (
-              !isLoading && (
-                <div className="py-20 text-center opacity-30">
-                  <Globe className="w-10 h-10 mb-4 mx-auto" />
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">No community matches found</p>
-                </div>
-              )
-            ) : (
-              <div className="py-20 text-center space-y-4 px-6">
-                <div className="bg-emerald-500/10 w-12 h-12 rounded-2xl flex items-center justify-center mx-auto text-emerald-500">
-                  <Globe className="w-6 h-6" />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[11px] font-black uppercase tracking-[0.1em] text-foreground">Verified Community Sourcing</p>
-                  <p className="text-[10px] text-muted-foreground font-medium leading-relaxed">Search thousands of tracks with master audio and charts already linked by other pros.</p>
-                </div>
-              </div>
-            )
-          )}
+      {/* GRID MATRIX */}
+      <div className={cn("grid gap-4 md:gap-8", isMobile ? "grid-cols-1" : "grid-cols-2")}>
+        
+        {/* 1. MASTER AUDIO MODULE */}
+        <div className={cn(
+          "p-8 md:p-10 border transition-all flex flex-col justify-between h-[280px] md:h-[350px] relative group",
+          formData.previewUrl ? "bg-slate-900 border-white/10 shadow-2xl" : "bg-white/5 border-white/5 opacity-40 border-dashed",
+          isMobile ? "rounded-[2rem]" : "rounded-[2.5rem]"
+        )}>
+          <div className="flex items-center justify-between">
+            <div className="bg-indigo-600 p-4 rounded-2xl text-white shadow-xl shadow-indigo-600/20">
+              <Music className="w-6 h-6 md:w-8 md:h-8" />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400">MASTER PERFORMANCE AUDIO</span>
+            <p className="text-xl md:text-3xl font-black tracking-tight truncate text-white">{formData.previewUrl ? `${formData.name}_Stream_Master` : "Not Linked"}</p>
+          </div>
         </div>
-      </ScrollArea>
+
+        {/* 2. APPLE MUSIC MODULE */}
+        <div className={cn(
+          "p-8 md:p-10 border transition-all flex flex-col justify-between h-[280px] md:h-[350px] relative group",
+          formData.appleMusicUrl ? "bg-slate-900 border-white/10 shadow-2xl" : "bg-white/5 border-white/5 opacity-40 border-dashed",
+          isMobile ? "rounded-[2rem]" : "rounded-[2.5rem]"
+        )}>
+          <div className="flex items-center justify-between">
+            <div className="bg-red-600 p-4 rounded-2xl text-white shadow-xl shadow-red-600/20">
+              <Apple className="w-6 h-6 md:w-8 md:h-8" />
+            </div>
+            {formData.appleMusicUrl && (
+              <Button 
+                variant="ghost" size="icon" 
+                onClick={() => window.open(formData.appleMusicUrl, '_blank')}
+                className="h-10 w-10 bg-white/5 rounded-xl hover:bg-red-600 transition-all text-white"
+              >
+                <ExternalLink className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+          <div className="space-y-2">
+            <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] text-red-400">APPLE MUSIC LINK</span>
+            <p className="text-xl md:text-3xl font-black tracking-tight truncate text-white">{formData.appleMusicUrl ? "Integrated App Link" : "Offline"}</p>
+            <p className="text-[10px] font-bold text-slate-500 uppercase">Launch directly in Apple Music</p>
+          </div>
+        </div>
+
+        {/* 3. ULTIMATE GUITAR MODULE */}
+        <div className={cn(
+          "p-8 md:p-10 border transition-all flex flex-col justify-between h-[280px] md:h-[350px] relative group",
+          formData.ugUrl ? "bg-slate-900 border-white/10 shadow-2xl" : "bg-white/5 border-white/5 opacity-40 border-dashed",
+          isMobile ? "rounded-[2rem]" : "rounded-[2.5rem]"
+        )}>
+          <div className="flex items-center justify-between">
+            <div className="bg-orange-600 p-4 rounded-2xl text-white shadow-xl shadow-orange-600/20">
+              <Link2 className="w-6 h-6 md:w-8 md:h-8" />
+            </div>
+            {formData.ugUrl && (
+              <div className="flex gap-2">
+                <Button variant="ghost" size="icon" onClick={handleUgPrint} className="h-10 w-10 bg-white/5 rounded-xl hover:bg-orange-600 transition-all text-white">
+                  <ExternalLink className="w-4 h-4" />
+                </Button>
+                <Button 
+                  variant="ghost" size="icon" 
+                  onClick={() => {
+                    navigator.clipboard.writeText(formData.ugUrl || "");
+                    showSuccess("UG Link Copied");
+                  }} 
+                  className="h-10 w-10 bg-white/5 rounded-xl hover:bg-orange-600 transition-all text-white"
+                >
+                  <ClipboardPaste className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+          <div className="space-y-2">
+            <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] text-orange-400">ULTIMATE GUITAR PRO</span>
+            <p className="text-xl md:text-3xl font-black tracking-tight truncate text-white">{formData.ugUrl ? "Verified Official Link" : "Not Linked"}</p>
+            <p className="text-[10px] font-bold text-slate-500 uppercase">Mobile App Integration Ready</p>
+          </div>
+        </div>
+
+        {/* 4. STAGE CHART MODULE */}
+        <div className={cn(
+          "p-8 md:p-10 border transition-all flex flex-col justify-between h-[280px] md:h-[350px] relative group",
+          formData.pdfUrl ? "bg-slate-900 border-white/10 shadow-2xl" : "bg-white/5 border-white/5 opacity-40 border-dashed",
+          isMobile ? "rounded-[2rem]" : "rounded-[2.5rem]"
+        )}>
+          <div className="flex items-center justify-between">
+            <div className="bg-emerald-600 p-4 rounded-2xl text-white shadow-xl shadow-emerald-600/20">
+              <FileText className="w-6 h-6 md:w-8 md:h-8" />
+            </div>
+            {formData.pdfUrl && setPreviewPdfUrl && (
+              <Button 
+                variant="ghost" size="icon" 
+                onClick={() => setPreviewPdfUrl(formData.pdfUrl || null)}
+                className="h-10 w-10 bg-white/5 rounded-xl hover:bg-emerald-600 transition-all text-white"
+              >
+                <Eye className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+          <div className="space-y-2">
+            <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] text-emerald-400">STAGE CHART / PDF</span>
+            <p className="text-xl md:text-3xl font-black tracking-tight truncate text-white">{formData.pdfUrl ? "Performance_Chart" : "No Asset Linked"}</p>
+            <p className="text-[10px] font-bold text-slate-500 uppercase">Ready for Stage View</p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
