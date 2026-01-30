@@ -1,106 +1,84 @@
 "use client";
 
-import { KeyPreference } from '@/hooks/use-settings';
-import { transposeKey, formatKey, MAPPING_TO_SHARP, MAPPING_TO_FLAT } from './keyUtils';
+import { KeyPreference, formatKey, transposeKey } from './keyUtils';
 
-// Robust musical chord regex that handles sharps/flats and common extensions.
-// It ensures the chord is a standalone entity by using negative lookbehind and lookahead for word characters.
-// The chordType group is now more specific to actual chord suffixes, prioritizing longer matches.
-const CHORD_REGEX = /(?<!\w)([A-G][#b]?)(maj7|m7|dim7|sus4|sus2|add9|maj|m|dim|aug|sus|add|\d+)?(\/[A-G][#b]?)?(?!\w)/g;
+// A robust regex for chords including suffixes like m6, maj7, etc.
+const CHORD_REGEX = /\b([A-G][#b]?)(m|maj|min|aug|dim|sus|add|M)?([0-9]{1,2})?(?:(sus|add|maj|min|dim|aug|[\+\-\^])[0-9]{1,2})*(\/[A-G][#b]?)?\b/g;
 
 /**
- * Determines if a line likely contains chords rather than just lyrics.
+ * Determines if a line is likely a chord line.
+ * Chord lines have high density of chord-like tokens and lots of whitespace.
  */
 export const isChordLine = (line: string): boolean => {
   const trimmed = line.trim();
-  if (!trimmed || trimmed.length > 100) return false;
+  if (!trimmed) return false;
   
-  // Count matches vs words. Chord lines usually have a high match-to-text ratio
-  const matches = Array.from(trimmed.matchAll(CHORD_REGEX)); // Use matchAll to get all matches
-  if (matches.length === 0) return false;
-
-  // Heuristic: If it looks like a section header, it's not a chord line
+  // Section headers are not chord lines
   if (trimmed.startsWith('[') && trimmed.endsWith(']')) return false;
 
-  // Further check: ensure a significant portion of the line is chords, not just one letter
-  const chordCharacters = matches.reduce((acc, match) => acc + match[0].length, 0);
-  
-  // If the line is very long but only has a few chords, it's probably not a chord line.
-  // Or if less than 1/3 of the line's characters are part of identified chords.
-  if (trimmed.length > 30 && matches.length < 2) return false; 
-  if (chordCharacters < trimmed.length / 3 && matches.length < 3) return false; 
+  const words = trimmed.split(/\s+/);
+  let chordCount = 0;
+  let wordCount = 0;
 
-  return true;
+  for (const word of words) {
+    // Check if the word matches the chord pattern exactly
+    if (word.match(/^([A-G][#b]?)(m|maj|min|aug|dim|sus|add|M)?([0-9]{1,2})?((sus|add|maj|min|dim|aug|[\+\-\^])[0-9]{1,2})*(\/[A-G][#b]?)?$/)) {
+      chordCount++;
+    } else if (word.length > 2) {
+      // Longer words suggest it's a lyric line
+      wordCount++;
+    }
+  }
+
+  // If there are more long words than chords, it's likely lyrics
+  if (wordCount > chordCount) return false;
+  
+  // High percentage of chords or very few words usually means chord line
+  return chordCount > 0;
 };
 
 /**
- * Transposes or converts chords in a text.
- * semitones can be 0 to simply convert notation (Sharps to Flats or vice versa).
+ * Transposes a block of text, preserving lyric lines.
  */
-export const transposeChords = (text: string, semitones: number, keyPref: KeyPreference): string => {
-  if (!text) return '';
-  
-  const lines = text.split('\n');
-  
-  return lines.map(line => {
-    // If it's a section header, skip it
-    if (line.trim().startsWith('[') && line.trim().endsWith(']')) return line;
-    
-    // Process each match in the line
-    return line.replace(CHORD_REGEX, (match, rootNote, chordType = '', bassNote = '') => {
-      // Transpose the root note (handles 0 semitones for notation conversion)
-      const transposedRoot = transposeKey(rootNote, semitones, keyPref);
+export const transposeChords = (text: string, semitones: number, preference: KeyPreference = 'sharps'): string => {
+  if (semitones === 0) return text;
+
+  return text.split('\n').map(line => {
+    if (!isChordLine(line)) return line;
+
+    return line.replace(CHORD_REGEX, (match, base, suffix, num, complex, slash) => {
+      const transposedBase = transposeKey(base, semitones, preference);
       
-      // Handle bass notes (e.g., D#/G)
-      let transposedBass = '';
-      if (bassNote) {
-        const bassNoteRoot = bassNote.substring(1); // Remove the '/'
-        const transposedBassRoot = transposeKey(bassNoteRoot, semitones, keyPref);
-        transposedBass = `/${transposedBassRoot}`;
+      let transposedSlash = '';
+      if (slash) {
+        const slashBase = slash.substring(1);
+        transposedSlash = '/' + transposeKey(slashBase, semitones, preference);
       }
-      
-      return `${transposedRoot}${chordType}${transposedBass}`;
+
+      return transposedBase + (suffix || '') + (num || '') + (complex || '') + transposedSlash;
     });
   }).join('\n');
 };
 
 /**
- * Formats chord text for display with basic styling
- * This function is not actually used for styling anymore, as styling is done via CSS.
- * It can be simplified or removed if not needed for other logic.
+ * Heuristically extracts the musical key from a block of chords.
  */
-export const formatChordText = (text: string, config?: {
-  fontFamily: string;
-  fontSize: number;
-  chordBold: boolean;
-  chordColor?: string;
-  lineSpacing: number;
-}): string => {
-  if (!text) return '';
-  // The actual formatting with <strong> tags is removed as it's handled by CSS.
-  // This function can simply return the text or be removed if no other processing is needed.
-  return text;
+export const extractKeyFromChords = (text: string): string | null => {
+  const chords: Record<string, number> = {};
+  const matches = text.matchAll(CHORD_REGEX);
+  
+  for (const match of matches) {
+    const chord = match[0].split('/')[0]; // Ignore bass notes for key detection
+    chords[chord] = (chords[chord] || 0) + 1;
+  }
+
+  const sorted = Object.entries(chords).sort((a, b) => b[1] - a[1]);
+  return sorted.length > 0 ? sorted[0][0] : null;
 };
 
 /**
- * Extracts the first valid musical chord from a text
+ * Formats chord text for display (optional utility for syntax highlighting etc).
  */
-export const extractKeyFromChords = (text: string): string | null => {
-  if (!text) return null;
-  const lines = text.split('\n');
-  for (const line of lines) {
-    if (line.trim().startsWith('[') && line.trim().endsWith(']')) continue;
-    const match = line.match(CHORD_REGEX);
-    if (match) { // match[0] is the full match, match[1] is root, match[2] is chordType
-      const rootNote = match[1];
-      const chordSuffix = match[2]; 
-      
-      if (rootNote) {
-        const isMinor = chordSuffix && (chordSuffix.includes('m') || chordSuffix.includes('dim'));
-        const normalizedRoot = MAPPING_TO_SHARP[rootNote] || rootNote;
-        return normalizedRoot + (isMinor ? 'm' : '');
-      }
-    }
-  }
-  return null;
+export const formatChordText = (text: string): string => {
+  return text; // Placeholder for future UI enhancements
 };
