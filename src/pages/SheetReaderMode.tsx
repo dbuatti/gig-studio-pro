@@ -134,13 +134,13 @@ const SheetReaderMode: React.FC = () => {
 
   const handleLocalSongUpdate = useCallback((songId: string, updates: Partial<SetlistSong>) => {
     setAllSongs(prev => prev.map(s => s.id === songId ? { ...s, ...updates } : s));
-    setFullMasterRepertoire(prev => prev.map(s => s.id === songId ? { ...s, ...updates } : s));
+    setFullMasterRepertoire(prev => prev.map(s => (s.master_id || s.id) === (updates.master_id || songId) ? { ...s, ...updates } : s));
     setCurrentSetlistSongs(prev => prev.map(s => s.id === songId ? { ...s, ...updates } : s));
   }, []);
 
   const harmonicSync = useHarmonicSync({
     formData: {
-      id: currentSong?.id,
+      id: currentSong?.master_id || currentSong?.id,
       originalKey: currentSong?.originalKey,
       targetKey: currentSong?.targetKey || currentSong?.originalKey,
       pitch: currentSong?.pitch ?? 0,
@@ -151,15 +151,16 @@ const SheetReaderMode: React.FC = () => {
     handleAutoSave: useCallback(async (updates: Partial<SetlistSong>) => {
       if (!currentSong || !user) return;
       try {
+        const masterId = currentSong.master_id || currentSong.id;
         const result = await syncToMasterRepertoire(user.id, [{
           ...updates,
-          id: currentSong.id,
+          id: masterId,
           name: currentSong.name,
           artist: currentSong.artist
         }]);
         
         if (result[0]) {
-          handleLocalSongUpdate(currentSong.id, result[0]);
+          handleLocalSongUpdate(currentSong.id, { ...result[0], master_id: masterId });
         }
       } catch (err) {
         console.error("Sheet Reader Auto-save failed:", err);
@@ -232,7 +233,7 @@ const SheetReaderMode: React.FC = () => {
     } else {
       audioEngine.resetEngine();
     }
-  }, [currentSong, audioEngine, showWarning]);
+  }, [currentSong, audioEngine]);
 
   const fetchSongs = useCallback(async () => {
     if (!user) return;
@@ -305,6 +306,9 @@ const SheetReaderMode: React.FC = () => {
         highest_note_updated_at: d.highest_note_updated_at,
         original_key_updated_at: d.original_key_updated_at,
         target_key_updated_at: d.target_key_updated_at,
+        fineTune: d.fineTune,
+        tempo: d.tempo,
+        volume: d.volume,
       }));
       setFullMasterRepertoire(masterRepertoireList);
 
@@ -313,26 +317,14 @@ const SheetReaderMode: React.FC = () => {
         // Fetch songs from the specific setlist
         const { data: junctionData, error: junctionError } = await supabase
           .from('setlist_songs')
-          .select(`
-            *,
-            repertoire:song_id (
-              id, title, artist, original_key, target_key, pitch, preview_url, youtube_url, ug_url, 
-              apple_music_url, pdf_url, leadsheet_url, bpm, genre, is_metadata_confirmed, is_key_confirmed, 
-              notes, lyrics, resources, user_tags, is_pitch_linked, duration_seconds, key_preference, 
-              is_active, is_approved, preferred_reader, ug_chords_text, 
-              ug_chords_config, is_ug_chords_present, highest_note_original, 
-              metadata_source, sync_status, last_sync_log, auto_synced, is_sheet_verified, sheet_music_url, 
-              extraction_status, extraction_error, audio_url, lyrics_updated_at, chords_updated_at, 
-              ug_link_updated_at, highest_note_updated_at, original_key_updated_at, target_key_updated_at
-            )
-          `)
+          .select('song_id, id, isPlayed, sort_order')
           .eq('setlist_id', readerSetlistId)
           .order('sort_order', { ascending: true });
 
         if (junctionError) throw junctionError;
 
         activeSetlistSongsList = (junctionData || []).map((junction: any) => {
-          const masterSong = junction.repertoire;
+          const masterSong = masterRepertoireList.find(m => m.id === junction.song_id);
           if (!masterSong) return null;
           return {
             ...masterSong,
@@ -469,7 +461,7 @@ const SheetReaderMode: React.FC = () => {
         chartContainerRef.current.scrollLeft = 0;
       }
     }
-  }, [allSongs, currentIndex, stopPlayback]);
+  }, [allSongs, stopPlayback]);
 
   const handlePrev = useCallback(() => {
     if (allSongs.length > 0) {
@@ -482,7 +474,7 @@ const SheetReaderMode: React.FC = () => {
         chartContainerRef.current.scrollLeft = 0;
       }
     }
-  }, [allSongs, currentIndex, stopPlayback]);
+  }, [allSongs, stopPlayback]);
 
   const toggleBrowserFullScreen = useCallback(() => {
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
@@ -764,7 +756,7 @@ const SheetReaderMode: React.FC = () => {
         isSidebarOpen && !isBrowserFullScreen && "ml-[300px]")}
       >
         <SheetReaderHeader
-          currentSong={currentSong!}
+          currentSong={currentSong}
           onClose={() => navigate('/')} 
           onOpenRepertoireSearch={onOpenRepertoireSearch}
           onOpenCurrentSongStudio={onOpenCurrentSongStudio}
@@ -921,7 +913,7 @@ const SheetReaderMode: React.FC = () => {
                   isOpen={true}
                   onClose={() => setIsStudioPanel(false)}
                   gigId="library"
-                  songId={currentSong.id}
+                  songId={currentSong.master_id || currentSong.id}
                   visibleSongs={allSongs}
                   handleAutoSave={(updates) => handleLocalSongUpdate(currentSong.id, updates)}
                   preventStageKeyOverwrite={preventStageKeyOverwrite}
