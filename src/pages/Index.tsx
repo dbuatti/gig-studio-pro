@@ -436,6 +436,57 @@ const Index = () => {
     }
   }, [allSetlists, fetchSetlistsAndRepertoire]);
 
+  // Automation Handlers
+  const handleAutoLink = useCallback(async () => {
+    const missing = masterRepertoire.filter(s => !s.youtubeUrl || s.youtubeUrl.trim() === "");
+    if (missing.length === 0) {
+      showSuccess("All tracks already linked.");
+      return;
+    }
+    
+    try {
+      showInfo(`Initiating discovery for ${missing.length} tracks...`);
+      const { data, error } = await supabase.functions.invoke('bulk-populate-youtube-links', {
+        body: { songIds: missing.map(s => s.id) }
+      });
+      if (error) throw error;
+      showSuccess("Discovery pipeline active in background.");
+      fetchSetlistsAndRepertoire();
+    } catch (err: any) {
+      showError(`Automation failed: ${err.message}`);
+    }
+  }, [masterRepertoire, fetchSetlistsAndRepertoire]);
+
+  const handleGlobalAutoSync = useCallback(async () => {
+    try {
+      showInfo("Initiating global metadata sync...");
+      const { data, error } = await supabase.functions.invoke('global-auto-sync', {
+        body: { songIds: masterRepertoire.map(s => s.id) }
+      });
+      if (error) throw error;
+      showSuccess("Global sync pipeline active.");
+      fetchSetlistsAndRepertoire();
+    } catch (err: any) {
+      showError(`Sync failed: ${err.message}`);
+    }
+  }, [masterRepertoire, fetchSetlistsAndRepertoire]);
+
+  const handleClearAutoLinks = useCallback(async () => {
+    if (!confirm("Clear all auto-populated links?")) return;
+    try {
+      const { error } = await supabase
+        .from('repertoire')
+        .update({ youtube_url: null, metadata_source: null })
+        .eq('metadata_source', 'auto_populated')
+        .eq('user_id', userId);
+      if (error) throw error;
+      showSuccess("Auto-links cleared.");
+      fetchSetlistsAndRepertoire();
+    } catch (err: any) {
+      showError(`Clear failed: ${err.message}`);
+    }
+  }, [userId, fetchSetlistsAndRepertoire]);
+
   const filteredAndSortedSongs = useMemo(() => {
     if (!activeSetlist) return [];
     let songs = [...activeSetlist.songs];
@@ -509,6 +560,10 @@ const Index = () => {
       showError("Failed to add discovered song.");
     }
   };
+
+  const missingAudioCount = useMemo(() => 
+    masterRepertoire.filter(s => !!s.youtubeUrl && (!s.audio_url || s.extraction_status !== 'completed')).length,
+  [masterRepertoire]);
 
   if (authLoading || isFetchingSettings || loading) {
     return (
@@ -665,7 +720,7 @@ const Index = () => {
             
             {!activeSetlistId && allSetlists.length === 0 && (
               <div className="flex flex-col items-center justify-center py-20 text-center">
-                <div className="bg-card p-12 rounded-[3rem] border border-border space-y-6 max-w-md">
+                <div className="bg-card p-12 rounded-[3rem] border border-border space-y-6 max-md">
                   <div className="bg-indigo-600/10 w-16 h-16 rounded-2xl flex items-center justify-center text-indigo-600 mx-auto">
                     <Library className="w-8 h-8" />
                   </div>
@@ -698,6 +753,10 @@ const Index = () => {
               onDeleteSong={handleDeleteSong}
               onAddSong={handleAddSongToRepertoire}
               onOpenAdmin={() => setIsAdminPanelOpen(true)}
+              onAutoLink={handleAutoLink}
+              onGlobalAutoSync={handleGlobalAutoSync}
+              onClearAutoLinks={handleClearAutoLinks}
+              missingAudioCount={missingAudioCount}
             />
           </TabsContent>
         </Tabs>
