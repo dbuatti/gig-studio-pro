@@ -191,18 +191,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     return "";
   };
 
-  const uniqueRenderedSongs = useMemo(() => {
-    const seen = new Set();
-    return processedSongs.filter(song => {
-      const key = song.master_id || song.id;
-      if (seen.has(key)) {
-        return false;
-      }
-      seen.add(key);
-      return true;
-    });
-  }, [processedSongs]);
-
   return (
     <div className="space-y-4 md:space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-2">
@@ -290,7 +278,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
       {isMobile ? (
         <div className="space-y-3 px-1 pb-4">
-          {uniqueRenderedSongs.map((song, idx) => {
+          {processedSongs.map((song, idx) => {
             const isSelected = currentSongId === song.id;
             const readinessScore = calculateReadiness(song);
             const isFullyReady = readinessScore === 100;
@@ -370,7 +358,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'up'); }} disabled={!isReorderingEnabled || idx === 0}>
                           <ChevronUp className="w-4 h-4 mr-2" /> Move Up
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'down'); }} disabled={!isReorderingEnabled || idx === uniqueRenderedSongs.length - 1}>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'down'); }} disabled={!isReorderingEnabled || idx === processedSongs.length - 1}>
                           <ChevronDown className="w-4 h-4 mr-2" /> Move Down
                         </DropdownMenuItem>
                         <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(song.id); }}>
@@ -434,7 +422,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {uniqueRenderedSongs.map((song, idx) => {
+                {processedSongs.map((song, idx) => {
                   const isSelected = currentSongId === song.id;
                   const readinessScore = calculateReadiness(song);
                   const isFullyReady = readinessScore === 100;
@@ -506,7 +494,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                             </span>
                           </div>
                           {isExtractionFailed && song.last_sync_log && (
-                            <p className="text-[8px] text-red-400 ml-[32px] mt-1 truncate max-w-[200px]">Error: {song.last_sync_log}</p>
+                            <p className="text-[8px] text-red-400 ml-[32px] mt-1 truncate max-w-[150px]">Error: {song.last_sync_log}</p>
                           )}
                         </div>
                       </td>
@@ -515,7 +503,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                           <Button variant="ghost" size="icon" className={cn("h-7 w-7 transition-all flex items-center justify-center", isReorderingEnabled ? "text-muted-foreground hover:text-indigo-600 hover:bg-indigo-50" : "text-muted-foreground opacity-20 cursor-not-allowed")} onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'up'); }} disabled={!isReorderingEnabled || idx === 0}>
                             <ChevronUp className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className={cn("h-7 w-7 transition-all flex items-center justify-center", isReorderingEnabled ? "text-muted-foreground hover:text-indigo-600 hover:bg-indigo-50" : "text-muted-foreground opacity-20 cursor-not-allowed")} onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'down'); }} disabled={!isReorderingEnabled || idx === uniqueRenderedSongs.length - 1}>
+                          <Button variant="ghost" size="icon" className={cn("h-7 w-7 transition-all flex items-center justify-center", isReorderingEnabled ? "text-muted-foreground hover:text-indigo-600 hover:bg-indigo-50" : "text-muted-foreground opacity-20 cursor-not-allowed")} onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'down'); }} disabled={!isReorderingEnabled || idx === processedSongs.length - 1}>
                             <ChevronDown className="w-4 h-4" />
                           </Button>
                         </div>
