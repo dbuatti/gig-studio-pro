@@ -40,6 +40,7 @@ import ImportSetlist from '@/components/ImportSetlist';
 import ResourceAuditModal from '@/components/ResourceAuditModal';
 import SetlistSettingsModal from '@/components/SetlistSettingsModal';
 import SetlistSelector from '@/components/SetlistSelector';
+import GlobalSearchModal from '@/components/GlobalSearchModal';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -84,6 +85,7 @@ const Index = () => {
   const [isResourceAuditOpen, setIsResourceAuditOpen] = useState(false);
   const [isImportSetlistOpen, setIsImportSetlistOpen] = useState(false);
   const [isSetlistSettingsOpen, setIsSetlistSettingsOpen] = useState(false);
+  const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
 
   // Filter/search states
   const [searchTerm, setSearchTerm] = useState(() => localStorage.getItem('gig_search_term') || "");
@@ -472,6 +474,42 @@ const Index = () => {
     navigate(`/sheet-reader/${initialSongId || ''}`);
   }, [navigate, activeDashboardView, activeSetlistId]);
 
+  const handleGlobalSearchAdd = async (url: string, name: string, artist: string, yt?: string, ug?: string, apple?: string, gen?: string) => {
+    if (!userId) return;
+    
+    const newSong: Partial<SetlistSong> = {
+      name,
+      artist,
+      previewUrl: url,
+      youtubeUrl: yt,
+      ugUrl: ug,
+      appleMusicUrl: apple,
+      genre: gen,
+      originalKey: 'TBC',
+      targetKey: 'TBC',
+      pitch: 0,
+      isMetadataConfirmed: true,
+      is_active: true
+    };
+
+    try {
+      const synced = await syncToMasterRepertoire(userId, [newSong]);
+      const song = synced[0];
+      
+      // If in Gigs view and we have an active setlist, add it there too
+      if (activeDashboardView === 'gigs' && activeSetlistId) {
+        await handleUpdateSetlistSongs(activeSetlistId, song, 'add');
+      } else {
+        await fetchSetlistsAndRepertoire();
+      }
+      
+      showSuccess(`"${name}" added to repertoire!`);
+      handleEditSong(song, 'details');
+    } catch (err: any) {
+      showError("Failed to add discovered song.");
+    }
+  };
+
   if (authLoading || isFetchingSettings || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -666,7 +704,7 @@ const Index = () => {
       </div>
 
       <FloatingCommandDock 
-        onOpenSearch={() => {}} 
+        onOpenSearch={() => setIsGlobalSearchOpen(true)} 
         onOpenPractice={() => {}} 
         onOpenReader={handleOpenReader}
         onOpenAdmin={() => setIsAdminPanelOpen(true)} 
@@ -750,6 +788,12 @@ const Index = () => {
           await fetchSetlistsAndRepertoire();
         }}
         keyPreference={globalKeyPreference}
+      />
+
+      <GlobalSearchModal 
+        isOpen={isGlobalSearchOpen} 
+        onClose={() => setIsGlobalSearchOpen(false)} 
+        onAddSong={handleGlobalSearchAdd}
       />
 
       {activeSetlist && (
