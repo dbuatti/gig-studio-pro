@@ -18,7 +18,7 @@ interface UGChordsReaderProps {
   duration: number;
   readerKeyPreference?: KeyPreference;
   onChartReady?: () => void;
-  isFullScreen?: boolean; // NEW: Add isFullScreen prop
+  isFullScreen?: boolean;
 }
 
 const UGChordsReader = React.memo(({
@@ -29,7 +29,7 @@ const UGChordsReader = React.memo(({
   targetKey,
   readerKeyPreference,
   onChartReady,
-  isFullScreen, // NEW: Destructure isFullScreen
+  isFullScreen,
 }: UGChordsReaderProps) => {
   const { 
     keyPreference: globalKeyPreference,
@@ -41,9 +41,9 @@ const UGChordsReader = React.memo(({
     ugChordsTextAlign,
   } = useSettings(); 
   
-  const resolvedPreference = globalKeyPreference === 'neutral' 
-    ? (readerKeyPreference || 'sharps') 
-    : globalKeyPreference;
+  // Use the readerKeyPreference passed from parent (which is the song's preference)
+  const activeKeyPreference = readerKeyPreference || 
+    (globalKeyPreference === 'neutral' ? 'sharps' : globalKeyPreference);
 
   const resolvedConfig: UGChordsConfig = useMemo(() => ({
     fontFamily: songConfig?.fontFamily || ugChordsFontFamily,
@@ -53,19 +53,15 @@ const UGChordsReader = React.memo(({
     lineSpacing: songConfig?.lineSpacing || ugChordsLineSpacing,
     textAlign: songConfig?.textAlign || ugChordsTextAlign,
   }), [songConfig, ugChordsFontFamily, ugChordsFontSize, ugChordsChordBold, ugChordsChordColor, ugChordsLineSpacing, ugChordsTextAlign]);
-
-  const activeKeyPreference = readerKeyPreference || globalKeyPreference;
   
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLPreElement>(null);
 
   const transposedChordsText = useMemo(() => {
     if (!chordsText) return chordsText;
-    // Handle null/undefined keys gracefully
     const safeOriginalKey = originalKey || 'C';
     const safeTargetKey = targetKey || safeOriginalKey;
     const n = calculateSemitones(safeOriginalKey, safeTargetKey);
-    // console.log(`[UGChordsReader] Transposing by ${n} semitones. Original: ${safeOriginalKey}, Target: ${safeTargetKey}`); // Removed verbose log
     return transposeChords(chordsText, n, activeKeyPreference);
   }, [chordsText, originalKey, targetKey, activeKeyPreference]);
 
@@ -84,7 +80,7 @@ const UGChordsReader = React.memo(({
       className={cn(
         "h-full w-full bg-slate-950 p-4 md:p-12 overflow-y-auto border border-white/10 font-mono custom-scrollbar block",
         isMobile ? "text-sm" : "text-base",
-        isFullScreen ? "pt-0" : "pt-16" // Adjusted padding-top based on fullscreen and info overlay visibility
+        isFullScreen ? "pt-0" : "pt-16"
       )}
       style={{ 
         fontFamily: resolvedConfig.fontFamily, 
@@ -92,7 +88,6 @@ const UGChordsReader = React.memo(({
         lineHeight: resolvedConfig.lineSpacing,
         textAlign: resolvedConfig.textAlign as any,
         color: readableChordColor || "#ffffff",
-        // Removed touchAction: 'none'
       }}
     >
       {chordsText ? (

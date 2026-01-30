@@ -75,9 +75,16 @@ const SheetReaderMode: React.FC = () => {
   const [isAudioPlayerVisible, setIsAudioPlayerVisible] = useState(true);
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
 
-  const [readerKeyPreference, setReaderKeyPreference] = useState<'sharps' | 'flats'>(
-    globalKeyPreference === 'neutral' ? 'sharps' : globalKeyPreference
-  );
+  // Use the current song's preference, falling back to global if neutral
+  const readerKeyPreference = useMemo<'sharps' | 'flats'>(() => {
+    if (currentSong?.key_preference && currentSong.key_preference !== 'neutral') {
+      return currentSong.key_preference as 'sharps' | 'flats';
+    }
+    if (globalKeyPreference !== 'neutral') {
+      return globalKeyPreference as 'sharps' | 'flats';
+    }
+    return 'sharps';
+  }, [currentSong?.key_preference, globalKeyPreference]);
   
   const [selectedChartType, setSelectedChartType] = useState<ChartType>('pdf');
   const [isChartContentLoading, setIsChartContentLoading] = useState(false);
@@ -117,14 +124,6 @@ const SheetReaderMode: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (currentSong?.key_preference) {
-      setReaderKeyPreference(currentSong.key_preference as 'sharps' | 'flats');
-    } else if (globalKeyPreference !== 'neutral') {
-      setReaderKeyPreference(globalKeyPreference as 'sharps' | 'flats');
-    }
-  }, [currentSong?.id, globalKeyPreference]);
-
-  useEffect(() => {
     setPdfCurrentPage(1);
     setPdfNumPages(null);
     setPdfScale(null);
@@ -147,6 +146,7 @@ const SheetReaderMode: React.FC = () => {
       is_pitch_linked: currentSong?.is_pitch_linked ?? true,
       ug_chords_text: currentSong?.ug_chords_text,
       isKeyConfirmed: currentSong?.isKeyConfirmed,
+      key_preference: currentSong?.key_preference,
     },
     handleAutoSave: useCallback(async (updates: Partial<SetlistSong>) => {
       if (!currentSong || !user) return;
@@ -553,7 +553,6 @@ const SheetReaderMode: React.FC = () => {
   }, [allSongs, navigate, stopPlayback]);
 
   const handleSaveReaderPreference = useCallback((pref: 'sharps' | 'flats') => {
-    setReaderKeyPreference(pref);
     if (globalKeyPreference !== 'neutral') {
       setGlobalKeyPreference(pref);
     }
