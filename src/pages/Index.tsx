@@ -457,6 +457,21 @@ const Index = () => {
     return songs;
   }, [activeSetlist, searchTerm, sortMode]);
 
+  const handleOpenReader = useCallback((initialSongId?: string) => {
+    sessionStorage.setItem('from_dashboard', 'true');
+    
+    // Store the active setlist ID and view mode in session storage
+    if (activeDashboardView === 'gigs' && activeSetlistId) {
+      sessionStorage.setItem('reader_setlist_id', activeSetlistId);
+      sessionStorage.setItem('reader_view_mode', 'gigs');
+    } else {
+      sessionStorage.setItem('reader_view_mode', 'repertoire');
+      sessionStorage.removeItem('reader_setlist_id');
+    }
+    
+    navigate(`/sheet-reader/${initialSongId || ''}`);
+  }, [navigate, activeDashboardView, activeSetlistId]);
+
   if (authLoading || isFetchingSettings || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -653,10 +668,7 @@ const Index = () => {
       <FloatingCommandDock 
         onOpenSearch={() => {}} 
         onOpenPractice={() => {}} 
-        onOpenReader={(id) => {
-          sessionStorage.setItem('from_dashboard', 'true');
-          navigate(`/sheet-reader/${id || ''}`);
-        }} 
+        onOpenReader={handleOpenReader}
         onOpenAdmin={() => setIsAdminPanelOpen(true)} 
         onOpenPreferences={() => setIsPreferencesOpen(true)} 
         onToggleHeatmap={() => setShowHeatmap(!showHeatmap)} 

@@ -55,7 +55,7 @@ const SheetReaderMode: React.FC = () => {
     ugChordsLineSpacing,
     ugChordsTextAlign,
     preventStageKeyOverwrite,
-    disablePortraitPdfScroll, // NEW
+    disablePortraitPdfScroll,
     setKeyPreference: setGlobalKeyPreference
   } = useSettings();
   const { forceReaderResource } = useReaderSettings();
@@ -73,7 +73,7 @@ const SheetReaderMode: React.FC = () => {
   const [isRepertoireSearchModalOpen, setIsRepertoireSearchModalOpen] = useState(false);
   const [isInfoOverlayVisible, setIsInfoOverlayVisible] = useState(true);
   const [isAudioPlayerVisible, setIsAudioPlayerVisible] = useState(true);
-  const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth); // NEW
+  const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
 
   const [readerKeyPreference, setReaderKeyPreference] = useState<'sharps' | 'flats'>(
     globalKeyPreference === 'neutral' ? 'sharps' : globalKeyPreference
@@ -108,7 +108,6 @@ const SheetReaderMode: React.FC = () => {
 
   const [{}, api] = useSpring(() => ({ x: 0 }));
 
-  // NEW: Detect orientation changes
   useEffect(() => {
     const handleResize = () => {
       setIsPortrait(window.innerHeight > window.innerWidth);
@@ -240,15 +239,24 @@ const SheetReaderMode: React.FC = () => {
     setInitialLoading(true);
 
     try {
-      const filterApproved = searchParams.get('filterApproved');
+      // Check session storage for context
+      const readerViewMode = sessionStorage.getItem('reader_view_mode');
+      const readerSetlistId = sessionStorage.getItem('reader_setlist_id');
       const targetId = routeSongId || searchParams.get('id');
 
       let currentViewSongs: SetlistSong[] = [];
       let masterRepertoireList: SetlistSong[] = [];
       let activeSetlistSongsList: SetlistSong[] = [];
 
-      const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user_id', user.id).order('title');
+      // Always fetch master repertoire for search modal
+      const { data: masterData, error: masterError } = await supabase
+        .from('repertoire')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('title');
+      
       if (masterError) throw masterError;
+      
       masterRepertoireList = (masterData || []).map((d: any) => ({
         id: d.id,
         master_id: d.id,
@@ -300,18 +308,9 @@ const SheetReaderMode: React.FC = () => {
       }));
       setFullMasterRepertoire(masterRepertoireList);
 
-      if (filterApproved === 'true') {
-        const { data: setlistsData, error: setlistsError } = await supabase
-          .from('setlists')
-          .select('id')
-          .eq('user_id', user.id)
-          .limit(1);
-
-        if (setlistsError || !setlistsData || setlistsData.length === 0) {
-          throw new Error("No active setlist found for approved songs.");
-        }
-        const activeSetlistId = setlistsData[0].id;
-
+      // Determine which songs to show based on context
+      if (readerViewMode === 'gigs' && readerSetlistId) {
+        // Fetch songs from the specific setlist
         const { data: junctionData, error: junctionError } = await supabase
           .from('setlist_songs')
           .select(`
@@ -327,7 +326,7 @@ const SheetReaderMode: React.FC = () => {
               ug_link_updated_at, highest_note_updated_at, original_key_updated_at, target_key_updated_at
             )
           `)
-          .eq('setlist_id', activeSetlistId)
+          .eq('setlist_id', readerSetlistId)
           .order('sort_order', { ascending: true });
 
         if (junctionError) throw junctionError;
@@ -342,9 +341,11 @@ const SheetReaderMode: React.FC = () => {
             isPlayed: junction.isPlayed || false,
           };
         }).filter(Boolean) as SetlistSong[];
+        
         setCurrentSetlistSongs(activeSetlistSongsList);
         currentViewSongs = activeSetlistSongsList;
       } else {
+        // Show all repertoire
         currentViewSongs = masterRepertoireList;
       }
 
@@ -750,7 +751,6 @@ const SheetReaderMode: React.FC = () => {
 
   if (initialLoading) return <div className="h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
 
-  // NEW: Determine if scroll should be disabled
   const shouldDisableScroll = disablePortraitPdfScroll && isPortrait && (selectedChartType === 'pdf' || selectedChartType === 'leadsheet');
 
   return (
@@ -795,7 +795,7 @@ const SheetReaderMode: React.FC = () => {
             isBrowserFullScreen ? "mt-0" : "mt-[72px]", 
             isAudioPlayerVisible && currentSong ? "pb-24" : "pb-0", 
             "overscroll-behavior-x-contain",
-            shouldDisableScroll ? "overflow-y-hidden" : "overflow-y-auto" // NEW: Conditional scroll disable
+            shouldDisableScroll ? "overflow-y-hidden" : "overflow-y-auto"
           )}
           onClick={toggleBrowserFullScreen} 
         >
