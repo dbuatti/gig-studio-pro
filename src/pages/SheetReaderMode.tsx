@@ -75,6 +75,9 @@ const SheetReaderMode: React.FC = () => {
   const [isAudioPlayerVisible, setIsAudioPlayerVisible] = useState(true);
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
 
+  // DECLARE currentSong FIRST before using it anywhere
+  const currentSong = allSongs[currentIndex];
+
   // Use the current song's preference, falling back to global if neutral
   const readerKeyPreference = useMemo<'sharps' | 'flats'>(() => {
     if (currentSong?.key_preference && currentSong.key_preference !== 'neutral') {
@@ -104,8 +107,6 @@ const SheetReaderMode: React.FC = () => {
     setPitch: setAudioPitch, setProgress: setAudioProgress, volume, setVolume,
     currentUrl, currentBuffer, isLoadingAudio, tempo
   } = audioEngine;
-
-  const currentSong = allSongs[currentIndex];
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);
