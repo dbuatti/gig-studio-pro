@@ -36,7 +36,6 @@ import LinkEditorOverlay from '@/components/LinkEditorOverlay';
 import LinkDisplayOverlay, { SheetLink } from '@/components/LinkDisplayOverlay';
 import LinkSizeModal from '@/components/LinkSizeModal';
 
-// Configure PDF.js worker source
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
 export type ChartType = 'pdf' | 'leadsheet' | 'chords';
@@ -75,10 +74,8 @@ const SheetReaderMode: React.FC = () => {
   const [isAudioPlayerVisible, setIsAudioPlayerVisible] = useState(true);
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
 
-  // DECLARE currentSong FIRST before using it anywhere
   const currentSong = allSongs[currentIndex];
 
-  // Use the current song's preference, falling back to global if neutral
   const readerKeyPreference = useMemo<'sharps' | 'flats'>(() => {
     if (currentSong?.key_preference && currentSong.key_preference !== 'neutral') {
       return currentSong.key_preference as 'sharps' | 'flats';
@@ -241,7 +238,6 @@ const SheetReaderMode: React.FC = () => {
     setInitialLoading(true);
 
     try {
-      // Check session storage for context
       const readerViewMode = sessionStorage.getItem('reader_view_mode');
       const readerSetlistId = sessionStorage.getItem('reader_setlist_id');
       const targetId = routeSongId || searchParams.get('id');
@@ -250,7 +246,6 @@ const SheetReaderMode: React.FC = () => {
       let masterRepertoireList: SetlistSong[] = [];
       let activeSetlistSongsList: SetlistSong[] = [];
 
-      // Always fetch master repertoire for search modal
       const { data: masterData, error: masterError } = await supabase
         .from('repertoire')
         .select('*')
@@ -313,9 +308,7 @@ const SheetReaderMode: React.FC = () => {
       }));
       setFullMasterRepertoire(masterRepertoireList);
 
-      // Determine which songs to show based on context
       if (readerViewMode === 'gigs' && readerSetlistId) {
-        // Fetch songs from the specific setlist
         const { data: junctionData, error: junctionError } = await supabase
           .from('setlist_songs')
           .select('song_id, id, isPlayed, sort_order')
@@ -338,7 +331,6 @@ const SheetReaderMode: React.FC = () => {
         setCurrentSetlistSongs(activeSetlistSongsList);
         currentViewSongs = activeSetlistSongsList;
       } else {
-        // Show all repertoire
         currentViewSongs = masterRepertoireList;
       }
 
@@ -643,8 +635,12 @@ const SheetReaderMode: React.FC = () => {
       const pageWidth = viewport.width;
       const pageHeight = viewport.height;
 
-      const scaleX = containerWidth / pageWidth;
-      const scaleY = containerHeight / pageHeight;
+      // Add padding to prevent cutoff (reduce available height by 10%)
+      const availableHeight = containerHeight * 0.95;
+      const availableWidth = containerWidth * 0.95;
+
+      const scaleX = availableWidth / pageWidth;
+      const scaleY = availableHeight / pageHeight;
 
       setPdfScale(Math.min(scaleX, scaleY));
     } catch (error) {
@@ -783,11 +779,11 @@ const SheetReaderMode: React.FC = () => {
         <div
           ref={chartContainerRef}
           className={cn(
-            "flex-1 bg-black relative overflow-hidden", 
+            "flex-1 bg-black relative",
             isBrowserFullScreen ? "mt-0" : "mt-[72px]", 
             isAudioPlayerVisible && currentSong ? "pb-24" : "pb-0", 
             "overscroll-behavior-x-contain",
-            shouldDisableScroll ? "overflow-y-hidden" : "overflow-y-auto"
+            shouldDisableScroll ? "overflow-hidden" : "overflow-auto"
           )}
           onClick={toggleBrowserFullScreen} 
         >
@@ -799,8 +795,8 @@ const SheetReaderMode: React.FC = () => {
               height: '100%',
               display: 'flex', 
               justifyContent: 'center', 
-              alignItems: 'flex-start', 
-              paddingTop: isBrowserFullScreen && isInfoOverlayVisible ? '64px' : '0px', 
+              alignItems: 'center',
+              padding: isBrowserFullScreen && isInfoOverlayVisible ? '80px 20px 20px 20px' : '20px',
             }} 
             className="relative"
           >
@@ -824,7 +820,7 @@ const SheetReaderMode: React.FC = () => {
                   const url = currentChartDisplayUrl; 
                   if (url) {
                     return (
-                      <div className="w-full h-full overflow-x-auto overflow-y-hidden flex justify-center items-center relative"> 
+                      <div className="w-full h-full flex justify-center items-center relative"> 
                         <Document
                           file={url}
                           onLoadSuccess={async (pdf) => { 
@@ -841,7 +837,7 @@ const SheetReaderMode: React.FC = () => {
                             setIsChartContentLoading(false);
                           }}
                           loading={<Loader2 className="w-12 h-12 animate-spin text-indigo-500" />}
-                          className="flex items-center justify-center w-full h-full" 
+                          className="flex items-center justify-center" 
                         >
                           <Page
                             pageNumber={pdfCurrentPage}
