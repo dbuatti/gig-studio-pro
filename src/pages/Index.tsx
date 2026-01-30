@@ -794,6 +794,8 @@ const Index = () => {
         isOpen={isGlobalSearchOpen} 
         onClose={() => setIsGlobalSearchOpen(false)} 
         onAddSong={handleGlobalSearchAdd}
+        repertoire={masterRepertoire}
+        onAddExistingSong={handleAddSongToRepertoire}
       />
 
       {activeSetlist && (
