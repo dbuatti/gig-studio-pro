@@ -22,8 +22,7 @@ export const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSet
   const [isLoading, setIsLoading] = useState(false);
   const [expandingId, setExpandingId] = useState<number | null>(null);
   
-  const [ytSearchLoading, setYtSearchLoading] = useState(false);
-  const [ytResults, setYtResults] = useState<any[]>([]);
+  // Simplified state for manual linking
   const [manualYtUrl, setManualYtUrl] = useState("");
   const [manualUgUrl, setManualUgUrl] = useState("");
 
@@ -55,45 +54,6 @@ export const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSet
     performSearch(query);
   };
 
-  const fetchYoutubeResults = async (track: string, artist: string) => {
-    setYtSearchLoading(true);
-    setYtResults([]);
-    
-    const proxies = ["https://api.allorigins.win/get?url=", "https://corsproxy.io/?"];
-    const instances = ['https://iv.ggtyler.dev', 'https://yewtu.be', 'https://invidious.flokinet.to'];
-
-    let success = false;
-    for (const proxy of proxies) {
-      if (success) break;
-      for (const instance of instances) {
-        if (success) break;
-        try {
-          const artistName = (artist || "").replace(/&/g, 'and');
-          const trackName = (track || "").replace(/&/g, 'and');
-          const searchQuery = encodeURIComponent(`${artistName} ${trackName} official music video`);
-          const targetUrl = encodeURIComponent(`${instance}/api/v1/search?q=${searchQuery}`);
-          
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 2500);
-
-          const response = await fetch(`${proxy}${targetUrl}`, { signal: controller.signal });
-          clearTimeout(timeoutId);
-          if (!response.ok) continue;
-          
-          const raw = await response.json();
-          const data = typeof raw.contents === 'string' ? JSON.parse(raw.contents) : raw;
-          const videos = data?.filter?.((item: any) => item.type === "video").slice(0, 3);
-          
-          if (videos && videos.length > 0) {
-            setYtResults(videos);
-            success = true;
-          }
-        } catch (err) {}
-      }
-    }
-    setYtSearchLoading(false);
-  };
-
   const toggleExpand = (song: any) => {
     if (expandingId === song.trackId) {
       setExpandingId(null);
@@ -101,7 +61,7 @@ export const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSet
       setExpandingId(song.trackId);
       setManualYtUrl("");
       setManualUgUrl("");
-      fetchYoutubeResults(song.trackName, song.artistName);
+      // Removed fetchYoutubeResults call
     }
   };
 
@@ -202,7 +162,7 @@ export const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSet
                         <div className="p-4 bg-secondary rounded-xl border-2 border-primary/20 shadow-sm space-y-4">
                           <div className="flex items-center justify-between border-b pb-2 border-border">
                             <span className="text-[10px] font-black text-primary uppercase tracking-widest">Library Engine Configuration</span>
-                            {ytSearchLoading && <Loader2 className="w-3 h-3 animate-spin text-primary" />}
+                            {/* Removed loading indicator */}
                           </div>
 
                           <div className="space-y-4">

@@ -302,6 +302,7 @@ const SheetReaderMode: React.FC = () => {
         highest_note_updated_at: d.highest_note_updated_at,
         original_key_updated_at: d.original_key_updated_at,
         target_key_updated_at: d.target_key_updated_at,
+        pdf_updated_at: d.pdf_updated_at,
         fineTune: d.fineTune,
         tempo: d.tempo,
         volume: d.volume,
@@ -808,9 +809,6 @@ const SheetReaderMode: React.FC = () => {
                   isMobile={false}
                   originalKey={currentSong.originalKey}
                   targetKey={effectiveTargetKey}
-                  isPlaying={isPlaying}
-                  progress={progress}
-                  duration={duration}
                   readerKeyPreference={readerKeyPreference}
                   onChartReady={() => setIsChartContentLoading(false)}
                   isFullScreen={isBrowserFullScreen && !isInfoOverlayVisible} 

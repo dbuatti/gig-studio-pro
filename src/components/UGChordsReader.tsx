@@ -13,9 +13,6 @@ interface UGChordsReaderProps {
   isMobile: boolean;
   originalKey?: string;
   targetKey?: string;
-  isPlaying: boolean;
-  progress: number;
-  duration: number;
   readerKeyPreference?: KeyPreference;
   onChartReady?: () => void;
   isFullScreen?: boolean;
