@@ -15,6 +15,7 @@ import { Play, RotateCcw, Download, Palette, Type, AlignCenter, AlignLeft, Align
 import { showSuccess, showError } from '@/utils/toast';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { calculateSemitones, transposeKey, formatKey } from '@/utils/keyUtils';
+import { supabase } from '@/integrations/supabase/client'; // Import supabase
 
 interface UGChordsEditorProps {
   song: SetlistSong | null;
@@ -59,6 +60,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
   const [chordsText, setChordsText] = useState(formData.ug_chords_text || "");
   const [localTransposeSemitones, setLocalTransposeSemitones] = useState(0);
   const [isFetchingUg, setIsFetchingUg] = useState(false);
+  const [isCleaning, setIsCleaning] = useState(false); // NEW: Cleaning state
   
   // Initialize config state with song-specific config, falling back to global settings
   const [config, setConfig] = useState<UGChordsConfig>(() => {
@@ -261,6 +263,30 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
     }
   };
 
+  const handleMagicClean = async () => {
+    if (!chordsText.trim()) {
+      showError("Paste chords first.");
+      return;
+    }
+    setIsCleaning(true);
+    try {
+      const { data, error = null } = await supabase.functions.invoke('enrich-metadata', {
+        body: { queries: [chordsText], mode: 'chords-cleanup' }
+      });
+      if (error) throw error;
+      if (data?.cleaned_text) {
+        setChordsText(data.cleaned_text);
+        showSuccess("Chords Text Cleaned Complete");
+      } else {
+        throw new Error("AI returned no cleaned text.");
+      }
+    } catch (err) {
+      showError("Chords Cleanup Engine Error.");
+    } finally {
+      setIsCleaning(false);
+    }
+  };
+
   const readableChordColor = config.chordColor === "#000000" ? "#ffffff" : config.chordColor;
 
   return (
@@ -341,9 +367,21 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
           </div>
 
           <div className="bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-3xl p-6 flex-1 flex flex-col">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
-              Paste Chords & Lyrics
-            </Label>
+            <div className="flex items-center justify-between mb-4">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Paste Chords & Lyrics
+              </Label>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleMagicClean}
+                disabled={isCleaning || !chordsText.trim()}
+                className="h-8 px-3 bg-pink-600/10 text-pink-400 font-black uppercase text-[9px] gap-2 rounded-xl hover:bg-pink-600/20"
+              >
+                {isCleaning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                Magic Clean
+              </Button>
+            </div>
             <Textarea
               value={chordsText}
               onChange={(e) => setChordsText(e.target.value)}

@@ -27,6 +27,8 @@ serve(async (req) => {
     let prompt = "";
     if (mode === 'lyrics') {
       prompt = `Act as a professional stage manager. Format these lyrics with double newlines between verses and proper punctuation for stage reading. Return ONLY a JSON object: {"lyrics": "formatted_lyrics_here"}. Lyrics: ${queries[0]}`;
+    } else if (mode === 'chords-cleanup') {
+      prompt = `Act as a professional music editor. Correct typos, fix common misspellings (like 'Bbriday' to 'Friday', 'Cetting' to 'Getting', 'Averything' to 'Everything'), and ensure proper formatting for the following chord/lyric block. Preserve the chord structure and line breaks. Return ONLY a JSON object: {"cleaned_text": "corrected_chord_text_here"}. Text: ${queries[0]}`;
     } else {
       const songsList = Array.isArray(queries) ? queries : [queries];
       prompt = `Act as a professional music librarian. For these songs, return a JSON array of objects. Each object MUST include: {"name": "title", "artist": "primary artist", "originalKey": "standard key (C, F#m, etc)", "bpm": number, "genre": "genre", "youtubeUrl": "direct link to official music video or high quality audio on youtube", "isMetadataConfirmed": true}. 
