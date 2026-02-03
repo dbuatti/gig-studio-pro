@@ -590,7 +590,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                 <tr className="bg-secondary dark:bg-secondary border-b border-border">
                   <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-16 text-center">Sts</th>
                   <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground text-left">Song / Resource Matrix</th>
-                  <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-24 text-center">Energy</th> {/* NEW: Energy Header */}
+                  <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-24 text-center">Energy</th>
                   <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-24 text-center">Move</th>
                   <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-48 text-center">Harmonic Map</th>
                   <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-40 text-right pr-10">Command</th>
@@ -673,7 +673,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                           )}
                         </div>
                       </td>
-                      {/* NEW: Energy Cell */}
                       <td className="px-6 text-center">
                         <TooltipProvider>
                           <Tooltip>
