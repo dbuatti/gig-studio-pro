@@ -29,7 +29,8 @@ COOKIE_PATH = "/tmp/cookies.txt"
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 def log(message):
-    print(f"[WORKER LOG] {message}", flush=True)
+    # Use a consistent prefix for all worker logs
+    print(f"[AUDIO-WORKER] {message}", flush=True)
 
 def download_cookies_from_supabase():
     """Fetches the latest cookies.txt from Supabase Storage to handle auth blocks."""
@@ -62,8 +63,9 @@ def process_queued_song(song):
             # Ensure we have the latest cookies before each batch
             has_cookies = os.path.exists(COOKIE_PATH) or download_cookies_from_supabase()
 
+            log(f"Updating DB status to PROCESSING for {title}")
             supabase.table("repertoire").update({
-                "extraction_status": "PROCESSING", 
+                "extraction_status": "processing", 
                 "last_sync_log": "Starting high-fidelity audio extraction..."
             }).eq("id", song_id).execute()
 
@@ -89,13 +91,14 @@ def process_queued_song(song):
                 'no_warnings': True,
             }
 
-            log(f"Downloading audio for '{title}'...")
+            log(f"Downloading audio for '{title}' from {video_url}...")
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([video_url])
             
             mp3_path = os.path.join(DOWNLOAD_DIR, f"{file_id}.mp3")
             
             if os.path.exists(mp3_path):
+                log(f"Download successful. Starting upload to Supabase Storage for {title}.")
                 # Construct storage path for Supabase
                 storage_path = f"{user_id}/{song_id}/{int(time.time())}.mp3"
                 
@@ -106,11 +109,11 @@ def process_queued_song(song):
                 # Get public URL
                 public_url = supabase.storage.from_("public_audio").get_public_url(storage_path)
                 
-                log(f"Upload complete. Updating Supabase record for '{title}'.")
+                log(f"Upload complete. Updating Supabase record for '{title}' with URL: {public_url[:50]}...")
                 supabase.table("repertoire").update({
                     "audio_url": public_url,
                     "preview_url": public_url,
-                    "extraction_status": "COMPLETED",
+                    "extraction_status": "completed",
                     "extraction_error": None,
                     "last_extracted_at": time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
                     "last_sync_log": "Master audio linked successfully."
@@ -126,7 +129,7 @@ def process_queued_song(song):
             log(f"FAILED: '{title}' | Error: {error_msg}")
             try:
                 supabase.table("repertoire").update({
-                    "extraction_status": "FAILED",
+                    "extraction_status": "failed",
                     "extraction_error": error_msg[:250],
                     "last_sync_log": f"Worker Error: {error_msg[:100]}"
                 }).eq("id", song_id).execute()
@@ -138,12 +141,13 @@ def process_queued_song(song):
 
 def job_poller():
     """Checks the DB for new work every 20 seconds."""
-    log("Job Poller initialized.")
+    log("Job Poller initialized. Starting initial cookie sync.")
     # Initial cookie sync
     download_cookies_from_supabase()
     
     while True:
         try:
+            log("Polling DB for 'queued' jobs...")
             res = supabase.table("repertoire")\
                 .select("id, youtube_url, user_id, title")\
                 .eq("extraction_status", "queued")\
@@ -153,12 +157,13 @@ def job_poller():
             
             if res.data and len(res.data) > 0:
                 song_data = res.data[0]
-                log(f"Found queued job: {song_data.get('title')}")
+                log(f"Found queued job: {song_data.get('title')}. Starting new thread.")
                 # Use a thread for the actual download but the semaphore handles concurrency
                 threading.Thread(target=lambda: process_queued_song(song_data)).start()
                 # Give the thread a head start so we don't pick up the same job twice
                 time.sleep(5)
             else:
+                log("No queued jobs found. Sleeping.")
                 time.sleep(20)
         except Exception as e:
             log(f"Poller Error: {e}")
