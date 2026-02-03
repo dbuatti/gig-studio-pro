@@ -554,6 +554,17 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         {song.isKeyConfirmed && <Check className="w-2.5 h-2.5" />}
                       </div>
                     </div>
+                    {/* START NEW: Readiness Score for Mobile */}
+                    <div className="flex flex-col">
+                      <span className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-0.5">Ready</span>
+                      <span className={cn(
+                        "text-[10px] font-mono font-bold px-2 py-0.5 rounded-lg",
+                        readinessScore >= 90 ? "bg-emerald-600/20 text-emerald-400" : "bg-amber-600/20 text-amber-400"
+                      )}>
+                        {readinessScore}%
+                      </span>
+                    </div>
+                    {/* END NEW */}
                     <div className="flex flex-col">
                       <span className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-0.5">Tempo</span>
                       <span className="text-[10px] font-mono font-bold text-muted-foreground">{song.bpm || "--"} BPM</span>
