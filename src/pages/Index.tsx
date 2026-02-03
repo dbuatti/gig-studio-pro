@@ -41,6 +41,7 @@ import ResourceAuditModal from '@/components/ResourceAuditModal';
 import SetlistSettingsModal from '@/components/SetlistSettingsModal';
 import SetlistSelector from '@/components/SetlistSelector';
 import GlobalSearchModal from '@/components/GlobalSearchModal';
+import { sortSongsByStrategy } from '@/utils/SetlistGenerator';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -476,7 +477,7 @@ const Index = () => {
   }, [masterRepertoire, fetchSetlistsAndRepertoire]);
 
   const handleClearAutoLinks = useCallback(async () => {
-    if (!confirm("Clear all auto-populated links?")) return;
+    if (!confirm("Are you sure you want to clear all auto-populated links?")) return;
     try {
       const { error } = await supabase
         .from('repertoire')
@@ -553,25 +554,61 @@ const Index = () => {
       );
     }
 
+    // Apply filtering based on activeFilters
+    songs = songs.filter(s => {
+      const readiness = calculateReadiness(s);
+      const hasAudio = !!s.audio_url;
+      const hasItunesPreview = !!s.previewUrl && (s.previewUrl.includes('apple.com') || s.previewUrl.includes('itunes-assets'));
+      const hasVideo = !!s.youtubeUrl;
+      const hasPdf = !!s.pdfUrl || !!s.leadsheetUrl || !!s.sheet_music_url;
+      const hasUg = !!s.ugUrl;
+      const hasUgChords = !!s.ug_chords_text && s.ug_chords_text.trim().length > 0;
+      const hasLyrics = !!s.lyrics && s.lyrics.length > 20;
+
+      if (activeFilters.readiness > 0 && readiness < activeFilters.readiness) return false;
+      if (activeFilters.isConfirmed === 'yes' && !s.isKeyConfirmed) return false;
+      if (activeFilters.isConfirmed === 'no' && s.isKeyConfirmed) return false;
+      if (activeFilters.isApproved === 'yes' && !s.isApproved) return false;
+      if (activeFilters.isApproved === 'no' && s.isApproved) return false;
+      if (activeFilters.hasAudio === 'full' && !hasAudio) return false;
+      if (activeFilters.hasAudio === 'itunes' && !hasItunesPreview) return false;
+      if (activeFilters.hasAudio === 'none' && (hasAudio || hasItunesPreview)) return false;
+      if (activeFilters.hasVideo === 'yes' && !hasVideo) return false;
+      if (activeFilters.hasVideo === 'no' && hasVideo) return false;
+      if (activeFilters.hasChart === 'yes' && !(hasPdf || hasUg || hasUgChords)) return false;
+      if (activeFilters.hasChart === 'no' && (hasPdf || hasUg || hasUgChords)) return false;
+      if (activeFilters.hasPdf === 'yes' && !hasPdf) return false;
+      if (activeFilters.hasPdf === 'no' && hasPdf) return false;
+      if (activeFilters.hasUg === 'yes' && !hasUg) return false;
+      if (activeFilters.hasUg === 'no' && hasUg) return false;
+      if (activeFilters.hasUgChords === 'yes' && !hasUgChords) return false;
+      if (activeFilters.hasUgChords === 'no' && hasUgChords) return false;
+      if (activeFilters.hasLyrics === 'yes' && !hasLyrics) return false;
+      if (activeFilters.hasLyrics === 'no' && hasLyrics) return false;
+      if (activeFilters.hasHighestNote === 'yes' && !s.highest_note_original) return false; 
+      if (activeFilters.hasHighestNote === 'no' && s.highest_note_original) return false; 
+      if (activeFilters.hasOriginalKey === 'yes' && (!s.originalKey || s.originalKey === 'TBC')) return false; 
+      if (activeFilters.hasOriginalKey === 'no' && (s.originalKey && s.originalKey !== 'TBC')) return false; 
+      
+      return true;
+    });
+
     // Apply sorting based on mode
     if (sortMode === 'ready') {
       songs.sort((a, b) => calculateReadiness(b) - calculateReadiness(a));
     } else if (sortMode === 'work') {
       songs.sort((a, b) => calculateReadiness(a) - calculateReadiness(b));
-    } else if (sortMode === 'none') {
-      // Default to original order if no search/manual sort is active
-      songs = rawSongs.filter(s => 
-        s.name.toLowerCase().includes(q) || 
-        s.artist?.toLowerCase().includes(q)
-      );
-    } else if (sortMode === 'manual') {
-      // Manual sort is handled by the parent component's state (rawSongs)
+    } else if (sortMode === 'none' || sortMode === 'manual') {
+      // If no search term, use the raw order (which is the manual order)
+      if (!q) {
+        songs = activeSetlist.songs.filter(s => songs.some(fs => fs.id === s.id));
+      }
     } else if (sortMode.startsWith('energy') || sortMode === 'zig-zag' || sortMode === 'wedding-ramp') {
       songs = sortSongsByStrategy(songs, sortMode);
     }
 
     return songs;
-  }, [activeSetlist, searchTerm, sortMode, rawSongs]);
+  }, [activeSetlist, searchTerm, sortMode, activeFilters]);
 
   const handleOpenReader = useCallback((initialSongId?: string) => {
     sessionStorage.setItem('from_dashboard', 'true');
@@ -809,8 +846,8 @@ const Index = () => {
               onRefreshRepertoire={() => fetchSetlistsAndRepertoire()} 
               searchTerm={searchTerm} 
               setSearchTerm={setSearchTerm} 
-              sortMode={sortMode} 
-              setSortMode={setSortMode} 
+              sortMode={sortMode as any} 
+              setSortMode={setSortMode as any} 
               activeFilters={activeFilters} 
               setActiveFilters={setActiveFilters}
               onUpdateSetlistSongs={handleUpdateSetlistSongs}
