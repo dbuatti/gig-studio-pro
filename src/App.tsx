@@ -1,3 +1,4 @@
+import { AudioContextInitializer } from "@/components/AudioContextInitializer";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -29,9 +30,11 @@ const App = () => {
         <TooltipProvider>
           <Toaster />
           <Sonner position="top-center" />
-          <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-            <MainLayout />
-          </BrowserRouter>
+          <AudioContextInitializer>
+            <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+              <MainLayout />
+            </BrowserRouter>
+          </AudioContextInitializer>
         </TooltipProvider>
       </AuthProvider>
     </QueryClientProvider>
