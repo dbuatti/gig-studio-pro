@@ -152,6 +152,30 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
   const isItunesPreview = (url: string) => url && (url.includes('apple.com') || url.includes('itunes-assets'));
 
+  const handleMoveToTop = (id: string) => {
+    if (sortMode !== 'manual' || searchTerm) return;
+    const index = processedSongs.findIndex(s => s.id === id);
+    if (index <= 0) return;
+
+    const newSongs = [...processedSongs];
+    const [songToMove] = newSongs.splice(index, 1);
+    newSongs.unshift(songToMove);
+    onReorder(newSongs);
+    showSuccess("Song moved to the top of the setlist!");
+  };
+
+  const handleMoveToBottom = (id: string) => {
+    if (sortMode !== 'manual' || searchTerm) return;
+    const index = processedSongs.findIndex(s => s.id === id);
+    if (index === -1 || index === processedSongs.length - 1) return;
+
+    const newSongs = [...processedSongs];
+    const [songToMove] = newSongs.splice(index, 1);
+    newSongs.push(songToMove);
+    onReorder(newSongs);
+    showSuccess("Song moved to the bottom of the setlist!");
+  };
+
   const handleMove = (id: string, direction: 'up' | 'down') => {
     if (sortMode !== 'manual' || searchTerm) return;
     
@@ -355,12 +379,20 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(song); }}>
                           <Settings2 className="w-4 h-4 mr-2" /> Configure Studio
                         </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMoveToTop(song.id); }} disabled={!isReorderingEnabled || idx === 0}>
+                          <ChevronUp className="w-4 h-4 mr-2 text-indigo-600" /> Move to Top
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'up'); }} disabled={!isReorderingEnabled || idx === 0}>
-                          <ChevronUp className="w-4 h-4 mr-2" /> Move Up
+                          <ChevronUp className="w-4 h-4 mr-2 opacity-50" /> Move Up
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'down'); }} disabled={!isReorderingEnabled || idx === processedSongs.length - 1}>
-                          <ChevronDown className="w-4 h-4 mr-2" /> Move Down
+                          <ChevronDown className="w-4 h-4 mr-2 opacity-50" /> Move Down
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMoveToBottom(song.id); }} disabled={!isReorderingEnabled || idx === processedSongs.length - 1}>
+                          <ChevronDown className="w-4 h-4 mr-2 text-indigo-600" /> Move to Bottom
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(song.id); }}>
                           <Trash2 className="w-4 h-4 mr-2" /> Remove Track
                         </DropdownMenuItem>
@@ -541,17 +573,30 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                           <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground hover:text-indigo-600 hover:bg-indigo-50 transition-colors inline-flex items-center justify-center" onClick={(e) => { e.stopPropagation(); onEdit(song); }}>
                             <Edit3 className="w-4 h-4" />
                           </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-9 w-9 rounded-xl text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors inline-flex items-center justify-center" 
-                            onClick={(e) => { 
-                              e.stopPropagation(); 
-                              setDeleteConfirmId(song.id); 
-                            }}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground hover:bg-accent dark:hover:bg-secondary">
+                                <MoreVertical className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onUpdateSong(song.id, { isApproved: !song.isApproved }); showSuccess(`Song marked as ${song.isApproved ? 'unapproved' : 'approved'} for gig.`); }}>
+                                {song.isApproved ? <Check className="w-4 h-4 mr-2 text-emerald-500" /> : <ListMusic className="w-4 h-4 mr-2" />}
+                                {song.isApproved ? "Unapprove for Gig" : "Approve for Gig"}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMoveToTop(song.id); }} disabled={!isReorderingEnabled || idx === 0}>
+                                <ChevronUp className="w-4 h-4 mr-2 text-indigo-600" /> Move to Top
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMoveToBottom(song.id); }} disabled={!isReorderingEnabled || idx === processedSongs.length - 1}>
+                                <ChevronDown className="w-4 h-4 mr-2 text-indigo-600" /> Move to Bottom
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(song.id); }}>
+                                <Trash2 className="w-4 h-4 mr-2" /> Remove Track
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </td>
                     </tr>
