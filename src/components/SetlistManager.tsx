@@ -488,10 +488,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                           {song.isApproved ? "Unapprove for Gig" : "Approve for Gig"}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(song); }}>
-                          <Settings2 className="w-4 h-4 mr-2" /> Configure Studio
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMoveToTop(song.id); }} disabled={!isReorderingEnabled || idx === 0}>
                           <ChevronUp className="w-4 h-4 mr-2 text-indigo-600" /> Move to Top
                         </DropdownMenuItem>
@@ -503,6 +499,10 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMoveToBottom(song.id); }} disabled={!isReorderingEnabled || idx === processedSongs.length - 1}>
                           <ChevronDown className="w-4 h-4 mr-2 text-indigo-600" /> Move to Bottom
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(song); }}>
+                          <Settings2 className="w-4 h-4 mr-2" /> Configure Studio
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(song.id); }}>
@@ -723,6 +723,10 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMoveToBottom(song.id); }} disabled={!isReorderingEnabled || idx === processedSongs.length - 1}>
                                 <ChevronDown className="w-4 h-4 mr-2 text-indigo-600" /> Move to Bottom
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(song); }}>
+                                <Settings2 className="w-4 h-4 mr-2" /> Configure Studio
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(song.id); }}>
