@@ -89,8 +89,8 @@ const Index = () => {
 
   // Filter/search states
   const [searchTerm, setSearchTerm] = useState(() => localStorage.getItem('gig_search_term') || "");
-  const [sortMode, setSortMode] = useState<'none' | 'ready' | 'work' | 'manual'>(() => 
-    (localStorage.getItem('gig_sort_mode') as 'none' | 'ready' | 'work' | 'manual') || 'none'
+  const [sortMode, setSortMode] = useState<'none' | 'ready' | 'work' | 'manual' | 'energy-asc' | 'energy-desc' | 'zig-zag' | 'wedding-ramp'>(() => 
+    (localStorage.getItem('gig_sort_mode') as 'none' | 'ready' | 'work' | 'manual' | 'energy-asc' | 'energy-desc' | 'zig-zag' | 'wedding-ramp') || 'none'
   );
   const [activeFilters, setActiveFilters] = useState<FilterState>(() => {
     const saved = localStorage.getItem('gig_active_filters');
@@ -186,6 +186,7 @@ const Index = () => {
         leadsheetUrl: d.leadsheet_url,
         bpm: d.bpm,
         genre: d.genre,
+        isSyncing: false,
         isMetadataConfirmed: d.is_metadata_confirmed,
         isKeyConfirmed: d.is_key_confirmed,
         notes: d.notes,
@@ -215,6 +216,7 @@ const Index = () => {
         original_key_updated_at: d.original_key_updated_at,
         target_key_updated_at: d.target_key_updated_at,
         pdf_updated_at: d.pdf_updated_at,
+        energy_level: d.energy_level as EnergyZone,
       }));
       
       setMasterRepertoire(mappedRepertoire);
@@ -489,6 +491,56 @@ const Index = () => {
     }
   }, [userId, fetchSetlistsAndRepertoire]);
 
+  const handleBulkVibeCheck = useCallback(async () => {
+    const songsToVibeCheck = masterRepertoire.filter(s => 
+      !s.energy_level && s.name && s.artist && s.bpm
+    );
+
+    if (songsToVibeCheck.length === 0) {
+      showSuccess("All tracks with sufficient metadata already have an Energy Zone.");
+      return;
+    }
+
+    showInfo(`Initiating Vibe Check for ${songsToVibeCheck.length} tracks...`);
+    
+    let successful = 0;
+    let failed = 0;
+
+    for (const song of songsToVibeCheck) {
+      try {
+        const { data, error } = await supabase.functions.invoke('vibe-check', {
+          body: {
+            title: song.name,
+            artist: song.artist,
+            bpm: song.bpm,
+            genre: song.genre || 'Unknown',
+            userTags: song.user_tags || []
+          }
+        });
+
+        if (error) throw error;
+
+        if (data?.energy_level) {
+          await syncToMasterRepertoire(userId!, [{
+            id: song.id,
+            energy_level: data.energy_level as SetlistSong['energy_level']
+          }]);
+          successful++;
+        } else {
+          failed++;
+        }
+      } catch (err) {
+        failed++;
+      }
+      // Add a small delay to respect rate limits
+      await new Promise(r => setTimeout(r, 500));
+    }
+
+    showSuccess(`Bulk Vibe Check Complete: ${successful} successful, ${failed} failed.`);
+    fetchSetlistsAndRepertoire();
+
+  }, [masterRepertoire, userId, fetchSetlistsAndRepertoire]);
+
   const filteredAndSortedSongs = useMemo(() => {
     if (!activeSetlist) return [];
     let songs = [...activeSetlist.songs];
@@ -501,16 +553,25 @@ const Index = () => {
       );
     }
 
+    // Apply sorting based on mode
     if (sortMode === 'ready') {
       songs.sort((a, b) => calculateReadiness(b) - calculateReadiness(a));
     } else if (sortMode === 'work') {
       songs.sort((a, b) => calculateReadiness(a) - calculateReadiness(b));
     } else if (sortMode === 'none') {
-      songs.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      // Default to original order if no search/manual sort is active
+      songs = rawSongs.filter(s => 
+        s.name.toLowerCase().includes(q) || 
+        s.artist?.toLowerCase().includes(q)
+      );
+    } else if (sortMode === 'manual') {
+      // Manual sort is handled by the parent component's state (rawSongs)
+    } else if (sortMode.startsWith('energy') || sortMode === 'zig-zag' || sortMode === 'wedding-ramp') {
+      songs = sortSongsByStrategy(songs, sortMode);
     }
-    
+
     return songs;
-  }, [activeSetlist, searchTerm, sortMode]);
+  }, [activeSetlist, searchTerm, sortMode, rawSongs]);
 
   const handleOpenReader = useCallback((initialSongId?: string) => {
     sessionStorage.setItem('from_dashboard', 'true');
@@ -716,6 +777,7 @@ const Index = () => {
                   onReorder={handleReorderSongs}
                   onUpdateSetlistSongs={handleUpdateSetlistSongs}
                   onOpenSortModal={() => setIsSetlistSortModalOpen(true)}
+                  onBulkVibeCheck={handleBulkVibeCheck}
                 />
               </>
             )}
@@ -758,6 +820,7 @@ const Index = () => {
               onAutoLink={handleAutoLink}
               onGlobalAutoSync={handleGlobalAutoSync}
               onClearAutoLinks={handleClearAutoLinks}
+              onBulkVibeCheck={handleBulkVibeCheck}
               missingAudioCount={missingAudioCount}
             />
           </TabsContent>

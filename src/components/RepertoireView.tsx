@@ -40,6 +40,7 @@ interface RepertoireViewProps {
   onGlobalAutoSync?: () => Promise<void>;
   onBulkRefreshAudio?: () => Promise<void>;
   onClearAutoLinks?: () => Promise<void>;
+  onBulkVibeCheck?: () => Promise<void>; // NEW PROP
   isBulkDownloading?: boolean;
   missingAudioCount?: number;
   onOpenAdmin?: () => void;
@@ -63,6 +64,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
   onGlobalAutoSync,
   onBulkRefreshAudio,
   onClearAutoLinks,
+  onBulkVibeCheck, // Destructure new prop
   isBulkDownloading,
   missingAudioCount,
   onOpenAdmin,
@@ -268,6 +270,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
             onGlobalAutoSync={onGlobalAutoSync}
             onBulkRefreshAudio={onBulkRefreshAudio}
             onClearAutoLinks={onClearAutoLinks}
+            onBulkVibeCheck={onBulkVibeCheck} // NEW: Pass Vibe Check handler
             isBulkDownloading={false}
             missingAudioCount={missingAudioCount}
             onOpenAdmin={onOpenAdmin}

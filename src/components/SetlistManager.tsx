@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, CircleDashed, CheckCircle2, Volume2, ChevronUp, ChevronDown, Search, LayoutList, SortAsc, AlertTriangle, Loader2, Guitar, CloudDownload, Edit3, Filter, MoreVertical, Settings2, Check, ShieldCheck, Clock, Star, Zap } from 'lucide-react';
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, formatKey, transposeKey, calculateSemitones } from '@/utils/keyUtils';
-import { cn } from "@/lib/utils";
+import { cn } from '@/lib/utils';
 import { showSuccess } from '@/utils/toast';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
@@ -123,6 +123,7 @@ interface SetlistManagerProps {
   allSetlists: Setlist[];
   onUpdateSetlistSongs: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>;
   onOpenSortModal: () => void;
+  onBulkVibeCheck: () => Promise<void>; // NEW PROP
 }
 
 const SetlistManager: React.FC<SetlistManagerProps> = ({
@@ -147,12 +148,14 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   allSetlists,
   onUpdateSetlistSongs,
   onOpenSortModal,
+  onBulkVibeCheck, // Destructure new prop
 }) => {
   const isMobile = useIsMobile();
   const { keyPreference: globalPreference } = useSettings();
   
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [isVibeChecking, setIsVibeChecking] = useState(false); // NEW STATE
 
   // --- Filtering and Sorting Logic ---
   const processedSongs = useMemo(() => {
@@ -269,6 +272,19 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     }
   };
 
+  const handleVibeCheckAction = async () => {
+    setIsVibeChecking(true);
+    try {
+      await onBulkVibeCheck();
+    } finally {
+      setIsVibeChecking(false);
+    }
+  };
+
+  const missingEnergyCount = useMemo(() => {
+    return rawSongs.filter(s => !s.energy_level && s.name && s.artist && s.bpm).length;
+  }, [rawSongs]);
+
   return (
     <div className="space-y-4 md:space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-2">
@@ -369,6 +385,28 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
           </Button>
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  onClick={handleVibeCheckAction}
+                  disabled={isVibeChecking || missingEnergyCount === 0}
+                  className={cn(
+                    "h-10 px-6 rounded-xl font-black uppercase tracking-wider text-[10px] gap-2 shadow-lg",
+                    isVibeChecking ? "bg-purple-600/50 text-white" : "bg-purple-600 hover:bg-purple-700 text-white shadow-purple-600/20"
+                  )}
+                >
+                  {isVibeChecking ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+                  Vibe Check ({missingEnergyCount})
+                </Button>
+              </TooltipTrigger>
+              {missingEnergyCount === 0 && (
+                <TooltipContent className="bg-popover text-foreground border-border text-[10px] font-black uppercase">
+                  All tracks have an Energy Zone set.
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
           <div className="relative flex-1 sm:w-64 group">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground group-focus-within:text-indigo-500 transition-colors" />
             <Input 
@@ -378,14 +416,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
               className="h-10 sm:h-9 pl-9 text-[11px] font-bold bg-card dark:bg-card border-border dark:border-border rounded-xl focus-visible:ring-indigo-500"
             />
           </div>
-          {sortMode === 'manual' && (
-            <Button 
-              onClick={onOpenSortModal}
-              className="h-10 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] tracking-widest gap-2 shadow-lg shadow-indigo-600/20"
-            >
-              <SortAsc className="w-3.5 h-3.5" /> Reorder
-            </Button>
-          )}
         </div>
       </div>
 
@@ -720,6 +750,12 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                               <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMoveToTop(song.id); }} disabled={!isReorderingEnabled || idx === 0}>
                                 <ChevronUp className="w-4 h-4 mr-2 text-indigo-600" /> Move to Top
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'up'); }} disabled={!isReorderingEnabled || idx === 0}>
+                                <ChevronUp className="w-4 h-4 mr-2 opacity-50" /> Move Up
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'down'); }} disabled={!isReorderingEnabled || idx === processedSongs.length - 1}>
+                                <ChevronDown className="w-4 h-4 mr-2 opacity-50" /> Move Down
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMoveToBottom(song.id); }} disabled={!isReorderingEnabled || idx === processedSongs.length - 1}>
                                 <ChevronDown className="w-4 h-4 mr-2 text-indigo-600" /> Move to Bottom

@@ -12,7 +12,8 @@ import {
   RefreshCcw, 
   Undo2,
   Settings2,
-  AlertTriangle
+  AlertTriangle,
+  Zap
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { showSuccess, showError } from '@/utils/toast';
@@ -33,6 +34,7 @@ interface SetlistExporterProps {
   onGlobalAutoSync?: () => Promise<void>;
   onBulkRefreshAudio?: () => Promise<void>;
   onClearAutoLinks?: () => Promise<void>;
+  onBulkVibeCheck?: () => Promise<void>; // NEW PROP
   isBulkDownloading?: boolean;
   missingAudioCount?: number;
   onOpenAdmin?: () => void;
@@ -44,6 +46,7 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
   onGlobalAutoSync,
   onBulkRefreshAudio,
   onClearAutoLinks,
+  onBulkVibeCheck, // Destructure new prop
   isBulkDownloading,
   missingAudioCount = 0,
   onOpenAdmin
@@ -51,6 +54,7 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
   const [isLinking, setIsLinking] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
+  const [isVibeChecking, setIsVibeChecking] = useState(false); // NEW STATE
 
   const isMissingLink = (url?: string) => {
     if (!url) return true;
@@ -64,6 +68,10 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
 
   const autoPopulatedCount = useMemo(() => {
     return (songs as any[]).filter(s => s.metadata_source === 'auto_populated').length;
+  }, [songs]);
+
+  const missingEnergyCount = useMemo(() => {
+    return songs.filter(s => !s.energy_level && s.name && s.artist && s.bpm).length;
   }, [songs]);
 
   const handleAction = async (action: () => Promise<void>, setter: (v: boolean) => void, successMsg: string) => {
@@ -120,6 +128,34 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
       </div>
       
       <div className="grid grid-cols-1 gap-2">
+        {/* NEW: Bulk Vibe Check */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="w-full">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => handleAction(onBulkVibeCheck!, setIsVibeChecking, "Bulk Vibe Check Complete")}
+                  disabled={isVibeChecking || missingEnergyCount === 0}
+                  className={cn(
+                    "h-9 w-full justify-start text-[10px] font-black uppercase tracking-widest rounded-xl gap-3 relative overflow-hidden transition-all",
+                    isVibeChecking ? "bg-purple-50 text-purple-600" : "text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20"
+                  )}
+                >
+                  {isVibeChecking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                  Bulk Vibe Check ({missingEnergyCount} Missing)
+                </Button>
+              </div>
+            </TooltipTrigger>
+            {missingEnergyCount === 0 && (
+              <TooltipContent className="bg-popover text-foreground border-border text-[10px] font-black uppercase">
+                All tracks have an Energy Zone set.
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
+
         {/* Tier 1: iTunes -> YouTube Global Sync */}
         <Button 
           variant="ghost" 
