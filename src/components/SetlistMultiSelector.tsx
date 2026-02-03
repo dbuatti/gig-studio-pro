@@ -38,30 +38,16 @@ const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
   const [assignedSetlistIds, setAssignedSetlistIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
 
-  if (!songToAssign) {
-    return (
-      <Button
-        disabled={true}
-        className={cn(
-          "h-11 rounded-xl font-black uppercase text-[9px] tracking-widest gap-2 px-6 transition-all shadow-lg",
-          "opacity-50 cursor-not-allowed bg-white/5 text-slate-400 border border-white/10"
-        )}
-      >
-        <AlertTriangle className="w-4 h-4" />
-        NO SONG SELECTED
-      </Button>
-    );
-  }
-
-  const repertoireDbId = songToAssign.master_id || songToAssign.id; 
+  const repertoireDbId = songToAssign?.master_id || songToAssign?.id; 
   const isRepertoireSongValid = isValidUuid(repertoireDbId);
 
   const fetchAssignments = useCallback(async () => {
-    if (!isRepertoireSongValid) {
+    if (!isRepertoireSongValid || !repertoireDbId) {
       setAssignedSetlistIds(new Set()); 
       setLoading(false);
       return;
     }
+
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -69,12 +55,18 @@ const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
         .select('setlist_id')
         .eq('song_id', repertoireDbId);
 
-      if (error) throw error;
+      if (error) {
+        // Check for network/CORS errors specifically
+        if (error.message.includes('Failed to fetch')) {
+          console.error("Network/CORS error during assignment fetch. Supabase API might be down or blocked.");
+        }
+        throw error;
+      }
 
       const currentAssignments = new Set(data.map(item => item.setlist_id));
       setAssignedSetlistIds(currentAssignments);
     } catch (err) {
-      console.error("Failed to fetch setlist assignments:", err);
+      // Error handled by toast in parent component
     } finally {
       setLoading(false);
     }
@@ -87,7 +79,7 @@ const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
   }, [repertoireDbId, fetchAssignments]);
 
   const handleAssignmentChange = async (setlistId: string, isChecked: boolean) => {
-    if (!isRepertoireSongValid) {
+    if (!isRepertoireSongValid || !repertoireDbId) {
       showError("Cannot assign: Song ID is invalid.");
       return;
     }
@@ -104,7 +96,7 @@ const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
         
         // Defensive check before calling update callback
         if (typeof onUpdateSetlistSongs === 'function') {
-          await onUpdateSetlistSongs(setlistId, songToAssign, 'add');
+          await onUpdateSetlistSongs(setlistId, songToAssign!, 'add');
         }
       } else {
         const { error } = await supabase
@@ -122,7 +114,7 @@ const SetlistMultiSelector: React.FC<SetlistMultiSelectorProps> = ({
         
         // Defensive check before calling update callback
         if (typeof onUpdateSetlistSongs === 'function') {
-          await onUpdateSetlistSongs(setlistId, songToAssign, 'remove');
+          await onUpdateSetlistSongs(setlistId, songToAssign!, 'remove');
         }
       }
     } catch (err: any) {
