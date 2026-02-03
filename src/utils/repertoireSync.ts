@@ -97,34 +97,40 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
     if (song.pdfUrl !== undefined) dbUpdates.pdf_url = song.pdfUrl;
     if (song.leadsheetUrl !== undefined) dbUpdates.leadsheet_url = song.leadsheetUrl;
     
-    if (song.pitch !== undefined) dbUpdates.pitch = song.pitch;
+    // Numeric fields (defensive casting)
+    if (song.pitch !== undefined) dbUpdates.pitch = Number(song.pitch);
+    if (song.duration_seconds !== undefined) dbUpdates.duration_seconds = Math.round(Number(song.duration_seconds || 0));
+    
+    // Text fields
     if (song.bpm !== undefined) dbUpdates.bpm = song.bpm;
     if (song.genre !== undefined) dbUpdates.genre = song.genre;
-    if (song.isMetadataConfirmed !== undefined) dbUpdates.is_metadata_confirmed = song.isMetadataConfirmed;
-    if (song.isKeyConfirmed !== undefined) dbUpdates.is_key_confirmed = song.isKeyConfirmed;
     if (song.notes !== undefined) dbUpdates.notes = song.notes;
-    if (song.resources !== undefined) dbUpdates.resources = song.resources;
-    if (song.user_tags !== undefined) dbUpdates.user_tags = song.user_tags;
-    if (song.is_pitch_linked !== undefined) dbUpdates.is_pitch_linked = song.is_pitch_linked;
-    if (song.duration_seconds !== undefined) dbUpdates.duration_seconds = Math.round(song.duration_seconds || 0);
-    if (song.isApproved !== undefined) dbUpdates.is_approved = song.isApproved;
-    if (song.is_ready_to_sing !== undefined) dbUpdates.is_ready_to_sing = song.is_ready_to_sing;
     if (song.preferred_reader !== undefined) dbUpdates.preferred_reader = song.preferred_reader;
-    if (song.ug_chords_config !== undefined) dbUpdates.ug_chords_config = song.ug_chords_config;
-    if (song.is_ug_chords_present !== undefined) dbUpdates.is_ug_chords_present = song.is_ug_chords_present;
     if (song.key_preference !== undefined) dbUpdates.key_preference = song.key_preference;
     if (song.audio_url !== undefined) dbUpdates.audio_url = song.audio_url;
     if (song.extraction_status !== undefined) dbUpdates.extraction_status = song.extraction_status;
-    if (song.energy_level !== undefined) dbUpdates.energy_level = song.energy_level; // NEW: Energy Level
+    if (song.energy_level !== undefined) dbUpdates.energy_level = song.energy_level;
 
+    // Boolean fields (defensive casting)
+    if (song.isMetadataConfirmed !== undefined) dbUpdates.is_metadata_confirmed = Boolean(song.isMetadataConfirmed);
+    if (song.isKeyConfirmed !== undefined) dbUpdates.is_key_confirmed = Boolean(song.isKeyConfirmed);
+    if (song.is_pitch_linked !== undefined) dbUpdates.is_pitch_linked = Boolean(song.is_pitch_linked);
+    if (song.isApproved !== undefined) dbUpdates.is_approved = Boolean(song.isApproved);
+    if (song.is_ready_to_sing !== undefined) dbUpdates.is_ready_to_sing = Boolean(song.is_ready_to_sing);
+    if (song.is_ug_chords_present !== undefined) dbUpdates.is_ug_chords_present = Boolean(song.is_ug_chords_present);
+    if (song.auto_synced !== undefined) dbUpdates.auto_synced = Boolean(song.auto_synced);
+    if (song.is_sheet_verified !== undefined) dbUpdates.is_sheet_verified = Boolean(song.is_sheet_verified);
+    
+    // JSONB fields
+    if (song.resources !== undefined) dbUpdates.resources = song.resources;
+    if (song.user_tags !== undefined) dbUpdates.user_tags = song.user_tags;
+    if (song.ug_chords_config !== undefined) dbUpdates.ug_chords_config = song.ug_chords_config;
+    
     let result;
     let error;
 
     if (isRealRecord) {
       // If we have a valid UUID, we perform a direct update on that record.
-      // This ensures that if the title/artist changes, we modify the existing row
-      // rather than letting the unique constraint 'user_id,title,artist' 
-      // trigger a new insert because the conflict wasn't met.
       const { data, error: updateError } = await supabase
         .from('repertoire')
         .update(dbUpdates)
@@ -188,7 +194,7 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
       original_key_updated_at: result.original_key_updated_at,
       target_key_updated_at: result.target_key_updated_at,
       pdf_updated_at: result.pdf_updated_at,
-      energy_level: result.energy_level as EnergyZone, // NEW: Energy Level
+      energy_level: result.energy_level as EnergyZone,
     } as any);
   }
 
