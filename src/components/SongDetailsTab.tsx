@@ -4,13 +4,13 @@ import React, { useState, useCallback } from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { CheckCircle2, ShieldCheck, Link2, FileText, ExternalLink, Check, UploadCloud, Loader2, AlertCircle, Layout } from 'lucide-react'; 
+import { CheckCircle2, ShieldCheck, Link2, FileText, ExternalLink, Check, UploadCloud, Loader2, AlertCircle, Layout, Zap } from 'lucide-react'; 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { SetlistSong } from './SetlistManager';
+import { SetlistSong, EnergyZone } from './SetlistManager';
 import { sanitizeUGUrl } from '@/utils/ugUtils';
-import { showSuccess, showError } from '@/utils/toast';
+import { showSuccess, showError, showInfo } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -26,6 +26,7 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
   const [isUploading, setIsUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [pendingUpload, setPendingUpload] = useState<{ file: File; type: 'pdf' | 'leadsheet' } | null>(null);
+  const [isVibeChecking, setIsVibeChecking] = useState(false);
 
   const handleUgChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     handleAutoSave({ ugUrl: e.target.value });
@@ -157,6 +158,38 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
     }
   };
 
+  const handleVibeCheck = async () => {
+    if (!formData.name || !formData.artist || !formData.bpm) {
+      showError("Title, Artist, and BPM are required for Vibe Check.");
+      return;
+    }
+    setIsVibeChecking(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('vibe-check', {
+        body: {
+          title: formData.name,
+          artist: formData.artist,
+          bpm: formData.bpm,
+          genre: formData.genre || 'Unknown',
+          userTags: formData.user_tags || []
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.energy_level) {
+        handleAutoSave({ energy_level: data.energy_level as EnergyZone });
+        showSuccess(`Vibe Check Complete! Energy set to ${data.energy_level}`);
+      } else {
+        showError("AI could not determine the energy level.");
+      }
+    } catch (err: any) {
+      showError(`Vibe Check failed: ${err.message}`);
+    } finally {
+      setIsVibeChecking(false);
+    }
+  };
+
   const isUgVerified = !!formData.ugUrl;
   const isSheetVerified = !!(formData.sheet_music_url || formData.pdfUrl || formData.leadsheetUrl);
 
@@ -194,6 +227,27 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
             className="bg-white/5 border-white/10 text-xl font-black h-16 rounded-2xl"
           />
         </div>
+      </div>
+      
+      {/* NEW: Energy Vibe Check Section */}
+      <div className="bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-3xl p-6 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="bg-purple-600 p-3 rounded-2xl shadow-lg shadow-purple-600/20">
+            <Zap className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h4 className="text-xl font-black uppercase tracking-tight text-white">Energy Zone: {formData.energy_level || 'TBC'}</h4>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-1">AI Performance Sequencing</p>
+          </div>
+        </div>
+        <Button 
+          onClick={handleVibeCheck}
+          disabled={isVibeChecking || !formData.name || !formData.artist || !formData.bpm}
+          className="bg-purple-600 hover:bg-purple-700 h-12 px-6 rounded-xl font-black uppercase text-[10px] tracking-widest gap-2 shadow-lg shadow-purple-600/20"
+        >
+          {isVibeChecking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+          Vibe Check
+        </Button>
       </div>
 
       <div 

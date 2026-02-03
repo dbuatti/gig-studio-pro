@@ -8,7 +8,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useToneAudio, AudioEngineControls } from '@/hooks/use-tone-audio';
 import { useSettings } from '@/hooks/use-settings';
-import { SetlistSong, Setlist } from '@/components/SetlistManager';
+import { SetlistSong, Setlist, EnergyZone } from '@/components/SetlistManager';
 import { calculateReadiness, syncToMasterRepertoire } from '@/utils/repertoireSync';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { showError, showSuccess } from '@/utils/toast';
@@ -188,6 +188,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
         highest_note_original: data.highest_note_original,
         audio_url: data.audio_url,
         extraction_status: data.extraction_status,
+        energy_level: data.energy_level as EnergyZone, // NEW: Energy Level
       };
       
       setSong(targetSong);

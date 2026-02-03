@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, CircleDashed, CheckCircle2, Volume2, ChevronUp, ChevronDown, Search, LayoutList, SortAsc, AlertTriangle, Loader2, Guitar, CloudDownload, Edit3, Filter, MoreVertical, Settings2, Check, ShieldCheck, Clock, Star } from 'lucide-react';
+import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, CircleDashed, CheckCircle2, Volume2, ChevronUp, ChevronDown, Search, LayoutList, SortAsc, AlertTriangle, Loader2, Guitar, CloudDownload, Edit3, Filter, MoreVertical, Settings2, Check, ShieldCheck, Clock, Star, Zap } from 'lucide-react';
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, formatKey, transposeKey, calculateSemitones } from '@/utils/keyUtils';
 import { cn } from "@/lib/utils";
 import { showSuccess } from '@/utils/toast';
@@ -16,6 +16,7 @@ import { calculateReadiness } from '@/utils/repertoireSync';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import SetlistMultiSelector from './SetlistMultiSelector';
 import { SheetLink } from './LinkDisplayOverlay';
+import { sortSongsByStrategy, analyzeEnergyFatigue } from '@/utils/SetlistGenerator'; // NEW: Import Generator
 
 export interface UGChordsConfig {
   fontFamily: string;
@@ -25,6 +26,8 @@ export interface UGChordsConfig {
   lineSpacing: number;
   textAlign: "left" | "center" | "right";
 }
+
+export type EnergyZone = 'Ambient' | 'Pulse' | 'Groove' | 'Peak';
 
 export interface SetlistSong {
   id: string;
@@ -85,8 +88,9 @@ export interface SetlistSong {
   highest_note_updated_at?: string;
   original_key_updated_at?: string;
   target_key_updated_at?: string;
-  pdf_updated_at?: string; // NEW
+  pdf_updated_at?: string;
   links?: SheetLink[];
+  energy_level?: EnergyZone; // NEW: Energy Level
 }
 
 export interface Setlist {
@@ -109,8 +113,8 @@ interface SetlistManagerProps {
   onReorder: (newSongs: SetlistSong[]) => void;
   currentSongId?: string;
   onOpenAdmin?: () => void;
-  sortMode: 'none' | 'ready' | 'work' | 'manual'; 
-  setSortMode: (mode: 'none' | 'ready' | 'work' | 'manual') => void; 
+  sortMode: 'none' | 'ready' | 'work' | 'manual' | 'energy-asc' | 'energy-desc' | 'zig-zag' | 'wedding-ramp'; // UPDATED: All flow strategies
+  setSortMode: (mode: 'none' | 'ready' | 'work' | 'manual' | 'energy-asc' | 'energy-desc' | 'zig-zag' | 'wedding-ramp') => void; // UPDATED: All flow strategies
   activeFilters: FilterState;
   setActiveFilters: (filters: FilterState) => void;
   searchTerm: string;
@@ -122,7 +126,7 @@ interface SetlistManagerProps {
 }
 
 const SetlistManager: React.FC<SetlistManagerProps> = ({
-  songs: processedSongs,
+  songs: rawSongs, // Use rawSongs for sorting/filtering
   onRemove,
   onSelect,
   onEdit,
@@ -149,6 +153,46 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // --- Filtering and Sorting Logic ---
+  const processedSongs = useMemo(() => {
+    let songs = [...rawSongs];
+    const q = searchTerm.toLowerCase();
+    
+    if (q) {
+      songs = songs.filter(s => 
+        s.name.toLowerCase().includes(q) || 
+        s.artist?.toLowerCase().includes(q)
+      );
+    }
+
+    // Apply sorting based on mode
+    if (sortMode === 'ready') {
+      songs.sort((a, b) => calculateReadiness(b) - calculateReadiness(a));
+    } else if (sortMode === 'work') {
+      songs.sort((a, b) => calculateReadiness(a) - calculateReadiness(b));
+    } else if (sortMode === 'none') {
+      // Default to original order if no search/manual sort is active
+      songs = rawSongs.filter(s => 
+        s.name.toLowerCase().includes(q) || 
+        s.artist?.toLowerCase().includes(q)
+      );
+    } else if (sortMode === 'manual') {
+      // Manual sort is handled by the parent component's state (rawSongs)
+    } else if (sortMode.startsWith('energy')) {
+      songs = sortSongsByStrategy(songs, sortMode);
+    } else if (sortMode === 'zig-zag' || sortMode === 'wedding-ramp') {
+      songs = sortSongsByStrategy(songs, sortMode);
+    }
+
+    return songs;
+  }, [rawSongs, searchTerm, sortMode]);
+
+  // --- Energy Fatigue Analysis ---
+  const energyFatigueIndices = useMemo(() => {
+    if (sortMode !== 'manual' && sortMode !== 'none') return [];
+    return analyzeEnergyFatigue(processedSongs);
+  }, [processedSongs, sortMode]);
 
   const isItunesPreview = (url: string) => url && (url.includes('apple.com') || url.includes('itunes-assets'));
 
@@ -215,6 +259,16 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     return "";
   };
 
+  const getEnergyBarClass = (energyLevel: EnergyZone | undefined) => {
+    switch (energyLevel) {
+      case 'Ambient': return 'bg-blue-400 w-1/4';
+      case 'Pulse': return 'bg-emerald-400 w-2/4';
+      case 'Groove': return 'bg-amber-400 w-3/4';
+      case 'Peak': return 'bg-red-500 w-full';
+      default: return 'bg-slate-700 w-1/4';
+    }
+  };
+
   return (
     <div className="space-y-4 md:space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-2">
@@ -260,6 +314,48 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
             >
               <AlertTriangle className="w-3 h-3" /> <span className="hidden sm:inline">Work Needed</span>
             </Button>
+            {/* NEW: Energy Sort Buttons */}
+            <Button 
+              variant="ghost" size="sm" 
+              onClick={() => setSortMode('energy-asc')}
+              className={cn(
+                "h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg",
+                sortMode === 'energy-asc' && "bg-background dark:bg-secondary shadow-sm text-purple-600"
+              )}
+            >
+              <Zap className="w-3 h-3" /> <span className="hidden sm:inline">Energy ↑</span>
+            </Button>
+            <Button 
+              variant="ghost" size="sm" 
+              onClick={() => setSortMode('energy-desc')}
+              className={cn(
+                "h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg",
+                sortMode === 'energy-desc' && "bg-background dark:bg-secondary shadow-sm text-purple-600"
+              )}
+            >
+              <Zap className="w-3 h-3" /> <span className="hidden sm:inline">Energy ↓</span>
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="ghost" size="sm" 
+                  className={cn(
+                    "h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg",
+                    (sortMode === 'zig-zag' || sortMode === 'wedding-ramp') && "bg-background dark:bg-secondary shadow-sm text-pink-600"
+                  )}
+                >
+                  <Zap className="w-3 h-3" /> <span className="hidden sm:inline">Flow</span> <ChevronDown className="w-3 h-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48 p-2 rounded-2xl bg-popover border-border text-foreground">
+                <DropdownMenuItem onClick={() => setSortMode('zig-zag')} className="text-xs font-bold uppercase h-10 rounded-xl">
+                  Zig-Zag (Club)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSortMode('wedding-ramp')} className="text-xs font-bold uppercase h-10 rounded-xl">
+                  Wedding Ramp (Gala)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
           <Button 
             variant="ghost" size="sm" 
@@ -300,6 +396,19 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
         />
       )}
 
+      {/* NEW: Energy Fatigue Warning */}
+      {energyFatigueIndices.length > 0 && (
+        <div className="p-4 bg-red-600/10 border border-red-600/20 rounded-2xl flex items-start gap-4">
+          <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-black uppercase text-red-400">Energy Fatigue Warning</p>
+            <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+              You have {energyFatigueIndices.length} high-energy clusters (3+ 'Peak' songs in a row). Consider adding a 'Pulse' or 'Ambient' track to prevent audience burnout.
+            </p>
+          </div>
+        </div>
+      )}
+
       {isMobile ? (
         <div className="space-y-3 px-1 pb-4">
           {processedSongs.map((song, idx) => {
@@ -317,13 +426,16 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                 key={song.id}
                 onClick={() => onEdit(song)}
                 className={cn(
-                  "bg-card rounded-2xl border-2 transition-all p-4 flex flex-col gap-3 shadow-sm",
+                  "bg-card rounded-2xl border-2 transition-all p-4 flex flex-col gap-3 shadow-sm relative overflow-hidden",
                   isSelected ? "border-indigo-500 shadow-md ring-1 ring-indigo-500/20" : "border-border",
                   song.isPlayed && "opacity-50 grayscale-[0.2]",
                   getHeatmapClass(song)
                 )}
               >
-                <div className="flex items-start justify-between">
+                {/* Energy Bar */}
+                <div className={cn("absolute top-0 left-0 h-full transition-all duration-500", getEnergyBarClass(song.energy_level))} />
+                
+                <div className="flex items-start justify-between relative z-10">
                   <div className="flex gap-3">
                     <button 
                       onClick={(e) => {
@@ -400,7 +512,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                     </DropdownMenu>
                   </div>
                 </div>
-                <div className="flex items-center justify-between border-t border-border pt-3">
+                <div className="flex items-center justify-between border-t border-border pt-3 relative z-10">
                   <div className="flex items-center gap-4">
                     <div className="flex flex-col">
                       <span className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-0.5">Key</span>
@@ -443,11 +555,12 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       ) : (
         <div className="bg-card rounded-[2rem] border-4 border-border shadow-2xl overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse min-w-[900px]">
+            <table className="w-full border-collapse min-w-[1000px]">
               <thead>
                 <tr className="bg-secondary dark:bg-secondary border-b border-border">
                   <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-16 text-center">Sts</th>
                   <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground text-left">Song / Resource Matrix</th>
+                  <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-24 text-center">Energy</th> {/* NEW: Energy Header */}
                   <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-24 text-center">Move</th>
                   <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-48 text-center">Harmonic Map</th>
                   <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-40 text-right pr-10">Command</th>
@@ -529,6 +642,26 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                             <p className="text-[8px] text-red-400 ml-[32px] mt-1 truncate max-w-[150px]">Error: {song.last_sync_log}</p>
                           )}
                         </div>
+                      </td>
+                      {/* NEW: Energy Cell */}
+                      <td className="px-6 text-center">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="flex flex-col items-center gap-1">
+                                <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
+                                  <div className={cn("h-full transition-all duration-500", getEnergyBarClass(song.energy_level))} />
+                                </div>
+                                <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">
+                                  {song.energy_level || 'TBC'}
+                                </span>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent className="text-[10px] font-black uppercase">
+                              Energy Zone: {song.energy_level || 'Not Classified'}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </td>
                       <td className="px-6 text-center">
                         <div className="flex flex-col items-center justify-center gap-0.5 h-full">

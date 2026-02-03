@@ -1,6 +1,6 @@
 "use client";
 import { supabase } from "@/integrations/supabase/client";
-import { SetlistSong } from "@/components/SetlistManager";
+import { SetlistSong, EnergyZone } from "@/components/SetlistManager";
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 
 const cleanMetadata = (val: string | undefined | null) => {
@@ -115,6 +115,7 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
     if (song.key_preference !== undefined) dbUpdates.key_preference = song.key_preference;
     if (song.audio_url !== undefined) dbUpdates.audio_url = song.audio_url;
     if (song.extraction_status !== undefined) dbUpdates.extraction_status = song.extraction_status;
+    if (song.energy_level !== undefined) dbUpdates.energy_level = song.energy_level; // NEW: Energy Level
 
     let result;
     let error;
@@ -187,6 +188,7 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
       original_key_updated_at: result.original_key_updated_at,
       target_key_updated_at: result.target_key_updated_at,
       pdf_updated_at: result.pdf_updated_at,
+      energy_level: result.energy_level as EnergyZone, // NEW: Energy Level
     } as any);
   }
 
