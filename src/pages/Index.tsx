@@ -542,6 +542,29 @@ const Index = () => {
 
   }, [masterRepertoire, userId, fetchSetlistsAndRepertoire]);
 
+  const handleBulkRefreshAudio = useCallback(async () => {
+    const missing = masterRepertoire.filter(s =>
+      !!s.youtubeUrl && (!s.audio_url || s.extraction_status !== 'completed')
+    );
+
+    if (missing.length === 0) {
+      showSuccess("All tracks with YouTube links already have full audio or are currently processing.");
+      return;
+    }
+
+    try {
+      showInfo(`Initiating audio extraction queue for ${missing.length} tracks...`);
+      const { data, error } = await supabase.functions.invoke('queue-audio-extraction', {
+        body: { songIds: missing.map(s => s.id) }
+      });
+      if (error) throw error;
+      showSuccess("Audio extraction queue initiated in background.");
+      fetchSetlistsAndRepertoire();
+    } catch (err: any) {
+      showError(`Audio queue failed: ${err.message}`);
+    }
+  }, [masterRepertoire, fetchSetlistsAndRepertoire]);
+
   const filteredAndSortedSongs = useMemo(() => {
     if (!activeSetlist) return [];
     let songs = [...activeSetlist.songs];
@@ -858,6 +881,7 @@ const Index = () => {
               onGlobalAutoSync={handleGlobalAutoSync}
               onClearAutoLinks={handleClearAutoLinks}
               onBulkVibeCheck={handleBulkVibeCheck}
+              onBulkRefreshAudio={handleBulkRefreshAudio}
               missingAudioCount={missingAudioCount}
             />
           </TabsContent>
