@@ -105,6 +105,22 @@ const Index = () => {
     localStorage.getItem('gig_show_heatmap') === 'true'
   );
 
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      // Cmd/Ctrl + K for Global Search
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsGlobalSearchOpen(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // Audio engine
   const playNextInList = useCallback(() => {
     if (!activeSetlist || activeSetlist.songs.length === 0) return;
@@ -415,6 +431,41 @@ const Index = () => {
     }
   }, [userId, fetchSetlistsAndRepertoire]);
 
+  const handleDuplicateSetlist = useCallback(async (id: string) => {
+    if (!userId) return;
+    const source = allSetlists.find(s => s.id === id);
+    if (!source) return;
+
+    try {
+      showInfo(`Cloning "${source.name}"...`);
+      const { data: newList, error: listError } = await supabase
+        .from('setlists')
+        .insert([{ user_id: userId, name: `${source.name} (Copy)`, time_goal: source.time_goal }])
+        .select()
+        .single();
+
+      if (listError) throw listError;
+
+      if (source.songs.length > 0) {
+        const junctions = source.songs.map((s, i) => ({
+          setlist_id: newList.id,
+          song_id: s.master_id || s.id,
+          sort_order: i,
+          isPlayed: false
+        }));
+
+        const { error: jError } = await supabase.from('setlist_songs').insert(junctions);
+        if (jError) throw jError;
+      }
+
+      await fetchSetlistsAndRepertoire();
+      setActiveSetlistId(newList.id);
+      showSuccess(`Setlist duplicated successfully!`);
+    } catch (err: any) {
+      showError(`Duplication failed: ${err.message}`);
+    }
+  }, [userId, allSetlists, fetchSetlistsAndRepertoire]);
+
   const handleDeleteSetlist = useCallback(async (id: string) => {
     if (!confirm("Are you sure you want to delete this setlist?")) return;
     
@@ -533,7 +584,6 @@ const Index = () => {
       } catch (err) {
         failed++;
       }
-      // Add a small delay to respect rate limits
       await new Promise(r => setTimeout(r, 500));
     }
 
@@ -577,7 +627,6 @@ const Index = () => {
       );
     }
 
-    // Apply filtering based on activeFilters
     songs = songs.filter(s => {
       const readiness = calculateReadiness(s);
       const hasAudio = !!s.audio_url;
@@ -616,13 +665,11 @@ const Index = () => {
       return true;
     });
 
-    // Apply sorting based on mode
     if (sortMode === 'ready') {
       songs.sort((a, b) => calculateReadiness(b) - calculateReadiness(a));
     } else if (sortMode === 'work') {
       songs.sort((a, b) => calculateReadiness(a) - calculateReadiness(b));
     } else if (sortMode === 'none' || sortMode === 'manual') {
-      // If no search term, use the raw order (which is the manual order)
       if (!q) {
         songs = activeSetlist.songs.filter(s => songs.some(fs => fs.id === s.id));
       }
@@ -636,7 +683,6 @@ const Index = () => {
   const handleOpenReader = useCallback((initialSongId?: string) => {
     sessionStorage.setItem('from_dashboard', 'true');
     
-    // Store the active setlist ID and view mode in session storage
     if (activeDashboardView === 'gigs' && activeSetlistId) {
       sessionStorage.setItem('reader_setlist_id', activeSetlistId);
       sessionStorage.setItem('reader_view_mode', 'gigs');
@@ -670,7 +716,6 @@ const Index = () => {
       const synced = await syncToMasterRepertoire(userId, [newSong]);
       const song = synced[0];
       
-      // If in Gigs view and we have an active setlist, add it there too
       if (activeDashboardView === 'gigs' && activeSetlistId) {
         await handleUpdateSetlistSongs(activeSetlistId, song, 'add');
       } else {
@@ -784,6 +829,7 @@ const Index = () => {
                   onSelect={setActiveSetlistId}
                   onCreate={handleCreateSetlist}
                   onDelete={handleDeleteSetlist}
+                  onDuplicate={handleDuplicateSetlist}
                 />
                 <Button
                   variant="outline"

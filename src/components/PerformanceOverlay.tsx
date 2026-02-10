@@ -13,7 +13,7 @@ import {
   Waves, Activity, ArrowRight, Shuffle,
   Settings2, Gauge, FileText, Save, Youtube,
   Monitor, AlignLeft, RotateCcw, ShieldCheck, ExternalLink,
-  Clock, Timer, ChevronRight, Zap, Minus, Plus, Edit3, Check, Keyboard, CloudDownload, AlertTriangle, Loader2
+  Clock, Timer, ChevronRight, Zap, Minus, Plus, Edit3, Check, Keyboard, CloudDownload, AlertTriangle, Loader2, Shield
 } from 'lucide-react';
 import { SetlistSong } from './SetlistManager';
 import AudioVisualizer from './AudioVisualizer';
@@ -23,6 +23,7 @@ import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, formatKey, calculateSemitones, transpose
 import { cn } from "@/lib/utils";
 import { Badge } from './ui/badge';
 import { useSettings } from '@/hooks/use-settings';
+import { useWakeLock } from '@/hooks/use-wake-lock';
 
 interface PerformanceOverlayProps {
   songs: SetlistSong[];
@@ -40,7 +41,7 @@ interface PerformanceOverlayProps {
   analyzer: any;
   onOpenAdmin?: () => void;
   gigId?: string | null;
-  isLoadingAudio?: boolean; // NEW PROP
+  isLoadingAudio?: boolean;
 }
 
 type ViewMode = 'visualizer' | 'pdf' | 'lyrics';
@@ -61,20 +62,22 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
   analyzer,
   onOpenAdmin,
   gigId,
-  isLoadingAudio, // Destructure new prop
+  isLoadingAudio,
 }) => {
   const navigate = useNavigate();
   const { keyPreference: globalPreference } = useSettings();
   const currentSong = songs[currentIndex];
   const nextSong = songs[currentIndex + 1];
   
+  // Activate Wake Lock to prevent screen sleep during performance
+  const { isActive: isWakeLockActive } = useWakeLock(true);
+
   const [localNotes, setLocalNotes] = useState(currentSong?.notes || "");
   const [viewMode, setViewMode] = useState<ViewMode>('visualizer');
   const [scrollSpeed, setScrollSpeed] = useState(1.0);
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
   const [isShortcutLegendOpen, setIsShortcutLegendOpen] = useState(false);
   
-  // Performance HUD State
   const [wallClock, setWallClock] = useState(new Date());
   const [setStartTime] = useState(new Date());
   const [elapsedSetTime, setElapsedSetTime] = useState("00:00:00");
@@ -85,13 +88,10 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
   const scrollTimeoutRef = useRef<NodeJS.Timeout>();
   const autoScrollRaf = useRef<number | null>(null);
   
-  const touchStartX = useRef<number>(0);
-
   const currentPref = currentSong?.key_preference || globalPreference;
   const nextPref = nextSong?.key_preference || globalPreference;
   const keysToUse = currentPref === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
 
-  // Key listener for shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) return;
@@ -127,7 +127,6 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose, onTogglePlayback, onPrevious, onNext, isShortcutLegendOpen, gigId, currentSong, navigate]);
 
-  // Wall Clock and Set Timer logic
   useEffect(() => {
     const timer = setInterval(() => {
       const now = new Date();
@@ -342,6 +341,12 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
                   <span className="text-xl font-black text-white">{elapsedSetTime}</span>
                </div>
             </div>
+            {isWakeLockActive && (
+              <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+                <Shield className="w-3 h-3 text-emerald-500" />
+                <span className="text-[8px] font-black text-emerald-500 uppercase">Stay Awake Active</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -661,7 +666,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
 
           <Button 
             onClick={onTogglePlayback}
-            disabled={isLoadingAudio || isProcessing || isExtractionFailed} // Disable if loading, processing, or failed
+            disabled={isLoadingAudio || isProcessing || isExtractionFailed} 
             className={cn(
               "h-16 w-16 md:h-24 md:w-24 rounded-full shadow-2xl flex items-center justify-center p-0 transition-all hover:scale-110 active:scale-90",
               isLoadingAudio || isProcessing || isExtractionFailed

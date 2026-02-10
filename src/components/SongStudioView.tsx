@@ -25,7 +25,7 @@ import ProSyncSearch from './ProSyncSearch';
 import { formatKey } from '@/utils/keyUtils';
 import SongStudioConsolidatedHeader from '@/components/SongStudioConsolidatedHeader';
 
-export type StudioTab = 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library';
+export type StudioTab = 'config' | 'audio' | 'details' | 'charts' | 'lyrics' | 'visual' | 'library';
 
 interface SongStudioViewProps {
   gigId: string | 'library';
@@ -41,7 +41,7 @@ interface SongStudioViewProps {
   defaultTab?: StudioTab;
   handleAutoSave?: (updates: Partial<SetlistSong>) => void;
   preventStageKeyOverwrite?: boolean;
-  audioEngine?: AudioEngineControls; // Shared engine from parent
+  audioEngine?: AudioEngineControls;
 }
 
 const SongStudioView: React.FC<SongStudioViewProps> = ({
@@ -64,7 +64,6 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   const { user } = useAuth();
   const { keyPreference: globalKeyPreference } = useSettings();
   
-  // Use external engine if provided, otherwise create local one
   const internalAudio = useToneAudio();
   const audio = externalAudioEngine || internalAudio;
   
@@ -78,6 +77,27 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
   const lastPendingUpdatesRef = useRef<Partial<SetlistSong>>({});
   const currentSongRef = useRef<SetlistSong | null>(null);
+
+  const TABS: StudioTab[] = ['config', 'audio', 'details', 'charts', 'lyrics', 'visual', 'library'];
+
+  // Keyboard shortcuts for tab switching
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      
+      // Cmd/Ctrl + 1-7 to switch tabs
+      if ((e.metaKey || e.ctrlKey) && !isNaN(Number(e.key))) {
+        const index = Number(e.key) - 1;
+        if (index >= 0 && index < TABS.length) {
+          e.preventDefault();
+          setActiveTab(TABS[index]);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   useEffect(() => {
     currentSongRef.current = song;
@@ -120,10 +140,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     if (Object.keys(pending).length > 0) {
       performSave(pending);
     }
-    
-    // Stop playback on close to ensure studio previews don't persist in dashboard
     audio.stopPlayback();
-    
     onClose();
   }, [onClose, audio, performSave]);
 
@@ -188,7 +205,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
         highest_note_original: data.highest_note_original,
         audio_url: data.audio_url,
         extraction_status: data.extraction_status,
-        energy_level: data.energy_level as EnergyZone, // NEW: Energy Level
+        energy_level: data.energy_level as EnergyZone,
       };
       
       setSong(targetSong);
@@ -319,9 +336,17 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
       
       <nav className="h-16 bg-black/20 border-b border-white/5 flex items-center px-6 overflow-x-auto no-scrollbar shrink-0">
         <div className="grid grid-cols-7 w-full">
-          {['config', 'audio', 'details', 'charts', 'lyrics', 'visual', 'library'].map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab as any)} className={cn("text-[10px] font-black uppercase tracking-widest h-16 flex items-center justify-center border-b-4 transition-colors", activeTab === tab ? "text-indigo-400 border-indigo-50" : "text-slate-500 border-transparent hover:text-white")}>
-              {tab.toUpperCase()}
+          {TABS.map((tab, i) => (
+            <button 
+              key={tab} 
+              onClick={() => setActiveTab(tab as any)} 
+              className={cn(
+                "text-[10px] font-black uppercase tracking-widest h-16 flex flex-col items-center justify-center border-b-4 transition-colors", 
+                activeTab === tab ? "text-indigo-400 border-indigo-50" : "text-slate-500 border-transparent hover:text-white"
+              )}
+            >
+              <span>{tab.toUpperCase()}</span>
+              <span className="text-[8px] opacity-40 mt-0.5">⌘{i + 1}</span>
             </button>
           ))}
         </div>

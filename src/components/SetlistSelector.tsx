@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Plus, ListMusic, MoreVertical, Trash2, Edit2 } from 'lucide-react';
+import { Plus, ListMusic, MoreVertical, Trash2, Copy } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface SetlistSelectorProps {
@@ -12,9 +12,10 @@ interface SetlistSelectorProps {
   onSelect: (id: string) => void;
   onCreate: () => void;
   onDelete: (id: string) => void;
+  onDuplicate?: (id: string) => void; // NEW PROP
 }
 
-const SetlistSelector: React.FC<SetlistSelectorProps> = ({ setlists, currentId, onSelect, onCreate, onDelete }) => {
+const SetlistSelector: React.FC<SetlistSelectorProps> = ({ setlists, currentId, onSelect, onCreate, onDelete, onDuplicate }) => {
   return (
     <div className="flex items-center gap-2 bg-card p-1.5 rounded-lg border border-border shadow-sm">
       <div className="flex items-center gap-2 pl-2 border-r border-border pr-3">
@@ -41,6 +42,7 @@ const SetlistSelector: React.FC<SetlistSelectorProps> = ({ setlists, currentId, 
           size="icon" 
           className="h-8 w-8 rounded-md text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
           onClick={onCreate}
+          title="Create New Setlist"
         >
           <Plus className="w-4 h-4" />
         </Button>
@@ -52,7 +54,13 @@ const SetlistSelector: React.FC<SetlistSelectorProps> = ({ setlists, currentId, 
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="bg-popover text-foreground border-border">
-            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => onDelete(currentId)}>
+            <DropdownMenuItem 
+              className="cursor-pointer" 
+              onClick={() => onDuplicate?.(currentId)}
+            >
+              <Copy className="w-4 h-4 mr-2" /> Duplicate Setlist
+            </DropdownMenuItem>
+            <DropdownMenuItem className="text-destructive focus:text-destructive cursor-pointer" onClick={() => onDelete(currentId)}>
               <Trash2 className="w-4 h-4 mr-2" /> Delete Setlist
             </DropdownMenuItem>
           </DropdownMenuContent>
