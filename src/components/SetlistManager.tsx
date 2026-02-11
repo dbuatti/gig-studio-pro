@@ -17,7 +17,7 @@ import { calculateReadiness } from '@/utils/repertoireSync';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import SetlistMultiSelector from './SetlistMultiSelector';
 import { SheetLink } from './LinkDisplayOverlay';
-import { sortSongsByStrategy, analyzeEnergyFatigue } from '@/utils/SetlistGenerator'; // NEW: Import Generator
+import { sortSongsByStrategy, analyzeEnergyFatigue } from '@/utils/SetlistGenerator';
 
 export interface UGChordsConfig {
   fontFamily: string;
@@ -82,7 +82,6 @@ export interface SetlistSong {
   last_extracted_at?: string;
   source_type?: string;
   is_in_library?: boolean;
-  // Goal Tracking Timestamps
   lyrics_updated_at?: string;
   chords_updated_at?: string;
   ug_link_updated_at?: string;
@@ -91,7 +90,7 @@ export interface SetlistSong {
   target_key_updated_at?: string;
   pdf_updated_at?: string;
   links?: SheetLink[];
-  energy_level?: EnergyZone; // NEW: Energy Level
+  energy_level?: EnergyZone;
 }
 
 export interface Setlist {
@@ -114,8 +113,8 @@ interface SetlistManagerProps {
   onReorder: (newSongs: SetlistSong[]) => void;
   currentSongId?: string;
   onOpenAdmin?: () => void;
-  sortMode: 'none' | 'ready' | 'work' | 'manual' | 'energy-asc' | 'energy-desc' | 'zig-zag' | 'wedding-ramp'; // UPDATED: All flow strategies
-  setSortMode: (mode: 'none' | 'ready' | 'work' | 'manual' | 'energy-asc' | 'energy-desc' | 'zig-zag' | 'wedding-ramp') => void; // UPDATED: All flow strategies
+  sortMode: 'none' | 'ready' | 'work' | 'manual' | 'energy-asc' | 'energy-desc' | 'zig-zag' | 'wedding-ramp';
+  setSortMode: (mode: 'none' | 'ready' | 'work' | 'manual' | 'energy-asc' | 'energy-desc' | 'zig-zag' | 'wedding-ramp') => void;
   activeFilters: FilterState;
   setActiveFilters: (filters: FilterState) => void;
   searchTerm: string;
@@ -124,11 +123,11 @@ interface SetlistManagerProps {
   allSetlists: Setlist[];
   onUpdateSetlistSongs: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>;
   onOpenSortModal: () => void;
-  onBulkVibeCheck: () => Promise<void>; // NEW PROP
+  onBulkVibeCheck: () => Promise<void>;
 }
 
 const SetlistManager: React.FC<SetlistManagerProps> = ({
-  songs: rawSongs, // Use rawSongs for sorting/filtering
+  songs: rawSongs,
   onRemove,
   onSelect,
   onEdit,
@@ -149,16 +148,15 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   allSetlists,
   onUpdateSetlistSongs,
   onOpenSortModal,
-  onBulkVibeCheck, // Destructure new prop
+  onBulkVibeCheck,
 }) => {
   const isMobile = useIsMobile();
   const { keyPreference: globalPreference } = useSettings();
   
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [isVibeChecking, setIsVibeChecking] = useState(false); // NEW STATE
+  const [isVibeChecking, setIsVibeChecking] = useState(false);
 
-  // --- Filtering and Sorting Logic ---
   const processedSongs = useMemo(() => {
     let songs = [...rawSongs];
     const q = searchTerm.toLowerCase();
@@ -170,19 +168,17 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       );
     }
 
-    // Apply sorting based on mode
     if (sortMode === 'ready') {
       songs.sort((a, b) => calculateReadiness(b) - calculateReadiness(a));
     } else if (sortMode === 'work') {
       songs.sort((a, b) => calculateReadiness(a) - calculateReadiness(b));
     } else if (sortMode === 'none') {
-      // Default to original order if no search/manual sort is active
       songs = rawSongs.filter(s => 
         s.name.toLowerCase().includes(q) || 
         s.artist?.toLowerCase().includes(q)
       );
     } else if (sortMode === 'manual') {
-      // Manual sort is handled by the parent component's state (rawSongs)
+      // Manual sort is handled by parent
     } else if (sortMode.startsWith('energy')) {
       songs = sortSongsByStrategy(songs, sortMode);
     } else if (sortMode === 'zig-zag' || sortMode === 'wedding-ramp') {
@@ -192,47 +188,17 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     return songs;
   }, [rawSongs, searchTerm, sortMode]);
 
-  // --- Energy Fatigue Analysis ---
   const energyFatigueIndices = useMemo(() => {
     if (sortMode !== 'manual' && sortMode !== 'none') return [];
     return analyzeEnergyFatigue(processedSongs);
   }, [processedSongs, sortMode]);
 
-  const isItunesPreview = (url: string) => url && (url.includes('apple.com') || url.includes('itunes-assets'));
-
-  const handleMoveToTop = (id: string) => {
-    if (sortMode !== 'manual' || searchTerm) return;
-    const index = processedSongs.findIndex(s => s.id === id);
-    if (index <= 0) return;
-
-    const newSongs = [...processedSongs];
-    const [songToMove] = newSongs.splice(index, 1);
-    newSongs.unshift(songToMove);
-    onReorder(newSongs);
-    showSuccess("Song moved to the top of the setlist!");
-  };
-
-  const handleMoveToBottom = (id: string) => {
-    if (sortMode !== 'manual' || searchTerm) return;
-    const index = processedSongs.findIndex(s => s.id === id);
-    if (index === -1 || index === processedSongs.length - 1) return;
-
-    const newSongs = [...processedSongs];
-    const [songToMove] = newSongs.splice(index, 1);
-    newSongs.push(songToMove);
-    onReorder(newSongs);
-    showSuccess("Song moved to the bottom of the setlist!");
-  };
-
   const handleMove = (id: string, direction: 'up' | 'down') => {
     if (sortMode !== 'manual' || searchTerm) return;
-    
     const index = processedSongs.findIndex(s => s.id === id);
     if (index === -1) return;
-    
     if (direction === 'up' && index === 0) return;
     if (direction === 'down' && index === processedSongs.length - 1) return;
-    
     const newSongs = [...processedSongs];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     [newSongs[index], newSongs[targetIndex]] = [newSongs[targetIndex], newSongs[index]];
@@ -240,26 +206,40 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     showSuccess("Setlist reordered!");
   };
 
+  const handleMoveToTop = (id: string) => {
+    if (sortMode !== 'manual' || searchTerm) return;
+    const index = processedSongs.findIndex(s => s.id === id);
+    if (index <= 0) return;
+    const newSongs = [...processedSongs];
+    const [songToMove] = newSongs.splice(index, 1);
+    newSongs.unshift(songToMove);
+    onReorder(newSongs);
+    showSuccess("Song moved to top!");
+  };
+
+  const handleMoveToBottom = (id: string) => {
+    if (sortMode !== 'manual' || searchTerm) return;
+    const index = processedSongs.findIndex(s => s.id === id);
+    if (index === -1 || index === processedSongs.length - 1) return;
+    const newSongs = [...processedSongs];
+    const [songToMove] = newSongs.splice(index, 1);
+    newSongs.push(songToMove);
+    onReorder(newSongs);
+    showSuccess("Song moved to bottom!");
+  };
+
   const isReorderingEnabled = sortMode === 'manual' && !searchTerm;
 
   const getHeatmapClass = (song: SetlistSong) => {
     if (!showHeatmap) return "";
-
     const readiness = calculateReadiness(song);
     const hasAudio = !!song.audio_url;
     const hasYoutubeLink = !!song.youtubeUrl && song.youtubeUrl.trim() !== "";
     const hasUgLink = !!song.ugUrl && song.ugUrl.trim() !== "";
     const hasUgChordsText = !!song.ug_chords_text && song.ug_chords_text.trim().length > 0;
     const hasSheetLink = !!(song.pdfUrl || song.leadsheetUrl || song.sheet_music_url);
-
-    if (!hasAudio || !hasYoutubeLink || (hasUgLink && !hasUgChordsText) || readiness < 40) {
-      return "bg-red-500/10 border-red-500/20";
-    }
-
-    if ((hasUgLink && !song.is_ug_link_verified) || (hasSheetLink && !song.is_sheet_verified) || !song.isMetadataConfirmed) {
-      return "bg-orange-500/10 border-orange-500/20";
-    }
-
+    if (!hasAudio || !hasYoutubeLink || (hasUgLink && !hasUgChordsText) || readiness < 40) return "bg-red-500/10 border-red-500/20";
+    if ((hasUgLink && !song.is_ug_link_verified) || (hasSheetLink && !song.is_sheet_verified) || !song.isMetadataConfirmed) return "bg-orange-500/10 border-orange-500/20";
     return "";
   };
 
@@ -318,7 +298,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
             >
               <Sparkles className="w-3 h-3" /> <span className="hidden sm:inline">AI Sort</span>
             </Button>
-
             <Button 
               variant="ghost" size="sm" 
               onClick={() => setSortMode('ready')}
@@ -339,7 +318,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
             >
               <AlertTriangle className="w-3 h-3" /> <span className="hidden sm:inline">Work Needed</span>
             </Button>
-            {/* NEW: Energy Sort Buttons */}
             <Button 
               variant="ghost" size="sm" 
               onClick={() => setSortMode('energy-asc')}
@@ -435,7 +413,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
         />
       )}
 
-      {/* NEW: Energy Fatigue Warning */}
       {energyFatigueIndices.length > 0 && (
         <div className="p-4 bg-red-600/10 border border-red-600/20 rounded-2xl flex items-start gap-4">
           <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
@@ -471,9 +448,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                   getHeatmapClass(song)
                 )}
               >
-                {/* Energy Bar */}
                 <div className={cn("absolute top-0 left-0 h-full transition-all duration-500", getEnergyBarClass(song.energy_level))} />
-                
                 <div className="flex items-start justify-between relative z-10">
                   <div className="flex gap-3">
                     <button 
@@ -501,20 +476,18 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-0.5">
                         {song.artist || "Unknown Artist"}
                       </p>
-                      {isExtractionFailed && song.last_sync_log && (
-                        <p className="text-[8px] text-red-400 mt-1 truncate max-w-[150px]">Error: {song.last_sync_log}</p>
-                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {(song.isSyncing || isProcessing) ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-500" />
-                    ) : (
-                      <div className={cn(
-                        "h-2 w-2 rounded-full",
-                        isFullyReady ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]"
-                      )} />
-                    )}
+                    <div className="flex flex-col items-end">
+                      <span className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-0.5">Ready</span>
+                      <span className={cn(
+                        "text-[10px] font-mono font-bold px-2 py-0.5 rounded-lg",
+                        readinessScore >= 90 ? "bg-emerald-600/20 text-emerald-400" : "bg-amber-600/20 text-amber-400"
+                      )}>
+                        {readinessScore}%
+                      </span>
+                    </div>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:bg-accent dark:hover:bg-secondary">
@@ -563,17 +536,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         {song.isKeyConfirmed && <Check className="w-2.5 h-2.5" />}
                       </div>
                     </div>
-                    {/* START NEW: Readiness Score for Mobile */}
-                    <div className="flex flex-col">
-                      <span className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-0.5">Ready</span>
-                      <span className={cn(
-                        "text-[10px] font-mono font-bold px-2 py-0.5 rounded-lg",
-                        readinessScore >= 90 ? "bg-emerald-600/20 text-emerald-400" : "bg-amber-600/20 text-amber-400"
-                      )}>
-                        {readinessScore}%
-                      </span>
-                    </div>
-                    {/* END NEW */}
                     <div className="flex flex-col">
                       <span className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-0.5">Tempo</span>
                       <span className="text-[10px] font-mono font-bold text-muted-foreground">{song.bpm || "--"} BPM</span>
@@ -611,6 +573,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                   <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-16 text-center">Sts</th>
                   <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground text-left">Song / Resource Matrix</th>
                   <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-24 text-center">Energy</th>
+                  <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-20 text-center">Ready</th>
                   <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-24 text-center">Move</th>
                   <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-48 text-center">Harmonic Map</th>
                   <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-40 text-right pr-10">Command</th>
@@ -669,14 +632,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                               {isExtractionFailed && <AlertTriangle className="w-4 h-4 text-red-500" />}
                             </h4>
                             {song.isMetadataConfirmed && <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />}
-                            {(song.isSyncing || isProcessing) ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-500 ml-1" />
-                            ) : (
-                              <div className={cn(
-                                "h-1.5 w-1.5 rounded-full",
-                                isFullyReady ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]"
-                              )} />
-                            )}
                           </div>
                           <div className="flex items-center gap-2 ml-[32px]">
                             <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest leading-none">
@@ -688,9 +643,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                               {Math.floor((song.duration_seconds || 0) / 60)}:{(Math.floor((song.duration_seconds || 0) % 60)).toString().padStart(2, '0')}
                             </span>
                           </div>
-                          {isExtractionFailed && song.last_sync_log && (
-                            <p className="text-[8px] text-red-400 ml-[32px] mt-1 truncate max-w-[150px]">Error: {song.last_sync_log}</p>
-                          )}
                         </div>
                       </td>
                       <td className="px-6 text-center">
@@ -711,6 +663,16 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
+                      </td>
+                      <td className="px-6 text-center">
+                        <div className="flex flex-col items-center gap-1">
+                          <span className={cn(
+                            "text-[10px] font-mono font-bold px-2 py-0.5 rounded-lg",
+                            readinessScore >= 90 ? "bg-emerald-600/20 text-emerald-400" : "bg-amber-600/20 text-amber-400"
+                          )}>
+                            {readinessScore}%
+                          </span>
+                        </div>
                       </td>
                       <td className="px-6 text-center">
                         <div className="flex flex-col items-center justify-center gap-0.5 h-full">

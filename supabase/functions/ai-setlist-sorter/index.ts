@@ -13,10 +13,10 @@ interface Song {
   duration_seconds?: number;
 }
 
-// Prioritizing Gemini 2.0 Flash as requested
+// Prioritizing Gemini 2.5 Flash as requested
 const MODELS = [
+  'gemini-2.5-flash',
   'gemini-2.0-flash',
-  'gemini-2.0-flash-lite-preview-02-05',
   'gemini-1.5-flash'
 ];
 
@@ -83,6 +83,7 @@ Example: ["id1", "id2", "id3"]`;
           );
         } catch (err: any) {
           lastError = err.message;
+          console.error(`[ai-setlist-sorter] Model ${model} failed:`, err);
         }
       }
     }
