@@ -8,7 +8,8 @@ import { SetlistSong, UGChordsConfig } from '@/components/SetlistManager';
 import { Button } from '@/components/ui/button';
 import { Music, Loader2, AlertCircle, X, ExternalLink, ShieldCheck, FileText, Layout, Guitar, ChevronLeft, ChevronRight, Download, Link as LinkIcon, Ruler, Edit3, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { DEFAULT_UG_CHORDS_CONFIG, DEFAULT_FILTERS } from '@/utils/constants';
+import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
+import { DEFAULT_FILTERS } from '@/components/SetlistFilters';
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
 import { calculateReadiness, syncToMasterRepertoire } from '@/utils/repertoireSync';
 import { showError, showSuccess, showInfo, showWarning } from '@/utils/toast';
@@ -363,7 +364,10 @@ const SheetReaderMode: React.FC = () => {
         const hasUgChords = !!s.ug_chords_text && s.ug_chords_text.trim().length > 0;
         const hasLyrics = !!s.lyrics && s.lyrics.length > 20;
 
-        if (activeFilters.readiness > 0 && readiness < activeFilters.readiness) return false;
+        if (activeFilters.readiness > 0 && readiness < activeFilters.readiness) {
+          console.log(`[SheetReader] Skipping ${s.name} - Readiness ${readiness}% < ${activeFilters.readiness}%`);
+          return false;
+        }
         if (activeFilters.isConfirmed === 'yes' && !s.isKeyConfirmed) return false;
         if (activeFilters.isConfirmed === 'no' && s.isKeyConfirmed) return false;
         if (activeFilters.isApproved === 'yes' && !s.isApproved) return false;
