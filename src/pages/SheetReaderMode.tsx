@@ -65,7 +65,7 @@ const SheetReaderMode: React.FC = () => {
   const [isInfoOverlayVisible, setIsInfoOverlayVisible] = useState(true);
   const [isAudioPlayerVisible, setIsAudioPlayerVisible] = useState(true);
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
-  const [isZenMode, setIsZenMode] = useState(false); // New: Zen Mode for iPad Pro
+  const [isZenMode, setIsZenMode] = useState(false); 
 
   const currentSong = allSongs[currentIndex];
 
@@ -99,7 +99,7 @@ const SheetReaderMode: React.FC = () => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);
   const overlayWrapperRef = useRef<HTMLDivElement>(null);
-  const swipeThreshold = 40; // Reduced for iPad Pro sensitivity
+  const swipeThreshold = 40; 
   const navigatedRef = useRef(false);
 
   useEffect(() => {
@@ -469,7 +469,6 @@ const SheetReaderMode: React.FC = () => {
       const pageWidth = viewport.width;
       const pageHeight = viewport.height;
       
-      // iPad Pro 12.9 Optimization: Use 98% of space for maximum visibility
       const availableHeight = containerHeight * 0.98;
       const availableWidth = containerWidth * 0.98;
       const scaleX = availableWidth / pageWidth;
@@ -537,7 +536,6 @@ const SheetReaderMode: React.FC = () => {
               keyPreference={globalKeyPreference} 
               onUpdateKey={handleUpdateKey}
               isFullScreen={isZenMode} 
-              onToggleFullScreen={toggleZenMode} 
               setIsOverlayOpen={() => {}}
               pitch={effectivePitch}
               setPitch={setPitch}
@@ -641,7 +639,6 @@ const SheetReaderMode: React.FC = () => {
       {isZenMode && isInfoOverlayVisible && currentSong && (
         <FullScreenSongInfo
           song={currentSong}
-          onExitFullScreen={toggleZenMode}
           readerKeyPreference={readerKeyPreference}
           onUpdateKey={handleUpdateKey}
           setIsOverlayOpen={() => {}}
