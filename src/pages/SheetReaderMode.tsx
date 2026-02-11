@@ -8,7 +8,7 @@ import { SetlistSong, UGChordsConfig } from '@/components/SetlistManager';
 import { Button } from '@/components/ui/button';
 import { Music, Loader2, AlertCircle, X, ExternalLink, ShieldCheck, FileText, Layout, Guitar, ChevronLeft, ChevronRight, Download, Link as LinkIcon, Ruler, Edit3, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
+import { DEFAULT_UG_CHORDS_CONFIG, DEFAULT_FILTERS } from '@/utils/constants';
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
 import { calculateReadiness, syncToMasterRepertoire } from '@/utils/repertoireSync';
 import { showError, showSuccess, showInfo, showWarning } from '@/utils/toast';
@@ -242,6 +242,11 @@ const SheetReaderMode: React.FC = () => {
       const readerSetlistId = sessionStorage.getItem('reader_setlist_id');
       const targetId = routeSongId || searchParams.get('id');
 
+      // Load filters from local storage
+      const savedFilters = localStorage.getItem('gig_active_filters');
+      const activeFilters = savedFilters ? JSON.parse(savedFilters) : DEFAULT_FILTERS;
+      const searchTerm = (localStorage.getItem('gig_search_term') || "").toLowerCase();
+
       let currentViewSongs: SetlistSong[] = [];
       let masterRepertoireList: SetlistSong[] = [];
       let activeSetlistSongsList: SetlistSong[] = [];
@@ -306,6 +311,7 @@ const SheetReaderMode: React.FC = () => {
         fineTune: d.fineTune,
         tempo: d.tempo,
         volume: d.volume,
+        energy_level: d.energy_level,
       }));
       setFullMasterRepertoire(masterRepertoireList);
 
@@ -335,7 +341,52 @@ const SheetReaderMode: React.FC = () => {
         currentViewSongs = masterRepertoireList;
       }
 
-      const readableSongs = currentViewSongs.filter(s => 
+      // Apply Filters and Search
+      const filteredSongs = currentViewSongs.filter(s => {
+        // Search
+        if (searchTerm && !s.name.toLowerCase().includes(searchTerm) && !s.artist?.toLowerCase().includes(searchTerm)) {
+          return false;
+        }
+
+        // Filters
+        const readiness = calculateReadiness(s);
+        const hasAudio = !!s.audio_url;
+        const hasItunesPreview = !!s.previewUrl && (s.previewUrl.includes('apple.com') || s.previewUrl.includes('itunes-assets'));
+        const hasVideo = !!s.youtubeUrl;
+        const hasPdf = !!s.pdfUrl || !!s.leadsheetUrl || !!s.sheet_music_url;
+        const hasUg = !!s.ugUrl;
+        const hasUgChords = !!s.ug_chords_text && s.ug_chords_text.trim().length > 0;
+        const hasLyrics = !!s.lyrics && s.lyrics.length > 20;
+
+        if (activeFilters.readiness > 0 && readiness < activeFilters.readiness) return false;
+        if (activeFilters.isConfirmed === 'yes' && !s.isKeyConfirmed) return false;
+        if (activeFilters.isConfirmed === 'no' && s.isKeyConfirmed) return false;
+        if (activeFilters.isApproved === 'yes' && !s.isApproved) return false;
+        if (activeFilters.isApproved === 'no' && s.isApproved) return false;
+        if (activeFilters.hasAudio === 'full' && !hasAudio) return false;
+        if (activeFilters.hasAudio === 'itunes' && !hasItunesPreview) return false;
+        if (activeFilters.hasAudio === 'none' && (hasAudio || hasItunesPreview)) return false;
+        if (activeFilters.hasVideo === 'yes' && !hasVideo) return false;
+        if (activeFilters.hasVideo === 'no' && hasVideo) return false;
+        if (activeFilters.hasChart === 'yes' && !(hasPdf || hasUg || hasUgChords)) return false;
+        if (activeFilters.hasChart === 'no' && (hasPdf || hasUg || hasUgChords)) return false;
+        if (activeFilters.hasPdf === 'yes' && !hasPdf) return false;
+        if (activeFilters.hasPdf === 'no' && hasPdf) return false;
+        if (activeFilters.hasUg === 'yes' && !hasUg) return false;
+        if (activeFilters.hasUg === 'no' && hasUg) return false;
+        if (activeFilters.hasUgChords === 'yes' && !hasUgChords) return false;
+        if (activeFilters.hasUgChords === 'no' && hasUgChords) return false;
+        if (activeFilters.hasLyrics === 'yes' && !hasLyrics) return false;
+        if (activeFilters.hasLyrics === 'no' && hasLyrics) return false;
+        if (activeFilters.hasHighestNote === 'yes' && !s.highest_note_original) return false; 
+        if (activeFilters.hasHighestNote === 'no' && s.highest_note_original) return false; 
+        if (activeFilters.hasOriginalKey === 'yes' && (!s.originalKey || s.originalKey === 'TBC')) return false; 
+        if (activeFilters.hasOriginalKey === 'no' && (s.originalKey && s.originalKey !== 'TBC')) return false; 
+
+        return true;
+      });
+
+      const readableSongs = filteredSongs.filter(s => 
         s.pdfUrl || s.leadsheetUrl || s.ug_chords_text || s.sheet_music_url
       );
 
@@ -577,7 +628,7 @@ const SheetReaderMode: React.FC = () => {
         case 'ArrowRight':
           e.preventDefault();
           if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') {
-            setPdfCurrentPage(prev => Math.min(prev + 1, pdfNumPages || 999)); 
+            setPdfCurrentPage(prev => Math.min(prev + pageStep, pdfNumPages || 999)); 
           } else {
             handleNext();
           }

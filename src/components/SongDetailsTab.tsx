@@ -1,19 +1,13 @@
 "use client";
 
-import React, { useState, useCallback } from 'react';
+import React from 'react';
+import { SetlistSong, EnergyZone } from './SetlistManager';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { CheckCircle2, ShieldCheck, Link2, FileText, ExternalLink, Check, UploadCloud, Loader2, AlertCircle, Layout, Zap } from 'lucide-react'; 
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
-import { SetlistSong, EnergyZone } from './SetlistManager';
-import { sanitizeUGUrl } from '@/utils/ugUtils';
-import { showSuccess, showError, showInfo } from '@/utils/toast';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/components/AuthProvider';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Zap, Music, Tag, FileText, Clock } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface SongDetailsTabProps {
   formData: Partial<SetlistSong>;
@@ -21,375 +15,142 @@ interface SongDetailsTabProps {
   isMobile: boolean;
 }
 
+const ENERGY_ZONES: EnergyZone[] = ['Ambient', 'Pulse', 'Groove', 'Peak'];
+
 const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSave, isMobile }) => {
-  const { user } = useAuth();
-  const [isUploading, setIsUploading] = useState(false);
-  const [dragActive, setDragActive] = useState(false);
-  const [pendingUpload, setPendingUpload] = useState<{ file: File; type: 'pdf' | 'leadsheet' } | null>(null);
-  const [isVibeChecking, setIsVibeChecking] = useState(false);
-
-  const handleUgChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleAutoSave({ ugUrl: e.target.value });
-  };
-
-  const handleUgBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    const newUrl = e.target.value;
-    if (newUrl) {
-      const cleanUrl = sanitizeUGUrl(newUrl);
-      if (cleanUrl !== newUrl) {
-        handleAutoSave({ ugUrl: cleanUrl });
-      }
-      showSuccess("UG Link Saved");
-    }
-  };
-
-  const handleRebindUg = () => {
-    handleAutoSave({ ugUrl: "" });
-    const query = encodeURIComponent((formData.artist || '') + ' ' + (formData.name || '') + ' chords');
-    window.open(`https://www.ultimate-guitar.com/search.php?search_type=title&value=${query}`, '_blank');
-  };
-
-  const handleSheetChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleAutoSave({ sheet_music_url: e.target.value });
-  };
-
-  const handleSheetBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    const newUrl = e.target.value;
-    if (newUrl) {
-      showSuccess("Sheet Music Link Saved");
-    }
-  };
-
-  const handleRebindSheet = () => {
-    handleAutoSave({ sheet_music_url: "" });
-    const query = encodeURIComponent((formData.artist || '') + ' ' + (formData.name || '') + ' sheet music pdf');
-    window.open(`https://www.google.com/search?q=${query}`, '_blank');
-  };
-
-  const handleOpenUgLink = () => {
-    if (formData.ugUrl) {
-      window.open(formData.ugUrl, '_blank');
-    }
-  };
-
-  const handleOpenSheetLink = () => {
-    const url = formData.sheet_music_url || formData.pdfUrl || formData.leadsheetUrl;
-    if (url) {
-      window.open(url, '_blank');
-    }
-  };
-
-  const handleDrag = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
-      if (file.type === "application/pdf") {
-        setPendingUpload({ file, type: 'pdf' }); 
-      } else {
-        showError("Only PDF files are allowed.");
-      }
-    }
-  }, []);
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      if (file.type === "application/pdf") {
-        setPendingUpload({ file, type: 'pdf' });
-      } else {
-        showError("Only PDF files are allowed.");
-      }
-    }
-  };
-
-  const confirmUpload = async (designation: 'pdf' | 'leadsheet') => {
-    if (!user || !pendingUpload || !formData.name) return;
-
-    setIsUploading(true);
-    try {
-      const fileExt = pendingUpload.file.name.split('.').pop();
-      const sanitizedName = formData.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-      const fileName = `${user.id}/${formData.id || 'temp'}_${sanitizedName}_${designation}.${fileExt}`;
-      
-      const { error } = await supabase.storage
-        .from('public_audio')
-        .upload(fileName, pendingUpload.file, { 
-          upsert: true, 
-          contentType: 'application/pdf',
-          cacheControl: '3600'
-        });
-
-      if (error) throw error;
-
-      const { data: { publicUrl } } = supabase.storage.from('public_audio').getPublicUrl(fileName);
-
-      const updates: any = { 
-        sheet_music_url: publicUrl,
-        is_sheet_verified: true 
-      };
-
-      if (designation === 'pdf') {
-        updates.pdfUrl = publicUrl;
-      } else {
-        updates.leadsheetUrl = publicUrl;
-      }
-
-      handleAutoSave(updates);
-      showSuccess(`Uploaded ${designation === 'pdf' ? 'Full Score' : 'Leadsheet'} successfully!`);
-      setPendingUpload(null);
-
-    } catch (err: any) {
-      showError(`Upload failed: ${err.message}`);
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const handleVibeCheck = async () => {
-    if (!formData.name || !formData.artist || !formData.bpm) {
-      showError("Title, Artist, and BPM are required for Vibe Check.");
-      return;
-    }
-    setIsVibeChecking(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('vibe-check', {
-        body: {
-          title: formData.name,
-          artist: formData.artist,
-          bpm: formData.bpm,
-          genre: formData.genre || 'Unknown',
-          userTags: formData.user_tags || []
-        }
-      });
-
-      if (error) throw error;
-
-      if (data?.energy_level) {
-        handleAutoSave({ energy_level: data.energy_level as EnergyZone });
-        showSuccess(`Vibe Check Complete! Energy set to ${data.energy_level}`);
-      } else {
-        showError("AI could not determine the energy level.");
-      }
-    } catch (err: any) {
-      showError(`Vibe Check failed: ${err.message}`);
-    } finally {
-      setIsVibeChecking(false);
-    }
-  };
-
-  const isUgVerified = !!formData.ugUrl;
-  const isSheetVerified = !!(formData.sheet_music_url || formData.pdfUrl || formData.leadsheetUrl);
-
   return (
-    <div className="space-y-10 animate-in fade-in duration-500">
-      <div 
-        className={cn(
-          "fixed inset-0 z-[100] bg-indigo-600/90 backdrop-blur-sm flex flex-col items-center justify-center transition-all duration-300",
-          dragActive ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-        )}
-        onDragEnter={handleDrag}
-        onDragLeave={handleDrag}
-        onDragOver={handleDrag}
-        onDrop={handleDrop}
-      >
-        <UploadCloud className="w-24 h-24 text-white mb-6" />
-        <h2 className="text-4xl font-black text-white uppercase tracking-tight">Drop PDF Here</h2>
-        <p className="text-xl text-white/80 mt-2">Upload Full Score or Leadsheet</p>
-      </div>
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* Basic Info Section */}
+        <div className="space-y-6 bg-white/5 p-6 rounded-[2rem] border border-white/10">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="bg-indigo-600/20 p-2 rounded-xl">
+              <Music className="w-5 h-5 text-indigo-400" />
+            </div>
+            <h3 className="text-sm font-black uppercase tracking-widest text-white">Basic Metadata</h3>
+          </div>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Track Title</Label>
+              <Input 
+                value={formData.name || ""} 
+                onChange={(e) => handleAutoSave({ name: e.target.value })}
+                className="bg-black/40 border-white/10 h-12 rounded-xl font-bold text-white focus:ring-indigo-500/50"
+                placeholder="e.g. Superstition"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Artist / Composer</Label>
+              <Input 
+                value={formData.artist || ""} 
+                onChange={(e) => handleAutoSave({ artist: e.target.value })}
+                className="bg-black/40 border-white/10 h-12 rounded-xl font-bold text-white focus:ring-indigo-500/50"
+                placeholder="e.g. Stevie Wonder"
+              />
+            </div>
 
-      <div className={cn("grid gap-10", isMobile ? "grid-cols-1" : "grid-cols-2")}>
-        <div className="space-y-4">
-          <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Title</Label>
-          <Input 
-            value={formData.name || ""} 
-            onChange={(e) => handleAutoSave({ name: e.target.value })}
-            className="bg-white/5 border-white/10 text-xl font-black h-16 rounded-2xl"
-          />
-        </div>
-        <div className="space-y-4">
-          <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Artist</Label>
-          <Input 
-            value={formData.artist || ""} 
-            onChange={(e) => handleAutoSave({ artist: e.target.value })}
-            className="bg-white/5 border-white/10 text-xl font-black h-16 rounded-2xl"
-          />
-        </div>
-      </div>
-      
-      {/* NEW: Energy Vibe Check Section */}
-      <div className="bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-3xl p-6 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="bg-purple-600 p-3 rounded-2xl shadow-lg shadow-purple-600/20">
-            <Zap className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h4 className="text-xl font-black uppercase tracking-tight text-white">Energy Zone: {formData.energy_level || 'TBC'}</h4>
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-1">AI Performance Sequencing</p>
-          </div>
-        </div>
-        <Button 
-          onClick={handleVibeCheck}
-          disabled={isVibeChecking || !formData.name || !formData.artist || !formData.bpm}
-          className="bg-purple-600 hover:bg-purple-700 h-12 px-6 rounded-xl font-black uppercase text-[10px] tracking-widest gap-2 shadow-lg shadow-purple-600/20"
-        >
-          {isVibeChecking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-          Vibe Check
-        </Button>
-      </div>
-
-      <div 
-        className={cn(
-          "border-2 border-dashed rounded-3xl p-8 text-center transition-colors cursor-pointer group",
-          dragActive ? "border-indigo-500 bg-indigo-500/10" : "border-slate-700 hover:border-slate-500 hover:bg-slate-800/50"
-        )}
-        onDragEnter={handleDrag}
-        onDragLeave={handleDrag}
-        onDragOver={handleDrag}
-        onDrop={handleDrop}
-        onClick={() => document.getElementById('pdf-upload')?.click()}
-      >
-        <input type="file" id="pdf-upload" className="hidden" accept="application/pdf" onChange={handleFileSelect} />
-        <div className="flex flex-col items-center gap-4">
-          <div className="bg-slate-900 p-4 rounded-full border border-slate-700 group-hover:border-slate-500">
-            <UploadCloud className="w-8 h-8 text-slate-400 group-hover:text-indigo-400" />
-          </div>
-          <div>
-            <p className="text-lg font-bold text-slate-300">Drag & Drop PDF or Click to Upload</p>
-            <p className="text-sm text-slate-500 mt-1">Upload Full Score or Leadsheet directly</p>
-          </div>
-        </div>
-      </div>
-
-      <div className={cn("grid gap-10", isMobile ? "grid-cols-1" : "grid-cols-2")}>
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Ultimate Guitar</Label>
-            {isUgVerified && (
-              <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-500 text-[8px] font-black uppercase flex items-center gap-1">
-                <Check className="w-2.5 h-2.5" /> Linked
-              </Badge>
-            )}
-          </div>
-          <div className="flex flex-col gap-3">
-            <div className="flex gap-3">
-              <div className="relative w-full">
-                <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">BPM</Label>
                 <Input 
-                  value={formData.ugUrl || ""} 
-                  onChange={handleUgChange}
-                  onBlur={handleUgBlur}
-                  placeholder="Paste direct UG URL..." 
-                  className={cn(
-                    "bg-white/5 border-white/10 font-bold h-12 rounded-xl w-full pl-10",
-                    isUgVerified ? "text-emerald-400" : "text-slate-400"
-                  )} 
+                  value={formData.bpm || ""} 
+                  onChange={(e) => handleAutoSave({ bpm: e.target.value })}
+                  className="bg-black/40 border-white/10 h-12 rounded-xl font-mono font-bold text-white focus:ring-indigo-500/50"
+                  placeholder="120"
                 />
               </div>
-              {isUgVerified ? (
-                <Button variant="outline" className="h-12 border-emerald-500/30 text-emerald-500 px-4 rounded-xl font-bold text-[10px] uppercase gap-2 shrink-0" onClick={handleOpenUgLink}>
-                  <ExternalLink className="w-3.5 h-3.5" /> Open
-                </Button>
-              ) : (
-                <Button variant="outline" className="h-12 border-white/10 text-orange-400 px-4 rounded-xl font-bold text-[10px] uppercase gap-2 shrink-0" onClick={handleRebindUg}>
-                  <Link2 className="w-3.5 h-3.5" /> Find
-                </Button>
-              )}
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Duration (Sec)</Label>
+                <div className="relative">
+                  <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <Input 
+                    type="number"
+                    value={formData.duration_seconds || ""} 
+                    onChange={(e) => handleAutoSave({ duration_seconds: parseInt(e.target.value) || 0 })}
+                    className="bg-black/40 border-white/10 h-12 pl-11 rounded-xl font-mono font-bold text-white focus:ring-indigo-500/50"
+                    placeholder="240"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Sheet Music / PDF</Label>
-            {isSheetVerified && (
-              <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-500 text-[8px] font-black uppercase flex items-center gap-1">
-                <Check className="w-2.5 h-2.5" /> Linked
-              </Badge>
-            )}
+        {/* Classification Section */}
+        <div className="space-y-6 bg-white/5 p-6 rounded-[2rem] border border-white/10">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="bg-purple-600/20 p-2 rounded-xl">
+              <Zap className="w-5 h-5 text-purple-400" />
+            </div>
+            <h3 className="text-sm font-black uppercase tracking-widest text-white">Vibe & Classification</h3>
           </div>
-          <div className="flex flex-col gap-3">
-            <div className="flex gap-3">
-              <div className="relative w-full">
-                <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Energy Zone</Label>
+              <Select 
+                value={formData.energy_level || ""} 
+                onValueChange={(val) => handleAutoSave({ energy_level: val as EnergyZone })}
+              >
+                <SelectTrigger className="bg-black/40 border-white/10 h-12 rounded-xl font-bold text-white focus:ring-purple-500/50">
+                  <SelectValue placeholder="Select Energy Zone" />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-900 border-white/10 text-white rounded-xl">
+                  {ENERGY_ZONES.map(zone => (
+                    <SelectItem key={zone} value={zone} className="font-bold uppercase text-[10px] tracking-widest focus:bg-purple-600 focus:text-white">
+                      {zone}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest ml-1">
+                Used for AI setlist sequencing and flow analysis.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Genre</Label>
+              <div className="relative">
+                <Tag className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                 <Input 
-                  value={formData.sheet_music_url || ""} 
-                  onChange={handleSheetChange}
-                  onBlur={handleSheetBlur}
-                  placeholder="Paste PDF, Leadsheet, or UG URL..." 
-                  className={cn(
-                    "bg-white/5 border-white/10 font-bold h-12 rounded-xl w-full pl-10",
-                    isSheetVerified ? "text-emerald-400" : "text-slate-400"
-                  )} 
+                  value={formData.genre || ""} 
+                  onChange={(e) => handleAutoSave({ genre: e.target.value })}
+                  className="bg-black/40 border-white/10 h-12 pl-11 rounded-xl font-bold text-white focus:ring-purple-500/50"
+                  placeholder="e.g. Funk / Soul"
                 />
               </div>
-              {isSheetVerified ? (
-                <Button variant="outline" className="h-12 border-emerald-500/30 text-emerald-500 px-4 rounded-xl font-bold text-[10px] uppercase gap-2 shrink-0" onClick={handleOpenSheetLink}>
-                  <ExternalLink className="w-3.5 h-3.5" /> Open
-                </Button>
-              ) : (
-                <Button variant="outline" className="h-12 border-white/10 text-indigo-400 px-4 rounded-xl font-bold text-[10px] uppercase gap-2 shrink-0" onClick={handleRebindSheet}>
-                  <Link2 className="w-3.5 h-3.5" /> Find
-                </Button>
-              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">User Tags (Comma Separated)</Label>
+              <Input 
+                value={formData.user_tags?.join(', ') || ""} 
+                onChange={(e) => handleAutoSave({ user_tags: e.target.value.split(',').map(t => t.trim()).filter(Boolean) })}
+                className="bg-black/40 border-white/10 h-12 rounded-xl font-bold text-white focus:ring-purple-500/50"
+                placeholder="e.g. Wedding, Upbeat, Request"
+              />
             </div>
           </div>
         </div>
       </div>
 
-      <div className="space-y-4">
-        <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Stage Notes</Label>
+      {/* Notes Section */}
+      <div className="space-y-4 bg-white/5 p-6 rounded-[2rem] border border-white/10">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="bg-amber-600/20 p-2 rounded-xl">
+            <FileText className="w-5 h-5 text-amber-400" />
+          </div>
+          <h3 className="text-sm font-black uppercase tracking-widest text-white">Performance Notes</h3>
+        </div>
         <Textarea 
           value={formData.notes || ""} 
           onChange={(e) => handleAutoSave({ notes: e.target.value })}
-          placeholder="Cues..." 
-          className={cn("bg-white/5 border-white/10 text-lg leading-relaxed p-8", isMobile ? "min-h-[200px] rounded-2xl" : "min-h-[350px] rounded-[2.5rem]")} 
+          className="bg-black/40 border-white/10 min-h-[150px] rounded-[1.5rem] font-medium text-white focus:ring-amber-500/50 p-4 leading-relaxed"
+          placeholder="Add specific performance instructions, cues, or arrangement notes here..."
         />
       </div>
-
-      <Dialog open={!!pendingUpload} onOpenChange={(open) => !open && setPendingUpload(null)}>
-        <DialogContent className="bg-slate-900 border-white/10 text-white rounded-[2rem]">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-black uppercase tracking-tight">Designate PDF</DialogTitle>
-            <DialogDescription className="text-slate-400">
-              How should this PDF be classified?
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid grid-cols-2 gap-4 py-6">
-            <Button 
-              onClick={() => confirmUpload('pdf')}
-              disabled={isUploading}
-              className="h-24 flex flex-col items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 rounded-2xl"
-            >
-              {isUploading ? <Loader2 className="w-8 h-8 animate-spin" /> : <Layout className="w-8 h-8" />}
-              <span className="font-bold uppercase">Full Score</span>
-            </Button>
-            <Button 
-              onClick={() => confirmUpload('leadsheet')}
-              disabled={isUploading}
-              className="h-24 flex flex-col items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 rounded-2xl"
-            >
-              {isUploading ? <Loader2 className="w-8 h-8 animate-spin" /> : <FileText className="w-8 h-8" />}
-              <span className="font-bold uppercase">Leadsheet</span>
-            </Button>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setPendingUpload(null)} className="text-slate-400">Cancel</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
