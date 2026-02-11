@@ -18,6 +18,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import SetlistMultiSelector from './SetlistMultiSelector';
 import { SheetLink } from './LinkDisplayOverlay';
 import { sortSongsByStrategy, analyzeEnergyFatigue } from '@/utils/SetlistGenerator';
+import SongRecommender from './SongRecommender';
 
 export interface UGChordsConfig {
   fontFamily: string;
@@ -124,6 +125,8 @@ interface SetlistManagerProps {
   onUpdateSetlistSongs: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>;
   onOpenSortModal: () => void;
   onBulkVibeCheck: () => Promise<void>;
+  masterRepertoire?: SetlistSong[];
+  activeSetlistId?: string | null;
 }
 
 const SetlistManager: React.FC<SetlistManagerProps> = ({
@@ -149,6 +152,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   onUpdateSetlistSongs,
   onOpenSortModal,
   onBulkVibeCheck,
+  masterRepertoire = [],
+  activeSetlistId
 }) => {
   const isMobile = useIsMobile();
   const { keyPreference: globalPreference } = useSettings();
@@ -768,7 +773,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                               <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMoveToTop(song.id); }} disabled={!isReorderingEnabled || idx === 0}>
                                 <ChevronUp className="w-4 h-4 mr-2 text-indigo-600" /> Move to Top
-                              </DropdownMenuItem>
+                              </ChevronUp>
                               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'up'); }} disabled={!isReorderingEnabled || idx === 0}>
                                 <ChevronUp className="w-4 h-4 mr-2 opacity-50" /> Move Up
                               </DropdownMenuItem>
@@ -797,6 +802,14 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
             </table>
           </div>
         </div>
+      )}
+
+      {activeSetlistId && masterRepertoire.length > 0 && (
+        <SongRecommender 
+          currentSongs={rawSongs} 
+          repertoire={masterRepertoire} 
+          onAddSong={(song) => onUpdateSetlistSongs(activeSetlistId, song, 'add')}
+        />
       )}
 
       <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>

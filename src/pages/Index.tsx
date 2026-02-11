@@ -945,6 +945,8 @@ const Index = () => {
                   onUpdateSetlistSongs={handleUpdateSetlistSongs}
                   onOpenSortModal={() => setIsSetlistSortModalOpen(true)}
                   onBulkVibeCheck={handleBulkVibeCheck}
+                  masterRepertoire={masterRepertoire}
+                  activeSetlistId={activeSetlistId}
                 />
               </>
             )}
