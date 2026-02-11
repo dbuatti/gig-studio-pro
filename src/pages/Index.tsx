@@ -708,7 +708,7 @@ const Index = () => {
             </Button>
             <Button variant="outline" size="sm" onClick={() => setIsKeyManagementOpen(true)} className="h-9 px-4 rounded-xl text-indigo-600">
               <Hash className="w-3.5 h-3.5 mr-2" /> Key Matrix
-            </Hash>
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setIsPreferencesOpen(true)} className="h-9 px-4 rounded-xl text-indigo-600">
               <Settings2 className="w-3.5 h-3.5 mr-2" /> Preferences
             </Button>
@@ -798,8 +798,6 @@ const Index = () => {
               onBulkVibeCheck={handleBulkVibeCheck} 
               onBulkRefreshAudio={handleBulkRefreshAudio} 
               missingAudioCount={missingAudioCount}
-              isFilterOpen={isFilterOpen}
-              setIsFilterOpen={setIsFilterOpen}
             />
           </TabsContent>
         </Tabs>

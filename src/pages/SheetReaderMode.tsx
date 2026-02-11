@@ -563,12 +563,7 @@ const SheetReaderMode: React.FC = () => {
             isAudioPlayerVisible && currentSong && !isZenMode ? "pb-24" : "pb-0", 
             shouldDisableScroll ? "overflow-hidden" : "overflow-auto"
           )}
-          onClick={(e) => {
-            // Only toggle Zen mode if clicking the outer edges (not the music itself)
-            const rect = e.currentTarget.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            if (x < 100 || x > rect.width - 100) toggleZenMode();
-          }} 
+          onClick={toggleZenMode} 
         >
           <animated.div 
             {...bind()}  
@@ -700,19 +695,6 @@ const SheetReaderMode: React.FC = () => {
         onClose={() => setIsLinkSizeModalOpen(false)}
         onLinkSizeUpdated={fetchLinks}
       />
-
-      {/* Zen Mode Toggle Button (Floating) */}
-      <Button
-        variant="secondary"
-        size="icon"
-        onClick={toggleZenMode}
-        className={cn(
-          "fixed bottom-6 right-6 z-[100] h-12 w-12 rounded-full shadow-2xl transition-all duration-500",
-          isZenMode ? "bg-indigo-600 text-white opacity-20 hover:opacity-100" : "bg-slate-800 text-slate-400"
-        )}
-      >
-        {isZenMode ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
-      </Button>
     </div>
   );
 };
