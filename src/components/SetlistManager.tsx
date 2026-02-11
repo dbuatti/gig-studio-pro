@@ -14,7 +14,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import SetlistFilters, { FilterState, DEFAULT_FILTERS } from './SetlistFilters';
 import { calculateReadiness, syncToMasterRepertoire } from '@/utils/repertoireSync';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/AlertDialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import SetlistMultiSelector from './SetlistMultiSelector';
 import { SheetLink } from './LinkDisplayOverlay';
 import { sortSongsByStrategy, analyzeEnergyFatigue } from '@/utils/SetlistGenerator';
@@ -856,7 +856,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                               <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMoveToTop(song.id); }} disabled={!isReorderingEnabled || idx === 0}>
                                 <ChevronUp className="w-4 h-4 mr-2 text-indigo-600" /> Move to Top
-                              </AlertDialogAction>
+                              </DropdownMenuItem>
                               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'up'); }} disabled={!isReorderingEnabled || idx === 0}>
                                 <ChevronUp className="w-4 h-4 mr-2 opacity-50" /> Move Up
                               </DropdownMenuItem>

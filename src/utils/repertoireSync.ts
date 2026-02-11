@@ -106,7 +106,7 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
     if (song.previewUrl !== undefined) dbUpdates.preview_url = song.previewUrl;
     if (song.youtubeUrl !== undefined) dbUpdates.youtube_url = song.youtubeUrl;
     if (song.appleMusicUrl !== undefined) dbUpdates.apple_music_url = song.appleMusicUrl;
-    if (song.pdfUrl !== undefined) dbUpdates.pdf_url = song.pdf_url;
+    if (song.pdfUrl !== undefined) dbUpdates.pdf_url = song.pdfUrl;
     if (song.leadsheetUrl !== undefined) dbUpdates.leadsheet_url = song.leadsheetUrl;
     
     if (song.pitch !== undefined) dbUpdates.pitch = Number(song.pitch);
