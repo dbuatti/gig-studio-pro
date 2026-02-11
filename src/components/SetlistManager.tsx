@@ -5,7 +5,7 @@ import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, CircleDashed, Chec
 
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, formatKey, transposeKey, calculateSemitones } from '@/utils/keyUtils';
 import { cn } from '@/lib/utils';
-import { showSuccess } from '@/utils/toast';
+import { showSuccess, showError, showInfo } from '@/utils/toast';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
@@ -13,12 +13,13 @@ import { RESOURCE_TYPES, DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import SetlistFilters, { FilterState, DEFAULT_FILTERS } from './SetlistFilters';
-import { calculateReadiness } from '@/utils/repertoireSync';
+import { calculateReadiness, syncToMasterRepertoire } from '@/utils/repertoireSync';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import SetlistMultiSelector from './SetlistMultiSelector';
 import { SheetLink } from './LinkDisplayOverlay';
 import { sortSongsByStrategy, analyzeEnergyFatigue } from '@/utils/SetlistGenerator';
 import SongRecommender from './SongRecommender';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface UGChordsConfig {
   fontFamily: string;
@@ -157,10 +158,12 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 }) => {
   const isMobile = useIsMobile();
   const { keyPreference: globalPreference } = useSettings();
+  const { user } = useSettings(); // Assuming user is available via settings or auth hook
   
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [isVibeChecking, setIsVibeChecking] = useState(false);
+  const [vibeCheckProgress, setVibeCheckProgress] = useState(0);
 
   const processedSongs = useMemo(() => {
     let songs = [...rawSongs];
@@ -259,34 +262,88 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   };
 
   const handleVibeCheckAction = async () => {
+    const songsToVibeCheck = rawSongs.filter(s => !s.energy_level && s.name && s.artist);
+    if (songsToVibeCheck.length === 0) {
+      showInfo("All songs already have an Energy Zone.");
+      return;
+    }
+
     setIsVibeChecking(true);
+    setVibeCheckProgress(0);
+    
+    let successCount = 0;
+    let failCount = 0;
+
     try {
-      await onBulkVibeCheck();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      for (let i = 0; i < songsToVibeCheck.length; i++) {
+        const song = songsToVibeCheck[i];
+        try {
+          const { data, error } = await supabase.functions.invoke('vibe-check', {
+            body: {
+              title: song.name,
+              artist: song.artist,
+              bpm: song.bpm,
+              genre: song.genre,
+              userTags: song.user_tags
+            }
+          });
+
+          if (error) throw error;
+
+          if (data?.energy_level) {
+            await syncToMasterRepertoire(user.id, [{
+              id: song.master_id || song.id,
+              energy_level: data.energy_level,
+              genre: data.refined_genre || song.genre
+            }]);
+            successCount++;
+          }
+        } catch (err) {
+          console.error(`Vibe check failed for ${song.name}:`, err);
+          failCount++;
+        }
+        setVibeCheckProgress(Math.round(((i + 1) / songsToVibeCheck.length) * 100));
+      }
+
+      if (successCount > 0) {
+        showSuccess(`Vibe Check Complete: ${successCount} updated, ${failCount} failed.`);
+        await onBulkVibeCheck(); // Trigger refresh in parent
+      } else if (failCount > 0) {
+        showError(`Vibe Check failed for ${failCount} songs.`);
+      }
+    } catch (err: any) {
+      showError(`Vibe Check Error: ${err.message}`);
     } finally {
       setIsVibeChecking(false);
+      setVibeCheckProgress(0);
     }
   };
 
   const missingEnergyCount = useMemo(() => {
-    return rawSongs.filter(s => !s.energy_level && s.name && s.artist && s.bpm).length;
+    return rawSongs.filter(s => !s.energy_level && s.name && s.artist).length;
   }, [rawSongs]);
 
   const getReadinessBreakdown = (song: SetlistSong) => {
     const items = [];
-    if (song.audio_url && song.extraction_status === 'completed') items.push("✅ Full Audio (25%)");
-    else items.push("❌ Missing Audio");
+    const status = (song.extraction_status || "").toLowerCase();
+    if (song.audio_url && status === 'completed') items.push("✅ Full Audio (30%)");
+    else if (song.previewUrl) items.push("⚠️ Preview Only (10%)");
+    else items.push("❌ No Audio");
     
-    const hasLyrics = (song.lyrics || "").length > 20;
-    const hasChords = (song.ug_chords_text || "").length > 10;
-    if (hasLyrics && hasChords) items.push("✅ Lyrics & Chords (20%)");
+    const hasLyrics = (song.lyrics || "").length > 50;
+    const hasChords = (song.ug_chords_text || "").length > 20;
+    if (hasLyrics && hasChords) items.push("✅ Lyrics & Chords (25%)");
     else if (hasLyrics || hasChords) items.push("⚠️ Partial Charts (10%)");
     else items.push("❌ No Charts");
 
     if (song.isKeyConfirmed) items.push("✅ Key Confirmed (15%)");
-    if (song.bpm) items.push("✅ BPM Set (10%)");
+    if (song.bpm && song.bpm !== "0") items.push("✅ BPM Set (10%)");
     if (song.pdfUrl || song.leadsheetUrl || song.sheet_music_url) items.push("✅ Sheet Music (10%)");
     if (song.isMetadataConfirmed) items.push("✅ Metadata Verified (5%)");
-    if (song.isApproved) items.push("✅ Approved (5%)");
+    if (song.energy_level) items.push("✅ Energy Zone Set (5%)");
 
     return items;
   };
@@ -404,12 +461,21 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                   onClick={handleVibeCheckAction}
                   disabled={isVibeChecking || missingEnergyCount === 0}
                   className={cn(
-                    "h-10 px-6 rounded-xl font-black uppercase tracking-wider text-[10px] gap-2 shadow-lg",
-                    isVibeChecking ? "bg-purple-600/50 text-white" : "bg-purple-600 hover:bg-purple-700 text-white shadow-purple-600/20"
+                    "h-10 px-6 rounded-xl font-black uppercase tracking-wider text-[10px] gap-2 shadow-lg transition-all",
+                    isVibeChecking ? "bg-purple-600/50 text-white cursor-wait" : "bg-purple-600 hover:bg-purple-700 text-white shadow-purple-600/20"
                   )}
                 >
-                  {isVibeChecking ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
-                  Vibe Check ({missingEnergyCount})
+                  {isVibeChecking ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      {vibeCheckProgress}%
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-3.5 h-3.5" />
+                      Vibe Check ({missingEnergyCount})
+                    </>
+                  )}
                 </Button>
               </TooltipTrigger>
               {missingEnergyCount === 0 && (

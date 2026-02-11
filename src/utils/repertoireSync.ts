@@ -8,9 +8,6 @@ const cleanMetadata = (val: string | undefined | null) => {
   return val.trim().replace(/^["']+|["']+$/g, '');
 };
 
-/**
- * Validates if a string is a valid UUID v4.
- */
 const isValidUuid = (uuid: string | undefined | null): boolean => {
   if (!uuid) return false;
   return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/i.test(uuid);
@@ -19,24 +16,29 @@ const isValidUuid = (uuid: string | undefined | null): boolean => {
 export const calculateReadiness = (song: Partial<SetlistSong>): number => {
   let score = 0;
   
+  // 1. Audio Quality (30%)
   const status = (song.extraction_status || "").toLowerCase();
-  if (song.audio_url && status === 'completed') score += 25;
-  const hasLyrics = (song.lyrics || "").length > 20;
-  const hasChordsText = (song.ug_chords_text || "").length > 10;
-  if (hasLyrics && hasChordsText) score += 20;
-  else if (hasLyrics || hasChordsText) score += 10;
-  if (song.isKeyConfirmed) score += 15;
-  if (song.bpm) score += 10;
-  const hasSheetLink = (song.sheet_music_url || song.pdfUrl || song.leadsheetUrl || "").length > 0;
-  if (hasSheetLink) score += 10;
-  if (song.artist && song.artist !== "Unknown Artist") score += 5;
-  if (song.ugUrl && song.ugUrl.length > 0) score += 5;
-  if (song.isMetadataConfirmed) score += 5;
-  if (song.isApproved) score += 5;
+  if (song.audio_url && status === 'completed') score += 30;
+  else if (song.previewUrl) score += 10;
 
-  if (song.is_ready_to_sing === false) {
-    score -= 50;
-  }
+  // 2. Charts & Lyrics (25%)
+  const hasLyrics = (song.lyrics || "").length > 50;
+  const hasChordsText = (song.ug_chords_text || "").length > 20;
+  if (hasLyrics && hasChordsText) score += 25;
+  else if (hasLyrics || hasChordsText) score += 10;
+
+  // 3. Technical Confirmation (25%)
+  if (song.isKeyConfirmed) score += 15;
+  if (song.bpm && song.bpm !== "0") score += 10;
+
+  // 4. Metadata & Resources (20%)
+  const hasSheetLink = (song.pdfUrl || song.leadsheetUrl || song.sheet_music_url || "").length > 0;
+  if (hasSheetLink) score += 10;
+  if (song.isMetadataConfirmed) score += 5;
+  if (song.energy_level) score += 5;
+
+  // Penalties
+  if (song.is_ready_to_sing === false) score -= 50;
 
   return Math.max(0, Math.min(100, score));
 };
@@ -50,7 +52,6 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
       updated_at: new Date().toISOString(),
     };
 
-    // Determine the target ID (prefer master_id from the object)
     const targetId = song.master_id || song.id;
     const isRealRecord = isValidUuid(targetId);
 
@@ -97,11 +98,9 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
     if (song.pdfUrl !== undefined) dbUpdates.pdf_url = song.pdfUrl;
     if (song.leadsheetUrl !== undefined) dbUpdates.leadsheet_url = song.leadsheetUrl;
     
-    // Numeric fields (defensive casting)
     if (song.pitch !== undefined) dbUpdates.pitch = Number(song.pitch);
     if (song.duration_seconds !== undefined) dbUpdates.duration_seconds = Math.round(Number(song.duration_seconds || 0));
     
-    // Text fields
     if (song.bpm !== undefined) dbUpdates.bpm = song.bpm;
     if (song.genre !== undefined) dbUpdates.genre = song.genre;
     if (song.notes !== undefined) dbUpdates.notes = song.notes;
@@ -111,7 +110,6 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
     if (song.extraction_status !== undefined) dbUpdates.extraction_status = song.extraction_status;
     if (song.energy_level !== undefined) dbUpdates.energy_level = song.energy_level;
 
-    // Boolean fields (defensive casting)
     if (song.isMetadataConfirmed !== undefined) dbUpdates.is_metadata_confirmed = Boolean(song.isMetadataConfirmed);
     if (song.isKeyConfirmed !== undefined) dbUpdates.is_key_confirmed = Boolean(song.isKeyConfirmed);
     if (song.is_pitch_linked !== undefined) dbUpdates.is_pitch_linked = Boolean(song.is_pitch_linked);
@@ -121,7 +119,6 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
     if (song.auto_synced !== undefined) dbUpdates.auto_synced = Boolean(song.auto_synced);
     if (song.is_sheet_verified !== undefined) dbUpdates.is_sheet_verified = Boolean(song.is_sheet_verified);
     
-    // JSONB fields
     if (song.resources !== undefined) dbUpdates.resources = song.resources;
     if (song.user_tags !== undefined) dbUpdates.user_tags = song.user_tags;
     if (song.ug_chords_config !== undefined) dbUpdates.ug_chords_config = song.ug_chords_config;
@@ -130,7 +127,6 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
     let error;
 
     if (isRealRecord) {
-      // If we have a valid UUID, we perform a direct update on that record.
       const { data, error: updateError } = await supabase
         .from('repertoire')
         .update(dbUpdates)
@@ -140,7 +136,6 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
       result = data;
       error = updateError;
     } else {
-      // For new records or imports where ID is temporary, use upsert on the unique constraint.
       const { data, error: upsertError } = await supabase
         .from('repertoire')
         .upsert(dbUpdates, { onConflict: 'user_id,title,artist' })
