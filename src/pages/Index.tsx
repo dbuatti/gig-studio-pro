@@ -19,7 +19,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // Custom Components
-import SetlistManager, { SetlistSong, Setlist } from '@/components/SetlistManager';
+import SetlistManager, { SetlistSong, Setlist, EnergyZone } from '@/components/SetlistManager';
 import { FilterState, DEFAULT_FILTERS } from '@/components/SetlistFilters';
 import SetlistStats from '@/components/SetlistStats';
 import AdminPanel from '@/components/AdminPanel';
@@ -133,7 +133,7 @@ const Index = () => {
       const pool = masterRepertoire.filter(s => !!s.audio_url || !!s.previewUrl);
       if (pool.length > 0) {
         const currentId = activeSongForPerformance?.master_id || activeSongForPerformance?.id;
-        const others = pool.filter(s => (s.match_id || s.id) !== currentId);
+        const others = pool.filter(s => (s.master_id || s.id) !== currentId);
         setActiveSongForPerformance(others.length > 0 ? others[Math.floor(Math.random() * others.length)] : pool[0]);
       }
       return;

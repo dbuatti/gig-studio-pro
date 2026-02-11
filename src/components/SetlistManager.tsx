@@ -773,7 +773,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                               <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMoveToTop(song.id); }} disabled={!isReorderingEnabled || idx === 0}>
                                 <ChevronUp className="w-4 h-4 mr-2 text-indigo-600" /> Move to Top
-                              </ChevronUp>
+                              </DropdownMenuItem>
                               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'up'); }} disabled={!isReorderingEnabled || idx === 0}>
                                 <ChevronUp className="w-4 h-4 mr-2 opacity-50" /> Move Up
                               </DropdownMenuItem>
