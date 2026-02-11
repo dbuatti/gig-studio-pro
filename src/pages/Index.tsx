@@ -110,6 +110,23 @@ const Index = () => {
     localStorage.getItem('gig_show_heatmap') === 'true'
   );
 
+  // Persist filters, search, and sort mode to localStorage so they sync with Sheet Reader
+  useEffect(() => {
+    localStorage.setItem('gig_active_filters', JSON.stringify(activeFilters));
+  }, [activeFilters]);
+
+  useEffect(() => {
+    localStorage.setItem('gig_search_term', searchTerm);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    localStorage.setItem('gig_sort_mode', sortMode);
+  }, [sortMode]);
+
+  useEffect(() => {
+    localStorage.setItem('gig_show_heatmap', showHeatmap.toString());
+  }, [showHeatmap]);
+
   // Global keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
