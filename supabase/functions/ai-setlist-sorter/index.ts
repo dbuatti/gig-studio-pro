@@ -16,10 +16,15 @@ interface Song {
   readiness?: number;
 }
 
+// Expanded model list to handle versioning inconsistencies and availability
 const MODELS = [
+  'gemini-2.0-flash',
   'gemini-2.0-flash-001',
   'gemini-1.5-flash',
-  'gemini-1.5-pro'
+  'gemini-1.5-flash-002',
+  'gemini-1.5-flash-8b',
+  'gemini-1.5-pro',
+  'gemini-1.5-pro-002'
 ];
 
 serve(async (req) => {
@@ -48,7 +53,7 @@ serve(async (req) => {
 
     if (keys.length === 0) {
       console.error("[ai-setlist-sorter] No API keys found in environment");
-      throw new Error('No API keys configured');
+      throw new Error('No API keys configured. Please set GEMINI_API_KEY in Supabase secrets.');
     }
 
     const prompt = `You are a world-class Musical Director. Reorder these ${songs.length} songs based on: "${instruction}"
@@ -71,6 +76,7 @@ OUTPUT REQUIREMENTS:
 - Example: ["id1", "id2", "id3"]`;
 
     let lastError = null;
+    let quotaExceeded = false;
 
     for (const apiKey of keys) {
       for (const model of MODELS) {
@@ -95,8 +101,17 @@ OUTPUT REQUIREMENTS:
           const result = await response.json();
           
           if (!response.ok) {
+            const errorMsg = result.error?.message || `HTTP ${response.status}`;
             console.warn(`[ai-setlist-sorter] Model ${model} returned error status: ${response.status}`, result);
-            lastError = result.error?.message || `HTTP ${response.status}`;
+            
+            if (response.status === 429) {
+              quotaExceeded = true;
+              lastError = "API Quota exceeded. Please try again in a few minutes or check your Gemini API billing.";
+            } else if (response.status === 404) {
+              lastError = `Model ${model} not found or not supported in this region.`;
+            } else {
+              lastError = errorMsg;
+            }
             continue;
           }
 
@@ -135,7 +150,11 @@ OUTPUT REQUIREMENTS:
       }
     }
 
-    throw new Error(lastError || 'All models failed to generate a valid sequence');
+    const finalErrorMessage = quotaExceeded 
+      ? "AI Quota exceeded for all available keys. Please try again later." 
+      : (lastError || 'All models failed to generate a valid sequence');
+
+    throw new Error(finalErrorMessage);
 
   } catch (error: any) {
     console.error("[ai-setlist-sorter] Critical error:", error.message);
