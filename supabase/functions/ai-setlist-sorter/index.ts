@@ -1,5 +1,3 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -15,7 +13,7 @@ interface Song {
   duration_seconds?: number;
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
@@ -48,7 +46,6 @@ serve(async (req) => {
     console.log(`[ai-setlist-sorter] Starting sort for ${songs.length} songs`);
     console.log(`[ai-setlist-sorter] Instruction: "${instruction}"`);
 
-    // Ultra-optimized prompt for speed and strictness
     const prompt = `You are a professional music setlist curator. 
 Your ONLY task is to REORDER the provided list of ${songs.length} songs based on this instruction: "${instruction}"
 
@@ -74,7 +71,6 @@ Example Output:
       console.log(`[ai-setlist-sorter] Trying API key ${i + 1}/${keys.length}...`);
 
       try {
-        // Updated to gemini-2.0-flash as requested (using 2.0 as it is the standard latest)
         const response = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
           {
@@ -112,9 +108,6 @@ Example Output:
           throw new Error('Empty AI response');
         }
 
-        console.log(`[ai-setlist-sorter] Parsing AI response...`);
-
-        // Clean up markdown code blocks if present
         aiResponseText = aiResponseText.replace(/```json/g, '').replace(/```/g, '').trim();
 
         let orderedIds: string[];
@@ -125,34 +118,22 @@ Example Output:
           if (match) {
             orderedIds = JSON.parse(match[0]);
           } else {
-            console.error("[ai-setlist-sorter] Parse failed. Response preview:", aiResponseText.substring(0, 200));
-            throw new Error('Invalid AI response format - no JSON array found');
+            throw new Error('Invalid AI response format');
           }
-        }
-
-        if (!Array.isArray(orderedIds)) {
-          throw new Error('AI response was not an array');
         }
 
         const originalIds = songs.map(s => s.id);
         const validOrderedIds = orderedIds.filter(id => originalIds.includes(id));
         const missingIds = originalIds.filter(id => !validOrderedIds.includes(id));
         
-        if (missingIds.length > 0) {
-          console.warn(`[ai-setlist-sorter] AI missed ${missingIds.length} songs - appending to end`);
-        }
-        
         const finalOrder = [...new Set([...validOrderedIds, ...missingIds])];
-
         const totalTime = Date.now() - startTime;
-        console.log(`[ai-setlist-sorter] ✓ SUCCESS: Sorted ${finalOrder.length}/${songs.length} songs in ${totalTime}ms`);
 
         return new Response(
           JSON.stringify({ 
             orderedIds: finalOrder,
             processingTime: totalTime,
-            songsProcessed: finalOrder.length,
-            songsMissed: missingIds.length
+            songsProcessed: finalOrder.length
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
