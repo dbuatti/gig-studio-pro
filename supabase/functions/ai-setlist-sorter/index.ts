@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -39,86 +38,87 @@ serve(async (req) => {
       )
     }
 
-    console.log(`[ai-setlist-sorter] Analyzing ${songs.length} songs with instruction: "${instruction}"`);
+    console.log(`[ai-setlist-sorter] Processing ${songs.length} songs: "${instruction}"`);
 
-    const prompt = `You are an expert DJ and setlist curator. 
-I have a list of songs and I want you to reorder them based on my specific instructions.
+    // Optimized prompt for faster processing
+    const prompt = `You are a professional setlist curator. Reorder these songs based on: "${instruction}"
 
-USER INSTRUCTION: "${instruction}"
+SONGS (${songs.length} total):
+${songs.map((s, i) => `${i + 1}. ${s.id}|${s.name}|${s.artist}|${s.bpm || '?'}BPM|${s.genre || '?'}|${s.energy_level || '?'}|${s.duration_seconds || 0}s`).join('\n')}
 
-SONGS:
-${songs.map((s, i) => `${i + 1}. ID: ${s.id} | Title: ${s.name} | Artist: ${s.artist} | BPM: ${s.bpm || 'Unknown'} | Genre: ${s.genre || 'Unknown'} | Energy: ${s.energy_level || 'Unknown'} | Duration: ${s.duration_seconds || 0}s`).join('\n')}
+RULES:
+1. Return ONLY a JSON array of song IDs in the new order
+2. Include ALL ${songs.length} song IDs
+3. For time-based requests (e.g., "2 hours"), prioritize best songs first, then add remaining songs
+4. Consider energy flow, genre transitions, and audience engagement
+5. NO explanations, NO markdown - just the JSON array
 
-CRITICAL RULES:
-1. Return ONLY a JSON array of the song IDs in the new order.
-2. Include ALL song IDs provided in the input.
-3. If the instruction specifies a duration (e.g., "2 hours"), prioritize the best songs for that duration at the beginning of the list, and place the remaining "outlier" songs at the end.
-4. Use your deep musical knowledge of these songs (even if metadata is missing) to make the best judgment on energy, mood, and flow.
-5. Do not include any explanation, markdown formatting, or other text. Just the raw JSON array.
+Output format: ["id1","id2","id3"]`;
 
-Example Output Format:
-["uuid-1", "uuid-2", "uuid-3"]`;
+    console.log(`[ai-setlist-sorter] Calling Gemini API...`);
+    const startTime = Date.now();
 
-    // Use v1 API with gemini-2.5-flash model
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{
-          parts: [{ text: prompt }]
-        }]
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 8192,
+        }
       }),
     });
+
+    const apiTime = Date.now() - startTime;
+    console.log(`[ai-setlist-sorter] API responded in ${apiTime}ms`);
 
     const result = await response.json();
     
     if (!response.ok) {
-      console.error("[ai-setlist-sorter] Gemini API error:", result);
-      throw new Error(result.error?.message || 'Failed to call Gemini API');
+      console.error("[ai-setlist-sorter] API error:", result);
+      throw new Error(result.error?.message || 'Gemini API failed');
     }
 
     const aiResponseText = result.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!aiResponseText) {
-      throw new Error('Empty response from AI');
+      throw new Error('Empty AI response');
     }
 
-    console.log("[ai-setlist-sorter] Raw AI response:", aiResponseText);
+    console.log("[ai-setlist-sorter] Parsing AI response...");
 
     let orderedIds: string[];
     try {
-      // Try direct JSON parse first
       orderedIds = JSON.parse(aiResponseText);
     } catch (e) {
-      console.log("[ai-setlist-sorter] Direct parse failed, attempting regex extraction");
-      // Fallback: extract JSON array using regex
       const match = aiResponseText.match(/\[[\s\S]*?\]/);
       if (match) {
         orderedIds = JSON.parse(match[0]);
       } else {
-        console.error("[ai-setlist-sorter] Could not extract JSON array from:", aiResponseText);
-        throw new Error('AI response was not a valid JSON array');
+        console.error("[ai-setlist-sorter] Parse failed. Response:", aiResponseText.substring(0, 500));
+        throw new Error('Invalid AI response format');
       }
     }
 
-    // Validate that we got an array
     if (!Array.isArray(orderedIds)) {
       throw new Error('AI response was not an array');
     }
 
-    // Ensure all original IDs are present (AI might miss some or add duplicates)
+    // Validate and fix the order
     const originalIds = songs.map(s => s.id);
     const validOrderedIds = orderedIds.filter(id => originalIds.includes(id));
     const missingIds = originalIds.filter(id => !validOrderedIds.includes(id));
-    
-    // Combine valid ordered IDs with any missing ones at the end
     const finalOrder = [...new Set([...validOrderedIds, ...missingIds])];
 
-    console.log(`[ai-setlist-sorter] Successfully reordered ${finalOrder.length} songs`);
+    const totalTime = Date.now() - startTime;
+    console.log(`[ai-setlist-sorter] ✓ Sorted ${finalOrder.length} songs in ${totalTime}ms`);
 
     return new Response(
-      JSON.stringify({ orderedIds: finalOrder }),
+      JSON.stringify({ 
+        orderedIds: finalOrder,
+        processingTime: totalTime,
+        songsProcessed: finalOrder.length
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
