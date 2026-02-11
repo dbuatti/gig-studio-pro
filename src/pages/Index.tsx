@@ -14,7 +14,7 @@ import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 // UI Components
 import { Button } from '@/components/ui/button';
 import { 
-  Loader2, Settings2, Hash, Library, Shuffle, LayoutDashboard, Plus
+  Loader2, Settings2, Hash, Library, Shuffle, LayoutDashboard, Plus, Sparkles
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -41,6 +41,7 @@ import ResourceAuditModal from '@/components/ResourceAuditModal';
 import SetlistSettingsModal from '@/components/SetlistSettingsModal';
 import SetlistSelector from '@/components/SetlistSelector';
 import GlobalSearchModal from '@/components/GlobalSearchModal';
+import MDAuditModal from '@/components/MDAuditModal';
 import { sortSongsByStrategy } from '@/utils/SetlistGenerator';
 
 const Index = () => {
@@ -87,6 +88,9 @@ const Index = () => {
   const [isImportSetlistOpen, setIsImportSetlistOpen] = useState(false);
   const [isSetlistSettingsOpen, setIsSetlistSettingsOpen] = useState(false);
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
+  const [isMDAuditOpen, setIsMDAuditOpen] = useState(false);
+  const [isAuditLoading, setIsAuditLoading] = useState(false);
+  const [auditData, setAuditData] = useState<any>(null);
 
   // Filter/search states
   const [searchTerm, setSearchTerm] = useState(() => localStorage.getItem('gig_search_term') || "");
@@ -129,7 +133,7 @@ const Index = () => {
       const pool = masterRepertoire.filter(s => !!s.audio_url || !!s.previewUrl);
       if (pool.length > 0) {
         const currentId = activeSongForPerformance?.master_id || activeSongForPerformance?.id;
-        const others = pool.filter(s => (s.master_id || s.id) !== currentId);
+        const others = pool.filter(s => (s.match_id || s.id) !== currentId);
         setActiveSongForPerformance(others.length > 0 ? others[Math.floor(Math.random() * others.length)] : pool[0]);
       }
       return;
@@ -175,8 +179,6 @@ const Index = () => {
     if (isInitial) setLoading(true);
     
     try {
-      console.log("[Index] Fetching setlists and repertoire for user:", userId);
-      
       const { data: setlistsData } = await supabase
         .from('setlists')
         .select('*')
@@ -188,8 +190,6 @@ const Index = () => {
         .select('*')
         .eq('user_id', userId)
         .order('title');
-
-      console.log("[Index] Repertoire data received:", repertoireData?.length, "songs");
 
       const mappedRepertoire: SetlistSong[] = (repertoireData || []).map(d => ({
         id: d.id,
@@ -250,25 +250,13 @@ const Index = () => {
           .eq('setlist_id', setlist.id)
           .order('sort_order', { ascending: true });
           
-        console.log(`[Index] Setlist "${setlist.name}" junction data:`, junctionData?.length, "entries");
-
         const seenSongIds = new Set<string>();
         const songs: SetlistSong[] = [];
         
         junctionData?.forEach(j => {
           const master = mappedRepertoire.find(r => r.id === j.song_id);
-          if (!master) {
-            console.warn(`[Index] Song ID ${j.song_id} not found in master repertoire for setlist ${setlist.id}`);
-            return;
-          }
-          
-          if (seenSongIds.has(j.song_id)) {
-            console.error(`[Index] DUPLICATE DETECTED in setlist "${setlist.name}": "${master.name}" (Song ID: ${j.song_id}, Junction ID: ${j.id})`);
-            // We skip adding it to the UI state to "fix" the visible duplicates, 
-            // but we log it so we know which rows in setlist_songs need cleaning.
-            return;
-          }
-          
+          if (!master) return;
+          if (seenSongIds.has(j.song_id)) return;
           seenSongIds.add(j.song_id);
           songs.push({ 
             ...master, 
@@ -278,10 +266,6 @@ const Index = () => {
           });
         });
         
-        if (junctionData && junctionData.length !== songs.length) {
-          console.warn(`[Index] Setlist "${setlist.name}" had ${junctionData.length - songs.length} duplicate entries filtered out.`);
-        }
-
         setlistsWithSongs.push({ 
           id: setlist.id, 
           name: setlist.name, 
@@ -299,7 +283,6 @@ const Index = () => {
         setActiveSetlistId(setlistsWithSongs[0]?.id || null);
       }
     } catch (err: any) {
-      console.error("[Index] Fetch error:", err);
       showError(`Failed to load data: ${err.message}`);
     } finally {
       if (isInitial) setLoading(false);
@@ -398,7 +381,6 @@ const Index = () => {
   ) => {
     try {
       if (action === 'add') {
-        // Check if song already exists in this setlist to prevent duplicates
         const targetSetlist = allSetlists.find(s => s.id === setlistId);
         const songMasterId = song.master_id || song.id;
         const alreadyExists = targetSetlist?.songs.some(s => s.master_id === songMasterId);
@@ -530,7 +512,40 @@ const Index = () => {
     }
   }, [allSetlists, fetchSetlistsAndRepertoire]);
 
-  // Automation Handlers
+  const handleRunMDAudit = async () => {
+    if (!activeSetlist || activeSetlist.songs.length === 0) {
+      showWarning("Add some songs to your setlist first.");
+      return;
+    }
+
+    setIsMDAuditOpen(true);
+    setIsAuditLoading(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('md-audit', {
+        body: {
+          setlistName: activeSetlist.name,
+          songs: activeSetlist.songs.map(s => ({
+            name: s.name,
+            artist: s.artist,
+            bpm: s.bpm,
+            energy_level: s.energy_level,
+            readiness: calculateReadiness(s),
+            genre: s.genre
+          }))
+        }
+      });
+
+      if (error) throw error;
+      setAuditData(data);
+    } catch (err: any) {
+      showError("MD Audit failed. Please try again.");
+      setIsMDAuditOpen(false);
+    } finally {
+      setIsAuditLoading(false);
+    }
+  };
+
   const handleAutoLink = useCallback(async () => {
     const missing = masterRepertoire.filter(s => !s.youtubeUrl || s.youtubeUrl.trim() === "");
     if (missing.length === 0) {
@@ -788,6 +803,14 @@ const Index = () => {
             <h1 className="text-2xl font-black uppercase tracking-tight">Gig Studio Dashboard</h1>
           </div>
           <div className="flex items-center gap-4">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleRunMDAudit}
+              className="h-9 px-4 rounded-xl text-indigo-600 border-indigo-600/20 hover:bg-indigo-50"
+            >
+              <Sparkles className="w-3.5 h-3.5 mr-2" /> MD Audit
+            </Button>
             <Button 
               variant="outline" 
               size="sm" 
@@ -1088,6 +1111,13 @@ const Index = () => {
           />
         </>
       )}
+
+      <MDAuditModal 
+        isOpen={isMDAuditOpen} 
+        onClose={() => setIsMDAuditOpen(false)} 
+        auditData={auditData} 
+        isLoading={isAuditLoading} 
+      />
     </div>
   );
 };

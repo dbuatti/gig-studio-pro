@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, CircleDashed, CheckCircle2, Volume2, ChevronUp, ChevronDown, Search, LayoutList, SortAsc, AlertTriangle, Loader2, Guitar, CloudDownload, Edit3, Filter, MoreVertical, Settings2, Check, ShieldCheck, Clock, Star, Zap, Sparkles } from 'lucide-react';
+import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, CircleDashed, CheckCircle2, Volume2, ChevronUp, ChevronDown, Search, LayoutList, SortAsc, AlertTriangle, Loader2, Guitar, CloudDownload, Edit3, Filter, MoreVertical, Settings2, Check, ShieldCheck, Clock, Star, Zap, Sparkles, Info } from 'lucide-react';
 
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, formatKey, transposeKey, calculateSemitones } from '@/utils/keyUtils';
 import { cn } from '@/lib/utils';
@@ -265,6 +265,26 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   const missingEnergyCount = useMemo(() => {
     return rawSongs.filter(s => !s.energy_level && s.name && s.artist && s.bpm).length;
   }, [rawSongs]);
+
+  const getReadinessBreakdown = (song: SetlistSong) => {
+    const items = [];
+    if (song.audio_url && song.extraction_status === 'completed') items.push("✅ Full Audio (25%)");
+    else items.push("❌ Missing Audio");
+    
+    const hasLyrics = (song.lyrics || "").length > 20;
+    const hasChords = (song.ug_chords_text || "").length > 10;
+    if (hasLyrics && hasChords) items.push("✅ Lyrics & Chords (20%)");
+    else if (hasLyrics || hasChords) items.push("⚠️ Partial Charts (10%)");
+    else items.push("❌ No Charts");
+
+    if (song.isKeyConfirmed) items.push("✅ Key Confirmed (15%)");
+    if (song.bpm) items.push("✅ BPM Set (10%)");
+    if (song.pdfUrl || song.leadsheetUrl || song.sheet_music_url) items.push("✅ Sheet Music (10%)");
+    if (song.isMetadataConfirmed) items.push("✅ Metadata Verified (5%)");
+    if (song.isApproved) items.push("✅ Approved (5%)");
+
+    return items;
+  };
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -665,14 +685,31 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         </TooltipProvider>
                       </td>
                       <td className="px-6 text-center">
-                        <div className="flex flex-col items-center gap-1">
-                          <span className={cn(
-                            "text-[10px] font-mono font-bold px-2 py-0.5 rounded-lg",
-                            readinessScore >= 90 ? "bg-emerald-600/20 text-emerald-400" : "bg-amber-600/20 text-amber-400"
-                          )}>
-                            {readinessScore}%
-                          </span>
-                        </div>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="flex flex-col items-center gap-1 cursor-help">
+                                <span className={cn(
+                                  "text-[10px] font-mono font-bold px-2 py-0.5 rounded-lg flex items-center gap-1.5",
+                                  readinessScore >= 90 ? "bg-emerald-600/20 text-emerald-400" : "bg-amber-600/20 text-amber-400"
+                                )}>
+                                  {readinessScore}%
+                                  <Info className="w-2.5 h-2.5 opacity-50" />
+                                </span>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent className="p-3 bg-slate-900 border-white/10 rounded-xl shadow-2xl">
+                              <div className="space-y-1.5">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-2">Readiness Breakdown</p>
+                                {getReadinessBreakdown(song).map((item, i) => (
+                                  <p key={i} className="text-[10px] font-bold text-slate-300 flex items-center gap-2">
+                                    {item}
+                                  </p>
+                                ))}
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </td>
                       <td className="px-6 text-center">
                         <div className="flex flex-col items-center justify-center gap-0.5 h-full">
