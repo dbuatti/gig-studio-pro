@@ -14,12 +14,13 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import SetlistFilters, { FilterState, DEFAULT_FILTERS } from './SetlistFilters';
 import { calculateReadiness, syncToMasterRepertoire } from '@/utils/repertoireSync';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/AlertDialog";
 import SetlistMultiSelector from './SetlistMultiSelector';
 import { SheetLink } from './LinkDisplayOverlay';
 import { sortSongsByStrategy, analyzeEnergyFatigue } from '@/utils/SetlistGenerator';
 import SongRecommender from './SongRecommender';
 import { supabase } from '@/integrations/supabase/client';
+import MasteryRating from './MasteryRating';
 
 export interface UGChordsConfig {
   fontFamily: string;
@@ -158,7 +159,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 }) => {
   const isMobile = useIsMobile();
   const { keyPreference: globalPreference } = useSettings();
-  const { user } = useSettings(); // Assuming user is available via settings or auth hook
   
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -329,21 +329,23 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   const getReadinessBreakdown = (song: SetlistSong) => {
     const items = [];
     const status = (song.extraction_status || "").toLowerCase();
-    if (song.audio_url && status === 'completed') items.push("✅ Full Audio (30%)");
-    else if (song.previewUrl) items.push("⚠️ Preview Only (10%)");
+    if (song.audio_url && status === 'completed') items.push("✅ Full Audio (20%)");
+    else if (song.previewUrl) items.push("⚠️ Preview Only (5%)");
     else items.push("❌ No Audio");
     
     const hasLyrics = (song.lyrics || "").length > 50;
     const hasChords = (song.ug_chords_text || "").length > 20;
-    if (hasLyrics && hasChords) items.push("✅ Lyrics & Chords (25%)");
+    if (hasLyrics && hasChords) items.push("✅ Lyrics & Chords (20%)");
     else if (hasLyrics || hasChords) items.push("⚠️ Partial Charts (10%)");
     else items.push("❌ No Charts");
 
-    if (song.isKeyConfirmed) items.push("✅ Key Confirmed (15%)");
+    if (song.isKeyConfirmed) items.push("✅ Key Confirmed (10%)");
     if (song.bpm && song.bpm !== "0") items.push("✅ BPM Set (10%)");
-    if (song.pdfUrl || song.leadsheetUrl || song.sheet_music_url) items.push("✅ Sheet Music (10%)");
+    if (song.pdfUrl || song.leadsheetUrl || song.sheet_music_url) items.push("✅ Sheet Music (5%)");
     if (song.isMetadataConfirmed) items.push("✅ Metadata Verified (5%)");
-    if (song.energy_level) items.push("✅ Energy Zone Set (5%)");
+    
+    const comfort = song.comfort_level || 0;
+    items.push(`${comfort > 0 ? '✅' : '❌'} Mastery Rating: ${comfort}/5 stars (${Math.round((comfort/5)*30)}%)`);
 
     return items;
   };
@@ -628,8 +630,12 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       </div>
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-0.5">Tempo</span>
-                      <span className="text-[10px] font-mono font-bold text-muted-foreground">{song.bpm || "--"} BPM</span>
+                      <span className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-0.5">Mastery</span>
+                      <MasteryRating 
+                        value={song.comfort_level || 0} 
+                        onChange={(val) => onUpdateSong(song.id, { comfort_level: val })}
+                        size="sm"
+                      />
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -664,6 +670,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                   <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-16 text-center">Sts</th>
                   <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground text-left">Song / Resource Matrix</th>
                   <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-24 text-center">Energy</th>
+                  <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-28 text-center">Mastery</th>
                   <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-20 text-center">Ready</th>
                   <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-24 text-center">Move</th>
                   <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-48 text-center">Harmonic Map</th>
@@ -756,6 +763,16 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         </TooltipProvider>
                       </td>
                       <td className="px-6 text-center">
+                        <div className="flex flex-col items-center gap-1">
+                          <MasteryRating 
+                            value={song.comfort_level || 0} 
+                            onChange={(val) => onUpdateSong(song.id, { comfort_level: val })}
+                            size="sm"
+                          />
+                          <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/50">Confidence</span>
+                        </div>
+                      </td>
+                      <td className="px-6 text-center">
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -839,7 +856,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                               <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMoveToTop(song.id); }} disabled={!isReorderingEnabled || idx === 0}>
                                 <ChevronUp className="w-4 h-4 mr-2 text-indigo-600" /> Move to Top
-                              </DropdownMenuItem>
+                              </AlertDialogAction>
                               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'up'); }} disabled={!isReorderingEnabled || idx === 0}>
                                 <ChevronUp className="w-4 h-4 mr-2 opacity-50" /> Move Up
                               </DropdownMenuItem>

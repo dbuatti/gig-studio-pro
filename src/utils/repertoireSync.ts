@@ -13,34 +13,45 @@ const isValidUuid = (uuid: string | undefined | null): boolean => {
   return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/i.test(uuid);
 };
 
+/**
+ * Calculates a granular readiness score (0-100).
+ * 70% is based on objective metadata/files.
+ * 30% is based on subjective 'comfort_level' (Mastery).
+ */
 export const calculateReadiness = (song: Partial<SetlistSong>): number => {
-  let score = 0;
+  let objectiveScore = 0;
   
-  // 1. Audio Quality (30%)
+  // 1. Audio Quality (20%)
   const status = (song.extraction_status || "").toLowerCase();
-  if (song.audio_url && status === 'completed') score += 30;
-  else if (song.previewUrl) score += 10;
+  if (song.audio_url && status === 'completed') objectiveScore += 20;
+  else if (song.previewUrl) objectiveScore += 5;
 
-  // 2. Charts & Lyrics (25%)
+  // 2. Charts & Lyrics (20%)
   const hasLyrics = (song.lyrics || "").length > 50;
   const hasChordsText = (song.ug_chords_text || "").length > 20;
-  if (hasLyrics && hasChordsText) score += 25;
-  else if (hasLyrics || hasChordsText) score += 10;
+  if (hasLyrics && hasChordsText) objectiveScore += 20;
+  else if (hasLyrics || hasChordsText) objectiveScore += 10;
 
-  // 3. Technical Confirmation (25%)
-  if (song.isKeyConfirmed) score += 15;
-  if (song.bpm && song.bpm !== "0") score += 10;
+  // 3. Technical Confirmation (20%)
+  if (song.isKeyConfirmed) objectiveScore += 10;
+  if (song.bpm && song.bpm !== "0") objectiveScore += 10;
 
-  // 4. Metadata & Resources (20%)
+  // 4. Metadata & Resources (10%)
   const hasSheetLink = (song.pdfUrl || song.leadsheetUrl || song.sheet_music_url || "").length > 0;
-  if (hasSheetLink) score += 10;
-  if (song.isMetadataConfirmed) score += 5;
-  if (song.energy_level) score += 5;
+  if (hasSheetLink) objectiveScore += 5;
+  if (song.isMetadataConfirmed) objectiveScore += 5;
+
+  // 5. Subjective Mastery (30%)
+  // comfort_level is 0-5 stars. Each star is 6% of the total score.
+  const comfortLevel = song.comfort_level || 0;
+  const subjectiveScore = (comfortLevel / 5) * 30;
+
+  let totalScore = objectiveScore + subjectiveScore;
 
   // Penalties
-  if (song.is_ready_to_sing === false) score -= 50;
+  if (song.is_ready_to_sing === false) totalScore -= 50;
 
-  return Math.max(0, Math.min(100, score));
+  return Math.max(0, Math.min(100, Math.round(totalScore)));
 };
 
 export const syncToMasterRepertoire = async (userId: string, songsToSync: Partial<SetlistSong>[]): Promise<SetlistSong[]> => {
@@ -95,7 +106,7 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
     if (song.previewUrl !== undefined) dbUpdates.preview_url = song.previewUrl;
     if (song.youtubeUrl !== undefined) dbUpdates.youtube_url = song.youtubeUrl;
     if (song.appleMusicUrl !== undefined) dbUpdates.apple_music_url = song.appleMusicUrl;
-    if (song.pdfUrl !== undefined) dbUpdates.pdf_url = song.pdfUrl;
+    if (song.pdfUrl !== undefined) dbUpdates.pdf_url = song.pdf_url;
     if (song.leadsheetUrl !== undefined) dbUpdates.leadsheet_url = song.leadsheetUrl;
     
     if (song.pitch !== undefined) dbUpdates.pitch = Number(song.pitch);
@@ -109,6 +120,7 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
     if (song.audio_url !== undefined) dbUpdates.audio_url = song.audio_url;
     if (song.extraction_status !== undefined) dbUpdates.extraction_status = song.extraction_status;
     if (song.energy_level !== undefined) dbUpdates.energy_level = song.energy_level;
+    if (song.comfort_level !== undefined) dbUpdates.comfort_level = song.comfort_level;
 
     if (song.isMetadataConfirmed !== undefined) dbUpdates.is_metadata_confirmed = Boolean(song.isMetadataConfirmed);
     if (song.isKeyConfirmed !== undefined) dbUpdates.is_key_confirmed = Boolean(song.isKeyConfirmed);
@@ -190,6 +202,7 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
       target_key_updated_at: result.target_key_updated_at,
       pdf_updated_at: result.pdf_updated_at,
       energy_level: result.energy_level as EnergyZone,
+      comfort_level: result.comfort_level ?? 0,
     } as any);
   }
 
