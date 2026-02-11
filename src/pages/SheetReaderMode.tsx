@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
-import { SetlistSong, UGChordsConfig } from '@/components/SetlistManager';
+import { SetlistSong, UGChordsConfig, EnergyZone } from '@/components/SetlistManager';
 import { Button } from '@/components/ui/button';
 import { Music, Loader2, AlertCircle, X, ExternalLink, ShieldCheck, FileText, Layout, Guitar, ChevronLeft, ChevronRight, Download, Link as LinkIcon, Ruler, Edit3, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -291,6 +291,7 @@ const SheetReaderMode: React.FC = () => {
         key_preference: d.key_preference,
         is_active: d.is_active,
         isApproved: d.is_approved,
+        is_ready_to_sing: d.is_ready_to_sing,
         preferred_reader: d.preferred_reader,
         ug_chords_text: d.ug_chords_text,
         ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
@@ -315,7 +316,8 @@ const SheetReaderMode: React.FC = () => {
         fineTune: d.fineTune,
         tempo: d.tempo,
         volume: d.volume,
-        energy_level: d.energy_level,
+        energy_level: d.energy_level as EnergyZone,
+        comfort_level: d.comfort_level ?? 0,
       }));
       setFullMasterRepertoire(masterRepertoireList);
 
