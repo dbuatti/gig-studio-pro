@@ -16,28 +16,31 @@ serve(async (req) => {
     const apiKey = Deno.env.get('GEMINI_API_KEY')
     if (!apiKey) throw new Error('Missing Gemini API Key')
 
-    console.log(`[vibe-check] Analyzing: ${title} by ${artist} (BPM: ${bpm})`);
+    console.log(`[vibe-check] Analyzing: ${title} by ${artist} using gemini-2.5-flash`);
 
-    const prompt = `Analyze the musical energy of this song for a live performance setlist:
-    Song: "${title}" by "${artist}"
-    BPM: ${bpm || 'Unknown'}
-    Genre: ${genre || 'Unknown'}
-    Tags: ${userTags?.join(', ') || 'None'}
+    const prompt = `You are an expert musicologist and professional DJ. Analyze the musical energy and "vibe" of this track for a live performance context.
 
-    Categorize it into exactly one of these Energy Zones:
-    - Peak: High-energy anthems, dance floor fillers, maximum intensity.
-    - Groove: Mid-to-high energy, rhythmic, danceable but not "peak".
-    - Pulse: Low-to-mid energy, steady rhythm, good for background or building.
-    - Ambient: Low energy, atmospheric, ballads, dinner music.
+    TRACK DATA:
+    - Title: "${title}"
+    - Artist: "${artist}"
+    - BPM: ${bpm || 'Unknown'}
+    - Genre: ${genre || 'Unknown'}
+    - Contextual Tags: ${userTags?.join(', ') || 'None'}
+
+    CRITERIA FOR ENERGY ZONES:
+    1. Peak: High-intensity anthems. Fast BPM (>125) or massive emotional crescendos. Dance floor fillers.
+    2. Groove: Mid-to-high energy. Rhythmic, infectious beat. Great for keeping people moving but not "exploding".
+    3. Pulse: Low-to-mid energy. Steady, driving rhythm. Good for background, transitions, or early-set building.
+    4. Ambient: Low energy. Atmospheric, ballads, dinner music, or acoustic versions.
 
     Return ONLY a JSON object:
     {
       "energy_level": "Peak" | "Groove" | "Pulse" | "Ambient",
-      "reasoning": "Brief explanation of why"
+      "reasoning": "A professional explanation of the energy categorization based on tempo, genre, and typical performance impact."
     }`;
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -49,6 +52,11 @@ serve(async (req) => {
     );
 
     const result = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(result.error?.message || 'Gemini API Error');
+    }
+
     let text = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
     text = text.replace(/```json/g, '').replace(/```/g, '').trim();
     
