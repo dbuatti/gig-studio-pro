@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Search, Sparkles, ShieldCheck, X, Settings, 
   Play, FileText, Pause, BookOpen, Volume2, ShieldAlert, Zap,
   ChevronRight, ChevronLeft, ChevronUp, ChevronDown, MoreHorizontal, Wrench,
-  Rocket, Activity
+  Rocket, Activity, Command
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { motion, AnimatePresence } from 'framer-motion';
@@ -132,7 +132,6 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
 
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      // Ignore if typing in an input or if a modifier key (Cmd/Ctrl) is pressed
       if (
         e.target instanceof HTMLInputElement || 
         e.target instanceof HTMLTextAreaElement || 
@@ -228,10 +227,10 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
 
   const getMenuClasses = (dir: MenuDirection) => {
     switch (dir) {
-      case 'up': return "flex-col-reverse mb-3";
-      case 'down': return "flex-col mt-3";
-      case 'left': return "flex-row-reverse mr-3";
-      case 'right': return "flex-row ml-3";
+      case 'up': return "flex-col-reverse mb-4";
+      case 'down': return "flex-col mt-4";
+      case 'left': return "flex-row-reverse mr-4";
+      case 'right': return "flex-row ml-4";
     }
   };
 
@@ -243,14 +242,14 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
         onDragEnd={handleDragEnd}
         style={{ x: position.x, y: position.y }}
         className={cn(
-          "fixed bottom-8 left-8 z-[300] flex items-center gap-3 touch-none cursor-grab active:cursor-grabbing",
+          "fixed bottom-8 left-8 z-[300] flex items-center gap-4 touch-none cursor-grab active:cursor-grabbing",
           direction === 'up' && "flex-col-reverse",
           direction === 'down' && "flex-col",
           direction === 'left' && "flex-row-reverse",
           direction === 'right' && "flex-row"
         )}
       >
-        <div className="bg-card/90 backdrop-blur-2xl p-2 rounded-full border border-border/20 shadow-2xl">
+        <div className="bg-slate-950/80 backdrop-blur-2xl p-2 rounded-full border border-white/10 shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)]">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -259,10 +258,10 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                 onClick={handleToggleMenu}
                 className={cn(
                   "h-14 w-14 rounded-full transition-all duration-500 border-2 shadow-xl",
-                  internalIsMenuOpen ? "bg-secondary text-secondary-foreground border-border rotate-90" : "bg-card text-indigo-400 border-border/10"
+                  internalIsMenuOpen ? "bg-indigo-600 text-white border-indigo-400 rotate-90" : "bg-slate-900 text-indigo-400 border-white/5"
                 )}
               >
-                {internalIsMenuOpen ? <X className="w-6 h-6" /> : <LayoutDashboard className="w-6 h-6" />}
+                {internalIsMenuOpen ? <X className="w-6 h-6" /> : <Command className="w-6 h-6" />}
               </Button>
             </TooltipTrigger>
             <TooltipContent side={direction === 'left' ? 'right' : direction === 'right' ? 'left' : direction === 'up' ? 'bottom' : 'top'}>Command Hub</TooltipContent>
@@ -272,13 +271,13 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
         <AnimatePresence>
           {internalIsMenuOpen && (
             <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              className={cn("flex items-center gap-3", getMenuClasses(direction))}
+              initial={{ opacity: 0, scale: 0.9, y: direction === 'up' ? 20 : -20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: direction === 'up' ? 20 : -20 }}
+              className={cn("flex items-center gap-4", getMenuClasses(direction))}
             >
               <div className={cn(
-                "flex items-center gap-3 p-3 bg-card/90 rounded-[2.5rem] border border-border/10 shadow-2xl backdrop-blur-xl",
+                "flex items-center gap-3 p-3 bg-slate-950/90 rounded-[2.5rem] border border-white/10 shadow-2xl backdrop-blur-xl",
                 (direction === 'up' || direction === 'down') ? "flex-col" : "flex-row"
               )}>
                 {primaryButtons.map((btn) => (
@@ -306,7 +305,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                       onClick={() => setIsSubMenuOpen(!isSubMenuOpen)}
                       className={cn(
                         "h-12 w-12 rounded-full border transition-all",
-                        isSubMenuOpen ? "bg-secondary text-secondary-foreground border-border" : "bg-card text-slate-400 border-border/5"
+                        isSubMenuOpen ? "bg-indigo-600 text-white border-indigo-400" : "bg-slate-900 text-slate-400 border-white/5"
                       )}
                     >
                       {isSubMenuOpen ? <X className="w-5 h-5" /> : <Wrench className="w-5 h-5" />}
@@ -319,11 +318,11 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
               <AnimatePresence>
                 {isSubMenuOpen && (
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.5 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.5 }}
+                    initial={{ opacity: 0, scale: 0.8, x: direction === 'left' ? 20 : -20 }}
+                    animate={{ opacity: 1, scale: 1, x: 0 }}
+                    exit={{ opacity: 0, scale: 0.8, x: direction === 'left' ? 20 : -20 }}
                     className={cn(
-                      "grid grid-cols-2 gap-2 p-3 bg-card/90 rounded-[2rem] border border-border/10 shadow-2xl backdrop-blur-xl",
+                      "grid grid-cols-2 gap-2 p-3 bg-slate-950/90 rounded-[2rem] border border-white/10 shadow-2xl backdrop-blur-xl",
                       (direction === 'left' || direction === 'right') && "grid-flow-col"
                     )}
                   >

@@ -284,7 +284,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       for (let i = 0; i < songsToVibeCheck.length; i++) {
         const song = songsToVibeCheck[i];
         try {
-          // Add a small delay between requests to avoid rate limiting
           if (i > 0) await new Promise(resolve => setTimeout(resolve, 800));
 
           const { data, error } = await supabase.functions.invoke('vibe-check', {
@@ -316,7 +315,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
       if (successCount > 0) {
         showSuccess(`Vibe Check Complete: ${successCount} updated, ${failCount} failed.`);
-        await onBulkVibeCheck(); // Trigger refresh in parent
+        await onBulkVibeCheck(); 
       } else if (failCount > 0) {
         showError(`Vibe Check failed for ${failCount} songs.`);
       }
@@ -357,111 +356,71 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   };
 
   return (
-    <div className="space-y-4 md:space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-2">
-        <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
-          <div className="flex items-center gap-1 bg-secondary p-1 rounded-xl w-full sm:w-auto overflow-x-auto no-scrollbar">
+    <div className="space-y-6">
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 px-2">
+        <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+          <div className="flex items-center gap-1 bg-slate-900/50 p-1.5 rounded-2xl w-full sm:w-auto overflow-x-auto no-scrollbar border border-white/5">
             <Button 
               variant="ghost" size="sm" 
               onClick={() => setSortMode('none')}
               className={cn(
-                "h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg",
-                sortMode === 'none' && "bg-background dark:bg-secondary shadow-sm"
+                "h-8 px-4 text-[10px] font-black uppercase tracking-widest gap-2 shrink-0 rounded-xl transition-all",
+                sortMode === 'none' ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20" : "text-slate-400 hover:text-white"
               )}
             >
-              <LayoutList className="w-3 h-3" /> <span className="hidden sm:inline">List Order</span>
+              <LayoutList className="w-3.5 h-3.5" /> <span className="hidden sm:inline">List</span>
             </Button>
             <Button
               variant="ghost" size="sm"
               onClick={() => setSortMode('manual')}
               className={cn(
-                "h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg",
-                sortMode === 'manual' && "bg-background dark:bg-secondary shadow-sm text-indigo-600"
+                "h-8 px-4 text-[10px] font-black uppercase tracking-widest gap-2 shrink-0 rounded-xl transition-all",
+                sortMode === 'manual' ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20" : "text-slate-400 hover:text-white"
               )}
             >
-              <SortAsc className="w-3 h-3" /> <span className="hidden sm:inline">Manual</span>
+              <SortAsc className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Manual</span>
             </Button>
             <Button
               variant="ghost" size="sm"
               onClick={onOpenSortModal}
-              className="h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg text-indigo-600 hover:bg-indigo-50"
+              className="h-8 px-4 text-[10px] font-black uppercase tracking-widest gap-2 shrink-0 rounded-xl text-indigo-400 hover:bg-indigo-500/10"
             >
-              <Sparkles className="w-3 h-3" /> <span className="hidden sm:inline">AI Sort</span>
+              <Sparkles className="w-3.5 h-3.5" /> <span className="hidden sm:inline">AI Sort</span>
             </Button>
+            <div className="w-px h-4 bg-white/10 mx-1 hidden sm:block" />
             <Button 
               variant="ghost" size="sm" 
               onClick={() => setSortMode('ready')}
               className={cn(
-                "h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg",
-                sortMode === 'ready' && "bg-background dark:bg-secondary shadow-sm text-indigo-600"
+                "h-8 px-4 text-[10px] font-black uppercase tracking-widest gap-2 shrink-0 rounded-xl transition-all",
+                sortMode === 'ready' ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/20" : "text-slate-400 hover:text-white"
               )}
             >
-              <Star className="w-3 h-3" /> <span className="hidden sm:inline">Readiness</span>
-            </Button>
-            <Button 
-              variant="ghost" size="sm" 
-              onClick={() => setSortMode('work')}
-              className={cn(
-                "h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg",
-                sortMode === 'work' && "bg-background dark:bg-secondary shadow-sm text-orange-600"
-              )}
-            >
-              <AlertTriangle className="w-3 h-3" /> <span className="hidden sm:inline">Work Needed</span>
+              <Star className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Ready</span>
             </Button>
             <Button 
               variant="ghost" size="sm" 
               onClick={() => setSortMode('energy-asc')}
               className={cn(
-                "h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg",
-                sortMode === 'energy-asc' && "bg-background dark:bg-secondary shadow-sm text-purple-600"
+                "h-8 px-4 text-[10px] font-black uppercase tracking-widest gap-2 shrink-0 rounded-xl transition-all",
+                sortMode === 'energy-asc' ? "bg-purple-600 text-white shadow-lg shadow-purple-500/20" : "text-slate-400 hover:text-white"
               )}
             >
-              <Zap className="w-3 h-3" /> <span className="hidden sm:inline">Energy ↑</span>
+              <Zap className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Energy</span>
             </Button>
-            <Button 
-              variant="ghost" size="sm" 
-              onClick={() => setSortMode('energy-desc')}
-              className={cn(
-                "h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg",
-                sortMode === 'energy-desc' && "bg-background dark:bg-secondary shadow-sm text-purple-600"
-              )}
-            >
-              <Zap className="w-3 h-3" /> <span className="hidden sm:inline">Energy ↓</span>
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" size="sm" 
-                  className={cn(
-                    "h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg",
-                    (sortMode === 'zig-zag' || sortMode === 'wedding-ramp') && "bg-background dark:bg-secondary shadow-sm text-pink-600"
-                  )}
-                >
-                  <Zap className="w-3 h-3" /> <span className="hidden sm:inline">Flow</span> <ChevronDown className="w-3 h-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-48 p-2 rounded-2xl bg-popover border-border text-foreground">
-                <DropdownMenuItem onClick={() => setSortMode('zig-zag')} className="text-xs font-bold uppercase h-10 rounded-xl">
-                  Zig-Zag (Club)
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSortMode('wedding-ramp')} className="text-xs font-bold uppercase h-10 rounded-xl">
-                  Wedding Ramp (Gala)
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
           <Button 
             variant="ghost" size="sm" 
             onClick={() => setIsFilterOpen(!isFilterOpen)}
             className={cn(
-              "h-8 px-4 text-[10px] font-black uppercase tracking-widest rounded-xl gap-2 transition-all",
-              isFilterOpen ? "bg-indigo-50 text-indigo-600" : "text-muted-foreground hover:bg-accent dark:hover:bg-secondary"
+              "h-11 px-5 text-[10px] font-black uppercase tracking-widest rounded-2xl gap-2.5 transition-all border",
+              isFilterOpen ? "bg-indigo-600 text-white border-indigo-400 shadow-lg shadow-indigo-500/20" : "bg-slate-900/50 text-slate-400 border-white/5 hover:text-white hover:bg-slate-800"
             )}
           >
-            <Filter className="w-3.5 h-3.5" /> Filter Matrix
+            <Filter className="w-4 h-4" /> Matrix Filters
           </Button>
         </div>
-        <div className="flex items-center gap-3 w-full sm:w-auto">
+        <div className="flex items-center gap-4 w-full lg:w-auto">
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -469,55 +428,59 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                   onClick={handleVibeCheckAction}
                   disabled={isVibeChecking || missingEnergyCount === 0}
                   className={cn(
-                    "h-10 px-6 rounded-xl font-black uppercase tracking-wider text-[10px] gap-2 shadow-lg transition-all",
-                    isVibeChecking ? "bg-purple-600/50 text-white cursor-wait" : "bg-purple-600 hover:bg-purple-700 text-white shadow-purple-600/20"
+                    "h-11 px-6 rounded-2xl font-black uppercase tracking-widest text-[10px] gap-2.5 shadow-xl transition-all active:scale-95",
+                    isVibeChecking ? "bg-purple-600/50 text-white cursor-wait" : "bg-purple-600 hover:bg-purple-500 text-white shadow-purple-600/20"
                   )}
                 >
                   {isVibeChecking ? (
                     <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <Loader2 className="w-4 h-4 animate-spin" />
                       {vibeCheckProgress}%
                     </>
                   ) : (
                     <>
-                      <Zap className="w-3.5 h-3.5" />
+                      <Zap className="w-4 h-4" />
                       Vibe Check ({missingEnergyCount})
                     </>
                   )}
                 </Button>
               </TooltipTrigger>
               {missingEnergyCount === 0 && (
-                <TooltipContent className="bg-popover text-foreground border-border text-[10px] font-black uppercase">
+                <TooltipContent className="bg-slate-900 text-white border-white/10 text-[10px] font-black uppercase">
                   All tracks have an Energy Zone set.
                 </TooltipContent>
               )}
             </Tooltip>
           </TooltipProvider>
-          <div className="relative flex-1 sm:w-64 group">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground group-focus-within:text-indigo-500 transition-colors" />
+          <div className="relative flex-1 sm:w-72 group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
             <Input 
               placeholder="Search Gig Repertoire..." 
               value={searchTerm} 
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-10 sm:h-9 pl-9 text-[11px] font-bold bg-card dark:bg-card border-border dark:border-border rounded-xl focus-visible:ring-indigo-500"
+              className="h-11 pl-11 text-[11px] font-bold bg-slate-900/50 border-white/5 rounded-2xl focus-visible:ring-indigo-500/50 focus-visible:bg-slate-900 transition-all"
             />
           </div>
         </div>
       </div>
 
       {isFilterOpen && (
-        <SetlistFilters 
-          activeFilters={activeFilters} 
-          onFilterChange={setActiveFilters} 
-        />
+        <div className="animate-in fade-in slide-in-from-top-4 duration-300">
+          <SetlistFilters 
+            activeFilters={activeFilters} 
+            onFilterChange={setActiveFilters} 
+          />
+        </div>
       )}
 
       {energyFatigueIndices.length > 0 && (
-        <div className="p-4 bg-red-600/10 border border-red-600/20 rounded-2xl flex items-start gap-4">
-          <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+        <div className="p-5 bg-red-600/10 border border-red-500/20 rounded-[2rem] flex items-start gap-5 shadow-2xl shadow-red-900/10">
+          <div className="bg-red-600 p-2 rounded-xl shadow-lg shadow-red-600/20">
+            <AlertTriangle className="w-5 h-5 text-white" />
+          </div>
           <div>
-            <p className="text-sm font-black uppercase text-red-400">Energy Fatigue Warning</p>
-            <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+            <p className="text-sm font-black uppercase tracking-tight text-red-400">Energy Fatigue Warning</p>
+            <p className="text-[11px] text-slate-400 mt-1.5 font-medium leading-relaxed max-w-2xl">
               You have {energyFatigueIndices.length} high-energy clusters (3+ 'Peak' songs in a row). Consider adding a 'Pulse' or 'Ambient' track to prevent audience burnout.
             </p>
           </div>
@@ -525,7 +488,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       )}
 
       {isMobile ? (
-        <div className="space-y-3 px-1 pb-4">
+        <div className="space-y-4 px-1 pb-6">
           {processedSongs.map((song, idx) => {
             const isSelected = currentSongId === song.id;
             const readinessScore = calculateReadiness(song);
@@ -541,15 +504,15 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                 key={song.id}
                 onClick={() => onEdit(song)}
                 className={cn(
-                  "bg-card rounded-2xl border-2 transition-all p-4 flex flex-col gap-3 shadow-sm relative overflow-hidden",
-                  isSelected ? "border-indigo-500 shadow-md ring-1 ring-indigo-500/20" : "border-border",
+                  "bg-slate-900/40 rounded-[2rem] border-2 transition-all p-5 flex flex-col gap-4 shadow-xl relative overflow-hidden",
+                  isSelected ? "border-indigo-500 bg-indigo-500/5 shadow-indigo-500/10" : "border-white/5",
                   song.isPlayed && "opacity-50 grayscale-[0.2]",
                   getHeatmapClass(song)
                 )}
               >
-                <div className={cn("absolute top-0 left-0 h-full transition-all duration-500", getEnergyBarClass(song.energy_level))} />
+                <div className={cn("absolute top-0 left-0 h-full transition-all duration-700 opacity-20", getEnergyBarClass(song.energy_level))} />
                 <div className="flex items-start justify-between relative z-10">
-                  <div className="flex gap-3">
+                  <div className="flex gap-4">
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
@@ -558,30 +521,30 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       className="mt-1"
                     >
                       {song.isPlayed ? (
-                        <div className="h-5 w-5 rounded-full bg-emerald-500 flex items-center justify-center text-white">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
+                        <div className="h-6 w-6 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
+                          <CheckCircle2 className="w-4 h-4" />
                         </div>
                       ) : (
-                        <div className="h-5 w-5 rounded-full border-2 border-muted-foreground dark:border-border" />
+                        <div className="h-6 w-6 rounded-full border-2 border-white/10 bg-black/20" />
                       )}
                     </button>
                     <div>
-                      <h4 className={cn("text-sm font-black tracking-tight flex items-center gap-1.5 text-foreground", song.isPlayed && "line-through text-muted-foreground")}>
+                      <h4 className={cn("text-base font-black tracking-tight flex items-center gap-2 text-white", song.isPlayed && "line-through text-slate-500")}>
                         {song.name}
-                        {isFullyReady && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 fill-emerald-500/20" />}
-                        {isProcessing && <CloudDownload className="w-3.5 h-3.5 text-indigo-500 animate-bounce" />}
-                        {isExtractionFailed && <AlertTriangle className="w-3.5 h-3.5 text-red-500" />}
+                        {isFullyReady && <CheckCircle2 className="w-4 h-4 text-emerald-500 fill-emerald-500/20" />}
+                        {isProcessing && <CloudDownload className="w-4 h-4 text-indigo-500 animate-bounce" />}
+                        {isExtractionFailed && <AlertTriangle className="w-4 h-4 text-red-500" />}
                       </h4>
-                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-0.5">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
                         {song.artist || "Unknown Artist"}
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
                     <div className="flex flex-col items-end">
-                      <span className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-0.5">Ready</span>
+                      <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Ready</span>
                       <span className={cn(
-                        "text-[10px] font-mono font-bold px-2 py-0.5 rounded-lg",
+                        "text-[10px] font-mono font-bold px-2.5 py-1 rounded-xl",
                         readinessScore >= 90 ? "bg-emerald-600/20 text-emerald-400" : "bg-amber-600/20 text-amber-400"
                       )}>
                         {readinessScore}%
@@ -589,54 +552,41 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                     </div>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:bg-accent dark:hover:bg-secondary">
-                          <MoreVertical className="w-4 h-4" />
+                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-slate-400 hover:bg-white/5">
+                          <MoreVertical className="w-5 h-5" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onUpdateSong(song.id, { isApproved: !song.isApproved }); showSuccess(`Song marked as ${song.isApproved ? 'unapproved' : 'approved'} for gig.`); }}>
-                          {song.isApproved ? <Check className="w-4 h-4 mr-2 text-emerald-500" /> : <ListMusic className="w-4 h-4 mr-2" />}
-                          {song.isApproved ? "Unapprove for Gig" : "Approve for Gig"}
+                      <DropdownMenuContent align="end" className="w-56 p-2 rounded-2xl bg-slate-950 border-white/10">
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onUpdateSong(song.id, { isApproved: !song.isApproved }); showSuccess(`Song marked as ${song.isApproved ? 'unapproved' : 'approved'} for gig.`); }} className="h-11 rounded-xl text-xs font-bold uppercase">
+                          {song.isApproved ? <Check className="w-4 h-4 mr-3 text-emerald-500" /> : <ListMusic className="w-4 h-4 mr-3" />}
+                          {song.isApproved ? "Unapprove" : "Approve for Gig"}
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMoveToTop(song.id); }} disabled={!isReorderingEnabled || idx === 0}>
-                          <ChevronUp className="w-4 h-4 mr-2 text-indigo-600" /> Move to Top
+                        <DropdownMenuSeparator className="bg-white/5" />
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(song); }} className="h-11 rounded-xl text-xs font-bold uppercase">
+                          <Settings2 className="w-4 h-4 mr-3" /> Configure Studio
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'up'); }} disabled={!isReorderingEnabled || idx === 0}>
-                          <ChevronUp className="w-4 h-4 mr-2 opacity-50" /> Move Up
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'down'); }} disabled={!isReorderingEnabled || idx === processedSongs.length - 1}>
-                          <ChevronDown className="w-4 h-4 mr-2 opacity-50" /> Move Down
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMoveToBottom(song.id); }} disabled={!isReorderingEnabled || idx === processedSongs.length - 1}>
-                          <ChevronDown className="w-4 h-4 mr-2 text-indigo-600" /> Move to Bottom
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(song); }}>
-                          <Settings2 className="w-4 h-4 mr-2" /> Configure Studio
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(song.id); }}>
-                          <Trash2 className="w-4 h-4 mr-2" /> Remove Track
+                        <DropdownMenuSeparator className="bg-white/5" />
+                        <DropdownMenuItem className="text-red-400 h-11 rounded-xl text-xs font-bold uppercase" onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(song.id); }}>
+                          <Trash2 className="w-4 h-4 mr-3" /> Remove Track
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
                 </div>
-                <div className="flex items-center justify-between border-t border-border pt-3 relative z-10">
-                  <div className="flex items-center gap-4">
+                <div className="flex items-center justify-between border-t border-white/5 pt-4 relative z-10">
+                  <div className="flex items-center gap-5">
                     <div className="flex flex-col">
-                      <span className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-0.5">Key</span>
+                      <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Key</span>
                       <div className={cn(
-                        "font-mono font-black text-[10px] px-2 py-0.5 rounded-lg text-white flex items-center gap-1",
-                        song.isKeyConfirmed ? "bg-emerald-600" : "bg-indigo-600"
+                        "font-mono font-black text-[10px] px-3 py-1 rounded-xl text-white flex items-center gap-1.5 shadow-lg",
+                        song.isKeyConfirmed ? "bg-emerald-600 shadow-emerald-500/20" : "bg-indigo-600 shadow-indigo-500/20"
                       )}>
                         {displayTargetKey}
-                        {song.isKeyConfirmed && <Check className="w-2.5 h-2.5" />}
+                        {song.isKeyConfirmed && <Check className="w-3 h-3" />}
                       </div>
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-0.5">Mastery</span>
+                      <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Mastery</span>
                       <MasteryRating 
                         value={song.comfort_level || 0} 
                         onChange={(val) => onUpdateSong(song.id, { comfort_level: val })}
@@ -644,13 +594,13 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       />
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    {hasAudio && <Volume2 className="w-3.5 h-3.5 text-indigo-500" />}
+                  <div className="flex gap-3">
+                    {hasAudio && <Volume2 className="w-4 h-4 text-indigo-400" />}
                     <Button 
                       size="sm"
                       className={cn(
-                        "h-8 px-4 text-[9px] font-black uppercase tracking-widest rounded-xl gap-2",
-                        !song.audio_url ? "bg-secondary text-muted-foreground dark:bg-secondary hover:bg-secondary dark:hover:bg-secondary" : isSelected ? "bg-indigo-100 text-indigo-600 border border-indigo-200" : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-xl shadow-indigo-500/20"
+                        "h-10 px-5 text-[10px] font-black uppercase tracking-widest rounded-2xl gap-2.5 shadow-xl transition-all active:scale-95",
+                        !song.audio_url ? "bg-slate-800 text-slate-500" : isSelected ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30" : "bg-indigo-600 text-white hover:bg-indigo-500 shadow-indigo-500/20"
                       )}
                       disabled={!song.audio_url}
                       onClick={(e) => {
@@ -659,7 +609,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       }}
                     >
                       {isSelected ? "Active" : "Perform"}
-                      <Play className={cn("w-3 h-3 fill-current", isSelected && "fill-indigo-600")} />
+                      <Play className={cn("w-3.5 h-3.5 fill-current", isSelected && "fill-indigo-400")} />
                     </Button>
                   </div>
                 </div>
@@ -668,22 +618,22 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
           })}
         </div>
       ) : (
-        <div className="bg-card rounded-[2rem] border-4 border-border shadow-2xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse min-w-[1000px]">
+        <div className="bg-slate-950/50 rounded-[2.5rem] border-4 border-white/5 shadow-2xl overflow-hidden backdrop-blur-xl">
+          <div className="overflow-x-auto custom-scrollbar">
+            <table className="w-full border-collapse min-w-[1100px]">
               <thead>
-                <tr className="bg-secondary dark:bg-secondary border-b border-border">
-                  <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-16 text-center">Sts</th>
-                  <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground text-left">Song / Resource Matrix</th>
-                  <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-24 text-center">Energy</th>
-                  <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-28 text-center">Mastery</th>
-                  <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-20 text-center">Ready</th>
-                  <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-24 text-center">Move</th>
-                  <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-48 text-center">Harmonic Map</th>
-                  <th className="py-3 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-40 text-right pr-10">Command</th>
+                <tr className="bg-slate-900/80 border-b border-white/5">
+                  <th className="py-5 px-8 text-[10px] font-black uppercase tracking-widest text-slate-500 w-20 text-center">Sts</th>
+                  <th className="py-5 px-8 text-[10px] font-black uppercase tracking-widest text-slate-500 text-left">Song / Resource Matrix</th>
+                  <th className="py-5 px-8 text-[10px] font-black uppercase tracking-widest text-slate-500 w-32 text-center">Energy</th>
+                  <th className="py-5 px-8 text-[10px] font-black uppercase tracking-widest text-slate-500 w-36 text-center">Mastery</th>
+                  <th className="py-5 px-8 text-[10px] font-black uppercase tracking-widest text-slate-500 w-24 text-center">Ready</th>
+                  <th className="py-5 px-8 text-[10px] font-black uppercase tracking-widest text-slate-500 w-28 text-center">Move</th>
+                  <th className="py-5 px-8 text-[10px] font-black uppercase tracking-widest text-slate-500 w-56 text-center">Harmonic Map</th>
+                  <th className="py-5 px-8 text-[10px] font-black uppercase tracking-widest text-slate-500 w-48 text-right pr-12">Command</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody className="divide-y divide-white/5">
                 {processedSongs.map((song, idx) => {
                   const isSelected = currentSongId === song.id;
                   const readinessScore = calculateReadiness(song);
@@ -700,13 +650,13 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       key={song.id}
                       onClick={() => onEdit(song)}
                       className={cn(
-                        "transition-all group relative cursor-pointer h-[80px]",
-                        isSelected ? "bg-indigo-100 dark:bg-indigo-900/10" : "hover:bg-accent dark:hover:bg-secondary",
+                        "transition-all group relative cursor-pointer h-[90px]",
+                        isSelected ? "bg-indigo-500/5" : "hover:bg-white/[0.02]",
                         song.isPlayed && "opacity-40 grayscale-[0.5]",
                         getHeatmapClass(song)
                       )}
                     >
-                      <td className="px-6 text-center">
+                      <td className="px-8 text-center">
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
@@ -715,88 +665,88 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                           className="transition-transform active:scale-90 inline-flex items-center justify-center"
                         >
                           {song.isPlayed ? (
-                            <div className="h-6 w-6 rounded-full bg-emerald-500 flex items-center justify-center text-white">
-                              <CheckCircle2 className="w-4 h-4" />
+                            <div className="h-7 w-7 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
+                              <CheckCircle2 className="w-4.5 h-4.5" />
                             </div>
                           ) : (
-                            <div className="h-6 w-6 rounded-full border-2 border-muted-foreground flex items-center justify-center text-muted-foreground group-hover:border-indigo-300 transition-colors">
-                              <CircleDashed className="w-4 h-4" />
+                            <div className="h-7 w-7 rounded-full border-2 border-white/10 bg-black/20 flex items-center justify-center text-slate-600 group-hover:border-indigo-500/50 transition-colors">
+                              <CircleDashed className="w-4.5 h-4.5" />
                             </div>
                           )}
                         </button>
                       </td>
-                      <td className="px-6 text-left">
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-3">
-                            <span className="text-[10px] font-mono font-black text-muted-foreground min-w-[20px]">{(idx + 1).toString().padStart(2, '0')}</span>
-                            <h4 className={cn("text-base font-black tracking-tight leading-none flex items-center gap-2 text-foreground", song.isPlayed && "line-through text-muted-foreground")}>
+                      <td className="px-8 text-left">
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex items-center gap-4">
+                            <span className="text-[11px] font-mono font-black text-slate-600 min-w-[24px]">{(idx + 1).toString().padStart(2, '0')}</span>
+                            <h4 className={cn("text-lg font-black tracking-tight leading-none flex items-center gap-2.5 text-white", song.isPlayed && "line-through text-slate-500")}>
                               {song.name}
-                              {isFullyReady && <CheckCircle2 className="w-4 h-4 text-emerald-500 fill-emerald-500/20" />}
-                              {isProcessing && <CloudDownload className="w-4 h-4 text-indigo-500 animate-bounce" />}
-                              {isExtractionFailed && <AlertTriangle className="w-4 h-4 text-red-500" />}
+                              {isFullyReady && <CheckCircle2 className="w-4.5 h-4.5 text-emerald-500 fill-emerald-500/20" />}
+                              {isProcessing && <CloudDownload className="w-4.5 h-4.5 text-indigo-500 animate-bounce" />}
+                              {isExtractionFailed && <AlertTriangle className="w-4.5 h-4.5 text-red-500" />}
                             </h4>
-                            {song.isMetadataConfirmed && <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />}
+                            {song.isMetadataConfirmed && <ShieldCheck className="w-4 h-4 text-indigo-500" />}
                           </div>
-                          <div className="flex items-center gap-2 ml-[32px]">
-                            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest leading-none">
+                          <div className="flex items-center gap-3 ml-[38px]">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
                               {song.artist || "Unknown Artist"}
                             </span>
-                            <span className="text-muted-foreground text-[8px]">•</span>
-                            <span className="text-[9px] font-mono font-bold text-muted-foreground flex items-center gap-1.5">
-                              <Clock className="w-3 h-3" />
+                            <span className="text-slate-700 text-[8px]">•</span>
+                            <span className="text-[10px] font-mono font-bold text-slate-500 flex items-center gap-2">
+                              <Clock className="w-3.5 h-3.5" />
                               {Math.floor((song.duration_seconds || 0) / 60)}:{(Math.floor((song.duration_seconds || 0) % 60)).toString().padStart(2, '0')}
                             </span>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 text-center">
+                      <td className="px-8 text-center">
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <div className="flex flex-col items-center gap-1">
-                                <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
-                                  <div className={cn("h-full transition-all duration-500", getEnergyBarClass(song.energy_level))} />
+                              <div className="flex flex-col items-center gap-1.5">
+                                <div className="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden border border-white/5">
+                                  <div className={cn("h-full transition-all duration-700 shadow-[0_0_10px_rgba(0,0,0,0.5)]", getEnergyBarClass(song.energy_level))} />
                                 </div>
-                                <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">
+                                <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">
                                   {song.energy_level || 'TBC'}
                                 </span>
                               </div>
                             </TooltipTrigger>
-                            <TooltipContent className="text-[10px] font-black uppercase">
+                            <TooltipContent className="bg-slate-900 text-white border-white/10 text-[10px] font-black uppercase">
                               Energy Zone: {song.energy_level || 'Not Classified'}
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
                       </td>
-                      <td className="px-6 text-center">
-                        <div className="flex flex-col items-center gap-1">
+                      <td className="px-8 text-center">
+                        <div className="flex flex-col items-center gap-1.5">
                           <MasteryRating 
                             value={song.comfort_level || 0} 
                             onChange={(val) => onUpdateSong(song.id, { comfort_level: val })}
-                            size="sm"
+                            size="md"
                           />
-                          <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/50">Confidence</span>
+                          <span className="text-[8px] font-black uppercase tracking-widest text-slate-600">Confidence</span>
                         </div>
                       </td>
-                      <td className="px-6 text-center">
+                      <td className="px-8 text-center">
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <div className="flex flex-col items-center gap-1 cursor-help">
+                              <div className="flex flex-col items-center gap-1.5 cursor-help">
                                 <span className={cn(
-                                  "text-[10px] font-mono font-bold px-2 py-0.5 rounded-lg flex items-center gap-1.5",
-                                  readinessScore >= 90 ? "bg-emerald-600/20 text-emerald-400" : "bg-amber-600/20 text-amber-400"
+                                  "text-[11px] font-mono font-bold px-3 py-1 rounded-xl flex items-center gap-2 shadow-lg",
+                                  readinessScore >= 90 ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/20" : "bg-amber-600/20 text-amber-400 border border-amber-500/20"
                                 )}>
                                   {readinessScore}%
-                                  <Info className="w-2.5 h-2.5 opacity-50" />
+                                  <Info className="w-3 h-3 opacity-50" />
                                 </span>
                               </div>
                             </TooltipTrigger>
-                            <TooltipContent className="p-3 bg-slate-900 border-white/10 rounded-xl shadow-2xl">
-                              <div className="space-y-1.5">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-2">Readiness Breakdown</p>
+                            <TooltipContent className="p-4 bg-slate-950 border-white/10 rounded-[1.5rem] shadow-2xl max-w-xs">
+                              <div className="space-y-2">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-3">Readiness Breakdown</p>
                                 {getReadinessBreakdown(song).map((item, i) => (
-                                  <p key={i} className="text-[10px] font-bold text-slate-300 flex items-center gap-2">
+                                  <p key={i} className="text-[10px] font-bold text-slate-300 flex items-center gap-2.5">
                                     {item}
                                   </p>
                                 ))}
@@ -805,80 +755,74 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                           </Tooltip>
                         </TooltipProvider>
                       </td>
-                      <td className="px-6 text-center">
-                        <div className="flex flex-col items-center justify-center gap-0.5 h-full">
-                          <Button variant="ghost" size="icon" className={cn("h-7 w-7 transition-all flex items-center justify-center", isReorderingEnabled ? "text-muted-foreground hover:text-indigo-600 hover:bg-indigo-50" : "text-muted-foreground opacity-20 cursor-not-allowed")} onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'up'); }} disabled={!isReorderingEnabled || idx === 0}>
-                            <ChevronUp className="w-4 h-4" />
+                      <td className="px-8 text-center">
+                        <div className="flex flex-col items-center justify-center gap-1 h-full">
+                          <Button variant="ghost" size="icon" className={cn("h-8 w-8 transition-all flex items-center justify-center rounded-xl", isReorderingEnabled ? "text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10" : "text-slate-700 opacity-20 cursor-not-allowed")} onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'up'); }} disabled={!isReorderingEnabled || idx === 0}>
+                            <ChevronUp className="w-5 h-5" />
                           </Button>
-                          <Button variant="ghost" size="icon" className={cn("h-7 w-7 transition-all flex items-center justify-center", isReorderingEnabled ? "text-muted-foreground hover:text-indigo-600 hover:bg-indigo-50" : "text-muted-foreground opacity-20 cursor-not-allowed")} onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'down'); }} disabled={!isReorderingEnabled || idx === processedSongs.length - 1}>
-                            <ChevronDown className="w-4 h-4" />
+                          <Button variant="ghost" size="icon" className={cn("h-8 w-8 transition-all flex items-center justify-center rounded-xl", isReorderingEnabled ? "text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10" : "text-slate-700 opacity-20 cursor-not-allowed")} onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'down'); }} disabled={!isReorderingEnabled || idx === processedSongs.length - 1}>
+                            <ChevronDown className="w-5 h-5" />
                           </Button>
                         </div>
                       </td>
-                      <td className="px-6 text-center">
-                        <div className="flex items-center justify-center gap-4 h-full">
-                          <div className="text-center min-w-[32px]">
-                            <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mb-0.5">Orig</p>
-                            <span className="text-xs font-mono font-bold text-foreground">{displayOrigKey}</span>
+                      <td className="px-8 text-center">
+                        <div className="flex items-center justify-center gap-6 h-full">
+                          <div className="text-center min-w-[40px]">
+                            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Orig</p>
+                            <span className="text-sm font-mono font-bold text-slate-300">{displayOrigKey}</span>
                           </div>
-                          <div className="flex flex-col items-center justify-center opacity-30">
-                            <ArrowRight className="w-3 h-3 text-muted-foreground mb-0.5" />
-                            <div className="h-px w-6 bg-border" />
+                          <div className="flex flex-col items-center justify-center opacity-20">
+                            <ArrowRight className="w-4 h-4 text-slate-400 mb-1" />
+                            <div className="h-px w-8 bg-white/20" />
                           </div>
-                          <div className="text-center min-w-[32px] relative">
-                            <p className="text-[8px] font-black text-indigo-500 uppercase tracking-widest mb-0.5">Stage</p>
+                          <div className="text-center min-w-[40px] relative">
+                            <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1">Stage</p>
                             <div className={cn(
-                              "font-mono font-black text-xs px-2.5 py-1 rounded-lg shadow-lg flex items-center justify-center gap-1.5 leading-none",
-                              song.isKeyConfirmed ? "bg-emerald-600 text-white shadow-emerald-500/20" : "bg-indigo-600 text-white shadow-indigo-500/20"
+                              "font-mono font-black text-sm px-3.5 py-1.5 rounded-xl shadow-2xl flex items-center justify-center gap-2 leading-none border",
+                              song.isKeyConfirmed ? "bg-emerald-600 text-white border-emerald-400 shadow-emerald-500/20" : "bg-indigo-600 text-white border-indigo-400 shadow-indigo-500/20"
                             )}>
                               {displayTargetKey}
-                              {song.isKeyConfirmed && <Check className="w-3 h-3" />}
+                              {song.isKeyConfirmed && <Check className="w-3.5 h-3.5" />}
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 text-right pr-10">
-                        <div className="flex items-center justify-end gap-2 h-full">
+                      <td className="px-8 text-right pr-12">
+                        <div className="flex items-center justify-end gap-3 h-full">
                           <SetlistMultiSelector
                             songMasterId={song.id}
                             allSetlists={allSetlists}
                             songToAssign={song}
                             onUpdateSetlistSongs={onUpdateSetlistSongs}
                           />
-                          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground hover:text-indigo-600 hover:bg-indigo-50 transition-colors inline-flex items-center justify-center" onClick={(e) => { e.stopPropagation(); onEdit(song); }}>
-                            <Edit3 className="w-4 h-4" />
+                          <Button variant="ghost" size="icon" className="h-10 w-10 rounded-2xl text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 transition-all inline-flex items-center justify-center" onClick={(e) => { e.stopPropagation(); onEdit(song); }}>
+                            <Edit3 className="w-5 h-5" />
                           </Button>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground hover:bg-accent dark:hover:bg-secondary">
-                                <MoreVertical className="w-4 h-4" />
+                              <Button variant="ghost" size="icon" className="h-10 w-10 rounded-2xl text-slate-400 hover:bg-white/5">
+                                <MoreVertical className="w-5 h-5" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onUpdateSong(song.id, { isApproved: !song.isApproved }); showSuccess(`Song marked as ${song.isApproved ? 'unapproved' : 'approved'} for gig.`); }}>
-                                {song.isApproved ? <Check className="w-4 h-4 mr-2 text-emerald-500" /> : <ListMusic className="w-4 h-4 mr-2" />}
-                                {song.isApproved ? "Unapprove for Gig" : "Approve for Gig"}
+                            <DropdownMenuContent align="end" className="w-60 p-2 rounded-[1.5rem] bg-slate-950 border-white/10 shadow-2xl">
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onUpdateSong(song.id, { isApproved: !song.isApproved }); showSuccess(`Song marked as ${song.isApproved ? 'unapproved' : 'approved'} for gig.`); }} className="h-12 rounded-xl text-xs font-bold uppercase">
+                                {song.isApproved ? <Check className="w-4 h-4 mr-3 text-emerald-500" /> : <ListMusic className="w-4 h-4 mr-3" />}
+                                {song.isApproved ? "Unapprove" : "Approve for Gig"}
                               </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMoveToTop(song.id); }} disabled={!isReorderingEnabled || idx === 0}>
-                                <ChevronUp className="w-4 h-4 mr-2 text-indigo-600" /> Move to Top
+                              <DropdownMenuSeparator className="bg-white/5" />
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMoveToTop(song.id); }} disabled={!isReorderingEnabled || idx === 0} className="h-12 rounded-xl text-xs font-bold uppercase">
+                                <ChevronUp className="w-4 h-4 mr-3 text-indigo-400" /> Move to Top
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'up'); }} disabled={!isReorderingEnabled || idx === 0}>
-                                <ChevronUp className="w-4 h-4 mr-2 opacity-50" /> Move Up
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMoveToBottom(song.id); }} disabled={!isReorderingEnabled || idx === processedSongs.length - 1} className="h-12 rounded-xl text-xs font-bold uppercase">
+                                <ChevronDown className="w-4 h-4 mr-3 text-indigo-400" /> Move to Bottom
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'down'); }} disabled={!isReorderingEnabled || idx === processedSongs.length - 1}>
-                                <ChevronDown className="w-4 h-4 mr-2 opacity-50" /> Move Down
+                              <DropdownMenuSeparator className="bg-white/5" />
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(song); }} className="h-12 rounded-xl text-xs font-bold uppercase">
+                                <Settings2 className="w-4 h-4 mr-3" /> Configure Studio
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMoveToBottom(song.id); }} disabled={!isReorderingEnabled || idx === processedSongs.length - 1}>
-                                <ChevronDown className="w-4 h-4 mr-2 text-indigo-600" /> Move to Bottom
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(song); }}>
-                                <Settings2 className="w-4 h-4 mr-2" /> Configure Studio
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(song.id); }}>
-                                <Trash2 className="w-4 h-4 mr-2" /> Remove Track
+                              <DropdownMenuSeparator className="bg-white/5" />
+                              <DropdownMenuItem className="text-red-400 h-12 rounded-xl text-xs font-bold uppercase" onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(song.id); }}>
+                                <Trash2 className="w-4 h-4 mr-3" /> Remove Track
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -894,27 +838,29 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       )}
 
       {activeSetlistId && masterRepertoire.length > 0 && (
-        <SongRecommender 
-          currentSongs={rawSongs} 
-          repertoire={masterRepertoire} 
-          onAddSong={(song) => onUpdateSetlistSongs(activeSetlistId, song, 'add')}
-        />
+        <div className="mt-10">
+          <SongRecommender 
+            currentSongs={rawSongs} 
+            repertoire={masterRepertoire} 
+            onAddSong={(song) => onUpdateSetlistSongs(activeSetlistId, song, 'add')}
+          />
+        </div>
       )}
 
       <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
-        <AlertDialogContent className="bg-card border-border text-foreground rounded-[2rem]">
+        <AlertDialogContent className="bg-slate-950 border-white/10 text-white rounded-[2.5rem] p-8 shadow-2xl">
           <AlertDialogHeader>
-            <div className="bg-destructive/10 w-12 h-12 rounded-2xl flex items-center justify-center text-destructive mb-4">
-              <AlertTriangle className="w-6 h-6" />
+            <div className="bg-red-600/10 w-16 h-16 rounded-[1.5rem] flex items-center justify-center text-red-500 mb-6 shadow-lg shadow-red-900/10">
+              <AlertTriangle className="w-8 h-8" />
             </div>
-            <AlertDialogTitle className="text-xl font-black uppercase tracking-tight">Remove Track?</AlertDialogTitle>
-            <AlertDialogDescription className="text-muted-foreground">
+            <AlertDialogTitle className="text-2xl font-black uppercase tracking-tight">Remove Track?</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-400 font-medium text-base leading-relaxed">
               This will remove the song from your active setlist. The master record will remain in your library.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="mt-6">
-            <AlertDialogCancel className="rounded-xl border-border bg-secondary hover:bg-accent hover:text-foreground font-bold uppercase text-[10px] tracking-widest">Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { if (deleteConfirmId) { onRemove(deleteConfirmId); setDeleteConfirmId(null); showSuccess("Track Removed"); } }} className="rounded-xl bg-destructive hover:bg-destructive-foreground text-white font-black uppercase text-[10px] tracking-widest">Confirm Removal</AlertDialogAction>
+          <AlertDialogFooter className="mt-10 gap-4">
+            <AlertDialogCancel className="rounded-2xl border-white/5 bg-slate-900 hover:bg-slate-800 text-white font-black uppercase text-[11px] tracking-widest h-14 px-8">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { if (deleteConfirmId) { onRemove(deleteConfirmId); setDeleteConfirmId(null); showSuccess("Track Removed"); } }} className="rounded-2xl bg-red-600 hover:bg-red-500 text-white font-black uppercase text-[11px] tracking-widest h-14 px-8 shadow-xl shadow-red-600/20">Confirm Removal</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

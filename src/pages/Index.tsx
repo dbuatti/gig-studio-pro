@@ -15,7 +15,7 @@ import { autoVibeCheck } from '@/utils/vibeUtils';
 // UI Components
 import { Button } from '@/components/ui/button';
 import { 
-  Loader2, Settings2, Hash, Library, Shuffle, LayoutDashboard, Plus, Sparkles
+  Loader2, Settings2, Hash, Library, Shuffle, LayoutDashboard, Plus, Sparkles, Command
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -110,22 +110,18 @@ const Index = () => {
     localStorage.getItem('gig_show_heatmap') === 'true'
   );
 
-  // Lifted filter expansion state
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
-  // Check if filters are active (dirty)
   const isFilterDirty = useMemo(() => {
     return JSON.stringify(activeFilters) !== JSON.stringify(DEFAULT_FILTERS);
   }, [activeFilters]);
 
-  // Auto-expand filters if they are active on mount or change
   useEffect(() => {
     if (isFilterDirty) {
       setIsFilterOpen(true);
     }
   }, [isFilterDirty]);
 
-  // Persist filters, search, and sort mode to localStorage so they sync with Sheet Reader
   useEffect(() => {
     localStorage.setItem('gig_active_filters', JSON.stringify(activeFilters));
   }, [activeFilters]);
@@ -142,7 +138,6 @@ const Index = () => {
     localStorage.setItem('gig_show_heatmap', showHeatmap.toString());
   }, [showHeatmap]);
 
-  // Global keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -155,7 +150,6 @@ const Index = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Audio engine
   const playNextInList = useCallback(() => {
     if (!activeSetlist || activeSetlist.songs.length === 0) return;
     if (isShuffleAllMode) {
@@ -587,47 +581,17 @@ const Index = () => {
     }
     songs = songs.filter(s => {
       const readiness = calculateReadiness(s);
-      const hasAudio = !!s.audio_url;
-      const hasItunesPreview = !!s.previewUrl && (s.previewUrl.includes('apple.com') || s.previewUrl.includes('itunes-assets'));
-      const hasVideo = !!s.youtubeUrl;
-      const hasPdf = !!s.pdfUrl || !!s.leadsheetUrl || !!s.sheet_music_url;
-      const hasUg = !!s.ugUrl;
-      const hasUgChords = !!s.ug_chords_text && s.ug_chords_text.trim().length > 0;
-      const hasLyrics = !!s.lyrics && s.lyrics.length > 20;
       if (activeFilters.readiness > 0 && readiness < activeFilters.readiness) return false;
       if (activeFilters.isConfirmed === 'yes' && !s.isKeyConfirmed) return false;
       if (activeFilters.isConfirmed === 'no' && s.isKeyConfirmed) return false;
       if (activeFilters.isApproved === 'yes' && !s.isApproved) return false;
       if (activeFilters.isApproved === 'no' && s.isApproved) return false;
-      if (activeFilters.hasAudio === 'full' && !hasAudio) return false;
-      if (activeFilters.hasAudio === 'itunes' && !hasItunesPreview) return false;
-      if (activeFilters.hasAudio === 'none' && (hasAudio || hasItunesPreview)) return false;
-      if (activeFilters.hasVideo === 'yes' && !hasVideo) return false;
-      if (activeFilters.hasVideo === 'no' && hasVideo) return false;
-      if (activeFilters.hasChart === 'yes' && !(hasPdf || hasUg || hasUgChords)) return false;
-      if (activeFilters.hasChart === 'no' && (hasPdf || hasUg || hasUgChords)) return false;
-      if (activeFilters.hasPdf === 'yes' && !hasPdf) return false;
-      if (activeFilters.hasPdf === 'no' && hasPdf) return false;
-      if (activeFilters.hasUg === 'yes' && !hasUg) return false;
-      if (activeFilters.hasUg === 'no' && hasUg) return false;
-      if (activeFilters.hasUgChords === 'yes' && !hasUgChords) return false;
-      if (activeFilters.hasUgChords === 'no' && hasUgChords) return false;
-      if (activeFilters.hasLyrics === 'yes' && !hasLyrics) return false;
-      if (activeFilters.hasLyrics === 'no' && hasLyrics) return false;
-      if (activeFilters.hasHighestNote === 'yes' && !s.highest_note_original) return false; 
-      if (activeFilters.hasHighestNote === 'no' && s.highest_note_original) return false; 
-      if (activeFilters.hasOriginalKey === 'yes' && (!s.originalKey || s.originalKey === 'TBC')) return false; 
-      if (activeFilters.hasOriginalKey === 'no' && (s.originalKey && s.originalKey !== 'TBC')) return false; 
       return true;
     });
     if (sortMode === 'ready') {
       songs.sort((a, b) => calculateReadiness(b) - calculateReadiness(a));
     } else if (sortMode === 'work') {
       songs.sort((a, b) => calculateReadiness(a) - calculateReadiness(b));
-    } else if (sortMode === 'none' || sortMode === 'manual') {
-      if (!q) {
-        songs = activeSetlist.songs.filter(s => songs.some(fs => fs.id === s.id));
-      }
     } else if (sortMode.startsWith('energy') || sortMode === 'zig-zag' || sortMode === 'wedding-ramp') {
       songs = sortSongsByStrategy(songs, sortMode);
     }
@@ -665,10 +629,7 @@ const Index = () => {
     try {
       const synced = await syncToMasterRepertoire(userId, [newSong]);
       const song = synced[0];
-      
-      // Trigger automatic vibe check
       autoVibeCheck(userId, song);
-
       if (activeDashboardView === 'gigs' && activeSetlistId) {
         await handleUpdateSetlistSongs(activeSetlistId, song, 'add');
       } else {
@@ -685,50 +646,80 @@ const Index = () => {
 
   if (authLoading || isFetchingSettings || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+        <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col relative">
-      <div className="flex-1 flex flex-col p-6 md:p-10 overflow-y-auto custom-scrollbar">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <LayoutDashboard className="w-6 h-6 text-indigo-600" />
-            <h1 className="text-2xl font-black uppercase tracking-tight">Gig Studio Dashboard</h1>
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col relative overflow-hidden">
+      <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-indigo-600/10 to-transparent pointer-events-none" />
+      
+      <div className="flex-1 flex flex-col p-6 md:p-12 lg:p-16 overflow-y-auto custom-scrollbar relative z-10">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 mb-12">
+          <div className="flex items-center gap-6">
+            <div className="bg-indigo-600 p-3 rounded-[1.5rem] shadow-2xl shadow-indigo-500/20">
+              <Command className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-black uppercase tracking-tight leading-none">Gig Studio</h1>
+              <p className="text-slate-400 font-bold uppercase tracking-[0.3em] text-[10px] mt-2">Professional Performance Matrix</p>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            <Button variant="outline" size="sm" onClick={handleRunMDAudit} className="h-9 px-4 rounded-xl text-indigo-600 border-indigo-600/20 hover:bg-indigo-50">
-              <Sparkles className="w-3.5 h-3.5 mr-2" /> MD Audit
+          <div className="flex flex-wrap items-center gap-4">
+            <Button variant="outline" size="sm" onClick={handleRunMDAudit} className="h-11 px-6 rounded-2xl text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[10px]">
+              <Sparkles className="w-4 h-4 mr-2.5" /> MD Audit
             </Button>
-            <Button variant="outline" size="sm" onClick={handleToggleShuffleAll} className={cn("h-9 px-4 rounded-xl", isShuffleAllMode ? "bg-indigo-600 text-white" : "text-indigo-600")}>
-              <Shuffle className={cn("w-3.5 h-3.5 mr-2", isShuffleAllMode && "animate-spin-slow")} /> Shuffle All
+            <Button variant="outline" size="sm" onClick={handleToggleShuffleAll} className={cn("h-11 px-6 rounded-2xl transition-all font-black uppercase tracking-widest text-[10px]", isShuffleAllMode ? "bg-indigo-600 text-white border-indigo-400 shadow-lg shadow-indigo-500/20" : "text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10")}>
+              <Shuffle className={cn("w-4 h-4 mr-2.5", isShuffleAllMode && "animate-spin-slow")} /> Shuffle All
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setIsKeyManagementOpen(true)} className="h-9 px-4 rounded-xl text-indigo-600">
-              <Hash className="w-3.5 h-3.5 mr-2" /> Key Matrix
+            <Button variant="outline" size="sm" onClick={() => setIsKeyManagementOpen(true)} className="h-11 px-6 rounded-2xl text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[10px]">
+              <Hash className="w-4 h-4 mr-2.5" /> Key Matrix
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setIsPreferencesOpen(true)} className="h-9 px-4 rounded-xl text-indigo-600">
-              <Settings2 className="w-3.5 h-3.5 mr-2" /> Preferences
+            <Button variant="outline" size="sm" onClick={() => setIsPreferencesOpen(true)} className="h-11 px-6 rounded-2xl text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[10px]">
+              <Settings2 className="w-4 h-4 mr-2.5" /> Preferences
             </Button>
           </div>
         </div>
-        {isGoalTrackerEnabled && <GoalTracker repertoire={masterRepertoire} onFilterApply={(f) => setActiveFilters(prev => ({...prev, ...f}))} />}
-        {activeDashboardView === 'gigs' && activeSongForPerformance && (
-          <ActiveSongBanner song={activeSongForPerformance} isPlaying={audio.isPlaying} onTogglePlayback={audio.togglePlayback} onClear={() => { setActiveSongForPerformance(null); audio.stopPlayback(); }} isLoadingAudio={audio.isLoadingAudio} nextSongName={activeSetlist?.songs[activeSetlist.songs.findIndex(s => s.id === activeSongForPerformance.id) + 1]?.name} onNext={handleNextSong} onPrevious={handlePreviousSong} />
+
+        {isGoalTrackerEnabled && (
+          <div className="mb-12">
+            <GoalTracker repertoire={masterRepertoire} onFilterApply={(f) => setActiveFilters(prev => ({...prev, ...f}))} />
+          </div>
         )}
-        <Tabs value={activeDashboardView} onValueChange={(v) => setSearchParams({ view: v })} className="w-full mt-8">
-          <TabsList className="grid w-full grid-cols-2 h-12 bg-slate-900 p-1 rounded-xl mb-6">
-            <TabsTrigger value="gigs" className="text-sm font-black uppercase tracking-tight gap-2 h-10 rounded-lg">Gigs</TabsTrigger>
-            <TabsTrigger value="repertoire" className="text-sm font-black uppercase tracking-tight gap-2 h-10 rounded-lg">Repertoire</TabsTrigger>
+
+        {activeDashboardView === 'gigs' && activeSongForPerformance && (
+          <div className="mb-12 animate-in fade-in slide-in-from-top-8 duration-500">
+            <ActiveSongBanner 
+              song={activeSongForPerformance} 
+              isPlaying={audio.isPlaying} 
+              onTogglePlayback={audio.togglePlayback} 
+              onClear={() => { setActiveSongForPerformance(null); audio.stopPlayback(); }} 
+              isLoadingAudio={audio.isLoadingAudio} 
+              nextSongName={activeSetlist?.songs[activeSetlist.songs.findIndex(s => s.id === activeSongForPerformance.id) + 1]?.name} 
+              onNext={handleNextSong} 
+              onPrevious={handlePreviousSong} 
+            />
+          </div>
+        )}
+
+        <Tabs value={activeDashboardView} onValueChange={(v) => setSearchParams({ view: v })} className="w-full">
+          <TabsList className="grid w-full max-w-md grid-cols-2 h-14 bg-slate-900/50 p-1.5 rounded-[1.5rem] mb-10 border border-white/5">
+            <TabsTrigger value="gigs" className="text-xs font-black uppercase tracking-widest gap-2.5 h-11 rounded-xl data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/20">
+              <LayoutDashboard className="w-4 h-4" /> Gigs
+            </TabsTrigger>
+            <TabsTrigger value="repertoire" className="text-xs font-black uppercase tracking-widest gap-2.5 h-11 rounded-xl data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/20">
+              <Library className="w-4 h-4" /> Repertoire
+            </TabsTrigger>
           </TabsList>
-          <TabsContent value="gigs" className="mt-0 space-y-8">
+
+          <TabsContent value="gigs" className="mt-0 space-y-10">
             {activeSetlistId && (
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
                 <SetlistSelector setlists={allSetlists} currentId={activeSetlistId} onSelect={setActiveSetlistId} onCreate={handleCreateSetlist} onDelete={handleDeleteSetlist} onDuplicate={handleDuplicateSetlist} />
-                <Button variant="outline" size="sm" onClick={() => setIsSetlistSettingsOpen(true)} className="h-9 px-4 rounded-xl text-indigo-600">
-                  <Settings2 className="w-3.5 h-3.5 mr-2" /> Gig Settings
+                <Button variant="outline" size="sm" onClick={() => setIsSetlistSettingsOpen(true)} className="h-11 px-6 rounded-2xl text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[10px]">
+                  <Settings2 className="w-4 h-4 mr-2.5" /> Gig Settings
                 </Button>
               </div>
             )}
@@ -766,17 +757,19 @@ const Index = () => {
               </>
             )}
             {!activeSetlistId && allSetlists.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-20 text-center">
-                <div className="bg-card p-12 rounded-[3rem] border border-border space-y-6 max-md">
-                  <div className="bg-indigo-600/10 w-16 h-16 rounded-2xl flex items-center justify-center text-indigo-600 mx-auto"><Library className="w-8 h-8" /></div>
-                  <h2 className="text-2xl font-black uppercase tracking-tight">No Setlists Yet</h2>
-                  <p className="text-muted-foreground font-medium">Create your first setlist to start organizing your gigs.</p>
-                  <Button onClick={handleCreateSetlist} className="w-full bg-indigo-600 h-14 rounded-2xl font-black uppercase tracking-widest gap-2"><Plus className="w-5 h-5" /> Create First Setlist</Button>
+              <div className="flex flex-col items-center justify-center py-32 text-center">
+                <div className="bg-slate-900/50 p-16 rounded-[3rem] border border-white/5 space-y-8 max-w-md shadow-2xl backdrop-blur-xl">
+                  <div className="bg-indigo-600/10 w-20 h-20 rounded-[1.5rem] flex items-center justify-center text-indigo-400 mx-auto shadow-lg shadow-indigo-900/10"><Library className="w-10 h-10" /></div>
+                  <div>
+                    <h2 className="text-3xl font-black uppercase tracking-tight">No Setlists Yet</h2>
+                    <p className="text-slate-400 font-medium mt-3 leading-relaxed">Create your first setlist to start organizing your professional gigs.</p>
+                  </div>
+                  <Button onClick={handleCreateSetlist} className="w-full bg-indigo-600 hover:bg-indigo-500 h-16 rounded-[1.5rem] font-black uppercase tracking-widest gap-3 shadow-xl shadow-indigo-600/20 transition-all active:scale-95"><Plus className="w-6 h-6" /> Create First Setlist</Button>
                 </div>
               </div>
             )}
           </TabsContent>
-          <TabsContent value="repertoire" className="mt-0 space-y-8">
+          <TabsContent value="repertoire" className="mt-0 space-y-10">
             <RepertoireView 
               repertoire={masterRepertoire} 
               onEditSong={handleEditSong} 
@@ -802,16 +795,66 @@ const Index = () => {
           </TabsContent>
         </Tabs>
       </div>
-      <FloatingCommandDock onOpenSearch={() => setIsGlobalSearchOpen(true)} onOpenPractice={() => {}} onOpenReader={handleOpenReader} onOpenAdmin={() => setIsAdminPanelOpen(true)} onOpenPreferences={() => setIsPreferencesOpen(true)} onToggleHeatmap={() => setShowHeatmap(!showHeatmap)} onOpenUserGuide={() => setIsUserGuideOpen(true)} showHeatmap={showHeatmap} viewMode={activeDashboardView} hasPlayableSong={!!activeSongForPerformance} isPlaying={audio.isPlaying} onTogglePlayback={audio.togglePlayback} activeSongId={activeSongForPerformance?.id} onSetMenuOpen={setFloatingDockMenuOpen} isMenuOpen={floatingDockMenuOpen} onOpenPerformance={() => setIsPerformanceOverlayOpen(true)} hasReadableChart={!!activeSongForPerformance} />
-      <SongStudioModal isOpen={isSongStudioModalOpen} onClose={() => setIsSongStudioModalOpen(false)} gigId={songStudioModalGigId} songId={songStudioModalSongId} visibleSongs={activeDashboardView === 'gigs' ? filteredAndSortedSongs : masterRepertoire} allSetlists={allSetlists} masterRepertoire={masterRepertoire} defaultTab={songStudioDefaultTab} audioEngine={audio} preventStageKeyOverwrite={preventStageKeyOverwrite} />
+
+      <FloatingCommandDock 
+        onOpenSearch={() => setIsGlobalSearchOpen(true)} 
+        onOpenPractice={() => {}} 
+        onOpenReader={handleOpenReader} 
+        onOpenAdmin={() => setIsAdminPanelOpen(true)} 
+        onOpenPreferences={() => setIsPreferencesOpen(true)} 
+        onToggleHeatmap={() => setShowHeatmap(!showHeatmap)} 
+        onOpenUserGuide={() => setIsUserGuideOpen(true)} 
+        showHeatmap={showHeatmap} 
+        viewMode={activeDashboardView} 
+        hasPlayableSong={!!activeSongForPerformance} 
+        isPlaying={audio.isPlaying} 
+        onTogglePlayback={audio.togglePlayback} 
+        activeSongId={activeSongForPerformance?.id} 
+        onSetMenuOpen={setFloatingDockMenuOpen} 
+        isMenuOpen={floatingDockMenuOpen} 
+        onOpenPerformance={() => setIsPerformanceOverlayOpen(true)} 
+        hasReadableChart={!!activeSongForPerformance} 
+      />
+
+      <SongStudioModal 
+        isOpen={isSongStudioModalOpen} 
+        onClose={() => setIsSongStudioModalOpen(false)} 
+        gigId={songStudioModalGigId} 
+        songId={songStudioModalSongId} 
+        visibleSongs={activeDashboardView === 'gigs' ? filteredAndSortedSongs : masterRepertoire} 
+        allSetlists={allSetlists} 
+        masterRepertoire={masterRepertoire} 
+        defaultTab={songStudioDefaultTab} 
+        audioEngine={audio} 
+        preventStageKeyOverwrite={preventStageKeyOverwrite} 
+      />
+
       {isPerformanceOverlayOpen && activeSetlist && activeSongForPerformance && (
-        <PerformanceOverlay songs={activeSetlist.songs} currentIndex={activeSetlist.songs.findIndex(s => s.id === activeSongForPerformance.id)} isPlaying={audio.isPlaying} progress={audio.progress} duration={audio.duration} onTogglePlayback={audio.togglePlayback} onNext={handleNextSong} onPrevious={handlePreviousSong} onShuffle={() => {}} onClose={() => setIsPerformanceOverlayOpen(false)} onUpdateSong={handleUpdateSongInSetlist} onUpdateKey={async (id, targetKey) => { const song = activeSetlist.songs.find(s => s.id === id); if (song) { const newPitch = calculateSemitones(song.originalKey || 'C', targetKey); await handleUpdateSongInSetlist(id, { targetKey, pitch: newPitch }); } }} analyzer={audio.analyzer} gigId={activeSetlist.id} isLoadingAudio={audio.isLoadingAudio} />
+        <PerformanceOverlay 
+          songs={activeSetlist.songs} 
+          currentIndex={activeSetlist.songs.findIndex(s => s.id === activeSongForPerformance.id)} 
+          isPlaying={audio.isPlaying} 
+          progress={audio.progress} 
+          duration={audio.duration} 
+          onTogglePlayback={audio.togglePlayback} 
+          onNext={handleNextSong} 
+          onPrevious={handlePreviousSong} 
+          onShuffle={() => {}} 
+          onClose={() => setIsPerformanceOverlayOpen(false)} 
+          onUpdateSong={handleUpdateSongInSetlist} 
+          onUpdateKey={async (id, targetKey) => { const song = activeSetlist.songs.find(s => s.id === id); if (song) { const newPitch = calculateSemitones(song.originalKey || 'C', targetKey); await handleUpdateSongInSetlist(id, { targetKey, pitch: newPitch }); } }} 
+          analyzer={audio.analyzer} 
+          gigId={activeSetlist.id} 
+          isLoadingAudio={audio.isLoadingAudio} 
+        />
       )}
+
       <AdminPanel isOpen={isAdminPanelOpen} onClose={() => setIsAdminPanelOpen(false)} onRefreshRepertoire={() => fetchSetlistsAndRepertoire()} />
       <PreferencesModal isOpen={isPreferencesOpen} onClose={() => setIsPreferencesOpen(false)} />
       <UserGuideModal isOpen={isUserGuideOpen} onClose={() => setIsUserGuideOpen(false)} />
       <KeyManagementModal isOpen={isKeyManagementOpen} onClose={() => setIsKeyManagementOpen(false)} repertoire={masterRepertoire} onUpdateKey={async (songId, updates) => { if (!userId) return; await syncToMasterRepertoire(userId, [{ ...updates, id: songId }]); await fetchSetlistsAndRepertoire(); }} keyPreference={globalKeyPreference} />
       <GlobalSearchModal isOpen={isGlobalSearchOpen} onClose={() => setIsGlobalSearchOpen(false)} onAddSong={handleGlobalSearchAdd} repertoire={masterRepertoire} onAddExistingSong={handleAddSongToRepertoire} />
+      
       {activeSetlist && (
         <>
           <SetlistSortModal isOpen={isSetlistSortModalOpen} onClose={() => setIsSetlistSortModalOpen(false)} songs={activeSetlist.songs} onReorder={handleReorderSongs} setlistName={activeSetlist.name} />
