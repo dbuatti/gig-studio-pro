@@ -1,7 +1,8 @@
 "use client";
 import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, CircleDashed, CheckCircle2, Volume2, ChevronUp, ChevronDown, Search, LayoutList, SortAsc, AlertTriangle, Loader2, Guitar, CloudDownload, Edit3, Filter, MoreVertical, Settings2, Check, ShieldCheck, Clock, Star, Zap } from 'lucide-react';
+import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, CircleDashed, CheckCircle2, Volume2, ChevronUp, ChevronDown, Search, LayoutList, SortAsc, AlertTriangle, Loader2, Guitar, CloudDownload, Edit3, Filter, MoreVertical, Settings2, Check, ShieldCheck, Clock, Star, Zap, Sparkles } from 'lucide-react';
+
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, formatKey, transposeKey, calculateSemitones } from '@/utils/keyUtils';
 import { cn } from '@/lib/utils';
 import { showSuccess } from '@/utils/toast';
@@ -300,8 +301,8 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
             >
               <LayoutList className="w-3 h-3" /> <span className="hidden sm:inline">List Order</span>
             </Button>
-            <Button 
-              variant="ghost" size="sm" 
+            <Button
+              variant="ghost" size="sm"
               onClick={() => setSortMode('manual')}
               className={cn(
                 "h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg",
@@ -310,6 +311,14 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
             >
               <SortAsc className="w-3 h-3" /> <span className="hidden sm:inline">Manual</span>
             </Button>
+            <Button
+              variant="ghost" size="sm"
+              onClick={onOpenSortModal}
+              className="h-7 px-3 text-[10px] font-black uppercase tracking-tight gap-1.5 shrink-0 rounded-lg text-indigo-600 hover:bg-indigo-50"
+            >
+              <Sparkles className="w-3 h-3" /> <span className="hidden sm:inline">AI Sort</span>
+            </Button>
+
             <Button 
               variant="ghost" size="sm" 
               onClick={() => setSortMode('ready')}

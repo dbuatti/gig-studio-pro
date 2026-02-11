@@ -114,7 +114,8 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
               <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">
                 <ListMusic className="w-6 h-6 text-white" />
               </div>
-              <DialogTitle className="text-2xl font-black uppercase tracking-tight text-white">Manual Setlist Order</DialogTitle>
+              <DialogTitle className="text-2xl font-black uppercase tracking-tight text-white">Setlist Reordering</DialogTitle>
+
             </div>
             <DialogDescription className="text-indigo-100 font-medium">
               Drag and drop songs to customize the order for <span className="text-white font-bold">"{setlistName}"</span>.
