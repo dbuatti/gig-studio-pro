@@ -16,15 +16,14 @@ interface Song {
   readiness?: number;
 }
 
-// Expanded model list to handle versioning inconsistencies and availability
-const MODELS = [
-  'gemini-2.0-flash',
-  'gemini-2.0-flash-001',
-  'gemini-1.5-flash',
-  'gemini-1.5-flash-002',
-  'gemini-1.5-flash-8b',
-  'gemini-1.5-pro',
-  'gemini-1.5-pro-002'
+// Expanded model list with version preferences
+const MODEL_CONFIGS = [
+  { name: 'gemini-2.0-flash', versions: ['v1beta', 'v1'] },
+  { name: 'gemini-1.5-flash', versions: ['v1', 'v1beta'] },
+  { name: 'gemini-1.5-flash-latest', versions: ['v1beta', 'v1'] },
+  { name: 'gemini-1.5-pro', versions: ['v1', 'v1beta'] },
+  { name: 'gemini-1.5-pro-latest', versions: ['v1beta', 'v1'] },
+  { name: 'gemini-1.0-pro', versions: ['v1'] }
 ];
 
 serve(async (req) => {
@@ -52,7 +51,6 @@ serve(async (req) => {
     ].filter(Boolean);
 
     if (keys.length === 0) {
-      console.error("[ai-setlist-sorter] No API keys found in environment");
       throw new Error('No API keys configured. Please set GEMINI_API_KEY in Supabase secrets.');
     }
 
@@ -66,7 +64,6 @@ CORE ARCHITECTURAL PRINCIPLES:
 
 2. PERFORMANCE READINESS:
    - Prioritize songs with higher Readiness scores (0-100) for critical slots.
-   - If the instruction mentions "Wedding" or "Live", ensure the flow is professional.
 
 SONG DATA:
 ${songs.map((s) => `ID: ${s.id} | ${s.name} - ${s.artist} | BPM: ${s.bpm || '?'} | Energy: ${s.energy_level || 'Unknown'} | Readiness: ${s.readiness || 0}%`).join('\n')}
@@ -79,82 +76,65 @@ OUTPUT REQUIREMENTS:
     let quotaExceeded = false;
 
     for (const apiKey of keys) {
-      for (const model of MODELS) {
-        try {
-          console.log(`[ai-setlist-sorter] Attempting sort with model: ${model}`);
-          
-          const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: { 
-                  temperature: 0.2,
-                  response_mime_type: "application/json"
-                }
-              }),
-            }
-          );
-
-          const result = await response.json();
-          
-          if (!response.ok) {
-            const errorMsg = result.error?.message || `HTTP ${response.status}`;
-            console.warn(`[ai-setlist-sorter] Model ${model} returned error status: ${response.status}`, result);
-            
-            if (response.status === 429) {
-              quotaExceeded = true;
-              lastError = "API Quota exceeded. Please try again in a few minutes or check your Gemini API billing.";
-            } else if (response.status === 404) {
-              lastError = `Model ${model} not found or not supported in this region.`;
-            } else {
-              lastError = errorMsg;
-            }
-            continue;
-          }
-
-          const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (!text) {
-            console.warn(`[ai-setlist-sorter] Model ${model} returned empty content`);
-            continue;
-          }
-
-          // Robust JSON extraction
-          const match = text.match(/\[[\s\S]*?\]/);
-          const jsonStr = match ? match[0] : text;
-          
+      for (const config of MODEL_CONFIGS) {
+        for (const version of config.versions) {
           try {
+            console.log(`[ai-setlist-sorter] Attempting: ${config.name} (${version})`);
+            
+            const response = await fetch(
+              `https://generativelanguage.googleapis.com/${version}/models/${config.name}:generateContent?key=${apiKey}`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  contents: [{ parts: [{ text: prompt }] }],
+                  generationConfig: { 
+                    temperature: 0.1,
+                    response_mime_type: "application/json"
+                  }
+                }),
+              }
+            );
+
+            const result = await response.json();
+            
+            if (!response.ok) {
+              if (response.status === 429) {
+                quotaExceeded = true;
+                console.warn(`[ai-setlist-sorter] Quota exceeded for ${config.name}`);
+              } else if (response.status === 404) {
+                console.warn(`[ai-setlist-sorter] Model ${config.name} not found on ${version}`);
+              } else {
+                console.error(`[ai-setlist-sorter] Error ${response.status}:`, result.error?.message);
+              }
+              lastError = result.error?.message || `HTTP ${response.status}`;
+              continue;
+            }
+
+            const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (!text) continue;
+
+            const match = text.match(/\[[\s\S]*?\]/);
+            const jsonStr = match ? match[0] : text;
             const orderedIds = JSON.parse(jsonStr);
             
-            if (!Array.isArray(orderedIds)) {
-              throw new Error("Response is not an array");
+            if (Array.isArray(orderedIds)) {
+              console.log("[ai-setlist-sorter] Success!", { count: orderedIds.length });
+              return new Response(
+                JSON.stringify({ orderedIds }),
+                { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
             }
-
-            console.log("[ai-setlist-sorter] Successfully generated sequence", { count: orderedIds.length });
-
-            return new Response(
-              JSON.stringify({ orderedIds }),
-              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
-          } catch (parseErr) {
-            console.error(`[ai-setlist-sorter] Failed to parse JSON from model ${model}`, { text: jsonStr });
-            lastError = "Invalid JSON format in AI response";
-            continue;
+          } catch (err) {
+            lastError = err.message;
+            // Small delay before next attempt to avoid hitting rate limits too fast
+            await new Promise(r => setTimeout(r, 100));
           }
-        } catch (err: any) {
-          lastError = err.message;
-          console.error(`[ai-setlist-sorter] Model ${model} fetch failed:`, err);
         }
       }
     }
 
-    const finalErrorMessage = quotaExceeded 
-      ? "AI Quota exceeded for all available keys. Please try again later." 
-      : (lastError || 'All models failed to generate a valid sequence');
-
-    throw new Error(finalErrorMessage);
+    throw new Error(quotaExceeded ? "AI Quota exceeded. Please try again in a few minutes." : (lastError || "All models failed."));
 
   } catch (error: any) {
     console.error("[ai-setlist-sorter] Critical error:", error.message);
