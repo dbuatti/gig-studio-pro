@@ -24,6 +24,7 @@ import { extractKeyFromChords } from '@/utils/chordUtils';
 import ProSyncSearch from './ProSyncSearch'; 
 import { formatKey } from '@/utils/keyUtils';
 import SongStudioConsolidatedHeader from '@/components/SongStudioConsolidatedHeader';
+import { autoVibeCheck } from '@/utils/vibeUtils';
 
 export type StudioTab = 'config' | 'audio' | 'details' | 'charts' | 'lyrics' | 'visual' | 'library';
 
@@ -80,12 +81,9 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
 
   const TABS: StudioTab[] = ['config', 'audio', 'details', 'charts', 'lyrics', 'visual', 'library'];
 
-  // Keyboard shortcuts for tab switching
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      
-      // Cmd/Ctrl + 1-7 to switch tabs
       if ((e.metaKey || e.ctrlKey) && !isNaN(Number(e.key))) {
         const index = Number(e.key) - 1;
         if (index >= 0 && index < TABS.length) {
@@ -94,7 +92,6 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
         }
       }
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
@@ -206,6 +203,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
         audio_url: data.audio_url,
         extraction_status: data.extraction_status,
         energy_level: data.energy_level as EnergyZone,
+        comfort_level: data.comfort_level ?? 0,
       };
       
       setSong(targetSong);
@@ -262,6 +260,8 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   }, [pitch, audio, song]);
 
   const handleProSyncSelect = async (itunesSong: any) => {
+    if (!user) return;
+
     const updates: Partial<SetlistSong> = {
       name: itunesSong.trackName,
       artist: itunesSong.artistName,
@@ -287,9 +287,14 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
       }
     } catch (e) {}
 
-    activeAutoSave(updates);
+    // Save the metadata first
+    await activeAutoSave(updates);
+    
+    // Trigger automatic vibe check
+    autoVibeCheck(user.id, { ...formData, ...updates, master_id: song?.master_id || song?.id });
+    
     setIsProSyncOpen(false);
-    showSuccess("Pro Metadata Synced");
+    showSuccess("Pro Metadata & Vibe Synced");
   };
 
   const isFramable = useCallback((url: string | null | undefined) => {
