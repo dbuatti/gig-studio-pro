@@ -11,9 +11,9 @@ interface Song {
   genre?: string;
   energy_level?: string;
   duration_seconds?: number;
+  readiness?: number;
 }
 
-// Prioritizing Gemini 2.5 Flash as requested
 const MODELS = [
   'gemini-2.5-flash',
   'gemini-2.0-flash',
@@ -36,19 +36,32 @@ Deno.serve(async (req) => {
 
     if (keys.length === 0) throw new Error('No API keys configured');
 
-    const prompt = `You are a world-class Musical Director. Reorder these ${songs.length} songs based on: "${instruction}"
+    const prompt = `You are a world-class Musical Director and Setlist Architect. Reorder these ${songs.length} songs based on the user's instruction: "${instruction}"
 
-STRATEGY:
-1. Energy Flow: Ensure transitions between Energy Zones (Peak, Groove, Pulse, Ambient) are logical.
-2. Harmonic/Tempo Flow: Use BPM and Genre to avoid jarring jumps.
-3. Set Structure: If the instruction implies a specific event (like a Wedding), follow professional set-building standards.
+CORE ARCHITECTURAL PRINCIPLES:
+1. ENERGY ZONES: 
+   - Ambient: Soft, background, low intensity.
+   - Pulse: Steady, mid-tempo, engaging but not overwhelming.
+   - Groove: High movement, danceable, strong rhythm.
+   - Peak: Maximum intensity, anthems, high vocal/instrumental demand.
+   - Transitions should be logical (e.g., don't jump from Ambient to Peak unless requested).
 
-SONGS:
-${songs.map((s) => `ID: ${s.id} | ${s.name} - ${s.artist} | BPM: ${s.bpm || '?'} | Energy: ${s.energy_level || 'Unknown'} | Genre: ${s.genre || 'Unknown'}`).join('\n')}
+2. TECHNICAL READINESS:
+   - Readiness Score (0-100%): Represents how prepared the track is (audio, charts, lyrics, key confirmed).
+   - If the instruction implies a high-stakes performance (e.g., "Wedding", "Gala", "Live Set"), PRIORITIZE songs with 90-100% readiness.
+   - Lower readiness songs should be placed where they can be easily swapped or skipped if needed.
 
-OUTPUT:
-Return ONLY a JSON array of IDs in the new order. No text, no markdown.
-Example: ["id1", "id2", "id3"]`;
+3. HARMONIC & TEMPO FLOW:
+   - Use BPM to avoid jarring tempo shifts.
+   - Group similar genres where appropriate to maintain a "vibe".
+
+SONG DATA:
+${songs.map((s) => `ID: ${s.id} | ${s.name} - ${s.artist} | BPM: ${s.bpm || '?'} | Energy: ${s.energy_level || 'Unknown'} | Readiness: ${s.readiness || 0}% | Genre: ${s.genre || 'Unknown'}`).join('\n')}
+
+OUTPUT REQUIREMENTS:
+- Return ONLY a JSON array of IDs in the new order.
+- No conversational text, no markdown blocks.
+- Example: ["id1", "id2", "id3"]`;
 
     let lastError = null;
 

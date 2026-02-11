@@ -15,6 +15,7 @@ import { Input } from './ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess, showInfo } from '@/utils/toast';
 import { Progress } from './ui/progress';
+import { calculateReadiness } from '@/utils/repertoireSync';
 
 interface SetlistSortModalProps {
   isOpen: boolean;
@@ -29,28 +30,28 @@ const SORTING_PRESETS = [
     id: 'wedding-dinner', 
     label: 'Wedding Dinner Service', 
     icon: Heart,
-    instruction: 'Create a 2-hour elegant dinner set. Start with soft ambient tracks, gradually build energy for mingling, but keep it sophisticated.',
+    instruction: 'Create a 2-hour elegant dinner set. Start with soft ambient tracks, gradually build energy for mingling, but keep it sophisticated. Prioritize songs with 90%+ readiness.',
     color: 'bg-pink-600/10 border-pink-500/30 text-pink-500 hover:bg-pink-600 hover:text-white'
   },
   { 
     id: 'wedding-dance', 
     label: 'Wedding Dance Floor', 
     icon: Music,
-    instruction: 'Create a 3-hour wedding reception dance set. Start with moderate energy, build to high energy, include slower breaks, end with anthems.',
+    instruction: 'Create a high-energy wedding reception dance set. Start with moderate energy, build to Peak energy, include slower breaks, end with anthems. Only use songs that are 100% ready.',
     color: 'bg-purple-600/10 border-purple-500/30 text-purple-500 hover:bg-purple-600 hover:text-white'
   },
   { 
     id: 'energy-ramp', 
     label: 'Energy Ramp (Club Style)', 
     icon: TrendingUp,
-    instruction: 'Order songs from lowest to highest energy for a continuous build-up. Perfect for club sets or late-night parties.',
+    instruction: 'Order songs from lowest to highest energy for a continuous build-up. Ensure transitions between energy zones are smooth.',
     color: 'bg-indigo-600/10 border-indigo-500/30 text-indigo-500 hover:bg-indigo-600 hover:text-white'
   },
   { 
     id: 'balanced-flow', 
     label: 'Balanced Flow (2 Hours)', 
     icon: Zap,
-    instruction: 'Create a balanced 2-hour set with good energy variation. Mix high and low energy songs to keep the audience engaged.',
+    instruction: 'Create a balanced set with good energy variation. Mix high and low energy songs to keep the audience engaged while keeping readiness high.',
     color: 'bg-emerald-600/10 border-emerald-500/30 text-emerald-500 hover:bg-emerald-600 hover:text-white'
   },
 ];
@@ -78,12 +79,12 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
     let sorted = [...localSongs];
     const lowerInstr = instruction.toLowerCase();
 
-    // Smarter heuristic mapping
     const energyMap = { 'Peak': 4, 'Groove': 3, 'Pulse': 2, 'Ambient': 1, 'Unknown': 0 };
     
     const getScore = (s: SetlistSong) => {
       let score = (energyMap[s.energy_level || 'Unknown'] || 0) * 100;
-      score += parseInt(s.bpm || '0') / 10; // BPM as a tie-breaker
+      score += calculateReadiness(s); // Include readiness in local fallback
+      score += parseInt(s.bpm || '0') / 10;
       return score;
     };
 
@@ -93,7 +94,6 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
     } else if (lowerInstr.includes('bpm')) {
       sorted.sort((a, b) => parseInt(a.bpm || '0') - parseInt(b.bpm || '0'));
     } else {
-      // Default to energy build
       sorted.sort((a, b) => getScore(a) - getScore(b));
     }
 
@@ -110,14 +110,20 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
 
     setIsAiSorting(true);
     setSortingProgress(20);
-    setSortingStatus('Consulting Gemini 2.0 Flash...');
+    setSortingStatus('Consulting Gemini 2.5 Flash...');
 
     try {
       const { data, error } = await supabase.functions.invoke('ai-setlist-sorter', {
         body: {
           songs: localSongs.map(s => ({
-            id: s.id, name: s.name, artist: s.artist, bpm: s.bpm,
-            genre: s.genre, energy_level: s.energy_level, duration_seconds: s.duration_seconds
+            id: s.id, 
+            name: s.name, 
+            artist: s.artist, 
+            bpm: s.bpm,
+            genre: s.genre, 
+            energy_level: s.energy_level, 
+            duration_seconds: s.duration_seconds,
+            readiness: calculateReadiness(s) // Pass readiness to AI
           })),
           instruction: finalInstruction
         }
@@ -130,7 +136,6 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
           .map((id: string) => localSongs.find(s => s.id === id))
           .filter(Boolean) as SetlistSong[];
         
-        // Ensure no songs were lost
         const missing = localSongs.filter(s => !data.orderedIds.includes(s.id));
         setLocalSongs([...newOrder, ...missing]);
         showSuccess(`AI sequence applied!`);
@@ -286,6 +291,10 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
                                 <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest truncate">{song.artist || "Unknown Artist"}</p>
                               </div>
                               <div className="flex items-center gap-3 shrink-0">
+                                <div className="flex flex-col items-end mr-2">
+                                  <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Ready</span>
+                                  <span className="text-[10px] font-mono font-bold text-indigo-500">{calculateReadiness(song)}%</span>
+                                </div>
                                 {song.energy_level && (
                                   <span className={cn(
                                     "text-[9px] font-black uppercase px-3 py-1 rounded-full",
