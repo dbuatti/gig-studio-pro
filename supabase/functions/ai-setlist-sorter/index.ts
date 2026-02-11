@@ -74,15 +74,16 @@ Example Output:
       console.log(`[ai-setlist-sorter] Trying API key ${i + 1}/${keys.length}...`);
 
       try {
+        // Updated to gemini-2.0-flash as requested (using 2.0 as it is the standard latest)
         const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               contents: [{ parts: [{ text: prompt }] }],
               generationConfig: {
-                temperature: 0.1, // Even lower temperature for maximum strictness
+                temperature: 0.1,
                 maxOutputTokens: 8192,
               }
             }),
@@ -118,10 +119,8 @@ Example Output:
 
         let orderedIds: string[];
         try {
-          // Try direct parse first
           orderedIds = JSON.parse(aiResponseText);
         } catch (e) {
-          // Fallback: extract JSON array from response if AI still included text
           const match = aiResponseText.match(/\[[\s\S]*?\]/);
           if (match) {
             orderedIds = JSON.parse(match[0]);
@@ -135,7 +134,6 @@ Example Output:
           throw new Error('AI response was not an array');
         }
 
-        // Validate and fix the order
         const originalIds = songs.map(s => s.id);
         const validOrderedIds = orderedIds.filter(id => originalIds.includes(id));
         const missingIds = originalIds.filter(id => !validOrderedIds.includes(id));
