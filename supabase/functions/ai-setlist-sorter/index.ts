@@ -48,18 +48,23 @@ serve(async (req) => {
     console.log(`[ai-setlist-sorter] Starting sort for ${songs.length} songs`);
     console.log(`[ai-setlist-sorter] Instruction: "${instruction}"`);
 
-    // Ultra-optimized prompt for speed
-    const prompt = `Reorder these ${songs.length} songs based on: "${instruction}"
+    // Ultra-optimized prompt for speed and strictness
+    const prompt = `You are a professional music setlist curator. 
+Reorder the following ${songs.length} songs based on this instruction: "${instruction}"
 
-SONGS:
-${songs.map((s, i) => `${i + 1}. ID:${s.id}|${s.name}|${s.artist}|${s.bpm || '?'}BPM|${s.energy_level || '?'}`).join('\n')}
+SONGS DATA:
+${songs.map((s, i) => `ID: ${s.id} | Title: ${s.name} | Artist: ${s.artist} | BPM: ${s.bpm || 'Unknown'} | Energy: ${s.energy_level || 'Unknown'}`).join('\n')}
 
-Return ONLY a JSON array of IDs in new order. Include ALL ${songs.length} IDs.
-Format: ["id1","id2","id3",...]`;
+CRITICAL INSTRUCTIONS:
+1. Return ONLY a valid JSON array of the song IDs in the new order.
+2. Do NOT include any explanations, introductory text, or concluding remarks.
+3. Include EVERY song ID provided in the input.
+4. The output must be a single JSON array of strings.
 
-    console.log(`[ai-setlist-sorter] Prompt length: ${prompt.length} chars`);
+Example Output:
+["id-123", "id-456", "id-789"]`;
+
     const startTime = Date.now();
-
     let lastError = null;
 
     for (let i = 0; i < keys.length; i++) {
@@ -68,14 +73,14 @@ Format: ["id1","id2","id3",...]`;
 
       try {
         const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+          `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               contents: [{ parts: [{ text: prompt }] }],
               generationConfig: {
-                temperature: 0.7,
+                temperature: 0.2, // Lower temperature for more consistent formatting
                 maxOutputTokens: 8192,
               }
             }),
@@ -87,7 +92,6 @@ Format: ["id1","id2","id3",...]`;
 
         const result = await response.json();
         
-        // Handle rate limits - try next key
         if (response.status === 429 || response.status >= 500) {
           lastError = result.error?.message || response.statusText;
           console.warn(`[ai-setlist-sorter] Rate limit/server error on key ${i + 1}: ${lastError}`);
@@ -100,19 +104,22 @@ Format: ["id1","id2","id3",...]`;
           throw new Error(lastError);
         }
 
-        const aiResponseText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+        let aiResponseText = result.candidates?.[0]?.content?.parts?.[0]?.text;
         if (!aiResponseText) {
           throw new Error('Empty AI response');
         }
 
-        console.log(`[ai-setlist-sorter] Parsing AI response (${aiResponseText.length} chars)...`);
+        console.log(`[ai-setlist-sorter] Parsing AI response...`);
+
+        // Clean up markdown code blocks if present
+        aiResponseText = aiResponseText.replace(/```json/g, '').replace(/```/g, '').trim();
 
         let orderedIds: string[];
         try {
           // Try direct parse first
           orderedIds = JSON.parse(aiResponseText);
         } catch (e) {
-          // Fallback: extract JSON array from response
+          // Fallback: extract JSON array from response if AI still included text
           const match = aiResponseText.match(/\[[\s\S]*?\]/);
           if (match) {
             orderedIds = JSON.parse(match[0]);
@@ -125,8 +132,6 @@ Format: ["id1","id2","id3",...]`;
         if (!Array.isArray(orderedIds)) {
           throw new Error('AI response was not an array');
         }
-
-        console.log(`[ai-setlist-sorter] Parsed ${orderedIds.length} IDs from AI`);
 
         // Validate and fix the order
         const originalIds = songs.map(s => s.id);
@@ -158,8 +163,6 @@ Format: ["id1","id2","id3",...]`;
       }
     }
 
-    // All keys exhausted
-    console.error(`[ai-setlist-sorter] All ${keys.length} API keys failed. Last error: ${lastError}`);
     return new Response(
       JSON.stringify({ error: `All API keys exhausted. Last error: ${lastError}` }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
