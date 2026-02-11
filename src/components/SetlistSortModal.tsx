@@ -3,11 +3,14 @@
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ListMusic, GripVertical, Check, X } from 'lucide-react';
-import { DragDropContext, Droppable, Draggable, DropResult, DragStart } from 'react-beautiful-dnd';
+import { ListMusic, GripVertical, Check, X, Sparkles, Loader2 } from 'lucide-react';
+import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import { SetlistSong } from './SetlistManager';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from './ui/scroll-area';
+import { Input } from './ui/input';
+import { supabase } from '@/integrations/supabase/client';
+import { showError, showSuccess, showInfo } from '@/utils/toast';
 
 interface SetlistSortModalProps {
   isOpen: boolean;
@@ -25,16 +28,59 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
   setlistName,
 }) => {
   const [localSongs, setLocalSongs] = useState(songs);
-  // Removed draggingItem state as DragOverlay is no longer used.
+  const [aiInstruction, setAiInstruction] = useState('');
+  const [isAiSorting, setIsAiSorting] = useState(false);
 
   // Update localSongs when the prop changes (e.g., when modal opens with new data)
   React.useEffect(() => {
     setLocalSongs(songs);
   }, [songs]);
 
-  // Removed onBeforeCapture as DragOverlay is no longer used.
+  const handleAiSort = async () => {
+    if (!aiInstruction.trim()) {
+      showError("Please enter an instruction for the AI");
+      return;
+    }
+
+    setIsAiSorting(true);
+    showInfo("AI is analyzing your setlist...");
+
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-setlist-sorter', {
+        body: {
+          songs: localSongs.map(s => ({
+            id: s.id,
+            name: s.name,
+            artist: s.artist,
+            bpm: s.bpm,
+            genre: s.genre,
+            energy_level: s.energy_level,
+            duration_seconds: s.duration_seconds
+          })),
+          instruction: aiInstruction
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.orderedIds) {
+        const newOrder = data.orderedIds
+          .map((id: string) => localSongs.find(s => s.id === id))
+          .filter(Boolean) as SetlistSong[];
+        
+        setLocalSongs(newOrder);
+        showSuccess("Setlist reordered by AI!");
+      }
+    } catch (err: any) {
+      console.error("AI Sort Error:", err);
+      showError(`AI Sorting failed: ${err.message}`);
+    } finally {
+      setIsAiSorting(false);
+    }
+  };
 
   const onDragEnd = (result: DropResult) => {
+
     // Removed setDraggingItem(null) as DragOverlay is no longer used.
     if (!result.destination) return;
 
