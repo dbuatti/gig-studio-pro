@@ -11,6 +11,7 @@ import React, { useEffect } from 'react';
 import MainLayout from "@/components/MainLayout";
 import DebugPage from "@/pages/DebugPage"; // Import DebugPage
 import { pdfjs } from 'react-pdf'; // Import pdfjs
+import { BrowserRouter } from 'react-router-dom'; // Import BrowserRouter
 
 // Configure PDF.js worker source globally
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
@@ -32,7 +33,9 @@ const App = () => {
           <Toaster />
           <Sonner position="top-center" />
           <AudioContextInitializer>
-            <MainLayout />
+            <BrowserRouter>
+              <MainLayout />
+            </BrowserRouter>
           </AudioContextInitializer>
         </TooltipProvider>
       </AuthProvider>
