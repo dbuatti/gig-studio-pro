@@ -120,6 +120,26 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
               Drag and drop songs to customize the order for <span className="text-white font-bold">"{setlistName}"</span>.
             </DialogDescription>
           </DialogHeader>
+
+          <div className="mt-6 flex gap-2">
+            <div className="relative flex-1">
+              <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-300" />
+              <Input
+                placeholder="AI Instruction (e.g. 'Order by energy for 2 hours')"
+                value={aiInstruction}
+                onChange={(e) => setAiInstruction(e.target.value)}
+                className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/40 rounded-xl h-11 focus-visible:ring-white/30"
+                onKeyDown={(e) => e.key === 'Enter' && handleAiSort()}
+              />
+            </div>
+            <Button
+              onClick={handleAiSort}
+              disabled={isAiSorting || !aiInstruction.trim()}
+              className="bg-white text-indigo-600 hover:bg-indigo-50 font-black uppercase tracking-widest text-[10px] h-11 px-6 rounded-xl shadow-lg"
+            >
+              {isAiSorting ? <Loader2 className="w-4 h-4 animate-spin" /> : "AI Sort"}
+            </Button>
+          </div>
         </div>
 
         <ScrollArea className="flex-1 p-6 custom-scrollbar">
