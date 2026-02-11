@@ -247,6 +247,9 @@ const SheetReaderMode: React.FC = () => {
       const activeFilters = savedFilters ? JSON.parse(savedFilters) : DEFAULT_FILTERS;
       const searchTerm = (localStorage.getItem('gig_search_term') || "").toLowerCase();
 
+      console.log("[SheetReader] Loaded filters from localStorage:", activeFilters);
+      console.log("[SheetReader] Loaded searchTerm from localStorage:", searchTerm);
+
       let currentViewSongs: SetlistSong[] = [];
       let masterRepertoireList: SetlistSong[] = [];
       let activeSetlistSongsList: SetlistSong[] = [];
@@ -341,6 +344,8 @@ const SheetReaderMode: React.FC = () => {
         currentViewSongs = masterRepertoireList;
       }
 
+      console.log("[SheetReader] Total songs before filtering:", currentViewSongs.length);
+
       // Apply Filters and Search
       const filteredSongs = currentViewSongs.filter(s => {
         // Search
@@ -386,9 +391,13 @@ const SheetReaderMode: React.FC = () => {
         return true;
       });
 
+      console.log("[SheetReader] Songs after applying filters:", filteredSongs.length);
+
       const readableSongs = filteredSongs.filter(s => 
         s.pdfUrl || s.leadsheetUrl || s.ug_chords_text || s.sheet_music_url
       );
+
+      console.log("[SheetReader] Songs after filtering for readability:", readableSongs.length);
 
       const uniqueSongsMap = new Map<string, SetlistSong>();
       readableSongs.forEach(song => {

@@ -112,18 +112,22 @@ const Index = () => {
 
   // Persist filters, search, and sort mode to localStorage so they sync with Sheet Reader
   useEffect(() => {
+    console.log("[Dashboard] Saving activeFilters to localStorage:", activeFilters);
     localStorage.setItem('gig_active_filters', JSON.stringify(activeFilters));
   }, [activeFilters]);
 
   useEffect(() => {
+    console.log("[Dashboard] Saving searchTerm to localStorage:", searchTerm);
     localStorage.setItem('gig_search_term', searchTerm);
   }, [searchTerm]);
 
   useEffect(() => {
+    console.log("[Dashboard] Saving sortMode to localStorage:", sortMode);
     localStorage.setItem('gig_sort_mode', sortMode);
   }, [sortMode]);
 
   useEffect(() => {
+    console.log("[Dashboard] Saving showHeatmap to localStorage:", showHeatmap);
     localStorage.setItem('gig_show_heatmap', showHeatmap.toString());
   }, [showHeatmap]);
 
