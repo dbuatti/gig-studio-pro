@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { 
   ListMusic, GripVertical, Check, X, Sparkles, Loader2, Zap, Heart, 
   Music, TrendingUp, ChevronDown, ChevronUp, LayoutGrid, Coffee,
-  Lock, Unlock, BarChart3, Info
+  Lock, Unlock, BarChart3, Info, Copy
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import { SetlistSong } from './SetlistManager';
@@ -115,6 +115,11 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
     if (next.has(id)) next.delete(id);
     else next.add(id);
     setLockedIds(next);
+  };
+
+  const handleCopyInstruction = (text: string) => {
+    navigator.clipboard.writeText(text);
+    showSuccess("Preset instruction copied to clipboard");
   };
 
   const handleFallbackSort = (instruction: string) => {
@@ -287,14 +292,25 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <button className="bg-white/5 text-slate-500 hover:text-indigo-400 hover:bg-white/10 p-2 rounded-r-lg border-l border-white/5 transition-colors">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCopyInstruction(preset.instruction);
+                          }}
+                          className="bg-white/5 text-slate-500 hover:text-indigo-400 hover:bg-white/10 p-2 rounded-r-lg border-l border-white/5 transition-colors"
+                        >
                           <Info className="w-3 h-3" />
                         </button>
                       </TooltipTrigger>
                       <TooltipContent className="max-w-xs bg-slate-900 border-white/10 p-3 rounded-xl shadow-2xl">
-                        <p className="text-[10px] font-bold text-slate-300 leading-relaxed">
-                          {preset.instruction}
-                        </p>
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-bold text-slate-300 leading-relaxed">
+                            {preset.instruction}
+                          </p>
+                          <div className="flex items-center gap-1.5 text-[8px] font-black uppercase text-indigo-400 border-t border-white/5 pt-2">
+                            <Copy className="w-2.5 h-2.5" /> Click to copy description
+                          </div>
+                        </div>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
