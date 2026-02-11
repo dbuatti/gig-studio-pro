@@ -252,19 +252,36 @@ const Index = () => {
           
         console.log(`[Index] Setlist "${setlist.name}" junction data:`, junctionData?.length, "entries");
 
-        const songs: SetlistSong[] = junctionData?.map(j => {
+        const seenSongIds = new Set<string>();
+        const songs: SetlistSong[] = [];
+        
+        junctionData?.forEach(j => {
           const master = mappedRepertoire.find(r => r.id === j.song_id);
           if (!master) {
             console.warn(`[Index] Song ID ${j.song_id} not found in master repertoire for setlist ${setlist.id}`);
+            return;
           }
-          return master ? { 
+          
+          if (seenSongIds.has(j.song_id)) {
+            console.error(`[Index] DUPLICATE DETECTED in setlist "${setlist.name}": "${master.name}" (Song ID: ${j.song_id}, Junction ID: ${j.id})`);
+            // We skip adding it to the UI state to "fix" the visible duplicates, 
+            // but we log it so we know which rows in setlist_songs need cleaning.
+            return;
+          }
+          
+          seenSongIds.add(j.song_id);
+          songs.push({ 
             ...master, 
             id: j.id, 
             master_id: master.id, 
             isPlayed: j.isPlayed || false 
-          } : null;
-        }).filter(Boolean) as SetlistSong[] || [];
+          });
+        });
         
+        if (junctionData && junctionData.length !== songs.length) {
+          console.warn(`[Index] Setlist "${setlist.name}" had ${junctionData.length - songs.length} duplicate entries filtered out.`);
+        }
+
         setlistsWithSongs.push({ 
           id: setlist.id, 
           name: setlist.name, 
