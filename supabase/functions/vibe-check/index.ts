@@ -5,10 +5,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Known stable model/version combinations
 const MODEL_CONFIGS = [
-  { name: 'gemini-2.0-flash', versions: ['v1beta', 'v1'] },
-  { name: 'gemini-1.5-flash', versions: ['v1', 'v1beta'] },
-  { name: 'gemini-1.5-pro', versions: ['v1', 'v1beta'] }
+  { name: 'gemini-2.0-flash', version: 'v1beta' },
+  { name: 'gemini-1.5-flash', version: 'v1beta' },
+  { name: 'gemini-1.5-flash', version: 'v1' },
+  { name: 'gemini-1.5-pro', version: 'v1beta' }
 ];
 
 serve(async (req) => {
@@ -19,7 +21,11 @@ serve(async (req) => {
   try {
     const { title, artist, bpm, genre, userTags } = await req.json();
     
-    console.log(`[vibe-check] Processing: ${title} by ${artist}`);
+    if (!title || !artist) {
+      throw new Error("Missing title or artist for analysis.");
+    }
+
+    console.log(`[vibe-check] Analyzing: "${title}" by ${artist}`);
 
     const keys = [
       Deno.env.get('GEMINI_API_KEY'),
@@ -27,7 +33,9 @@ serve(async (req) => {
       Deno.env.get('GEMINI_API_KEY_3')
     ].filter(Boolean);
 
-    if (keys.length === 0) throw new Error('No Gemini API keys configured');
+    if (keys.length === 0) {
+      throw new Error('No Gemini API keys configured in environment.');
+    }
 
     const prompt = `Analyze this song for a live performance setlist:
     Title: "${title}"
@@ -42,7 +50,7 @@ serve(async (req) => {
     3. Groove: High movement, danceable, strong rhythm (e.g., funk, upbeat pop).
     4. Peak: Maximum intensity, anthems, high energy (e.g., rock closers, dance floor fillers).
 
-    Also suggest a refined Genre if the current one is "Unknown".
+    Also suggest a refined Genre if the current one is "Unknown" or too broad.
 
     Return ONLY a JSON object:
     {
@@ -51,51 +59,52 @@ serve(async (req) => {
       "confidence": 0.0-1.0
     }`;
 
-    for (const apiKey of keys) {
-      for (const config of MODEL_CONFIGS) {
-        for (const version of config.versions) {
-          try {
-            const response = await fetch(
-              `https://generativelanguage.googleapis.com/${version}/models/${config.name}:generateContent?key=${apiKey}`,
-              {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  contents: [{ parts: [{ text: prompt }] }],
-                  generationConfig: { 
-                    temperature: 0.1,
-                    response_mime_type: "application/json"
-                  }
-                }),
-              }
-            );
-
-            const result = await response.json();
-            
-            if (response.status === 429) {
-              console.warn(`[vibe-check] Rate limit hit for key on ${config.name}. Trying next key/model...`);
-              break; // Move to next key for this model, or next model
+    // Try each model, and for each model try each key if needed
+    for (const config of MODEL_CONFIGS) {
+      for (const apiKey of keys) {
+        try {
+          const response = await fetch(
+            `https://generativelanguage.googleapis.com/${config.version}/models/${config.name}:generateContent?key=${apiKey}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: { 
+                  temperature: 0.1,
+                  response_mime_type: "application/json"
+                }
+              }),
             }
+          );
 
-            if (!response.ok) {
-              console.error(`[vibe-check] ${config.name} (${version}) failed:`, result.error?.message || 'Unknown error');
-              continue;
-            }
-
-            const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (text) {
-              return new Response(text, { 
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-              });
-            }
-          } catch (err) {
-            console.error(`[vibe-check] Fetch error for ${config.name}:`, err.message);
+          const result = await response.json();
+          
+          if (response.status === 429) {
+            console.warn(`[vibe-check] Rate limit (429) on ${config.name} with current key. Trying next key...`);
+            continue; 
           }
+
+          if (!response.ok) {
+            console.error(`[vibe-check] ${config.name} failed (${response.status}):`, result.error?.message || 'Unknown error');
+            continue;
+          }
+
+          const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) {
+            // Ensure it's valid JSON before returning
+            JSON.parse(text); 
+            return new Response(text, { 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            });
+          }
+        } catch (err) {
+          console.error(`[vibe-check] Attempt failed for ${config.name}:`, err.message);
         }
       }
     }
 
-    throw new Error("All AI models and API keys failed to process the request.");
+    throw new Error("All AI models and API keys failed to process the request. This usually indicates rate limits or invalid keys.");
 
   } catch (error: any) {
     console.error("[vibe-check] Final Error:", error.message);

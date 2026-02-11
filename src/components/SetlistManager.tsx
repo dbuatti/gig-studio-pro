@@ -284,6 +284,9 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       for (let i = 0; i < songsToVibeCheck.length; i++) {
         const song = songsToVibeCheck[i];
         try {
+          // Add a small delay between requests to avoid rate limiting
+          if (i > 0) await new Promise(resolve => setTimeout(resolve, 800));
+
           const { data, error } = await supabase.functions.invoke('vibe-check', {
             body: {
               title: song.name,
