@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { 
   ListMusic, GripVertical, Check, X, Sparkles, Loader2, Zap, Heart, 
-  Music, TrendingUp, ChevronDown, ChevronUp, LayoutGrid, Coffee
+  Music, TrendingUp, ChevronDown, ChevronUp, LayoutGrid, Coffee,
+  Lock, Unlock, BarChart3
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import { SetlistSong } from './SetlistManager';
@@ -63,6 +64,32 @@ const SORTING_PRESETS = [
   },
 ];
 
+const EnergyFlowViz = ({ songs }: { songs: SetlistSong[] }) => {
+  const energyMap = { 'Peak': 4, 'Groove': 3, 'Pulse': 2, 'Ambient': 1, 'Unknown': 0 };
+  
+  return (
+    <div className="flex items-end gap-1 h-12 w-full px-2">
+      {songs.map((song, i) => {
+        const level = energyMap[song.energy_level || 'Unknown'] || 0;
+        const height = (level / 4) * 100;
+        return (
+          <div 
+            key={`${song.id}-${i}`}
+            className={cn(
+              "flex-1 rounded-t-sm transition-all duration-500",
+              song.energy_level === 'Peak' ? "bg-red-500" :
+              song.energy_level === 'Groove' ? "bg-amber-500" :
+              song.energy_level === 'Pulse' ? "bg-emerald-500" :
+              song.energy_level === 'Ambient' ? "bg-blue-500" : "bg-slate-800"
+            )}
+            style={{ height: `${Math.max(10, height)}%` }}
+          />
+        );
+      })}
+    </div>
+  );
+};
+
 const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
   isOpen,
   onClose,
@@ -76,10 +103,18 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
   const [sortingProgress, setSortingProgress] = useState(0);
   const [sortingStatus, setSortingStatus] = useState('');
   const [showPresets, setShowPresets] = useState(true);
+  const [lockedIds, setLockedIds] = useState<Set<string>>(new Set());
 
   React.useEffect(() => {
     setLocalSongs(songs);
   }, [songs]);
+
+  const toggleLock = (id: string) => {
+    const next = new Set(lockedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setLockedIds(next);
+  };
 
   const handleFallbackSort = (instruction: string) => {
     showInfo("Applying smart local sequence...");
@@ -95,6 +130,7 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
       return score;
     };
 
+    // Simple fallback doesn't respect locks perfectly but tries
     if (lowerInstr.includes('energy') || lowerInstr.includes('ramp') || lowerInstr.includes('dance')) {
       sorted.sort((a, b) => getScore(a) - getScore(b));
       if (lowerInstr.includes('high') && !lowerInstr.includes('ramp')) sorted.reverse();
@@ -117,12 +153,12 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
 
     setIsAiSorting(true);
     setSortingProgress(20);
-    setSortingStatus('Consulting Gemini 2.5 Flash...');
+    setSortingStatus('Consulting Musical Director AI...');
 
     try {
       const { data, error } = await supabase.functions.invoke('ai-setlist-sorter', {
         body: {
-          songs: localSongs.map(s => ({
+          songs: localSongs.map((s, idx) => ({
             id: s.id, 
             name: s.name, 
             artist: s.artist, 
@@ -130,7 +166,9 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
             genre: s.genre, 
             energy_level: s.energy_level, 
             duration_seconds: s.duration_seconds,
-            readiness: calculateReadiness(s) 
+            readiness: calculateReadiness(s),
+            isLocked: lockedIds.has(s.id),
+            lockedPosition: lockedIds.has(s.id) ? idx : null
           })),
           instruction: finalInstruction
         }
@@ -202,6 +240,13 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
                 {showPresets ? "Hide Presets" : "Show Presets"}
                 {showPresets ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
               </button>
+              
+              <div className="flex items-center gap-4">
+                <div className="flex flex-col items-end">
+                  <span className="text-[8px] font-black uppercase tracking-widest text-slate-500 mb-1">Energy Flow</span>
+                  <EnergyFlowViz songs={localSongs} />
+                </div>
+              </div>
             </div>
 
             {showPresets && (
@@ -268,6 +313,9 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
               <h3 className="text-[11px] font-black uppercase tracking-[0.15em] text-muted-foreground flex items-center gap-2">
                 <GripVertical className="w-4 h-4" /> Manual Sequence ({localSongs.length} tracks)
               </h3>
+              <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-muted-foreground">
+                <Lock className="w-3 h-3" /> Locked songs stay in position
+              </div>
             </div>
             
             <ScrollArea className="flex-1 p-6 custom-scrollbar">
@@ -275,47 +323,60 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
                 <Droppable droppableId="setlist-songs">
                   {(provided) => (
                     <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2.5">
-                      {localSongs.map((song, index) => (
-                        <Draggable key={song.id} draggableId={song.id} index={index}>
-                          {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              className={cn(
-                                "p-4 bg-card border border-border rounded-2xl flex items-center gap-4 shadow-sm transition-all duration-200",
-                                "hover:border-indigo-500/30 hover:bg-indigo-500/[0.02]",
-                                snapshot.isDragging && "ring-2 ring-indigo-500 bg-indigo-500/10 shadow-2xl scale-[1.02] z-50 border-indigo-500"
-                              )}
-                            >
-                              <GripVertical className={cn(
-                                "w-4 h-4 shrink-0 transition-colors",
-                                snapshot.isDragging ? "text-indigo-500" : "text-muted-foreground/50"
-                              )} />
-                              <span className="text-[11px] font-mono font-black text-indigo-500/50 w-6">{(index + 1).toString().padStart(2, '0')}</span>
-                              <div className="flex-1 min-w-0">
-                                <h4 className="text-sm font-black uppercase tracking-tight truncate text-foreground">{song.name}</h4>
-                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest truncate">{song.artist || "Unknown Artist"}</p>
-                              </div>
-                              <div className="flex items-center gap-3 shrink-0">
-                                <div className="flex flex-col items-end mr-2">
-                                  <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Ready</span>
-                                  <span className="text-[10px] font-mono font-bold text-indigo-500">{calculateReadiness(song)}%</span>
-                                </div>
-                                {song.energy_level && (
-                                  <span className={cn(
-                                    "text-[9px] font-black uppercase px-3 py-1 rounded-full",
-                                    song.energy_level === 'Peak' && "bg-red-500/10 text-red-500 border border-red-500/20",
-                                    song.energy_level === 'Groove' && "bg-amber-500/10 text-amber-500 border border-amber-500/20",
-                                    song.energy_level === 'Pulse' && "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20",
-                                    song.energy_level === 'Ambient' && "bg-blue-500/10 text-blue-500 border border-blue-500/20"
-                                  )}>{song.energy_level}</span>
+                      {localSongs.map((song, index) => {
+                        const isLocked = lockedIds.has(song.id);
+                        return (
+                          <Draggable key={song.id} draggableId={song.id} index={index}>
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                className={cn(
+                                  "p-4 bg-card border border-border rounded-2xl flex items-center gap-4 shadow-sm transition-all duration-200",
+                                  "hover:border-indigo-500/30 hover:bg-indigo-500/[0.02]",
+                                  snapshot.isDragging && "ring-2 ring-indigo-500 bg-indigo-500/10 shadow-2xl scale-[1.02] z-50 border-indigo-500",
+                                  isLocked && "border-indigo-500/50 bg-indigo-500/[0.03]"
                                 )}
+                              >
+                                <GripVertical className={cn(
+                                  "w-4 h-4 shrink-0 transition-colors",
+                                  snapshot.isDragging ? "text-indigo-500" : "text-muted-foreground/50"
+                                )} />
+                                <span className="text-[11px] font-mono font-black text-indigo-500/50 w-6">{(index + 1).toString().padStart(2, '0')}</span>
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="text-sm font-black uppercase tracking-tight truncate text-foreground">{song.name}</h4>
+                                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest truncate">{song.artist || "Unknown Artist"}</p>
+                                </div>
+                                <div className="flex items-center gap-3 shrink-0">
+                                  <div className="flex flex-col items-end mr-2">
+                                    <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Ready</span>
+                                    <span className="text-[10px] font-mono font-bold text-indigo-500">{calculateReadiness(song)}%</span>
+                                  </div>
+                                  {song.energy_level && (
+                                    <span className={cn(
+                                      "text-[9px] font-black uppercase px-3 py-1 rounded-full",
+                                      song.energy_level === 'Peak' && "bg-red-500/10 text-red-500 border border-red-500/20",
+                                      song.energy_level === 'Groove' && "bg-amber-500/10 text-amber-500 border border-amber-500/20",
+                                      song.energy_level === 'Pulse' && "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20",
+                                      song.energy_level === 'Ambient' && "bg-blue-500/10 text-blue-500 border border-blue-500/20"
+                                    )}>{song.energy_level}</span>
+                                  )}
+                                  <button 
+                                    onClick={(e) => { e.stopPropagation(); toggleLock(song.id); }}
+                                    className={cn(
+                                      "p-2 rounded-xl transition-all",
+                                      isLocked ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20" : "bg-secondary text-muted-foreground hover:bg-indigo-50 hover:text-indigo-600"
+                                    )}
+                                  >
+                                    {isLocked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                                  </button>
+                                </div>
                               </div>
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
+                            )}
+                          </Draggable>
+                        );
+                      })}
                       {provided.placeholder}
                     </div>
                   )}

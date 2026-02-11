@@ -14,6 +14,8 @@ interface Song {
   energy_level?: string;
   duration_seconds?: number;
   readiness?: number;
+  isLocked?: boolean;
+  lockedPosition?: number | null;
 }
 
 const MODEL_CONFIGS = [
@@ -66,16 +68,17 @@ CORE ARCHITECTURAL PRINCIPLES:
    - 100% means they are fully prepared.
    - IMPORTANT: If the instruction says "Only use...", "Exclude...", or implies a filter based on readiness, you MUST omit songs that do not meet the criteria.
 
-3. FILTERING LOGIC:
-   - If the user asks for "100% ready", EXCLUDE any song with readiness < 100.
-   - If the user asks for "high readiness", EXCLUDE any song with readiness < 80.
+3. LOCKING LOGIC (CRITICAL):
+   - Some songs are "LOCKED" at specific positions.
+   - You MUST keep these songs at their exact index in the final array.
+   - Do NOT move a locked song. Sort all other songs around them.
 
 SONG DATA:
-${songs.map((s) => `ID: ${s.id} | ${s.name} - ${s.artist} | BPM: ${s.bpm || '?'} | Energy: ${s.energy_level || 'Unknown'} | Readiness: ${s.readiness || 0}%`).join('\n')}
+${songs.map((s) => `ID: ${s.id} | ${s.name} - ${s.artist} | BPM: ${s.bpm || '?'} | Energy: ${s.energy_level || 'Unknown'} | Readiness: ${s.readiness || 0}% | ${s.isLocked ? `LOCKED AT POSITION ${s.lockedPosition}` : 'UNLOCKED'}`).join('\n')}
 
 OUTPUT REQUIREMENTS:
 - Return ONLY a JSON array of IDs in the final sequence.
-- If songs are filtered out, the array will be shorter than the input.
+- If songs are filtered out, the array will be shorter than the input, but LOCKED songs must still maintain their relative order or exact positions if possible.
 - Example: ["id1", "id2", "id3"]`;
 
     console.log("[ai-setlist-sorter] Full Prompt Generated:", prompt);
