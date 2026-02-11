@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { 
   ListMusic, GripVertical, Check, X, Sparkles, Loader2, Zap, Heart, 
-  Music, TrendingUp, ChevronDown, ChevronUp, LayoutGrid 
+  Music, TrendingUp, ChevronDown, ChevronUp, LayoutGrid, Coffee
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import { SetlistSong } from './SetlistManager';
@@ -26,6 +26,13 @@ interface SetlistSortModalProps {
 }
 
 const SORTING_PRESETS = [
+  { 
+    id: 'jazz-to-anthemic', 
+    label: 'Jazz to Anthemic Flow', 
+    icon: Coffee,
+    instruction: 'Create a flow starting with slow jazz standards, transitioning into pop ballads, and ending with high-energy anthems. Only include songs with 50% or higher readiness.',
+    color: 'bg-blue-600/10 border-blue-500/30 text-blue-500 hover:bg-blue-600 hover:text-white'
+  },
   { 
     id: 'wedding-dinner', 
     label: 'Wedding Dinner Service', 
@@ -83,7 +90,7 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
     
     const getScore = (s: SetlistSong) => {
       let score = (energyMap[s.energy_level || 'Unknown'] || 0) * 100;
-      score += calculateReadiness(s); // Include readiness in local fallback
+      score += calculateReadiness(s); 
       score += parseInt(s.bpm || '0') / 10;
       return score;
     };
@@ -123,7 +130,7 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
             genre: s.genre, 
             energy_level: s.energy_level, 
             duration_seconds: s.duration_seconds,
-            readiness: calculateReadiness(s) // Pass readiness to AI
+            readiness: calculateReadiness(s) 
           })),
           instruction: finalInstruction
         }
@@ -198,7 +205,7 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
             </div>
 
             {showPresets && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
                 {SORTING_PRESETS.map(preset => (
                   <button
                     key={preset.id}
