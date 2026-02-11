@@ -6,8 +6,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/components/AuthProvider";
 import { useTheme } from '@/hooks/use-theme';
-import React, { useEffect } from "react";
-import MainLayout from "@/components/MainLayout"; 
+import React, { useEffect } from 'react';
+import MainLayout from "@/components/MainLayout";
 import DebugPage from "@/pages/DebugPage"; // Import DebugPage
 import { pdfjs } from 'react-pdf'; // Import pdfjs
 
@@ -30,11 +30,11 @@ const App = () => {
         <TooltipProvider>
           <Toaster />
           <Sonner position="top-center" />
-          <AudioContextInitializer>
-            <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <BrowserRouter>
+            <AudioContextInitializer>
               <MainLayout />
-            </BrowserRouter>
-          </AudioContextInitializer>
+            </AudioContextInitializer>
+          </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>
     </QueryClientProvider>
