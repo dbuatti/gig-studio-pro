@@ -32,36 +32,29 @@ const SORTING_PRESETS = [
     id: 'jazz-to-anthemic', 
     label: 'Jazz to Anthemic', 
     icon: Coffee,
-    instruction: 'Create a flow starting with slow jazz standards, transitioning into pop ballads, and ending with high-energy anthems. Only include songs with 50% or higher readiness.',
+    instruction: 'Start with Jazz Standards and Bossa Nova (Ambient/Pulse energy). Transition into mid-tempo Pop/Motown (Pulse/Groove). End with high-energy Dance Anthems (Peak energy). Strictly keep high-energy pop like ABBA or Whitney Houston for the final 30% of the set.',
     color: 'bg-blue-600/10 border-blue-500/30 text-blue-500 hover:bg-blue-600 hover:text-white'
   },
   { 
     id: 'wedding-dinner', 
     label: 'Wedding Dinner', 
     icon: Heart,
-    instruction: 'Create a 2-hour elegant dinner set. Start with soft ambient tracks, gradually build energy for mingling, but keep it sophisticated. Prioritize songs with 90%+ readiness.',
+    instruction: 'Create an elegant dinner flow. Start with soft acoustic and jazz tracks. Build very slightly to mid-tempo "feel good" tracks, but never reach Peak energy. Prioritize songs with 80%+ readiness.',
     color: 'bg-pink-600/10 border-pink-500/30 text-pink-500 hover:bg-pink-600 hover:text-white'
   },
   { 
     id: 'wedding-dance', 
     label: 'Wedding Dance', 
     icon: Music,
-    instruction: 'Create a high-energy wedding reception dance set. Start with moderate energy, build to Peak energy, include slower breaks, end with anthems. Only use songs that are 100% ready.',
+    instruction: 'High-energy reception set. Start with Groove energy (Motown/Funk), build to Peak energy (Disco/Pop), include one or two "breather" ballads in the middle, and finish with massive anthems.',
     color: 'bg-purple-600/10 border-purple-500/30 text-purple-500 hover:bg-purple-600 hover:text-white'
   },
   { 
     id: 'energy-ramp', 
     label: 'Energy Ramp', 
     icon: TrendingUp,
-    instruction: 'Order songs from lowest to highest energy for a continuous build-up. Ensure transitions between energy zones are smooth.',
+    instruction: 'Strictly order songs from lowest energy (Ambient) to highest energy (Peak). Use BPM as a secondary tie-breaker for the ramp.',
     color: 'bg-indigo-600/10 border-indigo-500/30 text-indigo-500 hover:bg-indigo-600 hover:text-white'
-  },
-  { 
-    id: 'balanced-flow', 
-    label: 'Balanced Flow', 
-    icon: Zap,
-    instruction: 'Create a balanced set with good energy variation. Mix high and low energy songs to keep the audience engaged while keeping readiness high.',
-    color: 'bg-emerald-600/10 border-emerald-500/30 text-emerald-500 hover:bg-emerald-600 hover:text-white'
   },
 ];
 
@@ -117,38 +110,6 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
     setLockedIds(next);
   };
 
-  const handleCopyInstruction = (text: string) => {
-    navigator.clipboard.writeText(text);
-    showSuccess("Preset instruction copied to clipboard");
-  };
-
-  const handleFallbackSort = (instruction: string) => {
-    showInfo("Applying smart local sequence...");
-    let sorted = [...localSongs];
-    const lowerInstr = instruction.toLowerCase();
-
-    const energyMap = { 'Peak': 4, 'Groove': 3, 'Pulse': 2, 'Ambient': 1, 'Unknown': 0 };
-    
-    const getScore = (s: SetlistSong) => {
-      let score = (energyMap[s.energy_level || 'Unknown'] || 0) * 100;
-      score += calculateReadiness(s); 
-      score += parseInt(s.bpm || '0') / 10;
-      return score;
-    };
-
-    if (lowerInstr.includes('energy') || lowerInstr.includes('ramp') || lowerInstr.includes('dance')) {
-      sorted.sort((a, b) => getScore(a) - getScore(b));
-      if (lowerInstr.includes('high') && !lowerInstr.includes('ramp')) sorted.reverse();
-    } else if (lowerInstr.includes('bpm')) {
-      sorted.sort((a, b) => parseInt(a.bpm || '0') - parseInt(b.bpm || '0'));
-    } else {
-      sorted.sort((a, b) => getScore(a) - getScore(b));
-    }
-
-    setLocalSongs(sorted);
-    showSuccess("Local sequence applied!");
-  };
-
   const handleAiSort = async (instruction?: string) => {
     const finalInstruction = instruction || aiInstruction;
     if (!finalInstruction.trim()) {
@@ -193,7 +154,7 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
       }
     } catch (err: any) {
       console.error("AI Sort Error:", err);
-      handleFallbackSort(finalInstruction);
+      showError("AI sorting failed. Please try again.");
     } finally {
       setIsAiSorting(false);
       setSortingProgress(0);
@@ -247,7 +208,7 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
               <div className="relative flex-1">
                 <Sparkles className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-400" />
                 <Input
-                  placeholder="Describe your ideal flow (e.g., 'High energy, high readiness')"
+                  placeholder="Describe your ideal flow (e.g., 'Start with jazz, end with disco')"
                   value={aiInstruction}
                   onChange={(e) => setAiInstruction(e.target.value)}
                   className="pl-10 bg-white/5 border-white/10 text-white rounded-xl h-11 text-xs font-medium focus:ring-indigo-500/50"
@@ -277,44 +238,18 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
               </button>
               
               {showPresets && SORTING_PRESETS.map(preset => (
-                <div key={preset.id} className="flex items-center gap-1 shrink-0">
-                  <button
-                    onClick={() => handleAiSort(preset.instruction)}
-                    disabled={isAiSorting}
-                    className={cn(
-                      "flex items-center gap-2 px-3 py-2 rounded-l-lg text-[9px] font-black uppercase tracking-widest transition-all border border-transparent",
-                      "bg-white/5 text-slate-300 hover:bg-white/10 hover:border-white/10 disabled:opacity-50"
-                    )}
-                  >
-                    <preset.icon className="w-3 h-3" />
-                    {preset.label}
-                  </button>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCopyInstruction(preset.instruction);
-                          }}
-                          className="bg-white/5 text-slate-500 hover:text-indigo-400 hover:bg-white/10 p-2 rounded-r-lg border-l border-white/5 transition-colors"
-                        >
-                          <Info className="w-3 h-3" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs bg-slate-900 border-white/10 p-3 rounded-xl shadow-2xl">
-                        <div className="space-y-2">
-                          <p className="text-[10px] font-bold text-slate-300 leading-relaxed">
-                            {preset.instruction}
-                          </p>
-                          <div className="flex items-center gap-1.5 text-[8px] font-black uppercase text-indigo-400 border-t border-white/5 pt-2">
-                            <Copy className="w-2.5 h-2.5" /> Click to copy description
-                          </div>
-                        </div>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
+                <button
+                  key={preset.id}
+                  onClick={() => handleAiSort(preset.instruction)}
+                  disabled={isAiSorting}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border border-transparent shrink-0",
+                    "bg-white/5 text-slate-300 hover:bg-white/10 hover:border-white/10 disabled:opacity-50"
+                  )}
+                >
+                  <preset.icon className="w-3 h-3" />
+                  {preset.label}
+                </button>
               ))}
             </div>
 
