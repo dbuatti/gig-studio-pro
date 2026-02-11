@@ -6,9 +6,8 @@ const corsHeaders = {
 }
 
 const MODELS = [
-  'gemini-2.0-flash-001',
-  'gemini-1.5-flash',
-  'gemini-1.5-pro'
+  'gemini-2.0-flash',
+  'gemini-1.5-flash'
 ];
 
 serve(async (req) => {
@@ -47,6 +46,7 @@ serve(async (req) => {
     let lastError = null;
     for (const model of MODELS) {
       try {
+        console.log(`[vibe-check] Attempting classification with ${model}`);
         const response = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
           {
