@@ -421,6 +421,10 @@ const SheetReaderMode: React.FC = () => {
     setIsRepertoireSearchModalOpen(false);
   }, [allSongs, navigate, stopPlayback]);
 
+  const onOpenRepertoireSearch = useCallback(() => {
+    setIsRepertoireSearchModalOpen(true);
+  }, []);
+
   const onAddLink = useCallback(() => {
     if (currentChartDisplayUrl && pdfDocument) setIsLinkEditorOpen(true);
   }, [currentChartDisplayUrl, pdfDocument]);
