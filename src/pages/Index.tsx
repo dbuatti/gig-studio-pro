@@ -238,6 +238,7 @@ const Index = () => {
         target_key_updated_at: d.target_key_updated_at,
         pdf_updated_at: d.pdf_updated_at,
         energy_level: d.energy_level as EnergyZone,
+        comfort_level: d.comfort_level ?? 0,
       }));
       
       setMasterRepertoire(mappedRepertoire);
@@ -329,6 +330,11 @@ const Index = () => {
         name: song.name,
         artist: song.artist
       }]);
+      
+      if (updates.comfort_level !== undefined) {
+        showSuccess(`Mastery updated for "${song.name}"`);
+      }
+      
       await fetchSetlistsAndRepertoire();
     } catch (err: any) {
       showError(`Update failed: ${err.message}`);

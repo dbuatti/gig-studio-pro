@@ -62,8 +62,12 @@ CORE ARCHITECTURAL PRINCIPLES:
    - Avoid "Energy Whiplash" (jumping more than 2 levels at once).
    - Group by Genre/Vibe where it makes musical sense.
 
-2. PERFORMANCE READINESS:
-   - Prioritize songs with higher Readiness scores (0-100) for critical slots.
+2. PERFORMANCE READINESS (CONFIDENCE):
+   - The "Readiness" score (0-100%) represents the performer's confidence level.
+   - 100% means they are fully prepared and confident to sing it.
+   - 0% means they are not ready to perform it.
+   - If the user asks for "high readiness", "confidence", or "ready to sing", prioritize songs with higher scores.
+   - NEVER put a low readiness song in a "Peak" or "Climax" slot unless specifically asked.
 
 SONG DATA:
 ${songs.map((s) => `ID: ${s.id} | ${s.name} - ${s.artist} | BPM: ${s.bpm || '?'} | Energy: ${s.energy_level || 'Unknown'} | Readiness: ${s.readiness || 0}%`).join('\n')}
