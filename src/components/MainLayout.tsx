@@ -14,7 +14,6 @@ import SongStudio from "@/pages/SongStudio";
 import GigEntry from "@/pages/GigEntry";
 import PublicGigView from "@/pages/PublicGigView";
 import DebugPage from "@/pages/DebugPage"; // Import DebugPage
-import { pdfjs } from 'react-pdf'; // Import pdfjs
 
 const RENDER_WORKER_URL = "https://yt-audio-api-1-wedr.onrender.com";
 
@@ -58,7 +57,6 @@ const MainLayout = () => {
   return (
     <>
       <KeepAliveWorker />
-      {/* BrowserRouter is now correctly placed at the top level in main.tsx */}
       <Routes>
         <Route path="/" element={<RootRoute />} />
         <Route path="/login" element={<Login />} />
