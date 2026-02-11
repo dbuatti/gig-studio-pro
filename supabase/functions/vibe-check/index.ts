@@ -1,4 +1,3 @@
-// @ts-ignore: Deno runtime import
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 
 const corsHeaders = {
@@ -12,85 +11,58 @@ serve(async (req) => {
   }
 
   try {
-    const { title, artist, bpm, genre, userTags } = await req.json();
-    
-    const keys = [
-      (globalThis as any).Deno.env.get('GEMINI_API_KEY'),
-      (globalThis as any).Deno.env.get('GEMINI_API_KEY_2'),
-      (globalThis as any).Deno.env.get('GEMINI_API_KEY_3')
-    ].filter(Boolean);
+    const { title, artist, bpm, genre, userTags } = await req.json()
 
-    if (keys.length === 0) {
-      console.error("[vibe-check] Missing API Key configuration.");
-      throw new Error("Missing API Key configuration.");
-    }
+    const apiKey = Deno.env.get('GEMINI_API_KEY')
+    if (!apiKey) throw new Error('Missing Gemini API Key')
 
-    const prompt = `Act as a professional music curator and setlist sequencing expert. Your task is to assign a single 'Energy Zone' to the song based on its BPM, genre, and cultural impact.
+    console.log(`[vibe-check] Analyzing: ${title} by ${artist} (BPM: ${bpm})`);
 
-CRITICAL INSTRUCTIONS:
-1. Analyze the song: "${title}" by ${artist}.
-2. Consider its BPM (${bpm}), Genre (${genre}), and User Tags (${userTags.join(', ')}).
-3. Assign one of the following four Energy Zones: 'Ambient', 'Pulse', 'Groove', or 'Peak'.
-4. Use the following criteria:
-   - Ambient: Background/Dinner music. Typically < 80 BPM, Acoustic/Ballad.
-   - Pulse: Foot-tappers, mid-tempo swaying. Typically 80–110 BPM, Soft Rock/Jazz.
-   - Groove: Filling the floor, sing-alongs. Typically 110–128 BPM, Disco/Pop.
-   - Peak: High-octane finishers, "The Riot." Typically 128+ BPM or high cultural energy anthems (e.g., 'Mr. Brightside').
-5. Return ONLY a JSON object: {"energy_level": "Zone"}. Do not include any other text or markdown.
+    const prompt = `Analyze the musical energy of this song for a live performance setlist:
+    Song: "${title}" by "${artist}"
+    BPM: ${bpm || 'Unknown'}
+    Genre: ${genre || 'Unknown'}
+    Tags: ${userTags?.join(', ') || 'None'}
 
-Example Output: {"energy_level": "Groove"}`;
+    Categorize it into exactly one of these Energy Zones:
+    - Peak: High-energy anthems, dance floor fillers, maximum intensity.
+    - Groove: Mid-to-high energy, rhythmic, danceable but not "peak".
+    - Pulse: Low-to-mid energy, steady rhythm, good for background or building.
+    - Ambient: Low energy, atmospheric, ballads, dinner music.
 
-    let lastError = null;
+    Return ONLY a JSON object:
+    {
+      "energy_level": "Peak" | "Groove" | "Pulse" | "Ambient",
+      "reasoning": "Brief explanation of why"
+    }`;
 
-    for (const apiKey of keys) {
-      try {
-        const endpoint = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`;
-        
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }]
-          })
-        });
-
-        const result = await response.json();
-        
-        if (response.status === 429 || response.status >= 500) {
-          lastError = result.error?.message || response.statusText;
-          console.warn(`[vibe-check] Gemini API rate limit or server error (Status: ${response.status}): ${lastError}`);
-          continue;
-        }
-
-        if (!response.ok) {
-          lastError = result.error?.message || `Gemini API returned non-OK status: ${response.status}`;
-          throw new Error(lastError);
-        }
-
-        const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!text) throw new Error("AI returned empty response.");
-
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) throw new Error("Invalid format from AI.");
-        
-        return new Response(jsonMatch[0], {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-
-      } catch (err: any) {
-        lastError = err.message;
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.1 }
+        }),
       }
-    }
+    );
 
-    return new Response(JSON.stringify({ error: `Engine exhausted all keys. Final error: ${lastError}` }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    const result = await response.json();
+    let text = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    
+    const analysis = JSON.parse(text);
+
+    return new Response(JSON.stringify(analysis), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
 
   } catch (error: any) {
+    console.error("[vibe-check] Error:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
   }
 })

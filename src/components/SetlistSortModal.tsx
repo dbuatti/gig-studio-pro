@@ -15,7 +15,6 @@ import { Input } from './ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess, showInfo } from '@/utils/toast';
 import { Progress } from './ui/progress';
-import { calculateReadiness } from '@/utils/repertoireSync';
 
 interface SetlistSortModalProps {
   isOpen: boolean;
@@ -75,18 +74,27 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
   }, [songs]);
 
   const handleFallbackSort = (instruction: string) => {
-    showInfo("AI is busy. Applying smart local sequence...");
+    showInfo("Applying smart local sequence...");
     let sorted = [...localSongs];
     const lowerInstr = instruction.toLowerCase();
 
-    if (lowerInstr.includes('energy') || lowerInstr.includes('dance') || lowerInstr.includes('ramp')) {
-      const energyMap = { 'Peak': 4, 'Groove': 3, 'Pulse': 2, 'Ambient': 1, 'Unknown': 0 };
-      sorted.sort((a, b) => (energyMap[a.energy_level || 'Unknown'] || 0) - (energyMap[b.energy_level || 'Unknown'] || 0));
+    // Smarter heuristic mapping
+    const energyMap = { 'Peak': 4, 'Groove': 3, 'Pulse': 2, 'Ambient': 1, 'Unknown': 0 };
+    
+    const getScore = (s: SetlistSong) => {
+      let score = (energyMap[s.energy_level || 'Unknown'] || 0) * 100;
+      score += parseInt(s.bpm || '0') / 10; // BPM as a tie-breaker
+      return score;
+    };
+
+    if (lowerInstr.includes('energy') || lowerInstr.includes('ramp') || lowerInstr.includes('dance')) {
+      sorted.sort((a, b) => getScore(a) - getScore(b));
       if (lowerInstr.includes('high') && !lowerInstr.includes('ramp')) sorted.reverse();
-    } else if (lowerInstr.includes('readiness') || lowerInstr.includes('ready')) {
-      sorted.sort((a, b) => calculateReadiness(b) - calculateReadiness(a));
     } else if (lowerInstr.includes('bpm')) {
       sorted.sort((a, b) => parseInt(a.bpm || '0') - parseInt(b.bpm || '0'));
+    } else {
+      // Default to energy build
+      sorted.sort((a, b) => getScore(a) - getScore(b));
     }
 
     setLocalSongs(sorted);
@@ -101,8 +109,8 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
     }
 
     setIsAiSorting(true);
-    setSortingProgress(10);
-    setSortingStatus('Connecting to AI...');
+    setSortingProgress(20);
+    setSortingStatus('Consulting Gemini 2.0 Flash...');
 
     try {
       const { data, error } = await supabase.functions.invoke('ai-setlist-sorter', {
@@ -115,19 +123,16 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
         }
       });
 
-      if (error) {
-        if (error.status === 429 || error.message?.includes('429')) {
-          handleFallbackSort(finalInstruction);
-          return;
-        }
-        throw error;
-      }
+      if (error) throw error;
 
       if (data?.orderedIds) {
         const newOrder = data.orderedIds
           .map((id: string) => localSongs.find(s => s.id === id))
           .filter(Boolean) as SetlistSong[];
-        setLocalSongs(newOrder);
+        
+        // Ensure no songs were lost
+        const missing = localSongs.filter(s => !data.orderedIds.includes(s.id));
+        setLocalSongs([...newOrder, ...missing]);
         showSuccess(`AI sequence applied!`);
         setAiInstruction('');
       }

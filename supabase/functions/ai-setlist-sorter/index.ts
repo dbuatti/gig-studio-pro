@@ -13,7 +13,7 @@ interface Song {
   duration_seconds?: number;
 }
 
-// Updated model list with Gemini 2.0 Flash as the primary engine
+// Prioritizing Gemini 2.0 Flash as requested
 const MODELS = [
   'gemini-2.0-flash',
   'gemini-2.0-flash-lite-preview-02-05',
@@ -28,42 +28,27 @@ Deno.serve(async (req) => {
   try {
     const { songs, instruction } = await req.json() as { songs: Song[], instruction: string };
 
-    if (!songs || !instruction) {
-      return new Response(
-        JSON.stringify({ error: 'Missing songs or instruction' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
     const keys = [
       Deno.env.get('GEMINI_API_KEY'),
       Deno.env.get('GEMINI_API_KEY_2'),
       Deno.env.get('GEMINI_API_KEY_3')
     ].filter(Boolean);
 
-    if (keys.length === 0) {
-      return new Response(
-        JSON.stringify({ error: 'No API keys configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
+    if (keys.length === 0) throw new Error('No API keys configured');
 
-    console.log(`[ai-setlist-sorter] Sorting ${songs.length} songs. Instruction: "${instruction}"`);
+    const prompt = `You are a world-class Musical Director. Reorder these ${songs.length} songs based on: "${instruction}"
 
-    const prompt = `You are a professional musical director and DJ. Reorder these ${songs.length} songs based on the following instruction: "${instruction}"
+STRATEGY:
+1. Energy Flow: Ensure transitions between Energy Zones (Peak, Groove, Pulse, Ambient) are logical.
+2. Harmonic/Tempo Flow: Use BPM and Genre to avoid jarring jumps.
+3. Set Structure: If the instruction implies a specific event (like a Wedding), follow professional set-building standards.
 
-CONTEXT:
-- Energy Levels: Peak (Highest), Groove (High-Mid), Pulse (Low-Mid), Ambient (Lowest).
-- Use BPM and Genre to ensure smooth transitions.
-- Aim for a logical flow that keeps the audience engaged.
-
-SONGS TO SORT:
+SONGS:
 ${songs.map((s) => `ID: ${s.id} | ${s.name} - ${s.artist} | BPM: ${s.bpm || '?'} | Energy: ${s.energy_level || 'Unknown'} | Genre: ${s.genre || 'Unknown'}`).join('\n')}
 
-OUTPUT INSTRUCTIONS:
-- Return ONLY a valid JSON array of IDs in the new order.
-- Do not include any markdown formatting or extra text.
-- Example: ["id1", "id2", "id3"]`;
+OUTPUT:
+Return ONLY a JSON array of IDs in the new order. No text, no markdown.
+Example: ["id1", "id2", "id3"]`;
 
     let lastError = null;
 
@@ -77,62 +62,37 @@ OUTPUT INSTRUCTIONS:
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: { 
-                  temperature: 0.2,
-                  topP: 0.8,
-                  topK: 40
-                }
+                generationConfig: { temperature: 0.2 }
               }),
             }
           );
 
           const result = await response.json();
-          
-          if (response.status === 429) {
-            lastError = `Rate limit (429) on ${model}`;
-            continue;
-          }
-
-          if (!response.ok) {
-            lastError = result.error?.message || `API error: ${response.status}`;
-            continue;
-          }
+          if (!response.ok) continue;
 
           let text = result.candidates?.[0]?.content?.parts?.[0]?.text;
           if (!text) continue;
 
-          // Clean the response to ensure it's just the JSON array
           text = text.replace(/```json/g, '').replace(/```/g, '').trim();
           const match = text.match(/\[[\s\S]*?\]/);
           const orderedIds = JSON.parse(match ? match[0] : text);
 
-          if (!Array.isArray(orderedIds)) throw new Error("Invalid AI response format");
-
-          const originalIds = songs.map(s => s.id);
-          const validOrderedIds = orderedIds.filter((id: string) => originalIds.includes(id));
-          const missingIds = originalIds.filter(id => !validOrderedIds.includes(id));
-          
           return new Response(
-            JSON.stringify({ orderedIds: [...new Set([...validOrderedIds, ...missingIds])] }),
+            JSON.stringify({ orderedIds }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
-
         } catch (err: any) {
           lastError = err.message;
-          console.error(`[ai-setlist-sorter] Error with ${model}:`, err);
         }
       }
     }
 
-    return new Response(
-      JSON.stringify({ error: `Sorting failed. ${lastError}` }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    throw new Error(lastError || 'Sorting failed');
 
   } catch (error: any) {
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
   }
 });
