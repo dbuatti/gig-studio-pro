@@ -50,16 +50,18 @@ serve(async (req) => {
 
     // Ultra-optimized prompt for speed and strictness
     const prompt = `You are a professional music setlist curator. 
-Reorder the following ${songs.length} songs based on this instruction: "${instruction}"
+Your ONLY task is to REORDER the provided list of ${songs.length} songs based on this instruction: "${instruction}"
 
-SONGS DATA:
+SONGS DATA (ONLY REORDER THESE):
 ${songs.map((s, i) => `ID: ${s.id} | Title: ${s.name} | Artist: ${s.artist} | BPM: ${s.bpm || 'Unknown'} | Energy: ${s.energy_level || 'Unknown'}`).join('\n')}
 
-CRITICAL INSTRUCTIONS:
-1. Return ONLY a valid JSON array of the song IDs in the new order.
-2. Do NOT include any explanations, introductory text, or concluding remarks.
-3. Include EVERY song ID provided in the input.
-4. The output must be a single JSON array of strings.
+CRITICAL CONSTRAINTS:
+1. DO NOT add any new songs.
+2. DO NOT suggest songs that are not in the list above.
+3. DO NOT remove any songs from the list.
+4. Return ONLY a valid JSON array of the song IDs in the new order.
+5. Do NOT include any explanations, introductory text, or concluding remarks.
+6. Include EVERY song ID provided in the input exactly once.
 
 Example Output:
 ["id-123", "id-456", "id-789"]`;
@@ -80,7 +82,7 @@ Example Output:
             body: JSON.stringify({
               contents: [{ parts: [{ text: prompt }] }],
               generationConfig: {
-                temperature: 0.2, // Lower temperature for more consistent formatting
+                temperature: 0.1, // Even lower temperature for maximum strictness
                 maxOutputTokens: 8192,
               }
             }),
