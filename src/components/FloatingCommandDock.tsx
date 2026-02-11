@@ -132,7 +132,15 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
 
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || (e.target as HTMLElement).isContentEditable) return;
+      // Ignore if typing in an input or if a modifier key (Cmd/Ctrl) is pressed
+      if (
+        e.target instanceof HTMLInputElement || 
+        e.target instanceof HTMLTextAreaElement || 
+        (e.target as HTMLElement).isContentEditable ||
+        e.metaKey || 
+        e.ctrlKey
+      ) return;
+
       if (e.key.toLowerCase() === 'p') {
         e.preventDefault();
         onOpenPerformance();
