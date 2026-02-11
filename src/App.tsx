@@ -1,3 +1,5 @@
+"use client";
+
 import { AudioContextInitializer } from "@/components/AudioContextInitializer";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -30,6 +32,7 @@ const App = () => {
         <TooltipProvider>
           <Toaster />
           <Sonner position="top-center" />
+          {/* BrowserRouter is now correctly placed at the top level */}
           <BrowserRouter>
             <AudioContextInitializer>
               <MainLayout />
