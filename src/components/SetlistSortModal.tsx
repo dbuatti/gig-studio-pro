@@ -3,7 +3,10 @@
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ListMusic, GripVertical, Check, X, Sparkles, Loader2, Zap, Heart, Music, TrendingUp, AlertCircle } from 'lucide-react';
+import { 
+  ListMusic, GripVertical, Check, X, Sparkles, Loader2, Zap, Heart, 
+  Music, TrendingUp, ChevronDown, ChevronUp, LayoutGrid 
+} from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import { SetlistSong } from './SetlistManager';
 import { cn } from '@/lib/utils';
@@ -65,6 +68,7 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
   const [isAiSorting, setIsAiSorting] = useState(false);
   const [sortingProgress, setSortingProgress] = useState(0);
   const [sortingStatus, setSortingStatus] = useState('');
+  const [showPresets, setShowPresets] = useState(true);
 
   React.useEffect(() => {
     setLocalSongs(songs);
@@ -172,28 +176,41 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
           </DialogHeader>
 
           <div className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {SORTING_PRESETS.map(preset => (
-                <button
-                  key={preset.id}
-                  onClick={() => handleAiSort(preset.instruction)}
-                  disabled={isAiSorting}
-                  className={cn(
-                    "group flex flex-col items-start text-left p-4 rounded-[1.5rem] border transition-all duration-300",
-                    preset.color,
-                    "hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
-                  )}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="p-1.5 rounded-lg bg-white/10 group-hover:bg-white/20">
-                      <preset.icon className="w-4 h-4" />
-                    </div>
-                    <span className="text-[11px] font-black uppercase tracking-tight">{preset.label}</span>
-                  </div>
-                  <p className="text-[10px] font-medium leading-relaxed opacity-80">{preset.instruction}</p>
-                </button>
-              ))}
+            <div className="flex items-center justify-between">
+              <button 
+                onClick={() => setShowPresets(!showPresets)}
+                className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-indigo-400 hover:text-indigo-300 transition-colors"
+              >
+                <LayoutGrid className="w-3 h-3" />
+                {showPresets ? "Hide Presets" : "Show Presets"}
+                {showPresets ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              </button>
             </div>
+
+            {showPresets && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                {SORTING_PRESETS.map(preset => (
+                  <button
+                    key={preset.id}
+                    onClick={() => handleAiSort(preset.instruction)}
+                    disabled={isAiSorting}
+                    className={cn(
+                      "group flex flex-col items-start text-left p-4 rounded-[1.5rem] border transition-all duration-300",
+                      preset.color,
+                      "hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+                    )}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="p-1.5 rounded-lg bg-white/10 group-hover:bg-white/20">
+                        <preset.icon className="w-4 h-4" />
+                      </div>
+                      <span className="text-[11px] font-black uppercase tracking-tight">{preset.label}</span>
+                    </div>
+                    <p className="text-[10px] font-medium leading-relaxed opacity-80">{preset.instruction}</p>
+                  </button>
+                ))}
+              </div>
+            )}
 
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
@@ -202,7 +219,7 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
                   placeholder="Describe your ideal flow (e.g., 'High energy, high readiness')"
                   value={aiInstruction}
                   onChange={(e) => setAiInstruction(e.target.value)}
-                  className="pl-12 bg-white/5 border-white/10 text-white rounded-2xl h-14 text-sm font-medium"
+                  className="pl-12 bg-white/5 border-white/10 text-white rounded-2xl h-14 text-sm font-medium focus:ring-indigo-500/50"
                   onKeyDown={(e) => e.key === 'Enter' && handleAiSort()}
                   disabled={isAiSorting}
                 />
@@ -210,7 +227,7 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
               <Button
                 onClick={() => handleAiSort()}
                 disabled={isAiSorting || !aiInstruction.trim()}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase tracking-[0.2em] text-[11px] h-14 px-8 rounded-2xl shadow-xl"
+                className="bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase tracking-[0.2em] text-[11px] h-14 px-8 rounded-2xl shadow-xl transition-all active:scale-95"
               >
                 {isAiSorting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Run AI Sort"}
               </Button>
@@ -249,11 +266,15 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
                               {...provided.draggableProps}
                               {...provided.dragHandleProps}
                               className={cn(
-                                "p-4 bg-card border border-border rounded-2xl flex items-center gap-4 shadow-sm transition-all",
-                                snapshot.isDragging && "ring-2 ring-indigo-500 bg-indigo-500/5 shadow-2xl scale-[1.02] z-50"
+                                "p-4 bg-card border border-border rounded-2xl flex items-center gap-4 shadow-sm transition-all duration-200",
+                                "hover:border-indigo-500/30 hover:bg-indigo-500/[0.02]",
+                                snapshot.isDragging && "ring-2 ring-indigo-500 bg-indigo-500/10 shadow-2xl scale-[1.02] z-50 border-indigo-500"
                               )}
                             >
-                              <GripVertical className="w-4 h-4 text-muted-foreground/50 shrink-0" />
+                              <GripVertical className={cn(
+                                "w-4 h-4 shrink-0 transition-colors",
+                                snapshot.isDragging ? "text-indigo-500" : "text-muted-foreground/50"
+                              )} />
                               <span className="text-[11px] font-mono font-black text-indigo-500/50 w-6">{(index + 1).toString().padStart(2, '0')}</span>
                               <div className="flex-1 min-w-0">
                                 <h4 className="text-sm font-black uppercase tracking-tight truncate text-foreground">{song.name}</h4>
@@ -288,7 +309,7 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
           <Button
             onClick={() => { onReorder(localSongs); onClose(); }}
             disabled={!hasChanges || isAiSorting}
-            className="flex-[2] bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase tracking-[0.25em] text-[11px] h-14 rounded-2xl shadow-2xl shadow-indigo-500/30 gap-3"
+            className="flex-[2] bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase tracking-[0.25em] text-[11px] h-14 rounded-2xl shadow-2xl shadow-indigo-500/30 gap-3 transition-all active:scale-95"
           >
             <Check className="w-5 h-5" /> Apply Sequence
           </Button>

@@ -13,11 +13,11 @@ interface Song {
   duration_seconds?: number;
 }
 
-// List of models to try in order of preference
+// Updated model list with Gemini 2.0 Flash as the primary engine
 const MODELS = [
   'gemini-2.0-flash',
-  'gemini-1.5-flash',
-  'gemini-1.5-flash-8b'
+  'gemini-2.0-flash-lite-preview-02-05',
+  'gemini-1.5-flash'
 ];
 
 Deno.serve(async (req) => {
@@ -50,19 +50,24 @@ Deno.serve(async (req) => {
 
     console.log(`[ai-setlist-sorter] Sorting ${songs.length} songs. Instruction: "${instruction}"`);
 
-    const prompt = `Reorder these ${songs.length} songs based on: "${instruction}"
+    const prompt = `You are a professional musical director and DJ. Reorder these ${songs.length} songs based on the following instruction: "${instruction}"
 
-SONGS:
-${songs.map((s) => `ID: ${s.id} | ${s.name} - ${s.artist} | BPM: ${s.bpm || '?'} | Energy: ${s.energy_level || '?'}`).join('\n')}
+CONTEXT:
+- Energy Levels: Peak (Highest), Groove (High-Mid), Pulse (Low-Mid), Ambient (Lowest).
+- Use BPM and Genre to ensure smooth transitions.
+- Aim for a logical flow that keeps the audience engaged.
 
-Return ONLY a JSON array of IDs. No text.
-Example: ["id1", "id2"]`;
+SONGS TO SORT:
+${songs.map((s) => `ID: ${s.id} | ${s.name} - ${s.artist} | BPM: ${s.bpm || '?'} | Energy: ${s.energy_level || 'Unknown'} | Genre: ${s.genre || 'Unknown'}`).join('\n')}
+
+OUTPUT INSTRUCTIONS:
+- Return ONLY a valid JSON array of IDs in the new order.
+- Do not include any markdown formatting or extra text.
+- Example: ["id1", "id2", "id3"]`;
 
     let lastError = null;
 
-    // Try each key
     for (const apiKey of keys) {
-      // For each key, try different models if one fails with 429
       for (const model of MODELS) {
         try {
           const response = await fetch(
@@ -72,7 +77,11 @@ Example: ["id1", "id2"]`;
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: { temperature: 0.1 }
+                generationConfig: { 
+                  temperature: 0.2,
+                  topP: 0.8,
+                  topK: 40
+                }
               }),
             }
           );
@@ -81,8 +90,7 @@ Example: ["id1", "id2"]`;
           
           if (response.status === 429) {
             lastError = `Rate limit (429) on ${model}`;
-            console.warn(`[ai-setlist-sorter] ${lastError}. Trying next...`);
-            continue; // Try next model or next key
+            continue;
           }
 
           if (!response.ok) {
@@ -93,9 +101,12 @@ Example: ["id1", "id2"]`;
           let text = result.candidates?.[0]?.content?.parts?.[0]?.text;
           if (!text) continue;
 
+          // Clean the response to ensure it's just the JSON array
           text = text.replace(/```json/g, '').replace(/```/g, '').trim();
           const match = text.match(/\[[\s\S]*?\]/);
           const orderedIds = JSON.parse(match ? match[0] : text);
+
+          if (!Array.isArray(orderedIds)) throw new Error("Invalid AI response format");
 
           const originalIds = songs.map(s => s.id);
           const validOrderedIds = orderedIds.filter((id: string) => originalIds.includes(id));
@@ -108,13 +119,14 @@ Example: ["id1", "id2"]`;
 
         } catch (err: any) {
           lastError = err.message;
+          console.error(`[ai-setlist-sorter] Error with ${model}:`, err);
         }
       }
     }
 
     return new Response(
-      JSON.stringify({ error: `Quota exceeded. ${lastError}. Please try again in a minute.` }),
-      { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ error: `Sorting failed. ${lastError}` }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error: any) {
