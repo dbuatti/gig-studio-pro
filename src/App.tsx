@@ -32,12 +32,10 @@ const App = () => {
         <TooltipProvider>
           <Toaster />
           <Sonner position="top-center" />
-          {/* BrowserRouter is now correctly placed at the top level */}
-          <BrowserRouter>
-            <AudioContextInitializer>
-              <MainLayout />
-            </AudioContextInitializer>
-          </BrowserRouter>
+          {/* BrowserRouter is now correctly placed at the top level in main.tsx */}
+          <AudioContextInitializer>
+            <MainLayout />
+          </AudioContextInitializer>
         </TooltipProvider>
       </AuthProvider>
     </QueryClientProvider>

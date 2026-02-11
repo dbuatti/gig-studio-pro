@@ -58,7 +58,7 @@ const MainLayout = () => {
   return (
     <>
       <KeepAliveWorker />
-      {/* BrowserRouter is now removed from here as it's in App.tsx */}
+      {/* BrowserRouter is now correctly placed at the top level in main.tsx */}
       <Routes>
         <Route path="/" element={<RootRoute />} />
         <Route path="/login" element={<Login />} />
