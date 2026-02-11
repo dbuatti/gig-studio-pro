@@ -16,7 +16,6 @@ interface Song {
   readiness?: number;
 }
 
-// Expanded model list with version preferences
 const MODEL_CONFIGS = [
   { name: 'gemini-2.0-flash', versions: ['v1beta', 'v1'] },
   { name: 'gemini-1.5-flash', versions: ['v1', 'v1beta'] },
@@ -35,7 +34,7 @@ serve(async (req) => {
     const body = await req.json();
     const { songs, instruction } = body as { songs: Song[], instruction: string };
 
-    console.log("[ai-setlist-sorter] Received request", { 
+    console.log("[ai-setlist-sorter] Incoming Request", { 
       songCount: songs?.length, 
       instruction 
     });
@@ -51,10 +50,10 @@ serve(async (req) => {
     ].filter(Boolean);
 
     if (keys.length === 0) {
-      throw new Error('No API keys configured. Please set GEMINI_API_KEY in Supabase secrets.');
+      throw new Error('No API keys configured.');
     }
 
-    const prompt = `You are a world-class Musical Director. Reorder these ${songs.length} songs based on: "${instruction}"
+    const prompt = `You are a world-class Musical Director. Process these ${songs.length} songs based on this instruction: "${instruction}"
 
 CORE ARCHITECTURAL PRINCIPLES:
 1. ENERGY FLOW: 
@@ -64,17 +63,22 @@ CORE ARCHITECTURAL PRINCIPLES:
 
 2. PERFORMANCE READINESS (CONFIDENCE):
    - The "Readiness" score (0-100%) represents the performer's confidence level.
-   - 100% means they are fully prepared and confident to sing it.
-   - 0% means they are not ready to perform it.
-   - If the user asks for "high readiness", "confidence", or "ready to sing", prioritize songs with higher scores.
-   - NEVER put a low readiness song in a "Peak" or "Climax" slot unless specifically asked.
+   - 100% means they are fully prepared.
+   - IMPORTANT: If the instruction says "Only use...", "Exclude...", or implies a filter based on readiness, you MUST omit songs that do not meet the criteria.
+
+3. FILTERING LOGIC:
+   - If the user asks for "100% ready", EXCLUDE any song with readiness < 100.
+   - If the user asks for "high readiness", EXCLUDE any song with readiness < 80.
 
 SONG DATA:
 ${songs.map((s) => `ID: ${s.id} | ${s.name} - ${s.artist} | BPM: ${s.bpm || '?'} | Energy: ${s.energy_level || 'Unknown'} | Readiness: ${s.readiness || 0}%`).join('\n')}
 
 OUTPUT REQUIREMENTS:
-- Return ONLY a JSON array of IDs in the new order.
+- Return ONLY a JSON array of IDs in the final sequence.
+- If songs are filtered out, the array will be shorter than the input.
 - Example: ["id1", "id2", "id3"]`;
+
+    console.log("[ai-setlist-sorter] Full Prompt Generated:", prompt);
 
     let lastError = null;
     let quotaExceeded = false;
@@ -83,7 +87,7 @@ OUTPUT REQUIREMENTS:
       for (const config of MODEL_CONFIGS) {
         for (const version of config.versions) {
           try {
-            console.log(`[ai-setlist-sorter] Attempting: ${config.name} (${version})`);
+            console.log(`[ai-setlist-sorter] Attempting Model: ${config.name} (${version})`);
             
             const response = await fetch(
               `https://generativelanguage.googleapis.com/${version}/models/${config.name}:generateContent?key=${apiKey}`,
@@ -103,19 +107,15 @@ OUTPUT REQUIREMENTS:
             const result = await response.json();
             
             if (!response.ok) {
-              if (response.status === 429) {
-                quotaExceeded = true;
-                console.warn(`[ai-setlist-sorter] Quota exceeded for ${config.name}`);
-              } else if (response.status === 404) {
-                console.warn(`[ai-setlist-sorter] Model ${config.name} not found on ${version}`);
-              } else {
-                console.error(`[ai-setlist-sorter] Error ${response.status}:`, result.error?.message);
-              }
+              console.error(`[ai-setlist-sorter] API Error ${response.status}:`, result.error?.message);
               lastError = result.error?.message || `HTTP ${response.status}`;
+              if (response.status === 429) quotaExceeded = true;
               continue;
             }
 
             const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+            console.log("[ai-setlist-sorter] Raw AI Response:", text);
+
             if (!text) continue;
 
             const match = text.match(/\[[\s\S]*?\]/);
@@ -123,22 +123,22 @@ OUTPUT REQUIREMENTS:
             const orderedIds = JSON.parse(jsonStr);
             
             if (Array.isArray(orderedIds)) {
-              console.log("[ai-setlist-sorter] Success!", { count: orderedIds.length });
+              console.log("[ai-setlist-sorter] Success! Final ID count:", orderedIds.length);
               return new Response(
                 JSON.stringify({ orderedIds }),
                 { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
               );
             }
           } catch (err) {
+            console.error("[ai-setlist-sorter] Attempt failed:", err.message);
             lastError = err.message;
-            // Small delay before next attempt to avoid hitting rate limits too fast
             await new Promise(r => setTimeout(r, 100));
           }
         }
       }
     }
 
-    throw new Error(quotaExceeded ? "AI Quota exceeded. Please try again in a few minutes." : (lastError || "All models failed."));
+    throw new Error(quotaExceeded ? "AI Quota exceeded." : (lastError || "All models failed."));
 
   } catch (error: any) {
     console.error("[ai-setlist-sorter] Critical error:", error.message);
