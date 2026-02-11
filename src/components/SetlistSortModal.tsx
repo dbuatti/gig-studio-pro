@@ -3,15 +3,16 @@
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ListMusic, GripVertical, Check, X, Sparkles, Loader2, Zap, Heart, Music, TrendingUp } from 'lucide-react';
+import { ListMusic, GripVertical, Check, X, Sparkles, Loader2, Zap, Heart, Music, TrendingUp, AlertCircle } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import { SetlistSong } from './SetlistManager';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from './ui/scroll-area';
 import { Input } from './ui/input';
 import { supabase } from '@/integrations/supabase/client';
-import { showError, showSuccess } from '@/utils/toast';
+import { showError, showSuccess, showInfo } from '@/utils/toast';
 import { Progress } from './ui/progress';
+import { calculateReadiness } from '@/utils/repertoireSync';
 
 interface SetlistSortModalProps {
   isOpen: boolean;
@@ -69,79 +70,79 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
     setLocalSongs(songs);
   }, [songs]);
 
+  const handleFallbackSort = (instruction: string) => {
+    showInfo("AI is busy. Applying smart local sequence...");
+    let sorted = [...localSongs];
+    const lowerInstr = instruction.toLowerCase();
+
+    if (lowerInstr.includes('energy') || lowerInstr.includes('dance') || lowerInstr.includes('ramp')) {
+      const energyMap = { 'Peak': 4, 'Groove': 3, 'Pulse': 2, 'Ambient': 1, 'Unknown': 0 };
+      sorted.sort((a, b) => (energyMap[a.energy_level || 'Unknown'] || 0) - (energyMap[b.energy_level || 'Unknown'] || 0));
+      if (lowerInstr.includes('high') && !lowerInstr.includes('ramp')) sorted.reverse();
+    } else if (lowerInstr.includes('readiness') || lowerInstr.includes('ready')) {
+      sorted.sort((a, b) => calculateReadiness(b) - calculateReadiness(a));
+    } else if (lowerInstr.includes('bpm')) {
+      sorted.sort((a, b) => parseInt(a.bpm || '0') - parseInt(b.bpm || '0'));
+    }
+
+    setLocalSongs(sorted);
+    showSuccess("Local sequence applied!");
+  };
+
   const handleAiSort = async (instruction?: string) => {
     const finalInstruction = instruction || aiInstruction;
-    
     if (!finalInstruction.trim()) {
-      showError("Please enter an instruction or select a preset");
+      showError("Please enter an instruction");
       return;
     }
 
     setIsAiSorting(true);
     setSortingProgress(10);
-    setSortingStatus('Analyzing your setlist...');
+    setSortingStatus('Connecting to AI...');
 
     try {
-      setSortingProgress(30);
-      setSortingStatus(`Processing ${localSongs.length} songs...`);
-
       const { data, error } = await supabase.functions.invoke('ai-setlist-sorter', {
         body: {
           songs: localSongs.map(s => ({
-            id: s.id,
-            name: s.name,
-            artist: s.artist,
-            bpm: s.bpm,
-            genre: s.genre,
-            energy_level: s.energy_level,
-            duration_seconds: s.duration_seconds
+            id: s.id, name: s.name, artist: s.artist, bpm: s.bpm,
+            genre: s.genre, energy_level: s.energy_level, duration_seconds: s.duration_seconds
           })),
           instruction: finalInstruction
         }
       });
 
-      setSortingProgress(70);
-      setSortingStatus('Applying AI recommendations...');
-
-      if (error) throw error;
+      if (error) {
+        if (error.status === 429 || error.message?.includes('429')) {
+          handleFallbackSort(finalInstruction);
+          return;
+        }
+        throw error;
+      }
 
       if (data?.orderedIds) {
         const newOrder = data.orderedIds
           .map((id: string) => localSongs.find(s => s.id === id))
           .filter(Boolean) as SetlistSong[];
-        
-        setSortingProgress(100);
-        setSortingStatus('Complete!');
-        
         setLocalSongs(newOrder);
-        showSuccess(`Setlist reordered!`);
+        showSuccess(`AI sequence applied!`);
         setAiInstruction('');
       }
     } catch (err: any) {
       console.error("AI Sort Error:", err);
-      showError(`AI Sorting failed: ${err.message}`);
+      handleFallbackSort(finalInstruction);
     } finally {
-      setTimeout(() => {
-        setIsAiSorting(false);
-        setSortingProgress(0);
-        setSortingStatus('');
-      }, 1000);
+      setIsAiSorting(false);
+      setSortingProgress(0);
+      setSortingStatus('');
     }
   };
 
   const onDragEnd = (result: DropResult) => {
     if (!result.destination) return;
-
     const newItems = Array.from(localSongs);
     const [reorderedItem] = newItems.splice(result.source.index, 1);
     newItems.splice(result.destination.index, 0, reorderedItem);
-
     setLocalSongs(newItems);
-  };
-
-  const handleSave = () => {
-    onReorder(localSongs);
-    onClose();
   };
 
   const hasChanges = JSON.stringify(songs.map(s => s.id)) !== JSON.stringify(localSongs.map(s => s.id));
@@ -150,10 +151,7 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-5xl w-[95vw] h-[90vh] bg-popover border-border text-foreground rounded-[2.5rem] p-0 overflow-hidden flex flex-col shadow-2xl">
         <div className="p-8 bg-slate-950 shrink-0 relative border-b border-white/5">
-          <button
-            onClick={onClose}
-            className="absolute top-8 right-8 p-2 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors z-10"
-          >
+          <button onClick={onClose} className="absolute top-8 right-8 p-2 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors z-10">
             <X className="w-5 h-5" />
           </button>
           
@@ -167,14 +165,13 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
                   Smart Sequencing
                 </DialogTitle>
                 <DialogDescription className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mt-1">
-                  Optimizing <span className="text-indigo-400">"{setlistName}"</span> with AI
+                  Optimizing <span className="text-indigo-400">"{setlistName}"</span>
                 </DialogDescription>
               </div>
             </div>
           </DialogHeader>
 
           <div className="space-y-6">
-            {/* Quick Presets Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {SORTING_PRESETS.map(preset => (
                 <button
@@ -184,33 +181,28 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
                   className={cn(
                     "group flex flex-col items-start text-left p-4 rounded-[1.5rem] border transition-all duration-300",
                     preset.color,
-                    "hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
+                    "hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
                   )}
                 >
                   <div className="flex items-center gap-2 mb-2">
-                    <div className="p-1.5 rounded-lg bg-white/10 group-hover:bg-white/20 transition-colors">
+                    <div className="p-1.5 rounded-lg bg-white/10 group-hover:bg-white/20">
                       <preset.icon className="w-4 h-4" />
                     </div>
-                    <span className="text-[11px] font-black uppercase tracking-tight leading-tight">
-                      {preset.label}
-                    </span>
+                    <span className="text-[11px] font-black uppercase tracking-tight">{preset.label}</span>
                   </div>
-                  <p className="text-[10px] font-medium leading-relaxed opacity-80 group-hover:opacity-100 transition-opacity">
-                    {preset.instruction}
-                  </p>
+                  <p className="text-[10px] font-medium leading-relaxed opacity-80">{preset.instruction}</p>
                 </button>
               ))}
             </div>
 
-            {/* Custom Instruction Input */}
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
                 <Sparkles className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-indigo-400" />
                 <Input
-                  placeholder="Describe your ideal flow (e.g., 'Start with 80s pop, end with rock anthems')"
+                  placeholder="Describe your ideal flow (e.g., 'High energy, high readiness')"
                   value={aiInstruction}
                   onChange={(e) => setAiInstruction(e.target.value)}
-                  className="pl-12 bg-white/5 border-white/10 text-white placeholder:text-slate-500 rounded-2xl h-14 text-sm font-medium focus-visible:ring-indigo-500/50 focus-visible:border-indigo-500/50"
+                  className="pl-12 bg-white/5 border-white/10 text-white rounded-2xl h-14 text-sm font-medium"
                   onKeyDown={(e) => e.key === 'Enter' && handleAiSort()}
                   disabled={isAiSorting}
                 />
@@ -218,20 +210,16 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
               <Button
                 onClick={() => handleAiSort()}
                 disabled={isAiSorting || !aiInstruction.trim()}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase tracking-[0.2em] text-[11px] h-14 px-8 rounded-2xl shadow-xl shadow-indigo-500/20 transition-all active:scale-95"
+                className="bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase tracking-[0.2em] text-[11px] h-14 px-8 rounded-2xl shadow-xl"
               >
                 {isAiSorting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Run AI Sort"}
               </Button>
             </div>
 
-            {/* Progress Indicator */}
             {isAiSorting && (
-              <div className="bg-indigo-600/10 border border-indigo-500/20 rounded-2xl p-5 space-y-3 animate-in slide-in-from-top-2 duration-300">
+              <div className="bg-indigo-600/10 border border-indigo-500/20 rounded-2xl p-5 space-y-3">
                 <div className="flex items-center justify-between text-indigo-400 text-[10px] font-black uppercase tracking-widest">
-                  <span className="flex items-center gap-2">
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                    {sortingStatus}
-                  </span>
+                  <span className="flex items-center gap-2"><Loader2 className="w-3 h-3 animate-spin" /> {sortingStatus}</span>
                   <span>{sortingProgress}%</span>
                 </div>
                 <Progress value={sortingProgress} className="h-1.5 bg-indigo-950" />
@@ -241,27 +229,18 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
         </div>
 
         <div className="flex-1 overflow-hidden flex bg-background">
-          {/* Manual Drag & Drop Section */}
           <div className="flex-1 flex flex-col border-r border-border">
             <div className="px-8 py-4 border-b border-border bg-secondary/30 shrink-0 flex items-center justify-between">
               <h3 className="text-[11px] font-black uppercase tracking-[0.15em] text-muted-foreground flex items-center gap-2">
-                <GripVertical className="w-4 h-4" />
-                Manual Sequence ({localSongs.length} tracks)
+                <GripVertical className="w-4 h-4" /> Manual Sequence ({localSongs.length} tracks)
               </h3>
-              <span className="text-[10px] font-bold text-indigo-500 bg-indigo-500/10 px-3 py-1 rounded-full">
-                Drag to fine-tune
-              </span>
             </div>
             
             <ScrollArea className="flex-1 p-6 custom-scrollbar">
               <DragDropContext onDragEnd={onDragEnd}>
                 <Droppable droppableId="setlist-songs">
                   {(provided) => (
-                    <div
-                      {...provided.droppableProps}
-                      ref={provided.innerRef}
-                      className="space-y-2.5"
-                    >
+                    <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2.5">
                       {localSongs.map((song, index) => (
                         <Draggable key={song.id} draggableId={song.id} index={index}>
                           {(provided, snapshot) => (
@@ -270,29 +249,17 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
                               {...provided.draggableProps}
                               {...provided.dragHandleProps}
                               className={cn(
-                                "p-4 bg-card border border-border rounded-2xl flex items-center gap-4 shadow-sm transition-all duration-200",
-                                "hover:border-indigo-500/30 hover:shadow-md",
+                                "p-4 bg-card border border-border rounded-2xl flex items-center gap-4 shadow-sm transition-all",
                                 snapshot.isDragging && "ring-2 ring-indigo-500 bg-indigo-500/5 shadow-2xl scale-[1.02] z-50"
                               )}
                             >
-                              <GripVertical className="w-4 h-4 text-muted-foreground/50 shrink-0 cursor-grab active:cursor-grabbing" />
-                              <span className="text-[11px] font-mono font-black text-indigo-500/50 w-6">
-                                {(index + 1).toString().padStart(2, '0')}
-                              </span>
+                              <GripVertical className="w-4 h-4 text-muted-foreground/50 shrink-0" />
+                              <span className="text-[11px] font-mono font-black text-indigo-500/50 w-6">{(index + 1).toString().padStart(2, '0')}</span>
                               <div className="flex-1 min-w-0">
-                                <h4 className="text-sm font-black uppercase tracking-tight truncate text-foreground leading-tight">
-                                  {song.name}
-                                </h4>
-                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest truncate mt-0.5">
-                                  {song.artist || "Unknown Artist"}
-                                </p>
+                                <h4 className="text-sm font-black uppercase tracking-tight truncate text-foreground">{song.name}</h4>
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest truncate">{song.artist || "Unknown Artist"}</p>
                               </div>
                               <div className="flex items-center gap-3 shrink-0">
-                                {song.bpm && (
-                                  <span className="text-[9px] font-mono font-bold text-muted-foreground bg-secondary px-2 py-1 rounded-lg">
-                                    {song.bpm} BPM
-                                  </span>
-                                )}
                                 {song.energy_level && (
                                   <span className={cn(
                                     "text-[9px] font-black uppercase px-3 py-1 rounded-full",
@@ -300,9 +267,7 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
                                     song.energy_level === 'Groove' && "bg-amber-500/10 text-amber-500 border border-amber-500/20",
                                     song.energy_level === 'Pulse' && "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20",
                                     song.energy_level === 'Ambient' && "bg-blue-500/10 text-blue-500 border border-blue-500/20"
-                                  )}>
-                                    {song.energy_level}
-                                  </span>
+                                  )}>{song.energy_level}</span>
                                 )}
                               </div>
                             </div>
@@ -316,70 +281,16 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
               </DragDropContext>
             </ScrollArea>
           </div>
-
-          {/* Info Panel */}
-          <div className="w-80 bg-secondary/20 p-8 space-y-8 overflow-y-auto custom-scrollbar hidden lg:block">
-            <div>
-              <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-indigo-500 mb-6 flex items-center gap-2">
-                <Sparkles className="w-4 h-4" />
-                Curation Tips
-              </h4>
-              <div className="space-y-4">
-                {[
-                  { title: "🎵 Wedding Flow", desc: "Start soft for dinner, build for dancing, end with anthems." },
-                  { title: "⚡ Energy Zones", desc: "Ambient → Pulse → Groove → Peak. Avoid sudden jumps." },
-                  { title: "⏱️ Set Length", desc: "AI prioritizes flow for your target duration." }
-                ].map((tip, i) => (
-                  <div key={i} className="p-4 bg-card rounded-[1.25rem] border border-border shadow-sm">
-                    <p className="text-[11px] font-black uppercase tracking-tight text-foreground mb-1">{tip.title}</p>
-                    <p className="text-[10px] leading-relaxed text-muted-foreground font-medium">
-                      {tip.desc}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="pt-8 border-t border-border">
-              <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-4">
-                Setlist Overview
-              </h4>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase">Total Tracks</span>
-                  <span className="text-xs font-black text-foreground">{localSongs.length}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase">Est. Runtime</span>
-                  <span className="text-xs font-black text-foreground">
-                    {Math.floor(localSongs.reduce((acc, s) => acc + (s.duration_seconds || 0), 0) / 60)}m
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase">Vibe Checked</span>
-                  <span className="text-xs font-black text-indigo-500">
-                    {localSongs.filter(s => s.energy_level).length} / {localSongs.length}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
 
         <DialogFooter className="p-8 border-t border-border bg-secondary/30 flex flex-col sm:flex-row gap-4">
+          <Button variant="ghost" onClick={onClose} className="flex-1 font-black uppercase tracking-widest text-[11px] h-14 rounded-2xl">Discard</Button>
           <Button
-            variant="ghost"
-            onClick={onClose}
-            className="flex-1 font-black uppercase tracking-widest text-[11px] h-14 rounded-2xl text-muted-foreground hover:text-foreground hover:bg-accent transition-all"
-          >
-            Discard Changes
-          </Button>
-          <Button
-            onClick={handleSave}
+            onClick={() => { onReorder(localSongs); onClose(); }}
             disabled={!hasChanges || isAiSorting}
-            className="flex-[2] bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase tracking-[0.25em] text-[11px] h-14 rounded-2xl shadow-2xl shadow-indigo-500/30 gap-3 transition-all active:scale-[0.98]"
+            className="flex-[2] bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase tracking-[0.25em] text-[11px] h-14 rounded-2xl shadow-2xl shadow-indigo-500/30 gap-3"
           >
-            <Check className="w-5 h-5" /> Apply New Sequence
+            <Check className="w-5 h-5" /> Apply Sequence
           </Button>
         </DialogFooter>
       </DialogContent>
