@@ -1084,6 +1084,7 @@ const Index = () => {
             setlistName={activeSetlist.name}
             onDelete={handleDeleteSetlist}
             onRename={handleRenameSetlist}
+            onRefresh={() => fetchSetlistsAndRepertoire()}
           />
         </>
       )}

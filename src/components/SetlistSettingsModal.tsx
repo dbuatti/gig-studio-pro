@@ -1,101 +1,109 @@
 "use client";
 
-import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Settings, ShieldCheck, Trash2, Edit3, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import GigSessionManager from './GigSessionManager';
+import { Settings2, Trash2, Edit3, ShieldAlert, Loader2, CheckCircle2 } from 'lucide-react';
+import { cleanSetlistDuplicates } from '@/utils/setlistCleanup';
 
 interface SetlistSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  setlistId: string | null;
+  setlistId: string;
   setlistName: string;
-  onDelete: (id: string) => void;
-  onRename: (id: string) => void;
+  onDelete: (id: string) => Promise<void>;
+  onRename: (id: string) => Promise<void>;
+  onRefresh?: () => Promise<void>;
 }
 
-const SetlistSettingsModal: React.FC<SetlistSettingsModalProps> = ({ 
-  isOpen, 
-  onClose, 
-  setlistId, 
+const SetlistSettingsModal: React.FC<SetlistSettingsModalProps> = ({
+  isOpen,
+  onClose,
+  setlistId,
   setlistName,
   onDelete,
-  onRename
+  onRename,
+  onRefresh
 }) => {
-  if (!setlistId) return null;
+  const [isCleaning, setIsCleaning] = useState(false);
+
+  const handleCleanup = async () => {
+    setIsCleaning(true);
+    const removedCount = await cleanSetlistDuplicates(setlistId, setlistName);
+    if (removedCount > 0 && onRefresh) {
+      await onRefresh();
+    }
+    setIsCleaning(false);
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent 
-        className="max-w-2xl w-[90vw] bg-popover border-border text-foreground rounded-[2rem] p-0 overflow-hidden flex flex-col shadow-2xl"
-      >
-        <div className="p-8 bg-indigo-600 shrink-0 relative">
-          <button 
-            onClick={onClose}
-            className="absolute top-6 right-6 p-2 rounded-full hover:bg-white/10 text-white/70 hover:text-white transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-          
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-3 mb-2 text-2xl font-black uppercase tracking-tight text-white">
-              <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">
-                <Settings className="w-6 h-6 text-white" />
+      <DialogContent className="max-w-md bg-slate-950 border-white/10 text-white rounded-[2rem] p-8 shadow-2xl">
+        <DialogHeader>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="bg-indigo-600/20 p-2 rounded-xl">
+              <Settings2 className="w-5 h-5 text-indigo-400" />
+            </div>
+            <DialogTitle className="text-xl font-black uppercase tracking-tight">Gig Settings</DialogTitle>
+          </div>
+          <DialogDescription className="text-slate-400 font-medium">
+            Manage configuration for <span className="text-white font-bold">"{setlistName}"</span>
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 mt-6">
+          <div className="p-4 bg-white/5 border border-white/10 rounded-2xl space-y-3">
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Maintenance</h4>
+            
+            <Button
+              variant="ghost"
+              onClick={handleCleanup}
+              disabled={isCleaning}
+              className="w-full justify-start gap-3 h-12 rounded-xl hover:bg-indigo-600/10 hover:text-indigo-400 text-slate-300 transition-all"
+            >
+              {isCleaning ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <ShieldAlert className="w-4 h-4" />
+              )}
+              <div className="text-left">
+                <p className="text-xs font-bold uppercase tracking-tight">Fix Duplicate Songs</p>
+                <p className="text-[9px] opacity-60">Removes redundant entries from this setlist</p>
               </div>
-              Setlist Settings
-            </DialogTitle>
-            <DialogDescription className="text-indigo-100 font-medium">
-              Administrative controls and public access for <span className="text-white font-bold">"{setlistName}"</span>.
-            </DialogDescription>
-          </DialogHeader>
-        </div>
+            </Button>
+          </div>
 
-        <div className="p-8 space-y-10 overflow-y-auto custom-scrollbar">
-          <section className="space-y-4">
-            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Core Management</h4>
-            <div className="grid grid-cols-2 gap-4">
-              <Button 
-                variant="outline" 
-                onClick={() => onRename(setlistId)}
-                className="h-16 bg-secondary border-border hover:bg-accent text-foreground font-black uppercase tracking-widest text-[10px] rounded-2xl gap-3 transition-all"
-              >
-                <Edit3 className="w-4 h-4 text-indigo-400" /> Rename Gig
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => onDelete(setlistId)}
-                className="h-16 bg-destructive/5 border-destructive/10 hover:bg-destructive/10 text-destructive font-black uppercase tracking-widest text-[10px] rounded-2xl gap-3 transition-all"
-              >
-                <Trash2 className="w-4 h-4" /> Delete Gig
-              </Button>
-            </div>
-          </section>
+          <div className="p-4 bg-white/5 border border-white/10 rounded-2xl space-y-3">
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Actions</h4>
+            
+            <Button
+              variant="ghost"
+              onClick={() => onRename(setlistId)}
+              className="w-full justify-start gap-3 h-12 rounded-xl hover:bg-white/10 text-slate-300 transition-all"
+            >
+              <Edit3 className="w-4 h-4" />
+              <span className="text-xs font-bold uppercase tracking-tight">Rename Setlist</span>
+            </Button>
 
-          <section className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Public Setlist Portals</h4>
-              <span className="text-[8px] font-black bg-indigo-600/20 text-indigo-400 px-2 py-0.5 rounded uppercase">Encrypted</span>
-            </div>
-            <GigSessionManager setlistId={setlistId} />
-          </section>
-
-          <div className="p-6 bg-card rounded-[2rem] border border-border flex items-start gap-4">
-            <ShieldCheck className="w-6 h-6 text-emerald-500 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-black uppercase text-foreground">Performance Security Policy</p>
-              <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-                Public access codes allow clients to view your setlist in real-time. Audio and technical metadata are restricted to this studio view only.
-              </p>
-            </div>
+            <Button
+              variant="ghost"
+              onClick={() => onDelete(setlistId)}
+              className="w-full justify-start gap-3 h-12 rounded-xl hover:bg-red-600/10 hover:text-red-400 text-slate-300 transition-all"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span className="text-xs font-bold uppercase tracking-tight">Delete Setlist</span>
+            </Button>
           </div>
         </div>
 
-        <div className="p-6 border-t border-border bg-card flex items-center justify-center shrink-0">
-          <p className="text-[9px] font-mono text-muted-foreground uppercase tracking-widest">
-            Setlist ID: {setlistId} // Studio Engine v4.0
-          </p>
-        </div>
+        <DialogFooter className="mt-8">
+          <Button
+            onClick={onClose}
+            className="w-full bg-white/10 hover:bg-white/20 text-white font-black uppercase tracking-widest text-[10px] h-12 rounded-xl transition-all"
+          >
+            Close
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
