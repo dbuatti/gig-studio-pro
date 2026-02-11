@@ -1,3 +1,5 @@
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -20,13 +22,23 @@ const MODELS = [
   'gemini-1.5-pro'
 ];
 
-Deno.serve(async (req) => {
+serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
 
   try {
-    const { songs, instruction } = await req.json() as { songs: Song[], instruction: string };
+    const body = await req.json();
+    const { songs, instruction } = body as { songs: Song[], instruction: string };
+
+    console.log("[ai-setlist-sorter] Received request", { 
+      songCount: songs?.length, 
+      instruction 
+    });
+
+    if (!songs || songs.length === 0) {
+      throw new Error("No songs provided for sorting");
+    }
 
     const keys = [
       Deno.env.get('GEMINI_API_KEY'),
@@ -34,7 +46,10 @@ Deno.serve(async (req) => {
       Deno.env.get('GEMINI_API_KEY_3')
     ].filter(Boolean);
 
-    if (keys.length === 0) throw new Error('No API keys configured');
+    if (keys.length === 0) {
+      console.error("[ai-setlist-sorter] No API keys found in environment");
+      throw new Error('No API keys configured');
+    }
 
     const prompt = `You are a world-class Musical Director. Reorder these ${songs.length} songs based on: "${instruction}"
 
@@ -60,6 +75,8 @@ OUTPUT REQUIREMENTS:
     for (const apiKey of keys) {
       for (const model of MODELS) {
         try {
+          console.log(`[ai-setlist-sorter] Attempting sort with model: ${model}`);
+          
           const response = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
             {
@@ -76,28 +93,52 @@ OUTPUT REQUIREMENTS:
           );
 
           const result = await response.json();
-          if (!response.ok) continue;
+          
+          if (!response.ok) {
+            console.warn(`[ai-setlist-sorter] Model ${model} returned error status: ${response.status}`, result);
+            lastError = result.error?.message || `HTTP ${response.status}`;
+            continue;
+          }
 
           const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (!text) continue;
+          if (!text) {
+            console.warn(`[ai-setlist-sorter] Model ${model} returned empty content`);
+            continue;
+          }
 
+          // Robust JSON extraction
           const match = text.match(/\[[\s\S]*?\]/);
-          const orderedIds = JSON.parse(match ? match[0] : text);
+          const jsonStr = match ? match[0] : text;
+          
+          try {
+            const orderedIds = JSON.parse(jsonStr);
+            
+            if (!Array.isArray(orderedIds)) {
+              throw new Error("Response is not an array");
+            }
 
-          return new Response(
-            JSON.stringify({ orderedIds }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
+            console.log("[ai-setlist-sorter] Successfully generated sequence", { count: orderedIds.length });
+
+            return new Response(
+              JSON.stringify({ orderedIds }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          } catch (parseErr) {
+            console.error(`[ai-setlist-sorter] Failed to parse JSON from model ${model}`, { text: jsonStr });
+            lastError = "Invalid JSON format in AI response";
+            continue;
+          }
         } catch (err: any) {
           lastError = err.message;
-          console.error(`[ai-setlist-sorter] Model ${model} failed:`, err);
+          console.error(`[ai-setlist-sorter] Model ${model} fetch failed:`, err);
         }
       }
     }
 
-    throw new Error(lastError || 'Sorting failed');
+    throw new Error(lastError || 'All models failed to generate a valid sequence');
 
   } catch (error: any) {
+    console.error("[ai-setlist-sorter] Critical error:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
