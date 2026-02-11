@@ -13,10 +13,10 @@ interface Song {
   duration_seconds?: number;
 }
 
-// Prioritizing gemini-2.5-flash as requested
+// Prioritizing Gemini 2.0 Flash as requested
 const MODELS = [
-  'gemini-2.5-flash',
   'gemini-2.0-flash',
+  'gemini-2.0-flash-lite-preview-02-05',
   'gemini-1.5-flash'
 ];
 
@@ -36,18 +36,17 @@ Deno.serve(async (req) => {
 
     if (keys.length === 0) throw new Error('No API keys configured');
 
-    const prompt = `You are a world-class Musical Director and Setlist Architect. Reorder these ${songs.length} songs based on the specific instruction: "${instruction}"
+    const prompt = `You are a world-class Musical Director. Reorder these ${songs.length} songs based on: "${instruction}"
 
-PROFESSIONAL SEQUENCING RULES:
-1. Energy Arc: Avoid "energy whiplash". Transitions between Energy Zones (Peak, Groove, Pulse, Ambient) must be smooth unless a "shock" transition is requested.
-2. Tempo Continuity: Group songs with similar BPMs or create logical ramps (accelerando/ritardando).
-3. Genre Cohesion: Group similar styles together to maintain a consistent vibe for the audience.
-4. Set Dynamics: If the instruction implies a specific event (e.g., Wedding Dinner), start sophisticated and build slowly. If it's a Dance Floor, start strong and end with anthems.
+STRATEGY:
+1. Energy Flow: Ensure transitions between Energy Zones (Peak, Groove, Pulse, Ambient) are logical.
+2. Harmonic/Tempo Flow: Use BPM and Genre to avoid jarring jumps.
+3. Set Structure: If the instruction implies a specific event (like a Wedding), follow professional set-building standards.
 
-SONGS TO SEQUENCE:
+SONGS:
 ${songs.map((s) => `ID: ${s.id} | ${s.name} - ${s.artist} | BPM: ${s.bpm || '?'} | Energy: ${s.energy_level || 'Unknown'} | Genre: ${s.genre || 'Unknown'}`).join('\n')}
 
-OUTPUT FORMAT:
+OUTPUT:
 Return ONLY a JSON array of IDs in the new order. No text, no markdown.
 Example: ["id1", "id2", "id3"]`;
 
@@ -69,10 +68,7 @@ Example: ["id1", "id2", "id3"]`;
           );
 
           const result = await response.json();
-          if (!response.ok) {
-            console.warn(`[ai-setlist-sorter] Model ${model} failed:`, result.error?.message);
-            continue;
-          }
+          if (!response.ok) continue;
 
           let text = result.candidates?.[0]?.content?.parts?.[0]?.text;
           if (!text) continue;
@@ -91,7 +87,7 @@ Example: ["id1", "id2", "id3"]`;
       }
     }
 
-    throw new Error(lastError || 'Sorting failed across all models');
+    throw new Error(lastError || 'Sorting failed');
 
   } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), {
