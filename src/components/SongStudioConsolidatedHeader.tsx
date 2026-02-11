@@ -1,15 +1,13 @@
 "use client";
 
 import React from 'react';
+import { Play, Pause, X, Sparkles, Loader2, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { SetlistSong, Setlist } from './SetlistManager';
 import { cn } from '@/lib/utils';
+import MasteryRating from './MasteryRating';
 import { formatKey } from '@/utils/keyUtils';
 import { KeyPreference } from '@/hooks/use-settings';
-import { Button } from '@/components/ui/button';
-import { Play, Pause, Music, Hash, Activity, Loader2, Check, ArrowLeft, Globe, ListMusic, Edit3, Zap } from 'lucide-react';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import SetlistMultiSelector from './SetlistMultiSelector';
 
 interface SongStudioConsolidatedHeaderProps {
   formData: Partial<SetlistSong>;
@@ -37,129 +35,86 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
   globalKeyPreference,
   onClose,
   onOpenProSync,
-  gigId,
-  allSetlists,
-  onUpdateSetlistSongs,
-  onAutoSave,
+  onAutoSave
 }) => {
-  const currentPref = formData.key_preference || globalKeyPreference;
-  const displayOrigKey = formatKey(formData.originalKey, currentPref);
-  const displayTargetKey = formatKey(targetKey, currentPref);
-  const displayBpm = formData.bpm || "--";
-
-  const isLibrary = gigId === 'library';
+  const displayKey = formatKey(targetKey || formData.originalKey || 'C', formData.key_preference || globalKeyPreference);
 
   return (
-    <div className="bg-slate-900 border-b border-white/5 flex items-center justify-between px-6 py-3 shrink-0 shadow-lg h-24">
-      
-      {/* Left Section: Navigation, Playback, Title/Artist */}
-      <div className="flex items-center gap-6 min-w-0">
-        
-        {/* Back Button */}
-        <Button variant="ghost" onClick={onClose} className="h-12 w-12 rounded-xl bg-white/5 shrink-0">
-          <ArrowLeft className="w-5 h-5 text-slate-400" />
-        </Button>
-
-        {/* Playback Button */}
-        <Button 
+    <div className="bg-slate-900 border-b border-white/5 px-6 py-4 flex items-center justify-between gap-6">
+      <div className="flex items-center gap-4 min-w-0">
+        <Button
           onClick={onTogglePlayback}
-          disabled={isLoadingAudio || !formData.previewUrl}
+          disabled={isLoadingAudio}
           className={cn(
-            "h-16 w-16 rounded-2xl flex items-center justify-center shrink-0 shadow-lg transition-all active:scale-95",
-            isLoadingAudio || !formData.previewUrl
-              ? "bg-slate-600 cursor-not-allowed" 
-              : isPlaying 
-                ? "bg-red-600 hover:bg-red-700 shadow-red-600/20" 
-                : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20"
+            "w-12 h-12 rounded-2xl flex items-center justify-center transition-all shadow-xl",
+            isPlaying 
+              ? "bg-red-500 hover:bg-red-600 text-white shadow-red-500/20" 
+              : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-500/20"
           )}
         >
           {isLoadingAudio ? (
-            <Loader2 className="w-8 h-8 animate-spin text-white" />
+            <Loader2 className="w-6 h-6 animate-spin" />
           ) : isPlaying ? (
-            <Pause className="w-8 h-8 text-white fill-current" />
+            <Pause className="w-6 h-6 fill-current" />
           ) : (
-            <Play className="w-8 h-8 text-white fill-current ml-1" />
+            <Play className="w-6 h-6 fill-current ml-1" />
           )}
         </Button>
-        
-        {/* Title / Artist / Context */}
+
         <div className="min-w-0">
-          <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{isLibrary ? 'MASTER REPERTOIRE' : 'GIG SETLIST'}</p>
-          <h2 className="text-2xl font-black uppercase text-white truncate max-w-[250px] leading-none mt-1">
-            {formData.name || "Untitled Track"}
-          </h2>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 truncate">
-            {formData.artist || "Unknown Artist"}
-          </p>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-black uppercase tracking-tight text-white truncate">
+              {formData.name || "Untitled Track"}
+            </h2>
+            {formData.isMetadataConfirmed && <ShieldCheck className="w-4 h-4 text-indigo-400" />}
+          </div>
+          <div className="flex items-center gap-3 mt-0.5">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] truncate">
+              {formData.artist || "Unknown Artist"}
+            </p>
+            <span className="text-slate-700 text-[8px]">•</span>
+            <div className="flex items-center gap-2">
+              <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Mastery</span>
+              <MasteryRating 
+                value={formData.comfort_level || 0} 
+                onChange={(val) => onAutoSave({ comfort_level: val })}
+                size="sm"
+              />
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Center Section: Metrics */}
-      <div className="hidden lg:flex items-center gap-8 shrink-0 border-x border-white/5 px-8 h-full">
-        
-        {/* Original Key */}
-        <div className="flex flex-col items-center">
-          <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1.5 font-mono">
-            <Hash className="w-3 h-3" /> Original Key
-          </span>
-          <span className="text-xl font-black text-white font-mono">{displayOrigKey}</span>
-        </div>
-
-        {/* Stage Key */}
-        <div className="flex flex-col items-center">
-          <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1 flex items-center gap-1.5 font-mono">
-            <Music className="w-3 h-3" /> Stage Key
-          </span>
-          <span className="text-xl font-black text-indigo-400 font-mono flex items-center gap-2">
-            {displayTargetKey}
-            {formData.isKeyConfirmed && <Check className="w-4 h-4 text-emerald-500" />}
-          </span>
-        </div>
-
-        {/* Tempo */}
-        <div className="flex flex-col items-center">
-          <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1.5 font-mono">
-            <Activity className="w-3 h-3" /> Tempo
-          </span>
-          <span className="text-xl font-black text-white font-mono">{displayBpm} <span className="text-[10px] text-slate-500">BPM</span></span>
-        </div>
-        
-        {/* Pitch */}
-        <div className="flex flex-col items-center">
-          <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1.5 font-mono">
-            <Zap className="w-3 h-3" /> Pitch
-          </span>
-          <span className="text-xl font-black text-white font-mono">{pitch > 0 ? '+' : ''}{pitch} <span className="text-[10px] text-slate-500">ST</span></span>
-        </div>
-      </div>
-
-      {/* Right Section: Actions */}
       <div className="flex items-center gap-4 shrink-0">
-        <Button 
-          variant="outline" 
+        <div className="flex flex-col items-center px-4 border-x border-white/5">
+          <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Stage Key</span>
+          <div className={cn(
+            "px-3 py-1 rounded-lg font-mono font-black text-sm flex items-center gap-2",
+            formData.isKeyConfirmed ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
+          )}>
+            {displayKey}
+            {formData.isKeyConfirmed && <CheckCircle2 className="w-3 h-3" />}
+          </div>
+        </div>
+
+        <Button
+          variant="outline"
+          size="sm"
           onClick={onOpenProSync}
-          className="h-12 px-6 rounded-xl border-indigo-500/20 bg-indigo-600/10 text-indigo-400 font-black uppercase text-[10px] tracking-widest gap-2 shadow-lg hover:bg-indigo-600 hover:text-white transition-all"
+          className="h-10 px-4 rounded-xl border-white/10 bg-white/5 text-indigo-400 hover:bg-white/10 hover:text-indigo-300 font-black uppercase tracking-widest text-[10px] gap-2"
         >
-          <Globe className="w-4 h-4" /> Pro Sync
+          <Sparkles className="w-3.5 h-3.5" />
+          Pro Sync
         </Button>
 
-        {isLibrary && formData.id ? (
-          <SetlistMultiSelector 
-            songMasterId={formData.id} 
-            allSetlists={allSetlists} 
-            songToAssign={formData as SetlistSong} 
-            onUpdateSetlistSongs={onUpdateSetlistSongs} 
-          />
-        ) : (
-          <div className="flex items-center gap-3 bg-white/5 px-4 h-12 rounded-xl border border-white/10">
-            <Label className="text-[8px] font-black text-slate-500 uppercase">Gig Approved</Label>
-            <Switch 
-              checked={formData.isApproved || false} 
-              onCheckedChange={(v) => onAutoSave({ isApproved: v })} 
-              className="data-[state=checked]:bg-emerald-50" 
-            />
-          </div>
-        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onClose}
+          className="w-10 h-10 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"
+        >
+          <X className="w-5 h-5" />
+        </Button>
       </div>
     </div>
   );
