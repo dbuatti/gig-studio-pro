@@ -425,6 +425,11 @@ const SheetReaderMode: React.FC = () => {
     if (currentChartDisplayUrl && pdfDocument) setIsLinkEditorOpen(true);
   }, [currentChartDisplayUrl, pdfDocument]);
 
+  const handleClose = useCallback(() => {
+    const mode = sessionStorage.getItem('reader_view_mode') || 'gigs';
+    navigate(`/?view=${mode}`);
+  }, [navigate]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -521,7 +526,7 @@ const SheetReaderMode: React.FC = () => {
           {!isZenMode && (
             <SheetReaderHeader
               currentSong={currentSong}
-              onClose={() => navigate('/')} 
+              onClose={handleClose} 
               onOpenRepertoireSearch={onOpenRepertoireSearch}
               onOpenCurrentSongStudio={onOpenCurrentSongStudio}
               isLoading={!currentSong}

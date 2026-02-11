@@ -129,6 +129,8 @@ interface SetlistManagerProps {
   onBulkVibeCheck: () => Promise<void>;
   masterRepertoire?: SetlistSong[];
   activeSetlistId?: string | null;
+  isFilterOpen: boolean;
+  setIsFilterOpen: (open: boolean) => void;
 }
 
 const SetlistManager: React.FC<SetlistManagerProps> = ({
@@ -155,12 +157,13 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   onOpenSortModal,
   onBulkVibeCheck,
   masterRepertoire = [],
-  activeSetlistId
+  activeSetlistId,
+  isFilterOpen,
+  setIsFilterOpen
 }) => {
   const isMobile = useIsMobile();
   const { keyPreference: globalPreference } = useSettings();
   
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [isVibeChecking, setIsVibeChecking] = useState(false);
   const [vibeCheckProgress, setVibeCheckProgress] = useState(0);

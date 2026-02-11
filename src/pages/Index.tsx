@@ -110,24 +110,35 @@ const Index = () => {
     localStorage.getItem('gig_show_heatmap') === 'true'
   );
 
+  // Lifted filter expansion state
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  // Check if filters are active (dirty)
+  const isFilterDirty = useMemo(() => {
+    return JSON.stringify(activeFilters) !== JSON.stringify(DEFAULT_FILTERS);
+  }, [activeFilters]);
+
+  // Auto-expand filters if they are active on mount or change
+  useEffect(() => {
+    if (isFilterDirty) {
+      setIsFilterOpen(true);
+    }
+  }, [isFilterDirty]);
+
   // Persist filters, search, and sort mode to localStorage so they sync with Sheet Reader
   useEffect(() => {
-    console.log("[Dashboard] Saving activeFilters to localStorage:", activeFilters);
     localStorage.setItem('gig_active_filters', JSON.stringify(activeFilters));
   }, [activeFilters]);
 
   useEffect(() => {
-    console.log("[Dashboard] Saving searchTerm to localStorage:", searchTerm);
     localStorage.setItem('gig_search_term', searchTerm);
   }, [searchTerm]);
 
   useEffect(() => {
-    console.log("[Dashboard] Saving sortMode to localStorage:", sortMode);
     localStorage.setItem('gig_sort_mode', sortMode);
   }, [sortMode]);
 
   useEffect(() => {
-    console.log("[Dashboard] Saving showHeatmap to localStorage:", showHeatmap);
     localStorage.setItem('gig_show_heatmap', showHeatmap.toString());
   }, [showHeatmap]);
 
@@ -697,7 +708,7 @@ const Index = () => {
             </Button>
             <Button variant="outline" size="sm" onClick={() => setIsKeyManagementOpen(true)} className="h-9 px-4 rounded-xl text-indigo-600">
               <Hash className="w-3.5 h-3.5 mr-2" /> Key Matrix
-            </Button>
+            </Hash>
             <Button variant="outline" size="sm" onClick={() => setIsPreferencesOpen(true)} className="h-9 px-4 rounded-xl text-indigo-600">
               <Settings2 className="w-3.5 h-3.5 mr-2" /> Preferences
             </Button>
@@ -724,7 +735,34 @@ const Index = () => {
             {activeSetlist && (
               <>
                 <SetlistStats songs={activeSetlist.songs} goalSeconds={activeSetlist.time_goal} onUpdateGoal={async (seconds) => { await supabase.from('setlists').update({ time_goal: seconds }).eq('id', activeSetlistId); fetchSetlistsAndRepertoire(); }} />
-                <SetlistManager songs={filteredAndSortedSongs} onSelect={handleSelectSong} onEdit={handleEditSong} onUpdateKey={async (id, targetKey) => { const song = activeSetlist.songs.find(s => s.id === id); if (song) { const newPitch = calculateSemitones(song.originalKey || 'C', targetKey); await handleUpdateSongInSetlist(id, { targetKey, pitch: newPitch }); } }} onLinkAudio={() => {}} onSyncProData={async () => {}} currentSongId={activeSongForPerformance?.id} sortMode={sortMode} setSortMode={setSortMode} activeFilters={activeFilters} setActiveFilters={setActiveFilters} searchTerm={searchTerm} setSearchTerm={setSearchTerm} showHeatmap={showHeatmap} allSetlists={allSetlists} onRemove={handleRemoveSongFromSetlist} onUpdateSong={handleUpdateSongInSetlist} onTogglePlayed={handleTogglePlayed} onReorder={handleReorderSongs} onUpdateSetlistSongs={handleUpdateSetlistSongs} onOpenSortModal={() => setIsSetlistSortModalOpen(true)} onBulkVibeCheck={handleBulkVibeCheck} masterRepertoire={masterRepertoire} activeSetlistId={activeSetlistId} />
+                <SetlistManager 
+                  songs={filteredAndSortedSongs} 
+                  onSelect={handleSelectSong} 
+                  onEdit={handleEditSong} 
+                  onUpdateKey={async (id, targetKey) => { const song = activeSetlist.songs.find(s => s.id === id); if (song) { const newPitch = calculateSemitones(song.originalKey || 'C', targetKey); await handleUpdateSongInSetlist(id, { targetKey, pitch: newPitch }); } }} 
+                  onLinkAudio={() => {}} 
+                  onSyncProData={async () => {}} 
+                  currentSongId={activeSongForPerformance?.id} 
+                  sortMode={sortMode} 
+                  setSortMode={setSortMode} 
+                  activeFilters={activeFilters} 
+                  setActiveFilters={setActiveFilters} 
+                  searchTerm={searchTerm} 
+                  setSearchTerm={setSearchTerm} 
+                  showHeatmap={showHeatmap} 
+                  allSetlists={allSetlists} 
+                  onRemove={handleRemoveSongFromSetlist} 
+                  onUpdateSong={handleUpdateSongInSetlist} 
+                  onTogglePlayed={handleTogglePlayed} 
+                  onReorder={handleReorderSongs} 
+                  onUpdateSetlistSongs={handleUpdateSetlistSongs} 
+                  onOpenSortModal={() => setIsSetlistSortModalOpen(true)} 
+                  onBulkVibeCheck={handleBulkVibeCheck} 
+                  masterRepertoire={masterRepertoire} 
+                  activeSetlistId={activeSetlistId}
+                  isFilterOpen={isFilterOpen}
+                  setIsFilterOpen={setIsFilterOpen}
+                />
               </>
             )}
             {!activeSetlistId && allSetlists.length === 0 && (
@@ -739,7 +777,30 @@ const Index = () => {
             )}
           </TabsContent>
           <TabsContent value="repertoire" className="mt-0 space-y-8">
-            <RepertoireView repertoire={masterRepertoire} onEditSong={handleEditSong} allSetlists={allSetlists} onRefreshRepertoire={() => fetchSetlistsAndRepertoire()} searchTerm={searchTerm} setSearchTerm={setSearchTerm} sortMode={sortMode as any} setSortMode={setSortMode as any} activeFilters={activeFilters} setActiveFilters={setActiveFilters} onUpdateSetlistSongs={handleUpdateSetlistSongs} onDeleteSong={handleDeleteSong} onAddSong={handleAddSongToRepertoire} onOpenAdmin={() => setIsAdminPanelOpen(true)} onAutoLink={handleAutoLink} onGlobalAutoSync={handleGlobalAutoSync} onClearAutoLinks={handleClearAutoLinks} onBulkVibeCheck={handleBulkVibeCheck} onBulkRefreshAudio={handleBulkRefreshAudio} missingAudioCount={missingAudioCount} />
+            <RepertoireView 
+              repertoire={masterRepertoire} 
+              onEditSong={handleEditSong} 
+              allSetlists={allSetlists} 
+              onRefreshRepertoire={() => fetchSetlistsAndRepertoire()} 
+              searchTerm={searchTerm} 
+              setSearchTerm={setSearchTerm} 
+              sortMode={sortMode as any} 
+              setSortMode={setSortMode as any} 
+              activeFilters={activeFilters} 
+              setActiveFilters={setActiveFilters} 
+              onUpdateSetlistSongs={handleUpdateSetlistSongs} 
+              onDeleteSong={handleDeleteSong} 
+              onAddSong={handleAddSongToRepertoire} 
+              onOpenAdmin={() => setIsAdminPanelOpen(true)} 
+              onAutoLink={handleAutoLink} 
+              onGlobalAutoSync={handleGlobalAutoSync} 
+              onClearAutoLinks={handleClearAutoLinks} 
+              onBulkVibeCheck={handleBulkVibeCheck} 
+              onBulkRefreshAudio={handleBulkRefreshAudio} 
+              missingAudioCount={missingAudioCount}
+              isFilterOpen={isFilterOpen}
+              setIsFilterOpen={setIsFilterOpen}
+            />
           </TabsContent>
         </Tabs>
       </div>
