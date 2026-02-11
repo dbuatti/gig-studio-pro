@@ -175,6 +175,8 @@ const Index = () => {
     if (isInitial) setLoading(true);
     
     try {
+      console.log("[Index] Fetching setlists and repertoire for user:", userId);
+      
       const { data: setlistsData } = await supabase
         .from('setlists')
         .select('*')
@@ -186,6 +188,8 @@ const Index = () => {
         .select('*')
         .eq('user_id', userId)
         .order('title');
+
+      console.log("[Index] Repertoire data received:", repertoireData?.length, "songs");
 
       const mappedRepertoire: SetlistSong[] = (repertoireData || []).map(d => ({
         id: d.id,
@@ -246,8 +250,13 @@ const Index = () => {
           .eq('setlist_id', setlist.id)
           .order('sort_order', { ascending: true });
           
+        console.log(`[Index] Setlist "${setlist.name}" junction data:`, junctionData?.length, "entries");
+
         const songs: SetlistSong[] = junctionData?.map(j => {
           const master = mappedRepertoire.find(r => r.id === j.song_id);
+          if (!master) {
+            console.warn(`[Index] Song ID ${j.song_id} not found in master repertoire for setlist ${setlist.id}`);
+          }
           return master ? { 
             ...master, 
             id: j.id, 
@@ -273,6 +282,7 @@ const Index = () => {
         setActiveSetlistId(setlistsWithSongs[0]?.id || null);
       }
     } catch (err: any) {
+      console.error("[Index] Fetch error:", err);
       showError(`Failed to load data: ${err.message}`);
     } finally {
       if (isInitial) setLoading(false);
@@ -371,11 +381,22 @@ const Index = () => {
   ) => {
     try {
       if (action === 'add') {
+        // Check if song already exists in this setlist to prevent duplicates
+        const targetSetlist = allSetlists.find(s => s.id === setlistId);
+        const songMasterId = song.master_id || song.id;
+        const alreadyExists = targetSetlist?.songs.some(s => s.master_id === songMasterId);
+
+        if (alreadyExists) {
+          showWarning(`"${song.name}" is already in this setlist.`);
+          return;
+        }
+
         await supabase.from('setlist_songs').insert({
           setlist_id: setlistId,
-          song_id: song.master_id || song.id,
-          sort_order: 0
+          song_id: songMasterId,
+          sort_order: targetSetlist?.songs.length || 0
         });
+        showSuccess(`"${song.name}" added to setlist.`);
       } else {
         await supabase
           .from('setlist_songs')
@@ -387,7 +408,7 @@ const Index = () => {
     } catch (err: any) {
       showError(`Failed to update setlist: ${err.message}`);
     }
-  }, [fetchSetlistsAndRepertoire]);
+  }, [fetchSetlistsAndRepertoire, allSetlists]);
 
   const handleDeleteSong = useCallback(async (songId: string) => {
     try {
