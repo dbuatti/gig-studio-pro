@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { 
   ListMusic, GripVertical, Check, X, Sparkles, Loader2, Zap, Heart, 
   Music, TrendingUp, ChevronDown, ChevronUp, LayoutGrid, Coffee,
-  Lock, Unlock, BarChart3
+  Lock, Unlock, BarChart3, Info
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import { SetlistSong } from './SetlistManager';
@@ -17,6 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess, showInfo } from '@/utils/toast';
 import { Progress } from './ui/progress';
 import { calculateReadiness } from '@/utils/repertoireSync';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 interface SetlistSortModalProps {
   isOpen: boolean;
@@ -271,18 +272,33 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
               </button>
               
               {showPresets && SORTING_PRESETS.map(preset => (
-                <button
-                  key={preset.id}
-                  onClick={() => handleAiSort(preset.instruction)}
-                  disabled={isAiSorting}
-                  className={cn(
-                    "flex items-center gap-2 px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all shrink-0 border border-transparent",
-                    "bg-white/5 text-slate-300 hover:bg-white/10 hover:border-white/10 disabled:opacity-50"
-                  )}
-                >
-                  <preset.icon className="w-3 h-3" />
-                  {preset.label}
-                </button>
+                <div key={preset.id} className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => handleAiSort(preset.instruction)}
+                    disabled={isAiSorting}
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2 rounded-l-lg text-[9px] font-black uppercase tracking-widest transition-all border border-transparent",
+                      "bg-white/5 text-slate-300 hover:bg-white/10 hover:border-white/10 disabled:opacity-50"
+                    )}
+                  >
+                    <preset.icon className="w-3 h-3" />
+                    {preset.label}
+                  </button>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button className="bg-white/5 text-slate-500 hover:text-indigo-400 hover:bg-white/10 p-2 rounded-r-lg border-l border-white/5 transition-colors">
+                          <Info className="w-3 h-3" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs bg-slate-900 border-white/10 p-3 rounded-xl shadow-2xl">
+                        <p className="text-[10px] font-bold text-slate-300 leading-relaxed">
+                          {preset.instruction}
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
               ))}
             </div>
 
