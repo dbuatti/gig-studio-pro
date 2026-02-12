@@ -17,7 +17,7 @@ serve(async (req) => {
       throw new Error("Missing title or artist for analysis.");
     }
 
-    console.log(`[vibe-check] Analyzing: "${title}" by ${artist} via Native Gemini 1.5 Flash`);
+    console.log(`[vibe-check] Analyzing: "${title}" by ${artist} via Native Gemini 2.0 Flash`);
 
     const apiKey = Deno.env.get('GEMINI_API_KEY');
     if (!apiKey) {
@@ -46,8 +46,8 @@ serve(async (req) => {
       "confidence": 0.0-1.0
     }`;
 
-    // Using v1beta endpoint which is more robust for gemini-1.5-flash
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+    // Using gemini-2.0-flash on v1beta
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
