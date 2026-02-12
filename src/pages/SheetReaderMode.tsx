@@ -36,6 +36,7 @@ import SheetReaderAudioPlayer from '@/components/SheetReaderAudioPlayer';
 import LinkEditorOverlay from '@/components/LinkEditorOverlay';
 import LinkDisplayOverlay, { SheetLink } from '@/components/LinkDisplayOverlay';
 import LinkSizeModal from '@/components/LinkSizeModal';
+import { sortSongsByStrategy } from '@/utils/SetlistGenerator';
 
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
@@ -217,6 +218,7 @@ const SheetReaderMode: React.FC = () => {
       const savedFilters = localStorage.getItem('gig_active_filters');
       const activeFilters = savedFilters ? JSON.parse(savedFilters) : DEFAULT_FILTERS;
       const searchTerm = (localStorage.getItem('gig_search_term') || "").toLowerCase();
+      const sortMode = (localStorage.getItem('gig_sort_mode') as any) || 'none';
 
       let currentViewSongs: SetlistSong[] = [];
       let masterRepertoireList: SetlistSong[] = [];
@@ -299,7 +301,7 @@ const SheetReaderMode: React.FC = () => {
         currentViewSongs = masterRepertoireList;
       }
 
-      const filteredSongs = currentViewSongs.filter(s => {
+      let filteredSongs = currentViewSongs.filter(s => {
         if (searchTerm && !s.name.toLowerCase().includes(searchTerm) && !s.artist?.toLowerCase().includes(searchTerm)) {
           return false;
         }
@@ -307,6 +309,15 @@ const SheetReaderMode: React.FC = () => {
         if (activeFilters.readiness > 0 && readiness < activeFilters.readiness) return false;
         return true;
       });
+
+      // Apply sorting logic consistent with Index.tsx
+      if (sortMode === 'ready') {
+        filteredSongs.sort((a, b) => calculateReadiness(b) - calculateReadiness(a));
+      } else if (sortMode === 'work') {
+        filteredSongs.sort((a, b) => calculateReadiness(a) - calculateReadiness(b));
+      } else if (sortMode.startsWith('energy') || sortMode === 'zig-zag' || sortMode === 'wedding-ramp') {
+        filteredSongs = sortSongsByStrategy(filteredSongs, sortMode);
+      }
 
       const readableSongs = filteredSongs.filter(s => 
         s.pdfUrl || s.leadsheetUrl || s.ug_chords_text || s.sheet_music_url
