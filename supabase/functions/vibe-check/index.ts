@@ -17,11 +17,12 @@ serve(async (req) => {
       throw new Error("Missing title or artist for analysis.");
     }
 
-    console.log(`[vibe-check] Analyzing: "${title}" by ${artist} via Gemini 1.5 Flash`);
+    // Updated log message to help you identify the new version in Supabase logs
+    console.log(`[vibe-check] Analyzing: "${title}" by ${artist} via Gemini 2.0 Flash (OpenRouter)`);
 
-    const apiKey = Deno.env.get('GEMINI_API_KEY');
+    const apiKey = Deno.env.get('OPENROUTER_API_KEY');
     if (!apiKey) {
-      throw new Error('GEMINI_API_KEY not found in environment.');
+      throw new Error('OPENROUTER_API_KEY not found in environment.');
     }
 
     const prompt = `Analyze this song for a professional live performance setlist:
@@ -46,31 +47,32 @@ serve(async (req) => {
       "confidence": 0.0-1.0
     }`;
 
-    // Using v1 stable endpoint and removing response_mime_type for compatibility
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json"
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://supabase.com",
+        "X-Title": "Gig Studio"
       },
       body: JSON.stringify({
-        contents: [{
-          parts: [{ text: prompt }]
-        }]
+        model: "google/gemini-2.0-flash-001",
+        messages: [
+          { role: "user", content: prompt }
+        ],
+        response_format: { type: "json_object" }
       })
     });
 
     const result = await response.json();
     
     if (!response.ok) {
-      console.error(`[vibe-check] Gemini API failed:`, result.error || 'Unknown error');
-      throw new Error(result.error?.message || "Gemini API error");
+      console.error(`[vibe-check] OpenRouter failed:`, result.error || 'Unknown error');
+      throw new Error(result.error?.message || "OpenRouter API error");
     }
 
-    let content = result.candidates?.[0]?.content?.parts?.[0]?.text;
+    const content = result.choices?.[0]?.message?.content;
     if (!content) throw new Error("No content returned from AI");
-
-    // Clean up potential markdown code blocks if the AI included them
-    content = content.replace(/```json\n?|\n?```/g, '').trim();
 
     return new Response(content, { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
