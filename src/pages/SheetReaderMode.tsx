@@ -15,14 +15,14 @@ import { calculateReadiness, syncToMasterRepertoire } from '@/utils/repertoireSy
 import { showError, showSuccess, showInfo, showWarning } from '@/utils/toast';
 import UGChordsReader from '@/components/UGChordsReader';
 import { useToneAudio } from '@/hooks/use-tone-audio';
-import { calculateSemitones, transposeKey } from '@/utils/keyUtils';
+import { calculateSemitones } from '@/utils/keyUtils';
 import { useReaderSettings, ReaderResourceForce } from '@/hooks/use-reader-settings';
 import PreferencesModal from '@/components/PreferencesModal';
 import SongStudioModal from '@/components/SongStudioModal';
 import SheetReaderHeader from '@/components/SheetReaderHeader';
 import SheetReaderSidebar from '@/components/SheetReaderSidebar';
 import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
-import { extractKeyFromChords, transposeChords } from '@/utils/chordUtils';
+import { extractKeyFromChords } from '@/utils/chordUtils';
 import RepertoireSearchModal from '@/components/RepertoireSearchModal';
 import FullScreenSongInfo from '@/components/FullScreenSongInfo';
 import { AnimatePresence } from 'framer-motion';
@@ -50,13 +50,7 @@ const SheetReaderMode: React.FC = () => {
     keyPreference: globalKeyPreference,
     preventStageKeyOverwrite,
     disablePortraitPdfScroll,
-    setKeyPreference: setGlobalKeyPreference,
-    ugChordsFontFamily,
-    ugChordsFontSize,
-    ugChordsChordBold,
-    ugChordsChordColor,
-    ugChordsLineSpacing,
-    ugChordsTextAlign,
+    setKeyPreference: setGlobalKeyPreference
   } = useSettings();
   const { forceReaderResource } = useReaderSettings();
 
@@ -170,6 +164,19 @@ const SheetReaderMode: React.FC = () => {
     setPitch, 
     isStageKeyLocked 
   } = harmonicSync;
+
+  const handleUpdateKey = useCallback(async (newTargetKey: string) => {
+    if (!currentSong || !user) return;
+
+    setTargetKey(newTargetKey); 
+    setAudioPitch(calculateSemitones(currentSong.originalKey || 'C', newTargetKey));
+    
+    if (isStageKeyLocked) {
+      showInfo(`Stage Key temporarily set to ${newTargetKey}`);
+    } else {
+      showSuccess(`Stage Key set to ${newTargetKey}`);
+    }
+  }, [currentSong, user, isStageKeyLocked, setTargetKey, setAudioPitch]);
 
   useEffect(() => {
     setAudioPitch(effectivePitch);
@@ -347,18 +354,10 @@ const SheetReaderMode: React.FC = () => {
   }, [fetchLinks]);
 
   const getBestChartType = useCallback((song: SetlistSong): ChartType => {
-    // 1. Respect explicit user preference from Song Studio
-    if (song.preferred_reader === 'ug' && (song.ugUrl || song.ug_chords_text)) return 'chords';
-    if (song.preferred_reader === 'ls' && song.leadsheetUrl) return 'leadsheet';
-    if (song.preferred_reader === 'fn' && (song.pdfUrl || song.sheet_music_url)) return 'pdf';
-
-    // 2. Respect force settings from Reader UI
-    if (forceReaderResource === 'force-pdf' && (song.pdfUrl || song.sheet_music_url)) return 'pdf';
+    if (forceReaderResource === 'force-pdf' && song.pdfUrl) return 'pdf';
     if (forceReaderResource === 'force-ug' && (song.ugUrl || song.ug_chords_text)) return 'chords';
     if (forceReaderResource === 'force-chords' && song.ug_chords_text) return 'chords';
-    
-    // 3. Default fallbacks
-    if (song.pdfUrl || song.sheet_music_url) return 'pdf';
+    if (song.pdfUrl) return 'pdf';
     if (song.leadsheetUrl) return 'leadsheet';
     if (song.ug_chords_text) return 'chords';
     return 'pdf';
@@ -488,22 +487,11 @@ const SheetReaderMode: React.FC = () => {
     return () => resizeObserver.unobserve(container);
   }, [pdfDocument, pdfCurrentPage, calculatePdfScale]); 
 
-  const bind = useDrag(({ first, down, movement: [mx], direction: [dx], velocity: [vx], cancel, tap }) => {
+  const bind = useDrag(({ first, down, movement: [mx], direction: [dx], velocity: [vx], cancel }) => {
     if (first) navigatedRef.current = false;
-    
-    if (!down) {
-      if (tap && !navigatedRef.current) {
-        // Only toggle Zen mode if we didn't navigate and it's a clean tap
-        toggleZenMode();
-      }
-      return;
-    }
-
-    if (navigatedRef.current) return;
-
+    if (!down || navigatedRef.current) return;
     const isFastSwipe = Math.abs(vx) > 0.15; 
     const isLongSwipe = Math.abs(mx) > swipeThreshold;
-    
     if (isLongSwipe || isFastSwipe) {
       navigatedRef.current = true; 
       cancel(); 
@@ -522,26 +510,6 @@ const SheetReaderMode: React.FC = () => {
   const handleNavigateToPage = useCallback((pageNumber: number) => {
     setPdfCurrentPage(pageNumber);
   }, []);
-
-  // Effective UG Config merging global preferences with song-specific overrides
-  const effectiveUgConfig = useMemo(() => {
-    const baseConfig = {
-      fontFamily: ugChordsFontFamily,
-      fontSize: ugChordsFontSize,
-      chordBold: ugChordsChordBold,
-      chordColor: ugChordsChordColor,
-      lineSpacing: ugChordsLineSpacing,
-      textAlign: ugChordsTextAlign,
-    };
-    return { ...baseConfig, ...currentSong?.ug_chords_config };
-  }, [currentSong?.ug_chords_config, ugChordsFontFamily, ugChordsFontSize, ugChordsChordBold, ugChordsChordColor, ugChordsLineSpacing, ugChordsTextAlign]);
-
-  // Transposed chords text for the reader
-  const transposedChordsText = useMemo(() => {
-    if (!currentSong?.ug_chords_text) return "";
-    const semitones = calculateSemitones(currentSong.originalKey || 'C', effectiveTargetKey);
-    return transposeChords(currentSong.ug_chords_text, semitones, readerKeyPreference);
-  }, [currentSong?.ug_chords_text, currentSong?.originalKey, effectiveTargetKey, readerKeyPreference]);
 
   if (initialLoading) return <div className="h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
 
@@ -594,6 +562,7 @@ const SheetReaderMode: React.FC = () => {
             isAudioPlayerVisible && currentSong && !isZenMode ? "pb-24" : "pb-0", 
             shouldDisableScroll ? "overflow-hidden" : "overflow-auto"
           )}
+          onClick={toggleZenMode} 
         >
           <animated.div 
             {...bind()}  
@@ -611,8 +580,8 @@ const SheetReaderMode: React.FC = () => {
             {currentSong ? (
               selectedChartType === 'chords' ? (
                 <UGChordsReader
-                  chordsText={transposedChordsText}
-                  config={effectiveUgConfig}
+                  chordsText={currentSong.ug_chords_text || ""}
+                  config={currentSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
                   isMobile={false}
                   originalKey={currentSong.originalKey}
                   targetKey={effectiveTargetKey}
@@ -642,7 +611,7 @@ const SheetReaderMode: React.FC = () => {
                       inputRef={pageRef} 
                     />
                   </Document>
-                  <div className="absolute inset-0 z-30" ref={overlayWrapperRef}> 
+                  <div className="absolute inset-0 z-30 pointer-events-none" ref={overlayWrapperRef}> 
                     <LinkDisplayOverlay
                       links={links}
                       currentPage={pdfCurrentPage}
