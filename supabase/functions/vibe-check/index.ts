@@ -17,13 +17,22 @@ serve(async (req) => {
       throw new Error("Missing title or artist for analysis.");
     }
 
-    // Added [v2.1] to help you confirm the new code is running
-    console.log(`[vibe-check] Analyzing: "${title}" by ${artist} via Native Gemini 2.0 Flash [v2.1]`);
+    // Rotate through available Gemini keys
+    const keys = [
+      Deno.env.get('GEMINI_API_KEY'),
+      Deno.env.get('GEMINI_API_KEY_2'),
+      Deno.env.get('GEMINI_API_KEY_3')
+    ].filter(Boolean);
 
-    const apiKey = Deno.env.get('GEMINI_API_KEY');
-    if (!apiKey) {
-      throw new Error('GEMINI_API_KEY not found in environment.');
+    if (keys.length === 0) {
+      throw new Error('No Gemini API keys found in environment.');
     }
+
+    // Use a random key from the pool
+    const apiKey = keys[Math.floor(Math.random() * keys.length)];
+    const keyIndex = keys.indexOf(apiKey) + 1;
+
+    console.log(`[vibe-check] Analyzing: "${title}" by ${artist} via Native Gemini 2.0 Flash (Key Pool #${keyIndex}) [v2.2]`);
 
     const prompt = `Analyze this song for a professional live performance setlist:
     Title: "${title}"
@@ -47,7 +56,6 @@ serve(async (req) => {
       "confidence": 0.0-1.0
     }`;
 
-    // Using gemini-2.0-flash on v1beta
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
       method: "POST",
       headers: {
@@ -66,7 +74,7 @@ serve(async (req) => {
     const result = await response.json();
     
     if (!response.ok) {
-      console.error(`[vibe-check] Gemini API failed:`, result.error || 'Unknown error');
+      console.error(`[vibe-check] Gemini API failed (Key #${keyIndex}):`, result.error || 'Unknown error');
       throw new Error(result.error?.message || "Gemini API error");
     }
 

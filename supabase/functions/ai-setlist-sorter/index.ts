@@ -27,12 +27,21 @@ serve(async (req) => {
     const body = await req.json();
     const { songs, instruction } = body as { songs: Song[], instruction: string };
 
-    console.log("[ai-setlist-sorter] Sorting via Native Gemini 2.0 Flash [v2.1]", { count: songs?.length, instruction });
+    // Rotate through available Gemini keys
+    const keys = [
+      Deno.env.get('GEMINI_API_KEY'),
+      Deno.env.get('GEMINI_API_KEY_2'),
+      Deno.env.get('GEMINI_API_KEY_3')
+    ].filter(Boolean);
 
-    const apiKey = Deno.env.get('GEMINI_API_KEY');
-    if (!apiKey) {
-      throw new Error('GEMINI_API_KEY not found in environment.');
+    if (keys.length === 0) {
+      throw new Error('No Gemini API keys found in environment.');
     }
+
+    const apiKey = keys[Math.floor(Math.random() * keys.length)];
+    const keyIndex = keys.indexOf(apiKey) + 1;
+
+    console.log(`[ai-setlist-sorter] Sorting via Native Gemini 2.0 Flash (Key Pool #${keyIndex}) [v2.2]`, { count: songs?.length, instruction });
 
     const prompt = `You are an expert Musical Director. Reorder these songs based on this instruction: "${instruction}"
 
