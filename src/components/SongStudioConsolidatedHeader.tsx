@@ -3,17 +3,17 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { 
-  Play, Pause, X, Sparkles, CheckCircle2, 
-  CircleDashed, Loader2, ChevronLeft,
-  Music2, Activity
+  Music, 
+  Play, 
+  Pause, 
+  X, 
+  Sparkles, 
+  Loader2
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { SetlistSong, Setlist } from './SetlistManager';
-import { KeyPreference } from '@/hooks/use-settings';
+import { cn } from '@/lib/utils';
+import SetlistMultiSelector from './SetlistMultiSelector';
 import { formatKey } from '@/utils/keyUtils';
-import { calculateReadiness } from '@/utils/repertoireSync';
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import MasteryRating from './MasteryRating';
 
 interface SongStudioConsolidatedHeaderProps {
   formData: Partial<SetlistSong>;
@@ -22,7 +22,7 @@ interface SongStudioConsolidatedHeaderProps {
   onTogglePlayback: () => void;
   pitch: number;
   targetKey: string;
-  globalKeyPreference: KeyPreference;
+  globalKeyPreference: 'sharps' | 'flats' | 'neutral';
   onClose: () => void;
   onOpenProSync: () => void;
   gigId: string | 'library';
@@ -36,159 +36,101 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
   isPlaying,
   isLoadingAudio,
   onTogglePlayback,
+  pitch,
   targetKey,
   globalKeyPreference,
   onClose,
   onOpenProSync,
+  gigId,
+  allSetlists,
+  onUpdateSetlistSongs,
   onAutoSave
 }) => {
-  const isApproved = formData.isApproved || false;
-  const displayKey = formatKey(targetKey || formData.originalKey || 'C', formData.key_preference || globalKeyPreference);
-  const readinessScore = calculateReadiness(formData);
+  const displayKey = formatKey(targetKey || formData.originalKey || 'C', globalKeyPreference === 'neutral' ? 'sharps' : globalKeyPreference);
 
   return (
-    <div className="h-28 bg-slate-950/90 border-b border-white/10 px-6 flex items-center justify-between backdrop-blur-3xl sticky top-0 z-[100] gap-6">
-      {/* Left Section: Identity */}
-      <div className="flex items-center gap-4 flex-1 min-w-0 overflow-hidden">
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={onClose}
-          className="h-10 w-10 rounded-xl text-slate-500 hover:bg-white/5 hover:text-white transition-all shrink-0"
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </Button>
+    <div className="h-24 bg-slate-950 border-b border-white/5 flex items-center justify-between px-8 relative overflow-hidden">
+      {/* Background Glow */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-full bg-indigo-600/5 blur-[100px] pointer-events-none" />
 
-        <div className="flex flex-col min-w-0 overflow-hidden">
-          <div className="flex items-center gap-3 overflow-hidden">
-            <div className="p-2 bg-indigo-500/10 rounded-xl shrink-0">
-              <Music2 className="w-4 h-4 text-indigo-400" />
-            </div>
-            <h2 className="text-xl font-black uppercase tracking-tight text-white leading-none truncate">
-              {formData.name || "Untitled Track"}
-            </h2>
+      <div className="flex items-center gap-6 relative z-10">
+        <div className="bg-indigo-600/10 p-3 rounded-2xl border border-indigo-500/20 shadow-lg shadow-indigo-900/20">
+          <Music className="w-6 h-6 text-indigo-400" />
+        </div>
+        
+        <div className="flex flex-col">
+          <h2 className="text-2xl font-black uppercase tracking-tight text-white leading-none truncate max-w-[400px]">
+            {formData.name || "Untitled Track"}
+          </h2>
+          <div className="flex items-center gap-2 mt-2">
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+              {formData.artist || "Unknown Artist"}
+            </p>
+            
+            {/* The requested Setlist Selector */}
+            {onUpdateSetlistSongs && (
+              <SetlistMultiSelector
+                songMasterId={formData.master_id || formData.id || ''}
+                allSetlists={allSetlists}
+                songToAssign={formData as SetlistSong}
+                onUpdateSetlistSongs={onUpdateSetlistSongs}
+                className="h-5 w-5 p-0 opacity-40 hover:opacity-100 hover:text-indigo-400 transition-all"
+              />
+            )}
           </div>
-          <p className="text-slate-500 font-bold uppercase tracking-[0.2em] text-[8px] mt-2 ml-9 truncate">
-            {formData.artist || "Unknown Artist"}
-          </p>
         </div>
       </div>
 
-      {/* Center Section: Performance Metrics & Playback */}
-      <div className="flex items-center gap-2 bg-white/[0.02] p-1 rounded-[2rem] border border-white/5 shadow-2xl shrink-0">
-        <Button
-          onClick={onTogglePlayback}
-          disabled={isLoadingAudio}
-          className={cn(
-            "h-12 px-6 rounded-[1.75rem] font-black uppercase tracking-widest text-[10px] gap-2.5 shadow-2xl transition-all active:scale-95 shrink-0",
-            isPlaying 
-              ? "bg-red-600 hover:bg-red-500 text-white shadow-red-600/40" 
-              : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/40"
-          )}
-        >
-          {isLoadingAudio ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : isPlaying ? (
-            <Pause className="w-4 h-4 fill-current" />
-          ) : (
-            <Play className="w-4 h-4 fill-current" />
-          )}
-          {isPlaying ? "Stop" : "Preview"}
-        </Button>
-
-        <div className="flex items-center gap-1.5 px-1">
-          {/* Key Badge */}
-          <div className="flex flex-col items-center justify-center w-16 h-12 bg-white/5 rounded-xl border border-white/5">
-            <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Key</span>
-            <span className="text-xs font-mono font-black text-indigo-400">{displayKey}</span>
+      <div className="flex items-center gap-6 relative z-10">
+        {/* Key Display */}
+        <div className="flex flex-col items-center px-6 border-r border-white/5">
+          <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Stage Key</span>
+          <div className={cn(
+            "font-mono font-black text-lg px-4 py-1 rounded-xl border transition-all",
+            formData.isKeyConfirmed ? "bg-emerald-600/10 text-emerald-400 border-emerald-500/30" : "bg-indigo-600/10 text-indigo-400 border-indigo-500/30"
+          )}>
+            {displayKey}
           </div>
-
-          {/* Mastery Badge */}
-          <div className="flex flex-col items-center justify-center px-3 h-12 bg-white/5 rounded-xl border border-white/5">
-            <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Mastery</span>
-            <MasteryRating 
-              value={formData.comfort_level || 0} 
-              onChange={(val) => onAutoSave({ comfort_level: val })}
-              size="sm"
-            />
-          </div>
-
-          {/* Readiness Badge */}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="flex flex-col items-center justify-center w-20 h-12 bg-white/5 rounded-xl border border-white/5 cursor-help group hover:bg-white/10 transition-colors">
-                  <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Ready</span>
-                  <div className="flex items-center gap-1">
-                    <Activity className={cn(
-                      "w-2.5 h-2.5",
-                      readinessScore >= 90 ? "text-emerald-400" : readinessScore >= 60 ? "text-amber-400" : "text-red-400"
-                    )} />
-                    <span className={cn(
-                      "text-xs font-mono font-black",
-                      readinessScore >= 90 ? "text-emerald-400" : readinessScore >= 60 ? "text-amber-400" : "text-red-400"
-                    )}>
-                      {readinessScore}%
-                    </span>
-                  </div>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent className="bg-slate-900 text-white border-white/10 text-[10px] font-black uppercase p-3 rounded-xl">
-                Preparation score based on audio, charts, and mastery
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
         </div>
-      </div>
 
-      {/* Right Section: Actions */}
-      <div className="flex items-center justify-end gap-3 flex-1 min-w-0">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                onClick={() => onAutoSave({ isApproved: !isApproved })}
-                className={cn(
-                  "h-12 px-5 rounded-[1.75rem] font-black uppercase tracking-widest text-[9px] gap-2.5 transition-all border-2 shrink-0",
-                  isApproved 
-                    ? "bg-emerald-600/10 border-emerald-500/50 text-emerald-400 hover:bg-emerald-600/20 shadow-[0_0_20px_rgba(16,185,129,0.1)]" 
-                    : "bg-slate-900 border-white/5 text-slate-500 hover:bg-white/5 hover:text-slate-300"
-                )}
-              >
-                {isApproved ? (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                ) : (
-                  <CircleDashed className="w-3.5 h-3.5" />
-                )}
-                {isApproved ? "Approved" : "Approve"}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent className="bg-slate-900 text-white border-white/10 text-[10px] font-black uppercase">
-              {isApproved ? "Song is ready for performance" : "Mark as ready for performance"}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        {/* Playback Controls */}
+        <div className="flex items-center gap-4">
+          <Button
+            onClick={onOpenProSync}
+            variant="ghost"
+            className="h-12 px-6 rounded-2xl text-indigo-400 hover:bg-indigo-500/10 font-black uppercase tracking-widest text-[10px] gap-2"
+          >
+            <Sparkles className="w-4 h-4" /> Pro Sync
+          </Button>
 
-        <Button
-          variant="outline"
-          onClick={onOpenProSync}
-          className="h-12 px-5 rounded-[1.75rem] font-black uppercase tracking-widest text-[9px] gap-2.5 text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 hover:border-indigo-500/30 transition-all shadow-xl shrink-0"
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          Pro Sync
-        </Button>
+          <Button
+            onClick={onTogglePlayback}
+            disabled={isLoadingAudio}
+            className={cn(
+              "h-14 w-14 rounded-full shadow-2xl transition-all active:scale-90 flex items-center justify-center",
+              isPlaying ? "bg-red-600 hover:bg-red-500 shadow-red-600/20" : "bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/20"
+            )}
+          >
+            {isLoadingAudio ? (
+              <Loader2 className="w-6 h-6 animate-spin text-white" />
+            ) : isPlaying ? (
+              <Pause className="w-6 h-6 text-white fill-current" />
+            ) : (
+              <Play className="w-6 h-6 text-white fill-current ml-1" />
+            )}
+          </Button>
 
-        <div className="w-px h-8 bg-white/10 mx-1 shrink-0" />
+          <div className="w-px h-8 bg-white/5 mx-2" />
 
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={onClose}
-          className="h-10 w-10 rounded-xl text-slate-500 hover:bg-red-500/10 hover:text-red-400 transition-all shrink-0"
-        >
-          <X className="w-5 h-5" />
-        </Button>
+          <Button
+            onClick={onClose}
+            variant="ghost"
+            size="icon"
+            className="h-12 w-12 rounded-2xl text-slate-500 hover:text-white hover:bg-white/5"
+          >
+            <X className="w-6 h-6" />
+          </Button>
+        </div>
       </div>
     </div>
   );
