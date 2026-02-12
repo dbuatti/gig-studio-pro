@@ -17,7 +17,6 @@ serve(async (req) => {
       throw new Error("Missing title or artist for analysis.");
     }
 
-    // Define the provider pool
     const providers = [
       { type: 'google', key: Deno.env.get('GEMINI_API_KEY'), name: 'Google Primary' },
       { type: 'google', key: Deno.env.get('GEMINI_API_KEY_2'), name: 'Google Secondary' },
@@ -29,10 +28,9 @@ serve(async (req) => {
       throw new Error('No AI provider keys found in environment.');
     }
 
-    // Shuffle providers to distribute load initially
     const shuffledProviders = providers.sort(() => Math.random() - 0.5);
-    
     let lastError = null;
+
     const prompt = `Analyze this song for a professional live performance setlist:
     Title: "${title}"
     Artist: "${artist}"
@@ -46,8 +44,6 @@ serve(async (req) => {
     3. Groove: High movement, danceable, strong rhythm (e.g., funk, upbeat pop).
     4. Peak: Maximum intensity, anthems, high energy (e.g., rock closers, dance floor fillers).
 
-    Also suggest a refined Genre if the current one is "Unknown" or too broad.
-
     Return ONLY a JSON object:
     {
       "energy_level": "Ambient" | "Pulse" | "Groove" | "Peak",
@@ -55,10 +51,9 @@ serve(async (req) => {
       "confidence": 0.0-1.0
     }`;
 
-    // Sequential Fallback Logic
     for (const provider of shuffledProviders) {
       try {
-        console.log(`[vibe-check] Attempting "${title}" via ${provider.name} [v2.4]`);
+        console.log(`[vibe-check] Attempting "${title}" via ${provider.name} [v2.5]`);
         
         let content = "";
         if (provider.type === 'google') {
@@ -71,7 +66,14 @@ serve(async (req) => {
             })
           });
           const result = await response.json();
-          if (!response.ok) throw new Error(result.error?.message || "Google API error");
+          if (!response.ok) {
+            const msg = result.error?.message || "Google API error";
+            if (msg.includes("quota") || msg.includes("429")) {
+              console.warn(`[vibe-check] ${provider.name} throttled. Trying next...`);
+              continue;
+            }
+            throw new Error(msg);
+          }
           content = result.candidates?.[0]?.content?.parts?.[0]?.text;
         } else {
           const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -89,7 +91,14 @@ serve(async (req) => {
             })
           });
           const result = await response.json();
-          if (!response.ok) throw new Error(result.error?.message || "OpenRouter API error");
+          if (!response.ok) {
+            const msg = result.error?.message || "OpenRouter error";
+            if (msg.includes("credits") || msg.includes("429")) {
+              console.warn(`[vibe-check] ${provider.name} unavailable. Trying next...`);
+              continue;
+            }
+            throw new Error(msg);
+          }
           content = result.choices?.[0]?.message?.content;
         }
 
@@ -99,13 +108,12 @@ serve(async (req) => {
           });
         }
       } catch (err: any) {
-        console.warn(`[vibe-check] ${provider.name} failed: ${err.message}. Trying next...`);
         lastError = err;
-        continue; // Try the next provider in the pool
+        continue;
       }
     }
 
-    throw lastError || new Error("All providers failed to process request.");
+    throw lastError || new Error("All providers exhausted.");
 
   } catch (error: any) {
     console.error("[vibe-check] Final Error:", error.message);

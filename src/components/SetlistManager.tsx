@@ -284,8 +284,11 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       for (let i = 0; i < songsToVibeCheck.length; i++) {
         const song = songsToVibeCheck[i];
         try {
-          // Increased delay to 5 seconds to be safe with free tier limits across rotated keys
-          if (i > 0) await new Promise(resolve => setTimeout(resolve, 5000));
+          // Increased delay to 7 seconds + random jitter to stay safely within free tier limits
+          if (i > 0) {
+            const jitter = Math.random() * 1000;
+            await new Promise(resolve => setTimeout(resolve, 7000 + jitter));
+          }
 
           const { data, error } = await supabase.functions.invoke('vibe-check', {
             body: {
