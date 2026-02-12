@@ -5,20 +5,7 @@ import { Trash2, Edit3, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from './ui/button';
 import { useSettings } from '@/hooks/use-settings';
-
-export interface SheetLink {
-  id: string;
-  song_id: string;
-  user_id: string;
-  source_page: number;
-  source_x: number;
-  source_y: number;
-  target_page: number;
-  target_x: number;
-  target_y: number;
-  link_size: 'small' | 'medium' | 'large';
-  created_at?: string;
-}
+import { SheetLink } from '@/types/sheet-music';
 
 interface LinkDisplayOverlayProps {
   links: SheetLink[];
@@ -53,6 +40,7 @@ const LinkDisplayOverlay: React.FC<LinkDisplayOverlayProps> = ({
     switch (size) {
       case 'small': return base * 0.7 * scale;
       case 'large': return base * 1.5 * scale;
+      case 'extra-large': return base * 2.0 * scale;
       default: return base * scale;
     }
   };

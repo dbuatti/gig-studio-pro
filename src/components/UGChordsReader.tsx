@@ -4,6 +4,7 @@ import React, { useMemo } from 'react';
 import { transposeChords } from '@/utils/chordUtils';
 import { UGChordsConfig } from './SetlistManager';
 import { cn } from '@/lib/utils';
+import { calculateSemitones } from '@/utils/keyUtils';
 
 interface UGChordsReaderProps {
   chordsText: string;
@@ -28,8 +29,8 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
 }) => {
   const processedText = useMemo(() => {
     if (originalKey && targetKey && originalKey !== 'TBC' && targetKey !== 'TBC') {
-      // Fixed: Passing 4 arguments as expected by the utility I just created
-      return transposeChords(chordsText, originalKey, targetKey, readerKeyPreference);
+      const semitones = calculateSemitones(originalKey, targetKey);
+      return transposeChords(chordsText, semitones, readerKeyPreference);
     }
     return chordsText;
   }, [chordsText, originalKey, targetKey, readerKeyPreference]);
