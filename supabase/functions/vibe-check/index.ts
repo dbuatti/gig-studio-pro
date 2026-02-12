@@ -5,14 +5,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Known stable model/version combinations
-const MODEL_CONFIGS = [
-  { name: 'gemini-2.0-flash', version: 'v1beta' },
-  { name: 'gemini-1.5-flash', version: 'v1beta' },
-  { name: 'gemini-1.5-flash', version: 'v1' },
-  { name: 'gemini-1.5-pro', version: 'v1beta' }
-];
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -25,16 +17,11 @@ serve(async (req) => {
       throw new Error("Missing title or artist for analysis.");
     }
 
-    console.log(`[vibe-check] Analyzing: "${title}" by ${artist}`);
+    console.log(`[vibe-check] Analyzing: "${title}" by ${artist} via OpenRouter`);
 
-    const keys = [
-      Deno.env.get('GEMINI_API_KEY'),
-      Deno.env.get('GEMINI_API_KEY_2'),
-      Deno.env.get('GEMINI_API_KEY_3')
-    ].filter(Boolean);
-
-    if (keys.length === 0) {
-      throw new Error('No Gemini API keys configured in environment.');
+    const apiKey = Deno.env.get('OPENROUTER_API_KEY');
+    if (!apiKey) {
+      throw new Error('OPENROUTER_API_KEY not found in environment.');
     }
 
     const prompt = `Analyze this song for a live performance setlist:
@@ -59,55 +46,39 @@ serve(async (req) => {
       "confidence": 0.0-1.0
     }`;
 
-    // Try each model, and for each model try each key if needed
-    for (const config of MODEL_CONFIGS) {
-      for (const apiKey of keys) {
-        try {
-          const response = await fetch(
-            `https://generativelanguage.googleapis.com/${config.version}/models/${config.name}:generateContent?key=${apiKey}`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: { 
-                  temperature: 0.1,
-                  response_mime_type: "application/json"
-                }
-              }),
-            }
-          );
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "HTTP-Referer": "https://gigstudio.app", // Optional, for OpenRouter rankings
+        "X-Title": "Gig Studio",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.0-flash-exp:free",
+        messages: [
+          { role: "user", content: prompt }
+        ],
+        response_format: { type: "json_object" }
+      })
+    });
 
-          const result = await response.json();
-          
-          if (response.status === 429) {
-            console.warn(`[vibe-check] Rate limit (429) on ${config.name} with current key. Trying next key...`);
-            continue; 
-          }
-
-          if (!response.ok) {
-            console.error(`[vibe-check] ${config.name} failed (${response.status}):`, result.error?.message || 'Unknown error');
-            continue;
-          }
-
-          const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (text) {
-            // Ensure it's valid JSON before returning
-            JSON.parse(text); 
-            return new Response(text, { 
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-            });
-          }
-        } catch (err) {
-          console.error(`[vibe-check] Attempt failed for ${config.name}:`, err.message);
-        }
-      }
+    const result = await response.json();
+    
+    if (!response.ok) {
+      console.error(`[vibe-check] OpenRouter failed:`, result.error || 'Unknown error');
+      throw new Error(result.error?.message || "OpenRouter API error");
     }
 
-    throw new Error("All AI models and API keys failed to process the request. This usually indicates rate limits or invalid keys.");
+    const content = result.choices?.[0]?.message?.content;
+    if (!content) throw new Error("No content returned from AI");
+
+    return new Response(content, { 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    });
 
   } catch (error: any) {
-    console.error("[vibe-check] Final Error:", error.message);
+    console.error("[vibe-check] Error:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
