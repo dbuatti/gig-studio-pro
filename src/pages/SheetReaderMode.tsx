@@ -50,7 +50,8 @@ const SheetReaderMode: React.FC = () => {
     keyPreference: globalKeyPreference,
     preventStageKeyOverwrite,
     disablePortraitPdfScroll,
-    setKeyPreference: setGlobalKeyPreference
+    setKeyPreference: setGlobalKeyPreference,
+    ugChordsFontSize // Added global font size preference
   } = useSettings();
   const { forceReaderResource } = useReaderSettings();
 
@@ -590,7 +591,10 @@ const SheetReaderMode: React.FC = () => {
               selectedChartType === 'chords' ? (
                 <UGChordsReader
                   chordsText={currentSong.ug_chords_text || ""}
-                  config={currentSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
+                  config={{
+                    ...(currentSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG),
+                    fontSize: ugChordsFontSize // Apply global font size preference
+                  }}
                   isMobile={false}
                   originalKey={currentSong.originalKey}
                   targetKey={effectiveTargetKey}
