@@ -1,11 +1,14 @@
 "use client";
-
-import React from 'react';
-import { SetlistSong } from './SetlistManager';
+import React, { useMemo, useState } from 'react';
 import { Button } from "@/components/ui/button";
-import { FileText, Guitar, Layout, Printer, ExternalLink, AlertCircle, Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from "@/lib/utils";
+import { SetlistSong } from './SetlistManager';
+import { ExternalLink, ShieldCheck, Printer, FileText, Music, Guitar, Search, Maximize, Minimize, Eye } from 'lucide-react';
+import { showError, showSuccess } from '@/utils/toast';
 import UGChordsEditor from './UGChordsEditor';
+import UGChordsReader from './UGChordsReader';
+import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
+import { KeyPreference } from '@/hooks/use-settings';
 
 interface SongChartsTabProps {
   formData: Partial<SetlistSong>;
@@ -16,7 +19,7 @@ interface SongChartsTabProps {
   activeChartType: 'pdf' | 'leadsheet' | 'web' | 'ug';
   setActiveChartType: (type: 'pdf' | 'leadsheet' | 'web' | 'ug') => void;
   handleUgPrint: () => void;
-  // Harmonic sync props for UG editor
+  // Harmonic Sync Props
   pitch: number;
   setPitch: (pitch: number) => void;
   targetKey: string;
@@ -29,130 +32,190 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
   formData,
   handleAutoSave,
   isMobile,
+  setPreviewPdfUrl,
   isFramable,
   activeChartType,
   setActiveChartType,
   handleUgPrint,
+  // Harmonic Sync Props
   pitch,
   setPitch,
   targetKey,
   setTargetKey,
   isPitchLinked,
-  setIsPitchLinked
+  setIsPitchLinked,
 }) => {
-  const currentPdfUrl = activeChartType === 'pdf' ? formData.pdfUrl || formData.sheet_music_url : formData.leadsheetUrl;
-  const hasChart = !!currentPdfUrl;
+  const [activeSubTab, setActiveSubTab] = useState<"view" | "edit-ug">("view");
+  const [isReaderExpanded, setIsReaderExpanded] = useState(false);
+  
+  const currentChartUrl = useMemo(() => {
+    switch(activeChartType) {
+      case 'pdf': 
+        return formData.pdfUrl ? `${formData.pdfUrl}#toolbar=0&navpanes=0&view=FitH` : null;
+      case 'leadsheet': 
+        return formData.leadsheetUrl ? `${formData.leadsheetUrl}#toolbar=0&navpanes=0&view=FitH` : null;
+      case 'web': 
+        return formData.pdfUrl;
+      case 'ug': 
+        return null; 
+      default: 
+        return null;
+    }
+  }, [activeChartType, formData.pdfUrl, formData.leadsheetUrl]);
+
+  const canEmbedUg = useMemo(() => {
+    if (activeChartType === 'ug' && formData.ugUrl) {
+      return false;
+    }
+    return isFramable(currentChartUrl);
+  }, [activeChartType, formData.ugUrl, currentChartUrl, isFramable]);
+
+  React.useEffect(() => {
+    if (formData.ugUrl && !formData.pdfUrl && activeChartType !== 'ug') {
+      setActiveChartType('ug');
+    }
+  }, [formData.ugUrl, formData.pdfUrl, activeChartType, setActiveChartType]);
 
   return (
-    <div className="h-full flex flex-col space-y-6 animate-in fade-in duration-500">
-      {/* Chart Type Navigation */}
-      <div className="flex items-center justify-between bg-white/5 p-2 rounded-2xl border border-white/10 shrink-0">
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setActiveChartType('pdf')}
+    <div className={cn("h-full flex flex-col animate-in fade-in duration-500", isReaderExpanded ? "gap-0" : "gap-8")}>
+      {!isReaderExpanded && (
+        <div className="flex bg-white/5 border border-white/10 p-1 rounded-xl">
+          <Button 
+            variant="ghost" 
+            onClick={() => setActiveSubTab("view")}
             className={cn(
-              "h-10 px-6 rounded-xl text-[10px] font-black uppercase tracking-widest gap-2.5 transition-all",
-              activeChartType === 'pdf' ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20" : "text-slate-400 hover:text-white"
+              "flex-1 text-[10px] font-black uppercase tracking-widest",
+              activeSubTab === "view" ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-white"
             )}
           >
-            <FileText className="w-4 h-4" />
-            Full Score (PDF)
+            View Charts
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setActiveChartType('leadsheet')}
+          <Button 
+            variant="ghost" 
+            onClick={() => setActiveSubTab("edit-ug")}
             className={cn(
-              "h-10 px-6 rounded-xl text-[10px] font-black uppercase tracking-widest gap-2.5 transition-all",
-              activeChartType === 'leadsheet' ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20" : "text-slate-400 hover:text-white"
+              "flex-1 text-[10px] font-black uppercase tracking-widest",
+              activeSubTab === "edit-ug" ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-white"
             )}
           >
-            <Layout className="w-4 h-4" />
-            Lead Sheet (LS)
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setActiveChartType('ug')}
-            className={cn(
-              "h-10 px-6 rounded-xl text-[10px] font-black uppercase tracking-widest gap-2.5 transition-all",
-              activeChartType === 'ug' ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20" : "text-slate-400 hover:text-white"
-            )}
-          >
-            <Guitar className="w-4 h-4" />
-            Chords (UG)
+            Edit UG Chords
           </Button>
         </div>
+      )}
 
-        {activeChartType === 'ug' && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleUgPrint}
-            className="h-10 px-4 rounded-xl border-white/10 text-slate-400 hover:text-white hover:bg-white/5"
-          >
-            <Printer className="w-4 h-4" />
-          </Button>
-        )}
-      </div>
-
-      {/* Content Area */}
-      <div className="flex-1 bg-slate-900/50 rounded-[2.5rem] border-4 border-white/5 shadow-2xl overflow-hidden relative min-h-[400px]">
-        {activeChartType === 'ug' ? (
-          <UGChordsEditor 
-            songId={formData.master_id || formData.id || ""}
-            initialChords={formData.ug_chords_text || ""}
-            onSave={(text) => handleAutoSave({ ug_chords_text: text })}
-            originalKey={formData.originalKey || 'C'}
-            targetKey={targetKey}
-            pitch={pitch}
-            setPitch={setPitch}
-            setTargetKey={setTargetKey}
-            isPitchLinked={isPitchLinked}
-            setIsPitchLinked={setIsPitchLinked}
-            config={formData.ug_chords_config}
-            onConfigChange={(config) => handleAutoSave({ ug_chords_config: config })}
-          />
-        ) : hasChart ? (
-          isFramable(currentPdfUrl) ? (
-            <iframe 
-              src={`${currentPdfUrl}#toolbar=0&navpanes=0`}
-              className="w-full h-full border-none"
-              title="Chart Viewer"
-            />
-          ) : (
-            <div className="h-full flex flex-col items-center justify-center p-12 text-center space-y-6">
-              <div className="bg-amber-500/10 p-6 rounded-[2rem] border border-amber-500/20">
-                <AlertCircle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
-                <h3 className="text-lg font-black uppercase tracking-tight text-white">External Resource Detected</h3>
-                <p className="text-sm text-slate-400 mt-2 max-w-md mx-auto">
-                  This {activeChartType === 'pdf' ? 'Full Score' : 'Lead Sheet'} is hosted on a platform that prevents direct embedding.
-                </p>
+      {activeSubTab === "view" ? (
+        <>
+          {!isReaderExpanded && (
+            <div className="flex justify-between items-center shrink-0">
+              <h3 className="text-sm font-black uppercase tracking-[0.3em] text-emerald-400">Chart Engine</h3>
+              
+              <div className="flex bg-white/5 p-1 rounded-xl">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  disabled={!formData.pdfUrl}
+                  onClick={() => setActiveChartType('pdf')}
+                  className={cn(
+                    "text-[9px] font-black uppercase h-8 px-4 rounded-lg",
+                    activeChartType === 'pdf' ? "bg-indigo-600 text-white" : "text-slate-500 hover:text-slate-300"
+                  )}
+                >
+                  PDF
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  disabled={!formData.ugUrl && !formData.ug_chords_text}
+                  onClick={() => setActiveChartType('ug')}
+                  className={cn(
+                    "text-[9px] font-black uppercase h-8 px-4 rounded-lg",
+                    activeChartType === 'ug' ? "bg-indigo-600 text-white" : "text-slate-500 hover:text-slate-300"
+                  )}
+                >
+                  UG
+                </Button>
               </div>
+            </div>
+          )}
+          
+          <div className={cn(
+            "flex-1 bg-white shadow-2xl relative", 
+            isMobile ? "rounded-3xl" : "rounded-[3rem]",
+            activeChartType === 'ug' ? "overflow-y-auto" : "overflow-hidden"
+          )}>
+            {activeChartType === 'ug' && (formData.ug_chords_text || formData.ugUrl) ? (
+              <UGChordsReader
+                chordsText={formData.ug_chords_text || ""}
+                config={formData.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
+                isMobile={isMobile}
+                originalKey={formData.originalKey}
+                targetKey={targetKey}
+                readerKeyPreference={formData.key_preference}
+              />
+            ) : currentChartUrl ? (
+              canEmbedUg ? (
+                <iframe 
+                  src={currentChartUrl} 
+                  className="w-full h-full" 
+                  title="Chart Viewer" 
+                />
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center bg-slate-900 p-8 text-center">
+                  <ShieldCheck className="w-12 h-12 text-indigo-400 mb-6" />
+                  <h4 className="text-3xl md:text-5xl font-black uppercase tracking-tight mb-4 md:mb-6 text-white">Asset Protected</h4>
+                  <p className="text-slate-500 max-xl mb-8 md:mb-16 text-lg md:text-xl font-medium leading-relaxed">
+                    External security prevents in-app display. Use the button below to launch in a secure dedicated performance window.
+                  </p>
+                  <Button 
+                    onClick={() => window.open(currentChartUrl, '_blank')} 
+                    className="bg-indigo-600 hover:bg-indigo-700 h-16 md:h-20 px-10 md:px-16 font-black uppercase tracking-[0.2em] text-xs md:text-sm rounded-2xl md:rounded-3xl shadow-2xl shadow-indigo-600/30 gap-4 md:gap-6"
+                  >
+                    <ExternalLink className="w-6 h-6 md:w-8 md:h-8" /> Launch Chart Window
+                  </Button>
+                </div>
+              )
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center p-8 bg-slate-100 text-center">
+                <h4 className="text-lg font-black text-slate-900 uppercase">No Active Chart</h4>
+                <p className="text-sm text-slate-500 mt-2">Link a PDF or Ultimate Guitar tab in the details tab.</p>
+              </div>
+            )}
+          </div>
+          
+          {activeChartType === 'ug' && (formData.ugUrl || formData.ug_chords_text) && (
+            <div className="shrink-0 flex justify-center gap-3">
               <Button 
-                asChild
-                className="bg-indigo-600 hover:bg-indigo-500 h-14 px-8 rounded-2xl font-black uppercase tracking-widest text-[11px] gap-3 shadow-xl shadow-indigo-600/20"
+                onClick={handleUgPrint}
+                className="bg-orange-600 hover:bg-orange-700 text-white font-black uppercase tracking-widest text-[10px] h-12 px-8 rounded-xl shadow-lg shadow-orange-600/20 gap-3"
               >
-                <a href={currentPdfUrl} target="_blank" rel="noopener noreferrer">
-                  Open in New Tab <ExternalLink className="w-4 h-4" />
-                </a>
+                <ExternalLink className="w-4 h-4" />
+                Open in Ultimate Guitar
+              </Button>
+              <Button
+                onClick={() => setIsReaderExpanded(prev => !prev)}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-[10px] h-12 px-8 rounded-xl shadow-lg shadow-indigo-600/20 gap-3"
+              >
+                {isReaderExpanded ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                {isReaderExpanded ? "Collapse View" : "Expand View"}
               </Button>
             </div>
-          )
-        ) : (
-          <div className="h-full flex flex-col items-center justify-center p-12 text-center space-y-6">
-            <div className="bg-white/5 p-8 rounded-[3rem] border border-white/5">
-              <FileText className="w-16 h-16 text-slate-800 mx-auto mb-4" />
-              <h3 className="text-xl font-black uppercase tracking-tight text-slate-500">No {activeChartType === 'pdf' ? 'Full Score' : 'Lead Sheet'} Linked</h3>
-              <p className="text-sm text-slate-600 mt-2 max-w-xs mx-auto">
-                Upload a PDF in the <span className="text-indigo-400 font-bold">Details</span> tab to view it here.
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
+          )}
+        </>
+      ) : (
+        <UGChordsEditor 
+          song={null} 
+          formData={formData} 
+          handleAutoSave={handleAutoSave} 
+          isMobile={isMobile} 
+          // Pass harmonic sync props
+          pitch={pitch}
+          setPitch={setPitch}
+          targetKey={targetKey}
+          setTargetKey={setTargetKey}
+          isPitchLinked={isPitchLinked}
+          setIsPitchLinked={setIsPitchLinked}
+        />
+      )}
     </div>
   );
 };
