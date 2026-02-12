@@ -47,9 +47,9 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
   const readinessScore = calculateReadiness(formData);
 
   return (
-    <div className="h-28 bg-slate-950/80 border-b border-white/10 px-8 flex items-center justify-between backdrop-blur-2xl sticky top-0 z-[100]">
-      {/* Left Section: Navigation & Identity */}
-      <div className="flex items-center gap-6 min-w-0">
+    <div className="h-28 bg-slate-950/90 border-b border-white/10 px-8 flex items-center justify-between backdrop-blur-3xl sticky top-0 z-[100] gap-8">
+      {/* Left Section: Identity */}
+      <div className="flex items-center gap-6 flex-1 min-w-0">
         <Button 
           variant="ghost" 
           size="icon" 
@@ -61,26 +61,26 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
 
         <div className="flex flex-col min-w-0">
           <div className="flex items-center gap-3">
-            <div className="p-1.5 bg-indigo-500/10 rounded-lg shrink-0">
+            <div className="p-2 bg-indigo-500/10 rounded-xl shrink-0">
               <Music2 className="w-4 h-4 text-indigo-400" />
             </div>
             <h2 className="text-2xl font-black uppercase tracking-tight text-white leading-none truncate">
               {formData.name || "Untitled Track"}
             </h2>
           </div>
-          <p className="text-slate-500 font-bold uppercase tracking-[0.25em] text-[9px] mt-2.5 ml-8">
+          <p className="text-slate-500 font-bold uppercase tracking-[0.25em] text-[9px] mt-2.5 ml-10">
             {formData.artist || "Unknown Artist"}
           </p>
         </div>
       </div>
 
       {/* Center Section: Performance Metrics & Playback */}
-      <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-3 bg-white/[0.03] p-1.5 rounded-[2rem] border border-white/5 shadow-2xl">
+      <div className="flex items-center gap-3 bg-white/[0.02] p-1.5 rounded-[2.5rem] border border-white/5 shadow-2xl shrink-0">
         <Button
           onClick={onTogglePlayback}
           disabled={isLoadingAudio}
           className={cn(
-            "h-14 px-8 rounded-[1.5rem] font-black uppercase tracking-widest text-[11px] gap-3 shadow-2xl transition-all active:scale-95 shrink-0",
+            "h-14 px-8 rounded-[2rem] font-black uppercase tracking-widest text-[11px] gap-3 shadow-2xl transition-all active:scale-95 shrink-0",
             isPlaying 
               ? "bg-red-600 hover:bg-red-500 text-white shadow-red-600/40" 
               : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/40"
@@ -96,7 +96,7 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
           {isPlaying ? "Stop" : "Preview"}
         </Button>
 
-        <div className="flex items-center gap-1.5 px-2">
+        <div className="flex items-center gap-2 px-2">
           {/* Key Badge */}
           <div className="flex flex-col items-center justify-center w-20 h-14 bg-white/5 rounded-2xl border border-white/5">
             <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Key</span>
@@ -104,7 +104,7 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
           </div>
 
           {/* Mastery Badge */}
-          <div className="flex flex-col items-center justify-center px-4 h-14 bg-white/5 rounded-2xl border border-white/5">
+          <div className="flex flex-col items-center justify-center px-5 h-14 bg-white/5 rounded-2xl border border-white/5">
             <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Mastery</span>
             <MasteryRating 
               value={formData.comfort_level || 0} 
@@ -142,7 +142,7 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
       </div>
 
       {/* Right Section: Actions */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center justify-end gap-4 flex-1">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -150,7 +150,7 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
                 variant="outline"
                 onClick={() => onAutoSave({ isApproved: !isApproved })}
                 className={cn(
-                  "h-14 px-6 rounded-[1.5rem] font-black uppercase tracking-widest text-[10px] gap-3 transition-all border-2",
+                  "h-14 px-6 rounded-[2rem] font-black uppercase tracking-widest text-[10px] gap-3 transition-all border-2",
                   isApproved 
                     ? "bg-emerald-600/10 border-emerald-500/50 text-emerald-400 hover:bg-emerald-600/20 shadow-[0_0_20px_rgba(16,185,129,0.1)]" 
                     : "bg-slate-900 border-white/5 text-slate-500 hover:bg-white/5 hover:text-slate-300"
@@ -173,7 +173,7 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
         <Button
           variant="outline"
           onClick={onOpenProSync}
-          className="h-14 px-6 rounded-[1.5rem] font-black uppercase tracking-widest text-[10px] gap-3 text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 hover:border-indigo-500/30 transition-all shadow-xl"
+          className="h-14 px-6 rounded-[2rem] font-black uppercase tracking-widest text-[10px] gap-3 text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 hover:border-indigo-500/30 transition-all shadow-xl"
         >
           <Sparkles className="w-4 h-4" />
           Pro Sync
