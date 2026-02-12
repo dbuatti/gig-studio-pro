@@ -27,21 +27,23 @@ serve(async (req) => {
     const body = await req.json();
     const { songs, instruction } = body as { songs: Song[], instruction: string };
 
-    // Rotate through available Gemini keys
-    const keys = [
-      Deno.env.get('GEMINI_API_KEY'),
-      Deno.env.get('GEMINI_API_KEY_2'),
-      Deno.env.get('GEMINI_API_KEY_3')
-    ].filter(Boolean);
+    // Define the provider pool
+    const providers = [
+      { type: 'google', key: Deno.env.get('GEMINI_API_KEY') },
+      { type: 'google', key: Deno.env.get('GEMINI_API_KEY_2') },
+      { type: 'google', key: Deno.env.get('GEMINI_API_KEY_3') },
+      { type: 'openrouter', key: Deno.env.get('OPENROUTER_API_KEY') }
+    ].filter(p => !!p.key);
 
-    if (keys.length === 0) {
-      throw new Error('No Gemini API keys found in environment.');
+    if (providers.length === 0) {
+      throw new Error('No AI provider keys found in environment.');
     }
 
-    const apiKey = keys[Math.floor(Math.random() * keys.length)];
-    const keyIndex = keys.indexOf(apiKey) + 1;
+    // Pick a random provider
+    const provider = providers[Math.floor(Math.random() * providers.length)];
+    const providerIndex = providers.indexOf(provider) + 1;
 
-    console.log(`[ai-setlist-sorter] Sorting via Native Gemini 2.0 Flash (Key Pool #${keyIndex}) [v2.2]`, { count: songs?.length, instruction });
+    console.log(`[ai-setlist-sorter] Sorting via ${provider.type.toUpperCase()} (Pool #${providerIndex}) [v2.3]`, { count: songs?.length, instruction });
 
     const prompt = `You are an expert Musical Director. Reorder these songs based on this instruction: "${instruction}"
 
@@ -58,28 +60,44 @@ Return ONLY a JSON object with an array of IDs in the new order:
   "orderedIds": ["id1", "id2", "id3"]
 }`;
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{ text: prompt }]
-        }],
-        generationConfig: {
-          responseMimeType: "application/json"
-        }
-      })
-    });
+    let content = "";
 
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error?.message || "Gemini error");
+    if (provider.type === 'google') {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${provider.key}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { responseMimeType: "application/json" }
+        })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error?.message || "Google API error");
+      content = result.candidates?.[0]?.content?.parts?.[0]?.text;
+    } else {
+      // OpenRouter implementation
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${provider.key}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://supabase.com",
+          "X-Title": "Gig Studio"
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.0-flash-001",
+          messages: [{ role: "user", content: prompt }],
+          response_format: { type: "json_object" }
+        })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error?.message || "OpenRouter API error");
+      content = result.choices?.[0]?.message?.content;
+    }
 
-    const text = result.candidates?.[0]?.content?.[0]?.text || result.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) throw new Error("No response from AI");
+    if (!content) throw new Error("No response from AI");
 
-    const parsed = JSON.parse(text);
+    const parsed = JSON.parse(content);
     
     if (parsed.orderedIds && Array.isArray(parsed.orderedIds)) {
       return new Response(JSON.stringify({ orderedIds: parsed.orderedIds }), { 
