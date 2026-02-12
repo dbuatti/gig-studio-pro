@@ -531,7 +531,7 @@ const SheetReaderMode: React.FC = () => {
     // Start with global settings from Preferences
     const baseConfig: UGChordsConfig = {
       fontFamily: ugChordsFontFamily,
-      fontSize: ugChordsFontSize,
+      fontSize: ugChordsFontSize + 1, // Increased by 1 point as requested
       chordBold: ugChordsChordBold,
       chordColor: ugChordsChordColor,
       lineSpacing: ugChordsLineSpacing,
@@ -540,7 +540,11 @@ const SheetReaderMode: React.FC = () => {
 
     // Merge with song-specific overrides if they exist from Studio
     if (currentSong.ug_chords_config) {
-      return { ...baseConfig, ...currentSong.ug_chords_config };
+      return { 
+        ...baseConfig, 
+        ...currentSong.ug_chords_config,
+        fontSize: (currentSong.ug_chords_config.fontSize || ugChordsFontSize) + 1 // Also adjust override
+      };
     }
 
     return baseConfig;
