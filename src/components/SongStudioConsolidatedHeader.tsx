@@ -4,7 +4,7 @@ import React from 'react';
 import { Button } from "@/components/ui/button";
 import { 
   Play, Pause, X, Sparkles, CheckCircle2, 
-  CircleDashed, Loader2, ChevronLeft, Info,
+  CircleDashed, Loader2, ChevronLeft,
   Music2, Activity
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -47,9 +47,9 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
   const readinessScore = calculateReadiness(formData);
 
   return (
-    <div className="h-28 bg-slate-950/90 border-b border-white/10 px-6 flex items-center justify-between backdrop-blur-3xl sticky top-0 z-[100] gap-4">
-      {/* Left Section: Identity - Increased flex weight to prevent truncation */}
-      <div className="flex items-center gap-4 flex-[1.5] min-w-0">
+    <div className="h-28 bg-slate-950/90 border-b border-white/10 px-6 flex items-center justify-between backdrop-blur-3xl sticky top-0 z-[100] gap-6">
+      {/* Left Section: Identity */}
+      <div className="flex items-center gap-4 flex-1 min-w-0 overflow-hidden">
         <Button 
           variant="ghost" 
           size="icon" 
@@ -59,12 +59,12 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
           <ChevronLeft className="w-5 h-5" />
         </Button>
 
-        <div className="flex flex-col min-w-0">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col min-w-0 overflow-hidden">
+          <div className="flex items-center gap-3 overflow-hidden">
             <div className="p-2 bg-indigo-500/10 rounded-xl shrink-0">
               <Music2 className="w-4 h-4 text-indigo-400" />
             </div>
-            <h2 className="text-xl font-black uppercase tracking-tight text-white leading-none whitespace-nowrap">
+            <h2 className="text-xl font-black uppercase tracking-tight text-white leading-none truncate">
               {formData.name || "Untitled Track"}
             </h2>
           </div>
@@ -74,7 +74,7 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
         </div>
       </div>
 
-      {/* Center Section: Performance Metrics & Playback - More compact */}
+      {/* Center Section: Performance Metrics & Playback */}
       <div className="flex items-center gap-2 bg-white/[0.02] p-1 rounded-[2rem] border border-white/5 shadow-2xl shrink-0">
         <Button
           onClick={onTogglePlayback}
@@ -141,8 +141,8 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
         </div>
       </div>
 
-      {/* Right Section: Actions - Tightened spacing */}
-      <div className="flex items-center justify-end gap-3 flex-1">
+      {/* Right Section: Actions */}
+      <div className="flex items-center justify-end gap-3 flex-1 min-w-0">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -150,7 +150,7 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
                 variant="outline"
                 onClick={() => onAutoSave({ isApproved: !isApproved })}
                 className={cn(
-                  "h-12 px-5 rounded-[1.75rem] font-black uppercase tracking-widest text-[9px] gap-2.5 transition-all border-2",
+                  "h-12 px-5 rounded-[1.75rem] font-black uppercase tracking-widest text-[9px] gap-2.5 transition-all border-2 shrink-0",
                   isApproved 
                     ? "bg-emerald-600/10 border-emerald-500/50 text-emerald-400 hover:bg-emerald-600/20 shadow-[0_0_20px_rgba(16,185,129,0.1)]" 
                     : "bg-slate-900 border-white/5 text-slate-500 hover:bg-white/5 hover:text-slate-300"
@@ -173,13 +173,13 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
         <Button
           variant="outline"
           onClick={onOpenProSync}
-          className="h-12 px-5 rounded-[1.75rem] font-black uppercase tracking-widest text-[9px] gap-2.5 text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 hover:border-indigo-500/30 transition-all shadow-xl"
+          className="h-12 px-5 rounded-[1.75rem] font-black uppercase tracking-widest text-[9px] gap-2.5 text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 hover:border-indigo-500/30 transition-all shadow-xl shrink-0"
         >
           <Sparkles className="w-3.5 h-3.5" />
           Pro Sync
         </Button>
 
-        <div className="w-px h-8 bg-white/10 mx-1" />
+        <div className="w-px h-8 bg-white/10 mx-1 shrink-0" />
 
         <Button 
           variant="ghost" 
