@@ -17,12 +17,11 @@ serve(async (req) => {
       throw new Error("Missing title or artist for analysis.");
     }
 
-    // Updated log message to help you identify the new version in Supabase logs
-    console.log(`[vibe-check] Analyzing: "${title}" by ${artist} via Gemini 2.0 Flash (OpenRouter)`);
+    console.log(`[vibe-check] Analyzing: "${title}" by ${artist} via Native Gemini 1.5 Flash`);
 
-    const apiKey = Deno.env.get('OPENROUTER_API_KEY');
+    const apiKey = Deno.env.get('GEMINI_API_KEY');
     if (!apiKey) {
-      throw new Error('OPENROUTER_API_KEY not found in environment.');
+      throw new Error('GEMINI_API_KEY not found in environment.');
     }
 
     const prompt = `Analyze this song for a professional live performance setlist:
@@ -47,31 +46,30 @@ serve(async (req) => {
       "confidence": 0.0-1.0
     }`;
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    // Using v1beta endpoint which is more robust for gemini-1.5-flash
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://supabase.com",
-        "X-Title": "Gig Studio"
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "google/gemini-2.0-flash-001",
-        messages: [
-          { role: "user", content: prompt }
-        ],
-        response_format: { type: "json_object" }
+        contents: [{
+          parts: [{ text: prompt }]
+        }],
+        generationConfig: {
+          responseMimeType: "application/json"
+        }
       })
     });
 
     const result = await response.json();
     
     if (!response.ok) {
-      console.error(`[vibe-check] OpenRouter failed:`, result.error || 'Unknown error');
-      throw new Error(result.error?.message || "OpenRouter API error");
+      console.error(`[vibe-check] Gemini API failed:`, result.error || 'Unknown error');
+      throw new Error(result.error?.message || "Gemini API error");
     }
 
-    const content = result.choices?.[0]?.message?.content;
+    const content = result.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!content) throw new Error("No content returned from AI");
 
     return new Response(content, { 

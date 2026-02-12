@@ -27,11 +27,11 @@ serve(async (req) => {
     const body = await req.json();
     const { songs, instruction } = body as { songs: Song[], instruction: string };
 
-    console.log("[ai-setlist-sorter] Sorting via Gemini 2.0 Flash (OpenRouter)", { count: songs?.length, instruction });
+    console.log("[ai-setlist-sorter] Sorting via Native Gemini 1.5 Flash", { count: songs?.length, instruction });
 
-    const apiKey = Deno.env.get('OPENROUTER_API_KEY');
+    const apiKey = Deno.env.get('GEMINI_API_KEY');
     if (!apiKey) {
-      throw new Error('OPENROUTER_API_KEY not found in environment.');
+      throw new Error('GEMINI_API_KEY not found in environment.');
     }
 
     const prompt = `You are an expert Musical Director. Reorder these songs based on this instruction: "${instruction}"
@@ -49,27 +49,25 @@ Return ONLY a JSON object with an array of IDs in the new order:
   "orderedIds": ["id1", "id2", "id3"]
 }`;
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://supabase.com",
-        "X-Title": "Gig Studio"
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "google/gemini-2.0-flash-001",
-        messages: [
-          { role: "user", content: prompt }
-        ],
-        response_format: { type: "json_object" }
+        contents: [{
+          parts: [{ text: prompt }]
+        }],
+        generationConfig: {
+          responseMimeType: "application/json"
+        }
       })
     });
 
     const result = await response.json();
-    if (!response.ok) throw new Error(result.error?.message || "OpenRouter error");
+    if (!response.ok) throw new Error(result.error?.message || "Gemini error");
 
-    const text = result.choices?.[0]?.message?.content;
+    const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) throw new Error("No response from AI");
 
     const parsed = JSON.parse(text);
