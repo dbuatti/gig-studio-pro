@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, CircleDashed, CheckCircle2, Volume2, ChevronUp, ChevronDown, Search, LayoutList, SortAsc, AlertTriangle, Loader2, Guitar, CloudDownload, Edit3, Filter, MoreVertical, Settings2, Check, ShieldCheck, Clock, Star, Zap, Sparkles, Info } from 'lucide-react';
+import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, CircleDashed, CheckCircle2, Volume2, ChevronUp, ChevronDown, Search, LayoutList, SortAsc, AlertTriangle, Loader2, Guitar, CloudDownload, Edit3, Filter, MoreVertical, Settings2, Check, ShieldCheck, Clock, Star, Zap, Sparkles, Info, TrendingUp } from 'lucide-react';
 
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, formatKey, transposeKey, calculateSemitones } from '@/utils/keyUtils';
 import { cn } from '@/lib/utils';
@@ -390,13 +390,14 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
             <div className="w-px h-4 bg-white/10 mx-1 hidden sm:block" />
             <Button 
               variant="ghost" size="sm" 
-              onClick={() => setSortMode('ready')}
+              onClick={() => setSortMode(sortMode === 'ready' ? 'work' : 'ready')}
               className={cn(
                 "h-8 px-4 text-[10px] font-black uppercase tracking-widest gap-2 shrink-0 rounded-xl transition-all",
-                sortMode === 'ready' ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/20" : "text-slate-400 hover:text-white"
+                (sortMode === 'ready' || sortMode === 'work') ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/20" : "text-slate-400 hover:text-white"
               )}
             >
-              <Star className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Ready</span>
+              {sortMode === 'work' ? <TrendingUp className="w-3.5 h-3.5" /> : <Star className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">{sortMode === 'work' ? 'Work Needed' : 'Ready'}</span>
             </Button>
             <Button 
               variant="ghost" size="sm" 
@@ -627,7 +628,16 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                   <th className="py-5 px-8 text-[10px] font-black uppercase tracking-widest text-slate-500 text-left">Song / Resource Matrix</th>
                   <th className="py-5 px-8 text-[10px] font-black uppercase tracking-widest text-slate-500 w-32 text-center">Energy</th>
                   <th className="py-5 px-8 text-[10px] font-black uppercase tracking-widest text-slate-500 w-36 text-center">Mastery</th>
-                  <th className="py-5 px-8 text-[10px] font-black uppercase tracking-widest text-slate-500 w-24 text-center">Ready</th>
+                  <th 
+                    className="py-5 px-8 text-[10px] font-black uppercase tracking-widest text-slate-500 w-24 text-center cursor-pointer hover:text-indigo-400 transition-colors"
+                    onClick={() => setSortMode(sortMode === 'ready' ? 'work' : 'ready')}
+                  >
+                    <div className="flex items-center justify-center gap-1">
+                      Ready
+                      {sortMode === 'ready' && <ChevronDown className="w-3 h-3" />}
+                      {sortMode === 'work' && <ChevronUp className="w-3 h-3" />}
+                    </div>
+                  </th>
                   <th className="py-5 px-8 text-[10px] font-black uppercase tracking-widest text-slate-500 w-28 text-center">Move</th>
                   <th className="py-5 px-8 text-[10px] font-black uppercase tracking-widest text-slate-500 w-56 text-center">Harmonic Map</th>
                   <th className="py-5 px-8 text-[10px] font-black uppercase tracking-widest text-slate-500 w-48 text-right pr-12">Command</th>
