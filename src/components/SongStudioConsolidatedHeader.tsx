@@ -4,12 +4,13 @@ import React from 'react';
 import { Button } from "@/components/ui/button";
 import { 
   Play, Pause, X, Sparkles, CheckCircle2, 
-  CircleDashed, Loader2, Music, ChevronLeft 
+  CircleDashed, Loader2, ChevronLeft, Info 
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SetlistSong, Setlist } from './SetlistManager';
 import { KeyPreference } from '@/hooks/use-settings';
 import { formatKey } from '@/utils/keyUtils';
+import { calculateReadiness } from '@/utils/repertoireSync';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 interface SongStudioConsolidatedHeaderProps {
@@ -33,7 +34,6 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
   isPlaying,
   isLoadingAudio,
   onTogglePlayback,
-  pitch,
   targetKey,
   globalKeyPreference,
   onClose,
@@ -42,6 +42,7 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
 }) => {
   const isApproved = formData.isApproved || false;
   const displayKey = formatKey(targetKey || formData.originalKey || 'C', formData.key_preference || globalKeyPreference);
+  const readinessScore = calculateReadiness(formData);
 
   return (
     <div className="h-24 bg-slate-900/50 border-b border-white/5 px-8 flex items-center justify-between backdrop-blur-xl">
@@ -89,6 +90,26 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
             <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Stage Key</span>
             <span className="text-sm font-mono font-black text-indigo-400">{displayKey}</span>
           </div>
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex flex-col items-center px-4 py-2 bg-white/5 rounded-2xl border border-white/5 cursor-help">
+                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Readiness</span>
+                  <span className={cn(
+                    "text-sm font-mono font-black flex items-center gap-1.5",
+                    readinessScore >= 90 ? "text-emerald-400" : readinessScore >= 60 ? "text-amber-400" : "text-red-400"
+                  )}>
+                    {readinessScore}%
+                    <Info className="w-3 h-3 opacity-50" />
+                  </span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent className="bg-slate-900 text-white border-white/10 text-[10px] font-black uppercase">
+                Calculated based on audio, charts, and mastery
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
 
