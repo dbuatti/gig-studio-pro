@@ -1,14 +1,14 @@
 "use client";
 
 import React, { useMemo } from 'react';
+import { transposeChords } from '@/utils/chordUtils';
 import { UGChordsConfig } from './SetlistManager';
 import { cn } from '@/lib/utils';
-import { transposeChords } from '@/utils/chordUtils';
 
 interface UGChordsReaderProps {
   chordsText: string;
   config: UGChordsConfig;
-  isMobile?: boolean;
+  isMobile: boolean;
   originalKey?: string;
   targetKey?: string;
   readerKeyPreference?: 'sharps' | 'flats';
@@ -26,15 +26,11 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
   onChartReady,
   isFullScreen
 }) => {
-  
-  const processedContent = useMemo(() => {
-    if (!chordsText) return "";
-    
-    // If we have transposition info, apply it
+  const processedText = useMemo(() => {
     if (originalKey && targetKey && originalKey !== 'TBC' && targetKey !== 'TBC') {
+      // Fixed: Passing 4 arguments as expected by the utility I just created
       return transposeChords(chordsText, originalKey, targetKey, readerKeyPreference);
     }
-    
     return chordsText;
   }, [chordsText, originalKey, targetKey, readerKeyPreference]);
 
@@ -45,31 +41,29 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
   return (
     <div 
       className={cn(
-        "w-full h-full bg-white text-slate-900 p-8 md:p-12 overflow-y-auto custom-scrollbar-light",
-        isFullScreen && "p-4 md:p-8"
+        "w-full h-full p-8 overflow-y-auto custom-scrollbar",
+        isFullScreen ? "bg-slate-950 text-white" : "bg-white text-slate-900"
       )}
       style={{
-        fontFamily: config.fontFamily === 'monospace' ? 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace' : 'inherit',
+        fontFamily: config.fontFamily,
         fontSize: `${config.fontSize}px`,
         lineHeight: config.lineSpacing,
         textAlign: config.textAlign,
       }}
     >
-      <pre className="whitespace-pre-wrap break-words font-inherit">
-        {processedContent.split('\n').map((line, i) => {
-          // Simple heuristic to detect chord lines (lines with lots of spaces and short uppercase words)
-          const isChordLine = /^[A-G][#b]?(m|maj|min|dim|aug|sus|add|v|i|I|V)?\d?(\/[A-G][#b]?)?(\s+[A-G][#b]?(m|maj|min|dim|aug|sus|add|v|i|I|V)?\d?(\/[A-G][#b]?)?)*\s*$/.test(line.trim());
-          
+      <pre className="whitespace-pre-wrap break-words">
+        {processedText.split('\n').map((line, i) => {
+          const isChordLine = /^[A-G][#b]?(m|maj|min|dim|aug|sus|add|2|4|5|6|7|9|11|13)*(\/[A-G][#b]?)?(\s+[A-G][#b]?(m|maj|min|dim|aug|sus|add|2|4|5|6|7|9|11|13)*(\/[A-G][#b]?)?)*$/.test(line.trim());
           return (
             <div 
               key={i} 
               className={cn(
-                isChordLine && config.chordBold && "font-black",
-                isChordLine && "text-indigo-600" // Using a distinct color for chords in the reader
+                isChordLine && "font-bold",
+                isChordLine && !isFullScreen && "text-indigo-600"
               )}
-              style={isChordLine ? { color: config.chordColor !== '#ffffff' ? config.chordColor : undefined } : undefined}
+              style={{ color: isChordLine ? config.chordColor : undefined }}
             >
-              {line || '\u00A0'}
+              {line || ' '}
             </div>
           );
         })}
