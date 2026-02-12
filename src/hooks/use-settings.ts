@@ -3,141 +3,230 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
+import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 
-export type KeyPreference = 'sharps' | 'flats' | 'neutral';
+export type KeyPreference = 'flats' | 'sharps' | 'neutral';
 
-export const useSettings = () => {
-  const { user } = useAuth();
+export interface GlobalSettings {
+  keyPreference: KeyPreference;
+  safePitchMaxNote: string;
+  isSafePitchEnabled: boolean;
+  isGoalTrackerEnabled: boolean;
+  goalLyricsCount: number;
+  goalUgChordsCount: number;
+  goalUgLinksCount: number;
+  goalHighestNoteCount: number;
+  goalOriginalKeyCount: number;
+  goalTargetKeyCount: number;
+  goalPdfsCount: number;
+  defaultDashboardView: 'gigs' | 'repertoire';
+  ugChordsFontFamily: string;
+  ugChordsFontSize: number;
+  ugChordsChordBold: boolean;
+  ugChordsChordColor: string;
+  ugChordsLineSpacing: number;
+  ugChordsTextAlign: 'left' | 'center' | 'right';
+  preventStageKeyOverwrite: boolean;
+  linkSize: 'small' | 'medium' | 'large' | 'extra-large';
+  disablePortraitPdfScroll: boolean; // NEW
+}
+
+const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
+  keyPreference: 'neutral',
+  safePitchMaxNote: 'G3',
+  isSafePitchEnabled: true,
+  isGoalTrackerEnabled: false,
+  goalLyricsCount: 10,
+  goalUgChordsCount: 10,
+  goalUgLinksCount: 10,
+  goalHighestNoteCount: 10,
+  goalOriginalKeyCount: 10,
+  goalTargetKeyCount: 10,
+  goalPdfsCount: 5,
+  defaultDashboardView: 'gigs',
+  ugChordsFontFamily: DEFAULT_UG_CHORDS_CONFIG.fontFamily,
+  ugChordsFontSize: DEFAULT_UG_CHORDS_CONFIG.fontSize,
+  ugChordsChordBold: DEFAULT_UG_CHORDS_CONFIG.chordBold,
+  ugChordsChordColor: DEFAULT_UG_CHORDS_CONFIG.chordColor,
+  ugChordsLineSpacing: DEFAULT_UG_CHORDS_CONFIG.lineSpacing,
+  ugChordsTextAlign: DEFAULT_UG_CHORDS_CONFIG.textAlign,
+  preventStageKeyOverwrite: false,
+  linkSize: 'medium',
+  disablePortraitPdfScroll: false, // NEW
+};
+
+export function useSettings() {
+  const { user, loading: authLoading } = useAuth();
+  const [settings, setSettings] = useState<GlobalSettings>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('gig_global_settings');
+      return saved ? { ...DEFAULT_GLOBAL_SETTINGS, ...JSON.parse(saved) } : DEFAULT_GLOBAL_SETTINGS;
+    }
+    return DEFAULT_GLOBAL_SETTINGS;
+  });
   const [isFetchingSettings, setIsFetchingSettings] = useState(true);
-  
-  // State variables for all settings
-  const [keyPreference, setKeyPreferenceState] = useState<KeyPreference>('neutral');
-  const [isSafePitchEnabled, setIsSafePitchEnabledState] = useState(true);
-  const [isGoalTrackerEnabled, setIsGoalTrackerEnabledState] = useState(false);
-  const [goalLyricsCount, setGoalLyricsCountState] = useState(10);
-  const [goalUgChordsCount, setGoalUgChordsCountState] = useState(10);
-  const [goalUgLinksCount, setGoalUgLinksCountState] = useState(10);
-  const [goalHighestNoteCount, setGoalHighestNoteCountState] = useState(10);
-  const [goalOriginalKeyCount, setGoalOriginalKeyCountState] = useState(10);
-  const [goalTargetKeyCount, setGoalTargetKeyCountState] = useState(10);
-  const [goalPdfsCount, setGoalPdfsCountState] = useState(5);
-  const [defaultDashboardView, setDefaultDashboardViewState] = useState<'gigs' | 'repertoire'>('gigs');
-  const [ugChordsFontFamily, setUgChordsFontFamilyState] = useState('monospace');
-  const [ugChordsFontSize, setUgChordsFontSizeState] = useState(16);
-  const [ugChordsChordBold, setUgChordsChordBoldState] = useState(true);
-  const [ugChordsChordColor, setUgChordsChordColorState] = useState('#ffffff');
-  const [ugChordsLineSpacing, setUgChordsLineSpacingState] = useState(1.5);
-  const [ugChordsTextAlign, setUgChordsTextAlignState] = useState<'left' | 'center' | 'right'>('left');
-  const [preventStageKeyOverwrite, setPreventStageKeyOverwriteState] = useState(false);
-  const [disablePortraitPdfScroll, setDisablePortraitPdfScrollState] = useState(false);
-  const [linkSize, setLinkSizeState] = useState<'small' | 'medium' | 'large' | 'extra-large'>('medium');
-  const [safePitchMaxNote, setSafePitchMaxNote] = useState('G3');
 
-  const fetchSettings = useCallback(async () => {
-    if (!user) return;
-    setIsFetchingSettings(true);
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
+  useEffect(() => {
+    if (authLoading) return;
 
-      if (error) throw error;
-      if (data) {
-        setKeyPreferenceState(data.key_preference as KeyPreference || 'neutral');
-        setIsSafePitchEnabledState(data.is_safe_pitch_enabled ?? true);
-        setIsGoalTrackerEnabledState(data.is_goal_tracker_enabled ?? false);
-        setGoalLyricsCountState(data.goal_lyrics_count ?? 10);
-        setGoalUgChordsCountState(data.goal_ug_chords_count ?? 10);
-        setGoalUgLinksCountState(data.goal_ug_links_count ?? 10);
-        setGoalHighestNoteCountState(data.goal_highest_note_count ?? 10);
-        setGoalOriginalKeyCountState(data.goal_original_key_count ?? 10);
-        setGoalTargetKeyCountState(data.goal_target_key_count ?? 10);
-        setGoalPdfsCountState(data.goal_pdfs_count ?? 5);
-        setDefaultDashboardViewState(data.default_dashboard_view as 'gigs' | 'repertoire' || 'gigs');
-        setUgChordsFontFamilyState(data.ug_chords_font_family || 'monospace');
-        setUgChordsFontSizeState(data.ug_chords_font_size ?? 16);
-        setUgChordsChordBoldState(data.ug_chords_chord_bold ?? true);
-        setUgChordsChordColorState(data.ug_chords_chord_color || '#ffffff');
-        setUgChordsLineSpacingState(Number(data.ug_chords_line_spacing) || 1.5);
-        setUgChordsTextAlignState(data.ug_chords_text_align as any || 'left');
-        setPreventStageKeyOverwriteState(data.prevent_stage_key_overwrite ?? false);
-        setDisablePortraitPdfScrollState(data.disable_portrait_pdf_scroll ?? false);
-        setLinkSizeState(data.link_size as any || 'medium');
-        setSafePitchMaxNote(data.safe_pitch_max_note || 'G3');
+    const fetchUserSettings = async () => {
+      if (user) {
+        setIsFetchingSettings(true);
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select(`
+              key_preference, safe_pitch_max_note, is_safe_pitch_enabled, is_goal_tracker_enabled, 
+              goal_lyrics_count, goal_ug_chords_count, goal_ug_links_count, goal_highest_note_count,
+              goal_original_key_count, goal_target_key_count, goal_pdfs_count, default_dashboard_view,
+              ug_chords_font_family, ug_chords_font_size, ug_chords_chord_bold, ug_chords_chord_color,
+              ug_chords_line_spacing, ug_chords_text_align, prevent_stage_key_overwrite,
+              link_size, disable_portrait_pdf_scroll
+            `)
+            .eq('id', user.id)
+            .single();
+
+          if (error && error.code !== 'PGRST116') {
+            const saved = localStorage.getItem('gig_global_settings');
+            setSettings(saved ? { ...DEFAULT_GLOBAL_SETTINGS, ...JSON.parse(saved) } : DEFAULT_GLOBAL_SETTINGS);
+          } else if (data) {
+            const loadedSettings: Partial<GlobalSettings> = {};
+            if (data.key_preference) loadedSettings.keyPreference = data.key_preference as KeyPreference;
+            if (data.safe_pitch_max_note) loadedSettings.safePitchMaxNote = data.safe_pitch_max_note;
+            if (data.is_safe_pitch_enabled !== undefined) loadedSettings.isSafePitchEnabled = data.is_safe_pitch_enabled;
+            if (data.is_goal_tracker_enabled !== undefined) loadedSettings.isGoalTrackerEnabled = data.is_goal_tracker_enabled;
+            if (data.goal_lyrics_count !== undefined) loadedSettings.goalLyricsCount = data.goal_lyrics_count;
+            if (data.goal_ug_chords_count !== undefined) loadedSettings.goalUgChordsCount = data.goal_ug_chords_count;
+            if (data.goal_ug_links_count !== undefined) loadedSettings.goalUgLinksCount = data.goal_ug_links_count;
+            if (data.goal_highest_note_count !== undefined) loadedSettings.goalHighestNoteCount = data.goal_highest_note_count;
+            if (data.goal_original_key_count !== undefined) loadedSettings.goalOriginalKeyCount = data.goal_original_key_count;
+            if (data.goal_target_key_count !== undefined) loadedSettings.goalTargetKeyCount = data.goal_target_key_count;
+            if (data.goal_pdfs_count !== undefined) loadedSettings.goalPdfsCount = data.goal_pdfs_count;
+            if (data.default_dashboard_view) loadedSettings.defaultDashboardView = data.default_dashboard_view as 'gigs' | 'repertoire';
+            if (data.ug_chords_font_family) loadedSettings.ugChordsFontFamily = data.ug_chords_font_family;
+            if (data.ug_chords_font_size !== undefined) loadedSettings.ugChordsFontSize = data.ug_chords_font_size;
+            if (data.ug_chords_chord_bold !== undefined) loadedSettings.ugChordsChordBold = data.ug_chords_chord_bold;
+            if (data.ug_chords_chord_color) loadedSettings.ugChordsChordColor = data.ug_chords_chord_color;
+            if (data.ug_chords_line_spacing !== undefined) loadedSettings.ugChordsLineSpacing = data.ug_chords_line_spacing;
+            if (data.ug_chords_text_align) loadedSettings.ugChordsTextAlign = data.ug_chords_text_align;
+            if (data.prevent_stage_key_overwrite !== undefined) loadedSettings.preventStageKeyOverwrite = data.prevent_stage_key_overwrite;
+            if (data.link_size) loadedSettings.linkSize = data.link_size as 'small' | 'medium' | 'large' | 'extra-large';
+            if (data.disable_portrait_pdf_scroll !== undefined) loadedSettings.disablePortraitPdfScroll = data.disable_portrait_pdf_scroll;
+            
+            setSettings(prev => {
+              const newSettings = { ...prev, ...loadedSettings };
+              localStorage.setItem('gig_global_settings', JSON.stringify(newSettings));
+              return newSettings;
+            });
+          } else {
+            setSettings(prev => {
+              const newSettings = { ...DEFAULT_GLOBAL_SETTINGS, ...prev };
+              localStorage.setItem('gig_global_settings', JSON.stringify(newSettings));
+              return newSettings;
+            });
+          }
+        } catch (err) {
+          const saved = localStorage.getItem('gig_global_settings');
+          setSettings(saved ? { ...DEFAULT_GLOBAL_SETTINGS, ...JSON.parse(saved) } : DEFAULT_GLOBAL_SETTINGS);
+        } finally {
+          setIsFetchingSettings(false);
+        }
+      } else {
+        const saved = localStorage.getItem('gig_global_settings');
+        setSettings(saved ? { ...DEFAULT_GLOBAL_SETTINGS, ...JSON.parse(saved) } : DEFAULT_GLOBAL_SETTINGS);
+        setIsFetchingSettings(false);
       }
-    } catch (err) {
-      console.error("Error fetching settings:", err);
-    } finally {
-      setIsFetchingSettings(false);
+    };
+
+    fetchUserSettings();
+  }, [user, authLoading]);
+
+  useEffect(() => {
+    if (!isFetchingSettings && !user) {
+      localStorage.setItem('gig_global_settings', JSON.stringify(settings));
+    }
+  }, [settings, isFetchingSettings, user]);
+
+  const updateSetting = useCallback(async <K extends keyof GlobalSettings>(key: K, value: GlobalSettings[K]) => {
+    setSettings(prev => {
+      const newSettings = { ...prev, [key]: value };
+      if (!user) {
+        localStorage.setItem('gig_global_settings', JSON.stringify(newSettings));
+      }
+      return newSettings;
+    });
+
+    if (user) {
+      try {
+        const dbKeyMap: Record<keyof GlobalSettings, string> = {
+          keyPreference: 'key_preference',
+          safePitchMaxNote: 'safe_pitch_max_note',
+          isSafePitchEnabled: 'is_safe_pitch_enabled',
+          isGoalTrackerEnabled: 'is_goal_tracker_enabled',
+          goalLyricsCount: 'goal_lyrics_count',
+          goalUgChordsCount: 'goal_ug_chords_count', 
+          goalUgLinksCount: 'goal_ug_links_count',
+          goalHighestNoteCount: 'goal_highest_note_count',
+          goalOriginalKeyCount: 'goal_original_key_count', 
+          goalTargetKeyCount: 'goal_target_key_count',
+          goalPdfsCount: 'goal_pdfs_count',
+          defaultDashboardView: 'default_dashboard_view',
+          ugChordsFontFamily: 'ug_chords_font_family',
+          ugChordsFontSize: 'ug_chords_font_size',
+          ugChordsChordBold: 'ug_chords_chord_bold',
+          ugChordsChordColor: 'ug_chords_chord_color',
+          ugChordsLineSpacing: 'ug_chords_line_spacing',
+          ugChordsTextAlign: 'ug_chords_text_align',
+          preventStageKeyOverwrite: 'prevent_stage_key_overwrite',
+          linkSize: 'link_size',
+          disablePortraitPdfScroll: 'disable_portrait_pdf_scroll',
+        };
+        const dbColumn = dbKeyMap[key];
+        await supabase
+          .from('profiles')
+          .update({ [dbColumn]: value })
+          .eq('id', user.id);
+      } catch (err) {}
     }
   }, [user]);
 
-  useEffect(() => {
-    fetchSettings();
-  }, [fetchSettings]);
-
-  const updateSetting = async (updates: any) => {
+  const updateAllSheetLinksSize = useCallback(async (newSize: 'small' | 'medium' | 'large' | 'extra-large') => {
     if (!user) return;
     try {
       const { error } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', user.id);
+        .from('sheet_links')
+        .update({ link_size: newSize })
+        .eq('user_id', user.id);
       if (error) throw error;
-    } catch (err) {
-      console.error("Error updating setting:", err);
+    } catch (err: any) {
+      console.error("[useSettings] Failed to update all sheet links size:", err.message);
     }
-  };
+  }, [user]);
 
   return {
+    ...settings,
+    setKeyPreference: (pref: KeyPreference) => updateSetting('keyPreference', pref),
+    setSafePitchMaxNote: (note: string) => updateSetting('safePitchMaxNote', note),
+    setIsSafePitchEnabled: (enabled: boolean) => updateSetting('isSafePitchEnabled', enabled),
+    setIsGoalTrackerEnabled: (enabled: boolean) => updateSetting('isGoalTrackerEnabled', enabled),
+    setGoalLyricsCount: (count: number) => updateSetting('goalLyricsCount', count),
+    setGoalUgChordsCount: (count: number) => updateSetting('goalUgChordsCount', count),
+    setGoalUgLinksCount: (count: number) => updateSetting('goalUgLinksCount', count),
+    setGoalHighestNoteCount: (count: number) => updateSetting('goalHighestNoteCount', count),
+    setGoalOriginalKeyCount: (count: number) => updateSetting('goalOriginalKeyCount', count),
+    setGoalTargetKeyCount: (count: number) => updateSetting('goalTargetKeyCount', count),
+    setGoalPdfsCount: (count: number) => updateSetting('goalPdfsCount', count),
+    setDefaultDashboardView: (view: 'gigs' | 'repertoire') => updateSetting('defaultDashboardView', view),
+    setUgChordsFontFamily: (font: string) => updateSetting('ugChordsFontFamily', font),
+    setUgChordsFontSize: (size: number) => updateSetting('ugChordsFontSize', size),
+    setUgChordsChordBold: (bold: boolean) => updateSetting('ugChordsChordBold', bold),
+    setUgChordsChordColor: (color: string) => updateSetting('ugChordsChordColor', color),
+    setUgChordsLineSpacing: (spacing: number) => updateSetting('ugChordsLineSpacing', spacing),
+    setUgChordsTextAlign: (align: 'left' | 'center' | 'right') => updateSetting('ugChordsTextAlign', align),
+    setPreventStageKeyOverwrite: (prevent: boolean) => updateSetting('preventStageKeyOverwrite', prevent),
+    setLinkSize: (size: 'small' | 'medium' | 'large' | 'extra-large') => updateSetting('linkSize', size),
+    setDisablePortraitPdfScroll: (disable: boolean) => updateSetting('disablePortraitPdfScroll', disable), // NEW
+    updateAllSheetLinksSize,
     isFetchingSettings,
-    keyPreference,
-    setKeyPreference: async (val: KeyPreference) => { setKeyPreferenceState(val); await updateSetting({ key_preference: val }); },
-    isSafePitchEnabled,
-    setIsSafePitchEnabled: async (val: boolean) => { setIsSafePitchEnabledState(val); await updateSetting({ is_safe_pitch_enabled: val }); },
-    isGoalTrackerEnabled,
-    setIsGoalTrackerEnabled: async (val: boolean) => { setIsGoalTrackerEnabledState(val); await updateSetting({ is_goal_tracker_enabled: val }); },
-    goalLyricsCount,
-    setGoalLyricsCount: async (val: number) => { setGoalLyricsCountState(val); await updateSetting({ goal_lyrics_count: val }); },
-    goalUgChordsCount,
-    setGoalUgChordsCount: async (val: number) => { setGoalUgChordsCountState(val); await updateSetting({ goal_ug_chords_count: val }); },
-    goalUgLinksCount,
-    setGoalUgLinksCount: async (val: number) => { setGoalUgLinksCountState(val); await updateSetting({ goal_ug_links_count: val }); },
-    goalHighestNoteCount,
-    setGoalHighestNoteCount: async (val: number) => { setGoalHighestNoteCountState(val); await updateSetting({ goal_highest_note_count: val }); },
-    goalOriginalKeyCount,
-    setGoalOriginalKeyCount: async (val: number) => { setGoalOriginalKeyCountState(val); await updateSetting({ goal_original_key_count: val }); },
-    goalTargetKeyCount,
-    setGoalTargetKeyCount: async (val: number) => { setGoalTargetKeyCountState(val); await updateSetting({ goal_target_key_count: val }); },
-    goalPdfsCount,
-    setGoalPdfsCount: async (val: number) => { setGoalPdfsCountState(val); await updateSetting({ goal_pdfs_count: val }); },
-    defaultDashboardView,
-    setDefaultDashboardView: async (val: 'gigs' | 'repertoire') => { setDefaultDashboardViewState(val); await updateSetting({ default_dashboard_view: val }); },
-    ugChordsFontFamily,
-    setUgChordsFontFamily: async (val: string) => { setUgChordsFontFamilyState(val); await updateSetting({ ug_chords_font_family: val }); },
-    ugChordsFontSize,
-    setUgChordsFontSize: async (val: number) => { setUgChordsFontSizeState(val); await updateSetting({ ug_chords_font_size: val }); },
-    ugChordsChordBold,
-    setUgChordsChordBold: async (val: boolean) => { setUgChordsChordBoldState(val); await updateSetting({ ug_chords_chord_bold: val }); },
-    ugChordsChordColor,
-    setUgChordsChordColor: async (val: string) => { setUgChordsChordColorState(val); await updateSetting({ ug_chords_chord_color: val }); },
-    ugChordsLineSpacing,
-    setUgChordsLineSpacing: async (val: number) => { setUgChordsLineSpacingState(val); await updateSetting({ ug_chords_line_spacing: val }); },
-    ugChordsTextAlign,
-    setUgChordsTextAlign: async (val: 'left' | 'center' | 'right') => { setUgChordsTextAlignState(val); await updateSetting({ ug_chords_text_align: val }); },
-    preventStageKeyOverwrite,
-    setPreventStageKeyOverwrite: async (val: boolean) => { setPreventStageKeyOverwriteState(val); await updateSetting({ prevent_stage_key_overwrite: val }); },
-    disablePortraitPdfScroll,
-    setDisablePortraitPdfScroll: async (val: boolean) => { setDisablePortraitPdfScrollState(val); await updateSetting({ disable_portrait_pdf_scroll: val }); },
-    linkSize,
-    setLinkSize: async (val: 'small' | 'medium' | 'large' | 'extra-large') => { setLinkSizeState(val); await updateSetting({ link_size: val }); },
-    safePitchMaxNote,
-    updateAllSheetLinksSize: async (size: string) => {
-      if (!user) return;
-      await supabase.from('sheet_links').update({ link_size: size }).eq('user_id', user.id);
-    },
-    refreshSettings: fetchSettings
   };
-};
+}

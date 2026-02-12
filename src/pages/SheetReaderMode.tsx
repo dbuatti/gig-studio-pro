@@ -50,8 +50,7 @@ const SheetReaderMode: React.FC = () => {
     keyPreference: globalKeyPreference,
     preventStageKeyOverwrite,
     disablePortraitPdfScroll,
-    setKeyPreference: setGlobalKeyPreference,
-    ugChordsFontSize 
+    setKeyPreference: setGlobalKeyPreference
   } = useSettings();
   const { forceReaderResource } = useReaderSettings();
 
@@ -358,11 +357,6 @@ const SheetReaderMode: React.FC = () => {
     if (forceReaderResource === 'force-pdf' && song.pdfUrl) return 'pdf';
     if (forceReaderResource === 'force-ug' && (song.ugUrl || song.ug_chords_text)) return 'chords';
     if (forceReaderResource === 'force-chords' && song.ug_chords_text) return 'chords';
-
-    if (song.preferred_reader === 'fn' && song.pdfUrl) return 'pdf';
-    if (song.preferred_reader === 'ls' && song.leadsheetUrl) return 'leadsheet';
-    if (song.preferred_reader === 'ug' && (song.ug_chords_text || song.ugUrl)) return 'chords';
-
     if (song.pdfUrl) return 'pdf';
     if (song.leadsheetUrl) return 'leadsheet';
     if (song.ug_chords_text) return 'chords';
@@ -414,15 +408,6 @@ const SheetReaderMode: React.FC = () => {
       setIsAudioPlayerVisible(true);
     }
   }, [isZenMode]);
-
-  const handleContainerClick = useCallback((e: React.MouseEvent) => {
-    // Prevent toggle if clicking on interactive elements like links or buttons
-    const target = e.target as HTMLElement;
-    if (target.closest('button') || target.closest('a') || target.closest('.pointer-events-auto')) {
-      return;
-    }
-    toggleZenMode();
-  }, [toggleZenMode]);
 
   const onOpenCurrentSongStudio = useCallback(() => {
     if (currentSong) setIsStudioPanel(true);
@@ -577,7 +562,7 @@ const SheetReaderMode: React.FC = () => {
             isAudioPlayerVisible && currentSong && !isZenMode ? "pb-24" : "pb-0", 
             shouldDisableScroll ? "overflow-hidden" : "overflow-auto"
           )}
-          onClick={handleContainerClick} 
+          onClick={toggleZenMode} 
         >
           <animated.div 
             {...bind()}  
@@ -596,10 +581,7 @@ const SheetReaderMode: React.FC = () => {
               selectedChartType === 'chords' ? (
                 <UGChordsReader
                   chordsText={currentSong.ug_chords_text || ""}
-                  config={{
-                    ...(currentSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG),
-                    fontSize: ugChordsFontSize 
-                  }}
+                  config={currentSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
                   isMobile={false}
                   originalKey={currentSong.originalKey}
                   targetKey={effectiveTargetKey}

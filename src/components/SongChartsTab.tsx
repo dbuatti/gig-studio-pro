@@ -84,9 +84,6 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
     }
   }, [formData.ugUrl, formData.pdfUrl, formData.leadsheetUrl, activeChartType, setActiveChartType]);
 
-  // Fixed: Casting KeyPreference to 'sharps' | 'flats' for the reader, defaulting to 'sharps' if 'neutral'
-  const readerPref = (formData.key_preference === 'neutral' ? 'sharps' : formData.key_preference) as 'sharps' | 'flats';
-
   return (
     <div className={cn("h-full flex flex-col animate-in fade-in duration-500", isReaderExpanded ? "gap-0" : "gap-8")}>
       {!isReaderExpanded && (
@@ -173,7 +170,7 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
                 isMobile={isMobile}
                 originalKey={formData.originalKey}
                 targetKey={targetKey}
-                readerKeyPreference={readerPref}
+                readerKeyPreference={formData.key_preference}
               />
             ) : currentChartUrl ? (
               canEmbedUg ? (

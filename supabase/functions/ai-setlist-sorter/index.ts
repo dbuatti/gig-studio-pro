@@ -27,19 +27,23 @@ serve(async (req) => {
     const body = await req.json();
     const { songs, instruction } = body as { songs: Song[], instruction: string };
 
+    // Define the provider pool
     const providers = [
-      { type: 'google', key: Deno.env.get('GEMINI_API_KEY'), name: 'Google Primary' },
-      { type: 'google', key: Deno.env.get('GEMINI_API_KEY_2'), name: 'Google Secondary' },
-      { type: 'google', key: Deno.env.get('GEMINI_API_KEY_3'), name: 'Google Tertiary' },
-      { type: 'openrouter', key: Deno.env.get('OPENROUTER_API_KEY'), name: 'OpenRouter' }
+      { type: 'google', key: Deno.env.get('GEMINI_API_KEY') },
+      { type: 'google', key: Deno.env.get('GEMINI_API_KEY_2') },
+      { type: 'google', key: Deno.env.get('GEMINI_API_KEY_3') },
+      { type: 'openrouter', key: Deno.env.get('OPENROUTER_API_KEY') }
     ].filter(p => !!p.key);
 
     if (providers.length === 0) {
       throw new Error('No AI provider keys found in environment.');
     }
 
-    const shuffledProviders = providers.sort(() => Math.random() - 0.5);
-    let lastError = null;
+    // Pick a random provider
+    const provider = providers[Math.floor(Math.random() * providers.length)];
+    const providerIndex = providers.indexOf(provider) + 1;
+
+    console.log(`[ai-setlist-sorter] Sorting via ${provider.type.toUpperCase()} (Pool #${providerIndex}) [v2.3]`, { count: songs?.length, instruction });
 
     const prompt = `You are an expert Musical Director. Reorder these songs based on this instruction: "${instruction}"
 
@@ -56,62 +60,55 @@ Return ONLY a JSON object with an array of IDs in the new order:
   "orderedIds": ["id1", "id2", "id3"]
 }`;
 
-    for (const provider of shuffledProviders) {
-      try {
-        console.log(`[ai-setlist-sorter] Attempting sort via ${provider.name} [v2.4]`);
-        
-        let content = "";
-        if (provider.type === 'google') {
-          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${provider.key}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: { responseMimeType: "application/json" }
-            })
-          });
-          const result = await response.json();
-          if (!response.ok) throw new Error(result.error?.message || "Google API error");
-          content = result.candidates?.[0]?.content?.parts?.[0]?.text;
-        } else {
-          const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${provider.key}`,
-              "Content-Type": "application/json",
-              "HTTP-Referer": "https://supabase.com",
-              "X-Title": "Gig Studio"
-            },
-            body: JSON.stringify({
-              model: "google/gemini-2.0-flash-001",
-              messages: [{ role: "user", content: prompt }],
-              response_format: { type: "json_object" }
-            })
-          });
-          const result = await response.json();
-          if (!response.ok) throw new Error(result.error?.message || "OpenRouter API error");
-          content = result.choices?.[0]?.message?.content;
-        }
+    let content = "";
 
-        if (content) {
-          const parsed = JSON.parse(content);
-          if (parsed.orderedIds && Array.isArray(parsed.orderedIds)) {
-            return new Response(JSON.stringify({ orderedIds: parsed.orderedIds }), { 
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-            });
-          }
-        }
-      } catch (err: any) {
-        console.warn(`[ai-setlist-sorter] ${provider.name} failed: ${err.message}. Trying next...`);
-        lastError = err;
-        continue;
-      }
+    if (provider.type === 'google') {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${provider.key}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { responseMimeType: "application/json" }
+        })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error?.message || "Google API error");
+      content = result.candidates?.[0]?.content?.parts?.[0]?.text;
+    } else {
+      // OpenRouter implementation
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${provider.key}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://supabase.com",
+          "X-Title": "Gig Studio"
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.0-flash-001",
+          messages: [{ role: "user", content: prompt }],
+          response_format: { type: "json_object" }
+        })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error?.message || "OpenRouter API error");
+      content = result.choices?.[0]?.message?.content;
     }
 
-    throw lastError || new Error("All providers failed to process request.");
+    if (!content) throw new Error("No response from AI");
+
+    const parsed = JSON.parse(content);
+    
+    if (parsed.orderedIds && Array.isArray(parsed.orderedIds)) {
+      return new Response(JSON.stringify({ orderedIds: parsed.orderedIds }), { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
+    throw new Error("Invalid AI response format");
 
   } catch (error: any) {
-    console.error("[ai-setlist-sorter] Final Error:", error.message);
+    console.error("[ai-setlist-sorter] Error:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

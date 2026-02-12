@@ -1,47 +1,84 @@
 "use client";
 
-import { transposeKey } from './keyUtils';
+import { KeyPreference, formatKey, transposeKey } from './keyUtils';
+
+// A robust regex for chords including suffixes like m6, maj7, etc.
+const CHORD_REGEX = /\b([A-G][#b]?)(m|maj|min|aug|dim|sus|add|M)?([0-9]{1,2})?(?:(sus|add|maj|min|dim|aug|[\+\-\^])[0-9]{1,2})*(\/[A-G][#b]?)?\b/g;
 
 /**
- * Checks if a line of text consists primarily of chords.
+ * Determines if a line is likely a chord line.
+ * Chord lines have high density of chord-like tokens and lots of whitespace.
  */
 export const isChordLine = (line: string): boolean => {
-  // Basic heuristic: check if the line contains mostly chord patterns
-  const chordRegex = /^[A-G][#b]?(m|maj|min|dim|aug|sus|add|2|4|5|6|7|9|11|13)*(\/[A-G][#b]?)?(\s+[A-G][#b]?(m|maj|min|dim|aug|sus|add|2|4|5|6|7|9|11|13)*(\/[A-G][#b]?)?)*$/;
   const trimmed = line.trim();
   if (!trimmed) return false;
-  return chordRegex.test(trimmed);
-};
+  
+  // Section headers are not chord lines
+  if (trimmed.startsWith('[') && trimmed.endsWith(']')) return false;
 
-/**
- * Transposes chords within a text block by a number of semitones.
- */
-export const transposeChords = (text: string, semitones: number, preference: 'sharps' | 'flats' = 'sharps'): string => {
-  if (!text || semitones === 0) return text;
-  
-  const chordRegex = /\b([A-G][#b]?)(m|maj|min|dim|aug|sus|add|2|4|5|6|7|9|11|13)*(\/[A-G][#b]?)?\b/g;
-  
-  return text.replace(chordRegex, (match) => {
-    try {
-      if (match.includes('/')) {
-        const [root, bass] = match.split('/');
-        const transposedRoot = transposeKey(root, semitones, preference);
-        const transposedBass = transposeKey(bass, semitones, preference);
-        return `${transposedRoot}/${transposedBass}`;
-      }
-      return transposeKey(match, semitones, preference);
-    } catch {
-      return match;
+  const words = trimmed.split(/\s+/);
+  let chordCount = 0;
+  let wordCount = 0;
+
+  for (const word of words) {
+    // Check if the word matches the chord pattern exactly
+    if (word.match(/^([A-G][#b]?)(m|maj|min|aug|dim|sus|add|M)?([0-9]{1,2})?((sus|add|maj|min|dim|aug|[\+\-\^])[0-9]{1,2})*(\/[A-G][#b]?)?$/)) {
+      chordCount++;
+    } else if (word.length > 2) {
+      // Longer words suggest it's a lyric line
+      wordCount++;
     }
-  });
+  }
+
+  // If there are more long words than chords, it's likely lyrics
+  if (wordCount > chordCount) return false;
+  
+  // High percentage of chords or very few words usually means chord line
+  return chordCount > 0;
 };
 
 /**
- * Attempts to extract the musical key from a block of chords.
+ * Transposes a block of text, preserving lyric lines.
  */
-export const extractKeyFromChords = (text: string): string => {
-  // Simple heuristic: the first chord is often the key
-  const chordRegex = /\b([A-G][#b]?)(m|maj|min|dim|aug|sus|add|2|4|5|6|7|9|11|13)*(\/[A-G][#b]?)?\b/;
-  const match = text.match(chordRegex);
-  return match ? match[0] : "C";
+export const transposeChords = (text: string, semitones: number, preference: KeyPreference = 'sharps'): string => {
+  if (semitones === 0) return text;
+
+  return text.split('\n').map(line => {
+    if (!isChordLine(line)) return line;
+
+    return line.replace(CHORD_REGEX, (match, base, suffix, num, complex, slash) => {
+      const transposedBase = transposeKey(base, semitones, preference);
+      
+      let transposedSlash = '';
+      if (slash) {
+        const slashBase = slash.substring(1);
+        transposedSlash = '/' + transposeKey(slashBase, semitones, preference);
+      }
+
+      return transposedBase + (suffix || '') + (num || '') + (complex || '') + transposedSlash;
+    });
+  }).join('\n');
+};
+
+/**
+ * Heuristically extracts the musical key from a block of chords.
+ */
+export const extractKeyFromChords = (text: string): string | null => {
+  const chords: Record<string, number> = {};
+  const matches = text.matchAll(CHORD_REGEX);
+  
+  for (const match of matches) {
+    const chord = match[0].split('/')[0]; // Ignore bass notes for key detection
+    chords[chord] = (chords[chord] || 0) + 1;
+  }
+
+  const sorted = Object.entries(chords).sort((a, b) => b[1] - a[1]);
+  return sorted.length > 0 ? sorted[0][0] : null;
+};
+
+/**
+ * Formats chord text for display (optional utility for syntax highlighting etc).
+ */
+export const formatChordText = (text: string): string => {
+  return text; // Placeholder for future UI enhancements
 };

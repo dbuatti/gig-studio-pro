@@ -1,76 +1,106 @@
 "use client";
 
-import React, { useMemo } from 'react';
-import { transposeChords } from '@/utils/chordUtils';
-import { UGChordsConfig } from './SetlistManager';
+import React, { useMemo, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
+import { formatChordText, transposeChords } from '@/utils/chordUtils';
 import { calculateSemitones } from '@/utils/keyUtils';
+import { useSettings, KeyPreference } from '@/hooks/use-settings';
+import { UGChordsConfig } from './SetlistManager';
 
 interface UGChordsReaderProps {
   chordsText: string;
-  config: UGChordsConfig;
+  config?: UGChordsConfig;
   isMobile: boolean;
   originalKey?: string;
   targetKey?: string;
-  readerKeyPreference?: 'sharps' | 'flats';
+  readerKeyPreference?: KeyPreference;
   onChartReady?: () => void;
   isFullScreen?: boolean;
 }
 
-const UGChordsReader: React.FC<UGChordsReaderProps> = ({
+const UGChordsReader = React.memo(({
   chordsText,
-  config,
+  config: songConfig,
   isMobile,
   originalKey,
   targetKey,
-  readerKeyPreference = 'sharps',
+  readerKeyPreference,
   onChartReady,
-  isFullScreen
-}) => {
-  const processedText = useMemo(() => {
-    if (originalKey && targetKey && originalKey !== 'TBC' && targetKey !== 'TBC') {
-      const semitones = calculateSemitones(originalKey, targetKey);
-      return transposeChords(chordsText, semitones, readerKeyPreference);
-    }
-    return chordsText;
-  }, [chordsText, originalKey, targetKey, readerKeyPreference]);
+  isFullScreen,
+}: UGChordsReaderProps) => {
+  const { 
+    keyPreference: globalKeyPreference,
+    ugChordsFontFamily,
+    ugChordsFontSize,
+    ugChordsChordBold,
+    ugChordsChordColor,
+    ugChordsLineSpacing,
+    ugChordsTextAlign,
+  } = useSettings(); 
+  
+  // Use the readerKeyPreference passed from parent (which is the song's preference)
+  const activeKeyPreference = readerKeyPreference || 
+    (globalKeyPreference === 'neutral' ? 'sharps' : globalKeyPreference);
 
-  React.useEffect(() => {
-    if (onChartReady) onChartReady();
-  }, [onChartReady]);
+  const resolvedConfig: UGChordsConfig = useMemo(() => ({
+    fontFamily: songConfig?.fontFamily || ugChordsFontFamily,
+    fontSize: songConfig?.fontSize || ugChordsFontSize,
+    chordBold: songConfig?.chordBold ?? ugChordsChordBold,
+    chordColor: songConfig?.chordColor || ugChordsChordColor,
+    lineSpacing: songConfig?.lineSpacing || ugChordsLineSpacing,
+    textAlign: songConfig?.textAlign || ugChordsTextAlign,
+  }), [songConfig, ugChordsFontFamily, ugChordsFontSize, ugChordsChordBold, ugChordsChordColor, ugChordsLineSpacing, ugChordsTextAlign]);
+  
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLPreElement>(null);
+
+  const transposedChordsText = useMemo(() => {
+    if (!chordsText) return chordsText;
+    const safeOriginalKey = originalKey || 'C';
+    const safeTargetKey = targetKey || safeOriginalKey;
+    const n = calculateSemitones(safeOriginalKey, safeTargetKey);
+    return transposeChords(chordsText, n, activeKeyPreference);
+  }, [chordsText, originalKey, targetKey, activeKeyPreference]);
+
+  const readableChordColor = resolvedConfig.chordColor === "#000000" ? "#ffffff" : resolvedConfig.chordColor;
+
+  useEffect(() => {
+    if (chordsText && onChartReady) {
+      const timer = setTimeout(() => onChartReady(), 10);
+      return () => clearTimeout(timer);
+    }
+  }, [chordsText, onChartReady]);
 
   return (
     <div 
+      ref={scrollContainerRef}
       className={cn(
-        "w-full h-full p-8 overflow-y-auto custom-scrollbar",
-        isFullScreen ? "bg-slate-950 text-white" : "bg-white text-slate-900"
+        "h-full w-full bg-slate-950 p-4 md:p-12 overflow-y-auto border border-white/10 font-mono custom-scrollbar block",
+        isMobile ? "text-sm" : "text-base",
+        isFullScreen ? "pt-0" : "pt-16"
       )}
-      style={{
-        fontFamily: config.fontFamily,
-        fontSize: `${config.fontSize}px`,
-        lineHeight: config.lineSpacing,
-        textAlign: config.textAlign,
+      style={{ 
+        fontFamily: resolvedConfig.fontFamily, 
+        fontSize: `${resolvedConfig.fontSize}px`, 
+        lineHeight: resolvedConfig.lineSpacing,
+        textAlign: resolvedConfig.textAlign as any,
+        color: readableChordColor || "#ffffff",
       }}
     >
-      <pre className="whitespace-pre-wrap break-words">
-        {processedText.split('\n').map((line, i) => {
-          const isChordLine = /^[A-G][#b]?(m|maj|min|dim|aug|sus|add|2|4|5|6|7|9|11|13)*(\/[A-G][#b]?)?(\s+[A-G][#b]?(m|maj|min|dim|aug|sus|add|2|4|5|6|7|9|11|13)*(\/[A-G][#b]?)?)*$/.test(line.trim());
-          return (
-            <div 
-              key={i} 
-              className={cn(
-                isChordLine && "font-bold",
-                isChordLine && !isFullScreen && "text-indigo-600"
-              )}
-              style={{ color: isChordLine ? config.chordColor : undefined }}
-            >
-              {line || ' '}
-            </div>
-          );
-        })}
-      </pre>
+      {chordsText ? (
+        <pre 
+          ref={contentRef}
+          className="whitespace-pre-wrap font-inherit min-w-full"
+        >
+          {transposedChordsText}
+        </pre>
+      ) : (
+        <div className="h-full flex items-center justify-center text-slate-500 text-sm italic">
+          <p>No chord data available for this track.</p>
+        </div>
+      )}
     </div>
   );
-};
+});
 
 export default UGChordsReader;
