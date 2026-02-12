@@ -6,9 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Zap, Music, Tag, FileText, Clock, FileType } from 'lucide-react';
+import { Zap, Music, Tag, FileText, Clock, FileType, Search, Globe, Link as LinkIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import PDFUploadZone from './PDFUploadZone';
+import { Button } from './ui/button';
 
 interface SongDetailsTabProps {
   formData: Partial<SetlistSong>;
@@ -33,6 +34,11 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
     } else {
       handleAutoSave({ leadsheetUrl: undefined });
     }
+  };
+
+  const handleSearchChart = () => {
+    const query = encodeURIComponent(`${formData.name} ${formData.artist} sheet music pdf free`);
+    window.open(`https://www.google.com/search?q=${query}`, '_blank');
   };
 
   return (
@@ -156,11 +162,21 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
         <div className="space-y-8">
           {/* Charts & Scores Section */}
           <div className="space-y-6 bg-white/5 p-6 rounded-[2rem] border border-white/10">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="bg-emerald-600/20 p-2 rounded-xl">
-                <FileType className="w-5 h-5 text-emerald-400" />
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-3">
+                <div className="bg-emerald-600/20 p-2 rounded-xl">
+                  <FileType className="w-5 h-5 text-emerald-400" />
+                </div>
+                <h3 className="text-sm font-black uppercase tracking-widest text-white">Charts & Scores</h3>
               </div>
-              <h3 className="text-sm font-black uppercase tracking-widest text-white">Charts & Scores</h3>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleSearchChart}
+                className="h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest text-indigo-400 hover:bg-indigo-500/10 gap-2"
+              >
+                <Search className="w-3.5 h-3.5" /> Search Web
+              </Button>
             </div>
             
             <PDFUploadZone 
@@ -171,6 +187,33 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
               songId={formData.master_id || formData.id}
               songTitle={formData.name}
             />
+
+            <div className="space-y-4 pt-4 border-t border-white/5">
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">External PDF Link</Label>
+                <div className="relative">
+                  <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <Input 
+                    value={formData.pdfUrl || ""} 
+                    onChange={(e) => handleAutoSave({ pdfUrl: e.target.value })}
+                    className="bg-black/40 border-white/10 h-12 pl-11 rounded-xl font-bold text-white focus:ring-indigo-500/50"
+                    placeholder="Paste PDF URL here..."
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">External Lead Sheet Link</Label>
+                <div className="relative">
+                  <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <Input 
+                    value={formData.leadsheetUrl || ""} 
+                    onChange={(e) => handleAutoSave({ leadsheetUrl: e.target.value })}
+                    className="bg-black/40 border-white/10 h-12 pl-11 rounded-xl font-bold text-white focus:ring-indigo-500/50"
+                    placeholder="Paste Lead Sheet URL here..."
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Notes Section */}

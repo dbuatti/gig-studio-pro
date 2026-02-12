@@ -3,7 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SetlistSong } from './SetlistManager';
-import { ExternalLink, ShieldCheck, Printer, FileText, Music, Guitar, Search, Maximize, Minimize, Eye } from 'lucide-react';
+import { ExternalLink, ShieldCheck, Printer, FileText, Music, Guitar, Search, Maximize, Minimize, Eye, Globe } from 'lucide-react';
 import { showError, showSuccess } from '@/utils/toast';
 import UGChordsEditor from './UGChordsEditor';
 import UGChordsReader from './UGChordsReader';
@@ -69,6 +69,11 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
     }
     return isFramable(currentChartUrl);
   }, [activeChartType, formData.ugUrl, currentChartUrl, isFramable]);
+
+  const handleSearchChart = () => {
+    const query = encodeURIComponent(`${formData.name} ${formData.artist} sheet music pdf free`);
+    window.open(`https://www.google.com/search?q=${query}`, '_blank');
+  };
 
   React.useEffect(() => {
     // Auto-switch logic if preferred chart is missing
@@ -191,8 +196,18 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
               )
             ) : (
               <div className="h-full flex flex-col items-center justify-center p-8 bg-slate-100 text-center">
+                <div className="bg-indigo-600/10 p-6 rounded-[2rem] mb-6">
+                  <Globe className="w-12 h-12 text-indigo-600" />
+                </div>
                 <h4 className="text-lg font-black text-slate-900 uppercase">No Active Chart</h4>
-                <p className="text-sm text-slate-500 mt-2">Link a PDF, Lead Sheet, or Ultimate Guitar tab in the details tab.</p>
+                <p className="text-sm text-slate-500 mt-2 mb-8 max-w-xs mx-auto">Link a PDF, Lead Sheet, or Ultimate Guitar tab in the details tab to view it here.</p>
+                <Button 
+                  onClick={handleSearchChart}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-[10px] h-12 px-8 rounded-xl shadow-lg shadow-indigo-600/20 gap-3"
+                >
+                  <Search className="w-4 h-4" />
+                  Search Web for PDF
+                </Button>
               </div>
             )}
           </div>
