@@ -139,7 +139,8 @@ const LinkDisplayOverlay: React.FC<LinkDisplayOverlayProps> = ({
       fontSize: '10px',
       fontWeight: 'bold',
       boxShadow: '0 0 10px rgba(0,0,0,0.3)',
-      cursor: isEditingMode ? 'grab' : 'pointer', 
+      cursor: isEditingMode ? 'grab' : 'pointer',
+      pointerEvents: 'auto', // CRITICAL: Ensure dots receive clicks
     };
   }, [currentPage, pageContainerRef, overlayWrapperRef, globalLinkSize, isEditingMode]);
 

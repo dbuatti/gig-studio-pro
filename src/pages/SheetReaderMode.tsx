@@ -50,7 +50,13 @@ const SheetReaderMode: React.FC = () => {
     keyPreference: globalKeyPreference,
     preventStageKeyOverwrite,
     disablePortraitPdfScroll,
-    setKeyPreference: setGlobalKeyPreference
+    setKeyPreference: setGlobalKeyPreference,
+    ugChordsFontFamily,
+    ugChordsFontSize,
+    ugChordsChordBold,
+    ugChordsChordColor,
+    ugChordsLineSpacing,
+    ugChordsTextAlign,
   } = useSettings();
   const { forceReaderResource } = useReaderSettings();
 
@@ -354,10 +360,18 @@ const SheetReaderMode: React.FC = () => {
   }, [fetchLinks]);
 
   const getBestChartType = useCallback((song: SetlistSong): ChartType => {
+    // 1. Check for force settings (debug/override)
     if (forceReaderResource === 'force-pdf' && song.pdfUrl) return 'pdf';
     if (forceReaderResource === 'force-ug' && (song.ugUrl || song.ug_chords_text)) return 'chords';
     if (forceReaderResource === 'force-chords' && song.ug_chords_text) return 'chords';
-    if (song.pdfUrl) return 'pdf';
+
+    // 2. Check for song-specific preference from Studio
+    if (song.preferred_reader === 'ug' && (song.ugUrl || song.ug_chords_text)) return 'chords';
+    if (song.preferred_reader === 'ls' && song.leadsheetUrl) return 'leadsheet';
+    if (song.preferred_reader === 'fn' && (song.pdfUrl || song.sheet_music_url)) return 'pdf';
+
+    // 3. Default fallback logic
+    if (song.pdfUrl || song.sheet_music_url) return 'pdf';
     if (song.leadsheetUrl) return 'leadsheet';
     if (song.ug_chords_text) return 'chords';
     return 'pdf';
@@ -511,6 +525,27 @@ const SheetReaderMode: React.FC = () => {
     setPdfCurrentPage(pageNumber);
   }, []);
 
+  const effectiveConfig = useMemo(() => {
+    if (!currentSong) return DEFAULT_UG_CHORDS_CONFIG;
+    
+    // Start with global settings from Preferences
+    const baseConfig: UGChordsConfig = {
+      fontFamily: ugChordsFontFamily,
+      fontSize: ugChordsFontSize,
+      chordBold: ugChordsChordBold,
+      chordColor: ugChordsChordColor,
+      lineSpacing: ugChordsLineSpacing,
+      textAlign: ugChordsTextAlign as any,
+    };
+
+    // Merge with song-specific overrides if they exist from Studio
+    if (currentSong.ug_chords_config) {
+      return { ...baseConfig, ...currentSong.ug_chords_config };
+    }
+
+    return baseConfig;
+  }, [currentSong, ugChordsFontFamily, ugChordsFontSize, ugChordsChordBold, ugChordsChordColor, ugChordsLineSpacing, ugChordsTextAlign]);
+
   if (initialLoading) return <div className="h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
 
   const shouldDisableScroll = disablePortraitPdfScroll && isPortrait && (selectedChartType === 'pdf' || selectedChartType === 'leadsheet');
@@ -581,7 +616,7 @@ const SheetReaderMode: React.FC = () => {
               selectedChartType === 'chords' ? (
                 <UGChordsReader
                   chordsText={currentSong.ug_chords_text || ""}
-                  config={currentSong.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG}
+                  config={effectiveConfig}
                   isMobile={false}
                   originalKey={currentSong.originalKey}
                   targetKey={effectiveTargetKey}
