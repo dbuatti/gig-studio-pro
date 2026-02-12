@@ -17,7 +17,7 @@ serve(async (req) => {
       throw new Error("Missing title or artist for analysis.");
     }
 
-    console.log(`[vibe-check] Analyzing: "${title}" by ${artist} via OpenRouter`);
+    console.log(`[vibe-check] Analyzing: "${title}" by ${artist} via Qwen 3 Next`);
 
     const apiKey = Deno.env.get('OPENROUTER_API_KEY');
     if (!apiKey) {
@@ -50,12 +50,12 @@ serve(async (req) => {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
-        "HTTP-Referer": "https://gigstudio.app", // Optional, for OpenRouter rankings
+        "HTTP-Referer": "https://gigstudio.app",
         "X-Title": "Gig Studio",
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "google/gemini-2.0-flash-exp:free",
+        model: "qwen/qwen3-next-80b-a3b-instruct:free",
         messages: [
           { role: "user", content: prompt }
         ],

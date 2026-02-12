@@ -27,7 +27,7 @@ serve(async (req) => {
     const body = await req.json();
     const { songs, instruction } = body as { songs: Song[], instruction: string };
 
-    console.log("[ai-setlist-sorter] Sorting via OpenRouter", { count: songs?.length, instruction });
+    console.log("[ai-setlist-sorter] Sorting via Qwen 3 Next", { count: songs?.length, instruction });
 
     const apiKey = Deno.env.get('OPENROUTER_API_KEY');
     if (!apiKey) {
@@ -54,7 +54,7 @@ Example: ["id1", "id2", "id3"]`;
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "google/gemini-2.0-flash-exp:free",
+        model: "qwen/qwen3-next-80b-a3b-instruct:free",
         messages: [
           { role: "user", content: prompt }
         ],
