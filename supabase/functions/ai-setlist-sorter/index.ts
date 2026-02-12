@@ -27,7 +27,7 @@ serve(async (req) => {
     const body = await req.json();
     const { songs, instruction } = body as { songs: Song[], instruction: string };
 
-    console.log("[ai-setlist-sorter] Sorting via Native Gemini 2.0 Flash", { count: songs?.length, instruction });
+    console.log("[ai-setlist-sorter] Sorting via Native Gemini 2.0 Flash [v2.1]", { count: songs?.length, instruction });
 
     const apiKey = Deno.env.get('GEMINI_API_KEY');
     if (!apiKey) {
@@ -67,7 +67,7 @@ Return ONLY a JSON object with an array of IDs in the new order:
     const result = await response.json();
     if (!response.ok) throw new Error(result.error?.message || "Gemini error");
 
-    const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+    const text = result.candidates?.[0]?.content?.[0]?.text || result.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) throw new Error("No response from AI");
 
     const parsed = JSON.parse(text);

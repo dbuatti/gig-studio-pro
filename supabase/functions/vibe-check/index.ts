@@ -17,7 +17,8 @@ serve(async (req) => {
       throw new Error("Missing title or artist for analysis.");
     }
 
-    console.log(`[vibe-check] Analyzing: "${title}" by ${artist} via Native Gemini 2.0 Flash`);
+    // Added [v2.1] to help you confirm the new code is running
+    console.log(`[vibe-check] Analyzing: "${title}" by ${artist} via Native Gemini 2.0 Flash [v2.1]`);
 
     const apiKey = Deno.env.get('GEMINI_API_KEY');
     if (!apiKey) {
