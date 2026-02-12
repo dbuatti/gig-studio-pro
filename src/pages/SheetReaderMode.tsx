@@ -354,9 +354,18 @@ const SheetReaderMode: React.FC = () => {
   }, [fetchLinks]);
 
   const getBestChartType = useCallback((song: SetlistSong): ChartType => {
+    // 1. Global Overrides (from Reader Settings)
     if (forceReaderResource === 'force-pdf' && song.pdfUrl) return 'pdf';
     if (forceReaderResource === 'force-ug' && (song.ugUrl || song.ug_chords_text)) return 'chords';
     if (forceReaderResource === 'force-chords' && song.ug_chords_text) return 'chords';
+
+    // 2. Song-Specific Preference (from Song Studio Config)
+    // Mapping: 'fn' (Full Note) -> 'pdf', 'ls' (Lead Sheet) -> 'leadsheet', 'ug' (Ultimate Guitar) -> 'chords'
+    if (song.preferred_reader === 'fn' && song.pdfUrl) return 'pdf';
+    if (song.preferred_reader === 'ls' && song.leadsheetUrl) return 'leadsheet';
+    if (song.preferred_reader === 'ug' && (song.ug_chords_text || song.ugUrl)) return 'chords';
+
+    // 3. Default Priority Fallback
     if (song.pdfUrl) return 'pdf';
     if (song.leadsheetUrl) return 'leadsheet';
     if (song.ug_chords_text) return 'chords';
