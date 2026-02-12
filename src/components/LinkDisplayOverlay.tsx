@@ -1,7 +1,6 @@
 "use client";
 
 import React from 'react';
-import { SheetLink } from './LinkDisplayOverlay';
 import { Trash2, Edit3, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from './ui/button';
@@ -79,7 +78,7 @@ const LinkDisplayOverlay: React.FC<LinkDisplayOverlayProps> = ({
           >
             <button
               onClick={(e) => {
-                e.stopPropagation(); // CRITICAL: Prevent full-screen toggle
+                e.stopPropagation();
                 if (!isEditingMode) {
                   onNavigateToPage(link.target_page);
                 }
@@ -106,7 +105,6 @@ const LinkDisplayOverlay: React.FC<LinkDisplayOverlayProps> = ({
                   className="h-8 w-8 rounded-full shadow-xl"
                   onClick={async (e) => {
                     e.stopPropagation();
-                    // Logic to delete link would go here
                     onLinkDeleted();
                   }}
                 >
