@@ -4,7 +4,8 @@ import React from 'react';
 import { Button } from "@/components/ui/button";
 import { 
   Play, Pause, X, Sparkles, CheckCircle2, 
-  CircleDashed, Loader2, ChevronLeft, Info 
+  CircleDashed, Loader2, ChevronLeft, Info,
+  Music2, Activity
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SetlistSong, Setlist } from './SetlistManager';
@@ -46,83 +47,101 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
   const readinessScore = calculateReadiness(formData);
 
   return (
-    <div className="h-24 bg-slate-900/50 border-b border-white/5 px-8 flex items-center justify-between backdrop-blur-xl">
-      <div className="flex items-center gap-6">
+    <div className="h-28 bg-slate-950/80 border-b border-white/10 px-8 flex items-center justify-between backdrop-blur-2xl sticky top-0 z-[100]">
+      {/* Left Section: Navigation & Identity */}
+      <div className="flex items-center gap-6 min-w-0">
         <Button 
           variant="ghost" 
           size="icon" 
           onClick={onClose}
-          className="h-12 w-12 rounded-2xl text-slate-400 hover:bg-white/5 hover:text-white transition-all"
+          className="h-12 w-12 rounded-2xl text-slate-500 hover:bg-white/5 hover:text-white transition-all shrink-0"
         >
           <ChevronLeft className="w-6 h-6" />
         </Button>
 
-        <div className="flex flex-col">
-          <h2 className="text-2xl font-black uppercase tracking-tight text-white leading-none truncate max-w-[300px]">
-            {formData.name || "Untitled Track"}
-          </h2>
-          <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px] mt-2">
+        <div className="flex flex-col min-w-0">
+          <div className="flex items-center gap-3">
+            <div className="p-1.5 bg-indigo-500/10 rounded-lg shrink-0">
+              <Music2 className="w-4 h-4 text-indigo-400" />
+            </div>
+            <h2 className="text-2xl font-black uppercase tracking-tight text-white leading-none truncate">
+              {formData.name || "Untitled Track"}
+            </h2>
+          </div>
+          <p className="text-slate-500 font-bold uppercase tracking-[0.25em] text-[9px] mt-2.5 ml-8">
             {formData.artist || "Unknown Artist"}
           </p>
         </div>
+      </div>
 
-        <div className="h-10 w-px bg-white/5 mx-2" />
+      {/* Center Section: Performance Metrics & Playback */}
+      <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-3 bg-white/[0.03] p-1.5 rounded-[2rem] border border-white/5 shadow-2xl">
+        <Button
+          onClick={onTogglePlayback}
+          disabled={isLoadingAudio}
+          className={cn(
+            "h-14 px-8 rounded-[1.5rem] font-black uppercase tracking-widest text-[11px] gap-3 shadow-2xl transition-all active:scale-95 shrink-0",
+            isPlaying 
+              ? "bg-red-600 hover:bg-red-500 text-white shadow-red-600/40" 
+              : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/40"
+          )}
+        >
+          {isLoadingAudio ? (
+            <Loader2 className="w-5 h-5 animate-spin" />
+          ) : isPlaying ? (
+            <Pause className="w-5 h-5 fill-current" />
+          ) : (
+            <Play className="w-5 h-5 fill-current" />
+          )}
+          {isPlaying ? "Stop" : "Preview"}
+        </Button>
 
-        <div className="flex items-center gap-4">
-          <Button
-            onClick={onTogglePlayback}
-            disabled={isLoadingAudio}
-            className={cn(
-              "h-12 px-6 rounded-2xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-2xl transition-all active:scale-95",
-              isPlaying ? "bg-red-600 hover:bg-red-500 text-white shadow-red-600/20" : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/20"
-            )}
-          >
-            {isLoadingAudio ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : isPlaying ? (
-              <Pause className="w-4 h-4 fill-current" />
-            ) : (
-              <Play className="w-4 h-4 fill-current" />
-            )}
-            {isPlaying ? "Pause" : "Preview"}
-          </Button>
-
-          <div className="flex flex-col items-center px-4 py-2 bg-white/5 rounded-2xl border border-white/5">
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Stage Key</span>
+        <div className="flex items-center gap-1.5 px-2">
+          {/* Key Badge */}
+          <div className="flex flex-col items-center justify-center w-20 h-14 bg-white/5 rounded-2xl border border-white/5">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Key</span>
             <span className="text-sm font-mono font-black text-indigo-400">{displayKey}</span>
           </div>
 
-          <div className="flex flex-col items-center px-4 py-2 bg-white/5 rounded-2xl border border-white/5">
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Mastery</span>
+          {/* Mastery Badge */}
+          <div className="flex flex-col items-center justify-center px-4 h-14 bg-white/5 rounded-2xl border border-white/5">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Mastery</span>
             <MasteryRating 
               value={formData.comfort_level || 0} 
               onChange={(val) => onAutoSave({ comfort_level: val })}
-              size="md"
+              size="sm"
             />
           </div>
 
+          {/* Readiness Badge */}
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="flex flex-col items-center px-4 py-2 bg-white/5 rounded-2xl border border-white/5 cursor-help">
+                <div className="flex flex-col items-center justify-center w-24 h-14 bg-white/5 rounded-2xl border border-white/5 cursor-help group hover:bg-white/10 transition-colors">
                   <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Readiness</span>
-                  <span className={cn(
-                    "text-sm font-mono font-black flex items-center gap-1.5",
-                    readinessScore >= 90 ? "text-emerald-400" : readinessScore >= 60 ? "text-amber-400" : "text-red-400"
-                  )}>
-                    {readinessScore}%
-                    <Info className="w-3 h-3 opacity-50" />
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <Activity className={cn(
+                      "w-3 h-3",
+                      readinessScore >= 90 ? "text-emerald-400" : readinessScore >= 60 ? "text-amber-400" : "text-red-400"
+                    )} />
+                    <span className={cn(
+                      "text-sm font-mono font-black",
+                      readinessScore >= 90 ? "text-emerald-400" : readinessScore >= 60 ? "text-amber-400" : "text-red-400"
+                    )}>
+                      {readinessScore}%
+                    </span>
+                  </div>
                 </div>
               </TooltipTrigger>
-              <TooltipContent className="bg-slate-900 text-white border-white/10 text-[10px] font-black uppercase">
-                Calculated based on audio, charts, and mastery
+              <TooltipContent className="bg-slate-900 text-white border-white/10 text-[10px] font-black uppercase p-3 rounded-xl">
+                Preparation score based on audio, charts, and mastery
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>
       </div>
 
+      {/* Right Section: Actions */}
       <div className="flex items-center gap-4">
         <TooltipProvider>
           <Tooltip>
@@ -131,10 +150,10 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
                 variant="outline"
                 onClick={() => onAutoSave({ isApproved: !isApproved })}
                 className={cn(
-                  "h-12 px-6 rounded-2xl font-black uppercase tracking-widest text-[10px] gap-3 transition-all border-2",
+                  "h-14 px-6 rounded-[1.5rem] font-black uppercase tracking-widest text-[10px] gap-3 transition-all border-2",
                   isApproved 
-                    ? "bg-emerald-600/10 border-emerald-500/50 text-emerald-400 hover:bg-emerald-600/20" 
-                    : "bg-slate-900 border-white/5 text-slate-400 hover:bg-white/5"
+                    ? "bg-emerald-600/10 border-emerald-500/50 text-emerald-400 hover:bg-emerald-600/20 shadow-[0_0_20px_rgba(16,185,129,0.1)]" 
+                    : "bg-slate-900 border-white/5 text-slate-500 hover:bg-white/5 hover:text-slate-300"
                 )}
               >
                 {isApproved ? (
@@ -142,7 +161,7 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
                 ) : (
                   <CircleDashed className="w-4 h-4" />
                 )}
-                {isApproved ? "Gig Approved" : "Approve for Gig"}
+                {isApproved ? "Gig Approved" : "Approve"}
               </Button>
             </TooltipTrigger>
             <TooltipContent className="bg-slate-900 text-white border-white/10 text-[10px] font-black uppercase">
@@ -154,17 +173,19 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
         <Button
           variant="outline"
           onClick={onOpenProSync}
-          className="h-12 px-6 rounded-2xl font-black uppercase tracking-widest text-[10px] gap-3 text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all"
+          className="h-14 px-6 rounded-[1.5rem] font-black uppercase tracking-widest text-[10px] gap-3 text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 hover:border-indigo-500/30 transition-all shadow-xl"
         >
           <Sparkles className="w-4 h-4" />
           Pro Sync
         </Button>
 
+        <div className="w-px h-10 bg-white/10 mx-2" />
+
         <Button 
           variant="ghost" 
           size="icon" 
           onClick={onClose}
-          className="h-12 w-12 rounded-2xl text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-all"
+          className="h-12 w-12 rounded-2xl text-slate-500 hover:bg-red-500/10 hover:text-red-400 transition-all shrink-0"
         >
           <X className="w-6 h-6" />
         </Button>
