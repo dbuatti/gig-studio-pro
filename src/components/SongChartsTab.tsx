@@ -71,10 +71,13 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
   }, [activeChartType, formData.ugUrl, currentChartUrl, isFramable]);
 
   React.useEffect(() => {
-    if (formData.ugUrl && !formData.pdfUrl && activeChartType !== 'ug') {
+    // Auto-switch logic if preferred chart is missing
+    if (!formData.pdfUrl && !formData.leadsheetUrl && formData.ugUrl && activeChartType !== 'ug') {
       setActiveChartType('ug');
+    } else if (!formData.pdfUrl && formData.leadsheetUrl && activeChartType === 'pdf') {
+      setActiveChartType('leadsheet');
     }
-  }, [formData.ugUrl, formData.pdfUrl, activeChartType, setActiveChartType]);
+  }, [formData.ugUrl, formData.pdfUrl, formData.leadsheetUrl, activeChartType, setActiveChartType]);
 
   return (
     <div className={cn("h-full flex flex-col animate-in fade-in duration-500", isReaderExpanded ? "gap-0" : "gap-8")}>
@@ -121,6 +124,18 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
                   )}
                 >
                   PDF
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  disabled={!formData.leadsheetUrl}
+                  onClick={() => setActiveChartType('leadsheet')}
+                  className={cn(
+                    "text-[9px] font-black uppercase h-8 px-4 rounded-lg",
+                    activeChartType === 'leadsheet' ? "bg-indigo-600 text-white" : "text-slate-500 hover:text-slate-300"
+                  )}
+                >
+                  LS
                 </Button>
                 <Button 
                   variant="ghost" 
@@ -177,20 +192,22 @@ const SongChartsTab: React.FC<SongChartsTabProps> = ({
             ) : (
               <div className="h-full flex flex-col items-center justify-center p-8 bg-slate-100 text-center">
                 <h4 className="text-lg font-black text-slate-900 uppercase">No Active Chart</h4>
-                <p className="text-sm text-slate-500 mt-2">Link a PDF or Ultimate Guitar tab in the details tab.</p>
+                <p className="text-sm text-slate-500 mt-2">Link a PDF, Lead Sheet, or Ultimate Guitar tab in the details tab.</p>
               </div>
             )}
           </div>
           
-          {activeChartType === 'ug' && (formData.ugUrl || formData.ug_chords_text) && (
+          {(activeChartType === 'ug' || activeChartType === 'pdf' || activeChartType === 'leadsheet') && (
             <div className="shrink-0 flex justify-center gap-3">
-              <Button 
-                onClick={handleUgPrint}
-                className="bg-orange-600 hover:bg-orange-700 text-white font-black uppercase tracking-widest text-[10px] h-12 px-8 rounded-xl shadow-lg shadow-orange-600/20 gap-3"
-              >
-                <ExternalLink className="w-4 h-4" />
-                Open in Ultimate Guitar
-              </Button>
+              {activeChartType === 'ug' && formData.ugUrl && (
+                <Button 
+                  onClick={handleUgPrint}
+                  className="bg-orange-600 hover:bg-orange-700 text-white font-black uppercase tracking-widest text-[10px] h-12 px-8 rounded-xl shadow-lg shadow-orange-600/20 gap-3"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Open in Ultimate Guitar
+                </Button>
+              )}
               <Button
                 onClick={() => setIsReaderExpanded(prev => !prev)}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-[10px] h-12 px-8 rounded-xl shadow-lg shadow-indigo-600/20 gap-3"
