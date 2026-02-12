@@ -1,9 +1,7 @@
-"use client";
-
 export interface SheetLink {
   id: string;
-  song_id: string;
   user_id: string;
+  song_id: string;
   source_page: number;
   source_x: number;
   source_y: number;

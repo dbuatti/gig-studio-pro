@@ -7,6 +7,9 @@ import { Button } from './ui/button';
 import { useSettings } from '@/hooks/use-settings';
 import { SheetLink } from '@/types/sheet-music';
 
+// Re-export the type so existing imports in other files don't break
+export type { SheetLink };
+
 interface LinkDisplayOverlayProps {
   links: SheetLink[];
   currentPage: number;
