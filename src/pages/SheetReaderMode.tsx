@@ -549,6 +549,7 @@ const SheetReaderMode: React.FC = () => {
               onToggleLinkEditMode={() => setIsEditingLinksMode(prev => !prev)} 
               onOpenLinkSizeModal={() => setIsLinkSizeModalOpen(true)} 
               isEditingLinksMode={isEditingLinksMode} 
+              onToggleFullScreen={toggleZenMode}
             />
           )}
         </AnimatePresence>
@@ -643,6 +644,7 @@ const SheetReaderMode: React.FC = () => {
           onUpdateKey={handleUpdateKey}
           setIsOverlayOpen={() => {}}
           effectiveTargetKey={effectiveTargetKey}
+          onExitFullScreen={toggleZenMode}
         />
       )}
 
