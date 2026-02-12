@@ -14,13 +14,17 @@ interface PDFUploadZoneProps {
   currentPdfUrl?: string;
   currentLeadsheetUrl?: string;
   onRemove: (type: 'pdf' | 'leadsheet') => void;
+  songId?: string;
+  songTitle?: string;
 }
 
 const PDFUploadZone: React.FC<PDFUploadZoneProps> = ({ 
   onUploadComplete, 
   currentPdfUrl, 
   currentLeadsheetUrl,
-  onRemove 
+  onRemove,
+  songId,
+  songTitle
 }) => {
   const { user } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
@@ -38,20 +42,29 @@ const PDFUploadZone: React.FC<PDFUploadZoneProps> = ({
     setIsUploading(true);
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-      const filePath = `charts/${fileName}`;
+      
+      // Sanitize title for filename
+      const sanitizedTitle = (songTitle || 'document')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '_')
+        .replace(/_+/g, '_');
 
-      const { error: uploadError, data } = await supabase.storage
-        .from('repertoire_assets')
+      // Use the public_audio bucket as per reference
+      // Path structure: {user_id}/{song_id}_{title}_{type}.pdf
+      const fileName = `${songId || Date.now()}_${sanitizedTitle}_${uploadType}.${fileExt}`;
+      const filePath = `${user.id}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('public_audio')
         .upload(filePath, file, {
           cacheControl: '3600',
-          upsert: false
+          upsert: true // Allow overwriting if the user re-uploads
         });
 
       if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage
-        .from('repertoire_assets')
+        .from('public_audio')
         .getPublicUrl(filePath);
 
       onUploadComplete(publicUrl, uploadType);
@@ -62,7 +75,7 @@ const PDFUploadZone: React.FC<PDFUploadZoneProps> = ({
     } finally {
       setIsUploading(false);
     }
-  }, [user, uploadType, onUploadComplete]);
+  }, [user, uploadType, onUploadComplete, songId, songTitle]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,

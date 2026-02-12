@@ -168,6 +168,8 @@ const SongDetailsTab: React.FC<SongDetailsTabProps> = ({ formData, handleAutoSav
               currentPdfUrl={formData.pdfUrl}
               currentLeadsheetUrl={formData.leadsheetUrl}
               onRemove={handleRemoveFile}
+              songId={formData.master_id || formData.id}
+              songTitle={formData.name}
             />
           </div>
 
