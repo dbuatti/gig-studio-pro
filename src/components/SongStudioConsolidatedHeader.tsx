@@ -12,6 +12,7 @@ import { KeyPreference } from '@/hooks/use-settings';
 import { formatKey } from '@/utils/keyUtils';
 import { calculateReadiness } from '@/utils/repertoireSync';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import MasteryRating from './MasteryRating';
 
 interface SongStudioConsolidatedHeaderProps {
   formData: Partial<SetlistSong>;
@@ -89,6 +90,15 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
           <div className="flex flex-col items-center px-4 py-2 bg-white/5 rounded-2xl border border-white/5">
             <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Stage Key</span>
             <span className="text-sm font-mono font-black text-indigo-400">{displayKey}</span>
+          </div>
+
+          <div className="flex flex-col items-center px-4 py-2 bg-white/5 rounded-2xl border border-white/5">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Mastery</span>
+            <MasteryRating 
+              value={formData.comfort_level || 0} 
+              onChange={(val) => onAutoSave({ comfort_level: val })}
+              size="md"
+            />
           </div>
 
           <TooltipProvider>
