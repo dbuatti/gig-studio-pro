@@ -1,203 +1,130 @@
 "use client";
 
 import React, { useMemo } from 'react';
-import { SetlistSong } from './SetlistManager';
 import { useSettings } from '@/hooks/use-settings';
-import { CustomProgress } from "@/components/CustomProgress";
+import { SetlistSong } from './SetlistManager';
+import { Progress } from '@/components/ui/progress';
 import { 
-  Target, Type, Music2, Link as LinkIcon, 
-  Music, Sparkles, CheckCircle2, Hash, FileText
+  Target, 
+  Music, 
+  FileText, 
+  Link as LinkIcon, 
+  Mic2, 
+  Hash, 
+  CheckCircle2,
+  Trophy
 } from 'lucide-react';
-import { cn } from "@/lib/utils";
-import { FilterState } from './SetlistFilters';
-
-interface GoalStat {
-  label: string;
-  icon: JSX.Element;
-  current: number;
-  target: number;
-  barColor: string;
-  textColor: string;
-  lightBg: string;
-  filter: Partial<FilterState>;
-}
+import { cn } from '@/lib/utils';
+import { calculateReadiness } from '@/utils/repertoireSync';
 
 interface GoalTrackerProps {
   repertoire: SetlistSong[];
-  onFilterApply: (filters: Partial<FilterState>) => void;
+  onFilterApply?: (filters: any) => void;
 }
 
 const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire, onFilterApply }) => {
   const { 
-    isGoalTrackerEnabled,
-    goalLyricsCount,
-    goalUgChordsCount,
-    goalUgLinksCount,
-    goalHighestNoteCount,
-    goalOriginalKeyCount,
-    goalTargetKeyCount,
-    goalPdfsCount
+    goalLyricsCount, 
+    goalUgChordsCount, 
+    goalUgLinksCount, 
+    goalHighestNoteCount, 
+    goalOriginalKeyCount, 
+    goalTargetKeyCount, 
+    goalPdfsCount 
   } = useSettings();
 
-  if (!isGoalTrackerEnabled) return null;
-
-  const stats = useMemo((): GoalStat[] => {
-    const todayStr = new Date().toLocaleDateString('en-CA');
-
-    const isToday = (timestamp: string | undefined | null) => {
-      if (!timestamp) return false;
-      const localDateStr = new Date(timestamp).toLocaleDateString('en-CA');
-      return localDateStr === todayStr;
-    };
-
+  // Calculate stats inside useMemo to ensure hooks are always called in order
+  const stats = useMemo(() => {
     const counts = {
-      lyrics: repertoire.filter(s => (s.lyrics || "").length > 20 && isToday(s.lyrics_updated_at)).length,
-      chords: repertoire.filter(s => (s.ug_chords_text || "").length > 10 && isToday(s.chords_updated_at)).length,
-      links: repertoire.filter(s => !!s.ugUrl && isToday(s.ug_link_updated_at)).length,
-      highestNote: repertoire.filter(s => !!s.highest_note_original && isToday(s.highest_note_updated_at)).length,
-      originalKey: repertoire.filter(s => s.originalKey && s.originalKey !== "TBC" && isToday(s.original_key_updated_at)).length,
-      targetKey: repertoire.filter(s => s.targetKey && s.targetKey !== "TBC" && isToday(s.target_key_updated_at)).length,
-      pdfs: repertoire.filter(s => (s.pdfUrl || s.leadsheetUrl || s.sheet_music_url) && isToday(s.pdf_updated_at)).length
+      lyrics: repertoire.filter(s => (s.lyrics || "").length > 100).length,
+      chords: repertoire.filter(s => (s.ug_chords_text || "").length > 50).length,
+      links: repertoire.filter(s => !!s.ugUrl).length,
+      range: repertoire.filter(s => !!s.highest_note_original).length,
+      origKey: repertoire.filter(s => s.originalKey && s.originalKey !== "TBC").length,
+      stageKey: repertoire.filter(s => s.isKeyConfirmed).length,
+      pdfs: repertoire.filter(s => !!(s.pdfUrl || s.leadsheetUrl)).length,
     };
 
-    return [
-      { 
-        label: 'Lyrics Transcribed', 
-        icon: <Type className="w-3 h-3" />, 
-        current: counts.lyrics, 
-        target: goalLyricsCount, 
-        barColor: 'bg-pink-500',
-        textColor: 'text-pink-500',
-        lightBg: 'bg-pink-500/10',
-        filter: { hasLyrics: 'no' }
-      },
-      { 
-        label: 'Chords Mapped', 
-        icon: <Music2 className="w-3 h-3" />, 
-        current: counts.chords, 
-        target: goalUgChordsCount, 
-        barColor: 'bg-indigo-500',
-        textColor: 'text-indigo-500',
-        lightBg: 'bg-indigo-500/10',
-        filter: { hasUg: 'yes', hasUgChords: 'no' }
-      },
-      { 
-        label: 'UG Links Bound', 
-        icon: <LinkIcon className="w-3 h-3" />, 
-        current: counts.links, 
-        target: goalUgLinksCount, 
-        barColor: 'bg-orange-500',
-        textColor: 'text-orange-500',
-        lightBg: 'bg-orange-500/10',
-        filter: { hasUg: 'no' }
-      },
-      { 
-        label: 'PDFs Attached', 
-        icon: <FileText className="w-3 h-3" />,
-        current: counts.pdfs, 
-        target: goalPdfsCount, 
-        barColor: 'bg-blue-600',
-        textColor: 'text-blue-600',
-        lightBg: 'bg-blue-600/10',
-        filter: { hasPdf: 'no' }
-      },
-      { 
-        label: 'Range Analyzed', 
-        icon: <Music className="w-3 h-3" />, 
-        current: counts.highestNote, 
-        target: goalHighestNoteCount, 
-        barColor: 'bg-emerald-500',
-        textColor: 'text-emerald-500',
-        lightBg: 'bg-emerald-500/10',
-        filter: { hasHighestNote: 'no' }
-      },
-      { 
-        label: 'Original Keys Set', 
-        icon: <Hash className="w-3 h-3" />, 
-        current: counts.originalKey, 
-        target: goalOriginalKeyCount, 
-        barColor: 'bg-amber-500',
-        textColor: 'text-amber-500',
-        lightBg: 'bg-amber-500/10',
-        filter: { hasOriginalKey: 'no' }
-      },
-      { 
-        label: 'Stage Keys Bound', 
-        icon: <Target className="w-3 h-3" />, 
-        current: counts.targetKey, 
-        target: goalTargetKeyCount, 
-        barColor: 'bg-blue-500',
-        textColor: 'text-blue-500',
-        lightBg: 'bg-blue-500/10',
-        filter: { isConfirmed: 'no' }
-      }
+    const goals = [
+      { id: 'lyrics', label: 'Lyrics', current: counts.lyrics, target: goalLyricsCount, icon: FileText, color: 'text-blue-400' },
+      { id: 'chords', label: 'Chords', current: counts.chords, target: goalUgChordsCount, icon: Music, color: 'text-emerald-400' },
+      { id: 'links', label: 'UG Links', current: counts.links, target: goalUgLinksCount, icon: LinkIcon, color: 'text-orange-400' },
+      { id: 'range', label: 'Vocal Range', current: counts.range, target: goalHighestNoteCount, icon: Mic2, color: 'text-pink-400' },
+      { id: 'origKey', label: 'Orig Keys', current: counts.origKey, target: goalOriginalKeyCount, icon: Hash, color: 'text-indigo-400' },
+      { id: 'stageKey', label: 'Stage Keys', current: counts.stageKey, target: goalTargetKeyCount, icon: CheckCircle2, color: 'text-purple-400' },
+      { id: 'pdfs', label: 'PDFs', current: counts.pdfs, target: goalPdfsCount, icon: FileText, color: 'text-red-400' },
     ];
-  }, [repertoire, goalLyricsCount, goalUgChordsCount, goalUgLinksCount, goalHighestNoteCount, goalOriginalKeyCount, goalTargetKeyCount, goalPdfsCount]);
 
-  const overallProgress = useMemo(() => {
-    const totalCurrent = stats.reduce((acc, g) => acc + Math.min(g.current, g.target), 0);
-    const totalTarget = stats.reduce((acc, g) => acc + g.target, 0);
-    return totalTarget > 0 ? (totalCurrent / totalTarget) * 100 : 0;
-  }, [stats]);
+    const totalProgress = goals.reduce((acc, g) => acc + Math.min(100, (g.current / Math.max(1, g.target)) * 100), 0) / goals.length;
+
+    return { goals, totalProgress };
+  }, [
+    repertoire, 
+    goalLyricsCount, 
+    goalUgChordsCount, 
+    goalUgLinksCount, 
+    goalHighestNoteCount, 
+    goalOriginalKeyCount, 
+    goalTargetKeyCount, 
+    goalPdfsCount
+  ]);
 
   return (
-    <div className="bg-card p-6 rounded-[2rem] border border-border shadow-2xl relative overflow-hidden mb-8 animate-in fade-in slide-in-from-top-4 duration-700">
-      <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/5 blur-[80px] rounded-full -mr-32 -mt-32 pointer-events-none" />
-      
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 relative z-10">
+    <div className="bg-slate-900/50 border border-white/5 rounded-[2.5rem] p-8 backdrop-blur-xl shadow-2xl">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-8">
         <div className="flex items-center gap-4">
-          <div className="h-12 w-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-xl shadow-indigo-600/20">
+          <div className="bg-indigo-600 p-3 rounded-2xl shadow-lg shadow-indigo-500/20">
             <Target className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h3 className="text-xl font-black uppercase tracking-tight">Daily Performance Mastery</h3>
-            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">Live Performance Daily Quota (Resets at Midnight)</p>
+            <h2 className="text-2xl font-black uppercase tracking-tight">Achievement Engine</h2>
+            <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mt-1">
+              Overall Repertoire Health: <span className="text-indigo-400">{Math.round(stats.totalProgress)}%</span>
+            </p>
           </div>
         </div>
-
-        <div className="flex items-center gap-4">
-          <div className="text-right">
-            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Today's Progress</p>
-            <p className="text-2xl font-black text-indigo-600 font-mono">{Math.round(overallProgress)}%</p>
+        
+        <div className="flex items-center gap-3 bg-black/20 px-4 py-2 rounded-xl border border-white/5">
+          <Trophy className={cn("w-5 h-5", stats.totalProgress === 100 ? "text-amber-400" : "text-slate-600")} />
+          <div className="w-32 h-2 bg-slate-800 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-indigo-500 transition-all duration-1000" 
+              style={{ width: `${stats.totalProgress}%` }} 
+            />
           </div>
-          {overallProgress === 100 && <CheckCircle2 className="w-8 h-8 text-emerald-500" />}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4 relative z-10">
-        {stats.map((goal, i) => {
-          const progress = goal.target > 0 ? (goal.current / goal.target) * 100 : 0;
-          const isComplete = goal.current >= goal.target;
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+        {stats.goals.map((goal) => {
+          const progress = Math.min(100, (goal.current / Math.max(1, goal.target)) * 100);
+          const isComplete = progress === 100;
 
           return (
-            <button 
-              key={i} 
-              onClick={() => onFilterApply(goal.filter)}
-              className="p-4 bg-secondary/50 rounded-2xl border border-border/50 space-y-3 group hover:border-indigo-500/30 transition-all text-left"
+            <div 
+              key={goal.id}
+              className={cn(
+                "p-4 rounded-2xl border transition-all duration-300 flex flex-col gap-3",
+                isComplete ? "bg-indigo-500/10 border-indigo-500/30" : "bg-white/5 border-white/5 hover:border-white/10"
+              )}
             >
               <div className="flex items-center justify-between">
-                <div className={cn("p-2 rounded-lg", goal.lightBg, goal.textColor)}>
-                  {goal.icon}
-                </div>
-                <span className={cn(
-                  "text-[10px] font-black font-mono",
-                  isComplete ? "text-emerald-500" : "text-muted-foreground"
-                )}>
+                <goal.icon className={cn("w-4 h-4", goal.color)} />
+                <span className="text-[10px] font-mono font-bold text-slate-500">
                   {goal.current}/{goal.target}
                 </span>
               </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 truncate pr-2">{goal.label}</p>
-                  {isComplete && <Sparkles className="w-3 h-3 text-amber-400" />}
+              
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 truncate">{goal.label}</p>
+                <div className="mt-2 h-1 bg-slate-800 rounded-full overflow-hidden">
+                  <div 
+                    className={cn("h-full transition-all duration-1000", isComplete ? "bg-indigo-500" : "bg-slate-600")} 
+                    style={{ width: `${progress}%` }} 
+                  />
                 </div>
-                <CustomProgress 
-                  value={Math.min(100, progress)} 
-                  className="h-1.5 bg-background"
-                  indicatorClassName={isComplete ? "bg-emerald-500" : goal.barColor}
-                />
               </div>
-            </button>
+            </div>
           );
         })}
       </div>
