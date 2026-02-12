@@ -49,7 +49,7 @@ Return ONLY a JSON object with an array of IDs in the new order:
   "orderedIds": ["id1", "id2", "id3"]
 }`;
 
-    // Using v1 stable endpoint
+    // Using v1 stable endpoint and removing response_mime_type for compatibility
     const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
       method: "POST",
       headers: {
@@ -58,18 +58,18 @@ Return ONLY a JSON object with an array of IDs in the new order:
       body: JSON.stringify({
         contents: [{
           parts: [{ text: prompt }]
-        }],
-        generationConfig: {
-          response_mime_type: "application/json"
-        }
+        }]
       })
     });
 
     const result = await response.json();
     if (!response.ok) throw new Error(result.error?.message || "Gemini error");
 
-    const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+    let text = result.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) throw new Error("No response from AI");
+
+    // Clean up potential markdown code blocks
+    text = text.replace(/```json\n?|\n?```/g, '').trim();
 
     const parsed = JSON.parse(text);
     

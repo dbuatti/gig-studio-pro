@@ -46,7 +46,7 @@ serve(async (req) => {
       "confidence": 0.0-1.0
     }`;
 
-    // Using v1 stable endpoint
+    // Using v1 stable endpoint and removing response_mime_type for compatibility
     const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
       method: "POST",
       headers: {
@@ -55,10 +55,7 @@ serve(async (req) => {
       body: JSON.stringify({
         contents: [{
           parts: [{ text: prompt }]
-        }],
-        generationConfig: {
-          response_mime_type: "application/json"
-        }
+        }]
       })
     });
 
@@ -69,8 +66,11 @@ serve(async (req) => {
       throw new Error(result.error?.message || "Gemini API error");
     }
 
-    const content = result.candidates?.[0]?.content?.parts?.[0]?.text;
+    let content = result.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!content) throw new Error("No content returned from AI");
+
+    // Clean up potential markdown code blocks if the AI included them
+    content = content.replace(/```json\n?|\n?```/g, '').trim();
 
     return new Response(content, { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
