@@ -37,6 +37,7 @@ import LinkEditorOverlay from '@/components/LinkEditorOverlay';
 import LinkDisplayOverlay, { SheetLink } from '@/components/LinkDisplayOverlay';
 import LinkSizeModal from '@/components/LinkSizeModal';
 import { sortSongsByStrategy } from '@/utils/SetlistGenerator';
+import SongInfoOverlay from '@/components/SongInfoOverlay';
 
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
@@ -587,6 +588,7 @@ const SheetReaderMode: React.FC = () => {
       <main className={cn("flex-1 flex flex-col overflow-hidden transition-all duration-300", 
         isSidebarOpen && !isZenMode && "ml-[300px]")}
       >
+        <SongInfoOverlay song={currentSong} />
         <AnimatePresence>
           {!isZenMode && (
             <SheetReaderHeader
