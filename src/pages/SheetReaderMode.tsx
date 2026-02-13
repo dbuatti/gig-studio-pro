@@ -588,7 +588,7 @@ const SheetReaderMode: React.FC = () => {
       <main className={cn("flex-1 flex flex-col overflow-hidden transition-all duration-300", 
         isSidebarOpen && !isZenMode && "ml-[300px]")}
       >
-        <SongInfoOverlay song={currentSong} />
+        {isZenMode && <SongInfoOverlay song={currentSong} />}
         <AnimatePresence>
           {!isZenMode && (
             <SheetReaderHeader
