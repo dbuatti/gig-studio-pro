@@ -123,6 +123,12 @@ const SheetReaderMode: React.FC = () => {
     setPdfScale(null);
     setPdfDocument(null);
     setLinks([]);
+    
+    // Reset scroll position to top when song changes
+    if (chartContainerRef.current) {
+      chartContainerRef.current.scrollTop = 0;
+      chartContainerRef.current.scrollLeft = 0;
+    }
   }, [currentSong?.id]);
 
   const handleLocalSongUpdate = useCallback((songId: string, updates: Partial<SetlistSong>) => {
@@ -411,7 +417,10 @@ const SheetReaderMode: React.FC = () => {
     if (allSongs.length > 0) {
       setCurrentIndex((prevIndex) => (prevIndex + 1) % allSongs.length);
       stopPlayback();
-      if (chartContainerRef.current) chartContainerRef.current.scrollLeft = 0;
+      if (chartContainerRef.current) {
+        chartContainerRef.current.scrollTop = 0;
+        chartContainerRef.current.scrollLeft = 0;
+      }
     }
   }, [allSongs, stopPlayback]);
 
@@ -419,7 +428,10 @@ const SheetReaderMode: React.FC = () => {
     if (allSongs.length > 0) {
       setCurrentIndex((prevIndex) => (prevIndex - 1 + allSongs.length) % allSongs.length);
       stopPlayback();
-      if (chartContainerRef.current) chartContainerRef.current.scrollLeft = 0;
+      if (chartContainerRef.current) {
+        chartContainerRef.current.scrollTop = 0;
+        chartContainerRef.current.scrollLeft = 0;
+      }
     }
   }, [allSongs, stopPlayback]);
 
