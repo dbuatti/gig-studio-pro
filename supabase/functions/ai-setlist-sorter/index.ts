@@ -38,7 +38,6 @@ serve(async (req) => {
       throw new Error('No AI provider keys found in environment.');
     }
 
-    // Shuffle providers to distribute load
     const shuffledProviders = [...providers].sort(() => Math.random() - 0.5);
     
     const prompt = `You are an expert Musical Director. Reorder these songs based on this instruction: "${instruction}"
@@ -75,7 +74,6 @@ Return ONLY a JSON object with an array of IDs in the new order:
           
           const result = await response.json();
           if (!response.ok) {
-            if (response.status === 429) throw new Error("QUOTA_EXCEEDED");
             throw new Error(result.error?.message || "Google API error");
           }
           content = result.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -96,7 +94,6 @@ Return ONLY a JSON object with an array of IDs in the new order:
           });
           const result = await response.json();
           if (!response.ok) {
-            if (response.status === 429) throw new Error("QUOTA_EXCEEDED");
             throw new Error(result.error?.message || "OpenRouter API error");
           }
           content = result.choices?.[0]?.message?.content;
@@ -111,14 +108,14 @@ Return ONLY a JSON object with an array of IDs in the new order:
           }
         }
       } catch (err: any) {
-        console.warn(`[ai-setlist-sorter] Provider failed: ${err.message}`);
+        console.warn(`[ai-setlist-sorter] Provider ${provider.type} failed: ${err.message}`);
         lastError = err;
-        if (err.message === "QUOTA_EXCEEDED") continue; // Try next provider
-        throw err; // Rethrow if it's a logic error
+        // Continue to next provider regardless of error type
+        continue;
       }
     }
 
-    throw lastError || new Error("All AI providers failed");
+    throw lastError || new Error("All AI providers in the pool failed or are exhausted.");
 
   } catch (error: any) {
     console.error("[ai-setlist-sorter] Final Error:", error.message);

@@ -70,7 +70,6 @@ serve(async (req) => {
           });
           const result = await response.json();
           if (!response.ok) {
-            if (response.status === 429) throw new Error("QUOTA_EXCEEDED");
             throw new Error(result.error?.message || "Google API error");
           }
           content = result.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -91,7 +90,6 @@ serve(async (req) => {
           });
           const result = await response.json();
           if (!response.ok) {
-            if (response.status === 429) throw new Error("QUOTA_EXCEEDED");
             throw new Error(result.error?.message || "OpenRouter API error");
           }
           content = result.choices?.[0]?.message?.content;
@@ -103,10 +101,9 @@ serve(async (req) => {
           });
         }
       } catch (err: any) {
-        console.warn(`[vibe-check] Provider failed: ${err.message}`);
+        console.warn(`[vibe-check] Provider ${provider.type} failed: ${err.message}`);
         lastError = err;
-        if (err.message === "QUOTA_EXCEEDED") continue;
-        throw err;
+        continue;
       }
     }
 
