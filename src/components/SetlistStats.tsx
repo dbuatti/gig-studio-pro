@@ -6,6 +6,7 @@ import { Clock, Music, Zap, Target, Share2, Copy, Check } from 'lucide-react';
 import { Progress } from "@/components/ui/progress";
 import { cn } from '@/lib/utils';
 import { showSuccess } from '@/utils/toast';
+import { calculateReadiness } from '@/utils/repertoireSync';
 
 interface SetlistStatsProps {
   songs: SetlistSong[];

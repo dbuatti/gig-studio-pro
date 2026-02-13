@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { 
   ArrowLeft, Play, Pause, Sparkles, Globe, 
   Check, Loader2, Save, Share2, MoreHorizontal,
-  CloudCheck, CloudUpload
+  CloudUpload
 } from 'lucide-react';
 import { SetlistSong, Setlist } from './SetlistManager';
 import { cn } from '@/lib/utils';
