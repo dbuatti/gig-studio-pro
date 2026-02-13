@@ -1,8 +1,20 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 
 const corsHeaders = {
-  'Access-Control-Origin': '*',
+  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+/**
+ * Cleans AI response text to ensure it's valid JSON.
+ * Removes markdown code blocks if present.
+ */
+function cleanJsonResponse(text: string): string {
+  let cleaned = text.trim();
+  if (cleaned.startsWith('```')) {
+    cleaned = cleaned.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+  }
+  return cleaned.trim();
 }
 
 serve(async (req) => {
@@ -18,10 +30,10 @@ serve(async (req) => {
     }
 
     const providers = [
-      { type: 'google', key: Deno.env.get('GEMINI_API_KEY') },
-      { type: 'google', key: Deno.env.get('GEMINI_API_KEY_2') },
-      { type: 'google', key: Deno.env.get('GEMINI_API_KEY_3') },
-      { type: 'openrouter', key: Deno.env.get('OPENROUTER_API_KEY') }
+      { type: 'google', key: Deno.env.get('GEMINI_API_KEY'), name: 'Pool #1' },
+      { type: 'google', key: Deno.env.get('GEMINI_API_KEY_2'), name: 'Pool #2' },
+      { type: 'google', key: Deno.env.get('GEMINI_API_KEY_3'), name: 'Pool #3' },
+      { type: 'openrouter', key: Deno.env.get('OPENROUTER_API_KEY'), name: 'OpenRouter' }
     ].filter(p => !!p.key);
 
     if (providers.length === 0) {
@@ -45,7 +57,7 @@ serve(async (req) => {
 
     Also suggest a refined Genre if the current one is "Unknown" or too broad.
 
-    Return ONLY a JSON object:
+    Return ONLY a raw JSON object. No markdown.
     {
       "energy_level": "Ambient" | "Pulse" | "Groove" | "Peak",
       "refined_genre": "string",
@@ -56,7 +68,7 @@ serve(async (req) => {
 
     for (const provider of shuffledProviders) {
       try {
-        console.log(`[vibe-check] Attempting analysis via ${provider.type.toUpperCase()}...`);
+        console.log(`[vibe-check] Attempting analysis via ${provider.type.toUpperCase()} (${provider.name})...`);
         let content = "";
 
         if (provider.type === 'google') {
@@ -65,7 +77,10 @@ serve(async (req) => {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: { responseMimeType: "application/json" }
+              generationConfig: { 
+                responseMimeType: "application/json",
+                temperature: 0.1
+              }
             })
           });
           const result = await response.json();
@@ -85,7 +100,8 @@ serve(async (req) => {
             body: JSON.stringify({
               model: "google/gemini-2.0-flash-001",
               messages: [{ role: "user", content: prompt }],
-              response_format: { type: "json_object" }
+              response_format: { type: "json_object" },
+              temperature: 0.1
             })
           });
           const result = await response.json();
@@ -96,12 +112,16 @@ serve(async (req) => {
         }
 
         if (content) {
-          return new Response(content, { 
+          const cleanedContent = cleanJsonResponse(content);
+          // Validate it's actually JSON before returning
+          JSON.parse(cleanedContent); 
+          
+          return new Response(cleanedContent, { 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
           });
         }
       } catch (err: any) {
-        console.warn(`[vibe-check] Provider ${provider.type} failed: ${err.message}`);
+        console.warn(`[vibe-check] Provider ${provider.name} failed: ${err.message}`);
         lastError = err;
         continue;
       }

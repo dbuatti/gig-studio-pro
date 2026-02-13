@@ -18,6 +18,19 @@ interface Song {
   lockedPosition?: number | null;
 }
 
+/**
+ * Cleans AI response text to ensure it's valid JSON.
+ * Removes markdown code blocks if present.
+ */
+function cleanJsonResponse(text: string): string {
+  let cleaned = text.trim();
+  // Remove markdown code blocks if present (e.g., ```json ... ```)
+  if (cleaned.startsWith('```')) {
+    cleaned = cleaned.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+  }
+  return cleaned.trim();
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -28,16 +41,17 @@ serve(async (req) => {
     const { songs, instruction } = body as { songs: Song[], instruction: string };
 
     const providers = [
-      { type: 'google', key: Deno.env.get('GEMINI_API_KEY') },
-      { type: 'google', key: Deno.env.get('GEMINI_API_KEY_2') },
-      { type: 'google', key: Deno.env.get('GEMINI_API_KEY_3') },
-      { type: 'openrouter', key: Deno.env.get('OPENROUTER_API_KEY') }
+      { type: 'google', key: Deno.env.get('GEMINI_API_KEY'), name: 'Pool #1' },
+      { type: 'google', key: Deno.env.get('GEMINI_API_KEY_2'), name: 'Pool #2' },
+      { type: 'google', key: Deno.env.get('GEMINI_API_KEY_3'), name: 'Pool #3' },
+      { type: 'openrouter', key: Deno.env.get('OPENROUTER_API_KEY'), name: 'OpenRouter' }
     ].filter(p => !!p.key);
 
     if (providers.length === 0) {
       throw new Error('No AI provider keys found in environment.');
     }
 
+    // Shuffle to distribute load across keys
     const shuffledProviders = [...providers].sort(() => Math.random() - 0.5);
     
     const prompt = `You are an expert Musical Director. Reorder these songs based on this instruction: "${instruction}"
@@ -46,6 +60,7 @@ CRITICAL RULES:
 1. GENRE FLOW: Ensure a logical musical progression.
 2. CONSTRAINTS: If a song is "LOCKED", it MUST stay at its 'lockedPosition'.
 3. OMIT songs only if the instruction explicitly implies a filter.
+4. FORMAT: Return ONLY a raw JSON object. No markdown, no preamble.
 
 SONG DATA:
 ${songs.map((s) => `ID: ${s.id} | ${s.name} - ${s.artist} | Energy: ${s.energy_level || 'Unknown'} | ${s.isLocked ? `LOCKED AT ${s.lockedPosition}` : 'UNLOCKED'}`).join('\n')}
@@ -59,7 +74,7 @@ Return ONLY a JSON object with an array of IDs in the new order:
 
     for (const provider of shuffledProviders) {
       try {
-        console.log(`[ai-setlist-sorter] Attempting sort via ${provider.type.toUpperCase()}...`);
+        console.log(`[ai-setlist-sorter] Attempting sort via ${provider.type.toUpperCase()} (${provider.name})...`);
         let content = "";
 
         if (provider.type === 'google') {
@@ -68,7 +83,10 @@ Return ONLY a JSON object with an array of IDs in the new order:
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: { responseMimeType: "application/json" }
+              generationConfig: { 
+                responseMimeType: "application/json",
+                temperature: 0.2 // Lower temperature for more consistent JSON
+              }
             })
           });
           
@@ -89,7 +107,8 @@ Return ONLY a JSON object with an array of IDs in the new order:
             body: JSON.stringify({
               model: "google/gemini-2.0-flash-001",
               messages: [{ role: "user", content: prompt }],
-              response_format: { type: "json_object" }
+              response_format: { type: "json_object" },
+              temperature: 0.2
             })
           });
           const result = await response.json();
@@ -100,17 +119,19 @@ Return ONLY a JSON object with an array of IDs in the new order:
         }
 
         if (content) {
-          const parsed = JSON.parse(content);
+          const cleanedContent = cleanJsonResponse(content);
+          const parsed = JSON.parse(cleanedContent);
+          
           if (parsed.orderedIds && Array.isArray(parsed.orderedIds)) {
+            console.log(`[ai-setlist-sorter] Successfully sorted ${parsed.orderedIds.length} songs.`);
             return new Response(JSON.stringify({ orderedIds: parsed.orderedIds }), { 
               headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
             });
           }
         }
       } catch (err: any) {
-        console.warn(`[ai-setlist-sorter] Provider ${provider.type} failed: ${err.message}`);
+        console.warn(`[ai-setlist-sorter] Provider ${provider.name} failed: ${err.message}`);
         lastError = err;
-        // Continue to next provider regardless of error type
         continue;
       }
     }
