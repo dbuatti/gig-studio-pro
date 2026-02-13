@@ -15,7 +15,7 @@ import { autoVibeCheck } from '@/utils/vibeUtils';
 // UI Components
 import { Button } from '@/components/ui/button';
 import { 
-  Loader2, Settings2, Hash, Library, Shuffle, LayoutDashboard, Plus, Sparkles, Command
+  Loader2, Settings2, Hash, Library, Shuffle, LayoutDashboard, Plus, Sparkles, Command, Clock, History
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -43,6 +43,7 @@ import SetlistSettingsModal from '@/components/SetlistSettingsModal';
 import SetlistSelector from '@/components/SetlistSelector';
 import GlobalSearchModal from '@/components/GlobalSearchModal';
 import MDAuditModal from '@/components/MDAuditModal';
+import ShortcutCheatSheet from '@/components/ShortcutCheatSheet';
 import { sortSongsByStrategy } from '@/utils/SetlistGenerator';
 
 const Index = () => {
@@ -65,6 +66,7 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
   const [isShuffleAllMode, setIsShuffleAllMode] = useState(false);
   const [floatingDockMenuOpen, setFloatingDockMenuOpen] = useState(false);
+  const [isShortcutSheetOpen, setIsShortcutSheetOpen] = useState(false);
   
   const activeDashboardView = (searchParams.get('view') as 'gigs' | 'repertoire') || defaultDashboardView;
 
@@ -72,6 +74,17 @@ const Index = () => {
     allSetlists.find(l => l.id === activeSetlistId), 
     [allSetlists, activeSetlistId]
   );
+
+  const recentlyEdited = useMemo(() => {
+    return [...masterRepertoire]
+      .sort((a, b) => {
+        const dateA = new Date(a.lyrics_updated_at || a.chords_updated_at || 0).getTime();
+        const dateB = new Date(b.lyrics_updated_at || b.chords_updated_at || 0).getTime();
+        return dateB - dateA;
+      })
+      .slice(0, 3)
+      .filter(s => s.lyrics_updated_at || s.chords_updated_at);
+  }, [masterRepertoire]);
 
   // Modal states
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
@@ -144,6 +157,10 @@ const Index = () => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setIsGlobalSearchOpen(true);
+      }
+      if (e.key === '?') {
+        e.preventDefault();
+        setIsShortcutSheetOpen(true);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -676,7 +693,7 @@ const Index = () => {
             </Button>
             <Button variant="outline" size="sm" onClick={() => setIsKeyManagementOpen(true)} className="h-11 px-6 rounded-2xl text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[10px]">
               <Hash className="w-4 h-4 mr-2.5" /> Key Matrix
-            </Button>
+            </Hash>
             <Button variant="outline" size="sm" onClick={() => setIsPreferencesOpen(true)} className="h-11 px-6 rounded-2xl text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[10px]">
               <Settings2 className="w-4 h-4 mr-2.5" /> Preferences
             </Button>
@@ -701,6 +718,33 @@ const Index = () => {
               onNext={handleNextSong} 
               onPrevious={handlePreviousSong} 
             />
+          </div>
+        )}
+
+        {/* Recently Edited Section */}
+        {recentlyEdited.length > 0 && activeDashboardView === 'repertoire' && (
+          <div className="mb-12 animate-in fade-in slide-in-from-left-8 duration-500">
+            <div className="flex items-center gap-3 mb-6">
+              <History className="w-5 h-5 text-indigo-400" />
+              <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">Recent Activity</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {recentlyEdited.map(song => (
+                <button 
+                  key={song.id}
+                  onClick={() => handleEditSong(song)}
+                  className="flex items-center gap-4 p-4 bg-slate-900/50 border border-white/5 rounded-2xl hover:bg-indigo-600/10 hover:border-indigo-500/30 transition-all text-left group"
+                >
+                  <div className="bg-indigo-600/20 p-2.5 rounded-xl text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                    <Music className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-black uppercase tracking-tight text-white truncate">{song.name}</p>
+                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest truncate mt-0.5">{song.artist}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
@@ -862,6 +906,7 @@ const Index = () => {
         </>
       )}
       <MDAuditModal isOpen={isMDAuditOpen} onClose={() => setIsMDAuditOpen(false)} auditData={auditData} isLoading={isAuditLoading} />
+      <ShortcutCheatSheet isOpen={isShortcutSheetOpen} onClose={() => setIsShortcutSheetOpen(false)} />
     </div>
   );
 };

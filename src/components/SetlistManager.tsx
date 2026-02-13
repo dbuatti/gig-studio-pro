@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, CircleDashed, CheckCircle2, Volume2, ChevronUp, ChevronDown, Search, LayoutList, SortAsc, AlertTriangle, Loader2, Guitar, CloudDownload, Edit3, Filter, MoreVertical, Settings2, Check, ShieldCheck, Clock, Star, Zap, Sparkles, Info, TrendingUp } from 'lucide-react';
+import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, CircleDashed, CheckCircle2, Volume2, ChevronUp, ChevronDown, Search, LayoutList, SortAsc, AlertTriangle, Loader2, Guitar, CloudDownload, Edit3, Filter, MoreVertical, Settings2, Check, ShieldCheck, Clock, Star, Zap, Sparkles, Info, TrendingUp, Hash } from 'lucide-react';
 
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, formatKey, transposeKey, calculateSemitones } from '@/utils/keyUtils';
 import { cn } from '@/lib/utils';
@@ -788,13 +788,34 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                           </div>
                           <div className="text-center min-w-[40px] relative">
                             <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1">Stage</p>
-                            <div className={cn(
-                              "font-mono font-black text-sm px-3.5 py-1.5 rounded-xl shadow-2xl flex items-center justify-center gap-2 leading-none border",
-                              song.isKeyConfirmed ? "bg-emerald-600 text-white border-emerald-400 shadow-emerald-500/20" : "bg-indigo-600 text-white border-indigo-400 shadow-indigo-500/20"
-                            )}>
-                              {displayTargetKey}
-                              {song.isKeyConfirmed && <Check className="w-3.5 h-3.5" />}
-                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button 
+                                  onClick={(e) => e.stopPropagation()}
+                                  className={cn(
+                                    "font-mono font-black text-sm px-3.5 py-1.5 rounded-xl shadow-2xl flex items-center justify-center gap-2 leading-none border transition-all hover:scale-105 active:scale-95",
+                                    song.isKeyConfirmed ? "bg-emerald-600 text-white border-emerald-400 shadow-emerald-500/20" : "bg-indigo-600 text-white border-indigo-400 shadow-indigo-500/20"
+                                  )}
+                                >
+                                  {displayTargetKey}
+                                  {song.isKeyConfirmed ? <Check className="w-3.5 h-3.5" /> : <ChevronDown className="w-3 h-3 opacity-50" />}
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent className="bg-slate-950 border-white/10 text-white max-h-60 overflow-y-auto custom-scrollbar">
+                                {(currentPref === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT).map(k => (
+                                  <DropdownMenuItem 
+                                    key={k} 
+                                    onClick={(e) => { 
+                                      e.stopPropagation(); 
+                                      onUpdateKey(song.id, k); 
+                                    }}
+                                    className="font-mono text-xs font-bold"
+                                  >
+                                    {k}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </div>
                       </td>
