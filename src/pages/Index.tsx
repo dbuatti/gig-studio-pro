@@ -59,7 +59,7 @@ const Index = () => {
     preventStageKeyOverwrite 
   } = useSettings();
 
-  // REFS: Source of truth for the Audio Engine to avoid stale state closures
+  // REFS: Absolute source of truth for the Audio Engine
   const isTransitioningRef = useRef(false);
   const autoplayActiveRef = useRef(false);
   const lastTriggerTimeRef = useRef(0);
@@ -138,7 +138,6 @@ const Index = () => {
     activeSongRef.current = activeSongForPerformance;
     isShuffleAllRef.current = isShuffleAllMode;
     masterRepertoireRef.current = masterRepertoire;
-    // Note: We don't sync autoplayActiveRef here to avoid overwriting manual updates during transitions
   }, [filteredAndSortedSongs, activeSongForPerformance, isShuffleAllMode, masterRepertoire]);
 
   // Stable handleSelectSong that updates refs immediately
@@ -766,7 +765,7 @@ const Index = () => {
 
   if (authLoading || isFetchingSettings || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+      <div className="h-screen flex items-center justify-center bg-slate-950">
         <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
       </div>
     );
