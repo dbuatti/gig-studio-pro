@@ -62,12 +62,12 @@ serve(async (req) => {
 
     const prompt = `You are a world-class Musical Director. 
 CURRENT SETLIST:
-${currentSetlist.map((s, i) => \`\${i + 1}. \${s.name} (\${s.artist}) | Energy: \${s.energy_level} | BPM: \${s.bpm}\`).join('\n')}
+${currentSetlist.map((s, i) => `${i + 1}. ${s.name} (${s.artist}) | Energy: ${s.energy_level} | BPM: ${s.bpm}`).join('\n')}
 
 AVAILABLE REPERTOIRE CANDIDATES:
-${candidates.map((s) => \`ID: \${s.id} | \${s.name} (\${s.artist}) | Energy: \${s.energy_level} | BPM: \${s.bpm} | Readiness: \${s.readiness}% | Genre: \${s.genre}\`).join('\n')}
+${candidates.map((s) => `ID: ${s.id} | ${s.name} (${s.artist}) | Energy: ${s.energy_level} | BPM: ${s.bpm} | Readiness: ${s.readiness}% | Genre: ${s.genre}`).join('\n')}
 
-USER INSTRUCTION: "\${instruction || 'Suggest 3 songs that would improve the flow and energy of this set.'}"
+USER INSTRUCTION: "${instruction || 'Suggest 3 songs that would improve the flow and energy of this set.'}"
 
 TASK:
 Pick the 3 BEST songs from the candidates that would work well in this set.
@@ -84,12 +84,11 @@ Example: [{"id": "uuid", "reason": "Perfect high-energy transition after the mid
 
     for (const provider of shuffledProviders) {
       try {
-        console.log(\`[suggest-songs] Attempting suggestions via \${provider.type.toUpperCase()} (\${provider.name})...\`);
+        console.log(`[suggest-songs] Attempting suggestions via ${provider.type.toUpperCase()} (${provider.name})...`);
         let content = "";
 
         if (provider.type === 'google') {
-          // Using gemini-2.5-flash as requested
-          const response = await fetch(\`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=\${provider.key}\`, {
+          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${provider.key}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -108,7 +107,7 @@ Example: [{"id": "uuid", "reason": "Perfect high-energy transition after the mid
           const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
             headers: {
-              "Authorization": \`Bearer \${provider.key}\`,
+              "Authorization": `Bearer ${provider.key}`,
               "Content-Type": "application/json"
             },
             body: JSON.stringify({
@@ -133,7 +132,7 @@ Example: [{"id": "uuid", "reason": "Perfect high-energy transition after the mid
           });
         }
       } catch (err: any) {
-        console.warn(\`[suggest-songs] Provider \${provider.name} failed: \${err.message}\`);
+        console.warn(`[suggest-songs] Provider ${provider.name} failed: ${err.message}`);
         lastError = err;
         continue;
       }
