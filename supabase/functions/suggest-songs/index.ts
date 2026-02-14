@@ -32,11 +32,19 @@ serve(async (req) => {
   }
 
   try {
-    const { currentSetlist, repertoire, instruction } = await req.json() as { 
-      currentSetlist: Song[], 
-      repertoire: Song[],
-      instruction?: string 
-    };
+    const body = await req.json();
+    
+    // Ensure we have arrays even if the keys are missing in the request
+    const currentSetlist: Song[] = Array.isArray(body?.currentSetlist) ? body.currentSetlist : [];
+    const repertoire: Song[] = Array.isArray(body?.repertoire) ? body.repertoire : [];
+    const instruction: string = body?.instruction || 'Suggest 3 songs that would improve the flow and energy of this set.';
+
+    if (repertoire.length === 0) {
+      console.log("[suggest-songs] No repertoire provided, returning empty suggestions.");
+      return new Response(JSON.stringify([]), { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
 
     const providers = [
       { type: 'google', key: Deno.env.get('GEMINI_API_KEY'), name: 'Pool #1' },
@@ -57,17 +65,22 @@ serve(async (req) => {
     const candidates = repertoire.filter(s => !currentIds.has(s.id));
 
     if (candidates.length === 0) {
-      return new Response(JSON.stringify([]), { headers: corsHeaders });
+      console.log("[suggest-songs] All repertoire songs are already in the setlist.");
+      return new Response(JSON.stringify([]), { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
     }
 
     const prompt = `You are a world-class Musical Director. 
 CURRENT SETLIST:
-${currentSetlist.map((s, i) => `${i + 1}. ${s.name} (${s.artist}) | Energy: ${s.energy_level} | BPM: ${s.bpm}`).join('\n')}
+${currentSetlist.length > 0 
+  ? currentSetlist.map((s, i) => `${i + 1}. ${s.name} (${s.artist}) | Energy: ${s.energy_level || 'Unknown'} | BPM: ${s.bpm || 'Unknown'}`).join('\n')
+  : 'Empty Setlist'}
 
 AVAILABLE REPERTOIRE CANDIDATES:
-${candidates.map((s) => `ID: ${s.id} | ${s.name} (${s.artist}) | Energy: ${s.energy_level} | BPM: ${s.bpm} | Readiness: ${s.readiness}% | Genre: ${s.genre}`).join('\n')}
+${candidates.map((s) => `ID: ${s.id} | ${s.name} (${s.artist}) | Energy: ${s.energy_level || 'Unknown'} | BPM: ${s.bpm || 'Unknown'} | Readiness: ${s.readiness}% | Genre: ${s.genre || 'Unknown'}`).join('\n')}
 
-USER INSTRUCTION: "${instruction || 'Suggest 3 songs that would improve the flow and energy of this set.'}"
+USER INSTRUCTION: "${instruction}"
 
 TASK:
 Pick the 3 BEST songs from the candidates that would work well in this set.
