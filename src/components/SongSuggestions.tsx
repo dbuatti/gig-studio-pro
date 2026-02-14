@@ -258,13 +258,13 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
                           <h4 className="text-sm font-black uppercase tracking-tight truncate text-foreground">{song.name}</h4>
                           {song.isDuplicate && <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
                         </div>
-                        <p className="text-[10px] font-black text-primary uppercase tracking-widest mt-0.5">{song.artist}</p>
+                        <p className="text-xs font-black text-primary uppercase tracking-widest mt-0.5">{song.artist}</p>
                         {song.isDuplicate ? (
                           <span className="inline-block mt-2 text-[8px] font-black bg-emerald-50/20 text-emerald-600 px-2 py-0.5 rounded-full uppercase tracking-tighter">
                             Already in Set
                           </span>
                         ) : song.reason && (
-                          <p className="text-[9px] text-muted-foreground font-bold uppercase mt-2 leading-relaxed">
+                          <p className="text-xs text-muted-foreground font-medium mt-2 leading-relaxed">
                             {song.reason}
                           </p>
                         )}
