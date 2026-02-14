@@ -59,6 +59,19 @@ const Index = () => {
     preventStageKeyOverwrite 
   } = useSettings();
 
+  // REFS: Source of truth for the Audio Engine to avoid stale state closures
+  const isTransitioningRef = useRef(false);
+  const autoplayActiveRef = useRef(false);
+  const lastTriggerTimeRef = useRef(0);
+  const currentSongsRef = useRef<SetlistSong[]>([]);
+  const activeSongRef = useRef<SetlistSong | null>(null);
+  const isShuffleAllRef = useRef(false);
+  const masterRepertoireRef = useRef<SetlistSong[]>([]);
+  
+  // Ref to break circular dependency between audio engine and callbacks
+  const playNextInListRef = useRef<() => void>(() => {});
+  const audio = useToneAudio(true, useCallback(() => playNextInListRef.current(), []));
+
   const [allSetlists, setAllSetlists] = useState<Setlist[]>([]);
   const [masterRepertoire, setMasterRepertoire] = useState<SetlistSong[]>([]);
   const [activeSetlistId, setActiveSetlistId] = useState<string | null>(null);
@@ -68,15 +81,6 @@ const Index = () => {
   const [isAutoplayActive, setIsAutoplayActive] = useState(false);
   const [floatingDockMenuOpen, setFloatingDockMenuOpen] = useState(false);
   const [isShortcutSheetOpen, setIsShortcutSheetOpen] = useState(false);
-  
-  // REFS: Source of truth for the Audio Engine to avoid stale state closures
-  const isTransitioningRef = useRef(false);
-  const autoplayActiveRef = useRef(false);
-  const lastTriggerTimeRef = useRef(0);
-  const currentSongsRef = useRef<SetlistSong[]>([]);
-  const activeSongRef = useRef<SetlistSong | null>(null);
-  const isShuffleAllRef = useRef(false);
-  const masterRepertoireRef = useRef<SetlistSong[]>([]);
 
   const activeDashboardView = (searchParams.get('view') as 'gigs' | 'repertoire') || defaultDashboardView;
 
@@ -229,9 +233,12 @@ const Index = () => {
       autoplayActiveRef.current = false;
       isTransitioningRef.current = false;
     }
-  }, [handleSelectSong]); // Only depends on handleSelectSong which is stable
+  }, [handleSelectSong]);
 
-  const audio = useToneAudio(true, playNextInList);
+  // Update the ref whenever playNextInList changes
+  useEffect(() => {
+    playNextInListRef.current = playNextInList;
+  }, [playNextInList]);
 
   const handlePlayAll = () => {
     if (isAutoplayActive) {
