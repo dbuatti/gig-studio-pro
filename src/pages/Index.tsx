@@ -69,12 +69,15 @@ const Index = () => {
   const [floatingDockMenuOpen, setFloatingDockMenuOpen] = useState(false);
   const [isShortcutSheetOpen, setIsShortcutSheetOpen] = useState(false);
   
-  // Refs to prevent race conditions and immediate skipping
+  // Refs to prevent race conditions and break circular dependencies
   const isTransitioningRef = useRef(false);
   const autoplayActiveRef = useRef(false);
   const lastTriggerTimeRef = useRef(0);
   const currentSongsRef = useRef<SetlistSong[]>([]);
   const activeSongRef = useRef<SetlistSong | null>(null);
+  const isShuffleAllRef = useRef(false);
+  const masterRepertoireRef = useRef<SetlistSong[]>([]);
+  const handleSelectSongRef = useRef<(song: SetlistSong, forceAutoplay?: boolean) => Promise<void>>();
 
   const activeDashboardView = (searchParams.get('view') as 'gigs' | 'repertoire') || defaultDashboardView;
 
@@ -126,17 +129,19 @@ const Index = () => {
     return songs;
   }, [activeSetlist, searchTerm, sortMode, activeFilters]);
 
-  // Keep refs in sync for stable callbacks
+  // Keep refs in sync to provide stable data to the end-of-song callback
   useEffect(() => {
     currentSongsRef.current = filteredAndSortedSongs;
     activeSongRef.current = activeSongForPerformance;
     autoplayActiveRef.current = isAutoplayActive;
-  }, [filteredAndSortedSongs, activeSongForPerformance, isAutoplayActive]);
+    isShuffleAllRef.current = isShuffleAllMode;
+    masterRepertoireRef.current = masterRepertoire;
+  }, [filteredAndSortedSongs, activeSongForPerformance, isAutoplayActive, isShuffleAllMode, masterRepertoire]);
 
+  // Stable callback for the audio engine to trigger next song
   const playNextInList = useCallback(() => {
     const now = Date.now();
     
-    // Cooldown to prevent rapid-fire triggers from the audio engine during loading
     if (now - lastTriggerTimeRef.current < 4000) {
       console.log("[Autoplay] playNextInList ignored: Cooldown active.");
       return;
@@ -152,26 +157,25 @@ const Index = () => {
       return;
     }
 
-    console.log("[Autoplay] playNextInList triggered. Mode:", isShuffleAllMode ? 'Shuffle' : 'Sequential');
+    console.log("[Autoplay] playNextInList triggered. Mode:", isShuffleAllRef.current ? 'Shuffle' : 'Sequential');
     
     isTransitioningRef.current = true;
     lastTriggerTimeRef.current = now;
 
-    if (isShuffleAllMode) {
-      const pool = masterRepertoire.filter(s => !!s.audio_url || !!s.previewUrl);
+    if (isShuffleAllRef.current) {
+      const pool = masterRepertoireRef.current.filter(s => !!s.audio_url || !!s.previewUrl);
       if (pool.length > 0) {
         const currentId = activeSongRef.current?.master_id || activeSongRef.current?.id;
         const others = pool.filter(s => (s.master_id || s.id) !== currentId);
         const next = others.length > 0 ? others[Math.floor(Math.random() * others.length)] : pool[0];
         console.log(`[Autoplay] Next shuffled song: ${next.name}`);
-        setActiveSongForPerformance(next);
+        handleSelectSongRef.current?.(next, true);
         return;
       }
     }
 
     const songs = currentSongsRef.current;
     if (songs.length === 0) {
-      console.warn("[Autoplay] No songs in list.");
       isTransitioningRef.current = false;
       return;
     }
@@ -181,12 +185,12 @@ const Index = () => {
     if (currentIndex !== -1 && currentIndex < songs.length - 1) {
       const nextSong = songs[currentIndex + 1];
       console.log(`[Autoplay] Moving to next song: ${nextSong.name}`);
-      setActiveSongForPerformance(nextSong);
+      handleSelectSongRef.current?.(nextSong, true);
       showInfo(`Autoplay: ${nextSong.name}`);
     } else if (autoplayActiveRef.current) {
       const firstSong = songs[0];
       console.log(`[Autoplay] End of list reached. Looping to start: ${firstSong.name}`);
-      setActiveSongForPerformance(firstSong);
+      handleSelectSongRef.current?.(firstSong, true);
       showInfo(`Autoplay Loop: ${firstSong.name}`);
     } else {
       console.log("[Autoplay] End of list reached. Stopping autoplay.");
@@ -194,7 +198,7 @@ const Index = () => {
       autoplayActiveRef.current = false;
       isTransitioningRef.current = false;
     }
-  }, [isShuffleAllMode, masterRepertoire]);
+  }, []); // Empty dependencies to keep it stable for useToneAudio
 
   const audio = useToneAudio(true, playNextInList);
 
@@ -208,7 +212,6 @@ const Index = () => {
       isTransitioningRef.current = true;
       lastTriggerTimeRef.current = Date.now();
       
-      // Use the explicit flag or the global autoplay state
       const shouldPlay = forceAutoplay || autoplayActiveRef.current;
       await audio.loadFromUrl(audioUrl, song.pitch || 0, shouldPlay);
       
@@ -220,16 +223,10 @@ const Index = () => {
     }
   }, [audio]);
 
-  // Effect to handle automatic playback when song changes during autoplay
+  // Sync the ref for handleSelectSong so playNextInList can use it without being a dependency
   useEffect(() => {
-    if (isAutoplayActive && activeSongForPerformance) {
-      const audioUrl = activeSongForPerformance.audio_url || activeSongForPerformance.previewUrl;
-      if (audioUrl && audioUrl !== audio.currentUrl) {
-        console.log(`[Autoplay] Song changed while active. Triggering load for: ${activeSongForPerformance.name}`);
-        handleSelectSong(activeSongForPerformance, true);
-      }
-    }
-  }, [activeSongForPerformance, isAutoplayActive, audio, handleSelectSong]);
+    handleSelectSongRef.current = handleSelectSong;
+  }, [handleSelectSong]);
 
   const handlePlayAll = () => {
     if (isAutoplayActive) {
@@ -706,7 +703,7 @@ const Index = () => {
     navigate(`/sheet-reader/${initialSongId || ''}`);
   }, [navigate, activeDashboardView, activeSetlistId]);
 
-  const handleGlobalSearchAdd = useCallback(async (url: string, name: string, artist: string, yt?: string, ug?: string, apple?: string, gen?: string) => {
+  const handleGlobalSearchAdd = async (url: string, name: string, artist: string, yt?: string, ug?: string, apple?: string, gen?: string) => {
     if (!userId) return;
     const newSong: Partial<SetlistSong> = {
       name,
@@ -736,7 +733,7 @@ const Index = () => {
     } catch (err: any) {
       showError("Failed to add discovered song.");
     }
-  }, [userId, activeDashboardView, activeSetlistId, handleUpdateSetlistSongs, fetchSetlistsAndRepertoire]);
+  };
 
   const handleToggleShuffleAll = useCallback(() => {
     setIsShuffleAllMode(prev => !prev);
@@ -751,7 +748,7 @@ const Index = () => {
 
   if (authLoading || isFetchingSettings || loading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-slate-950">
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
         <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
       </div>
     );
