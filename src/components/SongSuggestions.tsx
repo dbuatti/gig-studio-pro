@@ -36,8 +36,8 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
     if (!s) return "unknown-unknown";
     
     // Try to find title/artist in any common field
-    const name = (s.name || s.title || s.song || s.track || "Unknown Track").toString().trim().toLowerCase();
-    const artist = (s.artist || s.band || s.group || "Unknown Artist").toString().trim().toLowerCase();
+    const name = (s.name || s.title || s.song || s.track || s.trackName || s.song_name || "Unknown Track").toString().trim().toLowerCase();
+    const artist = (s.artist || s.band || s.group || s.artistName || s.artist_name || "Unknown Artist").toString().trim().toLowerCase();
     
     return `${name}-${artist}`;
   }, []);
@@ -48,6 +48,11 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
 
   const suggestions = useMemo(() => {
     console.log("[SongSuggestions] Processing raw suggestions for display:", rawSuggestions);
+    if (rawSuggestions.length > 0) {
+      console.log("[SongSuggestions] Sample object keys:", Object.keys(rawSuggestions[0]));
+      console.log("[SongSuggestions] Sample object content:", JSON.stringify(rawSuggestions[0]));
+    }
+
     return rawSuggestions.map(s => {
       // Handle potential string-only suggestions (e.g. "Song Name by Artist")
       if (typeof s === 'string') {
@@ -60,11 +65,23 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
         };
       }
 
+      // Handle objects that might have the data in a single string property
+      const possibleStringData = s.suggestion || s.text || s.value;
+      if (possibleStringData && typeof possibleStringData === 'string' && !s.name && !s.title) {
+        const parts = possibleStringData.split(/ by | - /i);
+        return {
+          ...s,
+          displayName: parts[0]?.trim() || possibleStringData,
+          displayArtist: parts[1]?.trim() || "Unknown Artist",
+          isDuplicate: existingKeys.has(getSongKey({ name: parts[0], artist: parts[1] }))
+        };
+      }
+
       return {
         ...s,
         // Map any common field names to our display properties
-        displayName: s.name || s.title || s.song || s.track || "Unknown Track",
-        displayArtist: s.artist || s.band || s.group || "Unknown Artist",
+        displayName: s.name || s.title || s.song || s.track || s.trackName || s.song_name || "Unknown Track",
+        displayArtist: s.artist || s.band || s.group || s.artistName || s.artist_name || "Unknown Artist",
         isDuplicate: existingKeys.has(getSongKey(s))
       };
     });
