@@ -82,6 +82,19 @@ const Index = () => {
   const [floatingDockMenuOpen, setFloatingDockMenuOpen] = useState(false);
   const [isShortcutSheetOpen, setIsShortcutSheetOpen] = useState(false);
 
+  // Mount Tracking
+  useEffect(() => {
+    console.log("[Autoplay] Index component mounted");
+    return () => console.log("[Autoplay] Index component unmounted");
+  }, []);
+
+  // Centralized Autoplay Control
+  const setAutoplayStatus = useCallback((active: boolean) => {
+    console.log(`[Autoplay] setAutoplayStatus: ${active}`);
+    autoplayActiveRef.current = active;
+    setIsAutoplayActive(active);
+  }, []);
+
   const activeDashboardView = (searchParams.get('view') as 'gigs' | 'repertoire') || defaultDashboardView;
 
   const activeSetlist = useMemo(() => 
@@ -147,8 +160,7 @@ const Index = () => {
     // Update refs immediately before state to ensure audio engine sees the change
     activeSongRef.current = song;
     if (forceAutoplay) {
-      autoplayActiveRef.current = true;
-      setIsAutoplayActive(true);
+      setAutoplayStatus(true);
     }
     
     setActiveSongForPerformance(song);
@@ -171,7 +183,7 @@ const Index = () => {
       console.warn(`[Autoplay] No audio URL for: ${song.name}`);
       isTransitioningRef.current = false;
     }
-  }, [audio]);
+  }, [audio, setAutoplayStatus]);
 
   // Core logic for moving to the next song
   const playNextInList = useCallback(() => {
@@ -231,11 +243,10 @@ const Index = () => {
       showInfo(`Autoplay Loop: ${firstSong.name}`);
     } else {
       console.log("[Autoplay] End of list reached. Stopping autoplay.");
-      setIsAutoplayActive(false);
-      autoplayActiveRef.current = false;
+      setAutoplayStatus(false);
       isTransitioningRef.current = false;
     }
-  }, [handleSelectSong]);
+  }, [handleSelectSong, setAutoplayStatus]);
 
   // Update the bridge ref whenever playNextInList changes
   useEffect(() => {
@@ -245,8 +256,7 @@ const Index = () => {
   const handlePlayAll = () => {
     if (isAutoplayActive) {
       console.log("[Autoplay] Manually stopping autoplay.");
-      setIsAutoplayActive(false);
-      autoplayActiveRef.current = false;
+      setAutoplayStatus(false);
       audio.stopPlayback();
       showInfo("Autoplay stopped");
     } else {
@@ -256,9 +266,7 @@ const Index = () => {
       }
       console.log(`[Autoplay] Starting autoplay for ${filteredAndSortedSongs.length} songs.`);
       
-      // Update both state and ref immediately
-      setIsAutoplayActive(true);
-      autoplayActiveRef.current = true;
+      setAutoplayStatus(true);
       
       const firstSong = filteredAndSortedSongs[0];
       handleSelectSong(firstSong, true);
@@ -765,7 +773,7 @@ const Index = () => {
 
   if (authLoading || isFetchingSettings || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+      <div className="h-screen flex items-center justify-center bg-slate-950">
         <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
       </div>
     );
@@ -814,11 +822,11 @@ const Index = () => {
               song={activeSongForPerformance} 
               isPlaying={audio.isPlaying} 
               onTogglePlayback={audio.togglePlayback} 
-              onClear={() => { setActiveSongForPerformance(null); activeSongRef.current = null; audio.stopPlayback(); setIsAutoplayActive(false); autoplayActiveRef.current = false; }} 
+              onClear={() => { setActiveSongForPerformance(null); activeSongRef.current = null; audio.stopPlayback(); setAutoplayStatus(false); }} 
               isLoadingAudio={audio.isLoadingAudio} 
               nextSongName={filteredAndSortedSongs[filteredAndSortedSongs.findIndex(s => s.id === activeSongForPerformance.id) + 1]?.name} 
-              onNext={() => { setIsAutoplayActive(false); autoplayActiveRef.current = false; playNextInList(); }} 
-              onPrevious={() => { setIsAutoplayActive(false); autoplayActiveRef.current = false; const idx = filteredAndSortedSongs.findIndex(s => s.id === activeSongForPerformance.id); if (idx > 0) handleSelectSong(filteredAndSortedSongs[idx - 1]); }} 
+              onNext={() => { setAutoplayStatus(false); playNextInList(); }} 
+              onPrevious={() => { setAutoplayStatus(false); const idx = filteredAndSortedSongs.findIndex(s => s.id === activeSongForPerformance.id); if (idx > 0) handleSelectSong(filteredAndSortedSongs[idx - 1]); }} 
             />
           </div>
         )}
@@ -989,8 +997,8 @@ const Index = () => {
           progress={audio.progress} 
           duration={audio.duration} 
           onTogglePlayback={audio.togglePlayback} 
-          onNext={() => { setIsAutoplayActive(false); autoplayActiveRef.current = false; playNextInList(); }} 
-          onPrevious={() => { setIsAutoplayActive(false); autoplayActiveRef.current = false; const idx = filteredAndSortedSongs.findIndex(s => s.id === activeSongForPerformance.id); if (idx > 0) handleSelectSong(filteredAndSortedSongs[idx - 1]); }} 
+          onNext={() => { setAutoplayStatus(false); playNextInList(); }} 
+          onPrevious={() => { setAutoplayStatus(false); const idx = filteredAndSortedSongs.findIndex(s => s.id === activeSongForPerformance.id); if (idx > 0) handleSelectSong(filteredAndSortedSongs[idx - 1]); }} 
           onShuffle={() => {}} 
           onClose={() => setIsPerformanceOverlayOpen(false)} 
           onUpdateSong={handleUpdateSongInSetlist} 
