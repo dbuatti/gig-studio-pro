@@ -34,8 +34,8 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
   // Robust normalization for comparisons to prevent crashes on null/undefined data
   const getSongKey = useCallback((s: any) => {
     if (!s) return "unknown-unknown";
-    const name = (s.name || s.title || "").toString().trim().toLowerCase();
-    const artist = (s.artist || "").toString().trim().toLowerCase();
+    const name = (s.name || s.title || "Unknown Track").toString().trim().toLowerCase();
+    const artist = (s.artist || "Unknown Artist").toString().trim().toLowerCase();
     return `${name}-${artist}`;
   }, []);
 
@@ -46,6 +46,9 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
   const suggestions = useMemo(() => {
     return rawSuggestions.map(s => ({
       ...s,
+      // Ensure we have a consistent name/artist property regardless of what the AI returns
+      displayName: s.name || s.title || "Unknown Track",
+      displayArtist: s.artist || "Unknown Artist",
       isDuplicate: existingKeys.has(getSongKey(s))
     }));
   }, [rawSuggestions, existingKeys, getSongKey]);
@@ -136,7 +139,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
     setRawSuggestions(filtered);
     sessionSuggestionsCache = filtered;
     
-    showSuccess(`Removed "${song.name}"`);
+    showSuccess(`Removed "${song.name || song.title || 'Track'}"`);
     
     if (filtered.length < 7) {
       fetchSuggestions(true, true);
@@ -256,13 +259,13 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <h4 className="text-lg font-black tracking-tight text-foreground truncate">
-                            {song.name}
+                          <h4 className="text-xl font-black tracking-tight text-slate-900 dark:text-white truncate">
+                            {song.displayName}
                           </h4>
                           {song.isDuplicate && <CheckCircle2 className="w-5 h-5 text-emerald-500" />}
                         </div>
-                        <p className="text-xs font-bold text-indigo-600 uppercase tracking-widest mt-1">
-                          {song.artist}
+                        <p className="text-sm font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mt-1">
+                          {song.displayArtist}
                         </p>
                       </div>
                       
@@ -281,7 +284,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
                         
                         {!song.isDuplicate && (
                           <button 
-                            onClick={() => onSelectSuggestion(`${song.artist} ${song.name}`)}
+                            onClick={() => onSelectSuggestion(`${song.displayArtist} ${song.displayName}`)}
                             className="p-2 rounded-xl bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-all"
                             title="Preview track"
                           >
@@ -308,7 +311,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
                             </div>
                             <span className="text-[9px] font-black text-indigo-600/70 uppercase tracking-[0.15em]">AI Insight</span>
                           </div>
-                          <p className="text-sm text-slate-600 dark:text-slate-400 font-medium leading-relaxed">
+                          <p className="text-sm text-slate-700 dark:text-slate-300 font-bold leading-relaxed">
                             {song.reason}
                           </p>
                         </div>
@@ -320,8 +323,8 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
                       <Button
                         onClick={() => onAddExistingSong({
                           id: crypto.randomUUID(),
-                          name: song.name,
-                          artist: song.artist,
+                          name: song.displayName,
+                          artist: song.displayArtist,
                           previewUrl: "",
                           pitch: 0,
                           originalKey: "C",
