@@ -59,7 +59,7 @@ const Index = () => {
     preventStageKeyOverwrite 
   } = useSettings();
 
-  // REFS: Absolute source of truth for the Audio Engine
+  // REFS: Absolute source of truth for the Audio Engine to prevent stale closures
   const isTransitioningRef = useRef(false);
   const autoplayActiveRef = useRef(false);
   const lastTriggerTimeRef = useRef(0);
@@ -68,9 +68,9 @@ const Index = () => {
   const isShuffleAllRef = useRef(false);
   const masterRepertoireRef = useRef<SetlistSong[]>([]);
   
-  // Ref to break circular dependency between audio engine and callbacks
-  const playNextInListRef = useRef<() => void>(() => {});
-  const audio = useToneAudio(true, useCallback(() => playNextInListRef.current(), []));
+  // Callback Bridge: Breaks circular dependency between audio engine and playNext logic
+  const playNextBridgeRef = useRef<() => void>(() => {});
+  const audio = useToneAudio(true, useCallback(() => playNextBridgeRef.current(), []));
 
   const [allSetlists, setAllSetlists] = useState<Setlist[]>([]);
   const [masterRepertoire, setMasterRepertoire] = useState<SetlistSong[]>([]);
@@ -132,7 +132,7 @@ const Index = () => {
     return songs;
   }, [activeSetlist, searchTerm, sortMode, activeFilters]);
 
-  // Sync refs with state - but we update refs manually in actions to avoid stale state issues
+  // Sync refs with state to ensure the audio engine always has the latest data
   useEffect(() => {
     currentSongsRef.current = filteredAndSortedSongs;
     activeSongRef.current = activeSongForPerformance;
@@ -173,7 +173,7 @@ const Index = () => {
     }
   }, [audio]);
 
-  // Stable callback for the audio engine to trigger next song
+  // Core logic for moving to the next song
   const playNextInList = useCallback(() => {
     const now = Date.now();
     
@@ -237,9 +237,9 @@ const Index = () => {
     }
   }, [handleSelectSong]);
 
-  // Update the ref whenever playNextInList changes
+  // Update the bridge ref whenever playNextInList changes
   useEffect(() => {
-    playNextInListRef.current = playNextInList;
+    playNextBridgeRef.current = playNextInList;
   }, [playNextInList]);
 
   const handlePlayAll = () => {
@@ -765,7 +765,7 @@ const Index = () => {
 
   if (authLoading || isFetchingSettings || loading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-slate-950">
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
         <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
       </div>
     );
