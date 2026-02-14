@@ -47,8 +47,9 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
   }, [repertoire, getSongKey]);
 
   const suggestions = useMemo(() => {
+    console.log("[SongSuggestions] Processing raw suggestions for display:", rawSuggestions);
     return rawSuggestions.map(s => {
-      // Handle potential string-only suggestions
+      // Handle potential string-only suggestions (e.g. "Song Name by Artist")
       if (typeof s === 'string') {
         const parts = s.split(/ by | - /i);
         return {
@@ -92,6 +93,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
         ...ignoredSuggestions
       ];
 
+      console.log("[SongSuggestions] Fetching suggestions from AI...");
       const { data, error } = await supabase.functions.invoke('suggest-songs', {
         body: { 
           repertoire: repertoire.slice(0, 50),
@@ -102,8 +104,15 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
 
       if (error) throw error;
       
+      console.log("[SongSuggestions] Raw AI Response Data:", data);
+      
       // Handle wrapped responses (e.g. { suggestions: [...] })
-      const newBatch = Array.isArray(data) ? data : (data?.suggestions || data?.songs || []);
+      let newBatch = Array.isArray(data) ? data : (data?.suggestions || data?.songs || []);
+      
+      if (!Array.isArray(newBatch)) {
+        console.error("[SongSuggestions] AI response is not an array:", newBatch);
+        newBatch = [];
+      }
 
       if (preserveExisting) {
         setRawSuggestions(prev => {
