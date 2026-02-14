@@ -133,28 +133,6 @@ const Index = () => {
     autoplayActiveRef.current = isAutoplayActive;
   }, [filteredAndSortedSongs, activeSongForPerformance, isAutoplayActive]);
 
-  const handleSelectSong = useCallback(async (song: SetlistSong, forceAutoplay = false) => {
-    console.log(`[Autoplay] handleSelectSong: ${song.name} (Force: ${forceAutoplay})`);
-    setActiveSongForPerformance(song);
-    
-    const audioUrl = song.audio_url || song.previewUrl;
-    if (audioUrl) {
-      console.log(`[Autoplay] Loading audio: ${song.name}`);
-      isTransitioningRef.current = true;
-      lastTriggerTimeRef.current = Date.now();
-      
-      // Use the explicit flag or the global autoplay state
-      const shouldPlay = forceAutoplay || autoplayActiveRef.current;
-      await audio.loadFromUrl(audioUrl, song.pitch || 0, shouldPlay);
-      
-      // Release guard after a safe buffer
-      setTimeout(() => { isTransitioningRef.current = false; }, 4000);
-    } else {
-      console.warn(`[Autoplay] No audio URL for: ${song.name}`);
-      isTransitioningRef.current = false;
-    }
-  }, [audio]);
-
   const playNextInList = useCallback(() => {
     const now = Date.now();
     
@@ -186,7 +164,7 @@ const Index = () => {
         const others = pool.filter(s => (s.master_id || s.id) !== currentId);
         const next = others.length > 0 ? others[Math.floor(Math.random() * others.length)] : pool[0];
         console.log(`[Autoplay] Next shuffled song: ${next.name}`);
-        handleSelectSong(next, true);
+        setActiveSongForPerformance(next);
         return;
       }
     }
@@ -203,12 +181,12 @@ const Index = () => {
     if (currentIndex !== -1 && currentIndex < songs.length - 1) {
       const nextSong = songs[currentIndex + 1];
       console.log(`[Autoplay] Moving to next song: ${nextSong.name}`);
-      handleSelectSong(nextSong, true);
+      setActiveSongForPerformance(nextSong);
       showInfo(`Autoplay: ${nextSong.name}`);
     } else if (autoplayActiveRef.current) {
       const firstSong = songs[0];
       console.log(`[Autoplay] End of list reached. Looping to start: ${firstSong.name}`);
-      handleSelectSong(firstSong, true);
+      setActiveSongForPerformance(firstSong);
       showInfo(`Autoplay Loop: ${firstSong.name}`);
     } else {
       console.log("[Autoplay] End of list reached. Stopping autoplay.");
@@ -216,9 +194,42 @@ const Index = () => {
       autoplayActiveRef.current = false;
       isTransitioningRef.current = false;
     }
-  }, [isShuffleAllMode, masterRepertoire, handleSelectSong]);
+  }, [isShuffleAllMode, masterRepertoire]);
 
   const audio = useToneAudio(true, playNextInList);
+
+  const handleSelectSong = useCallback(async (song: SetlistSong, forceAutoplay = false) => {
+    console.log(`[Autoplay] handleSelectSong: ${song.name} (Force: ${forceAutoplay})`);
+    setActiveSongForPerformance(song);
+    
+    const audioUrl = song.audio_url || song.previewUrl;
+    if (audioUrl) {
+      console.log(`[Autoplay] Loading audio: ${song.name}`);
+      isTransitioningRef.current = true;
+      lastTriggerTimeRef.current = Date.now();
+      
+      // Use the explicit flag or the global autoplay state
+      const shouldPlay = forceAutoplay || autoplayActiveRef.current;
+      await audio.loadFromUrl(audioUrl, song.pitch || 0, shouldPlay);
+      
+      // Release guard after a safe buffer
+      setTimeout(() => { isTransitioningRef.current = false; }, 4000);
+    } else {
+      console.warn(`[Autoplay] No audio URL for: ${song.name}`);
+      isTransitioningRef.current = false;
+    }
+  }, [audio]);
+
+  // Effect to handle automatic playback when song changes during autoplay
+  useEffect(() => {
+    if (isAutoplayActive && activeSongForPerformance) {
+      const audioUrl = activeSongForPerformance.audio_url || activeSongForPerformance.previewUrl;
+      if (audioUrl && audioUrl !== audio.currentUrl) {
+        console.log(`[Autoplay] Song changed while active. Triggering load for: ${activeSongForPerformance.name}`);
+        handleSelectSong(activeSongForPerformance, true);
+      }
+    }
+  }, [activeSongForPerformance, isAutoplayActive, audio, handleSelectSong]);
 
   const handlePlayAll = () => {
     if (isAutoplayActive) {
@@ -725,7 +736,7 @@ const Index = () => {
     } catch (err: any) {
       showError("Failed to add discovered song.");
     }
-  };
+  }, [userId, activeDashboardView, activeSetlistId, handleUpdateSetlistSongs, fetchSetlistsAndRepertoire]);
 
   const handleToggleShuffleAll = useCallback(() => {
     setIsShuffleAllMode(prev => !prev);
