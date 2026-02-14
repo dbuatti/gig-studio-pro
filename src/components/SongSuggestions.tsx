@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Sparkles, Loader2, Music, Search, Target, CheckCircle2, ListPlus, XCircle, RotateCcw, X, Info } from 'lucide-react'; 
+import { Sparkles, Loader2, Music, Search, Target, CheckCircle2, ListPlus, XCircle, RotateCcw, X, Info, Lightbulb } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
@@ -232,7 +232,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
         </div>
 
         <ScrollArea className="h-[500px] px-4">
-          <div className="space-y-3">
+          <div className="space-y-4">
             {isLoadingInitial && rawSuggestions.length === 0 ? (
               <div className="py-20 flex flex-col items-center gap-4 text-center">
                 <Loader2 className="w-8 h-8 animate-spin text-indigo-500 opacity-20" />
@@ -246,108 +246,115 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
                   <div 
                     key={i}
                     className={cn(
-                      "group p-5 border rounded-[1.5rem] transition-all shadow-sm relative overflow-hidden",
+                      "group p-6 border rounded-[2rem] transition-all shadow-sm relative overflow-hidden flex flex-col gap-5",
                       song.isDuplicate 
                         ? "bg-secondary/50 border-border opacity-60"
                         : "bg-card border-border hover:border-indigo-500/30 hover:shadow-md"
                     )}
                   >
+                    {/* Header: Title & Artist */}
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <h4 className="text-base font-black tracking-tight text-foreground truncate">
+                          <h4 className="text-lg font-black tracking-tight text-foreground truncate">
                             {song.name}
                           </h4>
-                          {song.isDuplicate && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+                          {song.isDuplicate && <CheckCircle2 className="w-5 h-5 text-emerald-500" />}
                         </div>
-                        <p className="text-sm font-bold text-indigo-500/80 uppercase tracking-wider mt-0.5">
+                        <p className="text-xs font-bold text-indigo-600 uppercase tracking-widest mt-1">
                           {song.artist}
                         </p>
-                        
-                        {song.isDuplicate ? (
-                          <span className="inline-block mt-3 text-[9px] font-black bg-emerald-500/10 text-emerald-600 px-2.5 py-1 rounded-lg uppercase tracking-widest">
-                            Already in Library
-                          </span>
-                        ) : song.reason && (
-                          <div className="mt-4 p-3 bg-indigo-500/5 rounded-xl border border-indigo-500/10 flex gap-2.5">
-                            <Info className="w-3.5 h-3.5 text-indigo-400 shrink-0 mt-0.5" />
-                            <p className="text-xs text-slate-500 font-medium leading-relaxed italic">
-                              "{song.reason}"
-                            </p>
-                          </div>
-                        )}
                       </div>
                       
-                      <div className="flex flex-col items-center gap-2 shrink-0">
-                        <div className="flex items-center gap-1.5">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                onClick={() => handleDismissSuggestion(song)}
-                                className="h-9 w-9 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                              >
-                                <XCircle className="w-4 h-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent className="text-[10px] font-black uppercase">Don't Suggest Again</TooltipContent>
-                          </Tooltip>
-                          
-                          {!song.isDuplicate && (
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              onClick={() => onSelectSuggestion(`${song.artist} ${song.name}`)}
-                              className="h-9 w-9 rounded-xl bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-all"
-                              title="Preview track"
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button 
+                              onClick={() => handleDismissSuggestion(song)}
+                              className="p-2 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                             >
-                              <Search className="w-4 h-4" />
-                            </Button>
-                          )}
-                        </div>
-
-                        {!song.isDuplicate && onAddExistingSong && (
-                          <Button
-                            onClick={() => onAddExistingSong({
-                              id: crypto.randomUUID(),
-                              name: song.name,
-                              artist: song.artist,
-                              previewUrl: "",
-                              pitch: 0,
-                              originalKey: "C",
-                              targetKey: "C",
-                              isPlayed: false,
-                              isSyncing: true,
-                              isMetadataConfirmed: false,
-                              isKeyConfirmed: false,
-                              duration_seconds: 0,
-                              notes: "",
-                              lyrics: "",
-                              resources: [],
-                              user_tags: [],
-                              is_pitch_linked: true,
-                              isApproved: false,
-                              preferred_reader: null,
-                              ug_chords_config: DEFAULT_UG_CHORDS_CONFIG,
-                              is_ug_chords_present: false,
-                              highest_note_original: null,
-                              is_ug_link_verified: false,
-                              metadata_source: null,
-                              sync_status: 'IDLE',
-                              last_sync_log: null,
-                              auto_synced: false,
-                              is_sheet_verified: false,
-                              sheet_music_url: null,
-                              extraction_status: 'idle', 
-                            })}
-                            className="w-full h-10 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-[10px] rounded-xl gap-2 shadow-lg shadow-emerald-600/20"
+                              <XCircle className="w-5 h-5" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent className="text-[10px] font-black uppercase">Don't Suggest Again</TooltipContent>
+                        </Tooltip>
+                        
+                        {!song.isDuplicate && (
+                          <button 
+                            onClick={() => onSelectSuggestion(`${song.artist} ${song.name}`)}
+                            className="p-2 rounded-xl bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-all"
+                            title="Preview track"
                           >
-                            <ListPlus className="w-4 h-4" /> Add
-                          </Button>
+                            <Search className="w-5 h-5" />
+                          </button>
                         )}
                       </div>
                     </div>
+
+                    {/* Content: Reason / Insight */}
+                    <div className="space-y-3">
+                      {song.isDuplicate ? (
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl w-fit">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">
+                            Already in Library
+                          </span>
+                        </div>
+                      ) : song.reason && (
+                        <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-border relative group-hover:border-indigo-500/20 transition-colors">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="p-1 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
+                              <Lightbulb className="w-3 h-3 text-indigo-600" />
+                            </div>
+                            <span className="text-[9px] font-black text-indigo-600/70 uppercase tracking-[0.15em]">AI Insight</span>
+                          </div>
+                          <p className="text-sm text-slate-600 dark:text-slate-400 font-medium leading-relaxed">
+                            {song.reason}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Footer: Actions */}
+                    {!song.isDuplicate && onAddExistingSong && (
+                      <Button
+                        onClick={() => onAddExistingSong({
+                          id: crypto.randomUUID(),
+                          name: song.name,
+                          artist: song.artist,
+                          previewUrl: "",
+                          pitch: 0,
+                          originalKey: "C",
+                          targetKey: "C",
+                          isPlayed: false,
+                          isSyncing: true,
+                          isMetadataConfirmed: false,
+                          isKeyConfirmed: false,
+                          duration_seconds: 0,
+                          notes: "",
+                          lyrics: "",
+                          resources: [],
+                          user_tags: [],
+                          is_pitch_linked: true,
+                          isApproved: false,
+                          preferred_reader: null,
+                          ug_chords_config: DEFAULT_UG_CHORDS_CONFIG,
+                          is_ug_chords_present: false,
+                          highest_note_original: null,
+                          is_ug_link_verified: false,
+                          metadata_source: null,
+                          sync_status: 'IDLE',
+                          last_sync_log: null,
+                          auto_synced: false,
+                          is_sheet_verified: false,
+                          sheet_music_url: null,
+                          extraction_status: 'idle', 
+                        })}
+                        className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-[11px] tracking-widest rounded-2xl gap-3 shadow-lg shadow-emerald-600/20 transition-all active:scale-[0.98]"
+                      >
+                        <ListPlus className="w-5 h-5" /> Add to Repertoire
+                      </Button>
+                    )}
                   </div>
                 ))
               ) : (
