@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
@@ -69,6 +69,10 @@ const Index = () => {
   const [floatingDockMenuOpen, setFloatingDockMenuOpen] = useState(false);
   const [isShortcutSheetOpen, setIsShortcutSheetOpen] = useState(false);
   
+  // Refs to prevent race conditions and immediate skipping
+  const isTransitioningRef = useRef(false);
+  const autoplayActiveRef = useRef(false);
+
   const activeDashboardView = (searchParams.get('view') as 'gigs' | 'repertoire') || defaultDashboardView;
 
   const activeSetlist = useMemo(() => 
@@ -120,39 +124,48 @@ const Index = () => {
   }, [activeSetlist, searchTerm, sortMode, activeFilters]);
 
   const playNextInList = useCallback(() => {
+    if (!autoplayActiveRef.current) {
+      console.log("[Autoplay] playNextInList ignored: Autoplay not active.");
+      return;
+    }
+
+    if (isTransitioningRef.current) {
+      console.log("[Autoplay] playNextInList ignored: Already transitioning.");
+      return;
+    }
+
     console.log("[Autoplay] playNextInList triggered. Mode:", isShuffleAllMode ? 'Shuffle' : 'Sequential');
     
+    isTransitioningRef.current = true;
+
     if (isShuffleAllMode) {
       const pool = masterRepertoire.filter(s => !!s.audio_url || !!s.previewUrl);
-      console.log(`[Autoplay] Shuffle pool size: ${pool.length}`);
       if (pool.length > 0) {
         const currentId = activeSongForPerformance?.master_id || activeSongForPerformance?.id;
         const others = pool.filter(s => (s.master_id || s.id) !== currentId);
         const next = others.length > 0 ? others[Math.floor(Math.random() * others.length)] : pool[0];
         console.log(`[Autoplay] Next shuffled song: ${next.name}`);
         setActiveSongForPerformance(next);
+        // Reset transition guard after a short delay to allow loading to start
+        setTimeout(() => { isTransitioningRef.current = false; }, 2000);
         return;
       }
     }
 
-    // Use the current filtered/sorted list for sequential playback
     const songs = filteredAndSortedSongs;
-    console.log(`[Autoplay] Sequential list size: ${songs.length}`);
     if (songs.length === 0) {
-      console.warn("[Autoplay] No songs available in the current view.");
+      isTransitioningRef.current = false;
       return;
     }
 
     const currentIndex = songs.findIndex(s => s.id === activeSongForPerformance?.id);
-    console.log(`[Autoplay] Current song index: ${currentIndex}`);
     
     if (currentIndex !== -1 && currentIndex < songs.length - 1) {
       const nextSong = songs[currentIndex + 1];
       console.log(`[Autoplay] Moving to next song: ${nextSong.name}`);
       setActiveSongForPerformance(nextSong);
       showInfo(`Autoplay: ${nextSong.name}`);
-    } else if (isAutoplayActive) {
-      // Loop back to start if autoplay is active
+    } else if (autoplayActiveRef.current) {
       const firstSong = songs[0];
       console.log(`[Autoplay] End of list reached. Looping to start: ${firstSong.name}`);
       setActiveSongForPerformance(firstSong);
@@ -160,8 +173,12 @@ const Index = () => {
     } else {
       console.log("[Autoplay] End of list reached. Stopping autoplay.");
       setIsAutoplayActive(false);
+      autoplayActiveRef.current = false;
     }
-  }, [isShuffleAllMode, filteredAndSortedSongs, activeSongForPerformance, masterRepertoire, isAutoplayActive]);
+
+    // Reset transition guard after a short delay
+    setTimeout(() => { isTransitioningRef.current = false; }, 2000);
+  }, [isShuffleAllMode, filteredAndSortedSongs, activeSongForPerformance, masterRepertoire]);
 
   const audio = useToneAudio(true, playNextInList);
 
@@ -171,11 +188,14 @@ const Index = () => {
     const audioUrl = song.audio_url || song.previewUrl;
     if (audioUrl) {
       console.log(`[Autoplay] Loading audio from: ${audioUrl.substring(0, 50)}...`);
-      await audio.loadFromUrl(audioUrl, song.pitch || 0, isAutoplayActive);
-    } else {
-      console.warn(`[Autoplay] No audio URL found for: ${song.name}`);
+      await audio.loadFromUrl(audioUrl, song.pitch || 0, autoplayActiveRef.current);
     }
-  }, [audio, isAutoplayActive]);
+  }, [audio]);
+
+  // Sync ref with state
+  useEffect(() => {
+    autoplayActiveRef.current = isAutoplayActive;
+  }, [isAutoplayActive]);
 
   // Effect to handle automatic playback when song changes during autoplay
   useEffect(() => {
@@ -192,16 +212,17 @@ const Index = () => {
     if (isAutoplayActive) {
       console.log("[Autoplay] Manually stopping autoplay.");
       setIsAutoplayActive(false);
+      autoplayActiveRef.current = false;
       audio.stopPlayback();
       showInfo("Autoplay stopped");
     } else {
       if (filteredAndSortedSongs.length === 0) {
-        console.warn("[Autoplay] Cannot start: No songs in current view.");
         showWarning("No songs available to play.");
         return;
       }
       console.log(`[Autoplay] Starting autoplay for ${filteredAndSortedSongs.length} songs.`);
       setIsAutoplayActive(true);
+      autoplayActiveRef.current = true;
       const firstSong = filteredAndSortedSongs[0];
       handleSelectSong(firstSong);
       showSuccess("Starting Setlist Autoplay");
@@ -707,7 +728,7 @@ const Index = () => {
 
   if (authLoading || isFetchingSettings || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+      <div className="h-screen flex items-center justify-center bg-slate-950">
         <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
       </div>
     );
