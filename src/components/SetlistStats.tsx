@@ -2,19 +2,28 @@
 
 import React from 'react';
 import { SetlistSong } from './SetlistManager';
-import { Clock, Music, Zap, Target, Share2, Copy, Check } from 'lucide-react';
+import { Clock, Music, Zap, Target, Share2, Copy, Check, PlayCircle } from 'lucide-react';
 import { Progress } from "@/components/ui/progress";
 import { cn } from '@/lib/utils';
 import { showSuccess } from '@/utils/toast';
 import { calculateReadiness } from '@/utils/repertoireSync';
+import { Button } from './ui/button';
 
 interface SetlistStatsProps {
   songs: SetlistSong[];
   goalSeconds?: number;
   onUpdateGoal?: (seconds: number) => void;
+  onPlayAll?: () => void;
+  isAutoplayActive?: boolean;
 }
 
-const SetlistStats: React.FC<SetlistStatsProps> = ({ songs, goalSeconds = 7200, onUpdateGoal }) => {
+const SetlistStats: React.FC<SetlistStatsProps> = ({ 
+  songs, 
+  goalSeconds = 7200, 
+  onUpdateGoal,
+  onPlayAll,
+  isAutoplayActive = false
+}) => {
   const [isCopied, setIsCopied] = React.useState(false);
   const totalSeconds = songs.reduce((acc, song) => acc + (song.duration_seconds || 0), 0);
   const progress = Math.min(100, (totalSeconds / goalSeconds) * 100);
@@ -45,10 +54,10 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({ songs, goalSeconds = 7200, 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       <div className="bg-slate-900/50 p-6 rounded-[2rem] border border-white/5 shadow-xl backdrop-blur-xl relative overflow-hidden group">
-        <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
           <button 
             onClick={handleCopySetlist}
-            className="p-2 bg-indigo-600 rounded-xl text-white shadow-lg shadow-indigo-600/20 hover:scale-110 transition-transform"
+            className="p-2 bg-slate-800 rounded-xl text-white shadow-lg hover:scale-110 transition-transform border border-white/10"
             title="Copy Setlist to Clipboard"
           >
             {isCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
@@ -72,7 +81,28 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({ songs, goalSeconds = 7200, 
         </div>
       </div>
 
-      <div className="bg-slate-900/50 p-6 rounded-[2rem] border border-white/5 shadow-xl backdrop-blur-xl">
+      <div className="bg-slate-900/50 p-6 rounded-[2rem] border border-white/5 shadow-xl backdrop-blur-xl relative group">
+        <div className="absolute top-4 right-4">
+          <Button 
+            size="sm" 
+            onClick={onPlayAll}
+            className={cn(
+              "h-9 px-4 rounded-xl font-black uppercase tracking-widest text-[9px] gap-2 transition-all",
+              isAutoplayActive 
+                ? "bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/20" 
+                : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20"
+            )}
+          >
+            {isAutoplayActive ? (
+              <>Stop Autoplay</>
+            ) : (
+              <>
+                <PlayCircle className="w-3.5 h-3.5" />
+                Play Setlist
+              </>
+            )}
+          </Button>
+        </div>
         <div className="flex items-center gap-4 mb-4">
           <div className="bg-emerald-600/10 p-3 rounded-2xl text-emerald-400">
             <Music className="w-5 h-5" />
@@ -101,10 +131,10 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({ songs, goalSeconds = 7200, 
           </div>
         </div>
         <div className="flex h-1.5 w-full rounded-full overflow-hidden bg-slate-800">
-          <div className="bg-red-500" style={{ width: `${((energyCounts['Peak'] || 0) / songs.length) * 100}%` }} />
-          <div className="bg-amber-500" style={{ width: `${((energyCounts['Groove'] || 0) / songs.length) * 100}%` }} />
-          <div className="bg-emerald-500" style={{ width: `${((energyCounts['Pulse'] || 0) / songs.length) * 100}%` }} />
-          <div className="bg-blue-500" style={{ width: `${((energyCounts['Ambient'] || 0) / songs.length) * 100}%` }} />
+          <div className="bg-red-500" style={{ width: `${((energyCounts['Peak'] || 0) / Math.max(1, songs.length)) * 100}%` }} />
+          <div className="bg-amber-500" style={{ width: `${((energyCounts['Groove'] || 0) / Math.max(1, songs.length)) * 100}%` }} />
+          <div className="bg-emerald-500" style={{ width: `${((energyCounts['Pulse'] || 0) / Math.max(1, songs.length)) * 100}%` }} />
+          <div className="bg-blue-500" style={{ width: `${((energyCounts['Ambient'] || 0) / Math.max(1, songs.length)) * 100}%` }} />
         </div>
       </div>
 

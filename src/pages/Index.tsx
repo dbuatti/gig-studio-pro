@@ -65,6 +65,7 @@ const Index = () => {
   const [activeSongForPerformance, setActiveSongForPerformance] = useState<SetlistSong | null>(null);
   const [loading, setLoading] = useState(true);
   const [isShuffleAllMode, setIsShuffleAllMode] = useState(false);
+  const [isAutoplayActive, setIsAutoplayActive] = useState(false);
   const [floatingDockMenuOpen, setFloatingDockMenuOpen] = useState(false);
   const [isShortcutSheetOpen, setIsShortcutSheetOpen] = useState(false);
   
@@ -74,6 +75,118 @@ const Index = () => {
     allSetlists.find(l => l.id === activeSetlistId), 
     [allSetlists, activeSetlistId]
   );
+
+  // Filter/search states
+  const [searchTerm, setSearchTerm] = useState(() => localStorage.getItem('gig_search_term') || "");
+  const [sortMode, setSortMode] = useState<'none' | 'ready' | 'work' | 'manual' | 'energy-asc' | 'energy-desc' | 'zig-zag' | 'wedding-ramp'>(() => 
+    (localStorage.getItem('gig_sort_mode') as 'none' | 'ready' | 'work' | 'manual' | 'energy-asc' | 'energy-desc' | 'zig-zag' | 'wedding-ramp') || 'none'
+  );
+  const [activeFilters, setActiveFilters] = useState<FilterState>(() => {
+    const saved = localStorage.getItem('gig_active_filters');
+    try {
+      return saved ? { ...DEFAULT_FILTERS, ...JSON.parse(saved) } : DEFAULT_FILTERS;
+    } catch {
+      return DEFAULT_FILTERS;
+    }
+  });
+  const [showHeatmap, setShowHeatmap] = useState(() => 
+    localStorage.getItem('gig_show_heatmap') === 'true'
+  );
+
+  const filteredAndSortedSongs = useMemo(() => {
+    if (!activeSetlist) return [];
+    let songs = [...activeSetlist.songs];
+    const q = searchTerm.toLowerCase();
+    if (q) {
+      songs = songs.filter(s => s.name.toLowerCase().includes(q) || s.artist?.toLowerCase().includes(q));
+    }
+    songs = songs.filter(s => {
+      const readiness = calculateReadiness(s);
+      if (activeFilters.readiness > 0 && readiness < activeFilters.readiness) return false;
+      if (activeFilters.isConfirmed === 'yes' && !s.isKeyConfirmed) return false;
+      if (activeFilters.isConfirmed === 'no' && s.isKeyConfirmed) return false;
+      if (activeFilters.isApproved === 'yes' && !s.isApproved) return false;
+      if (activeFilters.isApproved === 'no' && s.isApproved) return false;
+      return true;
+    });
+    if (sortMode === 'ready') {
+      songs.sort((a, b) => calculateReadiness(b) - calculateReadiness(a));
+    } else if (sortMode === 'work') {
+      songs.sort((a, b) => calculateReadiness(a) - calculateReadiness(b));
+    } else if (sortMode.startsWith('energy') || sortMode === 'zig-zag' || sortMode === 'wedding-ramp') {
+      songs = sortSongsByStrategy(songs, sortMode);
+    }
+    return songs;
+  }, [activeSetlist, searchTerm, sortMode, activeFilters]);
+
+  const playNextInList = useCallback(() => {
+    if (isShuffleAllMode) {
+      const pool = masterRepertoire.filter(s => !!s.audio_url || !!s.previewUrl);
+      if (pool.length > 0) {
+        const currentId = activeSongForPerformance?.master_id || activeSongForPerformance?.id;
+        const others = pool.filter(s => (s.master_id || s.id) !== currentId);
+        const next = others.length > 0 ? others[Math.floor(Math.random() * others.length)] : pool[0];
+        setActiveSongForPerformance(next);
+        return;
+      }
+    }
+
+    // Use the current filtered/sorted list for sequential playback
+    const songs = filteredAndSortedSongs;
+    if (songs.length === 0) return;
+
+    const currentIndex = songs.findIndex(s => s.id === activeSongForPerformance?.id);
+    
+    if (currentIndex !== -1 && currentIndex < songs.length - 1) {
+      const nextSong = songs[currentIndex + 1];
+      setActiveSongForPerformance(nextSong);
+      showInfo(`Autoplay: ${nextSong.name}`);
+    } else if (isAutoplayActive) {
+      // Loop back to start if autoplay is active
+      const firstSong = songs[0];
+      setActiveSongForPerformance(firstSong);
+      showInfo(`Autoplay Loop: ${firstSong.name}`);
+    } else {
+      setIsAutoplayActive(false);
+    }
+  }, [isShuffleAllMode, filteredAndSortedSongs, activeSongForPerformance, masterRepertoire, isAutoplayActive]);
+
+  const audio = useToneAudio(true, playNextInList);
+
+  const handleSelectSong = useCallback(async (song: SetlistSong) => {
+    setActiveSongForPerformance(song);
+    const audioUrl = song.audio_url || song.previewUrl;
+    if (audioUrl) {
+      await audio.loadFromUrl(audioUrl, song.pitch || 0, isAutoplayActive);
+    }
+  }, [audio, isAutoplayActive]);
+
+  // Effect to handle automatic playback when song changes during autoplay
+  useEffect(() => {
+    if (isAutoplayActive && activeSongForPerformance) {
+      const audioUrl = activeSongForPerformance.audio_url || activeSongForPerformance.previewUrl;
+      if (audioUrl && audioUrl !== audio.currentUrl) {
+        audio.loadFromUrl(audioUrl, activeSongForPerformance.pitch || 0, true);
+      }
+    }
+  }, [activeSongForPerformance, isAutoplayActive, audio]);
+
+  const handlePlayAll = () => {
+    if (isAutoplayActive) {
+      setIsAutoplayActive(false);
+      audio.stopPlayback();
+      showInfo("Autoplay stopped");
+    } else {
+      if (filteredAndSortedSongs.length === 0) {
+        showWarning("No songs available to play.");
+        return;
+      }
+      setIsAutoplayActive(true);
+      const firstSong = filteredAndSortedSongs[0];
+      handleSelectSong(firstSong);
+      showSuccess("Starting Setlist Autoplay");
+    }
+  };
 
   const recentlyEdited = useMemo(() => {
     return [...masterRepertoire]
@@ -105,24 +218,6 @@ const Index = () => {
   const [isMDAuditOpen, setIsMDAuditOpen] = useState(false);
   const [isAuditLoading, setIsAuditLoading] = useState(false);
   const [auditData, setAuditData] = useState<any>(null);
-
-  // Filter/search states
-  const [searchTerm, setSearchTerm] = useState(() => localStorage.getItem('gig_search_term') || "");
-  const [sortMode, setSortMode] = useState<'none' | 'ready' | 'work' | 'manual' | 'energy-asc' | 'energy-desc' | 'zig-zag' | 'wedding-ramp'>(() => 
-    (localStorage.getItem('gig_sort_mode') as 'none' | 'ready' | 'work' | 'manual' | 'energy-asc' | 'energy-desc' | 'zig-zag' | 'wedding-ramp') || 'none'
-  );
-  const [activeFilters, setActiveFilters] = useState<FilterState>(() => {
-    const saved = localStorage.getItem('gig_active_filters');
-    try {
-      return saved ? { ...DEFAULT_FILTERS, ...JSON.parse(saved) } : DEFAULT_FILTERS;
-    } catch {
-      return DEFAULT_FILTERS;
-    }
-  });
-  const [showHeatmap, setShowHeatmap] = useState(() => 
-    localStorage.getItem('gig_show_heatmap') === 'true'
-  );
-
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const isFilterDirty = useMemo(() => {
@@ -166,52 +261,6 @@ const Index = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
-
-  const playNextInList = useCallback(() => {
-    if (!activeSetlist || activeSetlist.songs.length === 0) return;
-    if (isShuffleAllMode) {
-      const pool = masterRepertoire.filter(s => !!s.audio_url || !!s.previewUrl);
-      if (pool.length > 0) {
-        const currentId = activeSongForPerformance?.master_id || activeSongForPerformance?.id;
-        const others = pool.filter(s => (s.master_id || s.id) !== currentId);
-        setActiveSongForPerformance(others.length > 0 ? others[Math.floor(Math.random() * others.length)] : pool[0]);
-      }
-      return;
-    }
-    const currentIndex = activeSetlist.songs.findIndex(s => s.id === activeSongForPerformance?.id);
-    if (currentIndex !== -1 && currentIndex < activeSetlist.songs.length - 1) {
-      setActiveSongForPerformance(activeSetlist.songs[currentIndex + 1]);
-    } else {
-      setActiveSongForPerformance(activeSetlist.songs[0]);
-    }
-  }, [isShuffleAllMode, activeSetlist, activeSongForPerformance, masterRepertoire]);
-
-  const audio = useToneAudio(true, playNextInList);
-
-  const handleNextSong = useCallback(() => {
-    if (!activeSetlist || activeSetlist.songs.length === 0) return;
-    const idx = activeSetlist.songs.findIndex(s => s.id === activeSongForPerformance?.id);
-    const nextIdx = (idx + 1) % activeSetlist.songs.length;
-    setActiveSongForPerformance(activeSetlist.songs[nextIdx]);
-    showInfo(`Up Next: ${activeSetlist.songs[nextIdx].name}`);
-  }, [activeSetlist, activeSongForPerformance]);
-
-  const handlePreviousSong = useCallback(() => {
-    if (!activeSetlist || activeSetlist.songs.length === 0) return;
-    const idx = activeSetlist.songs.findIndex(s => s.id === activeSongForPerformance?.id);
-    const prevIdx = (idx - 1 + activeSetlist.songs.length) % activeSetlist.songs.length;
-    setActiveSongForPerformance(activeSetlist.songs[prevIdx]);
-    showInfo(`Back to: ${activeSetlist.songs[prevIdx].name}`);
-  }, [activeSetlist, activeSongForPerformance]);
-
-  const handleToggleShuffleAll = () => {
-    const nextState = !isShuffleAllMode;
-    setIsShuffleAllMode(nextState);
-    if (nextState) {
-      const pool = masterRepertoire.filter(s => !!s.audio_url || !!s.previewUrl);
-      if (pool.length > 0) setActiveSongForPerformance(pool[Math.floor(Math.random() * pool.length)]);
-    }
-  };
 
   const fetchSetlistsAndRepertoire = useCallback(async (isInitial = false) => {
     if (!userId) return;
@@ -329,14 +378,6 @@ const Index = () => {
     setIsSongStudioModalOpen(true);
     setSongStudioDefaultTab(defaultTab || 'config');
   };
-
-  const handleSelectSong = useCallback(async (song: SetlistSong) => {
-    setActiveSongForPerformance(song);
-    const audioUrl = song.audio_url || song.previewUrl;
-    if (audioUrl) {
-      await audio.loadFromUrl(audioUrl, song.pitch || 0);
-    }
-  }, [audio]);
 
   const handleUpdateSongInSetlist = useCallback(async (songId: string, updates: Partial<SetlistSong>) => {
     const song = activeSetlist?.songs.find(s => s.id === songId);
@@ -589,32 +630,6 @@ const Index = () => {
     }
   }, [masterRepertoire, fetchSetlistsAndRepertoire]);
 
-  const filteredAndSortedSongs = useMemo(() => {
-    if (!activeSetlist) return [];
-    let songs = [...activeSetlist.songs];
-    const q = searchTerm.toLowerCase();
-    if (q) {
-      songs = songs.filter(s => s.name.toLowerCase().includes(q) || s.artist?.toLowerCase().includes(q));
-    }
-    songs = songs.filter(s => {
-      const readiness = calculateReadiness(s);
-      if (activeFilters.readiness > 0 && readiness < activeFilters.readiness) return false;
-      if (activeFilters.isConfirmed === 'yes' && !s.isKeyConfirmed) return false;
-      if (activeFilters.isConfirmed === 'no' && s.isKeyConfirmed) return false;
-      if (activeFilters.isApproved === 'yes' && !s.isApproved) return false;
-      if (activeFilters.isApproved === 'no' && s.isApproved) return false;
-      return true;
-    });
-    if (sortMode === 'ready') {
-      songs.sort((a, b) => calculateReadiness(b) - calculateReadiness(a));
-    } else if (sortMode === 'work') {
-      songs.sort((a, b) => calculateReadiness(a) - calculateReadiness(b));
-    } else if (sortMode.startsWith('energy') || sortMode === 'zig-zag' || sortMode === 'wedding-ramp') {
-      songs = sortSongsByStrategy(songs, sortMode);
-    }
-    return songs;
-  }, [activeSetlist, searchTerm, sortMode, activeFilters]);
-
   const handleOpenReader = useCallback((initialSongId?: string) => {
     sessionStorage.setItem('from_dashboard', 'true');
     if (activeDashboardView === 'gigs' && activeSetlistId) {
@@ -712,11 +727,11 @@ const Index = () => {
               song={activeSongForPerformance} 
               isPlaying={audio.isPlaying} 
               onTogglePlayback={audio.togglePlayback} 
-              onClear={() => { setActiveSongForPerformance(null); audio.stopPlayback(); }} 
+              onClear={() => { setActiveSongForPerformance(null); audio.stopPlayback(); setIsAutoplayActive(false); }} 
               isLoadingAudio={audio.isLoadingAudio} 
-              nextSongName={activeSetlist?.songs[activeSetlist.songs.findIndex(s => s.id === activeSongForPerformance.id) + 1]?.name} 
-              onNext={handleNextSong} 
-              onPrevious={handlePreviousSong} 
+              nextSongName={filteredAndSortedSongs[filteredAndSortedSongs.findIndex(s => s.id === activeSongForPerformance.id) + 1]?.name} 
+              onNext={() => { setIsAutoplayActive(false); playNextInList(); }} 
+              onPrevious={() => { setIsAutoplayActive(false); const idx = filteredAndSortedSongs.findIndex(s => s.id === activeSongForPerformance.id); if (idx > 0) handleSelectSong(filteredAndSortedSongs[idx - 1]); }} 
             />
           </div>
         )}
@@ -769,7 +784,13 @@ const Index = () => {
             )}
             {activeSetlist && (
               <>
-                <SetlistStats songs={activeSetlist.songs} goalSeconds={activeSetlist.time_goal} onUpdateGoal={async (seconds) => { await supabase.from('setlists').update({ time_goal: seconds }).eq('id', activeSetlistId); fetchSetlistsAndRepertoire(); }} />
+                <SetlistStats 
+                  songs={filteredAndSortedSongs} 
+                  goalSeconds={activeSetlist.time_goal} 
+                  onUpdateGoal={async (seconds) => { await supabase.from('setlists').update({ time_goal: seconds }).eq('id', activeSetlistId); fetchSetlistsAndRepertoire(); }} 
+                  onPlayAll={handlePlayAll}
+                  isAutoplayActive={isAutoplayActive}
+                />
                 <SetlistManager 
                   songs={filteredAndSortedSongs} 
                   onSelect={handleSelectSong} 
@@ -881,8 +902,8 @@ const Index = () => {
           progress={audio.progress} 
           duration={audio.duration} 
           onTogglePlayback={audio.togglePlayback} 
-          onNext={handleNextSong} 
-          onPrevious={handlePreviousSong} 
+          onNext={() => { setIsAutoplayActive(false); playNextInList(); }} 
+          onPrevious={() => { setIsAutoplayActive(false); const idx = filteredAndSortedSongs.findIndex(s => s.id === activeSongForPerformance.id); if (idx > 0) handleSelectSong(filteredAndSortedSongs[idx - 1]); }} 
           onShuffle={() => {}} 
           onClose={() => setIsPerformanceOverlayOpen(false)} 
           onUpdateSong={handleUpdateSongInSetlist} 
