@@ -34,11 +34,8 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
   // Robust normalization for comparisons to prevent crashes on null/undefined data
   const getSongKey = useCallback((s: any) => {
     if (!s) return "unknown-unknown";
-    
-    // Try to find title/artist in any common field
     const name = (s.name || s.title || s.song || s.track || s.trackName || s.song_name || "Unknown Track").toString().trim().toLowerCase();
     const artist = (s.artist || s.band || s.group || s.artistName || s.artist_name || "Unknown Artist").toString().trim().toLowerCase();
-    
     return `${name}-${artist}`;
   }, []);
 
@@ -48,44 +45,45 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
 
   const suggestions = useMemo(() => {
     console.log("[SongSuggestions] Processing raw suggestions for display:", rawSuggestions);
-    if (rawSuggestions.length > 0) {
-      console.log("[SongSuggestions] Sample object keys:", Object.keys(rawSuggestions[0]));
-      console.log("[SongSuggestions] Sample object content:", JSON.stringify(rawSuggestions[0]));
-    }
-
+    
     return rawSuggestions.map(s => {
-      // Handle potential string-only suggestions (e.g. "Song Name by Artist")
-      if (typeof s === 'string') {
-        const parts = s.split(/ by | - /i);
-        return {
-          displayName: parts[0]?.trim() || s,
-          displayArtist: parts[1]?.trim() || "Unknown Artist",
-          reason: "",
-          isDuplicate: existingKeys.has(s.toLowerCase())
-        };
+      let displayName = "Unknown Track";
+      let displayArtist = "Unknown Artist";
+      let isDuplicate = false;
+
+      // 1. Handle ID-based suggestions (Lookup in repertoire)
+      if (s.id) {
+        const existingSong = repertoire.find(r => r.id === s.id || r.master_id === s.id);
+        if (existingSong) {
+          displayName = existingSong.name;
+          displayArtist = existingSong.artist || "Unknown Artist";
+          isDuplicate = true;
+        }
       }
 
-      // Handle objects that might have the data in a single string property
-      const possibleStringData = s.suggestion || s.text || s.value;
-      if (possibleStringData && typeof possibleStringData === 'string' && !s.name && !s.title) {
-        const parts = possibleStringData.split(/ by | - /i);
-        return {
-          ...s,
-          displayName: parts[0]?.trim() || possibleStringData,
-          displayArtist: parts[1]?.trim() || "Unknown Artist",
-          isDuplicate: existingKeys.has(getSongKey({ name: parts[0], artist: parts[1] }))
-        };
+      // 2. Handle string-only suggestions
+      if (typeof s === 'string' && displayName === "Unknown Track") {
+        const parts = s.split(/ by | - /i);
+        displayName = parts[0]?.trim() || s;
+        displayArtist = parts[1]?.trim() || "Unknown Artist";
+        isDuplicate = existingKeys.has(getSongKey({ name: displayName, artist: displayArtist }));
+      }
+
+      // 3. Handle object-based suggestions with metadata fields
+      if (displayName === "Unknown Track") {
+        displayName = s.name || s.title || s.song || s.track || s.trackName || s.song_name || "Unknown Track";
+        displayArtist = s.artist || s.band || s.group || s.artistName || s.artist_name || "Unknown Artist";
+        isDuplicate = existingKeys.has(getSongKey(s));
       }
 
       return {
         ...s,
-        // Map any common field names to our display properties
-        displayName: s.name || s.title || s.song || s.track || s.trackName || s.song_name || "Unknown Track",
-        displayArtist: s.artist || s.band || s.group || s.artistName || s.artist_name || "Unknown Artist",
-        isDuplicate: existingKeys.has(getSongKey(s))
+        displayName,
+        displayArtist,
+        isDuplicate
       };
     });
-  }, [rawSuggestions, existingKeys, getSongKey]);
+  }, [rawSuggestions, repertoire, existingKeys, getSongKey]);
 
   const duplicateCount = useMemo(() => 
     suggestions.filter(s => s.isDuplicate).length, 
@@ -123,7 +121,6 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
       
       console.log("[SongSuggestions] Raw AI Response Data:", data);
       
-      // Handle wrapped responses (e.g. { suggestions: [...] })
       let newBatch = Array.isArray(data) ? data : (data?.suggestions || data?.songs || []);
       
       if (!Array.isArray(newBatch)) {
@@ -137,9 +134,9 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
           const uniqueMap = new Map();
           
           combined.forEach(s => {
-            const key = getSongKey(s);
-            const isIgnored = sessionIgnoredCache.some(i => getSongKey(i) === key);
-            if (!existingKeys.has(key) && !isIgnored && !uniqueMap.has(key)) {
+            const key = s.id ? `id-${s.id}` : getSongKey(s);
+            const isIgnored = sessionIgnoredCache.some(i => (i.id && i.id === s.id) || getSongKey(i) === getSongKey(s));
+            if (!uniqueMap.has(key) && !isIgnored) {
               uniqueMap.set(key, s);
             }
           });
@@ -164,7 +161,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
         setIsLoadingInitial(false);
       }
     }
-  }, [repertoire, seedSong, existingKeys, ignoredSuggestions, getSongKey]);
+  }, [repertoire, seedSong, ignoredSuggestions, getSongKey]);
 
   useEffect(() => {
     if (repertoire.length > 0 && !sessionInitialLoadAttempted && rawSuggestions.length === 0) {
@@ -173,13 +170,13 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
   }, [repertoire, fetchSuggestions, rawSuggestions.length]);
 
   const handleDismissSuggestion = async (song: any) => {
-    const key = getSongKey(song);
+    const key = song.id ? `id-${song.id}` : getSongKey(song);
     
     const newIgnored = [...ignoredSuggestions, song];
     setIgnoredSuggestions(newIgnored);
     sessionIgnoredCache = newIgnored;
     
-    const filtered = rawSuggestions.filter(s => getSongKey(s) !== key);
+    const filtered = rawSuggestions.filter(s => (s.id && `id-${s.id}` !== key) || getSongKey(s) !== key);
     setRawSuggestions(filtered);
     sessionSuggestionsCache = filtered;
     
@@ -191,13 +188,11 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
   };
 
   const handleClearDuplicates = () => {
-    const duplicates = rawSuggestions.filter(s => existingKeys.has(getSongKey(s)));
-    const filtered = rawSuggestions.filter(s => !existingKeys.has(getSongKey(s)));
+    const filtered = rawSuggestions.filter(s => {
+      if (s.id) return !repertoire.some(r => r.id === s.id || r.master_id === s.id);
+      return !existingKeys.has(getSongKey(s));
+    });
     
-    const newIgnored = [...ignoredSuggestions, ...duplicates];
-    setIgnoredSuggestions(newIgnored);
-    sessionIgnoredCache = newIgnored;
-
     setRawSuggestions(filtered); 
     sessionSuggestionsCache = filtered;
     
