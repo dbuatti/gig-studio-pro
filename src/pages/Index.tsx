@@ -72,6 +72,7 @@ const Index = () => {
   // Refs to prevent race conditions and immediate skipping
   const isTransitioningRef = useRef(false);
   const autoplayActiveRef = useRef(false);
+  const lastTriggerTimeRef = useRef(0);
 
   const activeDashboardView = (searchParams.get('view') as 'gigs' | 'repertoire') || defaultDashboardView;
 
@@ -124,6 +125,14 @@ const Index = () => {
   }, [activeSetlist, searchTerm, sortMode, activeFilters]);
 
   const playNextInList = useCallback(() => {
+    const now = Date.now();
+    
+    // Cooldown to prevent rapid-fire triggers from the audio engine during loading
+    if (now - lastTriggerTimeRef.current < 3000) {
+      console.log("[Autoplay] playNextInList ignored: Cooldown active (triggered too soon).");
+      return;
+    }
+
     if (!autoplayActiveRef.current) {
       console.log("[Autoplay] playNextInList ignored: Autoplay not active.");
       return;
@@ -137,6 +146,7 @@ const Index = () => {
     console.log("[Autoplay] playNextInList triggered. Mode:", isShuffleAllMode ? 'Shuffle' : 'Sequential');
     
     isTransitioningRef.current = true;
+    lastTriggerTimeRef.current = now;
 
     if (isShuffleAllMode) {
       const pool = masterRepertoire.filter(s => !!s.audio_url || !!s.previewUrl);
@@ -146,8 +156,8 @@ const Index = () => {
         const next = others.length > 0 ? others[Math.floor(Math.random() * others.length)] : pool[0];
         console.log(`[Autoplay] Next shuffled song: ${next.name}`);
         setActiveSongForPerformance(next);
-        // Reset transition guard after a short delay to allow loading to start
-        setTimeout(() => { isTransitioningRef.current = false; }, 2000);
+        // Release guard after a delay to allow loading to stabilize
+        setTimeout(() => { isTransitioningRef.current = false; }, 3000);
         return;
       }
     }
@@ -176,8 +186,8 @@ const Index = () => {
       autoplayActiveRef.current = false;
     }
 
-    // Reset transition guard after a short delay
-    setTimeout(() => { isTransitioningRef.current = false; }, 2000);
+    // Release guard after a delay
+    setTimeout(() => { isTransitioningRef.current = false; }, 3000);
   }, [isShuffleAllMode, filteredAndSortedSongs, activeSongForPerformance, masterRepertoire]);
 
   const audio = useToneAudio(true, playNextInList);
@@ -188,7 +198,14 @@ const Index = () => {
     const audioUrl = song.audio_url || song.previewUrl;
     if (audioUrl) {
       console.log(`[Autoplay] Loading audio from: ${audioUrl.substring(0, 50)}...`);
+      // Set transition guard manually when selecting a song to prevent immediate skip
+      isTransitioningRef.current = true;
+      lastTriggerTimeRef.current = Date.now();
+      
       await audio.loadFromUrl(audioUrl, song.pitch || 0, autoplayActiveRef.current);
+      
+      // Release guard after load
+      setTimeout(() => { isTransitioningRef.current = false; }, 3000);
     }
   }, [audio]);
 
@@ -758,7 +775,7 @@ const Index = () => {
             </Button>
             <Button variant="outline" size="sm" onClick={() => setIsKeyManagementOpen(true)} className="h-11 px-6 rounded-2xl text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[10px]">
               <Hash className="w-4 h-4 mr-2.5" /> Key Matrix
-            </Button>
+            </Hash>
             <Button variant="outline" size="sm" onClick={() => setIsPreferencesOpen(true)} className="h-11 px-6 rounded-2xl text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[10px]">
               <Settings2 className="w-4 h-4 mr-2.5" /> Preferences
             </Button>
