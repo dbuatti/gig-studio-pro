@@ -34,8 +34,11 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
   // Robust normalization for comparisons to prevent crashes on null/undefined data
   const getSongKey = useCallback((s: any) => {
     if (!s) return "unknown-unknown";
-    const name = (s.name || s.title || "Unknown Track").toString().trim().toLowerCase();
-    const artist = (s.artist || "Unknown Artist").toString().trim().toLowerCase();
+    
+    // Try to find title/artist in any common field
+    const name = (s.name || s.title || s.song || s.track || "Unknown Track").toString().trim().toLowerCase();
+    const artist = (s.artist || s.band || s.group || "Unknown Artist").toString().trim().toLowerCase();
+    
     return `${name}-${artist}`;
   }, []);
 
@@ -44,13 +47,26 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
   }, [repertoire, getSongKey]);
 
   const suggestions = useMemo(() => {
-    return rawSuggestions.map(s => ({
-      ...s,
-      // Ensure we have a consistent name/artist property regardless of what the AI returns
-      displayName: s.name || s.title || "Unknown Track",
-      displayArtist: s.artist || "Unknown Artist",
-      isDuplicate: existingKeys.has(getSongKey(s))
-    }));
+    return rawSuggestions.map(s => {
+      // Handle potential string-only suggestions
+      if (typeof s === 'string') {
+        const parts = s.split(/ by | - /i);
+        return {
+          displayName: parts[0]?.trim() || s,
+          displayArtist: parts[1]?.trim() || "Unknown Artist",
+          reason: "",
+          isDuplicate: existingKeys.has(s.toLowerCase())
+        };
+      }
+
+      return {
+        ...s,
+        // Map any common field names to our display properties
+        displayName: s.name || s.title || s.song || s.track || "Unknown Track",
+        displayArtist: s.artist || s.band || s.group || "Unknown Artist",
+        isDuplicate: existingKeys.has(getSongKey(s))
+      };
+    });
   }, [rawSuggestions, existingKeys, getSongKey]);
 
   const duplicateCount = useMemo(() => 
@@ -86,7 +102,8 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
 
       if (error) throw error;
       
-      const newBatch = data || [];
+      // Handle wrapped responses (e.g. { suggestions: [...] })
+      const newBatch = Array.isArray(data) ? data : (data?.suggestions || data?.songs || []);
 
       if (preserveExisting) {
         setRawSuggestions(prev => {
@@ -112,6 +129,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
       
       sessionInitialLoadAttempted = true;
     } catch (err: any) {
+      console.error("[SongSuggestions] Fetch error:", err);
       showError("Song suggestions temporarily unavailable.");
     } finally {
       if (isRefresh) {
@@ -139,7 +157,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
     setRawSuggestions(filtered);
     sessionSuggestionsCache = filtered;
     
-    showSuccess(`Removed "${song.name || song.title || 'Track'}"`);
+    showSuccess(`Removed suggestion`);
     
     if (filtered.length < 7) {
       fetchSuggestions(true, true);
