@@ -147,7 +147,10 @@ const Index = () => {
     
     // Update refs immediately before state to ensure audio engine sees the change
     activeSongRef.current = song;
-    if (forceAutoplay) autoplayActiveRef.current = true;
+    if (forceAutoplay) {
+      autoplayActiveRef.current = true;
+      setIsAutoplayActive(true);
+    }
     
     setActiveSongForPerformance(song);
     
@@ -763,7 +766,7 @@ const Index = () => {
 
   if (authLoading || isFetchingSettings || loading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-slate-950">
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
         <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
       </div>
     );
