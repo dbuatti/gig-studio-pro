@@ -706,7 +706,7 @@ const Index = () => {
     navigate(`/sheet-reader/${initialSongId || ''}`);
   }, [navigate, activeDashboardView, activeSetlistId]);
 
-  const handleGlobalSearchAdd = async (url: string, name: string, artist: string, yt?: string, ug?: string, apple?: string, gen?: string) => {
+  const handleGlobalSearchAdd = useCallback(async (url: string, name: string, artist: string, yt?: string, ug?: string, apple?: string, gen?: string) => {
     if (!userId) return;
     const newSong: Partial<SetlistSong> = {
       name,
@@ -751,7 +751,7 @@ const Index = () => {
 
   if (authLoading || isFetchingSettings || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+      <div className="h-screen flex items-center justify-center bg-slate-950">
         <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
       </div>
     );
