@@ -674,6 +674,15 @@ const Index = () => {
     }
   };
 
+  const handleToggleShuffleAll = useCallback(() => {
+    setIsShuffleAllMode(prev => !prev);
+    if (!isShuffleAllMode) {
+      showInfo("Shuffle All mode enabled");
+    } else {
+      showInfo("Shuffle All mode disabled");
+    }
+  }, [isShuffleAllMode]);
+
   const missingAudioCount = useMemo(() => masterRepertoire.filter(s => !!s.youtubeUrl && (!s.audio_url || s.extraction_status !== 'completed')).length, [masterRepertoire]);
 
   if (authLoading || isFetchingSettings || loading) {
