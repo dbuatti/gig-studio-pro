@@ -120,12 +120,16 @@ const Index = () => {
   }, [activeSetlist, searchTerm, sortMode, activeFilters]);
 
   const playNextInList = useCallback(() => {
+    console.log("[Autoplay] playNextInList triggered. Mode:", isShuffleAllMode ? 'Shuffle' : 'Sequential');
+    
     if (isShuffleAllMode) {
       const pool = masterRepertoire.filter(s => !!s.audio_url || !!s.previewUrl);
+      console.log(`[Autoplay] Shuffle pool size: ${pool.length}`);
       if (pool.length > 0) {
         const currentId = activeSongForPerformance?.master_id || activeSongForPerformance?.id;
         const others = pool.filter(s => (s.master_id || s.id) !== currentId);
         const next = others.length > 0 ? others[Math.floor(Math.random() * others.length)] : pool[0];
+        console.log(`[Autoplay] Next shuffled song: ${next.name}`);
         setActiveSongForPerformance(next);
         return;
       }
@@ -133,20 +137,28 @@ const Index = () => {
 
     // Use the current filtered/sorted list for sequential playback
     const songs = filteredAndSortedSongs;
-    if (songs.length === 0) return;
+    console.log(`[Autoplay] Sequential list size: ${songs.length}`);
+    if (songs.length === 0) {
+      console.warn("[Autoplay] No songs available in the current view.");
+      return;
+    }
 
     const currentIndex = songs.findIndex(s => s.id === activeSongForPerformance?.id);
+    console.log(`[Autoplay] Current song index: ${currentIndex}`);
     
     if (currentIndex !== -1 && currentIndex < songs.length - 1) {
       const nextSong = songs[currentIndex + 1];
+      console.log(`[Autoplay] Moving to next song: ${nextSong.name}`);
       setActiveSongForPerformance(nextSong);
       showInfo(`Autoplay: ${nextSong.name}`);
     } else if (isAutoplayActive) {
       // Loop back to start if autoplay is active
       const firstSong = songs[0];
+      console.log(`[Autoplay] End of list reached. Looping to start: ${firstSong.name}`);
       setActiveSongForPerformance(firstSong);
       showInfo(`Autoplay Loop: ${firstSong.name}`);
     } else {
+      console.log("[Autoplay] End of list reached. Stopping autoplay.");
       setIsAutoplayActive(false);
     }
   }, [isShuffleAllMode, filteredAndSortedSongs, activeSongForPerformance, masterRepertoire, isAutoplayActive]);
@@ -154,10 +166,14 @@ const Index = () => {
   const audio = useToneAudio(true, playNextInList);
 
   const handleSelectSong = useCallback(async (song: SetlistSong) => {
+    console.log(`[Autoplay] handleSelectSong: ${song.name}`);
     setActiveSongForPerformance(song);
     const audioUrl = song.audio_url || song.previewUrl;
     if (audioUrl) {
+      console.log(`[Autoplay] Loading audio from: ${audioUrl.substring(0, 50)}...`);
       await audio.loadFromUrl(audioUrl, song.pitch || 0, isAutoplayActive);
+    } else {
+      console.warn(`[Autoplay] No audio URL found for: ${song.name}`);
     }
   }, [audio, isAutoplayActive]);
 
@@ -166,6 +182,7 @@ const Index = () => {
     if (isAutoplayActive && activeSongForPerformance) {
       const audioUrl = activeSongForPerformance.audio_url || activeSongForPerformance.previewUrl;
       if (audioUrl && audioUrl !== audio.currentUrl) {
+        console.log(`[Autoplay] Song changed while active. Triggering load for: ${activeSongForPerformance.name}`);
         audio.loadFromUrl(audioUrl, activeSongForPerformance.pitch || 0, true);
       }
     }
@@ -173,14 +190,17 @@ const Index = () => {
 
   const handlePlayAll = () => {
     if (isAutoplayActive) {
+      console.log("[Autoplay] Manually stopping autoplay.");
       setIsAutoplayActive(false);
       audio.stopPlayback();
       showInfo("Autoplay stopped");
     } else {
       if (filteredAndSortedSongs.length === 0) {
+        console.warn("[Autoplay] Cannot start: No songs in current view.");
         showWarning("No songs available to play.");
         return;
       }
+      console.log(`[Autoplay] Starting autoplay for ${filteredAndSortedSongs.length} songs.`);
       setIsAutoplayActive(true);
       const firstSong = filteredAndSortedSongs[0];
       handleSelectSong(firstSong);
