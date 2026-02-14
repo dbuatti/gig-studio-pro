@@ -91,6 +91,7 @@ const Index = () => {
   // Centralized Autoplay Control
   const setAutoplayStatus = useCallback((active: boolean) => {
     console.log(`[Autoplay] setAutoplayStatus: ${active}`);
+    if (!active) console.trace("[Autoplay] Trace for status set to FALSE");
     autoplayActiveRef.current = active;
     setIsAutoplayActive(active);
   }, []);
@@ -825,8 +826,8 @@ const Index = () => {
               onClear={() => { setActiveSongForPerformance(null); activeSongRef.current = null; audio.stopPlayback(); setAutoplayStatus(false); }} 
               isLoadingAudio={audio.isLoadingAudio} 
               nextSongName={filteredAndSortedSongs[filteredAndSortedSongs.findIndex(s => s.id === activeSongForPerformance.id) + 1]?.name} 
-              onNext={() => { setAutoplayStatus(false); playNextInList(); }} 
-              onPrevious={() => { setAutoplayStatus(false); const idx = filteredAndSortedSongs.findIndex(s => s.id === activeSongForPerformance.id); if (idx > 0) handleSelectSong(filteredAndSortedSongs[idx - 1]); }} 
+              onNext={() => { playNextInList(); }} 
+              onPrevious={() => { const idx = filteredAndSortedSongs.findIndex(s => s.id === activeSongForPerformance.id); if (idx > 0) handleSelectSong(filteredAndSortedSongs[idx - 1]); }} 
             />
           </div>
         )}
@@ -997,8 +998,8 @@ const Index = () => {
           progress={audio.progress} 
           duration={audio.duration} 
           onTogglePlayback={audio.togglePlayback} 
-          onNext={() => { setAutoplayStatus(false); playNextInList(); }} 
-          onPrevious={() => { setAutoplayStatus(false); const idx = filteredAndSortedSongs.findIndex(s => s.id === activeSongForPerformance.id); if (idx > 0) handleSelectSong(filteredAndSortedSongs[idx - 1]); }} 
+          onNext={() => { playNextInList(); }} 
+          onPrevious={() => { const idx = filteredAndSortedSongs.findIndex(s => s.id === activeSongForPerformance.id); if (idx > 0) handleSelectSong(filteredAndSortedSongs[idx - 1]); }} 
           onShuffle={() => {}} 
           onClose={() => setIsPerformanceOverlayOpen(false)} 
           onUpdateSong={handleUpdateSongInSetlist} 
