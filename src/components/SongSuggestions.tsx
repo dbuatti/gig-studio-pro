@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 import { Label } from './ui/label';
 import { showError, showSuccess, showInfo } from '@/utils/toast';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"; // Import Tooltip components
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 // Global session caches
 let sessionSuggestionsCache: any[] | null = null;
@@ -27,24 +27,28 @@ interface SongSuggestionsProps {
 const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectSuggestion, onAddExistingSong }) => {
   const [rawSuggestions, setRawSuggestions] = useState<any[]>(sessionSuggestionsCache || []);
   const [ignoredSuggestions, setIgnoredSuggestions] = useState<any[]>(sessionIgnoredCache);
-  const [isLoadingInitial, setIsLoadingInitial] = useState(true); // For initial load
-  const [isRefreshingSuggestions, setIsRefreshingSuggestions] = useState(false); // For subsequent refreshes
+  const [isLoadingInitial, setIsLoadingInitial] = useState(true); 
+  const [isRefreshingSuggestions, setIsRefreshingSuggestions] = useState(false); 
   const [seedSongId, setSeedSongId] = useState<string | null>(null);
 
-  // Normalize string for comparisons
-  const getSongKey = (s: { name: string; artist?: string }) => 
-    `${s.name.trim().toLowerCase()}-${(s.artist || "").trim().toLowerCase()}`;
+  // Robust normalization for comparisons to prevent crashes on null/undefined data
+  const getSongKey = useCallback((s: any) => {
+    if (!s) return "unknown-unknown";
+    const name = (s.name || s.title || "").toString().trim().toLowerCase();
+    const artist = (s.artist || "").toString().trim().toLowerCase();
+    return `${name}-${artist}`;
+  }, []);
 
   const existingKeys = useMemo(() => {
     return new Set(repertoire.map(s => getSongKey(s)));
-  }, [repertoire]);
+  }, [repertoire, getSongKey]);
 
   const suggestions = useMemo(() => {
     return rawSuggestions.map(s => ({
       ...s,
       isDuplicate: existingKeys.has(getSongKey(s))
     }));
-  }, [rawSuggestions, existingKeys]);
+  }, [rawSuggestions, existingKeys, getSongKey]);
 
   const duplicateCount = useMemo(() => 
     suggestions.filter(s => s.isDuplicate).length, 
@@ -64,7 +68,6 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
     }
     
     try {
-      // Combine existing repertoire and explicitly ignored suggestions for the AI
       const combinedIgnored = [
         ...repertoire.map(s => ({ name: s.name, artist: s.artist })),
         ...ignoredSuggestions
@@ -74,7 +77,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
         body: { 
           repertoire: repertoire.slice(0, 50),
           seedSong: seedSong ? { name: seedSong.name, artist: seedSong.artist } : null,
-          ignored: combinedIgnored // Pass the combined list
+          ignored: combinedIgnored 
         } 
       });
 
@@ -114,7 +117,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
         setIsLoadingInitial(false);
       }
     }
-  }, [repertoire, seedSong, existingKeys, ignoredSuggestions]);
+  }, [repertoire, seedSong, existingKeys, ignoredSuggestions, getSongKey]);
 
   useEffect(() => {
     if (repertoire.length > 0 && !sessionInitialLoadAttempted && rawSuggestions.length === 0) {
@@ -148,11 +151,11 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
     setIgnoredSuggestions(newIgnored);
     sessionIgnoredCache = newIgnored;
 
-    setRawSuggestions(filtered); // Immediately update the displayed list
+    setRawSuggestions(filtered); 
     sessionSuggestionsCache = filtered;
     
     showInfo(`Cleaned duplicates. Replenishing list...`);
-    fetchSuggestions(true, true); // This call will now use isRefreshingSuggestions
+    fetchSuggestions(true, true); 
   };
 
   if (repertoire.length === 0) {
