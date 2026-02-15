@@ -44,50 +44,57 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
   }, [repertoire, getSongKey]);
 
   const suggestions = useMemo(() => {
-    console.log("[SongSuggestions] Processing raw suggestions for display:", rawSuggestions);
-    
-    return rawSuggestions.map(s => {
-      let displayName = "Unknown Track";
-      let displayArtist = "Unknown Artist";
-      let isDuplicate = false;
+    return rawSuggestions
+      .map(s => {
+        let displayName = "Unknown Track";
+        let displayArtist = "Unknown Artist";
+        let isDuplicate = false;
 
-      // 1. Handle ID-based suggestions (Lookup in repertoire)
-      if (s.id) {
-        const existingSong = repertoire.find(r => r.id === s.id || r.master_id === s.id);
-        if (existingSong) {
-          displayName = existingSong.name;
-          displayArtist = existingSong.artist || "Unknown Artist";
-          isDuplicate = true;
+        // 1. Handle ID-based suggestions (Lookup in repertoire)
+        if (s.id) {
+          const existingSong = repertoire.find(r => r.id === s.id || r.master_id === s.id);
+          if (existingSong) {
+            displayName = existingSong.name;
+            displayArtist = existingSong.artist || "Unknown Artist";
+            isDuplicate = true;
+          }
         }
-      }
 
-      // 2. Handle string-only suggestions
-      if (typeof s === 'string' && displayName === "Unknown Track") {
-        const parts = s.split(/ by | - /i);
-        displayName = parts[0]?.trim() || s;
-        displayArtist = parts[1]?.trim() || "Unknown Artist";
-        isDuplicate = existingKeys.has(getSongKey({ name: displayName, artist: displayArtist }));
-      }
+        // 2. Handle string-only suggestions
+        if (typeof s === 'string' && displayName === "Unknown Track") {
+          const parts = s.split(/ by | - /i);
+          displayName = parts[0]?.trim() || s;
+          displayArtist = parts[1]?.trim() || "Unknown Artist";
+          isDuplicate = existingKeys.has(getSongKey({ name: displayName, artist: displayArtist }));
+        }
 
-      // 3. Handle object-based suggestions with metadata fields
-      if (displayName === "Unknown Track") {
-        displayName = s.name || s.title || s.song || s.track || s.trackName || s.song_name || "Unknown Track";
-        displayArtist = s.artist || s.band || s.group || s.artistName || s.artist_name || "Unknown Artist";
-        isDuplicate = existingKeys.has(getSongKey(s));
-      }
+        // 3. Handle object-based suggestions with metadata fields
+        if (displayName === "Unknown Track") {
+          displayName = s.name || s.title || s.song || s.track || s.trackName || s.song_name || "Unknown Track";
+          displayArtist = s.artist || s.band || s.group || s.artistName || s.artist_name || "Unknown Artist";
+          isDuplicate = existingKeys.has(getSongKey(s));
+        }
 
-      return {
-        ...s,
-        displayName,
-        displayArtist,
-        isDuplicate
-      };
-    });
-  }, [rawSuggestions, repertoire, existingKeys, getSongKey]);
+        return {
+          ...s,
+          displayName,
+          displayArtist,
+          isDuplicate
+        };
+      })
+      .filter(s => {
+        // Filter out if it's already in the library
+        if (s.isDuplicate) return false;
+        
+        // Filter out if it's in the ignored list
+        const isIgnored = ignoredSuggestions.some(i => 
+          (i.id && i.id === s.id) || getSongKey(i) === getSongKey(s)
+        );
+        if (isIgnored) return false;
 
-  const duplicateCount = useMemo(() => 
-    suggestions.filter(s => s.isDuplicate).length, 
-  [suggestions]);
+        return true;
+      });
+  }, [rawSuggestions, repertoire, existingKeys, getSongKey, ignoredSuggestions]);
 
   const seedSong = useMemo(() => 
     repertoire.find(s => s.id === seedSongId), 
@@ -108,7 +115,6 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
         ...ignoredSuggestions
       ];
 
-      console.log("[SongSuggestions] Fetching suggestions from AI...");
       const { data, error } = await supabase.functions.invoke('suggest-songs', {
         body: { 
           repertoire: repertoire.slice(0, 50),
@@ -119,12 +125,9 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
 
       if (error) throw error;
       
-      console.log("[SongSuggestions] Raw AI Response Data:", data);
-      
       let newBatch = Array.isArray(data) ? data : (data?.suggestions || data?.songs || []);
       
       if (!Array.isArray(newBatch)) {
-        console.error("[SongSuggestions] AI response is not an array:", newBatch);
         newBatch = [];
       }
 
@@ -136,7 +139,9 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
           combined.forEach(s => {
             const key = s.id ? `id-${s.id}` : getSongKey(s);
             const isIgnored = sessionIgnoredCache.some(i => (i.id && i.id === s.id) || getSongKey(i) === getSongKey(s));
-            if (!uniqueMap.has(key) && !isIgnored) {
+            const isDuplicate = existingKeys.has(getSongKey(s));
+            
+            if (!uniqueMap.has(key) && !isIgnored && !isDuplicate) {
               uniqueMap.set(key, s);
             }
           });
@@ -152,7 +157,6 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
       
       sessionInitialLoadAttempted = true;
     } catch (err: any) {
-      console.error("[SongSuggestions] Fetch error:", err);
       showError("Song suggestions temporarily unavailable.");
     } finally {
       if (isRefresh) {
@@ -161,7 +165,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
         setIsLoadingInitial(false);
       }
     }
-  }, [repertoire, seedSong, ignoredSuggestions, getSongKey]);
+  }, [repertoire, seedSong, ignoredSuggestions, getSongKey, existingKeys]);
 
   useEffect(() => {
     if (repertoire.length > 0 && !sessionInitialLoadAttempted && rawSuggestions.length === 0) {
@@ -170,16 +174,13 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
   }, [repertoire, fetchSuggestions, rawSuggestions.length]);
 
   const handleDismissSuggestion = (song: any) => {
-    // Use a unique identifier for the filter
     const targetId = song.id;
     const targetKey = getSongKey(song);
     
-    // Add to ignored cache to prevent it coming back in this session
     const newIgnored = [...ignoredSuggestions, song];
     setIgnoredSuggestions(newIgnored);
     sessionIgnoredCache = newIgnored;
     
-    // Filter out ONLY the specific song being dismissed
     const filtered = rawSuggestions.filter(s => {
       if (targetId && s.id) return s.id !== targetId;
       return getSongKey(s) !== targetKey;
@@ -189,20 +190,6 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
     sessionSuggestionsCache = filtered;
     
     showSuccess(`Removed suggestion`);
-    // Removed the automatic refresh trigger to respect user request
-  };
-
-  const handleClearDuplicates = () => {
-    const filtered = rawSuggestions.filter(s => {
-      if (s.id) return !repertoire.some(r => r.id === s.id || r.master_id === s.id);
-      return !existingKeys.has(getSongKey(s));
-    });
-    
-    setRawSuggestions(filtered); 
-    sessionSuggestionsCache = filtered;
-    
-    showInfo(`Cleaned duplicates. Replenishing list...`);
-    fetchSuggestions(true, true); 
   };
 
   if (repertoire.length === 0) {
@@ -223,29 +210,16 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
               <Sparkles className="w-4 h-4 text-indigo-500" />
               <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">AI Discover Engine</span>
             </div>
-            <div className="flex gap-2">
-              {duplicateCount > 0 && (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={handleClearDuplicates}
-                  disabled={isRefreshingSuggestions}
-                  className="h-7 text-[9px] font-black uppercase bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
-                >
-                  Clear Duplicates ({duplicateCount})
-                </Button>
-              )}
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => fetchSuggestions(true, false)} 
-                disabled={isRefreshingSuggestions}
-                className="h-7 text-[9px] font-black uppercase hover:bg-indigo-500/10 text-indigo-500 flex-shrink-0"
-              >
-                {isRefreshingSuggestions ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <RotateCcw className="w-3 h-3 mr-1" />} 
-                {isRefreshingSuggestions ? "Fetching..." : "Refresh"}
-              </Button>
-            </div>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => fetchSuggestions(true, false)} 
+              disabled={isRefreshingSuggestions}
+              className="h-7 text-[9px] font-black uppercase hover:bg-indigo-500/10 text-indigo-500 flex-shrink-0"
+            >
+              {isRefreshingSuggestions ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <RotateCcw className="w-3 h-3 mr-1" />} 
+              {isRefreshingSuggestions ? "Fetching..." : "Refresh"}
+            </Button>
           </div>
 
           <div className="bg-card p-3 rounded-xl border border-border space-y-2">
@@ -292,22 +266,14 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
                 suggestions.map((song, i) => (
                   <div 
                     key={i}
-                    className={cn(
-                      "group p-6 border rounded-[2rem] transition-all shadow-sm relative overflow-hidden flex flex-col gap-5",
-                      song.isDuplicate 
-                        ? "bg-secondary/50 border-border opacity-60"
-                        : "bg-card border-border hover:border-indigo-500/30 hover:shadow-md"
-                    )}
+                    className="group p-6 border rounded-[2rem] transition-all shadow-sm relative overflow-hidden flex flex-col gap-5 bg-card border-border hover:border-indigo-500/30 hover:shadow-md"
                   >
                     {/* Header: Title & Artist */}
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-xl font-black tracking-tight text-slate-900 dark:text-white truncate">
-                            {song.displayName}
-                          </h4>
-                          {song.isDuplicate && <CheckCircle2 className="w-5 h-5 text-emerald-500" />}
-                        </div>
+                        <h4 className="text-xl font-black tracking-tight text-slate-900 dark:text-white truncate">
+                          {song.displayName}
+                        </h4>
                         <p className="text-sm font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mt-1">
                           {song.displayArtist}
                         </p>
@@ -326,28 +292,19 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
                           <TooltipContent className="text-[10px] font-black uppercase">Don't Suggest Again</TooltipContent>
                         </Tooltip>
                         
-                        {!song.isDuplicate && (
-                          <button 
-                            onClick={() => onSelectSuggestion(`${song.displayArtist} ${song.displayName}`)}
-                            className="p-2 rounded-xl bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-all"
-                            title="Preview track"
-                          >
-                            <Search className="w-5 h-5" />
-                          </button>
-                        )}
+                        <button 
+                          onClick={() => onSelectSuggestion(`${song.displayArtist} ${song.displayName}`)}
+                          className="p-2 rounded-xl bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-all"
+                          title="Preview track"
+                        >
+                          <Search className="w-5 h-5" />
+                        </button>
                       </div>
                     </div>
 
                     {/* Content: Reason / Insight */}
                     <div className="space-y-3">
-                      {song.isDuplicate ? (
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl w-fit">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                          <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">
-                            Already in Library
-                          </span>
-                        </div>
-                      ) : song.reason && (
+                      {song.reason && (
                         <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-border relative group-hover:border-indigo-500/20 transition-colors">
                           <div className="flex items-center gap-2 mb-2">
                             <div className="p-1 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
@@ -363,7 +320,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
                     </div>
 
                     {/* Footer: Actions */}
-                    {!song.isDuplicate && onAddExistingSong && (
+                    {onAddExistingSong && (
                       <Button
                         onClick={() => onAddExistingSong({
                           id: crypto.randomUUID(),
