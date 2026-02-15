@@ -187,20 +187,20 @@ const Index = () => {
   }, [audio, setAutoplayStatus]);
 
   // Core logic for moving to the next song
-  const playNextInList = useCallback(() => {
+  const playNextInList = useCallback((isManual = false) => {
     const now = Date.now();
     const timeSinceLastTrigger = now - lastTriggerTimeRef.current;
     
-    console.log(`[Autoplay] playNextInList signal received. State: { active: ${autoplayActiveRef.current}, transitioning: ${isTransitioningRef.current}, timeSinceLast: ${timeSinceLastTrigger}ms, progress: ${audio.progress.toFixed(4)}, duration: ${audio.duration}, loading: ${audio.isLoadingAudio} }`);
+    console.log(`[Autoplay] playNextInList signal received. Manual: ${isManual}, State: { active: ${autoplayActiveRef.current}, transitioning: ${isTransitioningRef.current}, timeSinceLast: ${timeSinceLastTrigger}ms, progress: ${audio.progress.toFixed(4)}, duration: ${audio.duration}, loading: ${audio.isLoadingAudio}, transport: ${Tone.getTransport().state} }`);
 
-    // 1. Cooldown check
-    if (timeSinceLastTrigger < 5000) {
+    // 1. Cooldown check (only for automatic triggers)
+    if (!isManual && timeSinceLastTrigger < 5000) {
       console.log("[Autoplay] playNextInList ignored: Cooldown active (< 5s).");
       return;
     }
 
-    // 2. Autoplay active check
-    if (!autoplayActiveRef.current) {
+    // 2. Autoplay active check (only for automatic triggers)
+    if (!isManual && !autoplayActiveRef.current) {
       console.log("[Autoplay] playNextInList ignored: Autoplay not active.");
       return;
     }
@@ -211,16 +211,18 @@ const Index = () => {
       return;
     }
 
-    // 4. Loading check
-    if (audio.isLoadingAudio) {
+    // 4. Loading check (only for automatic triggers)
+    if (!isManual && audio.isLoadingAudio) {
       console.log("[Autoplay] playNextInList ignored: Audio engine is still loading.");
       return;
     }
 
     // 5. Playback progress check (The "Ghost Event" killer)
-    // If the song has a duration but hasn't played at least 1%, it's likely a false end event
-    if (audio.duration > 0 && audio.progress < 0.01) {
-        console.log("[Autoplay] playNextInList ignored: Song hasn't played enough yet (Progress < 1%). Likely a ghost event.");
+    // If the song has a duration but hasn't played at least 90%, it's likely a false end event
+    // We only apply this to automatic triggers. Manual skips should always work.
+    const progressPercent = audio.duration > 0 ? (audio.progress / audio.duration) : 0;
+    if (!isManual && audio.duration > 10 && progressPercent < 0.9) {
+        console.log(`[Autoplay] playNextInList ignored: Song hasn't finished (Progress: ${(progressPercent * 100).toFixed(2)}%). Likely a ghost event.`);
         return;
     }
 
@@ -268,7 +270,7 @@ const Index = () => {
 
   // Update the bridge ref whenever playNextInList changes
   useEffect(() => {
-    playNextBridgeRef.current = playNextInList;
+    playNextBridgeRef.current = () => playNextInList(false);
   }, [playNextInList]);
 
   const handlePlayAll = async () => {
@@ -800,7 +802,7 @@ const Index = () => {
 
   if (authLoading || isFetchingSettings || loading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-slate-950">
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
         <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
       </div>
     );
@@ -852,7 +854,7 @@ const Index = () => {
               onClear={() => { setActiveSongForPerformance(null); activeSongRef.current = null; audio.stopPlayback(); setAutoplayStatus(false); }} 
               isLoadingAudio={audio.isLoadingAudio} 
               nextSongName={filteredAndSortedSongs[filteredAndSortedSongs.findIndex(s => s.id === activeSongForPerformance.id) + 1]?.name} 
-              onNext={() => { playNextInList(); }} 
+              onNext={() => { playNextInList(true); }} 
               onPrevious={() => { const idx = filteredAndSortedSongs.findIndex(s => s.id === activeSongForPerformance.id); if (idx > 0) handleSelectSong(filteredAndSortedSongs[idx - 1]); }} 
             />
           </div>
@@ -1024,7 +1026,7 @@ const Index = () => {
           progress={audio.progress} 
           duration={audio.duration} 
           onTogglePlayback={audio.togglePlayback} 
-          onNext={() => { playNextInList(); }} 
+          onNext={() => { playNextInList(true); }} 
           onPrevious={() => { const idx = filteredAndSortedSongs.findIndex(s => s.id === activeSongForPerformance.id); if (idx > 0) handleSelectSong(filteredAndSortedSongs[idx - 1]); }} 
           onShuffle={() => {}} 
           onClose={() => setIsPerformanceOverlayOpen(false)} 
