@@ -35,17 +35,13 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
   const getSongKey = useCallback((s: any) => {
     if (!s) return "unknown-unknown";
     
-    // Try to find a name/title from any common key
-    const name = (
-      s.name || s.title || s.song || s.track || s.trackName || 
-      s.song_name || s.songTitle || s.display_name || s.displayName || ""
-    ).toString().trim().toLowerCase();
-    
-    // Try to find an artist from any common key
-    const artist = (
-      s.artist || s.band || s.group || s.artistName || 
-      s.artist_name || s.performer || s.displayArtist || ""
-    ).toString().trim().toLowerCase();
+    // Try to find a name/title from any common key or pattern
+    const keys = Object.keys(s);
+    const titleKey = keys.find(k => /title|name|song|track/i.test(k));
+    const artistKey = keys.find(k => /artist|band|group|performer/i.test(k));
+
+    const name = (s[titleKey || ''] || s.name || s.title || "").toString().trim().toLowerCase();
+    const artist = (s[artistKey || ''] || s.artist || s.artistName || "").toString().trim().toLowerCase();
     
     if (!name && !artist) return "unknown-unknown";
     return `${name}-${artist}`;
@@ -82,16 +78,21 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
           isDuplicate = existingKeys.has(getSongKey({ name: displayName, artist: displayArtist }));
         }
 
-        // 3. Handle object-based suggestions with metadata fields
+        // 3. Handle object-based suggestions with pattern matching
         if (!displayName) {
-          displayName = s.name || s.title || s.song || s.track || s.trackName || s.song_name || s.songTitle || s.displayName || "";
-          displayArtist = s.artist || s.band || s.group || s.artistName || s.artist_name || s.performer || s.displayArtist || "";
+          const keys = Object.keys(s);
+          const titleKey = keys.find(k => /title|name|song|track/i.test(k));
+          const artistKey = keys.find(k => /artist|band|group|performer/i.test(k));
+          
+          if (titleKey) displayName = s[titleKey];
+          if (artistKey) displayArtist = s[artistKey];
+          
           isDuplicate = existingKeys.has(getSongKey(s));
         }
 
         // Final fallback if still empty
         if (!displayName) {
-          console.warn("[SongSuggestions] Failed to map suggestion object. Keys present:", Object.keys(s), "Full object:", s);
+          console.warn("[SongSuggestions] Failed to map suggestion object. Data:", JSON.stringify(s));
           displayName = "Unknown Track";
           displayArtist = "Unknown Artist";
         }
