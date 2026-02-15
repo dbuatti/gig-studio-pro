@@ -129,36 +129,37 @@ const Index = () => {
     }
     songs = songs.filter(s => {
       const readiness = calculateReadiness(s);
+      const filters = activeFilters as any; // Cast to any to handle dynamic filter properties
       
       // Readiness Filter
-      if (activeFilters.readiness > 0 && readiness < activeFilters.readiness) return false;
+      if (filters.readiness > 0 && readiness < filters.readiness) return false;
       
       // Key Confirmation Filter
-      if (activeFilters.isConfirmed === 'yes' && !s.isKeyConfirmed) return false;
-      if (activeFilters.isConfirmed === 'no' && s.isKeyConfirmed) return false;
+      if (filters.isConfirmed === 'yes' && !s.isKeyConfirmed) return false;
+      if (filters.isConfirmed === 'no' && s.isKeyConfirmed) return false;
       
       // Gig Approval Filter
-      if (activeFilters.isApproved === 'yes' && !s.isApproved) return false;
-      if (activeFilters.isApproved === 'no' && s.isApproved) return false;
+      if (filters.isApproved === 'yes' && !s.isApproved) return false;
+      if (filters.isApproved === 'no' && s.isApproved) return false;
 
       // UG Link Filter
-      if (activeFilters.hasUgLink === 'yes' && !s.ugUrl) return false;
-      if (activeFilters.hasUgLink === 'no' && s.ugUrl) return false;
+      if (filters.hasUgLink === 'yes' && !s.ugUrl) return false;
+      if (filters.hasUgLink === 'no' && s.ugUrl) return false;
 
       // UG Chords Text Filter
-      if (activeFilters.hasUgChords === 'yes' && !s.ug_chords_text) return false;
-      if (activeFilters.hasUgChords === 'no' && s.ug_chords_text) return false;
+      if (filters.hasUgChords === 'yes' && !s.ug_chords_text) return false;
+      if (filters.hasUgChords === 'no' && s.ug_chords_text) return false;
 
       // PDF / Charts Filter
-      if (activeFilters.hasPdf === 'yes' && !s.pdfUrl && !s.leadsheetUrl && !s.sheet_music_url) return false;
-      if (activeFilters.hasPdf === 'no' && (s.pdfUrl || s.leadsheetUrl || s.sheet_music_url)) return false;
+      if (filters.hasPdf === 'yes' && !s.pdfUrl && !s.leadsheetUrl && !s.sheet_music_url) return false;
+      if (filters.hasPdf === 'no' && (s.pdfUrl || s.leadsheetUrl || s.sheet_music_url)) return false;
 
       // Audio Filter
-      if (activeFilters.hasAudio === 'yes' && !s.audio_url) return false;
-      if (activeFilters.hasAudio === 'no' && s.audio_url) return false;
+      if (filters.hasAudio === 'yes' && !s.audio_url) return false;
+      if (filters.hasAudio === 'no' && s.audio_url) return false;
 
       // Energy Zone Filter
-      if (activeFilters.energy && activeFilters.energy !== 'all' && s.energy_level !== activeFilters.energy) return false;
+      if (filters.energy && filters.energy !== 'all' && s.energy_level !== filters.energy) return false;
 
       return true;
     });
@@ -234,7 +235,6 @@ const Index = () => {
     }
 
     // Robustness check: If the song just started (less than 2 seconds ago), don't skip.
-    // This prevents "ghost" end events from previous songs or loading failures from skipping the whole set.
     if (audio.progress < 0.01 && audio.duration > 0 && (now - lastTriggerTimeRef.current < 10000)) {
         console.log("[Autoplay] playNextInList ignored: Song hasn't played enough yet (Progress < 1%).");
         return;
@@ -965,7 +965,7 @@ const Index = () => {
                 <div className="bg-slate-900/50 p-16 rounded-[3rem] border border-white/5 space-y-8 max-w-md shadow-2xl backdrop-blur-xl">
                   <div className="bg-indigo-600/10 w-20 h-20 rounded-[1.5rem] flex items-center justify-center text-indigo-400 mx-auto shadow-lg shadow-indigo-900/10"><Library className="w-10 h-10" /></div>
                   <div>
-                    h2 className="text-3xl font-black uppercase tracking-tight">No Setlists Yet</h2>
+                    <h2 className="text-3xl font-black uppercase tracking-tight">No Setlists Yet</h2>
                     <p className="text-slate-400 font-medium mt-3 leading-relaxed">Create your first setlist to start organizing your professional gigs.</p>
                   </div>
                   <Button onClick={handleCreateSetlist} className="w-full bg-indigo-600 hover:bg-indigo-500 h-16 rounded-[1.5rem] font-black uppercase tracking-widest gap-3 shadow-xl shadow-indigo-600/20 transition-all active:scale-95"><Plus className="w-6 h-6" /> Create First Setlist</Button>
