@@ -158,6 +158,12 @@ const Index = () => {
   const handleSelectSong = useCallback(async (song: SetlistSong, forceAutoplay = false) => {
     console.log(`[Autoplay] handleSelectSong: ${song.name} (Force: ${forceAutoplay})`);
     
+    // Ensure context is running on manual selection or autoplay start
+    if (forceAutoplay || Tone.getContext().state !== 'running') {
+        await Tone.start();
+        console.log("[Autoplay] AudioContext verified/started.");
+    }
+
     // Update refs immediately before state to ensure audio engine sees the change
     activeSongRef.current = song;
     if (forceAutoplay) {
@@ -169,6 +175,10 @@ const Index = () => {
     const audioUrl = song.audio_url || song.previewUrl;
     if (audioUrl) {
       console.log(`[Autoplay] Loading audio: ${song.name} (Autoplay: ${forceAutoplay || autoplayActiveRef.current})`);
+      
+      // Explicitly stop previous audio to clear the engine
+      audio.stopPlayback();
+      
       isTransitioningRef.current = true;
       lastTriggerTimeRef.current = Date.now();
       
@@ -205,8 +215,8 @@ const Index = () => {
       return;
     }
 
-    // 3. Transitioning check
-    if (isTransitioningRef.current) {
+    // 3. Transitioning check (only for automatic triggers)
+    if (!isManual && isTransitioningRef.current) {
       console.log("[Autoplay] playNextInList ignored: Already transitioning.");
       return;
     }
