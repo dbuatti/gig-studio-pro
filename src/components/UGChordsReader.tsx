@@ -63,7 +63,7 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
   const readableChordColor = config.chordColor === "#000000" ? "#ffffff" : config.chordColor;
 
   return (
-    <div className="relative h-full flex flex-col bg-slate-950">
+    <div className="relative h-full w-full flex flex-col bg-slate-950">
       {/* Auto-scroll Controls */}
       <div className="absolute bottom-6 right-6 z-50 flex items-center gap-2 bg-slate-900/90 backdrop-blur-xl p-2 rounded-2xl border border-white/10 shadow-2xl">
         <div className="flex flex-col items-center gap-1 px-2">
@@ -107,7 +107,7 @@ const UGChordsReader: React.FC<UGChordsReaderProps> = ({
           color: readableChordColor
         }}
       >
-        <pre className="whitespace-pre-wrap font-inherit">
+        <pre className="whitespace-pre-wrap font-inherit w-full">
           {transposedText || "No chords available."}
         </pre>
       </div>
