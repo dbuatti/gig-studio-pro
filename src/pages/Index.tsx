@@ -179,6 +179,9 @@ const Index = () => {
       // Explicitly stop previous audio to clear the engine
       audio.stopPlayback();
       
+      // BREATHE DELAY: Give the audio stack 100ms to fully detach the previous buffer
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       isTransitioningRef.current = true;
       lastTriggerTimeRef.current = Date.now();
       
@@ -189,7 +192,7 @@ const Index = () => {
       setTimeout(() => { 
         isTransitioningRef.current = false; 
         console.log("[Autoplay] Transition guard released.");
-      }, 5000); // Increased to 5s for safer loading
+      }, 5000); 
     } else {
       console.warn(`[Autoplay] No audio URL for: ${song.name}`);
       isTransitioningRef.current = false;
@@ -812,7 +815,7 @@ const Index = () => {
 
   if (authLoading || isFetchingSettings || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+      <div className="h-screen flex items-center justify-center bg-slate-950">
         <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
       </div>
     );
