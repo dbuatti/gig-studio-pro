@@ -156,15 +156,18 @@ const Index = () => {
 
   // Stable handleSelectSong that updates refs immediately
   const handleSelectSong = useCallback(async (song: SetlistSong, forceAutoplay = false) => {
-    console.log(`[Autoplay] handleSelectSong: ${song.name} (Force: ${forceAutoplay})`);
+    console.log(`[Autoplay] handleSelectSong: ${song.name} (Force: ${forceAutoplay}, Current Transport: ${Tone.getTransport().state})`);
     
-    // Ensure context is running on manual selection or autoplay start
-    if (forceAutoplay || Tone.getContext().state !== 'running') {
+    // 1. Immediate Guard
+    isTransitioningRef.current = true;
+    
+    // 2. Context Check
+    if (Tone.getContext().state !== 'running') {
         await Tone.start();
-        console.log("[Autoplay] AudioContext verified/started.");
+        console.log("[Autoplay] AudioContext resumed.");
     }
 
-    // Update refs immediately before state to ensure audio engine sees the change
+    // 3. State Sync
     activeSongRef.current = song;
     if (forceAutoplay) {
       setAutoplayStatus(true);
@@ -174,25 +177,36 @@ const Index = () => {
     
     const audioUrl = song.audio_url || song.previewUrl;
     if (audioUrl) {
-      console.log(`[Autoplay] Loading audio: ${song.name} (Autoplay: ${forceAutoplay || autoplayActiveRef.current})`);
+      const shouldPlay = forceAutoplay || autoplayActiveRef.current;
+      console.log(`[Autoplay] Loading audio: ${song.name} (shouldPlay: ${shouldPlay})`);
       
-      // Explicitly stop previous audio to clear the engine
+      // 4. Explicit Cleanup
       audio.stopPlayback();
       
-      // BREATHE DELAY: Give the audio stack 100ms to fully detach the previous buffer
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // 5. Breathe Delay: Give the audio stack time to fully detach the previous buffer
+      await new Promise(resolve => setTimeout(resolve, 150));
       
-      isTransitioningRef.current = true;
       lastTriggerTimeRef.current = Date.now();
       
-      const shouldPlay = forceAutoplay || autoplayActiveRef.current;
-      await audio.loadFromUrl(audioUrl, song.pitch || 0, shouldPlay);
+      // 6. Load and Play
+      try {
+        await audio.loadFromUrl(audioUrl, song.pitch || 0, shouldPlay);
+        console.log(`[Autoplay] Load complete for: ${song.name}. Transport: ${Tone.getTransport().state}`);
+        
+        // 7. Hard Restart if needed (Fail-safe for transport collisions)
+        if (shouldPlay && Tone.getTransport().state !== 'started') {
+            console.log("[Autoplay] Transport failed to start automatically. Forcing start...");
+            Tone.getTransport().start();
+        }
+      } catch (err) {
+        console.error(`[Autoplay] Load failed for ${song.name}:`, err);
+      }
       
-      // Release guard after a safe buffer to allow audio engine to stabilize
+      // 8. Release Guard
       setTimeout(() => { 
         isTransitioningRef.current = false; 
         console.log("[Autoplay] Transition guard released.");
-      }, 5000); 
+      }, 3000); 
     } else {
       console.warn(`[Autoplay] No audio URL for: ${song.name}`);
       isTransitioningRef.current = false;
@@ -231,8 +245,6 @@ const Index = () => {
     }
 
     // 5. Playback progress check (The "Ghost Event" killer)
-    // If the song has a duration but hasn't played at least 90%, it's likely a false end event
-    // We only apply this to automatic triggers. Manual skips should always work.
     const progressPercent = audio.duration > 0 ? (audio.progress / audio.duration) : 0;
     if (!isManual && audio.duration > 10 && progressPercent < 0.9) {
         console.log(`[Autoplay] playNextInList ignored: Song hasn't finished (Progress: ${(progressPercent * 100).toFixed(2)}%). Likely a ghost event.`);
@@ -815,7 +827,7 @@ const Index = () => {
 
   if (authLoading || isFetchingSettings || loading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-slate-950">
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
         <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
       </div>
     );
