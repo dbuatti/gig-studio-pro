@@ -169,22 +169,27 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
     }
   }, [repertoire, fetchSuggestions, rawSuggestions.length]);
 
-  const handleDismissSuggestion = async (song: any) => {
-    const key = song.id ? `id-${song.id}` : getSongKey(song);
+  const handleDismissSuggestion = (song: any) => {
+    // Use a unique identifier for the filter
+    const targetId = song.id;
+    const targetKey = getSongKey(song);
     
+    // Add to ignored cache to prevent it coming back in this session
     const newIgnored = [...ignoredSuggestions, song];
     setIgnoredSuggestions(newIgnored);
     sessionIgnoredCache = newIgnored;
     
-    const filtered = rawSuggestions.filter(s => (s.id && `id-${s.id}` !== key) || getSongKey(s) !== key);
+    // Filter out ONLY the specific song being dismissed
+    const filtered = rawSuggestions.filter(s => {
+      if (targetId && s.id) return s.id !== targetId;
+      return getSongKey(s) !== targetKey;
+    });
+
     setRawSuggestions(filtered);
     sessionSuggestionsCache = filtered;
     
     showSuccess(`Removed suggestion`);
-    
-    if (filtered.length < 7) {
-      fetchSuggestions(true, true);
-    }
+    // Removed the automatic refresh trigger to respect user request
   };
 
   const handleClearDuplicates = () => {
