@@ -200,25 +200,34 @@ const Index = () => {
       // 6. Load and Play
       try {
         console.log(`[Autoplay] Calling audio.loadFromUrl for ${songName}...`);
-        await audio.loadFromUrl(audioUrl, song.pitch || 0, shouldPlay);
+        // We load with autoPlay: false to handle the start logic ourselves more reliably
+        await audio.loadFromUrl(audioUrl, song.pitch || 0, false);
         
-        // 7. Post-Load Verification
+        // 7. Post-Load Verification & Explicit Start
         console.log(`[Autoplay] loadFromUrl resolved for ${songName}.`);
         
         // Wait for hook state to propagate and engine to settle
         await new Promise(resolve => setTimeout(resolve, 400));
         
-        const transportState = Tone.getTransport().state;
-        const hookPlaying = audio.isPlaying;
-        console.log(`[Autoplay] Post-settle state - Transport: ${transportState}, audio.isPlaying: ${hookPlaying}`);
-
         if (shouldPlay) {
+            console.log("[Autoplay] Executing Explicit Start Routine...");
+            
+            // Directly command the transport to start - this is the most reliable way
+            Tone.getTransport().start();
+            
+            // Give it a tiny moment to start
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            const transportState = Tone.getTransport().state;
+            const hookPlaying = audio.isPlaying;
+            console.log(`[Autoplay] Post-start state - Transport: ${transportState}, audio.isPlaying: ${hookPlaying}`);
+
             if (transportState !== 'started' || !hookPlaying) {
-                console.log("[Autoplay] FAIL-SAFE: System not playing correctly. Executing Hard Re-kick...");
-                // Ensure we are in a clean "stopped" state before toggling
+                console.log("[Autoplay] FAIL-SAFE: System still not playing correctly. Executing Hard Re-kick...");
+                // If transport is still stopped or hook is out of sync, force a toggle
                 audio.stopPlayback();
                 Tone.getTransport().stop();
-                await new Promise(resolve => setTimeout(resolve, 150));
+                await new Promise(resolve => setTimeout(resolve, 200));
                 audio.togglePlayback();
             }
         }
@@ -851,7 +860,7 @@ const Index = () => {
 
   if (authLoading || isFetchingSettings || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+      <div className="h-screen flex items-center justify-center bg-slate-950">
         <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
       </div>
     );
