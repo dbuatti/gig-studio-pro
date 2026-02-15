@@ -206,27 +206,20 @@ const Index = () => {
         console.log(`[Autoplay] loadFromUrl resolved for ${songName}.`);
         
         // Wait for hook state to propagate and engine to settle
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await new Promise(resolve => setTimeout(resolve, 400));
         
-        console.log(`[Autoplay] Post-settle state - Transport: ${Tone.getTransport().state}, audio.isPlaying: ${audio.isPlaying}`);
+        const transportState = Tone.getTransport().state;
+        const hookPlaying = audio.isPlaying;
+        console.log(`[Autoplay] Post-settle state - Transport: ${transportState}, audio.isPlaying: ${hookPlaying}`);
 
         if (shouldPlay) {
-            let needsKick = false;
-            
-            if (Tone.getTransport().state !== 'started') {
-                console.log("[Autoplay] FAIL-SAFE: Transport is NOT started. Forcing...");
-                Tone.getTransport().start();
-                needsKick = true;
-            }
-            
-            if (!audio.isPlaying) {
-                console.log("[Autoplay] FAIL-SAFE: audio.isPlaying is FALSE. Forcing toggle...");
-                audio.togglePlayback();
-            } else if (needsKick) {
-                // Inconsistent state: Hook says playing, but transport was stopped
-                console.log("[Autoplay] FAIL-SAFE: Engine in inconsistent state. Re-triggering playback...");
+            if (transportState !== 'started' || !hookPlaying) {
+                console.log("[Autoplay] FAIL-SAFE: System not playing correctly. Executing Hard Re-kick...");
+                // Ensure we are in a clean "stopped" state before toggling
                 audio.stopPlayback();
-                setTimeout(() => audio.togglePlayback(), 150);
+                Tone.getTransport().stop();
+                await new Promise(resolve => setTimeout(resolve, 150));
+                audio.togglePlayback();
             }
         }
       } catch (err) {
@@ -237,7 +230,7 @@ const Index = () => {
       setTimeout(() => { 
         isTransitioningRef.current = false; 
         console.log(`[Autoplay] <<< END handleSelectSong: ${songName} (Guard Released)`);
-      }, 2000); 
+      }, 1500); 
     } else {
       console.warn(`[Autoplay] No audio URL for: ${songName}`);
       isTransitioningRef.current = false;
@@ -252,8 +245,8 @@ const Index = () => {
     console.log(`[Autoplay] playNextInList signal received. Manual: ${isManual}, State: { active: ${autoplayActiveRef.current}, transitioning: ${isTransitioningRef.current}, timeSinceLast: ${timeSinceLastTrigger}ms, progress: ${audio.progress.toFixed(4)}, duration: ${audio.duration}, loading: ${audio.isLoadingAudio}, transport: ${Tone.getTransport().state} }`);
 
     // 1. Cooldown check (only for automatic triggers)
-    if (!isManual && timeSinceLastTrigger < 5000) {
-      console.log("[Autoplay] playNextInList ignored: Cooldown active (< 5s).");
+    if (!isManual && timeSinceLastTrigger < 4000) {
+      console.log("[Autoplay] playNextInList ignored: Cooldown active (< 4s).");
       return;
     }
 
@@ -277,7 +270,7 @@ const Index = () => {
 
     // 5. Playback progress check (The "Ghost Event" killer)
     const progressPercent = audio.duration > 0 ? (audio.progress / audio.duration) : 0;
-    if (!isManual && audio.duration > 10 && progressPercent < 0.9) {
+    if (!isManual && audio.duration > 10 && progressPercent < 0.85) {
         console.log(`[Autoplay] playNextInList ignored: Song hasn't finished (Progress: ${(progressPercent * 100).toFixed(2)}%). Likely a ghost event.`);
         return;
     }
@@ -858,7 +851,7 @@ const Index = () => {
 
   if (authLoading || isFetchingSettings || loading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-slate-950">
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
         <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
       </div>
     );
