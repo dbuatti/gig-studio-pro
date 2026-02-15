@@ -25,7 +25,7 @@ import { useHarmonicSync } from '@/hooks/use-harmonic-sync';
 import { extractKeyFromChords } from '@/utils/chordUtils';
 import RepertoireSearchModal from '@/components/RepertoireSearchModal';
 import FullScreenSongInfo from '@/components/FullScreenSongInfo';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { PDFDocumentProxy } from 'pdfjs-dist/types/src/display/api';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -38,6 +38,7 @@ import LinkDisplayOverlay, { SheetLink } from '@/components/LinkDisplayOverlay';
 import LinkSizeModal from '@/components/LinkSizeModal';
 import { sortSongsByStrategy } from '@/utils/SetlistGenerator';
 import SongInfoOverlay from '@/components/SongInfoOverlay';
+import KeyReminderPill from '@/components/KeyReminderPill';
 
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
@@ -74,6 +75,7 @@ const SheetReaderMode: React.FC = () => {
   const [isAudioPlayerVisible, setIsAudioPlayerVisible] = useState(true);
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
   const [isZenMode, setIsZenMode] = useState(false); 
+  const [showKeyReminder, setShowKeyReminder] = useState(false);
 
   const currentSong = allSongs[currentIndex];
 
@@ -109,6 +111,7 @@ const SheetReaderMode: React.FC = () => {
   const overlayWrapperRef = useRef<HTMLDivElement>(null);
   const swipeThreshold = 40; 
   const navigatedRef = useRef(false);
+  const reminderTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const handleResize = () => {
@@ -125,7 +128,6 @@ const SheetReaderMode: React.FC = () => {
     setPdfDocument(null);
     setLinks([]);
     
-    // Reset scroll position to top when song changes
     if (chartContainerRef.current) {
       chartContainerRef.current.scrollTop = 0;
       chartContainerRef.current.scrollLeft = 0;
@@ -178,6 +180,24 @@ const SheetReaderMode: React.FC = () => {
     setPitch, 
     isStageKeyLocked 
   } = harmonicSync;
+
+  // Trigger Key Reminder Pill
+  useEffect(() => {
+    if (!currentSong || (selectedChartType !== 'pdf' && selectedChartType !== 'leadsheet')) {
+      setShowKeyReminder(false);
+      return;
+    }
+
+    setShowKeyReminder(true);
+    if (reminderTimeoutRef.current) clearTimeout(reminderTimeoutRef.current);
+    reminderTimeoutRef.current = setTimeout(() => {
+      setShowKeyReminder(false);
+    }, 4000);
+
+    return () => {
+      if (reminderTimeoutRef.current) clearTimeout(reminderTimeoutRef.current);
+    };
+  }, [currentSong?.id, effectiveTargetKey, effectivePitch, selectedChartType]);
 
   const handleUpdateKey = useCallback(async (newTargetKey: string) => {
     if (!currentSong || !user) return;
@@ -317,7 +337,6 @@ const SheetReaderMode: React.FC = () => {
         return true;
       });
 
-      // Apply sorting logic consistent with Index.tsx
       if (sortMode === 'ready') {
         filteredSongs.sort((a, b) => calculateReadiness(b) - calculateReadiness(a));
       } else if (sortMode === 'work') {
@@ -378,17 +397,14 @@ const SheetReaderMode: React.FC = () => {
   }, [fetchLinks]);
 
   const getBestChartType = useCallback((song: SetlistSong): ChartType => {
-    // 1. Check for force settings (debug/override)
     if (forceReaderResource === 'force-pdf' && song.pdfUrl) return 'pdf';
     if (forceReaderResource === 'force-ug' && (song.ugUrl || song.ug_chords_text)) return 'chords';
     if (forceReaderResource === 'force-chords' && song.ug_chords_text) return 'chords';
 
-    // 2. Check for song-specific preference from Studio
     if (song.preferred_reader === 'ug' && (song.ugUrl || song.ug_chords_text)) return 'chords';
     if (song.preferred_reader === 'ls' && song.leadsheetUrl) return 'leadsheet';
     if (song.preferred_reader === 'fn' && (song.pdfUrl || song.sheet_music_url)) return 'pdf';
 
-    // 3. Default fallback logic
     if (song.pdfUrl || song.sheet_music_url) return 'pdf';
     if (song.leadsheetUrl) return 'leadsheet';
     if (song.ug_chords_text) return 'chords';
@@ -552,22 +568,20 @@ const SheetReaderMode: React.FC = () => {
   const effectiveConfig = useMemo(() => {
     if (!currentSong) return DEFAULT_UG_CHORDS_CONFIG;
     
-    // Start with global settings from Preferences
     const baseConfig: UGChordsConfig = {
       fontFamily: ugChordsFontFamily,
-      fontSize: ugChordsFontSize + 1, // Increased by 1 point as requested
+      fontSize: ugChordsFontSize + 1, 
       chordBold: ugChordsChordBold,
       chordColor: ugChordsChordColor,
       lineSpacing: ugChordsLineSpacing,
       textAlign: ugChordsTextAlign as any,
     };
 
-    // Merge with song-specific overrides if they exist from Studio
     if (currentSong.ug_chords_config) {
       return { 
         ...baseConfig, 
         ...currentSong.ug_chords_config,
-        fontSize: (currentSong.ug_chords_config.fontSize || ugChordsFontSize) + 1 // Also adjust override
+        fontSize: (currentSong.ug_chords_config.fontSize || ugChordsFontSize) + 1 
       };
     }
 
@@ -628,6 +642,12 @@ const SheetReaderMode: React.FC = () => {
           )}
           onClick={toggleZenMode} 
         >
+          <KeyReminderPill 
+            isVisible={showKeyReminder} 
+            targetKey={effectiveTargetKey} 
+            pitch={effectivePitch} 
+          />
+
           <animated.div 
             {...bind()}  
             style={{ 
