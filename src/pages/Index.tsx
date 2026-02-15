@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { calculateReadiness, syncToMasterRepertoire } from '@/utils/repertoireSync';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { autoVibeCheck } from '@/utils/vibeUtils';
+import * as Tone from 'tone';
 
 // UI Components
 import { Button } from '@/components/ui/button';
@@ -91,7 +92,6 @@ const Index = () => {
   // Centralized Autoplay Control
   const setAutoplayStatus = useCallback((active: boolean) => {
     console.log(`[Autoplay] setAutoplayStatus: ${active}`);
-    if (!active) console.trace("[Autoplay] Trace for status set to FALSE");
     autoplayActiveRef.current = active;
     setIsAutoplayActive(active);
   }, []);
@@ -206,6 +206,13 @@ const Index = () => {
       return;
     }
 
+    // Robustness check: If the song just started (less than 2 seconds ago), don't skip.
+    // This prevents "ghost" end events from previous songs or loading failures from skipping the whole set.
+    if (audio.progress < 0.01 && audio.duration > 0 && (now - lastTriggerTimeRef.current < 10000)) {
+        console.log("[Autoplay] playNextInList ignored: Song hasn't played enough yet (Progress < 1%).");
+        return;
+    }
+
     console.log("[Autoplay] playNextInList triggered. Mode:", isShuffleAllRef.current ? 'Shuffle' : 'Sequential');
     
     isTransitioningRef.current = true;
@@ -247,14 +254,14 @@ const Index = () => {
       setAutoplayStatus(false);
       isTransitioningRef.current = false;
     }
-  }, [handleSelectSong, setAutoplayStatus]);
+  }, [handleSelectSong, setAutoplayStatus, audio.progress, audio.duration]);
 
   // Update the bridge ref whenever playNextInList changes
   useEffect(() => {
     playNextBridgeRef.current = playNextInList;
   }, [playNextInList]);
 
-  const handlePlayAll = () => {
+  const handlePlayAll = async () => {
     if (isAutoplayActive) {
       console.log("[Autoplay] Manually stopping autoplay.");
       setAutoplayStatus(false);
@@ -265,6 +272,15 @@ const Index = () => {
         showWarning("No songs available to play.");
         return;
       }
+      
+      // CRITICAL: Resume AudioContext on this user gesture
+      try {
+          await Tone.start();
+          console.log("[Autoplay] AudioContext resumed via Play All gesture.");
+      } catch (e) {
+          console.error("[Autoplay] Failed to resume AudioContext:", e);
+      }
+
       console.log(`[Autoplay] Starting autoplay for ${filteredAndSortedSongs.length} songs.`);
       
       setAutoplayStatus(true);
@@ -774,7 +790,7 @@ const Index = () => {
 
   if (authLoading || isFetchingSettings || loading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-slate-950">
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
         <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
       </div>
     );
