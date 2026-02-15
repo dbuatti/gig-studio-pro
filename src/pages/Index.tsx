@@ -193,6 +193,10 @@ const Index = () => {
       // 6. Load and Play
       try {
         await audio.loadFromUrl(audioUrl, song.pitch || 0, shouldPlay);
+        
+        // Give the engine a moment to settle hook state
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         console.log(`[Autoplay] Load complete for: ${song.name}. Transport: ${Tone.getTransport().state}, audio.isPlaying: ${audio.isPlaying}`);
         
         // 7. Hard Restart Fail-safes
@@ -200,10 +204,17 @@ const Index = () => {
             if (Tone.getTransport().state !== 'started') {
                 console.log("[Autoplay] Transport failed to start automatically. Forcing start...");
                 Tone.getTransport().start();
+                console.log(`[Autoplay] Transport state after forced start: ${Tone.getTransport().state}`);
             }
+            
             if (!audio.isPlaying) {
                 console.log("[Autoplay] audio.isPlaying is false but should be true. Forcing toggle...");
                 audio.togglePlayback();
+            } else if (Tone.getTransport().state !== 'started') {
+                // Inconsistent state: Hook says playing, but transport is stopped
+                console.log("[Autoplay] Engine in inconsistent state. Re-triggering...");
+                audio.stopPlayback();
+                setTimeout(() => audio.togglePlayback(), 100);
             }
         }
       } catch (err) {
@@ -835,7 +846,7 @@ const Index = () => {
 
   if (authLoading || isFetchingSettings || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+      <div className="h-screen flex items-center justify-center bg-slate-950">
         <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
       </div>
     );
@@ -865,7 +876,7 @@ const Index = () => {
             </Button>
             <Button variant="outline" size="sm" onClick={() => setIsKeyManagementOpen(true)} className="h-11 px-6 rounded-2xl text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[10px]">
               <Hash className="w-4 h-4 mr-2.5" /> Key Matrix
-            </Button>
+            </Hash>
             <Button variant="outline" size="sm" onClick={() => setIsPreferencesOpen(true)} className="h-11 px-6 rounded-2xl text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[10px]">
               <Settings2 className="w-4 h-4 mr-2.5" /> Preferences
             </Button>
