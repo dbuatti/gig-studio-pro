@@ -40,8 +40,8 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
     const titleKey = keys.find(k => /title|name|song|track/i.test(k));
     const artistKey = keys.find(k => /artist|band|group|performer/i.test(k));
 
-    const name = (s[titleKey || ''] || s.name || s.title || "").toString().trim().toLowerCase();
-    const artist = (s[artistKey || ''] || s.artist || s.artistName || "").toString().trim().toLowerCase();
+    const name = (s[titleKey || ''] || s.name || s.title || s.displayName || "").toString().trim().toLowerCase();
+    const artist = (s[artistKey || ''] || s.artist || s.artistName || s.displayArtist || "").toString().trim().toLowerCase();
     
     if (!name && !artist) return "unknown-unknown";
     return `${name}-${artist}`;
@@ -61,7 +61,8 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
         let isDuplicate = false;
 
         // 1. Handle ID-based suggestions (Lookup in repertoire)
-        if (s.id) {
+        // Note: AI sometimes returns "undefined" as a string if it fails to map an ID
+        if (s.id && s.id !== "undefined") {
           const existingSong = repertoire.find(r => r.id === s.id || r.master_id === s.id);
           if (existingSong) {
             displayName = existingSong.name;
@@ -86,8 +87,16 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
           
           if (titleKey) displayName = s[titleKey];
           if (artistKey) displayArtist = s[artistKey];
-          
-          isDuplicate = existingKeys.has(getSongKey(s));
+        }
+
+        // 4. MAGIC EXTRACTION: If still empty, try to pull from the 'reason' field
+        // AI often says: "Starting with 'Song Title' sets a..."
+        if (!displayName && s.reason) {
+          const quoteMatch = s.reason.match(/['"]([^'"]+)['"]/);
+          if (quoteMatch) {
+            displayName = quoteMatch[1];
+            console.log(`[SongSuggestions] Magic extracted title: "${displayName}" from reason.`);
+          }
         }
 
         // Final fallback if still empty
@@ -95,6 +104,11 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
           console.warn("[SongSuggestions] Failed to map suggestion object. Data:", JSON.stringify(s));
           displayName = "Unknown Track";
           displayArtist = "Unknown Artist";
+        }
+
+        // Check duplication after extraction
+        if (!isDuplicate) {
+          isDuplicate = existingKeys.has(getSongKey({ name: displayName, artist: displayArtist }));
         }
 
         return {
@@ -110,7 +124,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
         
         // Filter out if it's in the ignored list
         const isIgnored = ignoredSuggestions.some(i => 
-          (i.id && i.id === s.id) || getSongKey(i) === getSongKey(s)
+          (i.id && i.id === s.id && i.id !== "undefined") || getSongKey(i) === getSongKey(s)
         );
         if (isIgnored) return false;
 
@@ -180,8 +194,8 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
           const uniqueMap = new Map();
           
           combined.forEach(s => {
-            const key = s.id ? `id-${s.id}` : getSongKey(s);
-            const isIgnored = sessionIgnoredCache.some(i => (i.id && i.id === s.id) || getSongKey(i) === getSongKey(s));
+            const key = (s.id && s.id !== "undefined") ? `id-${s.id}` : getSongKey(s);
+            const isIgnored = sessionIgnoredCache.some(i => (i.id && i.id === s.id && i.id !== "undefined") || getSongKey(i) === getSongKey(s));
             const isDuplicate = existingKeys.has(getSongKey(s));
             
             if (!uniqueMap.has(key) && !isIgnored && !isDuplicate) {
@@ -232,7 +246,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
     sessionIgnoredCache = newIgnored;
     
     const filtered = rawSuggestions.filter(s => {
-      if (targetId && s.id) return s.id !== targetId;
+      if (targetId && s.id && targetId !== "undefined") return s.id !== targetId;
       return getSongKey(s) !== targetKey;
     });
 
