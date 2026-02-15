@@ -156,7 +156,7 @@ const Index = () => {
 
   // Stable handleSelectSong that updates refs immediately
   const handleSelectSong = useCallback(async (song: SetlistSong, forceAutoplay = false) => {
-    console.log(`[Autoplay] handleSelectSong: ${song.name} (Force: ${forceAutoplay}, Current Transport: ${Tone.getTransport().state})`);
+    console.log(`[Autoplay] handleSelectSong: ${song.name} (Force: ${forceAutoplay}, Current Transport: ${Tone.getTransport().state}, audio.isPlaying: ${audio.isPlaying})`);
     
     // 1. Immediate Guard
     isTransitioningRef.current = true;
@@ -180,8 +180,10 @@ const Index = () => {
       const shouldPlay = forceAutoplay || autoplayActiveRef.current;
       console.log(`[Autoplay] Loading audio: ${song.name} (shouldPlay: ${shouldPlay})`);
       
-      // 4. Explicit Cleanup
+      // 4. Explicit Cleanup & Transport Reset
       audio.stopPlayback();
+      Tone.getTransport().stop();
+      Tone.getTransport().cancel(); // Clear any scheduled events
       
       // 5. Breathe Delay: Give the audio stack time to fully detach the previous buffer
       await new Promise(resolve => setTimeout(resolve, 150));
@@ -191,12 +193,18 @@ const Index = () => {
       // 6. Load and Play
       try {
         await audio.loadFromUrl(audioUrl, song.pitch || 0, shouldPlay);
-        console.log(`[Autoplay] Load complete for: ${song.name}. Transport: ${Tone.getTransport().state}`);
+        console.log(`[Autoplay] Load complete for: ${song.name}. Transport: ${Tone.getTransport().state}, audio.isPlaying: ${audio.isPlaying}`);
         
-        // 7. Hard Restart if needed (Fail-safe for transport collisions)
-        if (shouldPlay && Tone.getTransport().state !== 'started') {
-            console.log("[Autoplay] Transport failed to start automatically. Forcing start...");
-            Tone.getTransport().start();
+        // 7. Hard Restart Fail-safes
+        if (shouldPlay) {
+            if (Tone.getTransport().state !== 'started') {
+                console.log("[Autoplay] Transport failed to start automatically. Forcing start...");
+                Tone.getTransport().start();
+            }
+            if (!audio.isPlaying) {
+                console.log("[Autoplay] audio.isPlaying is false but should be true. Forcing toggle...");
+                audio.togglePlayback();
+            }
         }
       } catch (err) {
         console.error(`[Autoplay] Load failed for ${song.name}:`, err);
