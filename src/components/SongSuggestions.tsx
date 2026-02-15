@@ -44,7 +44,9 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
   }, [repertoire, getSongKey]);
 
   const suggestions = useMemo(() => {
-    return rawSuggestions
+    console.log("[SongSuggestions] Filtering raw suggestions. Count:", rawSuggestions.length);
+    
+    const filtered = rawSuggestions
       .map(s => {
         let displayName = "Unknown Track";
         let displayArtist = "Unknown Artist";
@@ -94,6 +96,9 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
 
         return true;
       });
+
+    console.log("[SongSuggestions] Final display suggestions count:", filtered.length);
+    return filtered;
   }, [rawSuggestions, repertoire, existingKeys, getSongKey, ignoredSuggestions]);
 
   const seedSong = useMemo(() => 
@@ -101,7 +106,13 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
   [seedSongId, repertoire]);
 
   const fetchSuggestions = useCallback(async (isRefresh = false, preserveExisting = false) => {
-    if (repertoire.length === 0) return;
+    if (repertoire.length === 0) {
+      console.warn("[SongSuggestions] Repertoire is empty, skipping fetch.");
+      setIsLoadingInitial(false);
+      return;
+    }
+    
+    console.log("[SongSuggestions] Initiating fetch. isRefresh:", isRefresh, "preserveExisting:", preserveExisting);
     
     if (isRefresh) {
       setIsRefreshingSuggestions(true);
@@ -115,21 +126,33 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
         ...ignoredSuggestions
       ];
 
+      const payload = { 
+        repertoire: repertoire.slice(0, 50).map(s => ({ name: s.name, artist: s.artist, genre: s.genre })),
+        seedSong: seedSong ? { name: seedSong.name, artist: seedSong.artist } : null,
+        ignored: combinedIgnored 
+      };
+
+      console.log("[SongSuggestions] Calling edge function 'suggest-songs' with payload:", payload);
+      
       const { data, error } = await supabase.functions.invoke('suggest-songs', {
-        body: { 
-          repertoire: repertoire.slice(0, 50),
-          seedSong: seedSong ? { name: seedSong.name, artist: seedSong.artist } : null,
-          ignored: combinedIgnored 
-        } 
+        body: payload 
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("[SongSuggestions] Edge function error:", error);
+        throw error;
+      }
+      
+      console.log("[SongSuggestions] Edge function response data:", data);
       
       let newBatch = Array.isArray(data) ? data : (data?.suggestions || data?.songs || []);
       
       if (!Array.isArray(newBatch)) {
+        console.error("[SongSuggestions] AI response is not an array format:", newBatch);
         newBatch = [];
       }
+
+      console.log("[SongSuggestions] Received new batch of suggestions. Count:", newBatch.length);
 
       if (preserveExisting) {
         setRawSuggestions(prev => {
@@ -147,6 +170,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
           });
 
           const final = Array.from(uniqueMap.values()).slice(0, 10);
+          console.log("[SongSuggestions] Preserving existing. Final unique count:", final.length);
           sessionSuggestionsCache = final;
           return final;
         });
@@ -157,8 +181,10 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
       
       sessionInitialLoadAttempted = true;
     } catch (err: any) {
+      console.error("[SongSuggestions] Final catch block error:", err);
       showError("Song suggestions temporarily unavailable.");
     } finally {
+      console.log("[SongSuggestions] Fetch cycle complete.");
       if (isRefresh) {
         setIsRefreshingSuggestions(false);
       } else {
@@ -168,14 +194,19 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
   }, [repertoire, seedSong, ignoredSuggestions, getSongKey, existingKeys]);
 
   useEffect(() => {
+    console.log("[SongSuggestions] useEffect triggered. Repertoire length:", repertoire.length, "Initial load attempted:", sessionInitialLoadAttempted);
     if (repertoire.length > 0 && !sessionInitialLoadAttempted && rawSuggestions.length === 0) {
       fetchSuggestions();
+    } else if (repertoire.length > 0) {
+      setIsLoadingInitial(false);
     }
-  }, [repertoire, fetchSuggestions, rawSuggestions.length]);
+  }, [repertoire.length, fetchSuggestions, rawSuggestions.length]);
 
   const handleDismissSuggestion = (song: any) => {
     const targetId = song.id;
     const targetKey = getSongKey(song);
+    
+    console.log("[SongSuggestions] Dismissing suggestion:", song.displayName);
     
     const newIgnored = [...ignoredSuggestions, song];
     setIgnoredSuggestions(newIgnored);
