@@ -5,16 +5,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-interface Song {
-  id: string;
-  name: string;
-  artist: string;
-  bpm?: string;
-  genre?: string;
-  energy_level?: string;
-  readiness: number;
-}
-
 /**
  * Cleans AI response text to ensure it's valid JSON.
  */
@@ -32,19 +22,7 @@ serve(async (req) => {
   }
 
   try {
-    const body = await req.json();
-    
-    // Ensure we have arrays even if the keys are missing in the request
-    const currentSetlist: Song[] = Array.isArray(body?.currentSetlist) ? body.currentSetlist : [];
-    const repertoire: Song[] = Array.isArray(body?.repertoire) ? body.repertoire : [];
-    const instruction: string = body?.instruction || 'Suggest 3 songs that would improve the flow and energy of this set.';
-
-    if (repertoire.length === 0) {
-      console.log("[suggest-songs] No repertoire provided, returning empty suggestions.");
-      return new Response(JSON.stringify([]), { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      });
-    }
+    const { repertoire, seedSong, ignored } = await req.json();
 
     const providers = [
       { type: 'google', key: Deno.env.get('GEMINI_API_KEY'), name: 'Pool #1' },
@@ -57,41 +35,32 @@ serve(async (req) => {
       throw new Error('No AI provider keys found in environment.');
     }
 
-    // Shuffle to distribute load
     const shuffledProviders = [...providers].sort(() => Math.random() - 0.5);
 
-    // Filter out songs already in the setlist
-    const currentIds = new Set(currentSetlist.map(s => s.id));
-    const candidates = repertoire.filter(s => !currentIds.has(s.id));
-
-    if (candidates.length === 0) {
-      console.log("[suggest-songs] All repertoire songs are already in the setlist.");
-      return new Response(JSON.stringify([]), { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      });
-    }
-
-    const prompt = `You are a world-class Musical Director. 
-CURRENT SETLIST:
-${currentSetlist.length > 0 
-  ? currentSetlist.map((s, i) => `${i + 1}. ${s.name} (${s.artist}) | Energy: ${s.energy_level || 'Unknown'} | BPM: ${s.bpm || 'Unknown'}`).join('\n')
-  : 'Empty Setlist'}
-
-AVAILABLE REPERTOIRE CANDIDATES:
-${candidates.map((s) => `ID: ${s.id} | ${s.name} (${s.artist}) | Energy: ${s.energy_level || 'Unknown'} | BPM: ${s.bpm || 'Unknown'} | Readiness: ${s.readiness}% | Genre: ${s.genre || 'Unknown'}`).join('\n')}
-
-USER INSTRUCTION: "${instruction}"
-
-TASK:
-Pick the 3 BEST songs from the candidates that would work well in this set.
-Consider:
-1. Energy Flow: Does the set need a high-energy peak or a soft ambient break?
-2. Technical Readiness: Prioritize songs with >70% readiness.
-3. Genre/Vibe: Maintain or intentionally shift the vibe.
-
-OUTPUT:
-Return ONLY a JSON array of objects with "id" and "reason" (a short 1-sentence explanation why it fits).
-Example: [{"id": "uuid", "reason": "Perfect high-energy transition after the mid-set ballad."}]`;
+    const prompt = `You are a professional Musical Director for a high-end event band.
+    
+    ${seedSong ? `The user wants songs similar to: "${seedSong.name}" by ${seedSong.artist}.` : "The user wants songs that complement their existing repertoire."}
+    
+    CURRENT REPERTOIRE (Sample):
+    ${repertoire.slice(0, 20).map((s: any) => `- ${s.name} (${s.artist}) [${s.genre || 'Unknown'}]`).join('\n')}
+    
+    TASK:
+    Suggest 3-5 NEW songs that would be perfect additions to this library.
+    
+    CRITICAL RULES:
+    1. DO NOT suggest songs already in the repertoire or the ignored list.
+    2. IGNORED LIST: ${ignored?.map((s: any) => s.name).join(', ') || 'None'}
+    3. FORMAT: You MUST return a valid JSON array of objects.
+    4. Each object MUST have: "name", "artist", and "reason".
+    
+    OUTPUT FORMAT:
+    [
+      {
+        "name": "Song Title",
+        "artist": "Artist Name",
+        "reason": "Brief explanation of why this fits the vibe."
+      }
+    ]`;
 
     let lastError = null;
 
@@ -101,18 +70,17 @@ Example: [{"id": "uuid", "reason": "Perfect high-energy transition after the mid
         let content = "";
 
         if (provider.type === 'google') {
-          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${provider.key}`, {
+          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${provider.key}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               contents: [{ parts: [{ text: prompt }] }],
               generationConfig: { 
                 responseMimeType: "application/json",
-                temperature: 0.7
+                temperature: 0.8
               }
             })
           });
-          
           const result = await response.json();
           if (!response.ok) throw new Error(result.error?.message || "Google API error");
           content = result.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -124,10 +92,10 @@ Example: [{"id": "uuid", "reason": "Perfect high-energy transition after the mid
               "Content-Type": "application/json"
             },
             body: JSON.stringify({
-              model: "google/gemini-2.5-flash",
+              model: "google/gemini-2.0-flash-001",
               messages: [{ role: "user", content: prompt }],
               response_format: { type: "json_object" },
-              temperature: 0.7
+              temperature: 0.8
             })
           });
           const result = await response.json();
@@ -137,12 +105,14 @@ Example: [{"id": "uuid", "reason": "Perfect high-energy transition after the mid
 
         if (content) {
           const cleanedContent = cleanJsonResponse(content);
-          // Validate JSON
-          JSON.parse(cleanedContent);
+          const parsed = JSON.parse(cleanedContent);
+          const suggestions = Array.isArray(parsed) ? parsed : (parsed.suggestions || parsed.songs || []);
           
-          return new Response(cleanedContent, { 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          });
+          if (Array.isArray(suggestions) && suggestions.length > 0) {
+            return new Response(JSON.stringify(suggestions), { 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            });
+          }
         }
       } catch (err: any) {
         console.warn(`[suggest-songs] Provider ${provider.name} failed: ${err.message}`);
@@ -151,13 +121,13 @@ Example: [{"id": "uuid", "reason": "Perfect high-energy transition after the mid
       }
     }
 
-    throw lastError || new Error("All AI providers failed.");
+    throw lastError || new Error("All AI providers failed");
 
   } catch (error: any) {
-    console.error("[suggest-songs] Error:", error.message);
+    console.error("[suggest-songs] Final Error:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
-});
+})

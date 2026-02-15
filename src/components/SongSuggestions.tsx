@@ -71,9 +71,14 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
         let displayArtist = "";
         let isDuplicate = false;
 
-        // 1. Handle ID-based suggestions (Lookup in repertoire or parse string)
-        if (s.id && s.id !== "undefined") {
-          // Check if it's a UUID for repertoire lookup
+        // 1. Handle structured fields (Preferred)
+        if (s.name || s.title) {
+          displayName = s.name || s.title;
+          displayArtist = s.artist || s.artistName || "Unknown Artist";
+        }
+
+        // 2. Handle ID-based suggestions (Lookup in repertoire or parse string)
+        if (!displayName && s.id && s.id !== "undefined") {
           const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.id);
           
           if (isUuid) {
@@ -84,7 +89,6 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
               isDuplicate = true;
             }
           } else if (typeof s.id === 'string') {
-            // Handle "Title (Artist)" format in ID field
             const parenMatch = s.id.match(/^(.+?)\s*\((.+?)\)$/);
             if (parenMatch) {
               displayName = parenMatch[1].trim();
@@ -95,24 +99,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
           }
         }
 
-        // 2. Handle string-only suggestions
-        if (typeof s === 'string' && !displayName) {
-          const parts = s.split(/ by | - /i);
-          displayName = parts[0]?.trim() || s;
-          displayArtist = parts[1]?.trim() || "Unknown Artist";
-        }
-
-        // 3. Handle object-based suggestions with pattern matching
-        if (!displayName) {
-          const keys = Object.keys(s);
-          const titleKey = keys.find(k => /title|name|song|track/i.test(k));
-          const artistKey = keys.find(k => /artist|band|group|performer/i.test(k));
-          
-          if (titleKey) displayName = s[titleKey];
-          if (artistKey) displayArtist = s[artistKey];
-        }
-
-        // 4. MAGIC EXTRACTION: If still empty, try to pull from the 'reason' field
+        // 3. MAGIC EXTRACTION: If still empty, try to pull from the 'reason' field
         if (!displayName && s.reason) {
           const quoteMatch = s.reason.match(/['"]([^'"]+)['"]/);
           if (quoteMatch) {
@@ -148,6 +135,9 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
           (i.id && i.id === s.id && i.id !== "undefined") || getSongKey(i) === getSongKey(s)
         );
         if (isIgnored) return false;
+
+        // Filter out literal "Unknown Track" failures
+        if (s.displayName === "Unknown Track") return false;
 
         return true;
       });
