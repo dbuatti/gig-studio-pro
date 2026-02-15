@@ -34,8 +34,20 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
   // Robust normalization for comparisons to prevent crashes on null/undefined data
   const getSongKey = useCallback((s: any) => {
     if (!s) return "unknown-unknown";
-    const name = (s.name || s.title || s.song || s.track || s.trackName || s.song_name || "Unknown Track").toString().trim().toLowerCase();
-    const artist = (s.artist || s.band || s.group || s.artistName || s.artist_name || "Unknown Artist").toString().trim().toLowerCase();
+    
+    // Try to find a name/title from any common key
+    const name = (
+      s.name || s.title || s.song || s.track || s.trackName || 
+      s.song_name || s.songTitle || s.display_name || s.displayName || ""
+    ).toString().trim().toLowerCase();
+    
+    // Try to find an artist from any common key
+    const artist = (
+      s.artist || s.band || s.group || s.artistName || 
+      s.artist_name || s.performer || s.displayArtist || ""
+    ).toString().trim().toLowerCase();
+    
+    if (!name && !artist) return "unknown-unknown";
     return `${name}-${artist}`;
   }, []);
 
@@ -44,12 +56,12 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
   }, [repertoire, getSongKey]);
 
   const suggestions = useMemo(() => {
-    console.log("[SongSuggestions] Filtering raw suggestions. Count:", rawSuggestions.length);
+    console.log("[SongSuggestions] Processing raw suggestions for display. Count:", rawSuggestions.length);
     
-    const filtered = rawSuggestions
+    const mapped = rawSuggestions
       .map(s => {
-        let displayName = "Unknown Track";
-        let displayArtist = "Unknown Artist";
+        let displayName = "";
+        let displayArtist = "";
         let isDuplicate = false;
 
         // 1. Handle ID-based suggestions (Lookup in repertoire)
@@ -63,7 +75,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
         }
 
         // 2. Handle string-only suggestions
-        if (typeof s === 'string' && displayName === "Unknown Track") {
+        if (typeof s === 'string' && !displayName) {
           const parts = s.split(/ by | - /i);
           displayName = parts[0]?.trim() || s;
           displayArtist = parts[1]?.trim() || "Unknown Artist";
@@ -71,16 +83,23 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
         }
 
         // 3. Handle object-based suggestions with metadata fields
-        if (displayName === "Unknown Track") {
-          displayName = s.name || s.title || s.song || s.track || s.trackName || s.song_name || "Unknown Track";
-          displayArtist = s.artist || s.band || s.group || s.artistName || s.artist_name || "Unknown Artist";
+        if (!displayName) {
+          displayName = s.name || s.title || s.song || s.track || s.trackName || s.song_name || s.songTitle || s.displayName || "";
+          displayArtist = s.artist || s.band || s.group || s.artistName || s.artist_name || s.performer || s.displayArtist || "";
           isDuplicate = existingKeys.has(getSongKey(s));
+        }
+
+        // Final fallback if still empty
+        if (!displayName) {
+          console.warn("[SongSuggestions] Failed to map suggestion object. Keys present:", Object.keys(s), "Full object:", s);
+          displayName = "Unknown Track";
+          displayArtist = "Unknown Artist";
         }
 
         return {
           ...s,
           displayName,
-          displayArtist,
+          displayArtist: displayArtist || "Unknown Artist",
           isDuplicate
         };
       })
@@ -97,8 +116,8 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
         return true;
       });
 
-    console.log("[SongSuggestions] Final display suggestions count:", filtered.length);
-    return filtered;
+    console.log("[SongSuggestions] Final display suggestions count:", mapped.length);
+    return mapped;
   }, [rawSuggestions, repertoire, existingKeys, getSongKey, ignoredSuggestions]);
 
   const seedSong = useMemo(() => 
@@ -170,7 +189,6 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
           });
 
           const final = Array.from(uniqueMap.values()).slice(0, 10);
-          console.log("[SongSuggestions] Preserving existing. Final unique count:", final.length);
           sessionSuggestionsCache = final;
           return final;
         });
