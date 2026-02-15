@@ -40,9 +40,20 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
     const titleKey = keys.find(k => /title|name|song|track/i.test(k));
     const artistKey = keys.find(k => /artist|band|group|performer/i.test(k));
 
-    const name = (s[titleKey || ''] || s.name || s.title || s.displayName || "").toString().trim().toLowerCase();
-    const artist = (s[artistKey || ''] || s.artist || s.artistName || s.displayArtist || "").toString().trim().toLowerCase();
+    let name = (s[titleKey || ''] || s.name || s.title || s.displayName || "").toString().trim().toLowerCase();
+    let artist = (s[artistKey || ''] || s.artist || s.artistName || s.displayArtist || "").toString().trim().toLowerCase();
     
+    // If name is empty but ID looks like a title string, use it
+    if (!name && s.id && typeof s.id === 'string' && s.id !== "undefined") {
+      const parenMatch = s.id.match(/^(.+?)\s*\((.+?)\)$/);
+      if (parenMatch) {
+        name = parenMatch[1].trim().toLowerCase();
+        artist = parenMatch[2].trim().toLowerCase();
+      } else {
+        name = s.id.trim().toLowerCase();
+      }
+    }
+
     if (!name && !artist) return "unknown-unknown";
     return `${name}-${artist}`;
   }, []);
@@ -60,14 +71,27 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
         let displayArtist = "";
         let isDuplicate = false;
 
-        // 1. Handle ID-based suggestions (Lookup in repertoire)
-        // Note: AI sometimes returns "undefined" as a string if it fails to map an ID
+        // 1. Handle ID-based suggestions (Lookup in repertoire or parse string)
         if (s.id && s.id !== "undefined") {
-          const existingSong = repertoire.find(r => r.id === s.id || r.master_id === s.id);
-          if (existingSong) {
-            displayName = existingSong.name;
-            displayArtist = existingSong.artist || "Unknown Artist";
-            isDuplicate = true;
+          // Check if it's a UUID for repertoire lookup
+          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.id);
+          
+          if (isUuid) {
+            const existingSong = repertoire.find(r => r.id === s.id || r.master_id === s.id);
+            if (existingSong) {
+              displayName = existingSong.name;
+              displayArtist = existingSong.artist || "Unknown Artist";
+              isDuplicate = true;
+            }
+          } else if (typeof s.id === 'string') {
+            // Handle "Title (Artist)" format in ID field
+            const parenMatch = s.id.match(/^(.+?)\s*\((.+?)\)$/);
+            if (parenMatch) {
+              displayName = parenMatch[1].trim();
+              displayArtist = parenMatch[2].trim();
+            } else {
+              displayName = s.id.trim();
+            }
           }
         }
 
@@ -76,7 +100,6 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
           const parts = s.split(/ by | - /i);
           displayName = parts[0]?.trim() || s;
           displayArtist = parts[1]?.trim() || "Unknown Artist";
-          isDuplicate = existingKeys.has(getSongKey({ name: displayName, artist: displayArtist }));
         }
 
         // 3. Handle object-based suggestions with pattern matching
@@ -90,12 +113,10 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
         }
 
         // 4. MAGIC EXTRACTION: If still empty, try to pull from the 'reason' field
-        // AI often says: "Starting with 'Song Title' sets a..."
         if (!displayName && s.reason) {
           const quoteMatch = s.reason.match(/['"]([^'"]+)['"]/);
           if (quoteMatch) {
             displayName = quoteMatch[1];
-            console.log(`[SongSuggestions] Magic extracted title: "${displayName}" from reason.`);
           }
         }
 
