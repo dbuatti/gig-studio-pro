@@ -129,41 +129,13 @@ const Index = () => {
     }
     songs = songs.filter(s => {
       const readiness = calculateReadiness(s);
-      const filters = activeFilters as any; // Cast to any to handle dynamic filter properties
-      
-      // Readiness Filter
-      if (filters.readiness > 0 && readiness < filters.readiness) return false;
-      
-      // Key Confirmation Filter
-      if (filters.isConfirmed === 'yes' && !s.isKeyConfirmed) return false;
-      if (filters.isConfirmed === 'no' && s.isKeyConfirmed) return false;
-      
-      // Gig Approval Filter
-      if (filters.isApproved === 'yes' && !s.isApproved) return false;
-      if (filters.isApproved === 'no' && s.isApproved) return false;
-
-      // UG Link Filter
-      if (filters.hasUgLink === 'yes' && !s.ugUrl) return false;
-      if (filters.hasUgLink === 'no' && s.ugUrl) return false;
-
-      // UG Chords Text Filter
-      if (filters.hasUgChords === 'yes' && !s.ug_chords_text) return false;
-      if (filters.hasUgChords === 'no' && s.ug_chords_text) return false;
-
-      // PDF / Charts Filter
-      if (filters.hasPdf === 'yes' && !s.pdfUrl && !s.leadsheetUrl && !s.sheet_music_url) return false;
-      if (filters.hasPdf === 'no' && (s.pdfUrl || s.leadsheetUrl || s.sheet_music_url)) return false;
-
-      // Audio Filter
-      if (filters.hasAudio === 'yes' && !s.audio_url) return false;
-      if (filters.hasAudio === 'no' && s.audio_url) return false;
-
-      // Energy Zone Filter
-      if (filters.energy && filters.energy !== 'all' && s.energy_level !== filters.energy) return false;
-
+      if (activeFilters.readiness > 0 && readiness < activeFilters.readiness) return false;
+      if (activeFilters.isConfirmed === 'yes' && !s.isKeyConfirmed) return false;
+      if (activeFilters.isConfirmed === 'no' && s.isKeyConfirmed) return false;
+      if (activeFilters.isApproved === 'yes' && !s.isApproved) return false;
+      if (activeFilters.isApproved === 'no' && s.isApproved) return false;
       return true;
     });
-
     if (sortMode === 'ready') {
       songs.sort((a, b) => calculateReadiness(b) - calculateReadiness(a));
     } else if (sortMode === 'work') {
@@ -184,9 +156,20 @@ const Index = () => {
 
   // Stable handleSelectSong that updates refs immediately
   const handleSelectSong = useCallback(async (song: SetlistSong, forceAutoplay = false) => {
-    console.log(`[Autoplay] handleSelectSong: ${song.name} (Force: ${forceAutoplay})`);
+    const songName = song.name;
+    console.log(`[Autoplay] >>> START handleSelectSong: ${songName} (Force: ${forceAutoplay})`);
+    console.log(`[Autoplay] Current State - Transport: ${Tone.getTransport().state}, audio.isPlaying: ${audio.isPlaying}, audio.isLoading: ${audio.isLoadingAudio}`);
     
-    // Update refs immediately before state to ensure audio engine sees the change
+    // 1. Immediate Guard
+    isTransitioningRef.current = true;
+    
+    // 2. Context Check
+    if (Tone.getContext().state !== 'running') {
+        console.log("[Autoplay] Resuming AudioContext...");
+        await Tone.start();
+    }
+
+    // 3. State Sync
     activeSongRef.current = song;
     if (forceAutoplay) {
       setAutoplayStatus(true);
@@ -196,51 +179,110 @@ const Index = () => {
     
     const audioUrl = song.audio_url || song.previewUrl;
     if (audioUrl) {
-      console.log(`[Autoplay] Loading audio: ${song.name}`);
-      isTransitioningRef.current = true;
+      const shouldPlay = forceAutoplay || autoplayActiveRef.current;
+      console.log(`[Autoplay] Loading: ${songName} (shouldPlay: ${shouldPlay})`);
+      
+      // 4. Aggressive Reset
+      try {
+        audio.stopPlayback();
+        Tone.getTransport().stop();
+        Tone.getTransport().cancel();
+        console.log("[Autoplay] Engine reset successful.");
+      } catch (e) {
+        console.warn("[Autoplay] Engine reset warning:", e);
+      }
+      
+      // 5. Breathe Delay: Give the audio stack time to fully detach the previous buffer
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
       lastTriggerTimeRef.current = Date.now();
       
-      const shouldPlay = forceAutoplay || autoplayActiveRef.current;
-      await audio.loadFromUrl(audioUrl, song.pitch || 0, shouldPlay);
+      // 6. Load and Play
+      try {
+        console.log(`[Autoplay] Calling audio.loadFromUrl for ${songName}...`);
+        await audio.loadFromUrl(audioUrl, song.pitch || 0, shouldPlay);
+        
+        // 7. Post-Load Verification
+        console.log(`[Autoplay] loadFromUrl resolved for ${songName}.`);
+        
+        // Wait for hook state to propagate and engine to settle
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        console.log(`[Autoplay] Post-settle state - Transport: ${Tone.getTransport().state}, audio.isPlaying: ${audio.isPlaying}`);
+
+        if (shouldPlay) {
+            let needsKick = false;
+            
+            if (Tone.getTransport().state !== 'started') {
+                console.log("[Autoplay] FAIL-SAFE: Transport is NOT started. Forcing...");
+                Tone.getTransport().start();
+                needsKick = true;
+            }
+            
+            if (!audio.isPlaying) {
+                console.log("[Autoplay] FAIL-SAFE: audio.isPlaying is FALSE. Forcing toggle...");
+                audio.togglePlayback();
+            } else if (needsKick) {
+                // Inconsistent state: Hook says playing, but transport was stopped
+                console.log("[Autoplay] FAIL-SAFE: Engine in inconsistent state. Re-triggering playback...");
+                audio.stopPlayback();
+                setTimeout(() => audio.togglePlayback(), 150);
+            }
+        }
+      } catch (err) {
+        console.error(`[Autoplay] CRITICAL LOAD ERROR for ${songName}:`, err);
+      }
       
-      // Release guard after a safe buffer to allow audio engine to stabilize
+      // 8. Release Guard
       setTimeout(() => { 
         isTransitioningRef.current = false; 
-        console.log("[Autoplay] Transition guard released.");
-      }, 4000);
+        console.log(`[Autoplay] <<< END handleSelectSong: ${songName} (Guard Released)`);
+      }, 2000); 
     } else {
-      console.warn(`[Autoplay] No audio URL for: ${song.name}`);
+      console.warn(`[Autoplay] No audio URL for: ${songName}`);
       isTransitioningRef.current = false;
     }
   }, [audio, setAutoplayStatus]);
 
   // Core logic for moving to the next song
-  const playNextInList = useCallback(() => {
+  const playNextInList = useCallback((isManual = false) => {
     const now = Date.now();
+    const timeSinceLastTrigger = now - lastTriggerTimeRef.current;
     
-    // Cooldown to prevent rapid-fire triggers from the audio engine during loading/stopping
-    if (now - lastTriggerTimeRef.current < 4000) {
-      console.log("[Autoplay] playNextInList ignored: Cooldown active.");
+    console.log(`[Autoplay] playNextInList signal received. Manual: ${isManual}, State: { active: ${autoplayActiveRef.current}, transitioning: ${isTransitioningRef.current}, timeSinceLast: ${timeSinceLastTrigger}ms, progress: ${audio.progress.toFixed(4)}, duration: ${audio.duration}, loading: ${audio.isLoadingAudio}, transport: ${Tone.getTransport().state} }`);
+
+    // 1. Cooldown check (only for automatic triggers)
+    if (!isManual && timeSinceLastTrigger < 5000) {
+      console.log("[Autoplay] playNextInList ignored: Cooldown active (< 5s).");
       return;
     }
 
-    if (!autoplayActiveRef.current) {
-      console.log("[Autoplay] playNextInList ignored: Autoplay not active (Ref is false).");
+    // 2. Autoplay active check (only for automatic triggers)
+    if (!isManual && !autoplayActiveRef.current) {
+      console.log("[Autoplay] playNextInList ignored: Autoplay not active.");
       return;
     }
 
-    if (isTransitioningRef.current) {
+    // 3. Transitioning check (only for automatic triggers)
+    if (!isManual && isTransitioningRef.current) {
       console.log("[Autoplay] playNextInList ignored: Already transitioning.");
       return;
     }
 
-    // Robustness check: If the song just started (less than 2 seconds ago), don't skip.
-    if (audio.progress < 0.01 && audio.duration > 0 && (now - lastTriggerTimeRef.current < 10000)) {
-        console.log("[Autoplay] playNextInList ignored: Song hasn't played enough yet (Progress < 1%).");
+    // 4. Loading check (only for automatic triggers)
+    if (!isManual && audio.isLoadingAudio) {
+      console.log("[Autoplay] playNextInList ignored: Audio engine is still loading.");
+      return;
+    }
+
+    // 5. Playback progress check (The "Ghost Event" killer)
+    const progressPercent = audio.duration > 0 ? (audio.progress / audio.duration) : 0;
+    if (!isManual && audio.duration > 10 && progressPercent < 0.9) {
+        console.log(`[Autoplay] playNextInList ignored: Song hasn't finished (Progress: ${(progressPercent * 100).toFixed(2)}%). Likely a ghost event.`);
         return;
     }
 
-    console.log("[Autoplay] playNextInList triggered. Mode:", isShuffleAllRef.current ? 'Shuffle' : 'Sequential');
+    console.log("[Autoplay] playNextInList ACCEPTED. Mode:", isShuffleAllRef.current ? 'Shuffle' : 'Sequential');
     
     isTransitioningRef.current = true;
     lastTriggerTimeRef.current = now;
@@ -251,7 +293,6 @@ const Index = () => {
         const currentId = activeSongRef.current?.master_id || activeSongRef.current?.id;
         const others = pool.filter(s => (s.master_id || s.id) !== currentId);
         const next = others.length > 0 ? others[Math.floor(Math.random() * others.length)] : pool[0];
-        console.log(`[Autoplay] Next shuffled song: ${next.name}`);
         handleSelectSong(next, true);
         return;
       }
@@ -281,11 +322,11 @@ const Index = () => {
       setAutoplayStatus(false);
       isTransitioningRef.current = false;
     }
-  }, [handleSelectSong, setAutoplayStatus, audio.progress, audio.duration]);
+  }, [handleSelectSong, setAutoplayStatus, audio.progress, audio.duration, audio.isLoadingAudio]);
 
   // Update the bridge ref whenever playNextInList changes
   useEffect(() => {
-    playNextBridgeRef.current = playNextInList;
+    playNextBridgeRef.current = () => playNextInList(false);
   }, [playNextInList]);
 
   const handlePlayAll = async () => {
@@ -817,7 +858,7 @@ const Index = () => {
 
   if (authLoading || isFetchingSettings || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+      <div className="h-screen flex items-center justify-center bg-slate-950">
         <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
       </div>
     );
@@ -869,7 +910,7 @@ const Index = () => {
               onClear={() => { setActiveSongForPerformance(null); activeSongRef.current = null; audio.stopPlayback(); setAutoplayStatus(false); }} 
               isLoadingAudio={audio.isLoadingAudio} 
               nextSongName={filteredAndSortedSongs[filteredAndSortedSongs.findIndex(s => s.id === activeSongForPerformance.id) + 1]?.name} 
-              onNext={() => { playNextInList(); }} 
+              onNext={() => { playNextInList(true); }} 
               onPrevious={() => { const idx = filteredAndSortedSongs.findIndex(s => s.id === activeSongForPerformance.id); if (idx > 0) handleSelectSong(filteredAndSortedSongs[idx - 1]); }} 
             />
           </div>
@@ -1041,7 +1082,7 @@ const Index = () => {
           progress={audio.progress} 
           duration={audio.duration} 
           onTogglePlayback={audio.togglePlayback} 
-          onNext={() => { playNextInList(); }} 
+          onNext={() => { playNextInList(true); }} 
           onPrevious={() => { const idx = filteredAndSortedSongs.findIndex(s => s.id === activeSongForPerformance.id); if (idx > 0) handleSelectSong(filteredAndSortedSongs[idx - 1]); }} 
           onShuffle={() => {}} 
           onClose={() => setIsPerformanceOverlayOpen(false)} 
