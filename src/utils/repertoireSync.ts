@@ -56,12 +56,14 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
 
 export const syncToMasterRepertoire = async (userId: string, songsToSync: Partial<SetlistSong>[]): Promise<SetlistSong[]> => {
   const syncedSongs: SetlistSong[] = [];
+  console.log(`[repertoireSync] Syncing ${songsToSync.length} songs for user ${userId}`);
 
   for (const song of songsToSync) {
-    const dbUpdates: { [key: string]: any } = {
-      user_id: userId,
-      updated_at: new Date().toISOString(),
-    };
+    try {
+      const dbUpdates: { [key: string]: any } = {
+        user_id: userId,
+        updated_at: new Date().toISOString(),
+      };
 
     const targetId = song.master_id || song.id;
     const isRealRecord = isValidUuid(targetId);

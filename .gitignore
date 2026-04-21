@@ -27,3 +27,4 @@ cookies.txt
 *.njsproj
 *.sln
 *.sw?
+.dyad/

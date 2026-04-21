@@ -1,4 +1,3 @@
-"use client";
 // @ts-ignore: Deno runtime import
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 // @ts-ignore: Deno runtime import
@@ -9,11 +8,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// --- Utility Functions (Copied from client-side for Deno environment) ---
-
-const SHARP_KEYS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-const FLAT_KEYS = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
-
 const MAPPING_TO_SHARP: Record<string, string> = {
   "Db": "C#", "Eb": "D#", "Gb": "F#", "Ab": "G#", "Bb": "A#"
 };
@@ -22,66 +16,66 @@ const MAPPING_TO_FLAT: Record<string, string> = {
   "C#": "Db", "D#": "Eb", "F#": "Gb", "G#": "Ab", "A#": "Bb"
 };
 
-// Robust musical chord regex that handles sharps/flats and common extensions.
-// It ensures the chord is a standalone entity by using negative lookbehind and lookahead for word characters.
-// The chordType group is now more specific to actual chord suffixes, including maj7.
-const CHORD_REGEX = /(?<!\w)([A-G][#b]?)(maj7|maj|m|dim|aug|sus\d?|add\d?|\d+)?(\/[A-G][#b]?)?(?!\w)/g;
+const SHARP_NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+const FLAT_NOTES = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
 
-function normalizeKeyString(key: string | undefined | null): string {
-  if (!key || key === "TBC" || /^\d/.test(key)) return "TBC";
-  let normalized = key.trim();
-  if (normalized.toLowerCase().includes("minor")) {
-    normalized = normalized.split(' ')[0] + "m";
-  } else if (normalized.toLowerCase().includes("major")) {
-    normalized = normalized.split(' ')[0];
-  }
-  if (normalized.endsWith('m')) {
-    const root = normalized.slice(0, -1);
-    const cappedRoot = root.charAt(0).toUpperCase() + root.slice(1).toLowerCase();
-    return cappedRoot + 'm';
-  }
-  return normalized.charAt(0).toUpperCase() + normalized.slice(1).toLowerCase();
-}
+const NOTE_TO_INDEX: Record<string, number> = {
+  "C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4, "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9, "A#": 10, "Bb": 10, "B": 11
+};
 
-function formatKey(key: string | undefined, preference: 'flats' | 'sharps'): string {
-  const normKey = normalizeKeyString(key);
-  if (normKey === "TBC") return "TBC";
-  const isMinor = normKey.endsWith('m');
-  const root = isMinor ? normKey.slice(0, -1) : normKey;
-  let newRoot = root;
-  if (preference === 'flats') {
-    newRoot = MAPPING_TO_FLAT[root] || root;
-  } else {
-    newRoot = MAPPING_TO_SHARP[root] || root;
+const CHORD_REGEX = /(?<!\w)([A-G][#b]?)(m|maj|min|aug|dim|sus|add|M)?([0-9]{1,2})?(?:(sus|add|maj|min|dim|aug|[\+\-\^])[0-9]{1,2})*(\/[A-G][#b]?)?(?!\w)/g;
+
+function isChordLine(line: string): boolean {
+  const trimmed = line.trim();
+  if (!trimmed || (trimmed.startsWith('[') && trimmed.endsWith(']'))) return false;
+  const words = trimmed.split(/\s+/);
+  let chordCount = 0;
+  let wordCount = 0;
+  for (const word of words) {
+    if (word.match(/^([A-G][#b]?)(m|maj|min|aug|dim|sus|add|M)?([0-9]{1,2})?((sus|add|maj|min|dim|aug|[\+\-\^])[0-9]{1,2})*(\/[A-G][#b]?)?$/)) {
+      chordCount++;
+    } else if (word.length > 2 && !word.includes('|')) {
+      wordCount++;
+    }
   }
-  return isMinor ? `${newRoot}m` : newRoot;
+  return chordCount > wordCount || (chordCount > 0 && wordCount === 0);
 }
 
 function extractKeyFromChords(text: string): string | null {
   if (!text) return null;
+  const chords: Record<string, number> = {};
   const lines = text.split('\n');
+  let firstChord: string | null = null;
+
   for (const line of lines) {
-    if (line.trim().startsWith('[') && line.trim().endsWith(']')) {
-      continue;
-    }
-    // Use matchAll to find all occurrences and pick the first one
+    if (!isChordLine(line)) continue;
     const matches = Array.from(line.matchAll(CHORD_REGEX));
-    if (matches.length > 0) {
-      const match = matches[0]; // Take the first match
-      const rootNote = match[1];
-      const chordSuffix = match[2]; 
-      
-      if (rootNote) {
-        const isMinor = chordSuffix && (chordSuffix.includes('m') || chordSuffix.includes('dim'));
-        const normalizedRoot = MAPPING_TO_SHARP[rootNote] || rootNote;
-        return normalizedRoot + (isMinor ? 'm' : '');
-      }
+    for (const match of matches) {
+      const root = match[1];
+      const suffix = match[2] || '';
+      const isMinor = suffix.includes('m') || suffix.includes('min') || suffix.includes('dim');
+      const chord = root + (isMinor ? 'm' : '');
+      if (!firstChord) firstChord = chord;
+      chords[chord] = (chords[chord] || 0) + 1;
     }
   }
-  return null;
+
+  if (Object.keys(chords).length === 0) return null;
+  const sorted = Object.entries(chords).sort((a, b) => b[1] - a[1]);
+  const mostFrequent = sorted[0][0];
+  if (firstChord && chords[firstChord] >= sorted[0][1] * 0.5) return firstChord;
+  return mostFrequent;
 }
 
-// --- Edge Function Logic ---
+function formatKey(key: string | undefined, preference: 'flats' | 'sharps'): string {
+  if (!key || key === "TBC") return "TBC";
+  const isMinor = key.endsWith('m');
+  const base = key.replace('m', '');
+  const index = NOTE_TO_INDEX[base];
+  if (index === undefined) return key;
+  const list = preference === 'flats' ? FLAT_NOTES : SHARP_NOTES;
+  return list[index] + (isMinor ? 'm' : '');
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -89,35 +83,30 @@ serve(async (req) => {
   }
 
   const supabaseAdmin = createClient(
-    // @ts-ignore: Deno global
     Deno.env.get('SUPABASE_URL') ?? '',
-    // @ts-ignore: Deno global
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
   )
 
   try {
     const { songIds, userId } = await req.json();
-    
     if (!songIds || !Array.isArray(songIds) || !userId) {
       throw new Error("Invalid song IDs or user ID provided.");
     }
 
-    const results = [];
-
-    // Fetch user's key preference
-    const { data: profile, error: profileError } = await supabaseAdmin
+    const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('key_preference')
       .eq('id', userId)
       .single();
 
     const userKeyPreference = profile?.key_preference || 'sharps';
+    const results = [];
 
     for (const id of songIds) {
       try {
         const { data: song, error: fetchErr } = await supabaseAdmin
           .from('repertoire')
-          .select('id, title, artist, ug_chords_text, original_key, target_key, pitch, is_key_confirmed')
+          .select('id, title, artist, ug_chords_text, original_key')
           .eq('id', id)
           .single();
 
@@ -125,38 +114,33 @@ serve(async (req) => {
 
         if (song.ug_chords_text && (!song.original_key || song.original_key === "TBC")) {
           const rawExtractedKey = extractKeyFromChords(song.ug_chords_text);
-          
           if (rawExtractedKey) {
-            const formattedOriginalKey = formatKey(rawExtractedKey, userKeyPreference);
+            const formattedKeyStr = formatKey(rawExtractedKey, userKeyPreference);
             const now = new Date().toISOString();
-
-            const updates = {
-              original_key: formattedOriginalKey,
-              target_key: formattedOriginalKey, // Set targetKey to be the same as originalKey
-              pitch: 0, 
-              is_key_confirmed: true,
-              original_key_updated_at: now, // CRITICAL: Update goal timestamps
-              target_key_updated_at: now,   // CRITICAL: Update goal timestamps
-              updated_at: now,
-            };
 
             const { error: updateErr } = await supabaseAdmin
               .from('repertoire')
-              .update(updates)
+              .update({
+                original_key: formattedKeyStr,
+                target_key: formattedKeyStr,
+                pitch: 0,
+                is_key_confirmed: true,
+                original_key_updated_at: now,
+                target_key_updated_at: now,
+                updated_at: now,
+              })
               .eq('id', id);
 
             if (updateErr) throw updateErr;
-
-            results.push({ id, status: 'SUCCESS', title: song.title, originalKey: formattedOriginalKey });
+            results.push({ id, status: 'SUCCESS', title: song.title, originalKey: formattedKeyStr });
           } else {
-            results.push({ id, status: 'SKIPPED', title: song.title, msg: 'No key extracted from chords.' });
+            results.push({ id, status: 'SKIPPED', title: song.title, msg: 'No key extracted.' });
           }
         } else {
-          results.push({ id, status: 'SKIPPED', title: song.title, msg: 'No chords or key already present.' });
+          results.push({ id, status: 'SKIPPED', title: song.title, msg: 'Already has key or no chords.' });
         }
-
       } catch (err: any) {
-        results.push({ id, status: 'ERROR', msg: err.message, title: (err.song && err.song.title) || 'Unknown' });
+        results.push({ id, status: 'ERROR', msg: err.message, title: 'Unknown' });
       }
     }
 
