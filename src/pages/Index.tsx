@@ -769,21 +769,17 @@ const Index = () => {
       showSuccess("All tracks with sufficient metadata already have an Energy Zone.");
       return;
     }
-    showInfo(`Initiating Vibe Check for ${songsToVibeCheck.length} tracks...`);
-    let successful = 0;
-    let failed = 0;
-    for (const song of songsToVibeCheck) {
-      try {
-        const result = await autoVibeCheck(userId!, song);
-        if (result) successful++;
-        else failed++;
-      } catch (err) {
-        failed++;
-      }
-      await new Promise(r => setTimeout(r, 500));
+    try {
+      showInfo(`Initiating Vibe Check for ${songsToVibeCheck.length} tracks...`);
+      const { data, error } = await supabase.functions.invoke('bulk-vibe-check', { 
+        body: { songIds: songsToVibeCheck.map(s => s.id) } 
+      });
+      if (error) throw error;
+      showSuccess("Vibe Check pipeline active in background.");
+      fetchSetlistsAndRepertoire();
+    } catch (err: any) {
+      showError(`Vibe Check failed: ${err.message}`);
     }
-    showSuccess(`Bulk Vibe Check Complete: ${successful} successful, ${failed} failed.`);
-    fetchSetlistsAndRepertoire();
   }, [masterRepertoire, userId, fetchSetlistsAndRepertoire]);
 
   const handleBulkRefreshAudio = useCallback(async () => {
