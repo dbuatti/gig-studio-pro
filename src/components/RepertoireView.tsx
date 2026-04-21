@@ -45,6 +45,7 @@ interface RepertoireViewProps {
   missingAudioCount?: number;
   onOpenAdmin?: () => void;
   onDeleteSong: (songId: string) => Promise<void>;
+  activeSetlistId?: string | null;
 }
 
 const RepertoireView: React.FC<RepertoireViewProps> = ({
@@ -69,6 +70,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
   missingAudioCount,
   onOpenAdmin,
   onDeleteSong,
+  activeSetlistId,
 }) => {
   const { keyPreference } = useSettings();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -114,10 +116,17 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
       if (activeFilters.hasLyrics === 'yes' && !hasLyrics) return false;
       if (activeFilters.hasLyrics === 'no' && hasLyrics) return false;
       if (activeFilters.hasHighestNote === 'yes' && !s.highest_note_original) return false; 
-      if (activeFilters.hasHighestNote === 'no' && s.highest_note_original) return false; 
-      if (activeFilters.hasOriginalKey === 'yes' && (!s.originalKey || s.originalKey === 'TBC')) return false; 
-      if (activeFilters.hasOriginalKey === 'no' && (s.originalKey && s.originalKey !== 'TBC')) return false; 
+      if (activeFilters.hasHighestNote === 'no' && s.highest_note_original) return false;
+      if (activeFilters.hasOriginalKey === 'yes' && (!s.originalKey || s.originalKey === 'TBC')) return false;
+      if (activeFilters.hasOriginalKey === 'no' && (s.originalKey && s.originalKey !== 'TBC')) return false;
       
+      if (activeFilters.inSetlist !== 'all' && activeSetlistId) {
+        const activeSetlist = allSetlists.find(l => l.id === activeSetlistId);
+        const isInSetlist = activeSetlist?.songs.some(ss => ss.master_id === s.id);
+        if (activeFilters.inSetlist === 'yes' && !isInSetlist) return false;
+        if (activeFilters.inSetlist === 'no' && isInSetlist) return false;
+      }
+
       return true;
     });
 

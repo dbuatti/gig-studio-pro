@@ -3,10 +3,10 @@
 import React, { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { 
-  ListMusic, GripVertical, Check, X, Sparkles, Loader2, Zap, Heart, 
+import {
+  ListMusic, GripVertical, Check, X, Sparkles, Loader2, Zap, Heart,
   Music, TrendingUp, ChevronDown, ChevronUp, LayoutGrid, Coffee,
-  Lock, Unlock, BarChart3, Info, Copy
+  Lock, Unlock, BarChart3, Info, Copy, ClipboardList
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import { SetlistSong } from './SetlistManager';
@@ -14,10 +14,12 @@ import { cn } from '@/lib/utils';
 import { ScrollArea } from './ui/scroll-area';
 import { Input } from './ui/input';
 import { supabase } from '@/integrations/supabase/client';
-import { showError, showSuccess, showInfo } from '@/utils/toast';
+import { showError, showSuccess, showInfo, showWarning } from '@/utils/toast';
 import { Progress } from './ui/progress';
 import { calculateReadiness } from '@/utils/repertoireSync';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 
 interface SetlistSortModalProps {
   isOpen: boolean;
@@ -25,6 +27,8 @@ interface SetlistSortModalProps {
   songs: SetlistSong[];
   onReorder: (newOrder: SetlistSong[]) => void;
   setlistName: string;
+  masterRepertoire?: SetlistSong[];
+  onAddSongs?: (songs: SetlistSong[]) => Promise<void>;
 }
 
 const SORTING_PRESETS = [
@@ -90,6 +94,8 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
   songs,
   onReorder,
   setlistName,
+  masterRepertoire,
+  onAddSongs,
 }) => {
   const [localSongs, setLocalSongs] = useState(songs);
   const [aiInstruction, setAiInstruction] = useState('');
@@ -98,10 +104,69 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
   const [sortingStatus, setSortingStatus] = useState('');
   const [showPresets, setShowPresets] = useState(false);
   const [lockedIds, setLockedIds] = useState<Set<string>>(new Set());
+  const [pasteText, setPasteText] = useState('');
+  const [isProcessingPaste, setIsProcessingPaste] = useState(false);
 
   React.useEffect(() => {
     setLocalSongs(songs);
   }, [songs]);
+
+  const handlePasteSort = async () => {
+    if (!pasteText.trim()) return;
+    setIsProcessingPaste(true);
+    
+    const lines = pasteText.split('\n').map(l => l.trim()).filter(Boolean);
+    const newOrder: SetlistSong[] = [];
+    const missingFromSetlist: SetlistSong[] = [];
+    const notFoundAtAll: string[] = [];
+
+    for (const line of lines) {
+      // 1. Try to find in current setlist
+      const inSetlist = localSongs.find(s =>
+        s.name.toLowerCase() === line.toLowerCase() ||
+        `${s.name} - ${s.artist}`.toLowerCase() === line.toLowerCase() ||
+        line.toLowerCase().includes(s.name.toLowerCase())
+      );
+
+      if (inSetlist) {
+        newOrder.push(inSetlist);
+        continue;
+      }
+
+      // 2. Try to find in master repertoire
+      const inMaster = masterRepertoire?.find(s =>
+        s.name.toLowerCase() === line.toLowerCase() ||
+        `${s.name} - ${s.artist}`.toLowerCase() === line.toLowerCase() ||
+        line.toLowerCase().includes(s.name.toLowerCase())
+      );
+
+      if (inMaster) {
+        missingFromSetlist.push(inMaster);
+        newOrder.push(inMaster);
+        continue;
+      }
+
+      notFoundAtAll.push(line);
+    }
+
+    if (missingFromSetlist.length > 0 && onAddSongs) {
+      showInfo(`Adding ${missingFromSetlist.length} songs from library...`);
+      await onAddSongs(missingFromSetlist);
+    }
+
+    // Add remaining songs from setlist that weren't in the pasted list
+    const remaining = localSongs.filter(s => !newOrder.some(no => no.id === s.id || no.master_id === s.master_id));
+    setLocalSongs([...newOrder, ...remaining]);
+
+    if (notFoundAtAll.length > 0) {
+      showWarning(`Could not find: ${notFoundAtAll.join(', ')}`);
+    } else {
+      showSuccess("Setlist reordered based on pasted list!");
+    }
+
+    setIsProcessingPaste(false);
+    setPasteText('');
+  };
 
   const toggleLock = (id: string) => {
     const next = new Set(lockedIds);
@@ -296,80 +361,110 @@ const SetlistSortModal: React.FC<SetlistSortModalProps> = ({
 
         <div className="flex-1 overflow-hidden flex bg-background">
           <div className="flex-1 flex flex-col border-r border-border">
-            <div className="px-6 py-3 border-b border-border bg-secondary/30 shrink-0 flex items-center justify-between">
-              <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                <GripVertical className="w-3.5 h-3.5" /> Sequence ({localSongs.length} tracks)
-              </h3>
-              <div className="flex items-center gap-2 text-[8px] font-black uppercase tracking-widest text-muted-foreground">
-                <Lock className="w-2.5 h-2.5" /> Locked songs stay in position
+            <Tabs defaultValue="sequence" className="flex-1 flex flex-col">
+              <div className="px-6 py-3 border-b border-border bg-secondary/30 shrink-0 flex items-center justify-between">
+                <TabsList className="bg-background/50 border border-border h-9 p-1 rounded-lg">
+                  <TabsTrigger value="sequence" className="text-[9px] font-black uppercase tracking-widest h-7 rounded-md data-[state=active]:bg-indigo-600 data-[state=active]:text-white">
+                    <ListMusic className="w-3 h-3 mr-2" /> Sequence
+                  </TabsTrigger>
+                  <TabsTrigger value="paste" className="text-[9px] font-black uppercase tracking-widest h-7 rounded-md data-[state=active]:bg-indigo-600 data-[state=active]:text-white">
+                    <ClipboardList className="w-3 h-3 mr-2" /> Paste List
+                  </TabsTrigger>
+                </TabsList>
+                <div className="flex items-center gap-2 text-[8px] font-black uppercase tracking-widest text-muted-foreground">
+                  <Lock className="w-2.5 h-2.5" /> Locked songs stay in position
+                </div>
               </div>
-            </div>
-            
-            <ScrollArea className="flex-1 p-4 custom-scrollbar">
-              <DragDropContext onDragEnd={onDragEnd}>
-                <Droppable droppableId="setlist-songs">
-                  {(provided) => (
-                    <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-1.5">
-                      {localSongs.map((song, index) => {
-                        const isLocked = lockedIds.has(song.id);
-                        return (
-                          <Draggable key={song.id} draggableId={song.id} index={index}>
-                            {(provided, snapshot) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                                className={cn(
-                                  "p-3 bg-card border border-border rounded-xl flex items-center gap-3 shadow-sm transition-all duration-200",
-                                  "hover:border-indigo-500/30 hover:bg-indigo-500/[0.02]",
-                                  snapshot.isDragging && "ring-2 ring-indigo-500 bg-indigo-500/10 shadow-2xl scale-[1.01] z-50 border-indigo-500",
-                                  isLocked && "border-indigo-500/50 bg-indigo-500/[0.03]"
-                                )}
-                              >
-                                <GripVertical className={cn(
-                                  "w-3.5 h-3.5 shrink-0 transition-colors",
-                                  snapshot.isDragging ? "text-indigo-500" : "text-muted-foreground/30"
-                                )} />
-                                <span className="text-[10px] font-mono font-black text-indigo-500/50 w-5">{(index + 1).toString().padStart(2, '0')}</span>
-                                <div className="flex-1 min-w-0">
-                                  <h4 className="text-xs font-black uppercase tracking-tight truncate text-foreground leading-none">{song.name}</h4>
-                                  <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest truncate mt-1">{song.artist || "Unknown Artist"}</p>
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                  <div className="flex flex-col items-end mr-1">
-                                    <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">Ready</span>
-                                    <span className="text-[9px] font-mono font-bold text-indigo-500">{calculateReadiness(song)}%</span>
-                                  </div>
-                                  {song.energy_level && (
-                                    <span className={cn(
-                                      "text-[8px] font-black uppercase px-2 py-0.5 rounded-full border",
-                                      song.energy_level === 'Peak' && "bg-red-500/10 text-red-500 border-red-500/20",
-                                      song.energy_level === 'Groove' && "bg-amber-500/10 text-amber-500 border-amber-500/20",
-                                      song.energy_level === 'Pulse' && "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
-                                      song.energy_level === 'Ambient' && "bg-blue-500/10 text-blue-500 border-blue-500/20"
-                                    )}>{song.energy_level}</span>
-                                  )}
-                                  <button 
-                                    onClick={(e) => { e.stopPropagation(); toggleLock(song.id); }}
+              
+              <TabsContent value="sequence" className="flex-1 m-0 p-0 overflow-hidden">
+                <ScrollArea className="h-full p-4 custom-scrollbar">
+                  <DragDropContext onDragEnd={onDragEnd}>
+                    <Droppable droppableId="setlist-songs">
+                      {(provided) => (
+                        <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-1.5">
+                          {localSongs.map((song, index) => {
+                            const isLocked = lockedIds.has(song.id);
+                            return (
+                              <Draggable key={song.id} draggableId={song.id} index={index}>
+                                {(provided, snapshot) => (
+                                  <div
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    {...provided.dragHandleProps}
                                     className={cn(
-                                      "p-1.5 rounded-lg transition-all",
-                                      isLocked ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20" : "bg-secondary text-muted-foreground hover:bg-indigo-50 hover:text-indigo-600"
+                                      "p-3 bg-card border border-border rounded-xl flex items-center gap-3 shadow-sm transition-all duration-200",
+                                      "hover:border-indigo-500/30 hover:bg-indigo-500/[0.02]",
+                                      snapshot.isDragging && "ring-2 ring-indigo-500 bg-indigo-500/10 shadow-2xl scale-[1.01] z-50 border-indigo-500",
+                                      isLocked && "border-indigo-500/50 bg-indigo-500/[0.03]"
                                     )}
                                   >
-                                    {isLocked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          </Draggable>
-                        );
-                      })}
-                      {provided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
-              </DragDropContext>
-            </ScrollArea>
+                                    <GripVertical className={cn(
+                                      "w-3.5 h-3.5 shrink-0 transition-colors",
+                                      snapshot.isDragging ? "text-indigo-500" : "text-muted-foreground/30"
+                                    )} />
+                                    <span className="text-[10px] font-mono font-black text-indigo-500/50 w-5">{(index + 1).toString().padStart(2, '0')}</span>
+                                    <div className="flex-1 min-w-0">
+                                      <h4 className="text-xs font-black uppercase tracking-tight truncate text-foreground leading-none">{song.name}</h4>
+                                      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest truncate mt-1">{song.artist || "Unknown Artist"}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      <div className="flex flex-col items-end mr-1">
+                                        <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">Ready</span>
+                                        <span className="text-[9px] font-mono font-bold text-indigo-500">{calculateReadiness(song)}%</span>
+                                      </div>
+                                      {song.energy_level && (
+                                        <span className={cn(
+                                          "text-[8px] font-black uppercase px-2 py-0.5 rounded-full border",
+                                          song.energy_level === 'Peak' && "bg-red-500/10 text-red-500 border-red-500/20",
+                                          song.energy_level === 'Groove' && "bg-amber-500/10 text-amber-500 border-amber-500/20",
+                                          song.energy_level === 'Pulse' && "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+                                          song.energy_level === 'Ambient' && "bg-blue-500/10 text-blue-500 border-blue-500/20"
+                                        )}>{song.energy_level}</span>
+                                      )}
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); toggleLock(song.id); }}
+                                        className={cn(
+                                          "p-1.5 rounded-lg transition-all",
+                                          isLocked ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20" : "bg-secondary text-muted-foreground hover:bg-indigo-50 hover:text-indigo-600"
+                                        )}
+                                      >
+                                        {isLocked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </Draggable>
+                            );
+                          })}
+                          {provided.placeholder}
+                        </div>
+                      )}
+                    </Droppable>
+                  </DragDropContext>
+                </ScrollArea>
+              </TabsContent>
+
+              <TabsContent value="paste" className="flex-1 m-0 p-6 flex flex-col gap-4 overflow-hidden">
+                <div className="space-y-2">
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Paste Song List</h4>
+                  <p className="text-[9px] text-muted-foreground font-medium">Paste a list of songs (one per line). We'll reorder existing ones and add missing ones from your library.</p>
+                </div>
+                <Textarea
+                  placeholder="Song 1&#10;Song 2 - Artist&#10;Song 3..."
+                  className="flex-1 bg-secondary/30 border-border rounded-xl p-4 text-xs font-medium resize-none custom-scrollbar"
+                  value={pasteText}
+                  onChange={(e) => setPasteText(e.target.value)}
+                />
+                <Button
+                  onClick={handlePasteSort}
+                  disabled={isProcessingPaste || !pasteText.trim()}
+                  className="h-12 bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-xl shadow-indigo-500/20 gap-2"
+                >
+                  {isProcessingPaste ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                  Process & Reorder
+                </Button>
+              </TabsContent>
+            </Tabs>
           </div>
         </div>
 

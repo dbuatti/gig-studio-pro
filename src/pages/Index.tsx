@@ -43,6 +43,7 @@ import ResourceAuditModal from '@/components/ResourceAuditModal';
 import SetlistSettingsModal from '@/components/SetlistSettingsModal';
 import SetlistSelector from '@/components/SetlistSelector';
 import GlobalSearchModal from '@/components/GlobalSearchModal';
+import GigPlannerModal from '@/components/GigPlannerModal';
 import MDAuditModal from '@/components/MDAuditModal';
 import ShortcutCheatSheet from '@/components/ShortcutCheatSheet';
 import { sortSongsByStrategy } from '@/utils/SetlistGenerator';
@@ -389,6 +390,7 @@ const Index = () => {
   const [isSetlistSettingsOpen, setIsSetlistSettingsOpen] = useState(false);
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
   const [isMDAuditOpen, setIsMDAuditOpen] = useState(false);
+  const [isGigPlannerOpen, setIsGigPlannerOpen] = useState(false);
   const [isAuditLoading, setIsAuditLoading] = useState(false);
   const [auditData, setAuditData] = useState<any>(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -853,6 +855,60 @@ const Index = () => {
     }
   }, [isShuffleAllMode]);
 
+  const handleGigPlannerAddLibrary = async (songId: string) => {
+    if (!activeSetlistId) return;
+    const song = masterRepertoire.find(s => s.id === songId);
+    if (song) {
+      await handleUpdateSetlistSongs(activeSetlistId, song, 'add');
+    }
+  };
+
+  const handleGigPlannerAddExternal = async (externalSong: any) => {
+    if (!userId || !activeSetlistId) return;
+    
+    // Check if already in library
+    const existing = masterRepertoire.find(s =>
+      s.name.toLowerCase() === externalSong.name.toLowerCase() &&
+      s.artist?.toLowerCase() === externalSong.artist?.toLowerCase()
+    );
+
+    if (existing) {
+      await handleUpdateSetlistSongs(activeSetlistId, existing, 'add');
+      return;
+    }
+
+    const newSong: Partial<SetlistSong> = {
+      name: externalSong.name,
+      artist: externalSong.artist,
+      previewUrl: externalSong.previewUrl,
+      appleMusicUrl: externalSong.appleMusicUrl,
+      genre: externalSong.genre,
+      duration_seconds: externalSong.duration_seconds,
+      originalKey: 'TBC',
+      targetKey: 'TBC',
+      pitch: 0,
+      isMetadataConfirmed: true,
+      is_active: true
+    };
+
+    try {
+      const synced = await syncToMasterRepertoire(userId, [newSong]);
+      const song = synced[0];
+      autoVibeCheck(userId, song);
+      await handleUpdateSetlistSongs(activeSetlistId, song, 'add');
+    } catch (err) {
+      showError("Failed to add external song.");
+      throw err;
+    }
+  };
+
+  const handleAddMultipleToSetlist = async (songs: SetlistSong[]) => {
+    if (!activeSetlistId) return;
+    for (const song of songs) {
+      await handleUpdateSetlistSongs(activeSetlistId, song, 'add');
+    }
+  };
+
   const missingAudioCount = useMemo(() => masterRepertoire.filter(s => !!s.youtubeUrl && (!s.audio_url || s.extraction_status !== 'completed')).length, [masterRepertoire]);
 
   if (authLoading || isFetchingSettings || loading) {
@@ -958,7 +1014,15 @@ const Index = () => {
           <TabsContent value="gigs" className="mt-0 space-y-10">
             {activeSetlistId && (
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-                <SetlistSelector setlists={allSetlists} currentId={activeSetlistId} onSelect={setActiveSetlistId} onCreate={handleCreateSetlist} onDelete={handleDeleteSetlist} onDuplicate={handleDuplicateSetlist} />
+                <SetlistSelector
+                  setlists={allSetlists}
+                  currentId={activeSetlistId}
+                  onSelect={setActiveSetlistId}
+                  onCreate={handleCreateSetlist}
+                  onDelete={handleDeleteSetlist}
+                  onDuplicate={handleDuplicateSetlist}
+                  onOpenGigPlanner={() => setIsGigPlannerOpen(true)}
+                />
                 <Button variant="outline" size="sm" onClick={() => setIsSetlistSettingsOpen(true)} className="h-11 px-6 rounded-2xl text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[10px]">
                   <Settings2 className="w-4 h-4 mr-2.5" /> Gig Settings
                 </Button>
@@ -1017,27 +1081,28 @@ const Index = () => {
             )}
           </TabsContent>
           <TabsContent value="repertoire" className="mt-0 space-y-10">
-            <RepertoireView 
-              repertoire={masterRepertoire} 
-              onEditSong={handleEditSong} 
-              allSetlists={allSetlists} 
-              onRefreshRepertoire={() => fetchSetlistsAndRepertoire()} 
-              searchTerm={searchTerm} 
-              setSearchTerm={setSearchTerm} 
-              sortMode={sortMode as any} 
-              setSortMode={setSortMode as any} 
-              activeFilters={activeFilters} 
-              setActiveFilters={setActiveFilters} 
-              onUpdateSetlistSongs={handleUpdateSetlistSongs} 
-              onDeleteSong={handleDeleteSong} 
-              onAddSong={handleAddSongToRepertoire} 
-              onOpenAdmin={() => setIsAdminPanelOpen(true)} 
-              onAutoLink={handleAutoLink} 
-              onGlobalAutoSync={handleGlobalAutoSync} 
-              onClearAutoLinks={handleClearAutoLinks} 
-              onBulkVibeCheck={handleBulkVibeCheck} 
-              onBulkRefreshAudio={handleBulkRefreshAudio} 
+            <RepertoireView
+              repertoire={masterRepertoire}
+              onEditSong={handleEditSong}
+              allSetlists={allSetlists}
+              onRefreshRepertoire={() => fetchSetlistsAndRepertoire()}
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              sortMode={sortMode as any}
+              setSortMode={setSortMode as any}
+              activeFilters={activeFilters}
+              setActiveFilters={setActiveFilters}
+              onUpdateSetlistSongs={handleUpdateSetlistSongs}
+              onDeleteSong={handleDeleteSong}
+              onAddSong={handleAddSongToRepertoire}
+              onOpenAdmin={() => setIsAdminPanelOpen(true)}
+              onAutoLink={handleAutoLink}
+              onGlobalAutoSync={handleGlobalAutoSync}
+              onClearAutoLinks={handleClearAutoLinks}
+              onBulkVibeCheck={handleBulkVibeCheck}
+              onBulkRefreshAudio={handleBulkRefreshAudio}
               missingAudioCount={missingAudioCount}
+              activeSetlistId={activeSetlistId}
             />
           </TabsContent>
         </Tabs>
@@ -1104,11 +1169,27 @@ const Index = () => {
       
       {activeSetlist && (
         <>
-          <SetlistSortModal isOpen={isSetlistSortModalOpen} onClose={() => setIsSetlistSortModalOpen(false)} songs={activeSetlist.songs} onReorder={handleReorderSongs} setlistName={activeSetlist.name} />
+          <SetlistSortModal
+            isOpen={isSetlistSortModalOpen}
+            onClose={() => setIsSetlistSortModalOpen(false)}
+            songs={activeSetlist.songs}
+            onReorder={handleReorderSongs}
+            setlistName={activeSetlist.name}
+            masterRepertoire={masterRepertoire}
+            onAddSongs={handleAddMultipleToSetlist}
+          />
           <SetlistSettingsModal isOpen={isSetlistSettingsOpen} onClose={() => setIsSetlistSettingsOpen(false)} setlistId={activeSetlist.id} setlistName={activeSetlist.name} onDelete={handleDeleteSetlist} onRename={handleRenameSetlist} onRefresh={() => fetchSetlistsAndRepertoire()} />
         </>
       )}
       <MDAuditModal isOpen={isMDAuditOpen} onClose={() => setIsMDAuditOpen(false)} auditData={auditData} isLoading={isAuditLoading} />
+      <GigPlannerModal
+        isOpen={isGigPlannerOpen}
+        onClose={() => setIsGigPlannerOpen(false)}
+        repertoire={masterRepertoire}
+        onAddExternalSong={handleGigPlannerAddExternal}
+        onAddLibrarySong={handleGigPlannerAddLibrary}
+        activeSetlistName={activeSetlist?.name}
+      />
       <ShortcutCheatSheet isOpen={isShortcutSheetOpen} onClose={() => setIsShortcutSheetOpen(false)} />
     </div>
   );

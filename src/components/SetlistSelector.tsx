@@ -3,7 +3,7 @@
 import React from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Plus, ListMusic, MoreVertical, Trash2, Copy } from 'lucide-react';
+import { Plus, ListMusic, MoreVertical, Trash2, Copy, Sparkles } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface SetlistSelectorProps {
@@ -13,9 +13,10 @@ interface SetlistSelectorProps {
   onCreate: () => void;
   onDelete: (id: string) => void;
   onDuplicate?: (id: string) => void; // NEW PROP
+  onOpenGigPlanner?: () => void; // NEW PROP
 }
 
-const SetlistSelector: React.FC<SetlistSelectorProps> = ({ setlists, currentId, onSelect, onCreate, onDelete, onDuplicate }) => {
+const SetlistSelector: React.FC<SetlistSelectorProps> = ({ setlists, currentId, onSelect, onCreate, onDelete, onDuplicate, onOpenGigPlanner }) => {
   return (
     <div className="flex items-center gap-2 bg-card p-1.5 rounded-lg border border-border shadow-sm">
       <div className="flex items-center gap-2 pl-2 border-r border-border pr-3">
@@ -37,9 +38,19 @@ const SetlistSelector: React.FC<SetlistSelectorProps> = ({ setlists, currentId, 
       </Select>
 
       <div className="flex items-center gap-1 border-l border-border pl-2">
-        <Button 
-          variant="ghost" 
-          size="icon" 
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 px-3 rounded-md text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 font-black uppercase tracking-widest text-[9px] gap-2"
+          onClick={onOpenGigPlanner}
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          <span className="hidden lg:inline">Gig Planner</span>
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="icon"
           className="h-8 w-8 rounded-md text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
           onClick={onCreate}
           title="Create New Setlist"

@@ -7,9 +7,9 @@ import { Slider } from "@/components/ui/slider";
 import { 
   Filter, Music, Youtube, FileText, CheckCircle2, 
   X, Star, Save, Trash2, Headphones, Sparkles, Hash,
-  CircleDashed, ChevronDown, ListFilter, Music2, 
+  CircleDashed, ChevronDown, ListFilter, Music2,
   VideoOff, FileX2, VolumeX, BarChart3, TrendingUp, TrendingDown,
-  Target, AlertCircle, Link as LinkIcon, FileSearch, ShieldCheck, Check, Guitar, Type
+  Target, AlertCircle, Link as LinkIcon, FileSearch, ShieldCheck, Check, Guitar, Type, ListMusic
 } from 'lucide-react';
 import { 
   DropdownMenu, 
@@ -37,6 +37,7 @@ export interface FilterState {
   hasLyrics: 'all' | 'yes' | 'no';
   hasHighestNote: 'all' | 'yes' | 'no';
   hasOriginalKey: 'all' | 'yes' | 'no';
+  inSetlist: 'all' | 'yes' | 'no';
 }
 
 export const DEFAULT_FILTERS: FilterState = {
@@ -52,6 +53,7 @@ export const DEFAULT_FILTERS: FilterState = {
   hasLyrics: 'all',
   hasHighestNote: 'all',
   hasOriginalKey: 'all',
+  inSetlist: 'all',
 };
 
 interface SetlistFiltersProps {
@@ -383,9 +385,9 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
             <Tooltip>
               <TooltipTrigger asChild>
                 <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     className={cn(
                       "h-9 w-9 rounded-xl border transition-all",
                       activeFilters.hasOriginalKey !== 'all' ? "bg-amber-600 text-white shadow-lg" : "bg-card border-border text-muted-foreground"
@@ -402,6 +404,33 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
                 <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
                 <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Has Original Key</DropdownMenuRadioItem>
                 <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-10 rounded-xl text-destructive">Missing Original Key</DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn(
+                      "h-9 w-9 rounded-xl border transition-all",
+                      activeFilters.inSetlist !== 'all' ? "bg-indigo-600 text-white shadow-lg" : "bg-card border-border text-muted-foreground"
+                    )}
+                  >
+                    <ListMusic className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent className="text-[10px] font-black uppercase">In Active Setlist</TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-popover border-border text-foreground">
+              <DropdownMenuRadioGroup value={activeFilters.inSetlist} onValueChange={(v) => onFilterChange({ ...activeFilters, inSetlist: v as any })}>
+                <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">In Setlist</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-10 rounded-xl text-destructive">Not in Setlist</DropdownMenuRadioItem>
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -514,12 +543,21 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
               </Badge>
             )}
             {activeFilters.hasOriginalKey !== 'all' && (
-              <Badge 
-                variant="secondary" 
+              <Badge
+                variant="secondary"
                 className="bg-amber-50 text-amber-600 border-amber-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
                 onClick={() => onFilterChange({ ...activeFilters, hasOriginalKey: 'all' })}
               >
                 Original Key: {activeFilters.hasOriginalKey} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
+              </Badge>
+            )}
+            {activeFilters.inSetlist !== 'all' && (
+              <Badge
+                variant="secondary"
+                className="bg-indigo-50 text-indigo-600 border-indigo-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
+                onClick={() => onFilterChange({ ...activeFilters, inSetlist: 'all' })}
+              >
+                In Setlist: {activeFilters.inSetlist} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
               </Badge>
             )}
           </div>
