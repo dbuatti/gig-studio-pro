@@ -42,9 +42,9 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
   if (song.isMetadataConfirmed) objectiveScore += 5;
 
   // 5. Subjective Mastery (30%)
-  // comfort_level is 0-5 stars. Each star is 6% of the total score.
+  // comfort_level is 0-100%.
   const comfortLevel = song.comfort_level || 0;
-  const subjectiveScore = (comfortLevel / 5) * 30;
+  const subjectiveScore = (comfortLevel / 100) * 30;
 
   let totalScore = objectiveScore + subjectiveScore;
 
@@ -123,6 +123,7 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
     if (song.extraction_status !== undefined) dbUpdates.extraction_status = song.extraction_status;
     if (song.energy_level !== undefined) dbUpdates.energy_level = song.energy_level;
     if (song.comfort_level !== undefined) dbUpdates.comfort_level = song.comfort_level;
+    if (song.needs_improvement !== undefined) dbUpdates.needs_improvement = Boolean(song.needs_improvement);
 
     if (song.isMetadataConfirmed !== undefined) dbUpdates.is_metadata_confirmed = Boolean(song.isMetadataConfirmed);
     if (song.isKeyConfirmed !== undefined) dbUpdates.is_key_confirmed = Boolean(song.isKeyConfirmed);
@@ -207,7 +208,8 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
       target_key_updated_at: result.target_key_updated_at,
       pdf_updated_at: result.pdf_updated_at,
       energy_level: result.energy_level as EnergyZone,
-      comfort_level: result.comfort_level ?? 0,
+      comfort_level: (result.comfort_level !== null && result.comfort_level <= 5) ? result.comfort_level * 20 : (result.comfort_level ?? 0),
+      needs_improvement: result.needs_improvement ?? false,
     } as any);
     } catch (err) {
       console.error(`[repertoireSync] Unexpected error syncing song ${song.name}:`, err);

@@ -82,6 +82,7 @@ export interface SetlistSong {
   extraction_error?: string;
   audio_url?: string;
   comfort_level?: number;
+  needs_improvement?: boolean;
   last_extracted_at?: string;
   source_type?: string;
   is_in_library?: boolean;

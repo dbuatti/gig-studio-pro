@@ -10,6 +10,7 @@ import NotFound from "@/pages/NotFound";
 import Profile from "@/pages/Profile";
 import PublicRepertoire from "@/pages/PublicRepertoire";
 import SheetReaderMode from "@/pages/SheetReaderMode";
+import AuditReaderMode from "@/pages/AuditReaderMode";
 import SongStudio from "@/pages/SongStudio";
 import GigEntry from "@/pages/GigEntry";
 import PublicGigView from "@/pages/PublicGigView";
@@ -67,6 +68,7 @@ const MainLayout = () => {
         <Route path="/dashboard" element={<Navigate to="/" replace />} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/sheet-reader/:songId?" element={<ProtectedRoute><SheetReaderMode /></ProtectedRoute>} />
+        <Route path="/audit-reader/:songId?" element={<ProtectedRoute><AuditReaderMode /></ProtectedRoute>} />
         <Route path="/gig/:gigId/song/:songId" element={<ProtectedRoute><SongStudio /></ProtectedRoute>} />
         <Route path="/debug" element={<ProtectedRoute><DebugPage /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />

@@ -298,7 +298,8 @@ const SheetReaderMode: React.FC = () => {
         tempo: d.tempo,
         volume: d.volume,
         energy_level: d.energy_level as EnergyZone,
-        comfort_level: d.comfort_level ?? 0,
+        comfort_level: (d.comfort_level !== null && d.comfort_level <= 5) ? d.comfort_level * 20 : (d.comfort_level ?? 0),
+        needs_improvement: d.needs_improvement ?? false,
       }));
       setFullMasterRepertoire(masterRepertoireList);
 

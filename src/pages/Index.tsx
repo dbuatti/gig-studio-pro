@@ -15,8 +15,8 @@ import * as Tone from 'tone';
 
 // UI Components
 import { Button } from '@/components/ui/button';
-import { 
-  Loader2, Settings2, Hash, Library, Shuffle, LayoutDashboard, Plus, Sparkles, Command, Clock, History, Music
+import {
+  Loader2, Settings2, Hash, Library, Shuffle, LayoutDashboard, Plus, Sparkles, Command, Clock, History, Music, ShieldCheck
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -496,7 +496,8 @@ const Index = () => {
         target_key_updated_at: d.target_key_updated_at,
         pdf_updated_at: d.pdf_updated_at,
         energy_level: d.energy_level as EnergyZone,
-        comfort_level: d.comfort_level ?? 0,
+        comfort_level: (d.comfort_level !== null && d.comfort_level <= 5) ? d.comfort_level * 20 : (d.comfort_level ?? 0),
+        needs_improvement: d.needs_improvement ?? false,
       }));
       setMasterRepertoire(mappedRepertoire);
       const setlistsWithSongs: Setlist[] = [];
@@ -878,6 +879,9 @@ const Index = () => {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-4">
+            <Button variant="outline" size="sm" onClick={() => navigate('/audit-reader')} className="h-11 px-6 rounded-2xl text-amber-500 border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 transition-all font-black uppercase tracking-widest text-[10px]">
+              <ShieldCheck className="w-4 h-4 mr-2.5" /> Audit Mode
+            </Button>
             <Button variant="outline" size="sm" onClick={handleRunMDAudit} className="h-11 px-6 rounded-2xl text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[10px]">
               <Sparkles className="w-4 h-4 mr-2.5" /> MD Audit
             </Button>

@@ -11,11 +11,11 @@ interface MasteryRatingProps {
   size?: 'sm' | 'md' | 'lg';
 }
 
-const MasteryRating: React.FC<MasteryRatingProps> = ({ 
-  value = 0, 
-  onChange, 
+const MasteryRating: React.FC<MasteryRatingProps> = ({
+  value = 0,
+  onChange,
   readonly = false,
-  size = 'md' 
+  size = 'md'
 }) => {
   const [hover, setHover] = useState<number | null>(null);
 
@@ -24,6 +24,9 @@ const MasteryRating: React.FC<MasteryRatingProps> = ({
     md: "w-4 h-4",
     lg: "w-6 h-6"
   };
+
+  // Convert 0-100 to 0-5 for display
+  const displayValue = Math.round(value / 20);
 
   return (
     <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
@@ -38,14 +41,15 @@ const MasteryRating: React.FC<MasteryRatingProps> = ({
             e.preventDefault();
             e.stopPropagation();
             if (!readonly && onChange) {
-              onChange(star);
+              // Convert 1-5 back to 0-100
+              onChange(star * 20);
             }
           }}
           className={cn(
             "transition-all duration-200 p-1 -m-1 flex items-center justify-center",
             readonly ? "cursor-default" : "cursor-pointer hover:scale-125 active:scale-90",
-            (hover !== null ? star <= hover : star <= value) 
-              ? "text-amber-400 fill-amber-400" 
+            (hover !== null ? star <= hover : star <= displayValue)
+              ? "text-amber-400 fill-amber-400"
               : "text-muted-foreground/20 fill-transparent"
           )}
         >
