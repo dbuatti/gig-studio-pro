@@ -159,7 +159,10 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
       error = upsertError;
     }
 
-    if (error) throw error;
+    if (error) {
+      console.error(`[repertoireSync] Failed to sync song ${song.name}:`, error);
+      continue;
+    }
 
     syncedSongs.push({
       id: song.id || result.id,
@@ -206,6 +209,9 @@ export const syncToMasterRepertoire = async (userId: string, songsToSync: Partia
       energy_level: result.energy_level as EnergyZone,
       comfort_level: result.comfort_level ?? 0,
     } as any);
+    } catch (err) {
+      console.error(`[repertoireSync] Unexpected error syncing song ${song.name}:`, err);
+    }
   }
 
   return syncedSongs;
