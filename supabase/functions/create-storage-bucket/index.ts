@@ -14,30 +14,37 @@ serve(async (req) => {
   }
 
   try {
+    const supabaseClient = createClient(
+      // @ts-ignore
+      Deno.env.get('SUPABASE_URL') ?? '',
+      // @ts-ignore
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+    )
+
+    // Verify user is authenticated
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
     const { bucketName, isPublic, allowedMimeTypes, fileSizeLimit } = await req.json();
     
-    // Create a Supabase client with the service role key
     const supabaseAdmin = createClient(
-      // @ts-ignore: Deno global
+      // @ts-ignore
       Deno.env.get('SUPABASE_URL') ?? '',
-      // @ts-ignore: Deno global
+      // @ts-ignore
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Check if the bucket already exists
     const { data: existingBuckets, error: listError } = await supabaseAdmin.storage.listBuckets();
     if (listError) throw listError;
 
     const bucketExists = existingBuckets?.some(b => b.name === bucketName);
-
     if (bucketExists) {
-      return new Response(JSON.stringify({ success: true, message: `Bucket '${bucketName}' already exists.` }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200
-      });
+      return new Response(JSON.stringify({ success: true, message: `Bucket '${bucketName}' already exists.` }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
     }
 
-    // Create the bucket
     const { data, error } = await supabaseAdmin.storage.createBucket(bucketName, {
       public: isPublic,
       allowedMimeTypes: allowedMimeTypes,
@@ -46,14 +53,9 @@ serve(async (req) => {
 
     if (error) throw error;
 
-    return new Response(JSON.stringify({ success: true, data }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    return new Response(JSON.stringify({ success: true, data }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 })

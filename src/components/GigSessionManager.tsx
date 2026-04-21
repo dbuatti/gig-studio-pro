@@ -50,9 +50,16 @@ const GigSessionManager: React.FC<GigSessionManagerProps> = ({ setlistId }) => {
 
   const createSession = async () => {
     if (!user || !newCode.trim()) return;
-    setIsCreating(true);
+    
     const code = newCode.trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
     
+    // Security: Enforce minimum length and complexity
+    if (code.length < 8) {
+      showError("Gig code must be at least 8 characters long for security.");
+      return;
+    }
+
+    setIsCreating(true);
     try {
       const { error } = await supabase
         .from('gig_sessions')
@@ -64,7 +71,7 @@ const GigSessionManager: React.FC<GigSessionManagerProps> = ({ setlistId }) => {
         }]);
 
       if (error) {
-        if (error.code === '23505') throw new Error("Code already exists globally");
+        if (error.code === '23505') throw new Error("Code already exists globally. Try something more unique.");
         throw error;
       }
 
@@ -127,7 +134,7 @@ const GigSessionManager: React.FC<GigSessionManagerProps> = ({ setlistId }) => {
 
       <div className="flex gap-2">
         <Input 
-          placeholder="E.G. WEDDING25" 
+          placeholder="E.G. ROCKBAR-2025" 
           value={newCode}
           onChange={(e) => setNewCode(e.target.value)}
           className="h-11 bg-card border-border text-xs font-black uppercase tracking-widest rounded-xl"

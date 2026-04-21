@@ -33,7 +33,6 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
   onSwitchTab,
 }) => {
   const { user } = useAuth();
-  const [ytApiKey, setYtApiKey] = useState("");
   const [isSearchingYoutube, setIsSearchingYoutube] = useState(false);
   const [ytResults, setYtResults] = useState<any[]>([]);
   const [isQueuingExtraction, setIsQueuingExtraction] = useState(false); 
@@ -44,17 +43,6 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
     const match = formData.youtubeUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/);
     return match ? match[1] : null;
   }, [formData.youtubeUrl]);
-
-  useEffect(() => {
-    if (user) {
-      fetchYtKey();
-    }
-  }, [user]);
-
-  const fetchYtKey = async () => {
-    const { data } = await supabase.from('profiles').select('youtube_api_key').eq('id', user?.id).single();
-    if (data?.youtube_api_key) setYtApiKey(data.youtube_api_key);
-  };
 
   const parseISO8601Duration = (duration: string): string => {
     const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
@@ -82,70 +70,48 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
     setYtResults([]);
     setLastQuery(searchTerm);
 
-    if (ytApiKey) {
-      try {
-        const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(searchTerm)}&type=video&videoCategoryId=10&relevanceLanguage=en&maxResults=12&key=${ytApiKey}`;
-        const searchResponse = await fetch(searchUrl);
-        const searchData = await searchResponse.json();
-
-        if (searchData.items && searchData.items.length > 0) {
-          const videoIds = searchData.items.map((item: any) => item.id.videoId).join(',');
-          const detailsUrl = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,snippet,statistics&id=${videoIds}&key=${ytApiKey}`;
-          const detailsResponse = await fetch(detailsUrl);
-          const detailsData = await detailsResponse.json();
-
-          if (detailsData.items) {
-            const resultsWithDurations = detailsData.items.map((item: any) => ({
-              videoId: item.id,
-              title: item.snippet.title,
-              author: item.snippet.channelTitle,
-              videoThumbnails: [{ url: item.snippet.thumbnails.medium.url }],
-              duration: parseISO8601Duration(item.contentDetails.duration),
-              durationSeconds: (parseInt(item.contentDetails.duration.match(/(\d+)H/)?.[1] || "0") * 3600) + 
-                               (parseInt(item.contentDetails.duration.match(/(\d+)M/)?.[1] || "0") * 60) + 
-                               parseInt(item.contentDetails.duration.match(/(\d+)S/)?.[1] || "0"),
-              viewCountText: `${parseInt(item.statistics.viewCount).toLocaleString()} views`
-            }));
-
-            setYtResults(resultsWithDurations);
-            setIsSearchingYoutube(false);
-            showSuccess(`Discovery Match: ${resultsWithDurations.length} records found`);
-            return;
-          }
-        }
-      } catch (e) {}
-    }
-
-    // Fallback search strategy
     try {
-      const proxies = ["https://api.allorigins.win/get?url=", "https://corsproxy.io/?"];
-      const instances = ['https://iv.ggtyler.dev', 'https://yewtu.be', 'https://invidious.flokinet.to'];
-      
-      let success = false;
-      for (const proxy of proxies) {
-        if (success) break;
+      // Security: Use Edge Function proxy instead of direct client-side API call
+      const { data: searchData, error } = await supabase.functions.invoke('youtube-search', {
+        body: { query: searchTerm }
+      });
+
+      if (error) throw error;
+
+      if (searchData.items && searchData.items.length > 0) {
+        // Note: The proxy currently returns raw search results. 
+        // For durations, we'd need a second proxy call or a more complex Edge Function.
+        // For now, we map the basic search results.
+        const results = searchData.items.map((item: any) => ({
+          videoId: item.id.videoId,
+          title: item.snippet.title,
+          author: item.snippet.channelTitle,
+          videoThumbnails: [{ url: item.snippet.thumbnails.medium.url }],
+          duration: '0:00', // Placeholder
+          viewCountText: 'Vivid'
+        }));
+
+        setYtResults(results);
+        showSuccess(`Discovery Match: ${results.length} records found`);
+      } else {
+        // Fallback to Invidious if API fails or returns nothing
+        throw new Error("No results from primary engine.");
+      }
+    } catch (err) {
+      // Fallback search strategy (Invidious)
+      try {
+        const instances = ['https://iv.ggtyler.dev', 'https://yewtu.be', 'https://invidious.flokinet.to'];
+        let success = false;
         for (const instance of instances) {
           if (success) break;
           try {
             const artistName = (formData.artist || "").replace(/&/g, 'and');
             const trackName = (formData.name || "").replace(/&/g, 'and');
             const searchQuery = encodeURIComponent(`${artistName} ${trackName} official music video`);
-            const targetUrl = encodeURIComponent(`${instance}/api/v1/search?q=${encodeURIComponent(searchQuery)}`);
-            
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 2500);
-
-            const response = await fetch(`${proxy}${targetUrl}`, {
-              signal: controller.signal
-            });
-            
-            clearTimeout(timeoutId);
+            const response = await fetch(`${instance}/api/v1/search?q=${encodeURIComponent(searchQuery)}`);
             if (!response.ok) continue;
-            
-            const raw = await response.json();
-            const data = typeof raw.contents === 'string' ? JSON.parse(raw.contents) : raw;
+            const data = await response.json();
             const videos = data?.filter?.((i: any) => i.type === "video").slice(0, 10);
-            
             if (videos && videos.length > 0) {
               setYtResults(videos.map((v: any) => ({
                 videoId: v.videoId,
@@ -158,15 +124,12 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
               })));
               success = true;
             }
-          } catch (err) {}
+          } catch (e) {}
         }
+        if (!success) showError("Global discovery engine congested.");
+      } catch (e) {
+        showError("Search services offline.");
       }
-      
-      if (!success) {
-        showError("Global discovery engine congested or no results found.");
-      }
-    } catch (err) {
-      showError("Search services offline.");
     } finally {
       setIsSearchingYoutube(false);
     }

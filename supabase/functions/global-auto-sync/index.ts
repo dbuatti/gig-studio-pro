@@ -13,48 +13,45 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders })
   }
 
-  const supabaseAdmin = createClient(
-    // @ts-ignore: Deno global
-    Deno.env.get('SUPABASE_URL') ?? '',
-    // @ts-ignore: Deno global
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  )
-
   try {
-    const { songIds, overwrite = false } = await req.json();
-    
-    if (!songIds || !Array.isArray(songIds)) {
-      throw new Error("Invalid song list provided.");
+    const supabaseClient = createClient(
+      // @ts-ignore
+      Deno.env.get('SUPABASE_URL') ?? '',
+      // @ts-ignore
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+    )
+
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
-    // console.log("[global-auto-sync] Processing batch of size:", songIds.length); // Removed verbose log
+    const { songIds, overwrite = false } = await req.json();
+    if (!songIds || !Array.isArray(songIds)) throw new Error("Invalid song list.");
 
+    // @ts-ignore
+    const supabaseAdmin = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '')
     const results = [];
 
     for (const id of songIds) {
-      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) continue;
-
       try {
         const { data: song, error: fetchErr } = await supabaseAdmin
           .from('repertoire')
           .select('*')
           .eq('id', id)
+          .eq('user_id', user.id) // Ownership check
           .single();
 
-        if (fetchErr || !song) throw new Error(`Fetch failed for ID ${id}`);
+        if (fetchErr || !song) continue;
 
         if (song.metadata_source === 'itunes_autosync' && !overwrite) {
           results.push({ id, status: 'SKIPPED', msg: 'Already synced' });
           continue;
         }
 
-        await supabaseAdmin.from('repertoire').update({ sync_status: 'SYNCING', last_sync_log: 'Syncing with iTunes...' }).eq('id', id);
-
         const itunesQuery = encodeURIComponent(`${song.artist} ${song.title}`);
         const itunesRes = await fetch(`https://itunes.apple.com/search?term=${itunesQuery}&entity=song&limit=1`);
-        
-        if (!itunesRes.ok) throw new Error("iTunes API unavailable");
-        
         const itunesData = await itunesRes.json();
         const topResult = itunesData.results?.[0];
 
@@ -66,36 +63,16 @@ serve(async (req) => {
             apple_music_url: topResult.trackViewUrl,
             metadata_source: 'itunes_autosync',
             auto_synced: true,
-            sync_status: 'COMPLETED',
-            last_sync_log: 'Successfully matched with iTunes Master'
+            sync_status: 'COMPLETED'
           }).eq('id', id);
-
           results.push({ id, status: 'SUCCESS', title: topResult.trackName });
-        } else {
-          throw new Error('No iTunes match found.');
         }
-
-      } catch (err: any) {
-        console.error("[global-auto-sync] Sync failed for:", id, err.message);
-        await supabaseAdmin.from('repertoire').update({ 
-          sync_status: 'ERROR',
-          last_sync_log: err.message 
-        }).eq('id', id);
-        results.push({ id, status: 'ERROR', msg: err.message });
-      }
-
-      await new Promise(r => setTimeout(r, 1000));
+      } catch (err) {}
+      await new Promise(r => setTimeout(r, 500));
     }
 
-    return new Response(JSON.stringify({ success: true, results }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-
+    return new Response(JSON.stringify({ success: true, results }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error: any) {
-    console.error("[global-auto-sync] Fatal Error:", error.message);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 })
