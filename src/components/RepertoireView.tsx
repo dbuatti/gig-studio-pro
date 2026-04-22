@@ -21,6 +21,7 @@ import SetlistFilters, { FilterState, DEFAULT_FILTERS } from './SetlistFilters';
 import SetlistExporter from './SetlistExporter';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import RepertoireSuggestions from './RepertoireSuggestions'; // NEW: Import RepertoireSuggestions
 
 interface RepertoireViewProps {
   repertoire: SetlistSong[];
@@ -190,6 +191,9 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
 
   return (
     <div className="space-y-8">
+      {/* NEW: Repertoire Suggestions at the very top */}
+      <RepertoireSuggestions repertoire={repertoire} onAddSong={onAddSong} />
+
       {/* Automation Hub at the top of Repertoire View */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-3 space-y-6">
