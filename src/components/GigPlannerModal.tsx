@@ -210,19 +210,12 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
                         <Library className="w-3.5 h-3.5" /> Library Hits ({plan.suggestedLibrarySongs.length})
                       </h4>
                       <div className="space-y-2">
-                        {plan.suggestedLibrarySongs.map((idOrName, idx) => {
-                          // Resilient matching: try ID first, then try matching by name string
-                          const song = repertoire.find(s => 
-                            s.id === idOrName || 
-                            s.name.toLowerCase() === idOrName.toLowerCase() ||
-                            `${s.name} - ${s.artist}`.toLowerCase() === idOrName.toLowerCase()
-                          );
-                          
+                        {plan.suggestedLibrarySongs.map(id => {
+                          const song = repertoire.find(s => s.id === id);
                           if (!song) return null;
-                          const isAdded = addedSongs.has(song.id);
-                          
+                          const isAdded = addedSongs.has(id);
                           return (
-                            <div key={`${song.id}-${idx}`} className="flex items-center justify-between p-4 bg-white/5 border border-white/5 rounded-2xl group hover:border-indigo-500/30 transition-all">
+                            <div key={id} className="flex items-center justify-between p-4 bg-white/5 border border-white/5 rounded-2xl group hover:border-indigo-500/30 transition-all">
                               <div className="flex items-center gap-4">
                                 <div className="bg-indigo-600/20 p-2 rounded-xl text-indigo-400">
                                   <Music className="w-4 h-4" />
@@ -235,7 +228,7 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
                               <Button 
                                 size="sm" 
                                 disabled={isAdded}
-                                onClick={() => handleAddLibrary(song.id)}
+                                onClick={() => handleAddLibrary(id)}
                                 className={cn(
                                   "h-9 px-4 rounded-xl font-black uppercase tracking-widest text-[9px] gap-2 transition-all",
                                   isAdded ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/20" : "bg-indigo-600 hover:bg-indigo-500 text-white"

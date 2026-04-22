@@ -69,32 +69,7 @@ serve(async (req) => {
     }
 
     const shuffledProviders = [...providers].sort(() => Math.random() - 0.5);
-    
-    // Improved prompt to include IDs and request a specific setlist size
-    const prompt = `You are an expert Musical Director and Gig Planner. 
-Analyze the following client inquiry and suggest a structured setlist (approx 15-25 songs depending on duration).
-
-CLIENT INQUIRY:
-"${emailText}"
-
-YOUR AVAILABLE REPERTOIRE (Use these IDs for suggestedLibrarySongs):
-${repertoire.map(s => `[ID: ${s.id}] ${s.name} - ${s.artist} (${s.genre || 'Unknown'})`).join('\n')}
-
-TASK:
-1. Extract gig details (duration, vibe, special requests).
-2. Select the best matching songs from the REPERTOIRE list. Return their IDs in "suggestedLibrarySongs".
-3. Suggest 3-5 NEW songs not in the repertoire that would fit perfectly in "suggestedExternalSongs".
-
-Return ONLY JSON: 
-{
-  "gigDetails": {
-    "duration": "string", 
-    "vibe": "string", 
-    "specialRequests": []
-  }, 
-  "suggestedLibrarySongs": ["id1", "id2", ...], 
-  "suggestedExternalSongs": [{"name": "Song Title", "artist": "Artist Name"}]
-}`;
+    const prompt = `You are an expert Gig Planner. Analyze this email and suggest a setlist.\n\nEMAIL:\n"${emailText}"\n\nREPERTOIRE:\n${repertoire.map(s => `${s.name} - ${s.artist}`).join('\n')}\n\nReturn ONLY JSON: {"gigDetails": {"duration": "string", "vibe": "string", "specialRequests": []}, "suggestedLibrarySongs": [], "suggestedExternalSongs": [{"name": "", "artist": ""}]}`;
 
     let aiResult = null;
     let isQuotaError = false;
