@@ -71,8 +71,8 @@ serve(async (req) => {
     const shuffledProviders = [...providers].sort(() => Math.random() - 0.5);
     
     // Improved prompt to include IDs and request a specific setlist size
-    const prompt = `You are an expert Musical Director and Gig Planner. 
-Analyze the following client inquiry and suggest a structured setlist (approx 15-25 songs depending on duration).
+    const prompt = `You are an expert Musical Director and Gig Planner.
+Analyze the following client inquiry and suggest a structured multi-set gig plan (approx 15-35 songs depending on duration).
 
 CLIENT INQUIRY:
 "${emailText}"
@@ -82,18 +82,21 @@ ${repertoire.map(s => `[ID: ${s.id}] ${s.name} - ${s.artist} (${s.genre || 'Unkn
 
 TASK:
 1. Extract gig details (duration, vibe, special requests).
-2. Select the best matching songs from the REPERTOIRE list. Return their IDs in "suggestedLibrarySongs".
-3. Suggest 3-5 NEW songs not in the repertoire that would fit perfectly in "suggestedExternalSongs".
+2. Propose a catchy name for this setlist based on the event (e.g., "Smith Wedding - Sunset Cocktails").
+3. Select the best matching songs from the REPERTOIRE list.
+4. Group ALL songs (library and external) into logical sets: Set 1 (Background/Mellow), Set 2 (Building), Set 3 (Peak/Dance), Set 4 (Encore/High Energy), or 99 (Surplus/Backup).
+5. Suggest 3-5 NEW songs not in the repertoire that would fit perfectly.
 
-Return ONLY JSON: 
+Return ONLY JSON:
 {
+  "proposedName": "string",
   "gigDetails": {
-    "duration": "string", 
-    "vibe": "string", 
+    "duration": "string",
+    "vibe": "string",
     "specialRequests": []
-  }, 
-  "suggestedLibrarySongs": ["id1", "id2", ...], 
-  "suggestedExternalSongs": [{"name": "Song Title", "artist": "Artist Name"}]
+  },
+  "suggestedLibrarySongs": [{"id": "uuid", "setGroup": number}],
+  "suggestedExternalSongs": [{"name": "Song Title", "artist": "Artist Name", "setGroup": number}]
 }`;
 
     let aiResult = null;
@@ -168,10 +171,11 @@ Return ONLY JSON:
             artworkUrl: itunesData.artworkUrl100,
             genre: itunesData.primaryGenreName,
             duration_seconds: Math.floor(itunesData.trackTimeMillis / 1000),
-            appleMusicUrl: itunesData.trackViewUrl
+            appleMusicUrl: itunesData.trackViewUrl,
+            setGroup: s.setGroup || 1
           };
         }
-        return { ...s, isManual: true };
+        return { ...s, isManual: true, setGroup: s.setGroup || 1 };
       })
     );
 

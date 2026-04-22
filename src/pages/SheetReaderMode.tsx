@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { SetlistSong, UGChordsConfig, EnergyZone } from '@/components/SetlistManager';
 import { Button } from '@/components/ui/button';
-import { Music, Loader2, AlertCircle, X, ExternalLink, ShieldCheck, FileText, Layout, Guitar, ChevronLeft, ChevronRight, Download, Link as LinkIcon, Ruler, Edit3, Trash2, Maximize2, Minimize2 } from 'lucide-react';
+import { Music, Loader2, AlertCircle, X, ExternalLink, ShieldCheck, FileText, Layout, Guitar, ChevronLeft, ChevronRight, Download, Link as LinkIcon, Ruler, Edit3, Trash2, Maximize2, Minimize2, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { DEFAULT_FILTERS } from '@/components/SetlistFilters';
@@ -39,6 +39,7 @@ import LinkSizeModal from '@/components/LinkSizeModal';
 import { sortSongsByStrategy } from '@/utils/SetlistGenerator';
 import SongInfoOverlay from '@/components/SongInfoOverlay';
 import KeyReminderPill from '@/components/KeyReminderPill';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
@@ -79,6 +80,11 @@ const SheetReaderMode: React.FC = () => {
 
   const currentSong = allSongs[currentIndex];
 
+  const totalSets = useMemo(() => {
+    const sets = new Set(allSongs.map(s => s.set_group).filter(g => g && g !== 99));
+    return sets.size;
+  }, [allSongs]);
+
   const readerKeyPreference = useMemo<'sharps' | 'flats'>(() => {
     if (currentSong?.key_preference && currentSong.key_preference !== 'neutral') {
       return currentSong.key_preference as 'sharps' | 'flats';
@@ -100,6 +106,7 @@ const SheetReaderMode: React.FC = () => {
   const [isLinkEditorOpen, setIsLinkEditorOpen] = useState(false);
   const [isLinkSizeModalOpen, setIsLinkSizeModalOpen] = useState(false);
   const [isEditingLinksMode, setIsEditingLinksMode] = useState(false);
+  const [isSetTransitionOpen, setIsSetTransitionOpen] = useState(false);
 
   const audioEngine = useToneAudio(true);
   const {
@@ -433,14 +440,53 @@ const SheetReaderMode: React.FC = () => {
 
   const handleNext = useCallback(() => {
     if (allSongs.length > 0) {
-      setCurrentIndex((prevIndex) => (prevIndex + 1) % allSongs.length);
+      const currentSong = allSongs[currentIndex];
+      const nextIndex = (currentIndex + 1) % allSongs.length;
+      const nextSong = allSongs[nextIndex];
+
+      // Check for set transition
+      // If current song has a set_group and next song has a different one (and next isn't surplus unless current is)
+      if (currentSong.set_group && nextSong.set_group && currentSong.set_group !== nextSong.set_group) {
+        setIsSetTransitionOpen(true);
+        return;
+      }
+
+      setCurrentIndex(nextIndex);
       stopPlayback();
       if (chartContainerRef.current) {
         chartContainerRef.current.scrollTop = 0;
         chartContainerRef.current.scrollLeft = 0;
       }
     }
+  }, [allSongs, currentIndex, stopPlayback]);
+
+  const handleForceNext = useCallback(() => {
+    if (allSongs.length > 0) {
+      setCurrentIndex((prevIndex) => (prevIndex + 1) % allSongs.length);
+      stopPlayback();
+      setIsSetTransitionOpen(false);
+      if (chartContainerRef.current) {
+        chartContainerRef.current.scrollTop = 0;
+        chartContainerRef.current.scrollLeft = 0;
+      }
+    }
   }, [allSongs, stopPlayback]);
+
+  const handleJumpToSurplus = useCallback(() => {
+    const surplusIndex = allSongs.findIndex(s => s.set_group === 99);
+    if (surplusIndex !== -1) {
+      setCurrentIndex(surplusIndex);
+      stopPlayback();
+      setIsSetTransitionOpen(false);
+      if (chartContainerRef.current) {
+        chartContainerRef.current.scrollTop = 0;
+        chartContainerRef.current.scrollLeft = 0;
+      }
+    } else {
+      showInfo("No surplus songs found.");
+      handleForceNext();
+    }
+  }, [allSongs, stopPlayback, handleForceNext]);
 
   const handlePrev = useCallback(() => {
     if (allSongs.length > 0) {
@@ -626,9 +672,11 @@ const SheetReaderMode: React.FC = () => {
               onToggleAudioPlayer={() => setIsAudioPlayerVisible(prev => !prev)}
               onAddLink={onAddLink} 
               onToggleLinkEditMode={() => setIsEditingLinksMode(prev => !prev)} 
-              onOpenLinkSizeModal={() => setIsLinkSizeModalOpen(true)} 
-              isEditingLinksMode={isEditingLinksMode} 
+              onOpenLinkSizeModal={() => setIsLinkSizeModalOpen(true)}
+              isEditingLinksMode={isEditingLinksMode}
               onToggleFullScreen={toggleZenMode}
+              setGroup={currentSong?.set_group}
+              totalSets={totalSets}
             />
           )}
         </AnimatePresence>
@@ -779,6 +827,36 @@ const SheetReaderMode: React.FC = () => {
         onClose={() => setIsLinkSizeModalOpen(false)}
         onLinkSizeUpdated={fetchLinks}
       />
+
+      <AlertDialog open={isSetTransitionOpen} onOpenChange={setIsSetTransitionOpen}>
+        <AlertDialogContent className="bg-slate-950 border-white/10 text-white rounded-[2.5rem] p-8 shadow-2xl max-w-lg">
+          <AlertDialogHeader>
+            <div className="bg-indigo-600/20 w-20 h-20 rounded-[1.5rem] flex items-center justify-center text-indigo-400 mb-6 mx-auto shadow-lg shadow-indigo-900/10">
+              <Sparkles className="w-10 h-10" />
+            </div>
+            <AlertDialogTitle className="text-3xl font-black uppercase tracking-tight text-center">Set Complete!</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-400 font-medium text-lg text-center leading-relaxed">
+              You've reached the end of <span className="text-indigo-400 font-bold">{currentSong?.set_group === 99 ? 'Surplus' : `Set ${currentSong?.set_group}`}</span>.
+              Ready for the next phase?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-10 flex-col sm:flex-row gap-4">
+            <Button
+              variant="outline"
+              onClick={handleJumpToSurplus}
+              className="flex-1 rounded-2xl border-white/5 bg-slate-900 hover:bg-slate-800 text-slate-300 font-black uppercase text-[11px] tracking-widest h-16 px-8"
+            >
+              Jump to Surplus
+            </Button>
+            <Button
+              onClick={handleForceNext}
+              className="flex-1 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase text-[11px] tracking-widest h-16 px-8 shadow-xl shadow-indigo-600/20"
+            >
+              Start Next Set
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

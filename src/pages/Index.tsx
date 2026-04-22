@@ -516,7 +516,13 @@ const Index = () => {
           if (!master) return;
           if (seenSongIds.has(j.song_id)) return;
           seenSongIds.add(j.song_id);
-          songs.push({ ...master, id: j.id, master_id: master.id, isPlayed: j.isPlayed || false });
+          songs.push({
+            ...master,
+            id: j.id,
+            master_id: master.id,
+            isPlayed: j.isPlayed || false,
+            set_group: j.set_group || 1
+          });
         });
         setlistsWithSongs.push({ id: setlist.id, name: setlist.name, songs, time_goal: setlist.time_goal });
       }
@@ -559,7 +565,13 @@ const Index = () => {
     const song = activeSetlist?.songs.find(s => s.id === songId);
     if (!song || !userId) return;
     try {
-      await syncToMasterRepertoire(userId, [{ ...updates, id: song.master_id || song.id, name: song.name, artist: song.artist }]);
+      // Filter out set_group as it belongs to setlist_songs, not repertoire
+      const { set_group, ...repertoireUpdates } = updates;
+      
+      if (Object.keys(repertoireUpdates).length > 0) {
+        await syncToMasterRepertoire(userId, [{ ...repertoireUpdates, id: song.master_id || song.id, name: song.name, artist: song.artist }]);
+      }
+      
       if (updates.comfort_level !== undefined) showSuccess(`Mastery updated for "${song.name}"`);
       await fetchSetlistsAndRepertoire();
     } catch (err: any) {
@@ -599,7 +611,7 @@ const Index = () => {
     }
   }, [fetchSetlistsAndRepertoire]);
 
-  const handleUpdateSetlistSongs = useCallback(async (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => {
+  const handleUpdateSetlistSongs = useCallback(async (setlistId: string, song: SetlistSong, action: 'add' | 'remove', setGroup?: number) => {
     try {
       if (action === 'add') {
         const targetSetlist = allSetlists.find(s => s.id === setlistId);
@@ -609,7 +621,12 @@ const Index = () => {
           showWarning(`"${song.name}" is already in this setlist.`);
           return;
         }
-        await supabase.from('setlist_songs').insert({ setlist_id: setlistId, song_id: songMasterId, sort_order: targetSetlist?.songs.length || 0 });
+        await supabase.from('setlist_songs').insert({
+          setlist_id: setlistId,
+          song_id: songMasterId,
+          sort_order: targetSetlist?.songs.length || 0,
+          set_group: setGroup || 1
+        });
         showSuccess(`"${song.name}" added to setlist.`);
       } else {
         await supabase.from('setlist_songs').delete().eq('setlist_id', setlistId).eq('song_id', song.master_id || song.id);
@@ -855,15 +872,15 @@ const Index = () => {
     }
   }, [isShuffleAllMode]);
 
-  const handleGigPlannerAddLibrary = async (songId: string) => {
+  const handleGigPlannerAddLibrary = async (songId: string, setGroup?: number) => {
     if (!activeSetlistId) return;
     const song = masterRepertoire.find(s => s.id === songId);
     if (song) {
-      await handleUpdateSetlistSongs(activeSetlistId, song, 'add');
+      await handleUpdateSetlistSongs(activeSetlistId, song, 'add', setGroup);
     }
   };
 
-  const handleGigPlannerAddExternal = async (externalSong: any) => {
+  const handleGigPlannerAddExternal = async (externalSong: any, setGroup?: number) => {
     if (!userId || !activeSetlistId) return;
     
     // Check if already in library
@@ -873,7 +890,7 @@ const Index = () => {
     );
 
     if (existing) {
-      await handleUpdateSetlistSongs(activeSetlistId, existing, 'add');
+      await handleUpdateSetlistSongs(activeSetlistId, existing, 'add', setGroup);
       return;
     }
 
@@ -895,10 +912,84 @@ const Index = () => {
       const synced = await syncToMasterRepertoire(userId, [newSong]);
       const song = synced[0];
       autoVibeCheck(userId, song);
-      await handleUpdateSetlistSongs(activeSetlistId, song, 'add');
+      await handleUpdateSetlistSongs(activeSetlistId, song, 'add', setGroup);
     } catch (err) {
       showError("Failed to add external song.");
       throw err;
+    }
+  };
+
+  const handleBuildGig = async (proposedName: string, librarySongs: {id: string, setGroup: number}[], externalSongs: any[]) => {
+    if (!userId) return;
+    try {
+      showInfo(`Building gig: ${proposedName}...`);
+      
+      // 1. Create setlist
+      const { data: newList, error: listError } = await supabase
+        .from('setlists')
+        .insert([{ user_id: userId, name: proposedName }])
+        .select()
+        .single();
+      
+      if (listError) throw listError;
+
+      // 2. Process external songs (add to repertoire first)
+      const processedExternal = [];
+      for (const ext of externalSongs) {
+        const existing = masterRepertoire.find(s =>
+          s.name.toLowerCase() === ext.name.toLowerCase() &&
+          s.artist?.toLowerCase() === ext.artist?.toLowerCase()
+        );
+
+        if (existing) {
+          processedExternal.push({ id: existing.id, setGroup: ext.setGroup });
+        } else {
+          const newSong: Partial<SetlistSong> = {
+            name: ext.name,
+            artist: ext.artist,
+            previewUrl: ext.previewUrl,
+            appleMusicUrl: ext.appleMusicUrl,
+            genre: ext.genre,
+            duration_seconds: ext.duration_seconds,
+            originalKey: 'TBC',
+            targetKey: 'TBC',
+            pitch: 0,
+            isMetadataConfirmed: true,
+            is_active: true
+          };
+          const synced = await syncToMasterRepertoire(userId, [newSong]);
+          processedExternal.push({ id: synced[0].id, setGroup: ext.setGroup });
+          autoVibeCheck(userId, synced[0]);
+        }
+      }
+
+      // 3. Bulk insert all songs into setlist_songs
+      const allSongsToInsert = [
+        ...librarySongs.map((s, i) => ({
+          setlist_id: newList.id,
+          song_id: s.id,
+          sort_order: i,
+          set_group: s.setGroup
+        })),
+        ...processedExternal.map((s, i) => ({
+          setlist_id: newList.id,
+          song_id: s.id,
+          sort_order: librarySongs.length + i,
+          set_group: s.setGroup
+        }))
+      ];
+
+      const { error: insertError } = await supabase
+        .from('setlist_songs')
+        .insert(allSongsToInsert);
+
+      if (insertError) throw insertError;
+
+      await fetchSetlistsAndRepertoire();
+      setActiveSetlistId(newList.id);
+      showSuccess(`Gig "${proposedName}" built successfully!`);
+    } catch (err: any) {
+      showError(`Failed to build gig: ${err.message}`);
     }
   };
 
@@ -1188,6 +1279,7 @@ const Index = () => {
         repertoire={masterRepertoire}
         onAddExternalSong={handleGigPlannerAddExternal}
         onAddLibrarySong={handleGigPlannerAddLibrary}
+        onBuildGig={handleBuildGig}
         activeSetlistName={activeSetlist?.name}
       />
       <ShortcutCheatSheet isOpen={isShortcutSheetOpen} onClose={() => setIsShortcutSheetOpen(false)} />

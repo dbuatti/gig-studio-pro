@@ -3,6 +3,7 @@
 import React, { useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuPortal, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { cn } from '@/lib/utils';
 import { formatKey, ALL_KEYS_SHARP, ALL_KEYS_FLAT } from '@/utils/keyUtils';
@@ -33,6 +34,8 @@ interface SheetReaderHeaderProps {
   onToggleLinkEditMode: () => void; // NEW: Prop for toggling link edit mode
   onOpenLinkSizeModal: () => void; // NEW: Prop for opening link size modal
   isEditingLinksMode: boolean; // NEW: Prop to indicate if in link editing mode
+  setGroup?: number;
+  totalSets?: number;
 }
 
 const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
@@ -58,6 +61,8 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   onToggleLinkEditMode, // NEW
   onOpenLinkSizeModal, // NEW
   isEditingLinksMode, // NEW
+  setGroup,
+  totalSets,
 }) => {
   const displayKey = effectiveTargetKey ? formatKey(effectiveTargetKey, readerKeyPreference) : null;
   const keysToUse = readerKeyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
@@ -117,6 +122,12 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
               <h2 className="text-lg font-black uppercase tracking-tight text-white truncate max-w-md px-2 text-center">
                 {currentSong.name}
               </h2>
+
+              {setGroup && (
+                <Badge variant="outline" className="bg-indigo-600/20 border-indigo-500/30 text-indigo-400 text-[9px] font-black uppercase px-2 py-0.5 rounded-lg shrink-0">
+                  {setGroup === 99 ? 'Surplus' : `Set ${setGroup}${totalSets ? ` of ${totalSets}` : ''}`}
+                </Badge>
+              )}
 
               <Button
                 variant="ghost"
