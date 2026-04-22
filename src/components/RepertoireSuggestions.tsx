@@ -50,8 +50,9 @@ const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoir
     if (repertoire.length === 0) return;
     
     setIsLoading(true);
+    // Send up to 100 songs for better context, but only name/artist to save tokens
     const payload = { 
-      repertoire: repertoire.slice(0, 30).map(s => ({ name: s.name, artist: s.artist, genre: s.genre })),
+      repertoire: repertoire.slice(0, 100).map(s => ({ name: s.name, artist: s.artist })),
       ignored: Array.from(ignored).map(key => ({ name: key.split('-')[0], artist: key.split('-')[1] }))
     };
 
@@ -68,7 +69,6 @@ const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoir
       console.log("[RepertoireDiscovery] Raw AI Response:", rawBatch);
       
       const filtered = rawBatch.filter((s: any) => {
-        // Handle potential field name variations from AI (name vs title)
         const songName = s.name || s.title || "";
         const songArtist = s.artist || s.artistName || "";
         
@@ -76,10 +76,7 @@ const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoir
         const isDuplicate = existingKeys.has(key);
         const isIgnored = ignored.has(key);
         
-        console.log(`[RepertoireDiscovery] Checking: "${songName}" by "${songArtist}" | Key: ${key} | Duplicate: ${isDuplicate} | Ignored: ${isIgnored}`);
-        
-        if (isDuplicate) console.log(`[RepertoireDiscovery] Filtered out duplicate: ${songName}`);
-        if (isIgnored) console.log(`[RepertoireDiscovery] Filtered out ignored: ${songName}`);
+        console.log(`[RepertoireDiscovery] Checking: "\${songName}" by "\${songArtist}" | Key: \${key} | Duplicate: \${isDuplicate} | Ignored: \${isIgnored}`);
         
         return !isDuplicate && !isIgnored && key !== "-";
       }).slice(0, 3);
@@ -101,7 +98,7 @@ const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoir
 
   const handleDismiss = (song: any) => {
     const key = getNormalizedKey(song.name || song.title, song.artist || song.artistName || "");
-    console.log(`[RepertoireDiscovery] Dismissing: ${song.name || song.title}`);
+    console.log(`[RepertoireDiscovery] Dismissing: \${song.name || song.title}`);
     setIgnored(prev => new Set(prev).add(key));
     setSuggestions(prev => prev.filter(s => getNormalizedKey(s.name || s.title, s.artist || s.artistName || "") !== key));
   };
@@ -140,17 +137,17 @@ const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoir
   });
 
   const handleAdd = (s: any) => {
-    console.log(`[RepertoireDiscovery] Adding to library: ${s.name || s.title}`);
+    console.log(`[RepertoireDiscovery] Adding to library: \${s.name || s.title}`);
     onAddSong(mapToSong(s));
     setSuggestions(prev => prev.filter(item => item !== s));
-    showSuccess(`Added "${s.name || s.title}" to library`);
+    showSuccess(`Added "\${s.name || s.title}" to library`);
   };
 
   const handleAddAll = () => {
-    console.log(`[RepertoireDiscovery] Adding all ${suggestions.length} suggestions to library`);
+    console.log(`[RepertoireDiscovery] Adding all \${suggestions.length} suggestions to library`);
     suggestions.forEach(s => onAddSong(mapToSong(s)));
     setSuggestions([]);
-    showSuccess(`Added ${suggestions.length} songs to library`);
+    showSuccess(`Added \${suggestions.length} songs to library`);
   };
 
   if (repertoire.length === 0) return null;

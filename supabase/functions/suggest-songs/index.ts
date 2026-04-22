@@ -48,15 +48,16 @@ serve(async (req) => {
     
     ${seedSong ? `The user wants songs similar to: "${seedSong.name}" by ${seedSong.artist}.` : "The user wants songs that complement their existing repertoire."}
     
-    CURRENT REPERTOIRE (Sample):
-    ${repertoire.slice(0, 20).map((s: any) => `- ${s.name} (${s.artist}) [${s.genre || 'Unknown'}]`).join('\n')}
+    CURRENT REPERTOIRE (DO NOT SUGGEST THESE):
+    ${repertoire.map((s: any) => `- ${s.name} (${s.artist})`).join('\n')}
     
     TASK:
-    Suggest 3-5 NEW songs that would be perfect additions to this library.
+    Suggest 10-12 NEW songs that would be perfect additions to this library. 
+    Focus on high-quality "pro" repertoire that fits the vibe of the existing list but provides fresh options.
     
     CRITICAL RULES:
-    1. DO NOT suggest songs already in the repertoire or the ignored list.
-    2. IGNORED LIST: ${ignored?.map((s: any) => s.name).join(', ') || 'None'}
+    1. DO NOT suggest songs already in the repertoire list above.
+    2. IGNORED LIST (ALSO DO NOT SUGGEST): ${ignored?.map((s: any) => s.name).join(', ') || 'None'}
     3. FORMAT: You MUST return a valid JSON array of objects.
     4. Each object MUST have: "name", "artist", and "reason".
     
