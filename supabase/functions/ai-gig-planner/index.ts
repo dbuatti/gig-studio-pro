@@ -1,4 +1,5 @@
 // AI Gig Planner Edge Function
+// @ts-ignore: Deno runtime import
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 
 const corsHeaders = {
@@ -34,8 +35,12 @@ async function searchITunes(term: string) {
 }
 
 serve(async (req) => {
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return new Response('ok', { 
+      status: 200, 
+      headers: corsHeaders 
+    })
   }
 
   try {
@@ -43,9 +48,13 @@ serve(async (req) => {
     const { emailText, repertoire } = body as { emailText: string, repertoire: Song[] };
 
     const providers = [
+      // @ts-ignore: Deno global
       { type: 'google', key: Deno.env.get('GEMINI_API_KEY'), name: 'Pool #1' },
+      // @ts-ignore: Deno global
       { type: 'google', key: Deno.env.get('GEMINI_API_KEY_2'), name: 'Pool #2' },
+      // @ts-ignore: Deno global
       { type: 'google', key: Deno.env.get('GEMINI_API_KEY_3'), name: 'Pool #3' },
+      // @ts-ignore: Deno global
       { type: 'openrouter', key: Deno.env.get('OPENROUTER_API_KEY'), name: 'OpenRouter' }
     ].filter(p => !!p.key);
 
