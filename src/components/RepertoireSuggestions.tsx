@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Sparkles, Plus, X, RotateCcw, Loader2, Music, Lightbulb, Check } from 'lucide-react';
+import { Sparkles, Plus, X, RotateCcw, Loader2, Music, Lightbulb, Check, AlertCircle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { SetlistSong } from './SetlistManager';
 import { cn } from '@/lib/utils';
-import { showSuccess, showError } from '@/utils/toast';
+import { showSuccess, showError, showInfo } from '@/utils/toast';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 
 interface RepertoireSuggestionsProps {
@@ -19,6 +19,8 @@ const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoir
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [ignored, setIgnored] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isQuotaError, setIsQuotaError] = useState(false);
 
   // Helper to normalize song titles and artists for robust comparison
   const normalize = (str: string = "") => {
@@ -42,7 +44,6 @@ const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoir
 
   const existingKeys = useMemo(() => {
     const keys = new Set(repertoire.map(s => getNormalizedKey(s.name, s.artist || "")));
-    console.log("[RepertoireDiscovery] Current Library Keys (Normalized):", Array.from(keys));
     return keys;
   }, [repertoire]);
 
@@ -50,55 +51,65 @@ const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoir
     if (repertoire.length === 0) return;
     
     setIsLoading(true);
-    // Send up to 100 songs for better context, but only name/artist to save tokens
+    setError(null);
+    setIsQuotaError(false);
+
     const payload = { 
-      repertoire: repertoire.slice(0, 100).map(s => ({ name: s.name, artist: s.artist })),
+      repertoire: repertoire.slice(0, 50).map(s => ({ name: s.name, artist: s.artist })),
       ignored: Array.from(ignored).map(key => ({ name: key.split('-')[0], artist: key.split('-')[1] }))
     };
 
-    console.log("[RepertoireDiscovery] Fetching suggestions with payload:", payload);
-
     try {
-      const { data, error } = await supabase.functions.invoke('suggest-songs', {
+      const { data, error: fetchError } = await supabase.functions.invoke('suggest-songs', {
         body: payload
       });
 
-      if (error) throw error;
+      if (fetchError) {
+        if (fetchError.status === 429 || (data && data.isQuotaError)) {
+          setIsQuotaError(true);
+          setError("AI Discovery is resting (Quota Limit).");
+        } else {
+          throw fetchError;
+        }
+        return;
+      }
+
+      if (data?.error) {
+        if (data.isQuotaError) {
+          setIsQuotaError(true);
+          setError("AI Discovery is resting (Quota Limit).");
+        } else {
+          setError(data.error);
+        }
+        return;
+      }
 
       const rawBatch = Array.isArray(data) ? data : (data?.suggestions || []);
-      console.log("[RepertoireDiscovery] Raw AI Response:", rawBatch);
       
       const filtered = rawBatch.filter((s: any) => {
         const songName = s.name || s.title || "";
         const songArtist = s.artist || s.artistName || "";
-        
         const key = getNormalizedKey(songName, songArtist);
-        const isDuplicate = existingKeys.has(key);
-        const isIgnored = ignored.has(key);
-        
-        console.log(`[RepertoireDiscovery] Checking: "\${songName}" by "\${songArtist}" | Key: \${key} | Duplicate: \${isDuplicate} | Ignored: \${isIgnored}`);
-        
-        return !isDuplicate && !isIgnored && key !== "-";
+        return !existingKeys.has(key) && !ignored.has(key) && key !== "-";
       }).slice(0, 3);
 
-      console.log("[RepertoireDiscovery] Final Display Suggestions:", filtered);
       setSuggestions(filtered);
-    } catch (err) {
+    } catch (err: any) {
       console.error("[RepertoireDiscovery] Fetch error:", err);
+      setError("Discovery engine temporarily unavailable.");
     } finally {
       setIsLoading(false);
     }
   }, [repertoire, ignored, existingKeys]);
 
   useEffect(() => {
-    if (repertoire.length > 0 && suggestions.length === 0 && !isLoading) {
+    if (repertoire.length > 0 && suggestions.length === 0 && !isLoading && !error) {
       fetchSuggestions();
     }
-  }, [repertoire.length, fetchSuggestions, suggestions.length, isLoading]);
+  }, [repertoire.length, fetchSuggestions, suggestions.length, isLoading, error]);
 
   const handleDismiss = (song: any) => {
     const key = getNormalizedKey(song.name || song.title, song.artist || song.artistName || "");
-    console.log(`[RepertoireDiscovery] Dismissing: \${song.name || song.title}`);
     setIgnored(prev => new Set(prev).add(key));
     setSuggestions(prev => prev.filter(s => getNormalizedKey(s.name || s.title, s.artist || s.artistName || "") !== key));
   };
@@ -137,21 +148,18 @@ const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoir
   });
 
   const handleAdd = (s: any) => {
-    console.log(`[RepertoireDiscovery] Adding to library: \${s.name || s.title}`);
     onAddSong(mapToSong(s));
     setSuggestions(prev => prev.filter(item => item !== s));
-    showSuccess(`Added "\${s.name || s.title}" to library`);
+    showSuccess(`Added "${s.name || s.title}" to library`);
   };
 
   const handleAddAll = () => {
-    console.log(`[RepertoireDiscovery] Adding all \${suggestions.length} suggestions to library`);
     suggestions.forEach(s => onAddSong(mapToSong(s)));
     setSuggestions([]);
-    showSuccess(`Added \${suggestions.length} songs to library`);
+    showSuccess(`Added ${suggestions.length} songs to library`);
   };
 
   if (repertoire.length === 0) return null;
-  if (!isLoading && suggestions.length === 0) return null;
 
   return (
     <div className="space-y-4 mb-8 animate-in fade-in slide-in-from-top-4 duration-700">
@@ -166,6 +174,12 @@ const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoir
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {error && (
+            <div className="flex items-center gap-2 px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-lg mr-2">
+              {isQuotaError ? <Clock className="w-3 h-3 text-amber-500" /> : <AlertCircle className="w-3 h-3 text-amber-500" />}
+              <span className="text-[9px] font-black uppercase text-amber-500">{error}</span>
+            </div>
+          )}
           <Button 
             variant="ghost" 
             size="sm" 
@@ -188,13 +202,9 @@ const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoir
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {isLoading && suggestions.length === 0 ? (
-          [1, 2, 3].map(i => (
-            <Card key={i} className="h-32 bg-slate-900/40 border-white/5 animate-pulse rounded-[1.5rem]" />
-          ))
-        ) : (
-          suggestions.map((song, i) => (
+      {suggestions.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {suggestions.map((song, i) => (
             <Card 
               key={i} 
               className="group relative p-5 bg-slate-900/40 border-white/5 hover:border-indigo-500/30 transition-all rounded-[1.5rem] overflow-hidden flex flex-col justify-between"
@@ -227,9 +237,15 @@ const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoir
                 </p>
               </div>
             </Card>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      ) : isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[1, 2, 3].map(i => (
+            <Card key={i} className="h-32 bg-slate-900/40 border-white/5 animate-pulse rounded-[1.5rem]" />
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 };

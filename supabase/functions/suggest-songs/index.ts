@@ -44,15 +44,18 @@ serve(async (req) => {
 
     const shuffledProviders = [...providers].sort(() => Math.random() - 0.5);
 
+    // Limit context to 50 songs to prevent token quota issues
+    const contextRepertoire = repertoire.slice(0, 50);
+
     const prompt = `You are a professional Musical Director for a high-end event band.
     
     ${seedSong ? `The user wants songs similar to: "${seedSong.name}" by ${seedSong.artist}.` : "The user wants songs that complement their existing repertoire."}
     
     CURRENT REPERTOIRE (DO NOT SUGGEST THESE):
-    ${repertoire.map((s: any) => `- ${s.name} (${s.artist})`).join('\n')}
+    ${contextRepertoire.map((s: any) => `- ${s.name} (${s.artist})`).join('\n')}
     
     TASK:
-    Suggest 10-12 NEW songs that would be perfect additions to this library. 
+    Suggest 8-10 NEW songs that would be perfect additions to this library. 
     Focus on high-quality "pro" repertoire that fits the vibe of the existing list but provides fresh options.
     
     CRITICAL RULES:
@@ -71,6 +74,7 @@ serve(async (req) => {
     ]`;
 
     let lastError = null;
+    let isQuotaError = false;
 
     for (const provider of shuffledProviders) {
       try {
@@ -90,6 +94,12 @@ serve(async (req) => {
               }
             })
           });
+          
+          if (response.status === 429) {
+            isQuotaError = true;
+            throw new Error("Quota exceeded");
+          }
+          
           const result = await response.json();
           if (!response.ok) throw new Error(result.error?.message || "Google API error");
           content = result.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -108,6 +118,11 @@ serve(async (req) => {
               temperature: 0.8
             })
           });
+          
+          if (response.status === 429 || response.status === 402) {
+            throw new Error("Provider quota or credit issue");
+          }
+          
           const result = await response.json();
           if (!response.ok) throw new Error(result.error?.message || "OpenRouter API error");
           content = result.choices?.[0]?.message?.content;
@@ -131,7 +146,11 @@ serve(async (req) => {
       }
     }
 
-    throw lastError || new Error("All AI providers failed");
+    const errorMsg = isQuotaError ? "AI Quota Exceeded. Please try again in a few minutes." : (lastError?.message || "All AI providers failed");
+    return new Response(JSON.stringify({ error: errorMsg, isQuotaError }), {
+      status: isQuotaError ? 429 : 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
 
   } catch (error: any) {
     console.error("[suggest-songs] Final Error:", error.message);
