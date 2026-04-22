@@ -24,14 +24,20 @@ const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoir
   const normalize = (str: string = "") => {
     return str
       .toLowerCase()
-      .replace(/\(.*\)/g, '') // Remove everything in parentheses
-      .replace(/\[.*\]/g, '') // Remove everything in brackets
-      .replace(/[^a-z0-9]/g, '') // Remove non-alphanumeric characters
+      // Remove common suffixes in parentheses or brackets
+      .replace(/\(.*\)/g, '') 
+      .replace(/\[.*\]/g, '')
+      // Remove common "noise" words that AI or iTunes might add
+      .replace(/\b(remastered|remaster|original|master|recording|live|version|radio edit|feat|ft)\b/g, '')
+      // Remove all non-alphanumeric characters
+      .replace(/[^a-z0-9]/g, '') 
       .trim();
   };
 
   const getNormalizedKey = (name: string, artist: string) => {
-    return `${normalize(name)}-${normalize(artist)}`;
+    const n = normalize(name);
+    const a = normalize(artist);
+    return `${n}-${a}`;
   };
 
   const existingKeys = useMemo(() => {
@@ -62,14 +68,20 @@ const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoir
       console.log("[RepertoireDiscovery] Raw AI Response:", rawBatch);
       
       const filtered = rawBatch.filter((s: any) => {
-        const key = getNormalizedKey(s.name, s.artist || "");
+        // Handle potential field name variations from AI (name vs title)
+        const songName = s.name || s.title || "";
+        const songArtist = s.artist || s.artistName || "";
+        
+        const key = getNormalizedKey(songName, songArtist);
         const isDuplicate = existingKeys.has(key);
         const isIgnored = ignored.has(key);
         
-        if (isDuplicate) console.log(`[RepertoireDiscovery] Filtered out duplicate: ${s.name} by ${s.artist}`);
-        if (isIgnored) console.log(`[RepertoireDiscovery] Filtered out ignored: ${s.name} by ${s.artist}`);
+        console.log(`[RepertoireDiscovery] Checking: "${songName}" by "${songArtist}" | Key: ${key} | Duplicate: ${isDuplicate} | Ignored: ${isIgnored}`);
         
-        return !isDuplicate && !isIgnored;
+        if (isDuplicate) console.log(`[RepertoireDiscovery] Filtered out duplicate: ${songName}`);
+        if (isIgnored) console.log(`[RepertoireDiscovery] Filtered out ignored: ${songName}`);
+        
+        return !isDuplicate && !isIgnored && key !== "-";
       }).slice(0, 3);
 
       console.log("[RepertoireDiscovery] Final Display Suggestions:", filtered);
@@ -88,16 +100,16 @@ const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoir
   }, [repertoire.length, fetchSuggestions, suggestions.length, isLoading]);
 
   const handleDismiss = (song: any) => {
-    const key = getNormalizedKey(song.name, song.artist || "");
-    console.log(`[RepertoireDiscovery] Dismissing: ${song.name}`);
+    const key = getNormalizedKey(song.name || song.title, song.artist || song.artistName || "");
+    console.log(`[RepertoireDiscovery] Dismissing: ${song.name || song.title}`);
     setIgnored(prev => new Set(prev).add(key));
-    setSuggestions(prev => prev.filter(s => getNormalizedKey(s.name, s.artist || "") !== key));
+    setSuggestions(prev => prev.filter(s => getNormalizedKey(s.name || s.title, s.artist || s.artistName || "") !== key));
   };
 
   const mapToSong = (s: any): SetlistSong => ({
     id: crypto.randomUUID(),
-    name: s.name,
-    artist: s.artist || "Unknown Artist",
+    name: s.name || s.title,
+    artist: s.artist || s.artistName || "Unknown Artist",
     previewUrl: "",
     pitch: 0,
     originalKey: "C",
@@ -128,10 +140,10 @@ const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoir
   });
 
   const handleAdd = (s: any) => {
-    console.log(`[RepertoireDiscovery] Adding to library: ${s.name}`);
+    console.log(`[RepertoireDiscovery] Adding to library: ${s.name || s.title}`);
     onAddSong(mapToSong(s));
     setSuggestions(prev => prev.filter(item => item !== s));
-    showSuccess(`Added "${s.name}" to library`);
+    showSuccess(`Added "${s.name || s.title}" to library`);
   };
 
   const handleAddAll = () => {
@@ -192,8 +204,8 @@ const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoir
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
-                  <h4 className="text-sm font-black uppercase tracking-tight text-white truncate">{song.name}</h4>
-                  <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mt-0.5 truncate">{song.artist}</p>
+                  <h4 className="text-sm font-black uppercase tracking-tight text-white truncate">{song.name || song.title}</h4>
+                  <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mt-0.5 truncate">{song.artist || song.artistName}</p>
                 </div>
                 <div className="flex gap-1 shrink-0">
                   <button 
