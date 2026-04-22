@@ -1,3 +1,6 @@
+// AI Setlist Sorter Edge Function
+// Last Deploy: 2024-05-20T10:00:00Z
+// @ts-ignore: Deno runtime import
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 
 const corsHeaders = {
@@ -41,9 +44,13 @@ serve(async (req) => {
     const { songs, instruction } = body as { songs: Song[], instruction: string };
 
     const providers = [
+      // @ts-ignore: Deno global
       { type: 'google', key: Deno.env.get('GEMINI_API_KEY'), name: 'Pool #1' },
+      // @ts-ignore: Deno global
       { type: 'google', key: Deno.env.get('GEMINI_API_KEY_2'), name: 'Pool #2' },
+      // @ts-ignore: Deno global
       { type: 'google', key: Deno.env.get('GEMINI_API_KEY_3'), name: 'Pool #3' },
+      // @ts-ignore: Deno global
       { type: 'openrouter', key: Deno.env.get('OPENROUTER_API_KEY'), name: 'OpenRouter' }
     ].filter(p => !!p.key);
 
@@ -78,6 +85,7 @@ Return ONLY a JSON object with an array of IDs in the new order:
         let content = "";
 
         if (provider.type === 'google') {
+          // @ts-ignore: Deno global
           const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${provider.key}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -96,6 +104,7 @@ Return ONLY a JSON object with an array of IDs in the new order:
           }
           content = result.candidates?.[0]?.content?.parts?.[0]?.text;
         } else {
+          // @ts-ignore: Deno global
           const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
             headers: {

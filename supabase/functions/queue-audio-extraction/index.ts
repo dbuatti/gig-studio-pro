@@ -1,4 +1,8 @@
+// Queue Audio Extraction Edge Function
+// Last Deploy: 2024-05-20T10:00:00Z
+// @ts-ignore: Deno runtime import
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
+// @ts-ignore: Deno runtime import
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 const corsHeaders = {
