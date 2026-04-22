@@ -1,5 +1,4 @@
 // AI Gig Planner Edge Function
-// Last Deploy: 2024-05-20T10:00:00Z
 // @ts-ignore: Deno runtime import
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 
@@ -21,22 +20,31 @@ function cleanJsonResponse(text: string): string {
   if (cleaned.startsWith('```')) {
     cleaned = cleaned.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
   }
+  // Handle cases where there might be text before or after the JSON block
+  const jsonStart = cleaned.indexOf('{');
+  const jsonEnd = cleaned.lastIndexOf('}');
+  if (jsonStart !== -1 && jsonEnd !== -1) {
+    cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
+  }
   return cleaned.trim();
 }
 
 async function searchITunes(term: string) {
   try {
     const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&entity=song&limit=1`);
+    if (!response.ok) {
+      console.error("[ai-gig-planner] iTunes API error", { status: response.status });
+      return null;
+    }
     const data = await response.json();
     return data.results[0] || null;
   } catch (err) {
-    console.error("iTunes Search Error:", err);
+    console.error("[ai-gig-planner] iTunes Search Exception", err);
     return null;
   }
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { 
       status: 200, 
@@ -47,6 +55,10 @@ serve(async (req) => {
   try {
     const body = await req.json();
     const { emailText, repertoire } = body as { emailText: string, repertoire: Song[] };
+
+    if (!emailText) {
+      throw new Error("Missing emailText in request body");
+    }
 
     const providers = [
       // @ts-ignore: Deno global
@@ -60,6 +72,7 @@ serve(async (req) => {
     ].filter(p => !!p.key);
 
     if (providers.length === 0) {
+      console.error("[ai-gig-planner] No AI provider keys found in environment.");
       throw new Error('No AI provider keys found in environment.');
     }
 
@@ -81,9 +94,9 @@ TASK:
 FORMAT: Return ONLY a raw JSON object:
 {
   "gigDetails": {
-    "duration": "e.g. 3 hours",
-    "vibe": "e.g. Upbeat Piano Bar",
-    "specialRequests": ["request 1", "request 2"]
+    "duration": "string",
+    "vibe": "string",
+    "specialRequests": ["string"]
   },
   "suggestedLibrarySongs": ["id1", "id2"],
   "suggestedExternalSongs": [
@@ -96,6 +109,7 @@ FORMAT: Return ONLY a raw JSON object:
 
     for (const provider of shuffledProviders) {
       try {
+        console.log(`[ai-gig-planner] Attempting generation with ${provider.name} (${provider.type})`);
         let content = "";
         if (provider.type === 'google') {
           const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${provider.key}`, {
@@ -106,8 +120,19 @@ FORMAT: Return ONLY a raw JSON object:
               generationConfig: { responseMimeType: "application/json", temperature: 0.3 }
             })
           });
+          
+          if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`Google API error: ${response.status} - ${errText}`);
+          }
+
           const result = await response.json();
           content = result.candidates?.[0]?.content?.parts?.[0]?.text;
+          
+          if (!content) {
+            console.warn("[ai-gig-planner] Google API returned empty content", { result });
+            throw new Error("Empty content from Google API");
+          }
         } else {
           const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
@@ -122,23 +147,35 @@ FORMAT: Return ONLY a raw JSON object:
               temperature: 0.3
             })
           });
+
+          if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`OpenRouter API error: ${response.status} - ${errText}`);
+          }
+
           const result = await response.json();
           content = result.choices?.[0]?.message?.content;
         }
 
         if (content) {
-          aiResult = JSON.parse(cleanJsonResponse(content));
+          const cleaned = cleanJsonResponse(content);
+          aiResult = JSON.parse(cleaned);
+          console.log("[ai-gig-planner] Successfully parsed AI response");
           break;
         }
       } catch (err) {
-        console.warn(`Provider ${provider.name} failed:`, err);
+        console.warn(`[ai-gig-planner] Provider ${provider.name} failed`, err);
         lastError = err;
       }
     }
 
-    if (!aiResult) throw lastError || new Error("AI failed to generate plan");
+    if (!aiResult) {
+      console.error("[ai-gig-planner] All providers failed", lastError);
+      throw lastError || new Error("AI failed to generate plan");
+    }
 
     // Enrich external suggestions with iTunes data
+    console.log("[ai-gig-planner] Enriching external suggestions...");
     const enrichedExternal = await Promise.all(
       (aiResult.suggestedExternalSongs || []).map(async (s: any) => {
         const itunesData = await searchITunes(`${s.name} ${s.artist}`);
@@ -165,6 +202,7 @@ FORMAT: Return ONLY a raw JSON object:
     });
 
   } catch (error: any) {
+    console.error("[ai-gig-planner] Fatal error", error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
