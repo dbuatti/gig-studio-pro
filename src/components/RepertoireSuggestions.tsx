@@ -20,8 +20,22 @@ const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoir
   const [ignored, setIgnored] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
 
+  // Helper to normalize song titles and artists for robust comparison
+  const normalize = (str: string = "") => {
+    return str
+      .toLowerCase()
+      .replace(/\(.*\)/g, '') // Remove everything in parentheses (e.g., "Original Master Recording")
+      .replace(/\[.*\]/g, '') // Remove everything in brackets
+      .replace(/[^a-z0-9]/g, '') // Remove non-alphanumeric characters
+      .trim();
+  };
+
+  const getNormalizedKey = (name: string, artist: string) => {
+    return `${normalize(name)}-${normalize(artist)}`;
+  };
+
   const existingKeys = useMemo(() => {
-    return new Set(repertoire.map(s => `${s.name.toLowerCase()}-${(s.artist || "").toLowerCase()}`));
+    return new Set(repertoire.map(s => getNormalizedKey(s.name, s.artist || "")));
   }, [repertoire]);
 
   const fetchSuggestions = useCallback(async () => {
@@ -40,9 +54,9 @@ const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoir
 
       const rawBatch = Array.isArray(data) ? data : (data?.suggestions || []);
       
-      // Filter and limit to 3
+      // Filter using normalized keys to prevent duplicates like "Georgia on My Mind" vs "Georgia on My Mind (Remastered)"
       const filtered = rawBatch.filter((s: any) => {
-        const key = `${s.name.toLowerCase()}-${(s.artist || "").toLowerCase()}`;
+        const key = getNormalizedKey(s.name, s.artist || "");
         return !existingKeys.has(key) && !ignored.has(key);
       }).slice(0, 3);
 
@@ -61,9 +75,9 @@ const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoir
   }, [repertoire.length, fetchSuggestions, suggestions.length, isLoading]);
 
   const handleDismiss = (song: any) => {
-    const key = `${song.name.toLowerCase()}-${(song.artist || "").toLowerCase()}`;
+    const key = getNormalizedKey(song.name, song.artist || "");
     setIgnored(prev => new Set(prev).add(key));
-    setSuggestions(prev => prev.filter(s => `${s.name.toLowerCase()}-${(s.artist || "").toLowerCase()}` !== key));
+    setSuggestions(prev => prev.filter(s => getNormalizedKey(s.name, s.artist || "") !== key));
   };
 
   const mapToSong = (s: any): SetlistSong => ({
