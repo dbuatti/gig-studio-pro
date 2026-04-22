@@ -3,20 +3,33 @@
 import React from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Plus, ListMusic, MoreVertical, Trash2, Copy, Sparkles } from 'lucide-react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Plus, ListMusic, MoreVertical, Trash2, Copy, Sparkles, Layers } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 
 interface SetlistSelectorProps {
-  setlists: { id: string; name: string }[];
+  setlists: { id: string; name: string; stimulus_text?: string }[];
   currentId: string;
   onSelect: (id: string) => void;
   onCreate: () => void;
   onDelete: (id: string) => void;
-  onDuplicate?: (id: string) => void; // NEW PROP
-  onOpenGigPlanner?: () => void; // NEW PROP
+  onDuplicate?: (id: string) => void;
+  onOpenGigPlanner?: () => void;
+  onOpenVariation?: () => void;
 }
 
-const SetlistSelector: React.FC<SetlistSelectorProps> = ({ setlists, currentId, onSelect, onCreate, onDelete, onDuplicate, onOpenGigPlanner }) => {
+const SetlistSelector: React.FC<SetlistSelectorProps> = ({ 
+  setlists, 
+  currentId, 
+  onSelect, 
+  onCreate, 
+  onDelete, 
+  onDuplicate, 
+  onOpenGigPlanner,
+  onOpenVariation
+}) => {
+  const currentSetlist = setlists.find(s => s.id === currentId);
+  const hasStimulus = !!currentSetlist?.stimulus_text;
+
   return (
     <div className="flex items-center gap-2 bg-card p-1.5 rounded-lg border border-border shadow-sm">
       <div className="flex items-center gap-2 pl-2 border-r border-border pr-3">
@@ -65,6 +78,17 @@ const SetlistSelector: React.FC<SetlistSelectorProps> = ({ setlists, currentId, 
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="bg-popover text-foreground border-border">
+            {hasStimulus && (
+              <>
+                <DropdownMenuItem 
+                  className="cursor-pointer text-indigo-600 font-bold" 
+                  onClick={() => onOpenVariation?.()}
+                >
+                  <Layers className="w-4 h-4 mr-2" /> Create Variation
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
             <DropdownMenuItem 
               className="cursor-pointer" 
               onClick={() => onDuplicate?.(currentId)}

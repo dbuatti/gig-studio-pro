@@ -524,7 +524,14 @@ const Index = () => {
             set_group: j.set_group || 1
           });
         });
-        setlistsWithSongs.push({ id: setlist.id, name: setlist.name, songs, time_goal: setlist.time_goal });
+        setlistsWithSongs.push({
+          id: setlist.id,
+          name: setlist.name,
+          songs,
+          time_goal: setlist.time_goal,
+          set_names: setlist.set_names,
+          stimulus_text: setlist.stimulus_text
+        });
       }
       setAllSetlists(setlistsWithSongs);
       const savedId = localStorage.getItem('active_setlist_id');
@@ -927,7 +934,7 @@ const Index = () => {
     }
   };
 
-  const handleBuildGig = async (proposedName: string, librarySongs: {id: string, setGroup: number}[], externalSongs: any[]) => {
+  const handleBuildGig = async (proposedName: string, librarySongs: {id: string, setGroup: number}[], externalSongs: any[], setNames: Record<string, string>, stimulusText: string) => {
     if (!userId) return;
     try {
       showInfo(`Building gig: ${proposedName}...`);
@@ -935,7 +942,12 @@ const Index = () => {
       // 1. Create setlist
       const { data: newList, error: listError } = await supabase
         .from('setlists')
-        .insert([{ user_id: userId, name: proposedName }])
+        .insert([{
+          user_id: userId,
+          name: proposedName,
+          set_names: setNames,
+          stimulus_text: stimulusText
+        }])
         .select()
         .single();
       
@@ -1121,6 +1133,7 @@ const Index = () => {
                   onDelete={handleDeleteSetlist}
                   onDuplicate={handleDuplicateSetlist}
                   onOpenGigPlanner={() => setIsGigPlannerOpen(true)}
+                  onOpenVariation={handleCreateVariation}
                 />
                 <Button variant="outline" size="sm" onClick={() => setIsSetlistSettingsOpen(true)} className="h-11 px-6 rounded-2xl text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[10px]">
                   <Settings2 className="w-4 h-4 mr-2.5" /> Gig Settings
@@ -1283,12 +1296,16 @@ const Index = () => {
       <MDAuditModal isOpen={isMDAuditOpen} onClose={() => setIsMDAuditOpen(false)} auditData={auditData} isLoading={isAuditLoading} />
       <GigPlannerModal
         isOpen={isGigPlannerOpen}
-        onClose={() => setIsGigPlannerOpen(false)}
+        onClose={() => {
+          setIsGigPlannerOpen(false);
+          setGigPlannerInitialStimulus(undefined);
+        }}
         repertoire={masterRepertoire}
         onAddExternalSong={handleGigPlannerAddExternal}
         onAddLibrarySong={handleGigPlannerAddLibrary}
         onBuildGig={handleBuildGig}
         activeSetlistName={activeSetlist?.name}
+        initialStimulus={gigPlannerInitialStimulus}
       />
       <ShortcutCheatSheet isOpen={isShortcutSheetOpen} onClose={() => setIsShortcutSheetOpen(false)} />
     </div>

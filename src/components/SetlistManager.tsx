@@ -104,6 +104,8 @@ export interface Setlist {
   name: string;
   songs: SetlistSong[];
   time_goal?: number;
+  set_names?: Record<string, string>;
+  stimulus_text?: string;
 }
 
 interface SetlistManagerProps {
@@ -263,6 +265,17 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     newSongs.push(songToMove);
     onReorder(newSongs);
     showSuccess("Song moved to bottom!");
+  };
+
+  const getSetLabel = (group: number) => {
+    if (activeSetlistId) {
+      const activeSetlist = allSetlists.find(s => s.id === activeSetlistId);
+      if (activeSetlist?.set_names?.[group.toString()]) {
+        return activeSetlist.set_names[group.toString()];
+      }
+    }
+    if (group === 99) return "Surplus / Backup";
+    return `Set ${group}`;
   };
 
   const isReorderingEnabled = sortMode === 'manual' && !searchTerm;
@@ -522,10 +535,11 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
               {hasMultipleSets && (
                 <div className="flex items-center gap-3 py-2">
                   <Badge className={cn(
-                    "h-7 px-4 rounded-full font-black uppercase tracking-widest text-[9px]",
-                    groupNum === 99 ? "bg-slate-800 text-slate-400" : "bg-indigo-600 text-white"
+                    "h-7 px-4 rounded-full font-black uppercase tracking-widest text-[9px] gap-2",
+                    groupNum === 99 ? "bg-slate-800 text-slate-400 border-slate-700" : "bg-indigo-600 text-white"
                   )}>
-                    {groupNum === 99 ? "Surplus / Backup" : `Set ${groupNum}`}
+                    {groupNum === 99 && <AlertTriangle className="w-3 h-3" />}
+                    {getSetLabel(groupNum)}
                   </Badge>
                   <div className="h-px flex-1 bg-white/5" />
                 </div>
@@ -721,10 +735,11 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         <td colSpan={8} className="py-3 px-8">
                           <div className="flex items-center gap-3">
                             <Badge className={cn(
-                              "h-7 px-4 rounded-full font-black uppercase tracking-widest text-[9px]",
-                              groupNum === 99 ? "bg-slate-800 text-slate-400" : "bg-indigo-600 text-white"
+                              "h-7 px-4 rounded-full font-black uppercase tracking-widest text-[9px] gap-2",
+                              groupNum === 99 ? "bg-slate-800 text-slate-400 border-slate-700" : "bg-indigo-600 text-white"
                             )}>
-                              {groupNum === 99 ? "Surplus / Backup" : `Set ${groupNum}`}
+                              {groupNum === 99 && <AlertTriangle className="w-3 h-3" />}
+                              {getSetLabel(groupNum)}
                             </Badge>
                             <div className="h-px flex-1 bg-white/5" />
                           </div>
