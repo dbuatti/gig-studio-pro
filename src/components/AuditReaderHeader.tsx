@@ -4,8 +4,15 @@ import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from '@/lib/utils';
-import { ArrowLeft, ListMusic, Headphones, Search, ShieldCheck, AlertCircle } from 'lucide-react';
-import { SetlistSong } from '@/components/SetlistManager';
+import { ArrowLeft, ListMusic, Headphones, Search, ShieldCheck, AlertCircle, ChevronDown } from 'lucide-react';
+import { SetlistSong, Setlist } from '@/components/SetlistManager';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface AuditReaderHeaderProps {
   currentSong: SetlistSong | null;
@@ -15,6 +22,9 @@ interface AuditReaderHeaderProps {
   isAudioPlayerVisible: boolean;
   onToggleAudioPlayer: () => void;
   onOpenRepertoireSearch: () => void;
+  setlists: Setlist[];
+  selectedSetlistId: string | 'all';
+  onSetlistChange: (id: string) => void;
 }
 
 const AuditReaderHeader: React.FC<AuditReaderHeaderProps> = ({
@@ -25,6 +35,9 @@ const AuditReaderHeader: React.FC<AuditReaderHeaderProps> = ({
   isAudioPlayerVisible,
   onToggleAudioPlayer,
   onOpenRepertoireSearch,
+  setlists,
+  selectedSetlistId,
+  onSetlistChange,
 }) => {
   return (
     <div className="fixed top-0 left-0 right-0 z-50 bg-slate-900/90 backdrop-blur-xl border-b border-white/10 px-6 py-3 flex items-center justify-between shadow-lg h-[72px]">
@@ -40,15 +53,24 @@ const AuditReaderHeader: React.FC<AuditReaderHeaderProps> = ({
         >
           <ListMusic className="w-5 h-5" />
         </Button>
+        
         <div className="h-8 w-px bg-white/10 mx-2" />
-        <div className="flex items-center gap-3">
-          <div className="bg-amber-500/10 p-2 rounded-lg">
-            <ShieldCheck className="w-4 h-4 text-amber-500" />
-          </div>
-          <div>
-            <h1 className="text-xs font-black uppercase tracking-[0.2em] text-amber-500">Audit Mode</h1>
-            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Rehearsal & Quality Control</p>
-          </div>
+
+        <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl px-3 h-10">
+          <ListMusic className="w-3.5 h-3.5 text-indigo-400" />
+          <Select value={selectedSetlistId} onValueChange={onSetlistChange}>
+            <SelectTrigger className="h-8 border-none shadow-none focus:ring-0 text-[10px] font-black uppercase tracking-widest bg-transparent text-slate-300 w-[140px] p-0">
+              <SelectValue placeholder="Select Gig" />
+            </SelectTrigger>
+            <SelectContent className="bg-slate-950 border-white/10 text-white">
+              <SelectItem value="all" className="text-[10px] font-black uppercase">All Repertoire</SelectItem>
+              {setlists.map(list => (
+                <SelectItem key={list.id} value={list.id} className="text-[10px] font-black uppercase">
+                  {list.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -78,6 +100,16 @@ const AuditReaderHeader: React.FC<AuditReaderHeaderProps> = ({
       </div>
 
       <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 mr-4">
+          <div className="bg-amber-500/10 p-2 rounded-lg">
+            <ShieldCheck className="w-4 h-4 text-amber-500" />
+          </div>
+          <div className="hidden sm:block">
+            <h1 className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500 leading-none">Audit Mode</h1>
+            <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mt-1">Quality Control</p>
+          </div>
+        </div>
+
         <Button
           variant="ghost"
           size="icon"

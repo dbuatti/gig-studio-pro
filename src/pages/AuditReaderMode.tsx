@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
-import { SetlistSong, EnergyZone } from '@/components/SetlistManager';
+import { SetlistSong, EnergyZone, Setlist } from '@/components/SetlistManager';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
@@ -49,6 +49,8 @@ const AuditReaderMode: React.FC = () => {
 
   const [allSongs, setAllSongs] = useState<SetlistSong[]>([]);
   const [fullMasterRepertoire, setFullMasterRepertoire] = useState<SetlistSong[]>([]);
+  const [setlists, setSetlists] = useState<Setlist[]>([]);
+  const [selectedSetlistId, setSelectedSetlistId] = useState<string | 'all'>('all');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [initialLoading, setInitialLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -144,6 +146,7 @@ const AuditReaderMode: React.FC = () => {
       const searchTerm = (localStorage.getItem('gig_search_term') || "").toLowerCase();
       const sortMode = (localStorage.getItem('gig_sort_mode') as any) || 'none';
 
+      // 1. Fetch Master Repertoire
       const { data: masterData, error: masterError } = await supabase
         .from('repertoire')
         .select('*')
@@ -192,12 +195,37 @@ const AuditReaderMode: React.FC = () => {
         tempo: d.tempo,
         volume: d.volume,
         energy_level: d.energy_level as EnergyZone,
-        comfort_level: d.comfort_level ?? 0,
+        comfort_level: (d.comfort_level !== null && d.comfort_level <= 5) ? d.comfort_level * 20 : (d.comfort_level ?? 0),
         needs_improvement: d.needs_improvement ?? false,
       } as SetlistSong));
       setFullMasterRepertoire(masterRepertoireList);
 
-      let filteredSongs = masterRepertoireList.filter(s => {
+      // 2. Fetch Setlists
+      const { data: setlistsData } = await supabase
+        .from('setlists')
+        .select('id, name')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      
+      // Map to satisfy Setlist interface which requires 'songs'
+      setSetlists((setlistsData || []).map(s => ({ ...s, songs: [] })) as Setlist[]);
+
+      // 3. Filter by Setlist if selected
+      let baseSongs = masterRepertoireList;
+      if (selectedSetlistId !== 'all') {
+        const { data: junctionData } = await supabase
+          .from('setlist_songs')
+          .select('song_id')
+          .eq('setlist_id', selectedSetlistId)
+          .order('sort_order', { ascending: true });
+        
+        if (junctionData) {
+          const setlistSongIds = new Set(junctionData.map(j => j.song_id));
+          baseSongs = masterRepertoireList.filter(s => setlistSongIds.has(s.id));
+        }
+      }
+
+      let filteredSongs = baseSongs.filter(s => {
         if (searchTerm && !s.name.toLowerCase().includes(searchTerm) && !s.artist?.toLowerCase().includes(searchTerm)) {
           return false;
         }
@@ -227,7 +255,7 @@ const AuditReaderMode: React.FC = () => {
     } finally {
       setInitialLoading(false);
     }
-  }, [user, routeSongId, searchParams]);
+  }, [user, routeSongId, searchParams, selectedSetlistId]);
 
   useEffect(() => {
     fetchSongs();
@@ -359,6 +387,9 @@ const AuditReaderMode: React.FC = () => {
           isAudioPlayerVisible={isAudioPlayerVisible}
           onToggleAudioPlayer={() => setIsAudioPlayerVisible(prev => !prev)}
           onOpenRepertoireSearch={() => setIsRepertoireSearchModalOpen(true)}
+          setlists={setlists}
+          selectedSetlistId={selectedSetlistId}
+          onSetlistChange={setSelectedSetlistId}
         />
 
         <div className="flex-1 flex overflow-hidden mt-[72px]">
