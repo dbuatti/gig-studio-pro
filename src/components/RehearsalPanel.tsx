@@ -8,9 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ALL_KEYS_SHARP, ALL_KEYS_FLAT } from '@/utils/keyUtils';
+import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, calculateSemitones, formatKey } from '@/utils/keyUtils';
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, CheckCircle2, Save, Music, User, Key, Zap, Tag, FileText, Layout, Guitar } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Save, Music, User, Key, Zap, Tag, FileText, Layout, Guitar, Hash, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChartType } from '@/pages/AuditReaderMode';
 
@@ -52,6 +52,8 @@ const RehearsalPanel: React.FC<RehearsalPanelProps> = ({
   const hasPdf = !!(localSong.pdfUrl || localSong.sheet_music_url);
   const hasLeadsheet = !!localSong.leadsheetUrl;
   const hasChords = !!(localSong.ug_chords_text || localSong.ugUrl);
+
+  const stOffset = calculateSemitones(localSong.originalKey || 'C', localSong.targetKey || localSong.originalKey || 'C');
 
   return (
     <div className="w-80 h-full bg-slate-900/50 border-l border-white/10 flex flex-col overflow-y-auto custom-scrollbar p-6 space-y-8">
@@ -106,6 +108,78 @@ const RehearsalPanel: React.FC<RehearsalPanelProps> = ({
             <Guitar className="w-4 h-4" />
             <span className="text-[8px] font-black uppercase">Chords</span>
           </button>
+        </div>
+      </div>
+
+      {/* Harmonic Vetting Section */}
+      <div className="space-y-4 bg-white/5 p-4 rounded-2xl border border-white/10">
+        <div className="flex items-center justify-between mb-2">
+          <Label className="text-[10px] font-black uppercase tracking-widest text-indigo-400 flex items-center gap-2">
+            <Hash className="w-3 h-3" /> Harmonic Vetting
+          </Label>
+          <button 
+            onClick={() => handleUpdate({ isKeyConfirmed: !localSong.isKeyConfirmed })}
+            className={cn(
+              "p-1.5 rounded-lg transition-all",
+              localSong.isKeyConfirmed ? "bg-emerald-600 text-white shadow-lg" : "bg-white/5 text-slate-500 hover:text-white"
+            )}
+            title="Verify Key"
+          >
+            <Check className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-[9px] font-bold text-slate-500 uppercase">Original Key</Label>
+            <Select
+              value={localSong.originalKey || "TBC"}
+              onValueChange={(val) => {
+                const newPitch = calculateSemitones(val, localSong.targetKey || val);
+                handleUpdate({ originalKey: val, pitch: newPitch });
+              }}
+            >
+              <SelectTrigger className="bg-black/20 border-white/5 h-9 text-xs font-mono font-bold">
+                <SelectValue placeholder="Original" />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-950 border-white/10 text-white">
+                {keys.map(k => (
+                  <SelectItem key={k} value={k} className="text-xs font-mono font-bold">{k}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center justify-center py-1">
+            <div className="h-px flex-1 bg-white/5" />
+            <span className="px-3 text-[9px] font-mono font-black text-indigo-400">
+              {stOffset > 0 ? '+' : ''}{stOffset} ST
+            </span>
+            <div className="h-px flex-1 bg-white/5" />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-[9px] font-bold text-indigo-400 uppercase">Stage Key</Label>
+            <Select
+              value={localSong.targetKey || localSong.originalKey || "TBC"}
+              onValueChange={(val) => {
+                const newPitch = calculateSemitones(localSong.originalKey || 'C', val);
+                handleUpdate({ targetKey: val, pitch: newPitch });
+              }}
+            >
+              <SelectTrigger className={cn(
+                "border-white/5 h-9 text-xs font-mono font-bold",
+                localSong.isKeyConfirmed ? "bg-emerald-900/20 text-emerald-400" : "bg-indigo-900/20 text-indigo-400"
+              )}>
+                <SelectValue placeholder="Stage" />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-950 border-white/10 text-white">
+                {keys.map(k => (
+                  <SelectItem key={k} value={k} className="text-xs font-mono font-bold">{k}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
@@ -169,44 +243,23 @@ const RehearsalPanel: React.FC<RehearsalPanelProps> = ({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-3">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-              <Key className="w-3 h-3" /> Key
-            </Label>
-            <Select
-              value={localSong.targetKey || localSong.originalKey || "TBC"}
-              onValueChange={(val) => handleUpdate({ targetKey: val })}
-            >
-              <SelectTrigger className="bg-black/20 border-white/5 h-10 text-xs font-bold rounded-xl">
-                <SelectValue placeholder="Key" />
-              </SelectTrigger>
-              <SelectContent className="bg-slate-950 border-white/10 text-white">
-                {keys.map(k => (
-                  <SelectItem key={k} value={k} className="text-xs font-mono font-bold">{k}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-3">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-              <Zap className="w-3 h-3" /> Energy
-            </Label>
-            <Select
-              value={localSong.energy_level || ""}
-              onValueChange={(val) => handleUpdate({ energy_level: val as EnergyZone })}
-            >
-              <SelectTrigger className="bg-black/20 border-white/5 h-10 text-xs font-bold rounded-xl">
-                <SelectValue placeholder="Zone" />
-              </SelectTrigger>
-              <SelectContent className="bg-slate-950 border-white/10 text-white">
-                {energyZones.map(z => (
-                  <SelectItem key={z} value={z} className="text-xs font-bold">{z}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="space-y-3">
+          <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+            <Zap className="w-3 h-3" /> Energy
+          </Label>
+          <Select
+            value={localSong.energy_level || ""}
+            onValueChange={(val) => handleUpdate({ energy_level: val as EnergyZone })}
+          >
+            <SelectTrigger className="bg-black/20 border-white/5 h-10 text-xs font-bold rounded-xl">
+              <SelectValue placeholder="Zone" />
+            </SelectTrigger>
+            <SelectContent className="bg-slate-950 border-white/10 text-white">
+              {energyZones.map(z => (
+                <SelectItem key={z} value={z} className="text-xs font-bold">{z}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="space-y-3">
