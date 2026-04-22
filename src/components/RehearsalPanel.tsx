@@ -68,11 +68,11 @@ const RehearsalPanel: React.FC<RehearsalPanelProps> = ({
         <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Chart Source</Label>
         <div className="grid grid-cols-3 gap-2 bg-black/40 p-1 rounded-xl border border-white/5">
           <button
-            onClick={() => onChartTypeChange('pdf')}
+            onClick={() => onChartTypeChange('fn')}
             disabled={!hasPdf}
             className={cn(
               "flex flex-col items-center justify-center py-3 rounded-lg transition-all gap-1.5",
-              selectedChartType === 'pdf' 
+              selectedChartType === 'fn' 
                 ? "bg-indigo-600 text-white shadow-lg" 
                 : "text-slate-500 hover:text-slate-300 disabled:opacity-20"
             )}
@@ -81,11 +81,11 @@ const RehearsalPanel: React.FC<RehearsalPanelProps> = ({
             <span className="text-[8px] font-black uppercase">Score</span>
           </button>
           <button
-            onClick={() => onChartTypeChange('leadsheet')}
+            onClick={() => onChartTypeChange('ls')}
             disabled={!hasLeadsheet}
             className={cn(
               "flex flex-col items-center justify-center py-3 rounded-lg transition-all gap-1.5",
-              selectedChartType === 'leadsheet' 
+              selectedChartType === 'ls' 
                 ? "bg-indigo-600 text-white shadow-lg" 
                 : "text-slate-500 hover:text-slate-300 disabled:opacity-20"
             )}
@@ -94,11 +94,11 @@ const RehearsalPanel: React.FC<RehearsalPanelProps> = ({
             <span className="text-[8px] font-black uppercase">Lead</span>
           </button>
           <button
-            onClick={() => onChartTypeChange('chords')}
+            onClick={() => onChartTypeChange('ug')}
             disabled={!hasChords}
             className={cn(
               "flex flex-col items-center justify-center py-3 rounded-lg transition-all gap-1.5",
-              selectedChartType === 'chords' 
+              selectedChartType === 'ug' 
                 ? "bg-indigo-600 text-white shadow-lg" 
                 : "text-slate-500 hover:text-slate-300 disabled:opacity-20"
             )}

@@ -25,13 +25,13 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import SheetReaderAudioPlayer from '@/components/SheetReaderAudioPlayer';
 import { sortSongsByStrategy } from '@/utils/SetlistGenerator';
-import { calculateSemitones } from '@/utils/keyUtils';
-import { useSpring, animated } from '@react-spring/web';
 import { useDrag } from '@use-gesture/react';
+import { animated } from '@react-spring/web';
 
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
-export type ChartType = 'pdf' | 'leadsheet' | 'chords';
+// Updated ChartType to match the database 'preferred_reader' values
+export type ChartType = 'fn' | 'ls' | 'ug';
 
 const AuditReaderMode: React.FC = () => {
   const navigate = useNavigate();
@@ -71,7 +71,7 @@ const AuditReaderMode: React.FC = () => {
     return 'sharps';
   }, [currentSong?.key_preference, globalKeyPreference]);
   
-  const [selectedChartType, setSelectedChartType] = useState<ChartType>('pdf');
+  const [selectedChartType, setSelectedChartType] = useState<ChartType>('fn');
   const [isChartContentLoading, setIsChartContentLoading] = useState(false);
   const [pdfCurrentPage, setPdfCurrentPage] = useState(1);
   const [pdfNumPages, setPdfNumPages] = useState<number | null>(null);
@@ -120,6 +120,12 @@ const AuditReaderMode: React.FC = () => {
       console.error("Audit Mode Auto-save failed:", err);
       showError("Failed to save changes.");
     }
+  };
+
+  const handleChartTypeChange = async (type: ChartType) => {
+    setSelectedChartType(type);
+    await handleUpdateSong({ preferred_reader: type });
+    showSuccess(`Preferred chart set to ${type === 'fn' ? 'Full Score' : type === 'ls' ? 'Lead Sheet' : 'Chords'}`);
   };
 
   useEffect(() => {
@@ -271,25 +277,25 @@ const AuditReaderMode: React.FC = () => {
   }, [fetchSongs]);
 
   const getBestChartType = useCallback((song: SetlistSong): ChartType => {
-    if (forceReaderResource === 'force-pdf' && song.pdfUrl) return 'pdf';
-    if (forceReaderResource === 'force-ug' && (song.ugUrl || song.ug_chords_text)) return 'chords';
-    if (forceReaderResource === 'force-chords' && song.ug_chords_text) return 'chords';
+    if (forceReaderResource === 'force-pdf' && song.pdfUrl) return 'fn';
+    if (forceReaderResource === 'force-ug' && (song.ugUrl || song.ug_chords_text)) return 'ug';
+    if (forceReaderResource === 'force-chords' && song.ug_chords_text) return 'ug';
 
-    if (song.preferred_reader === 'ug' && (song.ugUrl || song.ug_chords_text)) return 'chords';
-    if (song.preferred_reader === 'ls' && song.leadsheetUrl) return 'leadsheet';
-    if (song.preferred_reader === 'fn' && (song.pdfUrl || song.sheet_music_url)) return 'pdf';
+    if (song.preferred_reader === 'ug' && (song.ugUrl || song.ug_chords_text)) return 'ug';
+    if (song.preferred_reader === 'ls' && song.leadsheetUrl) return 'ls';
+    if (song.preferred_reader === 'fn' && (song.pdfUrl || song.sheet_music_url)) return 'fn';
 
-    if (song.pdfUrl || song.sheet_music_url) return 'pdf';
-    if (song.leadsheetUrl) return 'leadsheet';
-    if (song.ug_chords_text) return 'chords';
-    return 'pdf';
+    if (song.pdfUrl || song.sheet_music_url) return 'fn';
+    if (song.leadsheetUrl) return 'ls';
+    if (song.ug_chords_text) return 'ug';
+    return 'fn';
   }, [forceReaderResource]);
 
   const currentChartDisplayUrl = useMemo(() => {
     if (!currentSong) return null;
     switch (selectedChartType) {
-      case 'pdf': return currentSong.pdfUrl || currentSong.sheet_music_url;
-      case 'leadsheet': return currentSong.leadsheetUrl;
+      case 'fn': return currentSong.pdfUrl || currentSong.sheet_music_url;
+      case 'ls': return currentSong.leadsheetUrl;
       default: return null;
     }
   }, [currentSong, selectedChartType]);
@@ -354,7 +360,7 @@ const AuditReaderMode: React.FC = () => {
   }, [pdfDocument, pdfCurrentPage, calculatePdfScale]); 
 
   const handlePageNext = useCallback(() => {
-    if (selectedChartType === 'chords') {
+    if (selectedChartType === 'ug') {
       handleNext();
     } else if (pdfCurrentPage < (pdfNumPages || 1)) {
       setPdfCurrentPage(prev => prev + 1);
@@ -364,7 +370,7 @@ const AuditReaderMode: React.FC = () => {
   }, [selectedChartType, pdfCurrentPage, pdfNumPages, handleNext]);
 
   const handlePagePrev = useCallback(() => {
-    if (selectedChartType === 'chords') {
+    if (selectedChartType === 'ug') {
       handlePrev();
     } else if (pdfCurrentPage > 1) {
       setPdfCurrentPage(prev => prev - 1);
@@ -469,7 +475,7 @@ const AuditReaderMode: React.FC = () => {
               className="w-full h-full flex justify-center items-center p-8"
             >
               {currentSong ? (
-                selectedChartType === 'chords' ? (
+                selectedChartType === 'ug' ? (
                   <UGChordsReader
                     chordsText={currentSong.ug_chords_text || ""}
                     config={effectiveConfig}
@@ -520,7 +526,7 @@ const AuditReaderMode: React.FC = () => {
               onUpdate={handleUpdateSong}
               keyPreference={readerKeyPreference}
               selectedChartType={selectedChartType}
-              onChartTypeChange={setSelectedChartType}
+              onChartTypeChange={handleChartTypeChange}
             />
           )}
         </div>
