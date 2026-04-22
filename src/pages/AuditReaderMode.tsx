@@ -26,6 +26,8 @@ import 'react-pdf/dist/Page/TextLayer.css';
 import SheetReaderAudioPlayer from '@/components/SheetReaderAudioPlayer';
 import { sortSongsByStrategy } from '@/utils/SetlistGenerator';
 import { calculateSemitones } from '@/utils/keyUtils';
+import { useSpring, animated } from '@react-spring/web';
+import { useDrag } from '@use-gesture/react';
 
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
@@ -81,6 +83,8 @@ const AuditReaderMode: React.FC = () => {
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);
+  const navigatedRef = useRef(false);
+  const swipeThreshold = 40;
 
   useEffect(() => {
     setPdfCurrentPage(1);
@@ -146,7 +150,6 @@ const AuditReaderMode: React.FC = () => {
       const searchTerm = (localStorage.getItem('gig_search_term') || "").toLowerCase();
       const sortMode = (localStorage.getItem('gig_sort_mode') as any) || 'none';
 
-      // 1. Fetch Master Repertoire
       const { data: masterData, error: masterError } = await supabase
         .from('repertoire')
         .select('*')
@@ -200,17 +203,14 @@ const AuditReaderMode: React.FC = () => {
       } as SetlistSong));
       setFullMasterRepertoire(masterRepertoireList);
 
-      // 2. Fetch Setlists
       const { data: setlistsData } = await supabase
         .from('setlists')
         .select('id, name')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
       
-      // Map to satisfy Setlist interface which requires 'songs'
       setSetlists((setlistsData || []).map(s => ({ ...s, songs: [] })) as Setlist[]);
 
-      // 3. Filter by Setlist if selected
       let baseSongs = masterRepertoireList;
       let isSetlistActive = false;
 
@@ -223,7 +223,6 @@ const AuditReaderMode: React.FC = () => {
         
         if (junctionData && junctionData.length > 0) {
           isSetlistActive = true;
-          // Map songs in the exact order they appear in the setlist
           baseSongs = junctionData.map(j => {
             const song = masterRepertoireList.find(s => s.id === j.song_id);
             return song;
@@ -233,7 +232,6 @@ const AuditReaderMode: React.FC = () => {
 
       let filteredSongs = baseSongs;
 
-      // Only apply filters and sorting if we are NOT in a specific setlist
       if (!isSetlistActive) {
         filteredSongs = baseSongs.filter(s => {
           if (searchTerm && !s.name.toLowerCase().includes(searchTerm) && !s.artist?.toLowerCase().includes(searchTerm)) {
@@ -355,6 +353,60 @@ const AuditReaderMode: React.FC = () => {
     return () => resizeObserver.unobserve(container);
   }, [pdfDocument, pdfCurrentPage, calculatePdfScale]); 
 
+  const handlePageNext = useCallback(() => {
+    if (selectedChartType === 'chords') {
+      handleNext();
+    } else if (pdfCurrentPage < (pdfNumPages || 1)) {
+      setPdfCurrentPage(prev => prev + 1);
+    } else {
+      handleNext();
+    }
+  }, [selectedChartType, pdfCurrentPage, pdfNumPages, handleNext]);
+
+  const handlePagePrev = useCallback(() => {
+    if (selectedChartType === 'chords') {
+      handlePrev();
+    } else if (pdfCurrentPage > 1) {
+      setPdfCurrentPage(prev => prev - 1);
+    } else {
+      handlePrev();
+    }
+  }, [selectedChartType, pdfCurrentPage, handlePrev]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      switch (e.key) {
+        case 'ArrowLeft':
+          e.preventDefault();
+          handlePagePrev();
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          handlePageNext();
+          break;
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handlePageNext, handlePagePrev]);
+
+  const bind = useDrag(({ first, down, movement: [mx], direction: [dx], velocity: [vx], cancel }) => {
+    if (first) navigatedRef.current = false;
+    if (!down || navigatedRef.current) return;
+    const isFastSwipe = Math.abs(vx) > 0.15; 
+    const isLongSwipe = Math.abs(mx) > swipeThreshold;
+    if (isLongSwipe || isFastSwipe) {
+      navigatedRef.current = true; 
+      cancel(); 
+      if (dx < 0) { 
+        handlePageNext();
+      } else { 
+        handlePagePrev();
+      }
+    }
+  }, { threshold: 5, filterTaps: true, axis: 'x' });
+
   const effectiveConfig = useMemo(() => {
     if (!currentSong) return DEFAULT_UG_CHORDS_CONFIG;
     
@@ -411,7 +463,11 @@ const AuditReaderMode: React.FC = () => {
               isAudioPlayerVisible && currentSong ? "pb-24" : "pb-0"
             )}
           >
-            <div className="w-full h-full flex justify-center items-center p-8">
+            <animated.div 
+              {...bind()}
+              style={{ touchAction: 'none' }}
+              className="w-full h-full flex justify-center items-center p-8"
+            >
               {currentSong ? (
                 selectedChartType === 'chords' ? (
                   <UGChordsReader
@@ -453,7 +509,7 @@ const AuditReaderMode: React.FC = () => {
                   <p>No song selected.</p>
                 </div>
               )}
-            </div>
+            </animated.div>
             
             {isChartContentLoading && <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 z-20"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>}
           </div>
