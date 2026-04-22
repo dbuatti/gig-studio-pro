@@ -187,7 +187,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
       tooltip: isPlaying ? "Pause [Space]" : "Play [Space]",
       className: cn(
         "text-white shadow-xl scale-110",
-        isPlaying ? "bg-red-600 border-red-500" : "bg-indigo-600 border-indigo-500"
+        isPlaying ? "bg-red-600 border-red-500 shadow-red-600/20" : "bg-indigo-600 border-indigo-500 shadow-indigo-600/20"
       ),
     },
     {
@@ -196,7 +196,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
       onClick: onOpenPerformance,
       disabled: !activeSongId,
       tooltip: "Stage Mode [P]",
-      className: "bg-orange-600 text-white border-orange-500",
+      className: "bg-orange-600 text-white border-orange-500 shadow-orange-600/20",
     },
     {
       id: 'reader',
@@ -204,7 +204,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
       onClick: () => onOpenReader(activeSongId || undefined),
       disabled: false, 
       tooltip: "Sheet Reader [R]",
-      className: "bg-emerald-600 text-white border-emerald-500",
+      className: "bg-emerald-600 text-white border-emerald-500 shadow-emerald-600/20",
     },
     {
       id: 'search',
@@ -212,7 +212,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
       onClick: onOpenSearch,
       disabled: false,
       tooltip: "Discovery Engine",
-      className: "bg-slate-800 text-white border-white/10 hover:bg-indigo-600",
+      className: "bg-slate-800 text-white border-white/10 hover:bg-indigo-600 shadow-slate-900/20",
     },
   ];
 
@@ -249,7 +249,8 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
           direction === 'right' && "flex-row"
         )}
       >
-        <div className="bg-slate-950/80 backdrop-blur-2xl p-2 rounded-full border border-white/10 shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)]">
+        <div className="bg-slate-950/80 backdrop-blur-2xl p-2 rounded-full border border-white/10 shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] relative">
+          <div className="absolute inset-0 rounded-full bg-indigo-500/10 blur-xl animate-pulse" />
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -257,7 +258,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                 size="icon"
                 onClick={handleToggleMenu}
                 className={cn(
-                  "h-14 w-14 rounded-full transition-all duration-500 border-2 shadow-xl",
+                  "h-14 w-14 rounded-full transition-all duration-500 border-2 shadow-xl relative z-10",
                   internalIsMenuOpen ? "bg-indigo-600 text-white border-indigo-400 rotate-90" : "bg-slate-900 text-indigo-400 border-white/5"
                 )}
               >

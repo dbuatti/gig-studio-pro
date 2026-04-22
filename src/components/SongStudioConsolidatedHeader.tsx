@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { 
   ArrowLeft, Play, Pause, Sparkles, Globe, 
   Check, Loader2, Save, Share2, MoreHorizontal,
-  CloudUpload
+  CloudUpload, Activity, Music
 } from 'lucide-react';
 import { SetlistSong, Setlist } from './SetlistManager';
 import { cn } from '@/lib/utils';
@@ -53,71 +53,77 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
     const hideTimer = setTimeout(() => setSaveStatus('idle'), 3000);
     return () => {
       clearTimeout(timer);
-      clearTimeout(hideTimer);
+      hideTimer && clearTimeout(hideTimer);
     };
   }, [formData]);
-
-  // Intercept auto-save to show status
-  const handleSaveWithStatus = (updates: Partial<SetlistSong>) => {
-    setSaveStatus('saving');
-    onAutoSave(updates);
-  };
 
   const currentPref = formData.key_preference || globalKeyPreference;
   const displayTargetKey = formatKey(targetKey || formData.originalKey || 'C', currentPref === 'neutral' ? 'sharps' : currentPref);
 
   return (
-    <div className="bg-slate-950 border-b border-white/10 px-6 py-4 flex items-center justify-between gap-4">
-      <div className="flex items-center gap-4 min-w-0">
+    <div className="bg-slate-950 border-b border-white/10 px-6 py-4 flex items-center justify-between gap-4 shadow-2xl relative z-50">
+      <div className="flex items-center gap-5 min-w-0">
         <Button 
           variant="ghost" 
           size="icon" 
           onClick={onClose}
-          className="h-10 w-10 rounded-xl text-slate-400 hover:bg-white/5 shrink-0"
+          className="h-10 w-10 rounded-xl text-slate-400 hover:bg-white/5 shrink-0 transition-all active:scale-90"
         >
           <ArrowLeft className="w-5 h-5" />
         </Button>
         
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-black uppercase tracking-tight text-white truncate">
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-black uppercase tracking-tight text-white truncate">
               {formData.name || "Untitled Track"}
             </h2>
             {saveStatus !== 'idle' && (
               <div className={cn(
-                "flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest transition-all duration-300",
+                "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all duration-500",
                 saveStatus === 'saving' ? "bg-indigo-500/10 text-indigo-400" : "bg-emerald-500/10 text-emerald-400"
               )}>
                 {saveStatus === 'saving' ? (
                   <>
                     <Loader2 className="w-2.5 h-2.5 animate-spin" />
-                    Saving
+                    Syncing
                   </>
                 ) : (
                   <>
                     <Check className="w-2.5 h-2.5" />
-                    Saved
+                    Synced
                   </>
                 )}
               </div>
             )}
           </div>
-          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest truncate">
-            {formData.artist || "Unknown Artist"} • {formData.genre || "No Genre"}
-          </p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest truncate">
+              {formData.artist || "Unknown Artist"}
+            </p>
+            <span className="text-slate-800 text-[8px]">•</span>
+            <p className="text-[10px] font-black text-indigo-400/60 uppercase tracking-widest truncate">
+              {formData.genre || "No Genre"}
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-3 shrink-0">
-        <div className="hidden md:flex items-center gap-3 px-4 py-2 bg-white/5 rounded-2xl border border-white/5 mr-2">
+      <div className="flex items-center gap-4 shrink-0">
+        <div className="hidden lg:flex items-center gap-6 px-6 py-2 bg-white/5 rounded-2xl border border-white/5 mr-2 shadow-inner">
           <div className="text-center">
-            <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Stage Key</p>
-            <p className="text-xs font-mono font-black text-indigo-400">{displayTargetKey}</p>
+            <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Stage Key</p>
+            <div className="flex items-center gap-1.5">
+              <Music className="w-3 h-3 text-indigo-400" />
+              <p className="text-sm font-mono font-black text-white">{displayTargetKey}</p>
+            </div>
           </div>
-          <div className="w-px h-6 bg-white/10" />
+          <div className="w-px h-8 bg-white/10" />
           <div className="text-center">
-            <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Pitch</p>
-            <p className="text-xs font-mono font-black text-emerald-400">{pitch > 0 ? '+' : ''}{pitch}</p>
+            <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Pitch Shift</p>
+            <div className="flex items-center gap-1.5">
+              <Activity className="w-3 h-3 text-emerald-400" />
+              <p className="text-sm font-mono font-black text-white">{pitch > 0 ? '+' : ''}{pitch}</p>
+            </div>
           </div>
         </div>
 
@@ -125,12 +131,20 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
           onClick={onTogglePlayback}
           disabled={isLoadingAudio}
           className={cn(
-            "h-11 px-6 rounded-2xl font-black uppercase tracking-widest text-[10px] gap-2.5 shadow-xl transition-all active:scale-95",
-            isPlaying ? "bg-red-600 hover:bg-red-500 text-white shadow-red-600/20" : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/20"
+            "h-12 px-8 rounded-2xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-xl transition-all active:scale-95",
+            isPlaying 
+              ? "bg-red-600 hover:bg-red-500 text-white shadow-red-600/20" 
+              : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/20"
           )}
         >
-          {isLoadingAudio ? <Loader2 className="w-4 h-4 animate-spin" /> : isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
-          {isPlaying ? "Pause" : "Preview"}
+          {isLoadingAudio ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : isPlaying ? (
+            <Pause className="w-4 h-4 fill-current" />
+          ) : (
+            <Play className="w-4 h-4 fill-current" />
+          )}
+          {isPlaying ? "Stop" : "Preview"}
         </Button>
 
         <div className="flex items-center gap-2">
@@ -138,7 +152,7 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
             variant="outline" 
             size="sm" 
             onClick={onOpenProSync}
-            className="h-11 px-5 rounded-2xl text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[10px] gap-2"
+            className="h-12 px-6 rounded-2xl text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[10px] gap-2.5"
           >
             <Sparkles className="w-4 h-4" /> Pro Sync
           </Button>

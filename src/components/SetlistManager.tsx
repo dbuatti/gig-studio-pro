@@ -470,7 +470,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                   disabled={isVibeChecking || missingEnergyCount === 0}
                   className={cn(
                     "h-11 px-6 rounded-2xl font-black uppercase tracking-widest text-[10px] gap-2.5 shadow-xl transition-all active:scale-95",
-                    isVibeChecking ? "bg-purple-600/50 text-white cursor-wait" : "bg-purple-600 hover:bg-purple-500 text-white shadow-purple-600/20"
+                    isVibeChecking ? "bg-purple-600/50 text-white cursor-wait" : "bg-purple-600 hover:bg-purple-50 text-white shadow-purple-600/20"
                   )}
                 >
                   {isVibeChecking ? (
