@@ -46,7 +46,6 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
 }) => {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
-  // Monitor formData changes to show saving status
   useEffect(() => {
     if (saveStatus === 'idle') return;
     const timer = setTimeout(() => setSaveStatus('saved'), 800);
@@ -61,20 +60,24 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
   const displayTargetKey = formatKey(targetKey || formData.originalKey || 'C', currentPref === 'neutral' ? 'sharps' : currentPref);
 
   return (
-    <div className="bg-slate-950 border-b border-white/10 px-6 py-4 flex items-center justify-between gap-4 shadow-2xl relative z-50">
-      <div className="flex items-center gap-5 min-w-0">
+    <div className="bg-slate-950 border-b border-white/10 px-6 py-4 flex items-center justify-between gap-4 shadow-2xl relative z-50 h-[72px]">
+      {/* Left: Back & Title */}
+      <div className="flex items-center gap-4 min-w-0">
         <Button 
           variant="ghost" 
           size="icon" 
           onClick={onClose}
-          className="h-10 w-10 rounded-xl text-slate-400 hover:bg-white/5 shrink-0 transition-all active:scale-90"
+          className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 shrink-0 transition-all active:scale-90"
+          title="Back to Dashboard"
         >
           <ArrowLeft className="w-5 h-5" />
         </Button>
         
+        <div className="h-8 w-px bg-white/10 mx-1" />
+
         <div className="min-w-0">
           <div className="flex items-center gap-3">
-            <h2 className="text-xl font-black uppercase tracking-tight text-white truncate">
+            <h2 className="text-lg font-black uppercase tracking-tight text-white truncate">
               {formData.name || "Untitled Track"}
             </h2>
             {saveStatus !== 'idle' && (
@@ -96,18 +99,13 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
               </div>
             )}
           </div>
-          <div className="flex items-center gap-2 mt-0.5">
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest truncate">
-              {formData.artist || "Unknown Artist"}
-            </p>
-            <span className="text-slate-800 text-[8px]">•</span>
-            <p className="text-[10px] font-black text-indigo-400/60 uppercase tracking-widest truncate">
-              {formData.genre || "No Genre"}
-            </p>
-          </div>
+          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest truncate">
+            {formData.artist || "Unknown Artist"}
+          </p>
         </div>
       </div>
 
+      {/* Right: Controls */}
       <div className="flex items-center gap-4 shrink-0">
         <div className="hidden lg:flex items-center gap-6 px-6 py-2 bg-white/5 rounded-2xl border border-white/5 mr-2 shadow-inner">
           <div className="text-center">
@@ -133,8 +131,8 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
           className={cn(
             "h-12 px-8 rounded-2xl font-black uppercase tracking-widest text-[10px] gap-3 shadow-xl transition-all active:scale-95",
             isPlaying 
-              ? "bg-red-600 hover:bg-red-500 text-white shadow-red-600/20" 
-              : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/20"
+              ? "bg-red-600 hover:bg-red-700 shadow-red-600/20" 
+              : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20"
           )}
         >
           {isLoadingAudio ? (

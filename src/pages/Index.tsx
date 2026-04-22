@@ -46,6 +46,7 @@ import GlobalSearchModal from '@/components/GlobalSearchModal';
 import GigPlannerModal from '@/components/GigPlannerModal';
 import MDAuditModal from '@/components/MDAuditModal';
 import ShortcutCheatSheet from '@/components/ShortcutCheatSheet';
+import SystemToolsDropdown from '@/components/SystemToolsDropdown';
 import { sortSongsByStrategy } from '@/utils/SetlistGenerator';
 
 const Index = () => {
@@ -61,7 +62,7 @@ const Index = () => {
     preventStageKeyOverwrite 
   } = useSettings();
 
-  // REFS: Absolute source of truth for the Audio Engine to prevent stale closures
+  // REFS: Absolute source of truth for the Audio Engine
   const isTransitioningRef = useRef(false);
   const autoplayActiveRef = useRef(false);
   const lastTriggerTimeRef = useRef(0);
@@ -70,7 +71,6 @@ const Index = () => {
   const isShuffleAllRef = useRef(false);
   const masterRepertoireRef = useRef<SetlistSong[]>([]);
   
-  // Callback Bridge: Breaks circular dependency between audio engine and playNext logic
   const playNextBridgeRef = useRef<() => void>(() => {});
   const audio = useToneAudio(true, useCallback(() => playNextBridgeRef.current(), []));
 
@@ -84,7 +84,6 @@ const Index = () => {
   const [floatingDockMenuOpen, setFloatingDockMenuOpen] = useState(false);
   const [isShortcutSheetOpen, setIsShortcutSheetOpen] = useState(false);
 
-  // Centralized Autoplay Control
   const setAutoplayStatus = useCallback((active: boolean) => {
     autoplayActiveRef.current = active;
     setIsAutoplayActive(active);
@@ -97,7 +96,6 @@ const Index = () => {
     [allSetlists, activeSetlistId]
   );
 
-  // Filter/search states
   const [searchTerm, setSearchTerm] = useState(() => localStorage.getItem('gig_search_term') || "");
   const [sortMode, setSortMode] = useState<'none' | 'ready' | 'work' | 'manual' | 'energy-asc' | 'energy-desc' | 'zig-zag' | 'wedding-ramp'>(() => 
     (localStorage.getItem('gig_sort_mode') as 'none' | 'ready' | 'work' | 'manual' | 'energy-asc' | 'energy-desc' | 'zig-zag' | 'wedding-ramp') || 'none'
@@ -140,7 +138,6 @@ const Index = () => {
     return songs;
   }, [activeSetlist, searchTerm, sortMode, activeFilters]);
 
-  // Sync refs with state to ensure the audio engine always has the latest data
   useEffect(() => {
     currentSongsRef.current = filteredAndSortedSongs;
     activeSongRef.current = activeSongForPerformance;
@@ -148,7 +145,6 @@ const Index = () => {
     masterRepertoireRef.current = masterRepertoire;
   }, [filteredAndSortedSongs, activeSongForPerformance, isShuffleAllMode, masterRepertoire]);
 
-  // Stable handleSelectSong that updates refs immediately
   const handleSelectSong = useCallback(async (song: SetlistSong, forceAutoplay = false) => {
     isTransitioningRef.current = true;
     if (Tone.getContext().state !== 'running') await Tone.start();
@@ -191,7 +187,6 @@ const Index = () => {
     }
   }, [audio, setAutoplayStatus]);
 
-  // Core logic for moving to the next song
   const playNextInList = useCallback((isManual = false) => {
     const now = Date.now();
     const timeSinceLastTrigger = now - lastTriggerTimeRef.current;
@@ -240,7 +235,6 @@ const Index = () => {
     }
   }, [handleSelectSong, setAutoplayStatus, audio.progress, audio.duration, audio.isLoadingAudio]);
 
-  // Update the bridge ref whenever playNextInList changes
   useEffect(() => {
     playNextBridgeRef.current = () => playNextInList(false);
   }, [playNextInList]);
@@ -265,17 +259,6 @@ const Index = () => {
     }
   };
 
-  const recentlyEdited = useMemo(() => {
-    return [...masterRepertoire]
-      .sort((a, b) => {
-        const dateA = new Date(a.lyrics_updated_at || a.chords_updated_at || 0).getTime();
-        const dateB = new Date(b.lyrics_updated_at || b.chords_updated_at || 0).getTime();
-        return dateB - dateA;
-      })
-      .slice(0, 3)
-      .filter(s => s.lyrics_updated_at || s.chords_updated_at);
-  }, [masterRepertoire]);
-
   // Modal states
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
@@ -287,9 +270,7 @@ const Index = () => {
   const [isKeyManagementOpen, setIsKeyManagementOpen] = useState(false);
   const [isPerformanceOverlayOpen, setIsPerformanceOverlayOpen] = useState(false);
   const [isSetlistSortModalOpen, setIsSetlistSortModalOpen] = useState(false);
-  const [isRepertoirePickerOpen, setIsRepertoirePickerOpen] = useState(false);
   const [isResourceAuditOpen, setIsResourceAuditOpen] = useState(false);
-  const [isImportSetlistOpen, setIsImportSetlistOpen] = useState(false);
   const [isSetlistSettingsOpen, setIsSetlistSettingsOpen] = useState(false);
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
   const [isMDAuditOpen, setIsMDAuditOpen] = useState(false);
@@ -322,22 +303,6 @@ const Index = () => {
     localStorage.setItem('gig_show_heatmap', showHeatmap.toString());
   }, [showHeatmap]);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setIsGlobalSearchOpen(true);
-      }
-      if (e.key === '?') {
-        e.preventDefault();
-        setIsShortcutSheetOpen(true);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
   const fetchSetlistsAndRepertoire = useCallback(async (isInitial = false) => {
     if (!userId) return;
     if (isInitial) setLoading(true);
@@ -363,7 +328,7 @@ const Index = () => {
         previewUrl: d.extraction_status === 'completed' && d.audio_url ? d.audio_url : d.preview_url,
         youtubeUrl: d.youtube_url,
         ugUrl: d.ug_url,
-        appleMusicUrl: d.apple_music_url,
+        appleMusicUrl: d.apple_music_url, 
         pdfUrl: d.pdf_url,
         leadsheetUrl: d.leadsheet_url,
         bpm: d.bpm,
@@ -485,7 +450,6 @@ const Index = () => {
       if (Object.keys(repertoireUpdates).length > 0) {
         await syncToMasterRepertoire(userId, [{ ...repertoireUpdates, id: song.master_id || song.id, name: song.name, artist: song.artist }]);
       }
-      if (updates.comfort_level !== undefined) showSuccess(`Mastery updated for "${song.name}"`);
       await fetchSetlistsAndRepertoire();
     } catch (err: any) {
       showError(`Update failed: ${err.message}`);
@@ -866,21 +830,14 @@ const Index = () => {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-4">
-            <Button variant="outline" size="sm" onClick={() => navigate('/audit-reader')} className="h-12 px-8 rounded-2xl text-amber-500 border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 transition-all font-black uppercase tracking-widest text-[11px]">
-              <ShieldCheck className="w-5 h-5 mr-3" /> Audit Mode
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleRunMDAudit} className="h-12 px-8 rounded-2xl text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[11px]">
-              <Sparkles className="w-5 h-5 mr-3" /> MD Audit
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleToggleShuffleAll} className={cn("h-12 px-8 rounded-2xl transition-all font-black uppercase tracking-widest text-[11px]", isShuffleAllMode ? "bg-indigo-600 text-white border-indigo-400 shadow-lg shadow-indigo-500/20" : "text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10")}>
-              <Shuffle className={cn("w-5 h-5 mr-3", isShuffleAllMode && "animate-spin-slow")} /> Shuffle All
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setIsKeyManagementOpen(true)} className="h-12 px-8 rounded-2xl text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[11px]">
-              <Hash className="w-5 h-5 mr-3" /> Key Matrix
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setIsPreferencesOpen(true)} className="h-12 px-8 rounded-2xl text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[11px]">
-              <Settings2 className="w-5 h-5 mr-3" /> Preferences
-            </Button>
+            <SystemToolsDropdown
+              onOpenMDAudit={handleRunMDAudit}
+              onToggleShuffleAll={handleToggleShuffleAll}
+              isShuffleAllMode={isShuffleAllMode}
+              onOpenKeyMatrix={() => setIsKeyManagementOpen(true)}
+              onOpenPreferences={() => setIsPreferencesOpen(true)}
+              onOpenUserGuide={() => setIsUserGuideOpen(true)}
+            />
           </div>
         </div>
 
