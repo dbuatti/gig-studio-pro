@@ -20,7 +20,6 @@ function cleanJsonResponse(text: string): string {
   if (cleaned.startsWith('```')) {
     cleaned = cleaned.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
   }
-  // Handle cases where there might be text before or after the JSON block
   const jsonStart = cleaned.indexOf('{');
   const jsonEnd = cleaned.lastIndexOf('}');
   if (jsonStart !== -1 && jsonEnd !== -1) {
@@ -32,33 +31,24 @@ function cleanJsonResponse(text: string): string {
 async function searchITunes(term: string) {
   try {
     const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&entity=song&limit=1`);
-    if (!response.ok) {
-      console.error("[ai-gig-planner] iTunes API error", { status: response.status });
-      return null;
-    }
+    if (!response.ok) return null;
     const data = await response.json();
     return data.results[0] || null;
   } catch (err) {
-    console.error("[ai-gig-planner] iTunes Search Exception", err);
     return null;
   }
 }
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { 
-      status: 200, 
-      headers: corsHeaders 
-    })
+    return new Response('ok', { status: 200, headers: corsHeaders })
   }
 
   try {
     const body = await req.json();
     const { emailText, repertoire } = body as { emailText: string, repertoire: Song[] };
 
-    if (!emailText) {
-      throw new Error("Missing emailText in request body");
-    }
+    if (!emailText) throw new Error("Missing emailText");
 
     const providers = [
       // @ts-ignore: Deno global
@@ -72,44 +62,21 @@ serve(async (req) => {
     ].filter(p => !!p.key);
 
     if (providers.length === 0) {
-      console.error("[ai-gig-planner] No AI provider keys found in environment.");
-      throw new Error('No AI provider keys found in environment.');
+      return new Response(JSON.stringify({ error: "No AI API keys configured. Please check your Supabase Secrets." }), { 
+        status: 503, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
     }
 
     const shuffledProviders = [...providers].sort(() => Math.random() - 0.5);
-    
-    const prompt = `You are an expert Gig Planner. Analyze this gig inquiry email and suggest a setlist.
+    const prompt = `You are an expert Gig Planner. Analyze this email and suggest a setlist.\n\nEMAIL:\n"${emailText}"\n\nREPERTOIRE:\n${repertoire.map(s => `${s.name} - ${s.artist}`).join('\n')}\n\nReturn ONLY JSON: {"gigDetails": {"duration": "string", "vibe": "string", "specialRequests": []}, "suggestedLibrarySongs": [], "suggestedExternalSongs": [{"name": "", "artist": ""}]}`;
 
-EMAIL CONTENT:
-"${emailText}"
-
-USER REPERTOIRE:
-${repertoire.map(s => `ID: ${s.id} | ${s.name} - ${s.artist} | Genre: ${s.genre || 'Unknown'} | Energy: ${s.energy_level || 'Unknown'}`).join('\n')}
-
-TASK:
-1. Extract Gig Details: Duration, Vibe, and Special Requests.
-2. Suggest Songs from the User's Repertoire (Library Hits).
-3. Suggest New Songs not in the library that fit the vibe (New Discoveries).
-
-FORMAT: Return ONLY a raw JSON object:
-{
-  "gigDetails": {
-    "duration": "string",
-    "vibe": "string",
-    "specialRequests": ["string"]
-  },
-  "suggestedLibrarySongs": ["id1", "id2"],
-  "suggestedExternalSongs": [
-    { "name": "Song Name", "artist": "Artist Name" }
-  ]
-}`;
-
-    let lastError = null;
     let aiResult = null;
+    let isQuotaError = false;
 
     for (const provider of shuffledProviders) {
       try {
-        console.log(`[ai-gig-planner] Attempting generation with ${provider.name} (${provider.type})`);
+        console.log(`[ai-gig-planner] Trying ${provider.name}...`);
         let content = "";
         if (provider.type === 'google') {
           const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${provider.key}`, {
@@ -121,25 +88,17 @@ FORMAT: Return ONLY a raw JSON object:
             })
           });
           
-          if (!response.ok) {
-            const errText = await response.text();
-            throw new Error(`Google API error: ${response.status} - ${errText}`);
+          if (response.status === 429) {
+            isQuotaError = true;
+            throw new Error("Quota exceeded");
           }
-
+          
           const result = await response.json();
           content = result.candidates?.[0]?.content?.parts?.[0]?.text;
-          
-          if (!content) {
-            console.warn("[ai-gig-planner] Google API returned empty content", { result });
-            throw new Error("Empty content from Google API");
-          }
         } else {
           const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
-            headers: {
-              "Authorization": `Bearer ${provider.key}`,
-              "Content-Type": "application/json"
-            },
+            headers: { "Authorization": `Bearer ${provider.key}`, "Content-Type": "application/json" },
             body: JSON.stringify({
               model: "google/gemini-2.0-flash-001",
               messages: [{ role: "user", content: prompt }],
@@ -148,34 +107,31 @@ FORMAT: Return ONLY a raw JSON object:
             })
           });
 
-          if (!response.ok) {
-            const errText = await response.text();
-            throw new Error(`OpenRouter API error: ${response.status} - ${errText}`);
-          }
-
+          if (response.status === 402) throw new Error("Insufficient credits");
           const result = await response.json();
           content = result.choices?.[0]?.message?.content;
         }
 
         if (content) {
-          const cleaned = cleanJsonResponse(content);
-          aiResult = JSON.parse(cleaned);
-          console.log("[ai-gig-planner] Successfully parsed AI response");
+          aiResult = JSON.parse(cleanJsonResponse(content));
           break;
         }
       } catch (err) {
-        console.warn(`[ai-gig-planner] Provider ${provider.name} failed`, err);
-        lastError = err;
+        console.warn(`[ai-gig-planner] ${provider.name} failed: ${err.message}`);
       }
     }
 
     if (!aiResult) {
-      console.error("[ai-gig-planner] All providers failed", lastError);
-      throw lastError || new Error("AI failed to generate plan");
+      const msg = isQuotaError 
+        ? "AI Quota Exceeded. Please wait a few minutes or add a new Gemini API key to your secrets." 
+        : "AI services are currently unavailable. Please check your API credits or try again later.";
+      
+      return new Response(JSON.stringify({ error: msg }), { 
+        status: 429, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
     }
 
-    // Enrich external suggestions with iTunes data
-    console.log("[ai-gig-planner] Enriching external suggestions...");
     const enrichedExternal = await Promise.all(
       (aiResult.suggestedExternalSongs || []).map(async (s: any) => {
         const itunesData = await searchITunes(`${s.name} ${s.artist}`);
@@ -194,15 +150,11 @@ FORMAT: Return ONLY a raw JSON object:
       })
     );
 
-    return new Response(JSON.stringify({
-      ...aiResult,
-      suggestedExternalSongs: enrichedExternal
-    }), { 
+    return new Response(JSON.stringify({ ...aiResult, suggestedExternalSongs: enrichedExternal }), { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
 
   } catch (error: any) {
-    console.error("[ai-gig-planner] Fatal error", error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
