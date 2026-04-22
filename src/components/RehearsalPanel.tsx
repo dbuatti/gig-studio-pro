@@ -9,18 +9,26 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT } from '@/utils/keyUtils';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, CheckCircle2, Save, Music, User, Key, Zap, Tag, FileText } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Save, Music, User, Key, Zap, Tag, FileText, Layout, Guitar } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ChartType } from '@/pages/AuditReaderMode';
 
 interface RehearsalPanelProps {
   song: SetlistSong;
   onUpdate: (updates: Partial<SetlistSong>) => Promise<void>;
   keyPreference: 'sharps' | 'flats';
+  selectedChartType: ChartType;
+  onChartTypeChange: (type: ChartType) => void;
 }
 
-const RehearsalPanel: React.FC<RehearsalPanelProps> = ({ song, onUpdate, keyPreference }) => {
+const RehearsalPanel: React.FC<RehearsalPanelProps> = ({ 
+  song, 
+  onUpdate, 
+  keyPreference,
+  selectedChartType,
+  onChartTypeChange
+}) => {
   const [localSong, setLocalSong] = useState<SetlistSong>(song);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -41,6 +49,10 @@ const RehearsalPanel: React.FC<RehearsalPanelProps> = ({ song, onUpdate, keyPref
   const keys = keyPreference === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT;
   const energyZones: EnergyZone[] = ['Ambient', 'Pulse', 'Groove', 'Peak'];
 
+  const hasPdf = !!(localSong.pdfUrl || localSong.sheet_music_url);
+  const hasLeadsheet = !!localSong.leadsheetUrl;
+  const hasChords = !!(localSong.ug_chords_text || localSong.ugUrl);
+
   return (
     <div className="w-80 h-full bg-slate-900/50 border-l border-white/10 flex flex-col overflow-y-auto custom-scrollbar p-6 space-y-8">
       <div className="space-y-2">
@@ -49,6 +61,52 @@ const RehearsalPanel: React.FC<RehearsalPanelProps> = ({ song, onUpdate, keyPref
           {isSaving && <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />}
         </h3>
         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Audit & Practice Mode</p>
+      </div>
+
+      {/* Chart Selection Matrix */}
+      <div className="space-y-4">
+        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Chart Source</Label>
+        <div className="grid grid-cols-3 gap-2 bg-black/40 p-1 rounded-xl border border-white/5">
+          <button
+            onClick={() => onChartTypeChange('pdf')}
+            disabled={!hasPdf}
+            className={cn(
+              "flex flex-col items-center justify-center py-3 rounded-lg transition-all gap-1.5",
+              selectedChartType === 'pdf' 
+                ? "bg-indigo-600 text-white shadow-lg" 
+                : "text-slate-500 hover:text-slate-300 disabled:opacity-20"
+            )}
+          >
+            <FileText className="w-4 h-4" />
+            <span className="text-[8px] font-black uppercase">Score</span>
+          </button>
+          <button
+            onClick={() => onChartTypeChange('leadsheet')}
+            disabled={!hasLeadsheet}
+            className={cn(
+              "flex flex-col items-center justify-center py-3 rounded-lg transition-all gap-1.5",
+              selectedChartType === 'leadsheet' 
+                ? "bg-indigo-600 text-white shadow-lg" 
+                : "text-slate-500 hover:text-slate-300 disabled:opacity-20"
+            )}
+          >
+            <Layout className="w-4 h-4" />
+            <span className="text-[8px] font-black uppercase">Lead</span>
+          </button>
+          <button
+            onClick={() => onChartTypeChange('chords')}
+            disabled={!hasChords}
+            className={cn(
+              "flex flex-col items-center justify-center py-3 rounded-lg transition-all gap-1.5",
+              selectedChartType === 'chords' 
+                ? "bg-indigo-600 text-white shadow-lg" 
+                : "text-slate-500 hover:text-slate-300 disabled:opacity-20"
+            )}
+          >
+            <Guitar className="w-4 h-4" />
+            <span className="text-[8px] font-black uppercase">Chords</span>
+          </button>
+        </div>
       </div>
 
       {/* Confidence Slider */}

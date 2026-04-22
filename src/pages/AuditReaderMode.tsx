@@ -463,6 +463,8 @@ const AuditReaderMode: React.FC = () => {
               song={currentSong}
               onUpdate={handleUpdateSong}
               keyPreference={readerKeyPreference}
+              selectedChartType={selectedChartType}
+              onChartTypeChange={setSelectedChartType}
             />
           )}
         </div>
