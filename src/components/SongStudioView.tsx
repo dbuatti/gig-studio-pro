@@ -203,7 +203,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
         audio_url: data.audio_url,
         extraction_status: data.extraction_status,
         energy_level: data.energy_level as EnergyZone,
-        comfort_level: data.comfort_level ?? 0,
+        comfort_level: (data.comfort_level !== null && data.comfort_level <= 5) ? data.comfort_level * 20 : (data.comfort_level ?? 0),
       };
       
       setSong(targetSong);
