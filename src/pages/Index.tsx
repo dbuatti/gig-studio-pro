@@ -84,15 +84,8 @@ const Index = () => {
   const [floatingDockMenuOpen, setFloatingDockMenuOpen] = useState(false);
   const [isShortcutSheetOpen, setIsShortcutSheetOpen] = useState(false);
 
-  // Mount Tracking
-  useEffect(() => {
-    console.log("[Autoplay] Index component mounted");
-    return () => console.log("[Autoplay] Index component unmounted");
-  }, []);
-
   // Centralized Autoplay Control
   const setAutoplayStatus = useCallback((active: boolean) => {
-    console.log(`[Autoplay] setAutoplayStatus: ${active}`);
     autoplayActiveRef.current = active;
     setIsAutoplayActive(active);
   }, []);
@@ -157,92 +150,43 @@ const Index = () => {
 
   // Stable handleSelectSong that updates refs immediately
   const handleSelectSong = useCallback(async (song: SetlistSong, forceAutoplay = false) => {
-    const songName = song.name;
-    console.log(`[Autoplay] >>> START handleSelectSong: ${songName} (Force: ${forceAutoplay})`);
-    console.log(`[Autoplay] Current State - Transport: ${Tone.getTransport().state}, audio.isPlaying: ${audio.isPlaying}, audio.isLoading: ${audio.isLoadingAudio}`);
-    
-    // 1. Immediate Guard
     isTransitioningRef.current = true;
-    
-    // 2. Context Check
-    if (Tone.getContext().state !== 'running') {
-        console.log("[Autoplay] Resuming AudioContext...");
-        await Tone.start();
-    }
+    if (Tone.getContext().state !== 'running') await Tone.start();
 
-    // 3. State Sync
     activeSongRef.current = song;
-    if (forceAutoplay) {
-      setAutoplayStatus(true);
-    }
-    
+    if (forceAutoplay) setAutoplayStatus(true);
     setActiveSongForPerformance(song);
     
     const audioUrl = song.audio_url || song.previewUrl;
     if (audioUrl) {
       const shouldPlay = forceAutoplay || autoplayActiveRef.current;
-      console.log(`[Autoplay] Loading: ${songName} (shouldPlay: ${shouldPlay})`);
-      
-      // 4. Aggressive Reset
       try {
         audio.stopPlayback();
         Tone.getTransport().stop();
         Tone.getTransport().cancel();
-        console.log("[Autoplay] Engine reset successful.");
-      } catch (e) {
-        console.warn("[Autoplay] Engine reset warning:", e);
-      }
+      } catch (e) {}
       
-      // 5. Breathe Delay: Give the audio stack time to fully detach the previous buffer
       await new Promise(resolve => setTimeout(resolve, 200));
-      
       lastTriggerTimeRef.current = Date.now();
       
-      // 6. Load and Play
       try {
-        console.log(`[Autoplay] Calling audio.loadFromUrl for ${songName}...`);
-        // We load with autoPlay: false to handle the start logic ourselves more reliably
         await audio.loadFromUrl(audioUrl, song.pitch || 0, false);
-        
-        // 7. Post-Load Verification & Explicit Start
-        console.log(`[Autoplay] loadFromUrl resolved for ${songName}.`);
-        
-        // Wait for hook state to propagate and engine to settle
         await new Promise(resolve => setTimeout(resolve, 400));
         
         if (shouldPlay) {
-            console.log("[Autoplay] Executing Explicit Start Routine...");
-            
-            // Directly command the transport to start - this is the most reliable way
             Tone.getTransport().start();
-            
-            // Give it a tiny moment to start
             await new Promise(resolve => setTimeout(resolve, 100));
-            
-            const transportState = Tone.getTransport().state;
-            const hookPlaying = audio.isPlaying;
-            console.log(`[Autoplay] Post-start state - Transport: ${transportState}, audio.isPlaying: ${hookPlaying}`);
-
-            if (transportState !== 'started' || !hookPlaying) {
-                console.log("[Autoplay] FAIL-SAFE: System still not playing correctly. Executing Hard Re-kick...");
-                // If transport is still stopped or hook is out of sync, force a toggle
+            if (Tone.getTransport().state !== 'started' || !audio.isPlaying) {
                 audio.stopPlayback();
                 Tone.getTransport().stop();
                 await new Promise(resolve => setTimeout(resolve, 200));
                 audio.togglePlayback();
             }
         }
-      } catch (err) {
-        console.error(`[Autoplay] CRITICAL LOAD ERROR for ${songName}:`, err);
-      }
+      } catch (err) {}
       
-      // 8. Release Guard
-      setTimeout(() => { 
-        isTransitioningRef.current = false; 
-        console.log(`[Autoplay] <<< END handleSelectSong: ${songName} (Guard Released)`);
-      }, 1500); 
+      setTimeout(() => { isTransitioningRef.current = false; }, 1500); 
     } else {
-      console.warn(`[Autoplay] No audio URL for: ${songName}`);
       isTransitioningRef.current = false;
     }
   }, [audio, setAutoplayStatus]);
@@ -252,41 +196,14 @@ const Index = () => {
     const now = Date.now();
     const timeSinceLastTrigger = now - lastTriggerTimeRef.current;
     
-    console.log(`[Autoplay] playNextInList signal received. Manual: ${isManual}, State: { active: ${autoplayActiveRef.current}, transitioning: ${isTransitioningRef.current}, timeSinceLast: ${timeSinceLastTrigger}ms, progress: ${audio.progress.toFixed(4)}, duration: ${audio.duration}, loading: ${audio.isLoadingAudio}, transport: ${Tone.getTransport().state} }`);
+    if (!isManual && timeSinceLastTrigger < 4000) return;
+    if (!isManual && !autoplayActiveRef.current) return;
+    if (!isManual && isTransitioningRef.current) return;
+    if (!isManual && audio.isLoadingAudio) return;
 
-    // 1. Cooldown check (only for automatic triggers)
-    if (!isManual && timeSinceLastTrigger < 4000) {
-      console.log("[Autoplay] playNextInList ignored: Cooldown active (< 4s).");
-      return;
-    }
-
-    // 2. Autoplay active check (only for automatic triggers)
-    if (!isManual && !autoplayActiveRef.current) {
-      console.log("[Autoplay] playNextInList ignored: Autoplay not active.");
-      return;
-    }
-
-    // 3. Transitioning check (only for automatic triggers)
-    if (!isManual && isTransitioningRef.current) {
-      console.log("[Autoplay] playNextInList ignored: Already transitioning.");
-      return;
-    }
-
-    // 4. Loading check (only for automatic triggers)
-    if (!isManual && audio.isLoadingAudio) {
-      console.log("[Autoplay] playNextInList ignored: Audio engine is still loading.");
-      return;
-    }
-
-    // 5. Playback progress check (The "Ghost Event" killer)
     const progressPercent = audio.duration > 0 ? (audio.progress / audio.duration) : 0;
-    if (!isManual && audio.duration > 10 && progressPercent < 0.85) {
-        console.log(`[Autoplay] playNextInList ignored: Song hasn't finished (Progress: ${(progressPercent * 100).toFixed(2)}%). Likely a ghost event.`);
-        return;
-    }
+    if (!isManual && audio.duration > 10 && progressPercent < 0.85) return;
 
-    console.log("[Autoplay] playNextInList ACCEPTED. Mode:", isShuffleAllRef.current ? 'Shuffle' : 'Sequential');
-    
     isTransitioningRef.current = true;
     lastTriggerTimeRef.current = now;
 
@@ -303,7 +220,6 @@ const Index = () => {
 
     const songs = currentSongsRef.current;
     if (songs.length === 0) {
-      console.warn("[Autoplay] No songs in list.");
       isTransitioningRef.current = false;
       return;
     }
@@ -312,16 +228,13 @@ const Index = () => {
     
     if (currentIndex !== -1 && currentIndex < songs.length - 1) {
       const nextSong = songs[currentIndex + 1];
-      console.log(`[Autoplay] Moving to next song: ${nextSong.name}`);
       handleSelectSong(nextSong, true);
       showInfo(`Autoplay: ${nextSong.name}`);
     } else if (autoplayActiveRef.current) {
       const firstSong = songs[0];
-      console.log(`[Autoplay] End of list reached. Looping to start: ${firstSong.name}`);
       handleSelectSong(firstSong, true);
       showInfo(`Autoplay Loop: ${firstSong.name}`);
     } else {
-      console.log("[Autoplay] End of list reached. Stopping autoplay.");
       setAutoplayStatus(false);
       isTransitioningRef.current = false;
     }
@@ -334,7 +247,6 @@ const Index = () => {
 
   const handlePlayAll = async () => {
     if (isAutoplayActive) {
-      console.log("[Autoplay] Manually stopping autoplay.");
       setAutoplayStatus(false);
       audio.stopPlayback();
       showInfo("Autoplay stopped");
@@ -343,19 +255,10 @@ const Index = () => {
         showWarning("No songs available to play.");
         return;
       }
-      
-      // CRITICAL: Resume AudioContext on this user gesture
       try {
           await Tone.start();
-          console.log("[Autoplay] AudioContext resumed via Play All gesture.");
-      } catch (e) {
-          console.error("[Autoplay] Failed to resume AudioContext:", e);
-      }
-
-      console.log(`[Autoplay] Starting autoplay for ${filteredAndSortedSongs.length} songs.`);
-      
+      } catch (e) {}
       setAutoplayStatus(true);
-      
       const firstSong = filteredAndSortedSongs[0];
       handleSelectSong(firstSong, true);
       showSuccess("Starting Setlist Autoplay");
@@ -400,9 +303,7 @@ const Index = () => {
   }, [activeFilters]);
 
   useEffect(() => {
-    if (isFilterDirty) {
-      setIsFilterOpen(true);
-    }
+    if (isFilterDirty) setIsFilterOpen(true);
   }, [isFilterDirty]);
 
   useEffect(() => {
@@ -580,13 +481,10 @@ const Index = () => {
     const song = activeSetlist?.songs.find(s => s.id === songId);
     if (!song || !userId) return;
     try {
-      // Filter out set_group as it belongs to setlist_songs, not repertoire
       const { set_group, ...repertoireUpdates } = updates;
-      
       if (Object.keys(repertoireUpdates).length > 0) {
         await syncToMasterRepertoire(userId, [{ ...repertoireUpdates, id: song.master_id || song.id, name: song.name, artist: song.artist }]);
       }
-      
       if (updates.comfort_level !== undefined) showSuccess(`Mastery updated for "${song.name}"`);
       await fetchSetlistsAndRepertoire();
     } catch (err: any) {
@@ -880,49 +778,24 @@ const Index = () => {
 
   const handleToggleShuffleAll = useCallback(() => {
     setIsShuffleAllMode(prev => !prev);
-    if (!isShuffleAllMode) {
-      showInfo("Shuffle All mode enabled");
-    } else {
-      showInfo("Shuffle All mode disabled");
-    }
+    if (!isShuffleAllMode) showInfo("Shuffle All mode enabled");
+    else showInfo("Shuffle All mode disabled");
   }, [isShuffleAllMode]);
 
   const handleGigPlannerAddLibrary = async (songId: string, setGroup?: number) => {
     if (!activeSetlistId) return;
     const song = masterRepertoire.find(s => s.id === songId);
-    if (song) {
-      await handleUpdateSetlistSongs(activeSetlistId, song, 'add', setGroup);
-    }
+    if (song) await handleUpdateSetlistSongs(activeSetlistId, song, 'add', setGroup);
   };
 
   const handleGigPlannerAddExternal = async (externalSong: any, setGroup?: number) => {
     if (!userId || !activeSetlistId) return;
-    
-    // Check if already in library
-    const existing = masterRepertoire.find(s =>
-      s.name.toLowerCase() === externalSong.name.toLowerCase() &&
-      s.artist?.toLowerCase() === externalSong.artist?.toLowerCase()
-    );
-
+    const existing = masterRepertoire.find(s => s.name.toLowerCase() === externalSong.name.toLowerCase() && s.artist?.toLowerCase() === externalSong.artist?.toLowerCase());
     if (existing) {
       await handleUpdateSetlistSongs(activeSetlistId, existing, 'add', setGroup);
       return;
     }
-
-    const newSong: Partial<SetlistSong> = {
-      name: externalSong.name,
-      artist: externalSong.artist,
-      previewUrl: externalSong.previewUrl,
-      appleMusicUrl: externalSong.appleMusicUrl,
-      genre: externalSong.genre,
-      duration_seconds: externalSong.duration_seconds,
-      originalKey: 'TBC',
-      targetKey: 'TBC',
-      pitch: 0,
-      isMetadataConfirmed: true,
-      is_active: true
-    };
-
+    const newSong: Partial<SetlistSong> = { name: externalSong.name, artist: externalSong.artist, previewUrl: externalSong.previewUrl, appleMusicUrl: externalSong.appleMusicUrl, genre: externalSong.genre, duration_seconds: externalSong.duration_seconds, originalKey: 'TBC', targetKey: 'TBC', pitch: 0, isMetadataConfirmed: true, is_active: true };
     try {
       const synced = await syncToMasterRepertoire(userId, [newSong]);
       const song = synced[0];
@@ -938,73 +811,22 @@ const Index = () => {
     if (!userId) return;
     try {
       showInfo(`Building gig: ${proposedName}...`);
-      
-      // 1. Create setlist
-      const { data: newList, error: listError } = await supabase
-        .from('setlists')
-        .insert([{
-          user_id: userId,
-          name: proposedName,
-          set_names: setNames,
-          stimulus_text: stimulusText
-        }])
-        .select()
-        .single();
-      
+      const { data: newList, error: listError } = await supabase.from('setlists').insert([{ user_id: userId, name: proposedName, set_names: setNames, stimulus_text: stimulusText }]).select().single();
       if (listError) throw listError;
-
-      // 2. Process external songs (add to repertoire first)
       const processedExternal = [];
       for (const ext of externalSongs) {
-        const existing = masterRepertoire.find(s =>
-          s.name.toLowerCase() === ext.name.toLowerCase() &&
-          s.artist?.toLowerCase() === ext.artist?.toLowerCase()
-        );
-
-        if (existing) {
-          processedExternal.push({ id: existing.id, setGroup: ext.setGroup });
-        } else {
-          const newSong: Partial<SetlistSong> = {
-            name: ext.name,
-            artist: ext.artist,
-            previewUrl: ext.previewUrl,
-            appleMusicUrl: ext.appleMusicUrl,
-            genre: ext.genre,
-            duration_seconds: ext.duration_seconds,
-            originalKey: 'TBC',
-            targetKey: 'TBC',
-            pitch: 0,
-            isMetadataConfirmed: true,
-            is_active: true
-          };
+        const existing = masterRepertoire.find(s => s.name.toLowerCase() === ext.name.toLowerCase() && s.artist?.toLowerCase() === ext.artist?.toLowerCase());
+        if (existing) processedExternal.push({ id: existing.id, setGroup: ext.setGroup });
+        else {
+          const newSong: Partial<SetlistSong> = { name: ext.name, artist: ext.artist, previewUrl: ext.previewUrl, appleMusicUrl: ext.appleMusicUrl, genre: ext.genre, duration_seconds: ext.duration_seconds, originalKey: 'TBC', targetKey: 'TBC', pitch: 0, isMetadataConfirmed: true, is_active: true };
           const synced = await syncToMasterRepertoire(userId, [newSong]);
           processedExternal.push({ id: synced[0].id, setGroup: ext.setGroup });
           autoVibeCheck(userId, synced[0]);
         }
       }
-
-      // 3. Bulk insert all songs into setlist_songs
-      const allSongsToInsert = [
-        ...librarySongs.map((s, i) => ({
-          setlist_id: newList.id,
-          song_id: s.id,
-          sort_order: i,
-          set_group: s.setGroup
-        })),
-        ...processedExternal.map((s, i) => ({
-          setlist_id: newList.id,
-          song_id: s.id,
-          sort_order: librarySongs.length + i,
-          set_group: s.setGroup
-        }))
-      ];
-
-      const { error: insertError } = await supabase
-        .from('setlist_songs')
-        .insert(allSongsToInsert);
-
+      const allSongsToInsert = [ ...librarySongs.map((s, i) => ({ setlist_id: newList.id, song_id: s.id, sort_order: i, set_group: s.setGroup })), ...processedExternal.map((s, i) => ({ setlist_id: newList.id, song_id: s.id, sort_order: librarySongs.length + i, set_group: s.setGroup })) ];
+      const { error: insertError } = await supabase.from('setlist_songs').insert(allSongsToInsert);
       if (insertError) throw insertError;
-
       await fetchSetlistsAndRepertoire();
       setActiveSetlistId(newList.id);
       showSuccess(`Gig "${proposedName}" built successfully!`);
@@ -1015,9 +837,7 @@ const Index = () => {
 
   const handleAddMultipleToSetlist = async (songs: SetlistSong[]) => {
     if (!activeSetlistId) return;
-    for (const song of songs) {
-      await handleUpdateSetlistSongs(activeSetlistId, song, 'add');
-    }
+    for (const song of songs) await handleUpdateSetlistSongs(activeSetlistId, song, 'add');
   };
 
   const missingAudioCount = useMemo(() => masterRepertoire.filter(s => !!s.youtubeUrl && (!s.audio_url || s.extraction_status !== 'completed')).length, [masterRepertoire]);
@@ -1032,46 +852,46 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col relative overflow-hidden">
-      <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-indigo-600/10 to-transparent pointer-events-none" />
+      <div className="absolute top-0 left-0 w-full h-[600px] bg-gradient-to-b from-indigo-600/10 to-transparent pointer-events-none" />
       
       <div className="flex-1 flex flex-col p-6 md:p-12 lg:p-16 overflow-y-auto custom-scrollbar relative z-10">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 mb-12">
-          <div className="flex items-center gap-6">
-            <div className="bg-indigo-600 p-3 rounded-[1.5rem] shadow-2xl shadow-indigo-500/20">
-              <Command className="w-8 h-8 text-white" />
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 mb-16 animate-in fade-in slide-in-from-top-4 duration-700">
+          <div className="flex items-center gap-8">
+            <div className="bg-indigo-600 p-4 rounded-[2rem] shadow-2xl shadow-indigo-600/30">
+              <Command className="w-10 h-10 text-white" />
             </div>
             <div>
-              <h1 className="text-4xl font-black uppercase tracking-tight leading-none">Gig Studio</h1>
-              <p className="text-slate-400 font-bold uppercase tracking-[0.3em] text-[10px] mt-2">Professional Performance Matrix</p>
+              <h1 className="text-5xl font-black uppercase tracking-tighter leading-none">Gig Studio</h1>
+              <p className="text-slate-400 font-bold uppercase tracking-[0.4em] text-[11px] mt-3">Professional Performance Matrix</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-4">
-            <Button variant="outline" size="sm" onClick={() => navigate('/audit-reader')} className="h-11 px-6 rounded-2xl text-amber-500 border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 transition-all font-black uppercase tracking-widest text-[10px]">
-              <ShieldCheck className="w-4 h-4 mr-2.5" /> Audit Mode
+            <Button variant="outline" size="sm" onClick={() => navigate('/audit-reader')} className="h-12 px-8 rounded-2xl text-amber-500 border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 transition-all font-black uppercase tracking-widest text-[11px]">
+              <ShieldCheck className="w-5 h-5 mr-3" /> Audit Mode
             </Button>
-            <Button variant="outline" size="sm" onClick={handleRunMDAudit} className="h-11 px-6 rounded-2xl text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[10px]">
-              <Sparkles className="w-4 h-4 mr-2.5" /> MD Audit
+            <Button variant="outline" size="sm" onClick={handleRunMDAudit} className="h-12 px-8 rounded-2xl text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[11px]">
+              <Sparkles className="w-5 h-5 mr-3" /> MD Audit
             </Button>
-            <Button variant="outline" size="sm" onClick={handleToggleShuffleAll} className={cn("h-11 px-6 rounded-2xl transition-all font-black uppercase tracking-widest text-[10px]", isShuffleAllMode ? "bg-indigo-600 text-white border-indigo-400 shadow-lg shadow-indigo-500/20" : "text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10")}>
-              <Shuffle className={cn("w-4 h-4 mr-2.5", isShuffleAllMode && "animate-spin-slow")} /> Shuffle All
+            <Button variant="outline" size="sm" onClick={handleToggleShuffleAll} className={cn("h-12 px-8 rounded-2xl transition-all font-black uppercase tracking-widest text-[11px]", isShuffleAllMode ? "bg-indigo-600 text-white border-indigo-400 shadow-lg shadow-indigo-500/20" : "text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10")}>
+              <Shuffle className={cn("w-5 h-5 mr-3", isShuffleAllMode && "animate-spin-slow")} /> Shuffle All
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setIsKeyManagementOpen(true)} className="h-11 px-6 rounded-2xl text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[10px]">
-              <Hash className="w-4 h-4 mr-2.5" /> Key Matrix
+            <Button variant="outline" size="sm" onClick={() => setIsKeyManagementOpen(true)} className="h-12 px-8 rounded-2xl text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[11px]">
+              <Hash className="w-5 h-5 mr-3" /> Key Matrix
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setIsPreferencesOpen(true)} className="h-11 px-6 rounded-2xl text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[10px]">
-              <Settings2 className="w-4 h-4 mr-2.5" /> Preferences
+            <Button variant="outline" size="sm" onClick={() => setIsPreferencesOpen(true)} className="h-12 px-8 rounded-2xl text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[11px]">
+              <Settings2 className="w-5 h-5 mr-3" /> Preferences
             </Button>
           </div>
         </div>
 
         {isGoalTrackerEnabled && (
-          <div className="mb-12">
+          <div className="mb-16 animate-in fade-in slide-in-from-top-6 duration-700 delay-100">
             <GoalTracker repertoire={masterRepertoire} onFilterApply={(f) => setActiveFilters(prev => ({...prev, ...f}))} />
           </div>
         )}
 
         {activeDashboardView === 'gigs' && activeSongForPerformance && (
-          <div className="mb-12 animate-in fade-in slide-in-from-top-8 duration-500">
+          <div className="mb-16 animate-in fade-in slide-in-from-top-8 duration-700 delay-200">
             <ActiveSongBanner 
               song={activeSongForPerformance} 
               isPlaying={audio.isPlaying} 
@@ -1085,46 +905,19 @@ const Index = () => {
           </div>
         )}
 
-        {/* Recently Edited Section */}
-        {recentlyEdited.length > 0 && activeDashboardView === 'repertoire' && (
-          <div className="mb-12 animate-in fade-in slide-in-from-left-8 duration-500">
-            <div className="flex items-center gap-3 mb-6">
-              <History className="w-5 h-5 text-indigo-400" />
-              <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">Recent Activity</h2>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {recentlyEdited.map(song => (
-                <button 
-                  key={song.id}
-                  onClick={() => handleEditSong(song)}
-                  className="flex items-center gap-4 p-4 bg-slate-900/50 border border-white/5 rounded-2xl hover:bg-indigo-600/10 hover:border-indigo-500/30 transition-all text-left group"
-                >
-                  <div className="bg-indigo-600/20 p-2.5 rounded-xl text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white transition-all">
-                    <Music className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-black uppercase tracking-tight text-white truncate">{song.name}</p>
-                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest truncate mt-0.5">{song.artist}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
         <Tabs value={activeDashboardView} onValueChange={(v) => setSearchParams({ view: v })} className="w-full">
-          <TabsList className="grid w-full max-w-md grid-cols-2 h-14 bg-slate-900/50 p-1.5 rounded-[1.5rem] mb-10 border border-white/5">
-            <TabsTrigger value="gigs" className="text-xs font-black uppercase tracking-widest gap-2.5 h-11 rounded-xl data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/20">
-              <LayoutDashboard className="w-4 h-4" /> Gigs
+          <TabsList className="grid w-full max-w-md grid-cols-2 h-16 bg-slate-900/50 p-2 rounded-[2rem] mb-12 border border-white/5 animate-in fade-in slide-in-from-left-4 duration-700 delay-300">
+            <TabsTrigger value="gigs" className="text-sm font-black uppercase tracking-widest gap-3 h-12 rounded-2xl data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-2xl data-[state=active]:shadow-indigo-600/30">
+              <LayoutDashboard className="w-5 h-5" /> Gigs
             </TabsTrigger>
-            <TabsTrigger value="repertoire" className="text-xs font-black uppercase tracking-widest gap-2.5 h-11 rounded-xl data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/20">
-              <Library className="w-4 h-4" /> Repertoire
+            <TabsTrigger value="repertoire" className="text-sm font-black uppercase tracking-widest gap-3 h-12 rounded-2xl data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-2xl data-[state=active]:shadow-indigo-600/30">
+              <Library className="w-5 h-5" /> Repertoire
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="gigs" className="mt-0 space-y-10">
+          <TabsContent value="gigs" className="mt-0 space-y-12 animate-in fade-in duration-700 delay-400">
             {activeSetlistId && (
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-8">
                 <SetlistSelector
                   setlists={allSetlists}
                   currentId={activeSetlistId}
@@ -1135,8 +928,8 @@ const Index = () => {
                   onOpenGigPlanner={() => setIsGigPlannerOpen(true)}
                   onOpenVariation={handleCreateVariation}
                 />
-                <Button variant="outline" size="sm" onClick={() => setIsSetlistSettingsOpen(true)} className="h-11 px-6 rounded-2xl text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[10px]">
-                  <Settings2 className="w-4 h-4 mr-2.5" /> Gig Settings
+                <Button variant="outline" size="sm" onClick={() => setIsSetlistSettingsOpen(true)} className="h-12 px-8 rounded-2xl text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[11px]">
+                  <Settings2 className="w-5 h-5 mr-3" /> Gig Settings
                 </Button>
               </div>
             )}
@@ -1179,20 +972,9 @@ const Index = () => {
                 />
               </>
             )}
-            {!activeSetlistId && allSetlists.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-32 text-center">
-                <div className="bg-slate-900/50 p-16 rounded-[3rem] border border-white/5 space-y-8 max-w-md shadow-2xl backdrop-blur-xl">
-                  <div className="bg-indigo-600/10 w-20 h-20 rounded-[1.5rem] flex items-center justify-center text-indigo-400 mx-auto shadow-lg shadow-indigo-900/10"><Library className="w-10 h-10" /></div>
-                  <div>
-                    <h2 className="text-3xl font-black uppercase tracking-tight">No Setlists Yet</h2>
-                    <p className="text-slate-400 font-medium mt-3 leading-relaxed">Create your first setlist to start organizing your professional gigs.</p>
-                  </div>
-                  <Button onClick={handleCreateSetlist} className="w-full bg-indigo-600 hover:bg-indigo-500 h-16 rounded-[1.5rem] font-black uppercase tracking-widest gap-3 shadow-xl shadow-indigo-600/20 transition-all active:scale-95"><Plus className="w-6 h-6" /> Create First Setlist</Button>
-                </div>
-              </div>
-            )}
           </TabsContent>
-          <TabsContent value="repertoire" className="mt-0 space-y-10">
+          
+          <TabsContent value="repertoire" className="mt-0 space-y-12 animate-in fade-in duration-700 delay-400">
             <RepertoireView
               repertoire={masterRepertoire}
               onEditSong={handleEditSong}
