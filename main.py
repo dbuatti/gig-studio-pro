@@ -35,9 +35,10 @@ def log(message):
 def download_cookies_from_supabase():
     """Fetches the latest cookies.txt from Supabase Storage to handle auth blocks."""
     try:
-        log("Checking Supabase 'cookies' bucket for auth file...")
+        log("Checking Supabase 'cookies' bucket for fresh auth file...")
         res = supabase.storage.from_("cookies").download("cookies.txt")
         if res:
+            # Always overwrite to ensure we don't use stale local files
             with open(COOKIE_PATH, "wb") as f:
                 f.write(res)
             log("SUCCESS: cookies.txt synchronized from Cloud Vault.")
@@ -60,8 +61,8 @@ def process_queued_song(song):
         try:
             log(f">>> STARTING PROCESSING: {title} (ID: {song_id})")
             
-            # Ensure we have the latest cookies before each batch
-            has_cookies = os.path.exists(COOKIE_PATH) or download_cookies_from_supabase()
+            # Force a fresh cookie sync before every download attempt
+            download_cookies_from_supabase()
 
             log(f"Updating DB status to PROCESSING for {title}")
             supabase.table("repertoire").update({
@@ -84,11 +85,14 @@ def process_queued_song(song):
                 # --- CRITICAL AUTH SETTINGS ---
                 'cookiefile': COOKIE_PATH if os.path.exists(COOKIE_PATH) else None,
                 'po_token': f"web+none:{po_token}" if po_token else None,
-                'headers': {'X-Goog-Visitor-Id': visitor_data} if visitor_data else {},
+                'headers': {
+                    'X-Goog-Visitor-Id': visitor_data,
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                } if visitor_data else {},
                 # ------------------------------
                 'nocheckcertificate': True,
                 'quiet': True,
-                'no_warnings': True,
+                'no_warnings': False, # Show warnings to help debug
             }
 
             log(f"Downloading audio for '{title}' from {video_url}...")
@@ -99,17 +103,14 @@ def process_queued_song(song):
             
             if os.path.exists(mp3_path):
                 log(f"Download successful. Starting upload to Supabase Storage for {title}.")
-                # Construct storage path for Supabase
                 storage_path = f"{user_id}/{song_id}/{int(time.time())}.mp3"
                 
-                # Upload to Supabase Storage
                 with open(mp3_path, 'rb') as f:
                     supabase.storage.from_("public_audio").upload(storage_path, f.read(), {'content-type': 'audio/mpeg'})
                 
-                # Get public URL
                 public_url = supabase.storage.from_("public_audio").get_public_url(storage_path)
                 
-                log(f"Upload complete. Updating Supabase record for '{title}' with URL: {public_url[:50]}...")
+                log(f"Upload complete. Updating Supabase record for '{title}'")
                 supabase.table("repertoire").update({
                     "audio_url": public_url,
                     "preview_url": public_url,
@@ -122,16 +123,20 @@ def process_queued_song(song):
                 log(f"SUCCESS: Finished processing '{title}'")
                 os.remove(mp3_path)
             else:
-                raise Exception("Post-processing failed: MP3 conversion yielded no output.")
+                raise Exception("Post-processing failed: MP3 conversion yielded no output. This usually means YouTube blocked the download.")
             
         except Exception as e:
             error_msg = str(e)
             log(f"FAILED: '{title}' | Error: {error_msg}")
+            
+            # Provide helpful feedback in the DB log
+            friendly_error = "YouTube blocked the request (429). Please update PO_TOKEN and Cookies." if "429" in error_msg else f"Worker Error: {error_msg[:100]}"
+            
             try:
                 supabase.table("repertoire").update({
                     "extraction_status": "failed",
                     "extraction_error": error_msg[:250],
-                    "last_sync_log": f"Worker Error: {error_msg[:100]}"
+                    "last_sync_log": friendly_error
                 }).eq("id", song_id).execute()
             except Exception as db_e:
                 log(f"Status update failed: {db_e}")
@@ -142,12 +147,10 @@ def process_queued_song(song):
 def job_poller():
     """Checks the DB for new work every 20 seconds."""
     log("Job Poller initialized. Starting initial cookie sync.")
-    # Initial cookie sync
     download_cookies_from_supabase()
     
     while True:
         try:
-            log("Polling DB for 'queued' jobs...")
             res = supabase.table("repertoire")\
                 .select("id, youtube_url, user_id, title")\
                 .eq("extraction_status", "queued")\
@@ -157,13 +160,9 @@ def job_poller():
             
             if res.data and len(res.data) > 0:
                 song_data = res.data[0]
-                log(f"Found queued job: {song_data.get('title')}. Starting new thread.")
-                # Use a thread for the actual download but the semaphore handles concurrency
-                threading.Thread(target=lambda: process_queued_song(song_data)).start()
-                # Give the thread a head start so we don't pick up the same job twice
-                time.sleep(5)
+                log(f"Found queued job: {song_data.get('title')}. Starting processing.")
+                process_queued_song(song_data)
             else:
-                log("No queued jobs found. Sleeping.")
                 time.sleep(20)
         except Exception as e:
             log(f"Poller Error: {e}")
