@@ -24,7 +24,7 @@ const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoir
   const normalize = (str: string = "") => {
     return str
       .toLowerCase()
-      .replace(/\(.*\)/g, '') // Remove everything in parentheses (e.g., "Original Master Recording")
+      .replace(/\(.*\)/g, '') // Remove everything in parentheses
       .replace(/\[.*\]/g, '') // Remove everything in brackets
       .replace(/[^a-z0-9]/g, '') // Remove non-alphanumeric characters
       .trim();
@@ -35,34 +35,47 @@ const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoir
   };
 
   const existingKeys = useMemo(() => {
-    return new Set(repertoire.map(s => getNormalizedKey(s.name, s.artist || "")));
+    const keys = new Set(repertoire.map(s => getNormalizedKey(s.name, s.artist || "")));
+    console.log("[RepertoireDiscovery] Current Library Keys (Normalized):", Array.from(keys));
+    return keys;
   }, [repertoire]);
 
   const fetchSuggestions = useCallback(async () => {
     if (repertoire.length === 0) return;
     
     setIsLoading(true);
+    const payload = { 
+      repertoire: repertoire.slice(0, 30).map(s => ({ name: s.name, artist: s.artist, genre: s.genre })),
+      ignored: Array.from(ignored).map(key => ({ name: key.split('-')[0], artist: key.split('-')[1] }))
+    };
+
+    console.log("[RepertoireDiscovery] Fetching suggestions with payload:", payload);
+
     try {
       const { data, error } = await supabase.functions.invoke('suggest-songs', {
-        body: { 
-          repertoire: repertoire.slice(0, 30).map(s => ({ name: s.name, artist: s.artist, genre: s.genre })),
-          ignored: Array.from(ignored).map(key => ({ name: key.split('-')[0], artist: key.split('-')[1] }))
-        }
+        body: payload
       });
 
       if (error) throw error;
 
       const rawBatch = Array.isArray(data) ? data : (data?.suggestions || []);
+      console.log("[RepertoireDiscovery] Raw AI Response:", rawBatch);
       
-      // Filter using normalized keys to prevent duplicates like "Georgia on My Mind" vs "Georgia on My Mind (Remastered)"
       const filtered = rawBatch.filter((s: any) => {
         const key = getNormalizedKey(s.name, s.artist || "");
-        return !existingKeys.has(key) && !ignored.has(key);
+        const isDuplicate = existingKeys.has(key);
+        const isIgnored = ignored.has(key);
+        
+        if (isDuplicate) console.log(`[RepertoireDiscovery] Filtered out duplicate: ${s.name} by ${s.artist}`);
+        if (isIgnored) console.log(`[RepertoireDiscovery] Filtered out ignored: ${s.name} by ${s.artist}`);
+        
+        return !isDuplicate && !isIgnored;
       }).slice(0, 3);
 
+      console.log("[RepertoireDiscovery] Final Display Suggestions:", filtered);
       setSuggestions(filtered);
     } catch (err) {
-      console.error("[RepertoireSuggestions] Fetch error:", err);
+      console.error("[RepertoireDiscovery] Fetch error:", err);
     } finally {
       setIsLoading(false);
     }
@@ -76,6 +89,7 @@ const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoir
 
   const handleDismiss = (song: any) => {
     const key = getNormalizedKey(song.name, song.artist || "");
+    console.log(`[RepertoireDiscovery] Dismissing: ${song.name}`);
     setIgnored(prev => new Set(prev).add(key));
     setSuggestions(prev => prev.filter(s => getNormalizedKey(s.name, s.artist || "") !== key));
   };
@@ -114,12 +128,14 @@ const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoir
   });
 
   const handleAdd = (s: any) => {
+    console.log(`[RepertoireDiscovery] Adding to library: ${s.name}`);
     onAddSong(mapToSong(s));
     setSuggestions(prev => prev.filter(item => item !== s));
     showSuccess(`Added "${s.name}" to library`);
   };
 
   const handleAddAll = () => {
+    console.log(`[RepertoireDiscovery] Adding all ${suggestions.length} suggestions to library`);
     suggestions.forEach(s => onAddSong(mapToSong(s)));
     setSuggestions([]);
     showSuccess(`Added ${suggestions.length} songs to library`);
