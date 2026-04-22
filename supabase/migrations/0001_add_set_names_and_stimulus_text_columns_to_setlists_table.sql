@@ -1,0 +1,3 @@
+ALTER TABLE setlists 
+ADD COLUMN IF NOT EXISTS set_names JSONB DEFAULT '{}'::jsonb,
+ADD COLUMN IF NOT EXISTS stimulus_text TEXT;

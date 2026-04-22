@@ -540,6 +540,14 @@ const Index = () => {
     }
   }, [userId]);
 
+  const [gigPlannerInitialStimulus, setGigPlannerInitialStimulus] = useState<string | undefined>(undefined);
+
+  const handleCreateVariation = useCallback(() => {
+    if (!activeSetlist) return;
+    setGigPlannerInitialStimulus(activeSetlist.stimulus_text);
+    setIsGigPlannerOpen(true);
+  }, [activeSetlist]);
+
   useEffect(() => {
     if (!authLoading && userId) {
       fetchSetlistsAndRepertoire(true);

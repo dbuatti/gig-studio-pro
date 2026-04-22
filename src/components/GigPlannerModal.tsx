@@ -1,13 +1,14 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { 
   Sparkles, Loader2, Check, Plus, Music, Clock, Zap, 
   AlertCircle, ExternalLink, Library, ListMusic, X, Info,
-  Calendar, LayoutGrid, ArrowRight
+  Calendar, LayoutGrid, ArrowRight, Edit3
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
@@ -22,12 +23,14 @@ interface GigPlannerModalProps {
   repertoire: SetlistSong[];
   onAddExternalSong: (song: any, setGroup?: number) => Promise<void>;
   onAddLibrarySong: (songId: string, setGroup?: number) => Promise<void>;
-  onBuildGig: (proposedName: string, librarySongs: {id: string, setGroup: number}[], externalSongs: any[]) => Promise<void>;
+  onBuildGig: (proposedName: string, librarySongs: {id: string, setGroup: number}[], externalSongs: any[], setNames: Record<string, string>, stimulusText: string) => Promise<void>;
   activeSetlistName?: string;
+  initialStimulus?: string;
 }
 
 interface GigPlan {
   proposedName: string;
+  setNames: Record<string, string>;
   gigDetails: {
     duration: string;
     vibe: string;
@@ -44,13 +47,21 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
   onAddExternalSong,
   onAddLibrarySong,
   onBuildGig,
-  activeSetlistName
+  activeSetlistName,
+  initialStimulus
 }) => {
   const [emailText, setEmailText] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isBuilding, setIsBuilding] = useState(false);
   const [plan, setPlan] = useState<GigPlan | null>(null);
   const [addedSongs, setAddedSongs] = useState<Set<string>>(new Set());
+  const [editingSetNames, setEditingSetNames] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (isOpen && initialStimulus) {
+      setEmailText(initialStimulus);
+    }
+  }, [isOpen, initialStimulus]);
 
   const handleGenerate = async () => {
     if (!emailText.trim()) {
@@ -75,6 +86,7 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
 
       if (error) throw error;
       setPlan(data);
+      setEditingSetNames(data.setNames || {});
       showSuccess("Gig plan generated!");
     } catch (err: any) {
       console.error("Gig Planner Error:", err);
@@ -106,7 +118,7 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
     if (!plan) return;
     setIsBuilding(true);
     try {
-      await onBuildGig(plan.proposedName, plan.suggestedLibrarySongs, plan.suggestedExternalSongs);
+      await onBuildGig(plan.proposedName, plan.suggestedLibrarySongs, plan.suggestedExternalSongs, editingSetNames, emailText);
       onClose();
       setTimeout(reset, 300);
     } catch (err) {
@@ -120,9 +132,11 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
     setEmailText('');
     setPlan(null);
     setAddedSongs(new Set());
+    setEditingSetNames({});
   };
 
   const getSetLabel = (group: number) => {
+    if (editingSetNames[group.toString()]) return editingSetNames[group.toString()];
     if (group === 99) return "Surplus / Backup";
     return `Set ${group}`;
   };
@@ -231,6 +245,25 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
                       </div>
                     </div>
                   )}
+
+                  <div>
+                    <h3 className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-3">Edit Set Names</h3>
+                    <div className="space-y-3">
+                      {sortedGroups.map(groupNum => (
+                        <div key={groupNum} className="space-y-1.5">
+                          <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">
+                            {groupNum === 99 ? "Surplus" : `Set ${groupNum}`}
+                          </label>
+                          <Input 
+                            value={editingSetNames[groupNum.toString()] || ""}
+                            onChange={(e) => setEditingSetNames(prev => ({ ...prev, [groupNum.toString()]: e.target.value }))}
+                            placeholder={groupNum === 99 ? "Surplus / Backup" : `Set ${groupNum}`}
+                            className="h-10 bg-white/5 border-white/5 rounded-xl text-xs font-bold"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
 
                 <div className="mt-auto space-y-3">

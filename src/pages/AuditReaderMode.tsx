@@ -212,34 +212,45 @@ const AuditReaderMode: React.FC = () => {
 
       // 3. Filter by Setlist if selected
       let baseSongs = masterRepertoireList;
+      let isSetlistActive = false;
+
       if (selectedSetlistId !== 'all') {
         const { data: junctionData } = await supabase
           .from('setlist_songs')
-          .select('song_id')
+          .select('song_id, sort_order')
           .eq('setlist_id', selectedSetlistId)
           .order('sort_order', { ascending: true });
         
-        if (junctionData) {
-          const setlistSongIds = new Set(junctionData.map(j => j.song_id));
-          baseSongs = masterRepertoireList.filter(s => setlistSongIds.has(s.id));
+        if (junctionData && junctionData.length > 0) {
+          isSetlistActive = true;
+          // Map songs in the exact order they appear in the setlist
+          baseSongs = junctionData.map(j => {
+            const song = masterRepertoireList.find(s => s.id === j.song_id);
+            return song;
+          }).filter(Boolean) as SetlistSong[];
         }
       }
 
-      let filteredSongs = baseSongs.filter(s => {
-        if (searchTerm && !s.name.toLowerCase().includes(searchTerm) && !s.artist?.toLowerCase().includes(searchTerm)) {
-          return false;
-        }
-        const readiness = calculateReadiness(s);
-        if (activeFilters.readiness > 0 && readiness < activeFilters.readiness) return false;
-        return true;
-      });
+      let filteredSongs = baseSongs;
 
-      if (sortMode === 'ready') {
-        filteredSongs.sort((a, b) => calculateReadiness(b) - calculateReadiness(a));
-      } else if (sortMode === 'work') {
-        filteredSongs.sort((a, b) => calculateReadiness(a) - calculateReadiness(b));
-      } else if (sortMode.startsWith('energy') || sortMode === 'zig-zag' || sortMode === 'wedding-ramp') {
-        filteredSongs = sortSongsByStrategy(filteredSongs, sortMode);
+      // Only apply filters and sorting if we are NOT in a specific setlist
+      if (!isSetlistActive) {
+        filteredSongs = baseSongs.filter(s => {
+          if (searchTerm && !s.name.toLowerCase().includes(searchTerm) && !s.artist?.toLowerCase().includes(searchTerm)) {
+            return false;
+          }
+          const readiness = calculateReadiness(s);
+          if (activeFilters.readiness > 0 && readiness < activeFilters.readiness) return false;
+          return true;
+        });
+
+        if (sortMode === 'ready') {
+          filteredSongs.sort((a, b) => calculateReadiness(b) - calculateReadiness(a));
+        } else if (sortMode === 'work') {
+          filteredSongs.sort((a, b) => calculateReadiness(a) - calculateReadiness(b));
+        } else if (sortMode.startsWith('energy') || sortMode === 'zig-zag' || sortMode === 'wedding-ramp') {
+          filteredSongs = sortSongsByStrategy(filteredSongs, sortMode);
+        }
       }
 
       setAllSongs(filteredSongs);

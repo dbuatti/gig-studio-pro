@@ -84,12 +84,19 @@ TASK:
 1. Extract gig details (duration, vibe, special requests).
 2. Propose a catchy name for this setlist based on the event (e.g., "Smith Wedding - Sunset Cocktails").
 3. Select the best matching songs from the REPERTOIRE list.
-4. Group ALL songs (library and external) into logical sets: Set 1 (Background/Mellow), Set 2 (Building), Set 3 (Peak/Dance), Set 4 (Encore/High Energy), or 99 (Surplus/Backup).
-5. Suggest 3-5 NEW songs not in the repertoire that would fit perfectly.
+4. Group ALL songs (library and external) into logical sets: Set 1, Set 2, Set 3, Set 4, or 99 (Surplus/Backup).
+5. Provide a descriptive name for each set group used (e.g., "1": "Sunset Cocktails", "2": "Dinner Jazz").
+6. Ensure you include a healthy amount of surplus songs in Group 99 (at least 5-10 songs) to act as backups.
+7. Suggest 3-5 NEW songs not in the repertoire that would fit perfectly.
 
 Return ONLY JSON:
 {
   "proposedName": "string",
+  "setNames": {
+    "1": "Descriptive Name for Set 1",
+    "2": "Descriptive Name for Set 2",
+    "99": "Surplus / Backup"
+  },
   "gigDetails": {
     "duration": "string",
     "vibe": "string",
