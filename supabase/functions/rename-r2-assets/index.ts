@@ -15,9 +15,12 @@ serve(async (req: Request) => {
     return new Response(null, { headers: corsHeaders })
   }
 
+  console.log("[rename-r2-assets] Request received. Starting maintenance cycle...");
+
   try {
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
+      console.error("[rename-r2-assets] Error: No authorization header provided.");
       return new Response('Unauthorized', { status: 401, headers: corsHeaders })
     }
 
@@ -47,13 +50,20 @@ serve(async (req: Request) => {
 
     const sanitize = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').trim();
 
+    console.log("[rename-r2-assets] Fetching songs with R2 assets...");
+
     // 1. Fetch all songs that have R2 URLs
     const { data: songs, error: fetchError } = await supabaseAdmin
       .from('repertoire')
       .select('*')
       .or(`audio_url.ilike.%${publicBaseUrl}%,pdf_url.ilike.%${publicBaseUrl}%,leadsheet_url.ilike.%${publicBaseUrl}%`);
 
-    if (fetchError) throw fetchError;
+    if (fetchError) {
+      console.error("[rename-r2-assets] Database fetch error:", fetchError);
+      throw fetchError;
+    }
+
+    console.log(`[rename-r2-assets] Found ${songs?.length || 0} songs to audit.`);
 
     let renamedCount = 0;
 
@@ -77,7 +87,12 @@ serve(async (req: Request) => {
               const type = field.replace('_url', '');
               const ext = field === 'audio_url' ? 'mp3' : 'pdf';
               const newFileName = `${artistPart}_${titlePart}_${type}.${ext}`;
+              // Ensure the path uses slashes to create folders in R2 UI
               const newPath = `${song.user_id}/${song.id}/${newFileName}`;
+
+              console.log(`[rename-r2-assets] Renaming ${field} for "${song.title}":`);
+              console.log(`[rename-r2-assets]   FROM: ${oldPath}`);
+              console.log(`[rename-r2-assets]   TO:   ${newPath}`);
 
               // S3 Rename is Copy + Delete
               await s3Client.send(new CopyObjectCommand({
@@ -95,17 +110,25 @@ serve(async (req: Request) => {
               if (field === 'audio_url') updates.preview_url = updates[field];
               
               renamedCount++;
+              console.log(`[rename-r2-assets]   SUCCESS: ${field} updated.`);
             } catch (err: any) {
-              console.error(`[rename-r2-assets] Failed to rename ${field} for song ${song.id}:`, err.message);
+              console.error(`[rename-r2-assets]   FAILED: ${field} for song ${song.id}:`, err.message);
             }
+          } else {
+            console.log(`[rename-r2-assets] Skipping ${field} for "${song.title}" (Already descriptive).`);
           }
         }
       }
 
       if (Object.keys(updates).length > 0) {
-        await supabaseAdmin.from('repertoire').update(updates).eq('id', song.id);
+        const { error: updateError } = await supabaseAdmin.from('repertoire').update(updates).eq('id', song.id);
+        if (updateError) {
+          console.error(`[rename-r2-assets] Error updating database for song ${song.id}:`, updateError);
+        }
       }
     }
+
+    console.log(`[rename-r2-assets] Maintenance complete. Total assets renamed: ${renamedCount}`);
 
     return new Response(JSON.stringify({ 
       success: true, 
@@ -116,7 +139,7 @@ serve(async (req: Request) => {
     });
 
   } catch (error: any) {
-    console.error("[rename-r2-assets] Fatal Error:", error.message);
+    console.error("[rename-r2-assets] CRITICAL ERROR:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
