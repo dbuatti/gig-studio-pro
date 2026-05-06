@@ -103,10 +103,11 @@ def process_queued_song(song):
             
             if os.path.exists(mp3_path):
                 log(f"Download successful. Starting upload to Supabase Storage for {title}.")
-                storage_path = f"{user_id}/{song_id}/{int(time.time())}.mp3"
+                # Standardized path to ensure overwrites instead of duplicates
+                storage_path = f"{user_id}/{song_id}/master_audio.mp3"
                 
                 with open(mp3_path, 'rb') as f:
-                    supabase.storage.from_("public_audio").upload(storage_path, f.read(), {'content-type': 'audio/mpeg'})
+                    supabase.storage.from_("public_audio").upload(storage_path, f.read(), {'content-type': 'audio/mpeg', 'x-upsert': 'true'})
                 
                 public_url = supabase.storage.from_("public_audio").get_public_url(storage_path)
                 

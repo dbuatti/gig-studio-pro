@@ -31,7 +31,10 @@ const PDFUploadZone: React.FC<PDFUploadZoneProps> = ({
   const [uploadType, setUploadType] = useState<'pdf' | 'leadsheet'>('pdf');
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    if (!user || acceptedFiles.length === 0) return;
+    if (!user || acceptedFiles.length === 0 || !songId) {
+      if (!songId) showError("Save the song first before uploading assets.");
+      return;
+    }
     
     const file = acceptedFiles[0];
     if (file.type !== 'application/pdf') {
@@ -41,24 +44,15 @@ const PDFUploadZone: React.FC<PDFUploadZoneProps> = ({
 
     setIsUploading(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      
-      // Sanitize title for filename
-      const sanitizedTitle = (songTitle || 'document')
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, '_')
-        .replace(/_+/g, '_');
-
-      // Use the public_audio bucket as per reference
-      // Path structure: {user_id}/{song_id}_{title}_{type}.pdf
-      const fileName = `${songId || Date.now()}_${sanitizedTitle}_${uploadType}.${fileExt}`;
-      const filePath = `${user.id}/${fileName}`;
+      // Standardized filenames to ensure overwrites instead of duplicates
+      const fileName = uploadType === 'pdf' ? 'full_score.pdf' : 'lead_sheet.pdf';
+      const filePath = `${user.id}/${songId}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('public_audio')
         .upload(filePath, file, {
           cacheControl: '3600',
-          upsert: true // Allow overwriting if the user re-uploads
+          upsert: true // CRITICAL: Overwrite existing file
         });
 
       if (uploadError) throw uploadError;
@@ -75,7 +69,7 @@ const PDFUploadZone: React.FC<PDFUploadZoneProps> = ({
     } finally {
       setIsUploading(false);
     }
-  }, [user, uploadType, onUploadComplete, songId, songTitle]);
+  }, [user, uploadType, onUploadComplete, songId]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -92,7 +86,7 @@ const PDFUploadZone: React.FC<PDFUploadZoneProps> = ({
           onClick={() => setUploadType('pdf')}
           className={cn(
             "flex-1 sm:flex-none px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
-            uploadType === 'pdf' ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20" : "text-slate-500 hover:text-slate-300"
+            uploadType === 'pdf' ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20" : "text-slate-500 hover:text-slate-300"
           )}
         >
           Full Score
@@ -101,7 +95,7 @@ const PDFUploadZone: React.FC<PDFUploadZoneProps> = ({
           onClick={() => setUploadType('leadsheet')}
           className={cn(
             "flex-1 sm:flex-none px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
-            uploadType === 'leadsheet' ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20" : "text-slate-500 hover:text-slate-300"
+            uploadType === 'leadsheet' ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20" : "text-slate-500 hover:text-slate-300"
           )}
         >
           Lead Sheet

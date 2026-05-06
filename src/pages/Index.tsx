@@ -16,7 +16,7 @@ import * as Tone from 'tone';
 // UI Components
 import { Button } from '@/components/ui/button';
 import {
-  Loader2, Settings2, Hash, Library, Shuffle, LayoutDashboard, Plus, Sparkles, Command, Clock, History, Music, ShieldCheck
+  Loader2, Settings2, Hash, Library, Shuffle, LayoutDashboard, Plus, Sparkles, Command, Clock, History, Music, ShieldCheck, HardDrive
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -47,6 +47,7 @@ import GigPlannerModal from '@/components/GigPlannerModal';
 import MDAuditModal from '@/components/MDAuditModal';
 import ShortcutCheatSheet from '@/components/ShortcutCheatSheet';
 import SystemToolsDropdown from '@/components/SystemToolsDropdown';
+import StorageAuditModal from '@/components/StorageAuditModal'; // NEW
 import { sortSongsByStrategy } from '@/utils/SetlistGenerator';
 
 const Index = () => {
@@ -278,6 +279,7 @@ const Index = () => {
   const [isAuditLoading, setIsAuditLoading] = useState(false);
   const [auditData, setAuditData] = useState<any>(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isStorageAuditOpen, setIsStorageAuditOpen] = useState(false); // NEW
 
   const isFilterDirty = useMemo(() => {
     return JSON.stringify(activeFilters) !== JSON.stringify(DEFAULT_FILTERS);
@@ -515,14 +517,40 @@ const Index = () => {
   }, [fetchSetlistsAndRepertoire, allSetlists]);
 
   const handleDeleteSong = useCallback(async (songId: string) => {
+    if (!userId) return;
     try {
+      // 1. Fetch song data to get storage paths
+      const { data: song } = await supabase.from('repertoire').select('*').eq('id', songId).single();
+      
+      if (song) {
+        // 2. Clean up storage
+        const pathsToDelete = [];
+        if (song.audio_url) {
+          const audioPath = `${userId}/${songId}/master_audio.mp3`;
+          pathsToDelete.push(audioPath);
+        }
+        if (song.pdf_url) {
+          const pdfPath = `${userId}/${songId}/full_score.pdf`;
+          pathsToDelete.push(pdfPath);
+        }
+        if (song.leadsheet_url) {
+          const lsPath = `${userId}/${songId}/lead_sheet.pdf`;
+          pathsToDelete.push(lsPath);
+        }
+
+        if (pathsToDelete.length > 0) {
+          await supabase.storage.from('public_audio').remove(pathsToDelete);
+        }
+      }
+
+      // 3. Delete from DB
       await supabase.from('repertoire').delete().eq('id', songId);
       await fetchSetlistsAndRepertoire();
-      showSuccess("Song deleted from repertoire");
+      showSuccess("Song and associated storage purged.");
     } catch (err: any) {
       showError(`Delete failed: ${err.message}`);
     }
-  }, [fetchSetlistsAndRepertoire]);
+  }, [userId, fetchSetlistsAndRepertoire]);
 
   const handleAddSongToRepertoire = useCallback(async (song: SetlistSong) => {
     if (!userId) return;
@@ -830,6 +858,14 @@ const Index = () => {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-4">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsStorageAuditOpen(true)}
+              className="h-12 px-6 rounded-2xl text-amber-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[11px] gap-3"
+            >
+              <HardDrive className="w-5 h-5" />
+              Storage Audit
+            </Button>
             <SystemToolsDropdown
               onOpenMDAudit={handleRunMDAudit}
               onToggleShuffleAll={handleToggleShuffleAll}
@@ -1047,6 +1083,7 @@ const Index = () => {
         initialStimulus={gigPlannerInitialStimulus}
       />
       <ShortcutCheatSheet isOpen={isShortcutSheetOpen} onClose={() => setIsShortcutSheetOpen(false)} />
+      <StorageAuditModal isOpen={isStorageAuditOpen} onClose={() => setIsStorageAuditOpen(false)} repertoire={masterRepertoire} />
     </div>
   );
 };
