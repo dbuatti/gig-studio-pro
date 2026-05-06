@@ -15,7 +15,7 @@ import SongStudio from "@/pages/SongStudio";
 import GigEntry from "@/pages/GigEntry";
 import PublicGigView from "@/pages/PublicGigView";
 import DebugPage from "@/pages/DebugPage";
-import EmergencyCleanup from "@/pages/EmergencyCleanup"; // NEW
+import EmergencyCleanup from "@/pages/EmergencyCleanup";
 
 const RENDER_WORKER_URL = "https://yt-audio-api-1-wedr.onrender.com";
 
@@ -67,12 +67,14 @@ const MainLayout = () => {
         <Route path="/gig/:code" element={<PublicGigView />} />
         <Route path="/setlist/:id" element={<PublicGigView />} />
         <Route path="/dashboard" element={<Navigate to="/" replace />} />
+        {/* Public Emergency Route */}
+        <Route path="/emergency-cleanup" element={<EmergencyCleanup />} />
+        
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/sheet-reader/:songId?" element={<ProtectedRoute><SheetReaderMode /></ProtectedRoute>} />
         <Route path="/audit-reader/:songId?" element={<ProtectedRoute><AuditReaderMode /></ProtectedRoute>} />
         <Route path="/gig/:gigId/song/:songId" element={<ProtectedRoute><SongStudio /></ProtectedRoute>} />
         <Route path="/debug" element={<ProtectedRoute><DebugPage /></ProtectedRoute>} />
-        <Route path="/emergency-cleanup" element={<ProtectedRoute><EmergencyCleanup /></ProtectedRoute>} /> {/* NEW */}
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>
