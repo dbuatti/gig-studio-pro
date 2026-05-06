@@ -1,5 +1,4 @@
 // Queue Audio Extraction Edge Function
-// Updated to actually perform database updates for the Python worker to pick up.
 // @ts-ignore: Deno runtime import
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 // @ts-ignore: Deno runtime import
@@ -16,25 +15,35 @@ serve(async (req) => {
   }
 
   try {
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response('Unauthorized', { status: 401, headers: corsHeaders })
+    }
+
+    const supabaseClient = createClient(
+      // @ts-ignore: Deno global
+      Deno.env.get('SUPABASE_URL') ?? '',
+      // @ts-ignore: Deno global
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    )
+
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
+    if (authError || !user) {
+      return new Response('Unauthorized', { status: 401, headers: corsHeaders })
+    }
+
     const { songIds } = await req.json();
     
     if (!songIds || !Array.isArray(songIds)) {
       throw new Error("Invalid songIds payload.");
     }
 
-    console.log(`[queue-audio-extraction] Received request to queue audio for ${songIds.length} songs.`);
+    console.log(`[queue-audio-extraction] User ${user.id} queuing ${songIds.length} songs.`);
 
-    // Initialize Supabase Admin Client
-    const supabaseAdmin = createClient(
-      // @ts-ignore: Deno global
-      Deno.env.get('SUPABASE_URL') ?? '',
-      // @ts-ignore: Deno global
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
-    // Update the repertoire table to set status to 'queued'
-    // This allows the Python worker (main.py) to see and process these jobs.
-    const { error } = await supabaseAdmin
+    // Use the user-scoped client to ensure RLS is enforced
+    // This prevents users from queuing songs they don't own
+    const { error } = await supabaseClient
       .from('repertoire')
       .update({ 
         extraction_status: 'queued',

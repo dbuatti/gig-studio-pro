@@ -1,7 +1,8 @@
 // Enrich Metadata Edge Function
-// Last Deploy: 2024-05-20T10:00:00Z
 // @ts-ignore: Deno runtime import
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
+// @ts-ignore: Deno runtime import
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -25,6 +26,24 @@ serve(async (req) => {
   }
 
   try {
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response('Unauthorized', { status: 401, headers: corsHeaders })
+    }
+
+    const supabaseClient = createClient(
+      // @ts-ignore: Deno global
+      Deno.env.get('SUPABASE_URL') ?? '',
+      // @ts-ignore: Deno global
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    )
+
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
+    if (authError || !user) {
+      return new Response('Unauthorized', { status: 401, headers: corsHeaders })
+    }
+
     const { queries, mode = 'metadata' } = await req.json();
     
     const providers = [
@@ -48,7 +67,7 @@ serve(async (req) => {
     if (mode === 'lyrics') {
       prompt = `Act as a professional stage manager. Format these lyrics with double newlines between verses and proper punctuation for stage reading. Return ONLY a JSON object: {"lyrics": "formatted_lyrics_here"}. Lyrics: ${queries[0]}`;
     } else if (mode === 'chords-cleanup') {
-      prompt = `Act as a professional music editor. Correct typos, fix common misspellings (like 'Bbriday' to 'Friday', 'Cetting' to 'Getting', 'Averything' to 'Everything'), and ensure proper formatting for the following chord/lyric block. Preserve the chord structure and line breaks. Return ONLY a JSON object: {"cleaned_text": "corrected_chord_text_here"}. Text: ${queries[0]}`;
+      prompt = `Act as a professional music editor. Correct typos, fix common misspellings, and ensure proper formatting for the following chord/lyric block. Preserve the chord structure and line breaks. Return ONLY a JSON object: {"cleaned_text": "corrected_chord_text_here"}. Text: ${queries[0]}`;
     } else {
       const songsList = Array.isArray(queries) ? queries : [queries];
       prompt = `Act as a professional music librarian. For these songs, return a JSON array of objects. Each object MUST include: {"name": "title", "artist": "primary artist", "originalKey": "standard key (C, F#m, etc)", "bpm": number, "genre": "genre", "youtubeUrl": "direct link to official music video or high quality audio on youtube", "isMetadataConfirmed": true}. 
@@ -106,7 +125,6 @@ serve(async (req) => {
 
         if (content) {
           const cleanedContent = cleanJsonResponse(content);
-          // Validate JSON
           JSON.parse(cleanedContent);
           
           return new Response(cleanedContent, {

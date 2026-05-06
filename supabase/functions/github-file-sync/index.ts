@@ -1,5 +1,4 @@
 // GitHub File Sync Edge Function
-// Last Deploy: 2024-05-20T10:00:00Z
 // @ts-ignore: Deno runtime import
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 // @ts-ignore: Deno runtime import
@@ -12,38 +11,53 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// SECURITY: Whitelist of authorized repositories
+const AUTHORIZED_REPOS = [
+  'danielebuatti/gig-studio-pro',
+  'danielebuatti/gig-studio-assets'
+];
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
 
   try {
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response('Unauthorized', { status: 401, headers: corsHeaders })
+    }
+
     const supabaseClient = createClient(
-      // @ts-ignore
+      // @ts-ignore: Deno global
       Deno.env.get('SUPABASE_URL') ?? '',
-      // @ts-ignore
+      // @ts-ignore: Deno global
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+      { global: { headers: { Authorization: authHeader } } }
     )
 
-    // Verify user is authenticated
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
     if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      return new Response('Unauthorized', { status: 401, headers: corsHeaders })
     }
 
     const { path, content, repo, message } = await req.json();
     
-    // Security: Restrict to specific authorized repositories if needed
-    // For now, we just ensure it's provided.
-    if (!repo) {
-      return new Response(JSON.stringify({ error: "Repository is required" }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    // SECURITY: Validate repository against whitelist
+    if (!repo || !AUTHORIZED_REPOS.includes(repo)) {
+      return new Response(JSON.stringify({ error: "Unauthorized repository target." }), { 
+        status: 403, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      })
     }
 
-    // @ts-ignore
+    // @ts-ignore: Deno global
     const GITHUB_PAT = Deno.env.get('GITHUB_PAT');
     if (!GITHUB_PAT) {
-      return new Response(JSON.stringify({ error: "Missing GITHUB_PAT secret." }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: "Missing GITHUB_PAT secret." }), { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
     }
 
     const apiUrl = `https://api.github.com/repos/${repo}/contents/${path}`;
@@ -80,16 +94,26 @@ serve(async (req) => {
       sha = fileData.sha;
     }
 
-    let putRes = await performUpdate(sha, message || 'Update via Studio Admin');
+    let putRes = await performUpdate(sha, message || `Update via Studio Admin (User: ${user.id})`);
     let result = await putRes.json();
 
     if (!putRes.ok) {
-      return new Response(JSON.stringify({ error: result.message || "GitHub write failed." }), { status: putRes.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: result.message || "GitHub write failed." }), { 
+        status: putRes.status, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
     }
 
-    return new Response(JSON.stringify({ success: true, commit: result.commit.sha }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ success: true, commit: result.commit.sha }), { 
+      status: 200, 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    });
 
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    console.error("[github-file-sync] Error:", error.message);
+    return new Response(JSON.stringify({ error: error.message }), { 
+      status: 500, 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    });
   }
 })

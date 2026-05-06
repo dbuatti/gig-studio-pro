@@ -1,6 +1,8 @@
 // AI Gig Planner Edge Function
 // @ts-ignore: Deno runtime import
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
+// @ts-ignore: Deno runtime import
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -45,6 +47,24 @@ serve(async (req) => {
   }
 
   try {
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response('Unauthorized', { status: 401, headers: corsHeaders })
+    }
+
+    const supabaseClient = createClient(
+      // @ts-ignore: Deno global
+      Deno.env.get('SUPABASE_URL') ?? '',
+      // @ts-ignore: Deno global
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    )
+
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
+    if (authError || !user) {
+      return new Response('Unauthorized', { status: 401, headers: corsHeaders })
+    }
+
     const body = await req.json();
     const { emailText, repertoire } = body as { emailText: string, repertoire: Song[] };
 
@@ -70,7 +90,6 @@ serve(async (req) => {
 
     const shuffledProviders = [...providers].sort(() => Math.random() - 0.5);
     
-    // Improved prompt to include IDs and request a specific setlist size
     const prompt = `You are an expert Musical Director and Gig Planner.
 Analyze the following client inquiry and suggest a structured multi-set gig plan (approx 15-35 songs depending on duration).
 
@@ -191,9 +210,9 @@ Return ONLY JSON:
     });
 
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    return new Response(JSON.stringify({ error: error.message }), { 
+      status: 500, 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
   }
 });

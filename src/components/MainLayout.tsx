@@ -67,9 +67,9 @@ const MainLayout = () => {
         <Route path="/gig/:code" element={<PublicGigView />} />
         <Route path="/setlist/:id" element={<PublicGigView />} />
         <Route path="/dashboard" element={<Navigate to="/" replace />} />
-        {/* Public Emergency Route */}
-        <Route path="/emergency-cleanup" element={<EmergencyCleanup />} />
         
+        {/* Protected Routes */}
+        <Route path="/emergency-cleanup" element={<ProtectedRoute><EmergencyCleanup /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/sheet-reader/:songId?" element={<ProtectedRoute><SheetReaderMode /></ProtectedRoute>} />
         <Route path="/audit-reader/:songId?" element={<ProtectedRoute><AuditReaderMode /></ProtectedRoute>} />
