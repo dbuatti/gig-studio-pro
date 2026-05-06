@@ -1,0 +1,1 @@
+SELECT public.admin_force_purge_storage('public_audio', 45);

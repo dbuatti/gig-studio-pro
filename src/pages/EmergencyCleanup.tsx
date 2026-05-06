@@ -1,14 +1,14 @@
 "use client";
 
 import React, { useState } from 'react';
-import { supabaseAdmin } from '@/integrations/supabase/admin';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { 
   ShieldAlert, Loader2, Trash2, CheckCircle2, 
-  AlertTriangle, ArrowLeft, HardDrive, RefreshCw, Terminal
+  AlertTriangle, ArrowLeft, HardDrive, RefreshCw, Terminal, Database
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { showSuccess, showError, showInfo } from '@/utils/toast';
@@ -28,12 +28,36 @@ const EmergencyCleanup = () => {
     setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
   };
 
+  const runDatabasePurge = async () => {
+    if (!confirm("This will run a direct Database-level purge. This is the most powerful tool and should unlock your project. Continue?")) return;
+    
+    setIsProcessing(true);
+    addLog("🚀 Initiating Database-Level Administrative Purge...");
+    
+    try {
+      const { data, error } = await supabase.rpc('admin_force_purge_storage', {
+        target_bucket: BUCKET,
+        days_old: DAYS_TO_KEEP
+      });
+
+      if (error) throw error;
+      
+      addLog(`✅ Result: ${data}`);
+      showSuccess("Database purge complete!");
+    } catch (err: any) {
+      addLog(`❌ DB Purge failed: ${err.message}`);
+      showError(err.message);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const handleManualDelete = async () => {
     if (!manualPath.trim()) return;
     setIsProcessing(true);
     addLog(`Attempting manual purge of path: ${manualPath}`);
     try {
-      const { error } = await supabaseAdmin.storage.from(BUCKET).remove([manualPath]);
+      const { error } = await supabase.storage.from(BUCKET).remove([manualPath]);
       if (error) throw error;
       addLog(`✅ Successfully purged: ${manualPath}`);
       showSuccess("Manual purge successful");
@@ -41,65 +65,6 @@ const EmergencyCleanup = () => {
     } catch (err: any) {
       addLog(`❌ Manual purge failed: ${err.message}`);
       showError(err.message);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const runPurge = async () => {
-    if (!confirm(`This will permanently delete all files in '${BUCKET}' older than ${DAYS_TO_KEEP} days. Continue?`)) return;
-
-    setIsProcessing(true);
-    setLogs([]);
-    setTotalDeleted(0);
-    addLog("🚀 Starting recursive administrative purge...");
-
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - DAYS_TO_KEEP);
-
-    try {
-      const { data: userFolders, error: userError } = await supabaseAdmin.storage.from(BUCKET).list();
-      if (userError) throw userError;
-
-      for (const userFolder of userFolders || []) {
-        if (userFolder.id !== null) continue; 
-
-        addLog(`Scanning user directory: ${userFolder.name}...`);
-        
-        const { data: songFolders, error: songError } = await supabaseAdmin.storage.from(BUCKET).list(userFolder.name);
-        if (songError) continue;
-
-        for (const songFolder of songFolders || []) {
-          if (songFolder.id !== null) continue; 
-
-          const path = `${userFolder.name}/${songFolder.name}`;
-          const { data: files, error: fileError } = await supabaseAdmin.storage.from(BUCKET).list(path);
-          if (fileError) continue;
-
-          const oldFiles = (files || [])
-            .filter(f => f.created_at && new Date(f.created_at) < cutoff)
-            .map(f => `${path}/${f.name}`);
-
-          if (oldFiles.length > 0) {
-            addLog(`Found ${oldFiles.length} old files in ${path}. Deleting...`);
-            const { error: delError } = await supabaseAdmin.storage.from(BUCKET).remove(oldFiles);
-            
-            if (!delError) {
-              setTotalDeleted(prev => prev + oldFiles.length);
-              addLog(`✅ Successfully purged ${oldFiles.length} files.`);
-            } else {
-              addLog(`❌ Error deleting files in ${path}: ${delError.message}`);
-            }
-          }
-        }
-        await new Promise(r => setTimeout(r, 200));
-      }
-
-      addLog("🎉 Purge cycle complete.");
-      showSuccess(`Emergency cleanup finished. Deleted ${totalDeleted} files.`);
-    } catch (err: any) {
-      addLog(`FATAL ERROR: ${err.message}`);
-      showError(`Purge failed: ${err.message}`);
     } finally {
       setIsProcessing(false);
     }
@@ -125,13 +90,24 @@ const EmergencyCleanup = () => {
             </div>
             <h1 className="text-4xl font-black uppercase tracking-tighter">Emergency Storage Purge</h1>
             <p className="text-slate-400 font-medium max-w-md mx-auto">
-              This tool uses the <span className="text-white font-bold">Service Role Key</span> to bypass all restrictions and delete files older than {DAYS_TO_KEEP} days.
+              Project locked? Use the **Database-Level Purge** to bypass API restrictions and clear space.
             </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
+            <Button 
+              onClick={runDatabasePurge} 
+              disabled={isProcessing}
+              className="w-full h-20 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-[0.2em] text-sm rounded-2xl shadow-2xl shadow-indigo-600/40 gap-4 transition-all active:scale-95"
+            >
+              {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : <Database className="w-6 h-6" />}
+              {isProcessing ? "Executing DB Purge..." : "Execute Database-Level Purge"}
+            </Button>
           </div>
 
           <div className="p-6 bg-black/20 rounded-2xl border border-white/5 space-y-4">
             <Label className="text-[10px] font-black uppercase tracking-widest text-indigo-400 flex items-center gap-2">
-              <Terminal className="w-4 h-4" /> Manual Path Purge (Use if project is locked)
+              <Terminal className="w-4 h-4" /> Manual Path Purge (Standard API)
             </Label>
             <div className="flex gap-3">
               <Input 
@@ -143,43 +119,23 @@ const EmergencyCleanup = () => {
               <Button 
                 onClick={handleManualDelete}
                 disabled={isProcessing || !manualPath}
-                className="bg-indigo-600 hover:bg-indigo-700 h-12 px-6 rounded-xl font-black uppercase text-[10px]"
+                className="bg-slate-800 hover:bg-slate-700 text-white h-12 px-6 rounded-xl font-black uppercase text-[10px]"
               >
                 Purge Path
               </Button>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
-            <div className="bg-black/20 p-6 rounded-2xl border border-white/5 text-center">
-              <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Retention Policy</span>
-              <p className="text-2xl font-black text-indigo-400 mt-1">{DAYS_TO_KEEP} Days</p>
-            </div>
-            <div className="bg-black/20 p-6 rounded-2xl border border-white/5 text-center">
-              <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Files Purged</span>
-              <p className="text-2xl font-black text-emerald-400 mt-1">{totalDeleted}</p>
-            </div>
-          </div>
-
-          <Button 
-            onClick={runPurge} 
-            disabled={isProcessing}
-            className="w-full h-20 bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-[0.2em] text-sm rounded-2xl shadow-2xl shadow-red-900/40 gap-4 transition-all active:scale-95"
-          >
-            {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : <RefreshCw className="w-6 h-6" />}
-            {isProcessing ? "Executing Purge..." : "Execute Recursive Purge"}
-          </Button>
-
           <div className="space-y-3">
             <div className="flex items-center justify-between px-2">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Live Execution Log</span>
-              {isProcessing && <span className="text-[9px] font-mono text-indigo-400 animate-pulse">Processing Cloud Infrastructure...</span>}
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Execution Log</span>
+              {isProcessing && <span className="text-[9px] font-mono text-indigo-400 animate-pulse">Processing Infrastructure...</span>}
             </div>
             <div className="bg-black rounded-2xl border border-white/5 p-6 h-64 overflow-hidden">
               <ScrollArea className="h-full">
                 <div className="space-y-1.5 font-mono text-[11px]">
                   {logs.length === 0 ? (
-                    <p className="text-slate-700 italic">Waiting for execution command...</p>
+                    <p className="text-slate-700 italic">Waiting for command...</p>
                   ) : (
                     logs.map((log, i) => (
                       <p key={i} className={cn(
@@ -203,7 +159,7 @@ const EmergencyCleanup = () => {
           <div className="space-y-1">
             <p className="text-xs font-black uppercase text-amber-500">Security Protocol</p>
             <p className="text-[11px] text-slate-400 leading-relaxed">
-              After running this tool and confirming your Supabase project is unlocked, you must rotate your Service Role Secret in the Supabase Dashboard to invalidate the hardcoded key.
+              Direct database deletion is permanent. Once records are removed, Supabase will physically delete the files to reclaim your quota. This may take up to 15 minutes to reflect in the dashboard.
             </p>
           </div>
         </div>
