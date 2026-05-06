@@ -22,10 +22,9 @@ export const r2Storage = {
 
     if (!uploadRes.ok) throw new Error("Failed to upload to R2");
 
-    // Construct the public URL (Assumes bucket is public or has a custom domain)
-    // If using a custom domain, replace this with your domain.
-    const endpoint = "https://rqesjpnhrjdjnrzdhzgw.supabase.co"; // Placeholder, will be derived from R2 config
-    return data.url.split('?')[0]; 
+    // Construct the public URL using the base URL returned from the Edge Function
+    const publicBaseUrl = data.publicBaseUrl.replace(/\/$/, '');
+    return `${publicBaseUrl}/${path}`;
   },
 
   /**
