@@ -45,6 +45,8 @@ serve(async (req: Request) => {
     // @ts-ignore: Deno global
     const publicBaseUrl = Deno.env.get('R2_PUBLIC_URL')?.replace(/\/$/, '')
 
+    const sanitize = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').trim();
+
     // 1. Fetch all songs that have Supabase URLs
     const { data: songs, error: fetchError } = await supabaseAdmin
       .from('repertoire')
@@ -75,7 +77,6 @@ serve(async (req: Request) => {
               if (downloadError.message.includes('Object not found')) {
                 console.warn(`[migrate-to-r2] Skipping ${field} for song ${song.id}: File missing in Supabase storage.`);
                 skippedCount++;
-                // Null out the broken link in the DB to clean up
                 updates[field] = null;
                 if (field === 'audio_url') updates.preview_url = null;
                 continue;
@@ -83,15 +84,23 @@ serve(async (req: Request) => {
               throw downloadError;
             }
 
+            // Create descriptive filename
+            const artist = sanitize(song.artist || 'artist');
+            const title = sanitize(song.title || 'track');
+            const type = field.replace('_url', '');
+            const ext = field === 'audio_url' ? 'mp3' : 'pdf';
+            const fileName = `${artist}_${title}_${type}.${ext}`;
+            const newPath = `${song.user_id}/${song.id}/${fileName}`;
+
             const contentType = field === 'audio_url' ? 'audio/mpeg' : 'application/pdf';
             await s3Client.send(new PutObjectCommand({
               Bucket: bucketName,
-              Key: path,
+              Key: newPath,
               Body: new Uint8Array(await fileData.arrayBuffer()),
               ContentType: contentType,
             }));
 
-            updates[field] = `${publicBaseUrl}/${path}`;
+            updates[field] = `${publicBaseUrl}/${newPath}`;
             if (field === 'audio_url') updates.preview_url = updates[field];
             
             migratedCount++;
@@ -110,7 +119,7 @@ serve(async (req: Request) => {
       success: true, 
       migratedCount,
       skippedCount,
-      message: `Successfully migrated ${migratedCount} assets to Cloudflare R2. Skipped and cleaned up ${skippedCount} missing files.`
+      message: `Successfully migrated ${migratedCount} assets to Cloudflare R2 with descriptive names. Skipped ${skippedCount} missing files.`
     }), { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });

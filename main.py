@@ -42,6 +42,12 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 def log(message):
     print(f"[AUDIO-WORKER] {message}", flush=True)
 
+def sanitize_filename(name):
+    """Creates a URL-safe, human-readable filename."""
+    if not name:
+        return "track"
+    return "".join([c if c.isalnum() else "_" for c in name]).lower().strip("_")
+
 def download_cookies_from_supabase():
     """Fetches the latest cookies.txt from Supabase Storage to handle auth blocks."""
     try:
@@ -61,6 +67,7 @@ def process_queued_song(song):
     video_url = song.get('youtube_url')
     user_id = song.get('user_id')
     title = song.get('title', 'Unknown Title')
+    artist = song.get('artist', 'Unknown Artist')
 
     po_token = os.environ.get("YOUTUBE_PO_TOKEN")
     visitor_data = os.environ.get("YOUTUBE_VISITOR_DATA")
@@ -106,7 +113,12 @@ def process_queued_song(song):
             
             if os.path.exists(mp3_path):
                 log(f"Download successful. Starting upload to Cloudflare R2 for {title}.")
-                storage_path = f"{user_id}/{song_id}/master_audio.mp3"
+                
+                # Construct descriptive filename
+                clean_artist = sanitize_filename(artist)
+                clean_title = sanitize_filename(title)
+                file_name = f"{clean_artist}_{clean_title}_audio.mp3"
+                storage_path = f"{user_id}/{song_id}/{file_name}"
                 
                 with open(mp3_path, 'rb') as f:
                     s3.put_object(
@@ -155,7 +167,7 @@ def job_poller():
     while True:
         try:
             res = supabase.table("repertoire")\
-                .select("id, youtube_url, user_id, title")\
+                .select("id, youtube_url, user_id, title, artist")\
                 .eq("extraction_status", "queued")\
                 .order('created_at', ascending=True)\
                 .limit(1)\
