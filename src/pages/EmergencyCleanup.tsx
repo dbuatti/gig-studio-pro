@@ -4,9 +4,11 @@ import React, { useState } from 'react';
 import { supabaseAdmin } from '@/integrations/supabase/admin';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { 
   ShieldAlert, Loader2, Trash2, CheckCircle2, 
-  AlertTriangle, ArrowLeft, HardDrive, RefreshCw 
+  AlertTriangle, ArrowLeft, HardDrive, RefreshCw, Terminal
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { showSuccess, showError, showInfo } from '@/utils/toast';
@@ -20,9 +22,28 @@ const EmergencyCleanup = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
   const [totalDeleted, setTotalDeleted] = useState(0);
+  const [manualPath, setManualPath] = useState("");
 
   const addLog = (msg: string) => {
     setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
+  };
+
+  const handleManualDelete = async () => {
+    if (!manualPath.trim()) return;
+    setIsProcessing(true);
+    addLog(`Attempting manual purge of path: ${manualPath}`);
+    try {
+      const { error } = await supabaseAdmin.storage.from(BUCKET).remove([manualPath]);
+      if (error) throw error;
+      addLog(`✅ Successfully purged: ${manualPath}`);
+      showSuccess("Manual purge successful");
+      setManualPath("");
+    } catch (err: any) {
+      addLog(`❌ Manual purge failed: ${err.message}`);
+      showError(err.message);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const runPurge = async () => {
@@ -37,25 +58,21 @@ const EmergencyCleanup = () => {
     cutoff.setDate(cutoff.getDate() - DAYS_TO_KEEP);
 
     try {
-      // 1. List top-level folders (User IDs)
       const { data: userFolders, error: userError } = await supabaseAdmin.storage.from(BUCKET).list();
       if (userError) throw userError;
 
       for (const userFolder of userFolders || []) {
-        if (userFolder.id !== null) continue; // Skip files at root
+        if (userFolder.id !== null) continue; 
 
         addLog(`Scanning user directory: ${userFolder.name}...`);
         
-        // 2. List song folders
         const { data: songFolders, error: songError } = await supabaseAdmin.storage.from(BUCKET).list(userFolder.name);
         if (songError) continue;
 
         for (const songFolder of songFolders || []) {
-          if (songFolder.id !== null) continue; // Skip files in user root
+          if (songFolder.id !== null) continue; 
 
           const path = `${userFolder.name}/${songFolder.name}`;
-          
-          // 3. List files in song folder
           const { data: files, error: fileError } = await supabaseAdmin.storage.from(BUCKET).list(path);
           if (fileError) continue;
 
@@ -75,7 +92,6 @@ const EmergencyCleanup = () => {
             }
           }
         }
-        // Rate limit buffer
         await new Promise(r => setTimeout(r, 200));
       }
 
@@ -111,6 +127,27 @@ const EmergencyCleanup = () => {
             <p className="text-slate-400 font-medium max-w-md mx-auto">
               This tool uses the <span className="text-white font-bold">Service Role Key</span> to bypass all restrictions and delete files older than {DAYS_TO_KEEP} days.
             </p>
+          </div>
+
+          <div className="p-6 bg-black/20 rounded-2xl border border-white/5 space-y-4">
+            <Label className="text-[10px] font-black uppercase tracking-widest text-indigo-400 flex items-center gap-2">
+              <Terminal className="w-4 h-4" /> Manual Path Purge (Use if project is locked)
+            </Label>
+            <div className="flex gap-3">
+              <Input 
+                placeholder="user_id/song_id/filename.mp3"
+                value={manualPath}
+                onChange={(e) => setManualPath(e.target.value)}
+                className="bg-slate-950 border-white/10 h-12 font-mono text-xs"
+              />
+              <Button 
+                onClick={handleManualDelete}
+                disabled={isProcessing || !manualPath}
+                className="bg-indigo-600 hover:bg-indigo-700 h-12 px-6 rounded-xl font-black uppercase text-[10px]"
+              >
+                Purge Path
+              </Button>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-6">
