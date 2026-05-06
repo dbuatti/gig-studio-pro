@@ -1,7 +1,7 @@
 // @ts-ignore: Deno runtime import
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 // @ts-ignore: Deno runtime import
-import { S3Client, CopyObjectCommand, DeleteObjectCommand } from "https://esm.sh/@aws-sdk/client-s3@3.450.0"
+import { S3Client, CopyObjectCommand, DeleteObjectCommand, HeadObjectCommand } from "https://esm.sh/@aws-sdk/client-s3@3.450.0"
 // @ts-ignore: Deno runtime import
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
@@ -64,6 +64,7 @@ serve(async (req: Request) => {
     console.log(`[rename-r2-assets] Auditing ${songs?.length || 0} songs for path compliance.`);
 
     let renamedCount = 0;
+    let missingCount = 0;
 
     for (const song of (songs || [])) {
       const updates: any = {};
@@ -71,8 +72,6 @@ serve(async (req: Request) => {
 
       const artistPart = sanitize(song.artist || 'artist');
       const titlePart = sanitize(song.title || 'track');
-      
-      // New descriptive folder name: song_id_artist_title
       const descriptiveFolder = `${song.id}_${artistPart}_${titlePart}`;
 
       for (const field of fields) {
@@ -83,17 +82,18 @@ serve(async (req: Request) => {
           const type = field.replace('_url', '');
           const ext = field === 'audio_url' ? 'mp3' : 'pdf';
           const newFileName = `${artistPart}_${titlePart}_${type}.${ext}`;
-          
-          // Desired path: user_id / descriptive_folder / descriptive_filename
           const expectedPath = `${song.user_id}/${descriptiveFolder}/${newFileName}`;
 
           if (oldPath !== expectedPath) {
             try {
-              console.log(`[rename-r2-assets] Path Mismatch for "${song.title}" (${field}):`);
-              console.log(`[rename-r2-assets]   CURRENT: ${oldPath}`);
-              console.log(`[rename-r2-assets]   TARGET:  ${expectedPath}`);
+              // Check if source exists before attempting copy
+              await s3Client.send(new HeadObjectCommand({
+                Bucket: bucketName,
+                Key: oldPath,
+              }));
 
-              // S3 Rename is Copy + Delete
+              console.log(`[rename-r2-assets] Moving "${song.title}" (${field}) to descriptive path...`);
+
               await s3Client.send(new CopyObjectCommand({
                 Bucket: bucketName,
                 CopySource: `${bucketName}/${oldPath}`,
@@ -109,30 +109,32 @@ serve(async (req: Request) => {
               if (field === 'audio_url') updates.preview_url = updates[field];
               
               renamedCount++;
-              console.log(`[rename-r2-assets]   SUCCESS: Moved to descriptive path.`);
             } catch (err: any) {
-              console.error(`[rename-r2-assets]   FAILED to move ${field}:`, err.message);
+              if (err.name === 'NotFound' || err.$metadata?.httpStatusCode === 404) {
+                console.warn(`[rename-r2-assets] SKIP: Asset missing in R2 for "${song.title}" (${field}). Path: ${oldPath}`);
+                missingCount++;
+                // Optionally clear the broken link in DB
+                // updates[field] = null;
+              } else {
+                console.error(`[rename-r2-assets] FAILED to move ${field} for "${song.title}":`, err.message);
+              }
             }
-          } else {
-            console.log(`[rename-r2-assets] Skipping "${song.title}" (${field}) - Path is already compliant.`);
           }
         }
       }
 
       if (Object.keys(updates).length > 0) {
-        const { error: updateError } = await supabaseAdmin.from('repertoire').update(updates).eq('id', song.id);
-        if (updateError) {
-          console.error(`[rename-r2-assets] DB Update Error for ${song.id}:`, updateError);
-        }
+        await supabaseAdmin.from('repertoire').update(updates).eq('id', song.id);
       }
     }
 
-    console.log(`[rename-r2-assets] Maintenance complete. Total assets moved: ${renamedCount}`);
+    console.log(`[rename-r2-assets] Maintenance complete. Renamed: ${renamedCount}, Missing: ${missingCount}`);
 
     return new Response(JSON.stringify({ 
       success: true, 
       renamedCount,
-      message: `Successfully moved ${renamedCount} assets to descriptive folder structures in R2.`
+      missingCount,
+      message: `Maintenance complete. Moved ${renamedCount} assets. Found ${missingCount} missing files.`
     }), { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
