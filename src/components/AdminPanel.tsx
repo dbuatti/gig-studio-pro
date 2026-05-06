@@ -3,10 +3,12 @@
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ShieldCheck, Database, RefreshCw, Trash2, Loader2, Zap, ShieldAlert } from 'lucide-react';
+import { ShieldCheck, Database, RefreshCw, Trash2, Loader2, Zap, ShieldAlert, Cloud } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { cleanAllSetlists } from '@/utils/setlistCleanup';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { showSuccess, showError, showInfo } from '@/utils/toast';
 
 interface AdminPanelProps {
   isOpen: boolean;
@@ -18,6 +20,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
   const { user } = useAuth();
   const navigate = useNavigate();
   const [isCleaning, setIsCleaning] = useState(false);
+  const [isMigrating, setIsMigrating] = useState(false);
 
   const handleGlobalCleanup = async () => {
     if (!user?.id) return;
@@ -27,12 +30,31 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
     setIsCleaning(false);
   };
 
+  const handleR2Migration = async () => {
+    if (!confirm("This will move all your Supabase files to Cloudflare R2. This process may take a few minutes. Continue?")) return;
+    
+    setIsMigrating(true);
+    showInfo("Starting asset migration to R2...");
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('migrate-to-r2');
+      if (error) throw error;
+      
+      showSuccess(data.message || "Migration complete!");
+      await onRefreshRepertoire();
+    } catch (err: any) {
+      showError(`Migration failed: ${err.message}`);
+    } finally {
+      setIsMigrating(false);
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-2xl bg-slate-950 border-white/10 text-white rounded-[2.5rem] p-10 shadow-2xl">
         <DialogHeader>
           <div className="flex items-center gap-4 mb-2">
-            <div className="bg-indigo-600 p-3 rounded-2xl shadow-lg shadow-indigo-500/20">
+            <div className="bg-indigo-600 p-3 rounded-2xl shadow-lg shadow-indigo-600/20">
               <ShieldCheck className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -61,6 +83,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
               <div className="text-left">
                 <p className="text-xs font-black uppercase tracking-tight">Clean All Setlists</p>
                 <p className="text-[9px] font-medium opacity-60">Removes duplicates from every gig</p>
+              </div>
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={handleR2Migration}
+              disabled={isMigrating}
+              className="w-full justify-start gap-3 h-14 rounded-2xl border-indigo-500/20 bg-indigo-600/5 hover:bg-indigo-600/10 hover:text-indigo-400 transition-all"
+            >
+              {isMigrating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Cloud className="w-5 h-5" />}
+              <div className="text-left">
+                <p className="text-xs font-black uppercase tracking-tight">Migrate Assets to R2</p>
+                <p className="text-[9px] font-medium opacity-60">Move Supabase files to Cloudflare</p>
               </div>
             </Button>
 
@@ -95,17 +130,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
               <div className="text-left">
                 <p className="text-xs font-black uppercase tracking-tight">Nuclear Cleanup</p>
                 <p className="text-[9px] font-medium opacity-60">Emergency storage purge (God Mode)</p>
-              </div>
-            </Button>
-            
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-3 h-14 rounded-2xl border-red-500/20 bg-transparent hover:bg-red-600/10 hover:text-red-400 transition-all opacity-50 cursor-not-allowed"
-            >
-              <Trash2 className="w-5 h-5" />
-              <div className="text-left">
-                <p className="text-xs font-black uppercase tracking-tight">Wipe Repertoire</p>
-                <p className="text-[9px] font-medium opacity-60">Delete all songs (Disabled)</p>
               </div>
             </Button>
           </div>
