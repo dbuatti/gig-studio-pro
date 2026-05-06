@@ -3,9 +3,10 @@
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ShieldCheck, Database, RefreshCw, Trash2, Loader2, Zap } from 'lucide-react';
+import { ShieldCheck, Database, RefreshCw, Trash2, Loader2, Zap, ShieldAlert } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { cleanAllSetlists } from '@/utils/setlistCleanup';
+import { useNavigate } from 'react-router-dom';
 
 interface AdminPanelProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ interface AdminPanelProps {
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshRepertoire }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [isCleaning, setIsCleaning] = useState(false);
 
   const handleGlobalCleanup = async () => {
@@ -81,9 +83,20 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
               <h3 className="text-sm font-black uppercase tracking-tight">Danger Zone</h3>
             </div>
             
-            <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
-              These actions are permanent and cannot be undone. Use with extreme caution.
-            </p>
+            <Button
+              variant="outline"
+              onClick={() => {
+                onClose();
+                navigate('/emergency-cleanup');
+              }}
+              className="w-full justify-start gap-3 h-14 rounded-2xl border-red-500/20 bg-red-500/5 hover:bg-red-600/10 hover:text-red-400 transition-all"
+            >
+              <ShieldAlert className="w-5 h-5" />
+              <div className="text-left">
+                <p className="text-xs font-black uppercase tracking-tight">Nuclear Cleanup</p>
+                <p className="text-[9px] font-medium opacity-60">Emergency storage purge (God Mode)</p>
+              </div>
+            </Button>
             
             <Button
               variant="outline"

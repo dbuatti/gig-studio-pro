@@ -14,7 +14,8 @@ import AuditReaderMode from "@/pages/AuditReaderMode";
 import SongStudio from "@/pages/SongStudio";
 import GigEntry from "@/pages/GigEntry";
 import PublicGigView from "@/pages/PublicGigView";
-import DebugPage from "@/pages/DebugPage"; // Import DebugPage
+import DebugPage from "@/pages/DebugPage";
+import EmergencyCleanup from "@/pages/EmergencyCleanup"; // NEW
 
 const RENDER_WORKER_URL = "https://yt-audio-api-1-wedr.onrender.com";
 
@@ -71,6 +72,7 @@ const MainLayout = () => {
         <Route path="/audit-reader/:songId?" element={<ProtectedRoute><AuditReaderMode /></ProtectedRoute>} />
         <Route path="/gig/:gigId/song/:songId" element={<ProtectedRoute><SongStudio /></ProtectedRoute>} />
         <Route path="/debug" element={<ProtectedRoute><DebugPage /></ProtectedRoute>} />
+        <Route path="/emergency-cleanup" element={<ProtectedRoute><EmergencyCleanup /></ProtectedRoute>} /> {/* NEW */}
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>
