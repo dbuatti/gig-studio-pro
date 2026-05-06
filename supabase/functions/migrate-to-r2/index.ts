@@ -75,8 +75,9 @@ serve(async (req: Request) => {
               if (downloadError.message.includes('Object not found')) {
                 console.warn(`[migrate-to-r2] Skipping ${field} for song ${song.id}: File missing in Supabase storage.`);
                 skippedCount++;
-                // Optionally null out the broken link in the DB to clean up
+                // Null out the broken link in the DB to clean up
                 updates[field] = null;
+                if (field === 'audio_url') updates.preview_url = null;
                 continue;
               }
               throw downloadError;
@@ -109,7 +110,7 @@ serve(async (req: Request) => {
       success: true, 
       migratedCount,
       skippedCount,
-      message: `Successfully migrated ${migratedCount} assets to Cloudflare R2. Skipped ${skippedCount} missing files.`
+      message: `Successfully migrated ${migratedCount} assets to Cloudflare R2. Skipped and cleaned up ${skippedCount} missing files.`
     }), { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
