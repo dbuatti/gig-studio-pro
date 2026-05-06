@@ -54,6 +54,7 @@ serve(async (req: Request) => {
     if (fetchError) throw fetchError;
 
     let migratedCount = 0;
+    let skippedCount = 0;
 
     for (const song of (songs || [])) {
       const updates: any = {};
@@ -70,7 +71,16 @@ serve(async (req: Request) => {
               .from('public_audio')
               .download(path);
 
-            if (downloadError) throw downloadError;
+            if (downloadError) {
+              if (downloadError.message.includes('Object not found')) {
+                console.warn(`[migrate-to-r2] Skipping ${field} for song ${song.id}: File missing in Supabase storage.`);
+                skippedCount++;
+                // Optionally null out the broken link in the DB to clean up
+                updates[field] = null;
+                continue;
+              }
+              throw downloadError;
+            }
 
             const contentType = field === 'audio_url' ? 'audio/mpeg' : 'application/pdf';
             await s3Client.send(new PutObjectCommand({
@@ -84,7 +94,7 @@ serve(async (req: Request) => {
             if (field === 'audio_url') updates.preview_url = updates[field];
             
             migratedCount++;
-          } catch (err) {
+          } catch (err: any) {
             console.error(`[migrate-to-r2] Failed to migrate ${field} for song ${song.id}:`, err.message);
           }
         }
@@ -98,12 +108,14 @@ serve(async (req: Request) => {
     return new Response(JSON.stringify({ 
       success: true, 
       migratedCount,
-      message: `Successfully migrated ${migratedCount} assets to Cloudflare R2.`
+      skippedCount,
+      message: `Successfully migrated ${migratedCount} assets to Cloudflare R2. Skipped ${skippedCount} missing files.`
     }), { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
 
   } catch (error: any) {
+    console.error("[migrate-to-r2] Fatal Error:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
