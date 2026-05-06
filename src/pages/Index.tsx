@@ -858,6 +858,7 @@ const Index = () => {
               Storage Audit
             </Button>
             <SystemToolsDropdown
+              onOpenAdmin={() => setIsAdminPanelOpen(true)} // Connected this prop
               onOpenMDAudit={handleRunMDAudit}
               onToggleShuffleAll={handleToggleShuffleAll}
               isShuffleAllMode={isShuffleAllMode}

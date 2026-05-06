@@ -12,12 +12,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { 
   Wrench, ShieldCheck, Sparkles, Shuffle, Hash, Settings2, 
-  ChevronDown, Zap, Database, BookOpen 
+  ChevronDown, Zap, Database, BookOpen, ShieldAlert
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 
 interface SystemToolsDropdownProps {
+  onOpenAdmin: () => void;
   onOpenMDAudit: () => void;
   onToggleShuffleAll: () => void;
   isShuffleAllMode: boolean;
@@ -27,6 +28,7 @@ interface SystemToolsDropdownProps {
 }
 
 const SystemToolsDropdown: React.FC<SystemToolsDropdownProps> = ({
+  onOpenAdmin,
   onOpenMDAudit,
   onToggleShuffleAll,
   isShuffleAllMode,
@@ -77,6 +79,9 @@ const SystemToolsDropdown: React.FC<SystemToolsDropdownProps> = ({
         <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-slate-500 px-3 py-2">
           Configuration
         </DropdownMenuLabel>
+        <DropdownMenuItem onClick={onOpenAdmin} className="h-11 rounded-xl text-xs font-bold uppercase gap-3 text-indigo-400">
+          <ShieldAlert className="w-4 h-4" /> System Administration
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={onOpenKeyMatrix} className="h-11 rounded-xl text-xs font-bold uppercase gap-3">
           <Hash className="w-4 h-4 text-indigo-400" /> Key Matrix
         </DropdownMenuItem>
