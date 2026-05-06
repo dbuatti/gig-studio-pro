@@ -19,19 +19,33 @@ app = Flask(__name__)
 CORS(app)
 
 # Supabase Config
-url: str = os.environ.get("SUPABASE_URL")
-key: str = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
-supabase: Client = create_client(url, key)
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+
+if not SUPABASE_URL or not SUPABASE_KEY:
+    print("[CRITICAL] Missing Supabase environment variables!")
+    sys.exit(1)
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # R2 Config
-s3 = boto3.client(
-    's3',
-    endpoint_url=os.environ.get("S3_ENDPOINT"),
-    aws_access_key_id=os.environ.get("S3_ACCESS_KEY_ID"),
-    aws_secret_access_key=os.environ.get("S3_SECRET_ACCESS_KEY")
-)
+R2_ENDPOINT = os.environ.get("S3_ENDPOINT")
+R2_ACCESS_KEY = os.environ.get("S3_ACCESS_KEY_ID")
+R2_SECRET_KEY = os.environ.get("S3_SECRET_ACCESS_KEY")
 R2_BUCKET = os.environ.get("S3_BUCKET_NAME")
 R2_PUBLIC_URL = os.environ.get("R2_PUBLIC_URL")
+
+# Initialize S3 client only if variables are present
+s3 = None
+if all([R2_ENDPOINT, R2_ACCESS_KEY, R2_SECRET_KEY]):
+    s3 = boto3.client(
+        's3',
+        endpoint_url=R2_ENDPOINT,
+        aws_access_key_id=R2_ACCESS_KEY,
+        aws_secret_access_key=R2_SECRET_KEY
+    )
+else:
+    print("[WARNING] R2 Storage environment variables are incomplete. S3 client not initialized.")
 
 # Concurrency Control
 download_semaphore = threading.BoundedSemaphore(value=1)
@@ -69,6 +83,10 @@ def process_queued_song(song):
     title = song.get('title', 'Unknown Title')
     artist = song.get('artist', 'Unknown Artist')
 
+    if not s3:
+        log(f"ABORT: S3 client not initialized. Cannot process {title}")
+        return
+
     po_token = os.environ.get("YOUTUBE_PO_TOKEN")
     visitor_data = os.environ.get("YOUTUBE_VISITOR_DATA")
 
@@ -86,7 +104,7 @@ def process_queued_song(song):
             output_template = os.path.join(DOWNLOAD_DIR, f"{file_id}.%(ext)s")
             
             ydl_opts = {
-                'format': 'wa',
+                'format': 'bestaudio/best',
                 'noplaylist': True,
                 'outtmpl': output_template,
                 'postprocessors': [{
