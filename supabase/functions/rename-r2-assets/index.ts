@@ -15,12 +15,12 @@ serve(async (req: Request) => {
     return new Response(null, { headers: corsHeaders })
   }
 
-  console.log("[rename-r2-assets] Request received. Starting maintenance cycle...");
+  console.log("[rename-r2-assets] Maintenance cycle started.");
 
   try {
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
-      console.error("[rename-r2-assets] Error: No authorization header provided.");
+      console.error("[rename-r2-assets] Error: No authorization header.");
       return new Response('Unauthorized', { status: 401, headers: corsHeaders })
     }
 
@@ -50,8 +50,6 @@ serve(async (req: Request) => {
 
     const sanitize = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').trim();
 
-    console.log("[rename-r2-assets] Fetching songs with R2 assets...");
-
     // 1. Fetch all songs that have R2 URLs
     const { data: songs, error: fetchError } = await supabaseAdmin
       .from('repertoire')
@@ -59,11 +57,11 @@ serve(async (req: Request) => {
       .or(`audio_url.ilike.%${publicBaseUrl}%,pdf_url.ilike.%${publicBaseUrl}%,leadsheet_url.ilike.%${publicBaseUrl}%`);
 
     if (fetchError) {
-      console.error("[rename-r2-assets] Database fetch error:", fetchError);
+      console.error("[rename-r2-assets] DB Fetch Error:", fetchError);
       throw fetchError;
     }
 
-    console.log(`[rename-r2-assets] Found ${songs?.length || 0} songs to audit.`);
+    console.log(`[rename-r2-assets] Auditing ${songs?.length || 0} songs for path compliance.`);
 
     let renamedCount = 0;
 
@@ -71,34 +69,35 @@ serve(async (req: Request) => {
       const updates: any = {};
       const fields = ['audio_url', 'pdf_url', 'leadsheet_url'];
 
+      const artistPart = sanitize(song.artist || 'artist');
+      const titlePart = sanitize(song.title || 'track');
+      
+      // New descriptive folder name: song_id_artist_title
+      const descriptiveFolder = `${song.id}_${artistPart}_${titlePart}`;
+
       for (const field of fields) {
         const currentUrl = song[field];
         if (currentUrl && currentUrl.includes(publicBaseUrl)) {
           const oldPath = currentUrl.replace(`${publicBaseUrl}/`, '');
-          const fileName = oldPath.split('/').pop();
           
-          // Check if it's a generic name (doesn't contain artist/title)
-          const artistPart = sanitize(song.artist || 'artist');
-          const titlePart = sanitize(song.title || 'track');
-          const isDescriptive = fileName.includes(artistPart) && fileName.includes(titlePart);
+          const type = field.replace('_url', '');
+          const ext = field === 'audio_url' ? 'mp3' : 'pdf';
+          const newFileName = `${artistPart}_${titlePart}_${type}.${ext}`;
+          
+          // Desired path: user_id / descriptive_folder / descriptive_filename
+          const expectedPath = `${song.user_id}/${descriptiveFolder}/${newFileName}`;
 
-          if (!isDescriptive) {
+          if (oldPath !== expectedPath) {
             try {
-              const type = field.replace('_url', '');
-              const ext = field === 'audio_url' ? 'mp3' : 'pdf';
-              const newFileName = `${artistPart}_${titlePart}_${type}.${ext}`;
-              // Ensure the path uses slashes to create folders in R2 UI
-              const newPath = `${song.user_id}/${song.id}/${newFileName}`;
-
-              console.log(`[rename-r2-assets] Renaming ${field} for "${song.title}":`);
-              console.log(`[rename-r2-assets]   FROM: ${oldPath}`);
-              console.log(`[rename-r2-assets]   TO:   ${newPath}`);
+              console.log(`[rename-r2-assets] Path Mismatch for "${song.title}" (${field}):`);
+              console.log(`[rename-r2-assets]   CURRENT: ${oldPath}`);
+              console.log(`[rename-r2-assets]   TARGET:  ${expectedPath}`);
 
               // S3 Rename is Copy + Delete
               await s3Client.send(new CopyObjectCommand({
                 Bucket: bucketName,
                 CopySource: `${bucketName}/${oldPath}`,
-                Key: newPath,
+                Key: expectedPath,
               }));
 
               await s3Client.send(new DeleteObjectCommand({
@@ -106,16 +105,16 @@ serve(async (req: Request) => {
                 Key: oldPath,
               }));
 
-              updates[field] = `${publicBaseUrl}/${newPath}`;
+              updates[field] = `${publicBaseUrl}/${expectedPath}`;
               if (field === 'audio_url') updates.preview_url = updates[field];
               
               renamedCount++;
-              console.log(`[rename-r2-assets]   SUCCESS: ${field} updated.`);
+              console.log(`[rename-r2-assets]   SUCCESS: Moved to descriptive path.`);
             } catch (err: any) {
-              console.error(`[rename-r2-assets]   FAILED: ${field} for song ${song.id}:`, err.message);
+              console.error(`[rename-r2-assets]   FAILED to move ${field}:`, err.message);
             }
           } else {
-            console.log(`[rename-r2-assets] Skipping ${field} for "${song.title}" (Already descriptive).`);
+            console.log(`[rename-r2-assets] Skipping "${song.title}" (${field}) - Path is already compliant.`);
           }
         }
       }
@@ -123,17 +122,17 @@ serve(async (req: Request) => {
       if (Object.keys(updates).length > 0) {
         const { error: updateError } = await supabaseAdmin.from('repertoire').update(updates).eq('id', song.id);
         if (updateError) {
-          console.error(`[rename-r2-assets] Error updating database for song ${song.id}:`, updateError);
+          console.error(`[rename-r2-assets] DB Update Error for ${song.id}:`, updateError);
         }
       }
     }
 
-    console.log(`[rename-r2-assets] Maintenance complete. Total assets renamed: ${renamedCount}`);
+    console.log(`[rename-r2-assets] Maintenance complete. Total assets moved: ${renamedCount}`);
 
     return new Response(JSON.stringify({ 
       success: true, 
       renamedCount,
-      message: `Successfully renamed ${renamedCount} assets in R2 to the descriptive format.`
+      message: `Successfully moved ${renamedCount} assets to descriptive folder structures in R2.`
     }), { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
