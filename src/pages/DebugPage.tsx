@@ -20,6 +20,7 @@ import { useSettings } from '@/hooks/use-settings';
 import { useNavigate } from 'react-router-dom';
 import { useSpring, animated } from '@react-spring/web';
 import { useDrag } from '@use-gesture/react';
+import { r2Storage } from '@/utils/r2Storage';
 
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
@@ -151,8 +152,8 @@ const DebugPage: React.FC = () => {
       return;
     }
 
-    if (!user) {
-      showError("You must be logged in to upload files.");
+    if (!user || !debugSongId) {
+      showError("Session data missing.");
       return;
     }
 
@@ -160,21 +161,14 @@ const DebugPage: React.FC = () => {
     setPdfError(null);
 
     try {
-      const fileName = `${user.id}/debug_pdf_${Date.now()}.pdf`;
-      const { error: uploadError } = await supabase.storage
-        .from('public_audio')
-        .upload(fileName, file, {
-          upsert: true,
-          contentType: 'application/pdf',
-          cacheControl: '3600'
-        });
+      const fileName = `debug_pdf_${Date.now()}.pdf`;
+      const filePath = `${user.id}/${debugSongId}/${fileName}`;
+      
+      const publicUrl = await r2Storage.upload(filePath, file);
 
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage.from('public_audio').getPublicUrl(fileName);
       setTestPdfUrl(publicUrl);
       localStorage.setItem(DEBUG_PDF_URL_KEY, publicUrl);
-      showSuccess("PDF uploaded and stored!");
+      showSuccess("PDF uploaded to R2 and stored!");
       setPdfDocument(null);
       setPdfCurrentPage(1);
       setPdfNumPages(null);
@@ -351,7 +345,7 @@ const DebugPage: React.FC = () => {
       <div className={cn("flex items-center justify-between mb-8", isFullScreen && "px-6 py-4 bg-card border-b border-border")}>
         <div className="flex items-center gap-4">
           <FileText className="w-6 h-6 text-indigo-600" />
-          <h1 className="text-2xl font-black uppercase tracking-tight">Linking Debug Page</h1>
+          <h1 className="text-2xl font-black uppercase tracking-tight">Linking Debug Page (R2)</h1>
         </div>
         <div className="flex items-center gap-4">
           <Button 
@@ -372,10 +366,10 @@ const DebugPage: React.FC = () => {
       {!isFullScreen && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
           <div className="lg:col-span-1 bg-card p-6 rounded-[2rem] border border-border shadow-lg space-y-6">
-            <h2 className="text-xl font-black uppercase tracking-tight text-foreground">Test PDF</h2>
+            <h2 className="text-xl font-black uppercase tracking-tight text-foreground">Test PDF (R2)</h2>
             <div className="space-y-4">
               <Label htmlFor="pdf-upload" className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-                <UploadCloud className="w-4 h-4" /> Upload Test PDF
+                <UploadCloud className="w-4 h-4" /> Upload Test PDF to R2
               </Label>
               <div className="flex gap-2">
                 <Input
@@ -399,7 +393,7 @@ const DebugPage: React.FC = () => {
             {testPdfUrl && (
               <div className="space-y-4 pt-4 border-t border-border">
                 <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-                  <FileText className="w-4 h-4" /> Current PDF
+                  <FileText className="w-4 h-4" /> Current R2 PDF
                 </Label>
                 <p className="text-sm font-mono text-foreground break-all">{testPdfUrl}</p>
                 <p className="text-xs text-muted-foreground">Total Links: <span className="font-mono">{links.length}</span></p>
@@ -535,7 +529,7 @@ const DebugPage: React.FC = () => {
         {!testPdfUrl && !isLoadingPdf && !pdfError && (
           <div className="text-center text-muted-foreground">
             <UploadCloud className="w-16 h-16 mx-auto mb-4" />
-            <p className="text-lg font-bold">Upload a PDF to start debugging links.</p>
+            <p className="text-lg font-bold">Upload a PDF to R2 to start debugging links.</p>
           </div>
         )}
       </div>

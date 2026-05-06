@@ -3,11 +3,11 @@
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { FileText, Upload, Loader2, CheckCircle2, X, AlertCircle, FileType } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { showError, showSuccess } from '@/utils/toast';
+import { r2Storage } from '@/utils/r2Storage';
 
 interface PDFUploadZoneProps {
   onUploadComplete: (url: string, type: 'pdf' | 'leadsheet') => void;
@@ -44,25 +44,13 @@ const PDFUploadZone: React.FC<PDFUploadZoneProps> = ({
 
     setIsUploading(true);
     try {
-      // Standardized filenames to ensure overwrites instead of duplicates
       const fileName = uploadType === 'pdf' ? 'full_score.pdf' : 'lead_sheet.pdf';
       const filePath = `${user.id}/${songId}/${fileName}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('public_audio')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: true // CRITICAL: Overwrite existing file
-        });
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('public_audio')
-        .getPublicUrl(filePath);
+      const publicUrl = await r2Storage.upload(filePath, file);
 
       onUploadComplete(publicUrl, uploadType);
-      showSuccess(`${uploadType === 'pdf' ? 'Full Score' : 'Lead Sheet'} uploaded successfully.`);
+      showSuccess(`${uploadType === 'pdf' ? 'Full Score' : 'Lead Sheet'} uploaded to R2 successfully.`);
     } catch (error: any) {
       console.error('Upload error:', error);
       showError(`Upload failed: ${error.message}`);
@@ -80,7 +68,6 @@ const PDFUploadZone: React.FC<PDFUploadZoneProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Type Selector */}
       <div className="flex p-1 bg-black/40 rounded-xl border border-white/5 w-full sm:w-fit">
         <button
           onClick={() => setUploadType('pdf')}
@@ -102,7 +89,6 @@ const PDFUploadZone: React.FC<PDFUploadZoneProps> = ({
         </button>
       </div>
 
-      {/* Dropzone */}
       <div 
         {...getRootProps()} 
         className={cn(
@@ -128,7 +114,7 @@ const PDFUploadZone: React.FC<PDFUploadZoneProps> = ({
 
         <div>
           <p className="text-sm font-black uppercase tracking-tight text-white">
-            {isUploading ? "Uploading Asset..." : isDragActive ? "Drop to Upload" : `Upload ${uploadType === 'pdf' ? 'Full Score' : 'Lead Sheet'}`}
+            {isUploading ? "Uploading to R2..." : isDragActive ? "Drop to Upload" : `Upload ${uploadType === 'pdf' ? 'Full Score' : 'Lead Sheet'}`}
           </p>
           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">
             Drag & drop PDF or click to browse
@@ -139,13 +125,12 @@ const PDFUploadZone: React.FC<PDFUploadZoneProps> = ({
           <div className="absolute inset-0 flex items-center justify-center bg-slate-950/40 backdrop-blur-sm rounded-[2rem]">
             <div className="flex flex-col items-center gap-3">
               <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-white">Processing PDF...</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-white">Processing R2 Upload...</span>
             </div>
           </div>
         )}
       </div>
 
-      {/* Current Files List */}
       {(currentPdfUrl || currentLeadsheetUrl) && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {currentPdfUrl && (
@@ -156,7 +141,7 @@ const PDFUploadZone: React.FC<PDFUploadZoneProps> = ({
                 </div>
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-widest text-white">Full Score</p>
-                  <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">PDF Document Linked</p>
+                  <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">R2 Asset Linked</p>
                 </div>
               </div>
               <Button 
@@ -177,7 +162,7 @@ const PDFUploadZone: React.FC<PDFUploadZoneProps> = ({
                 </div>
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-widest text-white">Lead Sheet</p>
-                  <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">PDF Document Linked</p>
+                  <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">R2 Asset Linked</p>
                 </div>
               </div>
               <Button 

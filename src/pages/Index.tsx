@@ -47,8 +47,9 @@ import GigPlannerModal from '@/components/GigPlannerModal';
 import MDAuditModal from '@/components/MDAuditModal';
 import ShortcutCheatSheet from '@/components/ShortcutCheatSheet';
 import SystemToolsDropdown from '@/components/SystemToolsDropdown';
-import StorageAuditModal from '@/components/StorageAuditModal'; // NEW
+import StorageAuditModal from '@/components/StorageAuditModal';
 import { sortSongsByStrategy } from '@/utils/SetlistGenerator';
+import { r2Storage } from '@/utils/r2Storage';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -279,7 +280,7 @@ const Index = () => {
   const [isAuditLoading, setIsAuditLoading] = useState(false);
   const [auditData, setAuditData] = useState<any>(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [isStorageAuditOpen, setIsStorageAuditOpen] = useState(false); // NEW
+  const [isStorageAuditOpen, setIsStorageAuditOpen] = useState(false);
 
   const isFilterDirty = useMemo(() => {
     return JSON.stringify(activeFilters) !== JSON.stringify(DEFAULT_FILTERS);
@@ -519,34 +520,24 @@ const Index = () => {
   const handleDeleteSong = useCallback(async (songId: string) => {
     if (!userId) return;
     try {
-      // 1. Fetch song data to get storage paths
       const { data: song } = await supabase.from('repertoire').select('*').eq('id', songId).single();
       
       if (song) {
-        // 2. Clean up storage
         const pathsToDelete = [];
-        if (song.audio_url) {
-          const audioPath = `${userId}/${songId}/master_audio.mp3`;
-          pathsToDelete.push(audioPath);
-        }
-        if (song.pdf_url) {
-          const pdfPath = `${userId}/${songId}/full_score.pdf`;
-          pathsToDelete.push(pdfPath);
-        }
-        if (song.leadsheet_url) {
-          const lsPath = `${userId}/${songId}/lead_sheet.pdf`;
-          pathsToDelete.push(lsPath);
-        }
+        if (song.audio_url) pathsToDelete.push(`${userId}/${songId}/master_audio.mp3`);
+        if (song.pdf_url) pathsToDelete.push(`${userId}/${songId}/full_score.pdf`);
+        if (song.leadsheet_url) pathsToDelete.push(`${userId}/${songId}/lead_sheet.pdf`);
 
         if (pathsToDelete.length > 0) {
-          await supabase.storage.from('public_audio').remove(pathsToDelete);
+          for (const path of pathsToDelete) {
+            await r2Storage.delete(path);
+          }
         }
       }
 
-      // 3. Delete from DB
       await supabase.from('repertoire').delete().eq('id', songId);
       await fetchSetlistsAndRepertoire();
-      showSuccess("Song and associated storage purged.");
+      showSuccess("Song and associated R2 storage purged.");
     } catch (err: any) {
       showError(`Delete failed: ${err.message}`);
     }
