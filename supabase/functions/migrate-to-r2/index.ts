@@ -15,12 +15,11 @@ serve(async (req: Request) => {
     return new Response(null, { headers: corsHeaders })
   }
 
-  console.log("[migrate-to-r2] Migration process initiated.");
+  console.log("[migrate-to-r2] Comprehensive migration process initiated.");
 
   try {
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
-      console.error("[migrate-to-r2] Error: No authorization header provided.");
       return new Response('Unauthorized', { status: 401, headers: corsHeaders })
     }
 
@@ -50,28 +49,23 @@ serve(async (req: Request) => {
 
     const sanitize = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').trim();
 
-    // 1. Fetch all songs that have Supabase URLs
+    // 1. Fetch all songs that have Supabase URLs in ANY relevant field
     const { data: songs, error: fetchError } = await supabaseAdmin
       .from('repertoire')
       .select('*')
-      .or('audio_url.ilike.%supabase.co%,pdf_url.ilike.%supabase.co%,leadsheet_url.ilike.%supabase.co%');
+      .or('audio_url.ilike.%supabase.co%,pdf_url.ilike.%supabase.co%,leadsheet_url.ilike.%supabase.co%,preview_url.ilike.%supabase.co%,sheet_music_url.ilike.%supabase.co%');
 
-    if (fetchError) {
-      console.error("[migrate-to-r2] Database fetch error:", fetchError);
-      throw fetchError;
-    }
+    if (fetchError) throw fetchError;
 
-    console.log(`[migrate-to-r2] Found ${songs?.length || 0} songs requiring migration.`);
+    console.log(`[migrate-to-r2] Found ${songs?.length || 0} songs with legacy Supabase links.`);
 
     let migratedCount = 0;
     let skippedCount = 0;
     let errorCount = 0;
 
     for (const song of (songs || [])) {
-      console.log(`[migrate-to-r2] Processing song: "${song.title}" (ID: ${song.id})`);
-      
       const updates: any = {};
-      const fields = ['audio_url', 'pdf_url', 'leadsheet_url'];
+      const fields = ['audio_url', 'pdf_url', 'leadsheet_url', 'preview_url', 'sheet_music_url'];
 
       const artistPart = sanitize(song.artist || 'artist');
       const titlePart = sanitize(song.title || 'track');
@@ -81,8 +75,7 @@ serve(async (req: Request) => {
         const oldUrl = song[field];
         if (oldUrl && oldUrl.includes('supabase.co/storage/v1/object/public/public_audio/')) {
           try {
-            const path = oldUrl.split('/public_audio/')[1];
-            console.log(`[migrate-to-r2]   -> Migrating ${field}: ${path}`);
+            const path = oldUrl.split('/public_audio/')[1].split('?')[0]; // Strip query params
             
             const { data: fileData, error: downloadError } = await supabaseAdmin
               .storage
@@ -90,66 +83,50 @@ serve(async (req: Request) => {
               .download(path);
 
             if (downloadError) {
-              if (downloadError.message.includes('Object not found')) {
-                console.warn(`[migrate-to-r2]   -> SKIP: File missing in Supabase storage for ${field}.`);
-                skippedCount++;
-                // Optionally clear the broken link
-                updates[field] = null;
-                if (field === 'audio_url') updates.preview_url = null;
-                continue;
-              }
-              throw downloadError;
+              console.warn(`[migrate-to-r2]   -> SKIP: ${field} for "${song.title}" (File not found in storage)`);
+              skippedCount++;
+              continue;
             }
 
             const type = field.replace('_url', '');
-            const ext = field === 'audio_url' ? 'mp3' : 'pdf';
+            const isAudio = field === 'audio_url' || field === 'preview_url';
+            const ext = isAudio ? 'mp3' : 'pdf';
             const fileName = `${artistPart}_${titlePart}_${type}.${ext}`;
             const newPath = `${song.user_id}/${descriptiveFolder}/${fileName}`;
 
-            const contentType = field === 'audio_url' ? 'audio/mpeg' : 'application/pdf';
-            
             await s3Client.send(new PutObjectCommand({
               Bucket: bucketName,
               Key: newPath,
               Body: new Uint8Array(await fileData.arrayBuffer()),
-              ContentType: contentType,
+              ContentType: isAudio ? 'audio/mpeg' : 'application/pdf',
             }));
 
             const newUrl = `${publicBaseUrl}/${newPath}`;
             updates[field] = newUrl;
-            if (field === 'audio_url') updates.preview_url = newUrl;
             
             migratedCount++;
-            console.log(`[migrate-to-r2]   -> SUCCESS: Moved to R2 (${newPath})`);
+            console.log(`[migrate-to-r2]   -> SUCCESS: Migrated ${field} for "${song.title}"`);
           } catch (err: any) {
             errorCount++;
-            console.error(`[migrate-to-r2]   -> ERROR migrating ${field}:`, err.message);
+            console.error(`[migrate-to-r2]   -> ERROR migrating ${field} for "${song.title}":`, err.message);
           }
         }
       }
 
       if (Object.keys(updates).length > 0) {
-        const { error: updateError } = await supabaseAdmin.from('repertoire').update(updates).eq('id', song.id);
-        if (updateError) {
-          console.error(`[migrate-to-r2]   -> DB Update Error for song ${song.id}:`, updateError.message);
-        }
+        await supabaseAdmin.from('repertoire').update(updates).eq('id', song.id);
       }
     }
-
-    console.log(`[migrate-to-r2] Migration complete. Summary: ${migratedCount} migrated, ${skippedCount} skipped, ${errorCount} errors.`);
 
     return new Response(JSON.stringify({ 
       success: true, 
       migratedCount,
-      skippedCount,
-      errorCount,
-      message: `Migration complete. ${migratedCount} files moved to R2. Check logs for details.`
+      message: `Migration complete. ${migratedCount} files moved to R2.`
     }), { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
 
   } catch (error: any) {
-    console.error("[migrate-to-r2] FATAL ERROR:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
