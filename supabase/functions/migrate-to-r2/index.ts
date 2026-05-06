@@ -15,9 +15,12 @@ serve(async (req: Request) => {
     return new Response(null, { headers: corsHeaders })
   }
 
+  console.log("[migrate-to-r2] Migration process initiated.");
+
   try {
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
+      console.error("[migrate-to-r2] Error: No authorization header provided.");
       return new Response('Unauthorized', { status: 401, headers: corsHeaders })
     }
 
@@ -53,12 +56,20 @@ serve(async (req: Request) => {
       .select('*')
       .or('audio_url.ilike.%supabase.co%,pdf_url.ilike.%supabase.co%,leadsheet_url.ilike.%supabase.co%');
 
-    if (fetchError) throw fetchError;
+    if (fetchError) {
+      console.error("[migrate-to-r2] Database fetch error:", fetchError);
+      throw fetchError;
+    }
+
+    console.log(`[migrate-to-r2] Found ${songs?.length || 0} songs requiring migration.`);
 
     let migratedCount = 0;
     let skippedCount = 0;
+    let errorCount = 0;
 
     for (const song of (songs || [])) {
+      console.log(`[migrate-to-r2] Processing song: "${song.title}" (ID: ${song.id})`);
+      
       const updates: any = {};
       const fields = ['audio_url', 'pdf_url', 'leadsheet_url'];
 
@@ -71,6 +82,7 @@ serve(async (req: Request) => {
         if (oldUrl && oldUrl.includes('supabase.co/storage/v1/object/public/public_audio/')) {
           try {
             const path = oldUrl.split('/public_audio/')[1];
+            console.log(`[migrate-to-r2]   -> Migrating ${field}: ${path}`);
             
             const { data: fileData, error: downloadError } = await supabaseAdmin
               .storage
@@ -79,8 +91,9 @@ serve(async (req: Request) => {
 
             if (downloadError) {
               if (downloadError.message.includes('Object not found')) {
-                console.warn(`[migrate-to-r2] Skipping ${field} for song ${song.id}: File missing in Supabase storage.`);
+                console.warn(`[migrate-to-r2]   -> SKIP: File missing in Supabase storage for ${field}.`);
                 skippedCount++;
+                // Optionally clear the broken link
                 updates[field] = null;
                 if (field === 'audio_url') updates.preview_url = null;
                 continue;
@@ -94,6 +107,7 @@ serve(async (req: Request) => {
             const newPath = `${song.user_id}/${descriptiveFolder}/${fileName}`;
 
             const contentType = field === 'audio_url' ? 'audio/mpeg' : 'application/pdf';
+            
             await s3Client.send(new PutObjectCommand({
               Bucket: bucketName,
               Key: newPath,
@@ -101,32 +115,41 @@ serve(async (req: Request) => {
               ContentType: contentType,
             }));
 
-            updates[field] = `${publicBaseUrl}/${newPath}`;
-            if (field === 'audio_url') updates.preview_url = updates[field];
+            const newUrl = `${publicBaseUrl}/${newPath}`;
+            updates[field] = newUrl;
+            if (field === 'audio_url') updates.preview_url = newUrl;
             
             migratedCount++;
+            console.log(`[migrate-to-r2]   -> SUCCESS: Moved to R2 (${newPath})`);
           } catch (err: any) {
-            console.error(`[migrate-to-r2] Failed to migrate ${field} for song ${song.id}:`, err.message);
+            errorCount++;
+            console.error(`[migrate-to-r2]   -> ERROR migrating ${field}:`, err.message);
           }
         }
       }
 
       if (Object.keys(updates).length > 0) {
-        await supabaseAdmin.from('repertoire').update(updates).eq('id', song.id);
+        const { error: updateError } = await supabaseAdmin.from('repertoire').update(updates).eq('id', song.id);
+        if (updateError) {
+          console.error(`[migrate-to-r2]   -> DB Update Error for song ${song.id}:`, updateError.message);
+        }
       }
     }
+
+    console.log(`[migrate-to-r2] Migration complete. Summary: ${migratedCount} migrated, ${skippedCount} skipped, ${errorCount} errors.`);
 
     return new Response(JSON.stringify({ 
       success: true, 
       migratedCount,
       skippedCount,
-      message: `Successfully migrated ${migratedCount} assets to Cloudflare R2 with descriptive folder structures. Skipped ${skippedCount} missing files.`
+      errorCount,
+      message: `Migration complete. ${migratedCount} files moved to R2. Check logs for details.`
     }), { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
 
   } catch (error: any) {
-    console.error("[migrate-to-r2] Fatal Error:", error.message);
+    console.error("[migrate-to-r2] FATAL ERROR:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
