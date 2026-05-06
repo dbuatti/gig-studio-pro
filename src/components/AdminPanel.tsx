@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ShieldCheck, Database, RefreshCw, Trash2, Loader2, Zap, ShieldAlert, Cloud } from 'lucide-react';
+import { ShieldCheck, Database, RefreshCw, Trash2, Loader2, Zap, ShieldAlert, Cloud, Type } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { cleanAllSetlists } from '@/utils/setlistCleanup';
 import { useNavigate } from 'react-router-dom';
@@ -21,6 +21,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
   const navigate = useNavigate();
   const [isCleaning, setIsCleaning] = useState(false);
   const [isMigrating, setIsMigrating] = useState(false);
+  const [isRenaming, setIsRenaming] = useState(false);
 
   const handleGlobalCleanup = async () => {
     if (!user?.id) return;
@@ -46,6 +47,25 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
       showError(`Migration failed: ${err.message}`);
     } finally {
       setIsMigrating(false);
+    }
+  };
+
+  const handleR2Rename = async () => {
+    if (!confirm("This will rename all existing R2 files to use descriptive names (Artist_Title). Continue?")) return;
+    
+    setIsRenaming(true);
+    showInfo("Renaming R2 assets...");
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('rename-r2-assets');
+      if (error) throw error;
+      
+      showSuccess(data.message || "Renaming complete!");
+      await onRefreshRepertoire();
+    } catch (err: any) {
+      showError(`Renaming failed: ${err.message}`);
+    } finally {
+      setIsRenaming(false);
     }
   };
 
@@ -96,6 +116,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshReper
               <div className="text-left">
                 <p className="text-xs font-black uppercase tracking-tight">Migrate Assets to R2</p>
                 <p className="text-[9px] font-medium opacity-60">Move Supabase files to Cloudflare</p>
+              </div>
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={handleR2Rename}
+              disabled={isRenaming}
+              className="w-full justify-start gap-3 h-14 rounded-2xl border-amber-500/20 bg-amber-600/5 hover:bg-amber-600/10 hover:text-amber-400 transition-all"
+            >
+              {isRenaming ? <Loader2 className="w-5 h-5 animate-spin" /> : <Type className="w-5 h-5" />}
+              <div className="text-left">
+                <p className="text-xs font-black uppercase tracking-tight">Rename R2 Assets</p>
+                <p className="text-[9px] font-medium opacity-60">Apply descriptive names to R2 files</p>
               </div>
             </Button>
 
