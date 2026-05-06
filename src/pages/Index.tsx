@@ -858,7 +858,7 @@ const Index = () => {
               Storage Audit
             </Button>
             <SystemToolsDropdown
-              onOpenAdmin={() => setIsAdminPanelOpen(true)} // Connected this prop
+              onOpenAdmin={() => setIsAdminPanelOpen(true)} 
               onOpenMDAudit={handleRunMDAudit}
               onToggleShuffleAll={handleToggleShuffleAll}
               isShuffleAllMode={isShuffleAllMode}
@@ -1040,7 +1040,12 @@ const Index = () => {
         />
       )}
 
-      <AdminPanel isOpen={isAdminPanelOpen} onClose={() => setIsAdminPanelOpen(false)} onRefreshRepertoire={() => fetchSetlistsAndRepertoire()} />
+      <AdminPanel 
+        isOpen={isAdminPanelOpen} 
+        onClose={() => setIsAdminPanelOpen(false)} 
+        onRefreshRepertoire={() => fetchSetlistsAndRepertoire()} 
+        repertoire={masterRepertoire}
+      />
       <PreferencesModal isOpen={isPreferencesOpen} onClose={() => setIsPreferencesOpen(false)} />
       <UserGuideModal isOpen={isUserGuideOpen} onClose={() => setIsUserGuideOpen(false)} />
       <KeyManagementModal isOpen={isKeyManagementOpen} onClose={() => setIsKeyManagementOpen(false)} repertoire={masterRepertoire} onUpdateKey={async (songId, updates) => { if (!userId) return; await syncToMasterRepertoire(userId, [{ ...updates, id: songId }]); await fetchSetlistsAndRepertoire(); }} keyPreference={globalKeyPreference} />
