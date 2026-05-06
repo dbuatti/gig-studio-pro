@@ -114,11 +114,12 @@ def process_queued_song(song):
             if os.path.exists(mp3_path):
                 log(f"Download successful. Starting upload to Cloudflare R2 for {title}.")
                 
-                # Construct descriptive filename
+                # Construct descriptive filename and folder
                 clean_artist = sanitize_filename(artist)
                 clean_title = sanitize_filename(title)
                 file_name = f"{clean_artist}_{clean_title}_audio.mp3"
-                storage_path = f"{user_id}/{song_id}/{file_name}"
+                descriptive_folder = f"{song_id}_{clean_artist}_{clean_title}"
+                storage_path = f"{user_id}/{descriptive_folder}/{file_name}"
                 
                 with open(mp3_path, 'rb') as f:
                     s3.put_object(

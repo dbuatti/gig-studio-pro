@@ -62,6 +62,10 @@ serve(async (req: Request) => {
       const updates: any = {};
       const fields = ['audio_url', 'pdf_url', 'leadsheet_url'];
 
+      const artistPart = sanitize(song.artist || 'artist');
+      const titlePart = sanitize(song.title || 'track');
+      const descriptiveFolder = `${song.id}_${artistPart}_${titlePart}`;
+
       for (const field of fields) {
         const oldUrl = song[field];
         if (oldUrl && oldUrl.includes('supabase.co/storage/v1/object/public/public_audio/')) {
@@ -84,13 +88,10 @@ serve(async (req: Request) => {
               throw downloadError;
             }
 
-            // Create descriptive filename
-            const artist = sanitize(song.artist || 'artist');
-            const title = sanitize(song.title || 'track');
             const type = field.replace('_url', '');
             const ext = field === 'audio_url' ? 'mp3' : 'pdf';
-            const fileName = `${artist}_${title}_${type}.${ext}`;
-            const newPath = `${song.user_id}/${song.id}/${fileName}`;
+            const fileName = `${artistPart}_${titlePart}_${type}.${ext}`;
+            const newPath = `${song.user_id}/${descriptiveFolder}/${fileName}`;
 
             const contentType = field === 'audio_url' ? 'audio/mpeg' : 'application/pdf';
             await s3Client.send(new PutObjectCommand({
@@ -119,7 +120,7 @@ serve(async (req: Request) => {
       success: true, 
       migratedCount,
       skippedCount,
-      message: `Successfully migrated ${migratedCount} assets to Cloudflare R2 with descriptive names. Skipped ${skippedCount} missing files.`
+      message: `Successfully migrated ${migratedCount} assets to Cloudflare R2 with descriptive folder structures. Skipped ${skippedCount} missing files.`
     }), { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });

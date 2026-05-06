@@ -16,7 +16,7 @@ interface PDFUploadZoneProps {
   onRemove: (type: 'pdf' | 'leadsheet') => void;
   songId?: string;
   songTitle?: string;
-  songArtist?: string; // Added artist for better naming
+  songArtist?: string;
 }
 
 const PDFUploadZone: React.FC<PDFUploadZoneProps> = ({ 
@@ -46,14 +46,15 @@ const PDFUploadZone: React.FC<PDFUploadZoneProps> = ({
 
     setIsUploading(true);
     try {
-      // Create a human-readable filename
+      // Create a human-readable filename and folder
       const sanitize = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').trim();
       const artist = sanitize(songArtist || 'artist');
       const title = sanitize(songTitle || 'track');
       const suffix = uploadType === 'pdf' ? 'score' : 'leadsheet';
       
       const fileName = `${artist}_${title}_${suffix}.pdf`;
-      const filePath = `${user.id}/${songId}/${fileName}`;
+      const descriptiveFolder = `${songId}_${artist}_${title}`;
+      const filePath = `${user.id}/${descriptiveFolder}/${fileName}`;
 
       const publicUrl = await r2Storage.upload(filePath, file);
 
