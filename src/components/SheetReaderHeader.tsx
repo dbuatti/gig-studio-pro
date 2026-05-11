@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuPortal, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { cn } from '@/lib/utils';
 import { formatKey, ALL_KEYS_SHARP, ALL_KEYS_FLAT } from '@/utils/keyUtils';
-import { ArrowLeft, Search, ListMusic, ChevronDown, Minus, Plus, FileText, Headphones, Link as LinkIcon, Ruler, Edit3, Trash2 } from 'lucide-react'; // NEW: Import LinkIcon, Ruler, Edit3, Trash2
+import { ArrowLeft, Search, ListMusic, ChevronDown, Minus, Plus, FileText, Headphones, Link as LinkIcon, Ruler, Edit3, Trash2 } from 'lucide-react';
 import { SetlistSong } from '@/components/SetlistManager';
 import { KeyPreference } from '@/hooks/use-settings';
 
@@ -30,10 +30,10 @@ interface SheetReaderHeaderProps {
   onToggleAudioPlayer: () => void;
   isFullScreen: boolean;
   onToggleFullScreen: () => void;
-  onAddLink: () => void; // NEW: Prop for adding a new link
-  onToggleLinkEditMode: () => void; // NEW: Prop for toggling link edit mode
-  onOpenLinkSizeModal: () => void; // NEW: Prop for opening link size modal
-  isEditingLinksMode: boolean; // NEW: Prop to indicate if in link editing mode
+  onAddLink: () => void;
+  onToggleLinkEditMode: () => void;
+  onOpenLinkSizeModal: () => void;
+  isEditingLinksMode: boolean;
   setGroup?: number;
   totalSets?: number;
 }
@@ -57,10 +57,10 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
   onToggleAudioPlayer,
   isFullScreen,
   onToggleFullScreen,
-  onAddLink, // NEW
-  onToggleLinkEditMode, // NEW
-  onOpenLinkSizeModal, // NEW
-  isEditingLinksMode, // NEW
+  onAddLink,
+  onToggleLinkEditMode,
+  onOpenLinkSizeModal,
+  isEditingLinksMode,
   setGroup,
   totalSets,
 }) => {
@@ -86,7 +86,6 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
         isFullScreen && "hidden"
       )}
     >
-      {/* Left: Sidebar Toggle */}
       <div className="flex items-center">
         <Button
           variant="ghost"
@@ -102,7 +101,6 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
         </Button>
       </div>
 
-      {/* Center: Song Title + Action Buttons */}
       <div className="absolute inset-x-0 flex items-center justify-center pointer-events-none">
         <div className="flex items-center gap-3 pointer-events-auto max-w-full">
           {isLoading ? (
@@ -146,7 +144,6 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
         </div>
       </div>
 
-      {/* Right: Controls */}
       <div className="flex items-center gap-3">
         {currentSong && (
           <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-1">
@@ -210,7 +207,6 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
           </div>
         )}
 
-        {/* NEW: Link Management Dropdown */}
         {hasPdf && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

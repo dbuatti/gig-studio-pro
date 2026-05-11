@@ -28,7 +28,7 @@ export interface GlobalSettings {
   ugChordsTextAlign: 'left' | 'center' | 'right';
   preventStageKeyOverwrite: boolean;
   linkSize: 'small' | 'medium' | 'large' | 'extra-large';
-  disablePortraitPdfScroll: boolean; // NEW
+  disablePortraitPdfScroll: boolean;
 }
 
 const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
@@ -52,7 +52,7 @@ const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   ugChordsTextAlign: DEFAULT_UG_CHORDS_CONFIG.textAlign,
   preventStageKeyOverwrite: false,
   linkSize: 'medium',
-  disablePortraitPdfScroll: false, // NEW
+  disablePortraitPdfScroll: false,
 };
 
 export function useSettings() {
@@ -225,7 +225,7 @@ export function useSettings() {
     setUgChordsTextAlign: (align: 'left' | 'center' | 'right') => updateSetting('ugChordsTextAlign', align),
     setPreventStageKeyOverwrite: (prevent: boolean) => updateSetting('preventStageKeyOverwrite', prevent),
     setLinkSize: (size: 'small' | 'medium' | 'large' | 'extra-large') => updateSetting('linkSize', size),
-    setDisablePortraitPdfScroll: (disable: boolean) => updateSetting('disablePortraitPdfScroll', disable), // NEW
+    setDisablePortraitPdfScroll: (disable: boolean) => updateSetting('disablePortraitPdfScroll', disable),
     updateAllSheetLinksSize,
     isFetchingSettings,
   };

@@ -188,7 +188,6 @@ const SheetReaderMode: React.FC = () => {
     isStageKeyLocked 
   } = harmonicSync;
 
-  // Trigger Key Reminder Pill
   useEffect(() => {
     if (!currentSong || (selectedChartType !== 'pdf' && selectedChartType !== 'leadsheet')) {
       setShowKeyReminder(false);
@@ -444,8 +443,6 @@ const SheetReaderMode: React.FC = () => {
       const nextIndex = (currentIndex + 1) % allSongs.length;
       const nextSong = allSongs[nextIndex];
 
-      // Check for set transition
-      // If current song has a set_group and next song has a different one (and next isn't surplus unless current is)
       if (currentSong.set_group && nextSong.set_group && currentSong.set_group !== nextSong.set_group) {
         setIsSetTransitionOpen(true);
         return;

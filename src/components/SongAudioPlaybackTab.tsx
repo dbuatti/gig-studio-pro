@@ -24,7 +24,6 @@ interface SongAudioPlaybackTabProps {
   onSave: (updates: Partial<SetlistSong>) => void;
   onUpdateKey: (newTargetKey: string) => void;
   transposeKey: (key: string, semitones: number) => string;
-  // Harmonic Sync Props
   pitch: number;
   setPitch: (pitch: number) => void;
   targetKey: string;
@@ -42,7 +41,6 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
   onSave,
   onUpdateKey,
   transposeKey,
-  // Harmonic Sync Props
   pitch,
   setPitch,
   targetKey,
@@ -54,7 +52,7 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
     isPlaying, progress, duration, analyzer, currentBuffer,
     setTempo, setVolume, setFineTune,
     setProgress, togglePlayback, stopPlayback,
-    isLoadingAudio, // Destructure isLoadingAudio
+    isLoadingAudio,
   } = audioEngine;
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -68,7 +66,6 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
 
   const handleLoadAudio = async () => {
     if (!audioSourceUrl) return;
-    // Pass the current pitch from the harmonic sync hook
     await onLoadAudioFromUrl(audioSourceUrl, pitch || 0);
   };
 
@@ -89,12 +86,10 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
   const isProcessing = formData.extraction_status === 'processing' || formData.extraction_status === 'queued';
   const isExtractionFailed = formData.extraction_status === 'failed';
 
-  // Determine which URL to use for playback
   const audioSourceUrl = formData.extraction_status === 'completed' && formData.audio_url ? formData.audio_url : formData.previewUrl;
 
   return (
     <div className="space-y-6 md:space-y-12 animate-in fade-in duration-500">
-      {/* 1. Header */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h3 className="text-sm md:text-lg font-black uppercase tracking-[0.2em] text-indigo-400">
@@ -120,7 +115,6 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
         </div>
       </header>
 
-      {/* 2. Visualizer & Transport */}
       <section className={cn(
         "bg-slate-900/50 border border-white/5 space-y-6 md:space-y-12",
         isMobile ? "p-6 rounded-3xl" : "p-12 rounded-[3rem]"
@@ -163,7 +157,7 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
                 )}
               </Button>
 
-              <div className="h-12 w-12 md:h-20 md:w-20" /> {/* Spacer */}
+              <div className="h-12 w-12 md:h-20 md:w-20" />
             </div>
           </div>
         ) : (
@@ -188,7 +182,6 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
         )}
       </section>
 
-      {/* 3. Specialized Modular Tools */}
       <div className="grid gap-6">
         <SongAnalysisTools 
           song={song}
@@ -202,7 +195,6 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
           song={song}
           formData={formData}
           handleAutoSave={handleAutoSave}
-          // Pass harmonic sync props
           pitch={pitch}
           setPitch={setPitch}
           targetKey={targetKey}

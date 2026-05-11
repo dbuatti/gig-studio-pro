@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"; // Ensure ScrollBar is imported
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { User, Globe, Check, Clock, Zap, Loader2, Download, PlayCircle } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ interface YoutubeResultsShelfProps {
   currentVideoId: string | null;
   onSelect: (videoUrl: string) => void;
   onDownloadAudio: (videoUrl: string) => void;
-  onPreviewVideo: (videoUrl: string) => void; // New prop for video preview
+  onPreviewVideo: (videoUrl: string) => void;
   isLoading: boolean;
   isDownloading: boolean;
   downloadStatus: 'idle' | 'processing' | 'downloading' | 'error' | 'success';
@@ -22,7 +22,7 @@ const YoutubeResultsShelf: React.FC<YoutubeResultsShelfProps> = ({
   currentVideoId, 
   onSelect, 
   onDownloadAudio, 
-  onPreviewVideo, // Destructure new prop
+  onPreviewVideo,
   isLoading,
   isDownloading, 
   downloadStatus 
@@ -68,10 +68,9 @@ const YoutubeResultsShelf: React.FC<YoutubeResultsShelfProps> = ({
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                   />
                   
-                  {/* Hover Overlay with three square buttons */}
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 p-4">
                      <Button 
-                       onClick={() => onPreviewVideo(videoUrl)} // New Play button
+                       onClick={() => onPreviewVideo(videoUrl)}
                        className="bg-blue-600 hover:bg-blue-700 text-white font-black uppercase text-[9px] h-10 w-10 rounded-xl shadow-2xl p-0 flex items-center justify-center active:scale-95 transition-transform"
                        title="Preview Video"
                      >

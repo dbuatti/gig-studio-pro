@@ -20,7 +20,7 @@ interface SongStudioModalProps {
   defaultTab?: StudioTab;
   handleAutoSave?: (updates: Partial<SetlistSong>) => void;
   preventStageKeyOverwrite?: boolean;
-  audioEngine?: AudioEngineControls; // NEW: Share the dashboard audio engine
+  audioEngine?: AudioEngineControls;
 }
 
 const SongStudioModal: React.FC<SongStudioModalProps> = ({ 
@@ -75,7 +75,7 @@ const SongStudioModal: React.FC<SongStudioModalProps> = ({
           defaultTab={defaultTab}
           handleAutoSave={externalAutoSave}
           preventStageKeyOverwrite={preventStageKeyOverwrite}
-          audioEngine={audioEngine} // Pass shared engine
+          audioEngine={audioEngine}
         />
       </DialogContent>
     </Dialog>

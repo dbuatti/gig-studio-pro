@@ -47,7 +47,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
     ugChordsLineSpacing, setUgChordsLineSpacing,
     ugChordsTextAlign, setUgChordsTextAlign,
     preventStageKeyOverwrite, setPreventStageKeyOverwrite,
-    disablePortraitPdfScroll, setDisablePortraitPdfScroll, // NEW
+    disablePortraitPdfScroll, setDisablePortraitPdfScroll,
     isFetchingSettings 
   } = useSettings();
   const { user, signOut } = useAuth();
@@ -257,7 +257,6 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) 
                 />
               </div>
 
-              {/* NEW: Disable Portrait PDF Scroll toggle */}
               <div className="flex items-center justify-between p-4 bg-card rounded-2xl border border-border">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-indigo-100 dark:bg-indigo-600/10 rounded-lg">

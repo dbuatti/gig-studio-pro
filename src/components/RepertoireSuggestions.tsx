@@ -22,16 +22,12 @@ const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoir
   const [error, setError] = useState<string | null>(null);
   const [isQuotaError, setIsQuotaError] = useState(false);
 
-  // Helper to normalize song titles and artists for robust comparison
   const normalize = (str: string = "") => {
     return str
       .toLowerCase()
-      // Remove common suffixes in parentheses or brackets
       .replace(/\(.*\)/g, '') 
       .replace(/\[.*\]/g, '')
-      // Remove common "noise" words that AI or iTunes might add
       .replace(/\b(remastered|remaster|original|master|recording|live|version|radio edit|feat|ft)\b/g, '')
-      // Remove all non-alphanumeric characters
       .replace(/[^a-z0-9]/g, '') 
       .trim();
   };

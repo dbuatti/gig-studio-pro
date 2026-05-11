@@ -62,8 +62,6 @@ const StorageAuditModal: React.FC<StorageAuditModalProps> = ({ isOpen, onClose, 
     });
 
     return storageFiles.map(file => {
-      // Construct the base URL for comparison
-      const publicUrl = file.path; // This is a simplification, ideally you'd use the full R2 URL
       const isOrphaned = !Array.from(dbUrls).some((url: any) => url.endsWith(file.path));
       return { ...file, isOrphaned };
     });

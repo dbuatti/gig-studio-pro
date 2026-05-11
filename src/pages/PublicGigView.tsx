@@ -9,7 +9,6 @@ import { SetlistSong } from '@/components/SetlistManager';
 import { cn } from '@/lib/utils';
 import { MadeWithDyad } from '@/components/SupportBanner';
 
-// NEW: Define THEMES here or import from a shared constants file
 const THEMES = [
   { name: 'Vibrant Light', primary: '#9333ea', background: '#ffffff', text: '#1e1b4b', border: '#9333ea' },
   { name: 'Dark Pro', primary: '#4f46e5', background: '#020617', text: '#ffffff', border: '#4f46e5' },
@@ -29,7 +28,6 @@ const PublicGigView = () => {
     const fetchGigData = async () => {
       if (!code) return;
       try {
-        // 1. Fetch Gig Session
         const { data: sessionData, error: sessionError } = await supabase
           .from('gig_sessions')
           .select('*')
@@ -40,7 +38,6 @@ const PublicGigView = () => {
         if (sessionError || !sessionData) throw new Error("Invalid Code");
         setGigSession(sessionData);
 
-        // 2. Fetch Setlist and Profile (Policies allow this read via the session)
         const { data: setlistData, error: setlistError } = await supabase
           .from('setlists')
           .select('*')
@@ -59,7 +56,6 @@ const PublicGigView = () => {
         setPerformer(profileData);
 
       } catch (err) {
-        // Error handled by toast in parent component
       } finally {
         setLoading(false);
       }
@@ -91,16 +87,13 @@ const PublicGigView = () => {
     );
   }
 
-  // EXCLUDE songs that are not ready to sing
   const songs = ((setlist.songs as SetlistSong[]) || []).filter(s => s.is_ready_to_sing !== false);
   
-  // NEW: Derive colors based on custom_theme or fallback to dynamic CSS variables
   const colors = useMemo(() => {
     if (performer?.custom_theme) {
       const preset = THEMES.find(t => t.name === performer.custom_theme);
       if (preset) return preset;
     }
-    // Fallback to dynamic CSS variables if no custom theme or preset found
     return {
       primary: 'hsl(var(--primary))',
       background: 'hsl(var(--background))',

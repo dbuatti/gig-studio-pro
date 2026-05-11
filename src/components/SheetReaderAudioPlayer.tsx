@@ -2,30 +2,29 @@
 
 import React from 'react';
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
 import {
-  Play, Pause, SkipBack, SkipForward, Volume2, Minus, Plus, Loader2,
+  Play, Pause, SkipBack, SkipForward, Volume2, Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SetlistSong } from '@/components/SetlistManager';
 import { formatKey } from '@/utils/keyUtils';
 import { KeyPreference } from '@/hooks/use-settings';
-import { CustomProgress } from '@/components/CustomProgress'; // NEW: Import CustomProgress
-import { CustomSlider } from '@/components/CustomSlider'; // NEW: Import CustomSlider
+import { CustomProgress } from '@/components/CustomProgress';
+import { CustomSlider } from '@/components/CustomSlider';
 
 interface SheetReaderAudioPlayerProps {
   currentSong: SetlistSong | null;
   isPlaying: boolean;
-  progress: number; // 0-100 percentage
-  duration: number; // seconds
+  progress: number;
+  duration: number;
   onTogglePlayback: () => void;
   onNext: () => void;
   onPrevious: () => void;
   onSeek: (progress: number) => void;
-  volume: number; // dB, e.g., -60 to 0
+  volume: number;
   setVolume: (volume: number) => void;
-  pitch: number; // semitones - still passed but not controlled here
-  setPitch: (pitch: number) => void; // still passed but not controlled here
+  pitch: number;
+  setPitch: (pitch: number) => void;
   isLoadingAudio: boolean;
   readerKeyPreference: KeyPreference;
   effectiveTargetKey: string;
@@ -43,8 +42,8 @@ const SheetReaderAudioPlayer: React.FC<SheetReaderAudioPlayerProps> = ({
   onSeek,
   volume,
   setVolume,
-  pitch, // still passed but not controlled here
-  setPitch, // still passed but not controlled here
+  pitch,
+  setPitch,
   isLoadingAudio,
   readerKeyPreference,
   effectiveTargetKey,
@@ -69,7 +68,6 @@ const SheetReaderAudioPlayer: React.FC<SheetReaderAudioPlayerProps> = ({
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 bg-slate-900/80 backdrop-blur-xl border-t border-white/10 px-6 py-3 flex items-center justify-between shadow-lg h-24">
-      {/* Left Section: Song Info & Progress */}
       <div className="flex items-center gap-4 min-w-0 flex-1">
         <div className="flex flex-col text-left min-w-0">
           <h3 className="text-sm font-black uppercase tracking-tight truncate text-white leading-none">
@@ -85,7 +83,6 @@ const SheetReaderAudioPlayer: React.FC<SheetReaderAudioPlayerProps> = ({
         </div>
       </div>
 
-      {/* Center Section: Playback Controls */}
       <div className="flex items-center gap-4 flex-1 justify-center">
         <Button variant="ghost" size="icon" onClick={onPrevious} disabled={isDisabled} className="h-10 w-10 rounded-full hover:bg-white/10 text-slate-400">
           <SkipBack className="w-5 h-5" />
@@ -117,7 +114,6 @@ const SheetReaderAudioPlayer: React.FC<SheetReaderAudioPlayerProps> = ({
         </Button>
       </div>
 
-      {/* Right Section: Volume Control */}
       <div className="flex items-center gap-4 flex-1 justify-end">
         <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl p-1 w-48">
           <Volume2 className="w-4 h-4 text-slate-400 ml-1" />
@@ -133,7 +129,6 @@ const SheetReaderAudioPlayer: React.FC<SheetReaderAudioPlayerProps> = ({
         </div>
       </div>
 
-      {/* Progress Bar (Full Width) */}
       <div className="absolute top-0 left-0 right-0 h-1.5">
         <CustomProgress value={progress} className="h-full bg-white/10" indicatorClassName="bg-indigo-500" />
       </div>

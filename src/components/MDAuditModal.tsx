@@ -87,7 +87,6 @@ const MDAuditModal: React.FC<MDAuditModalProps> = ({ isOpen, onClose, auditData,
             </div>
           ) : auditData ? (
             <div className="space-y-10 pb-10">
-              {/* Summary Section */}
               <section className="space-y-4">
                 <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400 flex items-center gap-2">
                   <Info className="w-3.5 h-3.5" /> Executive Summary
@@ -97,7 +96,6 @@ const MDAuditModal: React.FC<MDAuditModalProps> = ({ isOpen, onClose, auditData,
                 </div>
               </section>
 
-              {/* Strengths & Weaknesses Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <section className="space-y-4">
                   <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400 flex items-center gap-2">
@@ -128,7 +126,6 @@ const MDAuditModal: React.FC<MDAuditModalProps> = ({ isOpen, onClose, auditData,
                 </section>
               </div>
 
-              {/* Recommendations */}
               <section className="space-y-4">
                 <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400 flex items-center gap-2">
                   <ListChecks className="w-3.5 h-3.5" /> MD Recommendations

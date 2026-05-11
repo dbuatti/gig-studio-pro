@@ -12,7 +12,6 @@ import YoutubeMediaManager from './YoutubeMediaManager';
 import { transposeKey } from '@/utils/keyUtils';
 import { cn } from '@/lib/utils';
 import { Youtube } from 'lucide-react';
-import { KeyPreference } from '@/hooks/use-settings';
 
 interface StudioTabContentProps {
   activeTab: 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library';
@@ -30,7 +29,6 @@ interface StudioTabContentProps {
   handleUgPrint: () => void;
   handleDownloadAll: () => Promise<void>;
   onSwitchTab: (tab: 'config' | 'details' | 'audio' | 'visual' | 'lyrics' | 'charts' | 'library') => void;
-  // Props for SongConfigTab (now from useHarmonicSync)
   pitch: number;
   setPitch: (pitch: number) => void;
   targetKey: string;
@@ -46,9 +44,6 @@ interface StudioTabContentProps {
   duration: number;
   togglePlayback: () => void;
   stopPlayback: () => void;
-  // Removed auto-scroll props
-  // chordAutoScrollEnabled: boolean;
-  // chordScrollSpeed: number;
 }
 
 const StudioTabContent: React.FC<StudioTabContentProps> = ({
@@ -67,7 +62,6 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
   handleUgPrint,
   handleDownloadAll,
   onSwitchTab,
-  // Destructure SongConfigTab props (now from useHarmonicSync)
   pitch,
   setPitch,
   targetKey,
@@ -83,9 +77,6 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
   duration,
   togglePlayback,
   stopPlayback,
-  // Removed auto-scroll props
-  // chordAutoScrollEnabled,
-  // chordScrollSpeed,
 }) => {
   switch (activeTab) {
     case 'config':
@@ -94,7 +85,6 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
           song={song}
           formData={formData}
           handleAutoSave={handleAutoSave}
-          // Pass harmonic sync props directly
           pitch={pitch}
           setPitch={setPitch}
           targetKey={targetKey}
@@ -125,7 +115,6 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
           onSave={handleAutoSave}
           onUpdateKey={setTargetKey}
           transposeKey={transposeKey}
-          // Pass harmonic sync props
           pitch={pitch}
           setPitch={setPitch}
           targetKey={targetKey}
@@ -153,7 +142,6 @@ const StudioTabContent: React.FC<StudioTabContentProps> = ({
           activeChartType={activeChartType}
           setActiveChartType={setActiveChartType}
           handleUgPrint={handleUgPrint}
-          // Pass harmonic sync props to UGChordsEditor
           pitch={pitch}
           setPitch={setPitch}
           targetKey={targetKey}

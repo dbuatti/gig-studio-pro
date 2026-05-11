@@ -34,7 +34,7 @@ interface SetlistExporterProps {
   onGlobalAutoSync?: () => Promise<void>;
   onBulkRefreshAudio?: () => Promise<void>;
   onClearAutoLinks?: () => Promise<void>;
-  onBulkVibeCheck?: () => Promise<void>; // NEW PROP
+  onBulkVibeCheck?: () => Promise<void>;
   isBulkDownloading?: boolean;
   missingAudioCount?: number;
   onOpenAdmin?: () => void;
@@ -46,7 +46,7 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
   onGlobalAutoSync,
   onBulkRefreshAudio,
   onClearAutoLinks,
-  onBulkVibeCheck, // Destructure new prop
+  onBulkVibeCheck,
   isBulkDownloading,
   missingAudioCount = 0,
   onOpenAdmin
@@ -54,7 +54,7 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
   const [isLinking, setIsLinking] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
-  const [isVibeChecking, setIsVibeChecking] = useState(false); // NEW STATE
+  const [isVibeChecking, setIsVibeChecking] = useState(false);
 
   const isMissingLink = (url?: string) => {
     if (!url) return true;
@@ -80,14 +80,12 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
       await action();
       showSuccess(successMsg);
     } catch (err) {
-      // Errors handled by parent/toast
     } finally {
       setter(false);
     }
   };
 
   const handleBulkQueueClick = () => {
-    console.log(`[AutomationHub] User triggered 'Queue Audio' for ${missingAudioCount} missing tracks.`);
     onBulkRefreshAudio?.();
   };
 
@@ -128,7 +126,6 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
       </div>
       
       <div className="grid grid-cols-1 gap-2">
-        {/* NEW: Bulk Vibe Check */}
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -156,7 +153,6 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
           </Tooltip>
         </TooltipProvider>
 
-        {/* Tier 1: iTunes -> YouTube Global Sync */}
         <Button 
           variant="ghost" 
           size="sm" 
@@ -171,7 +167,6 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
           {isSyncing ? "Syncing Metadata..." : "Global Auto-Sync"}
         </Button>
 
-        {/* Tier 2: Smart-Link (Missing Only) */}
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -199,7 +194,6 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
           </Tooltip>
         </TooltipProvider>
 
-        {/* Tier 3: Audio Extraction */}
         <Button 
           variant="ghost" 
           size="sm" 

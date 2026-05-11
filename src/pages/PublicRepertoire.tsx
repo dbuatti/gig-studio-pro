@@ -8,7 +8,6 @@ import { Loader2, UserCircle2, Calendar } from 'lucide-react';
 import PublicRepertoireView from '@/components/PublicRepertoireView';
 import { useTheme } from '@/hooks/use-theme';
 
-// NEW: Define THEMES here or import from a shared constants file
 const THEMES = [
   { name: 'Vibrant Light', primary: '#9333ea', background: '#ffffff', text: '#1e1b4b', border: '#9333ea' },
   { name: 'Dark Pro', primary: '#4f46e5', background: '#020617', text: '#ffffff', border: '#4f46e5' },
@@ -42,13 +41,12 @@ const PublicRepertoire = () => {
         .select('*, extraction_status, last_sync_log')
         .eq('user_id', profileData.id)
         .eq('is_active', true)
-        .neq('is_ready_to_sing', false) // EXCLUDE songs that are not ready to sing
+        .neq('is_ready_to_sing', false)
         .gte('readiness_score', threshold);
 
       if (sError) throw sError;
       setSongs(songData || []);
     } catch (err) {
-      // Error handled by toast in parent component
     } finally {
       setLoading(false);
     }

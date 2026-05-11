@@ -6,20 +6,17 @@ import { Slider } from '@/components/ui/slider';
 import { SetlistSong } from './SetlistManager';
 import { cn } from "@/lib/utils";
 import { Volume2 } from 'lucide-react';
-import { transposeKey } from '@/utils/keyUtils';
 
 interface SongAudioControlsProps {
   song: SetlistSong | null;
   formData: Partial<SetlistSong>;
-  handleAutoSave: (updates: Partial<SetlistSong>) => void; // Changed signature
-  // Harmonic Sync Props
+  handleAutoSave: (updates: Partial<SetlistSong>) => void;
   pitch: number;
   setPitch: (pitch: number) => void;
   targetKey: string;
   setTargetKey: (targetKey: string) => void;
   isPitchLinked: boolean;
   setIsPitchLinked: (linked: boolean) => void;
-  // Other props
   setTempo: (tempo: number) => void;
   setVolume: (volume: number) => void;
   setFineTune: (fineTune: number) => void;
@@ -29,15 +26,13 @@ interface SongAudioControlsProps {
 const SongAudioControls: React.FC<SongAudioControlsProps> = ({
   song,
   formData,
-  handleAutoSave, // Changed signature
-  // Harmonic Sync Props
+  handleAutoSave,
   pitch,
   setPitch,
   targetKey,
   setTargetKey,
   isPitchLinked,
   setIsPitchLinked,
-  // Other props
   setTempo,
   setVolume,
   setFineTune,
@@ -57,7 +52,7 @@ const SongAudioControls: React.FC<SongAudioControlsProps> = ({
             max={24} 
             step={1} 
             onValueChange={(v) => {
-              setPitch(v[0]); // Use setPitch from useHarmonicSync
+              setPitch(v[0]);
             }} 
           />
         </div>

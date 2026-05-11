@@ -19,7 +19,7 @@ import { analyze } from 'web-audio-beat-detector';
 interface SongAnalysisToolsProps {
   song: SetlistSong | null;
   formData: Partial<SetlistSong>;
-  handleAutoSave: (updates: Partial<SetlistSong>) => void; // Changed signature
+  handleAutoSave: (updates: Partial<SetlistSong>) => void;
   currentBuffer: AudioBuffer | null;
   isMobile: boolean;
 }
@@ -27,7 +27,7 @@ interface SongAnalysisToolsProps {
 const SongAnalysisTools: React.FC<SongAnalysisToolsProps> = ({
   song,
   formData,
-  handleAutoSave, // Changed signature
+  handleAutoSave,
   currentBuffer,
   isMobile,
 }) => {

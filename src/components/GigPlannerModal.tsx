@@ -101,7 +101,6 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
       await onAddLibrarySong(songId, setGroup);
       setAddedSongs(prev => new Set(prev).add(songId));
     } catch (err) {
-      // Error handled by parent
     }
   };
 
@@ -110,7 +109,6 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
       await onAddExternalSong(song, song.setGroup);
       setAddedSongs(prev => new Set(prev).add(`ext-${index}`));
     } catch (err) {
-      // Error handled by parent
     }
   };
 
@@ -122,7 +120,6 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
       onClose();
       setTimeout(reset, 300);
     } catch (err) {
-      // Error handled by parent
     } finally {
       setIsBuilding(false);
     }
@@ -369,7 +366,7 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
                                       onClick={() => handleAddExternal(item, item.extIndex)}
                                       className={cn(
                                         "h-9 px-4 rounded-xl font-black uppercase tracking-widest text-[9px] gap-2 transition-all",
-                                        isAdded ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/20" : "bg-purple-600 hover:bg-purple-500 text-white"
+                                        isAdded ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/20" : "bg-purple-600 hover:bg-purple-50 text-white"
                                       )}
                                     >
                                       {isAdded ? <Check className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
