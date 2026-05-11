@@ -1,7 +1,13 @@
 "use client";
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
-import { ListMusic, Trash2, Play, Music, Youtube, ArrowRight, CircleDashed, CheckCircle2, Volume2, ChevronUp, ChevronDown, Search, LayoutList, SortAsc, AlertTriangle, Loader2, Guitar, CloudDownload, Edit3, Filter, MoreVertical, Settings2, Check, ShieldCheck, Clock, Star, Zap, Sparkles, Info, TrendingUp, Hash } from 'lucide-react';
+import { 
+  ListMusic, Trash2, Play, Music, Youtube, ArrowRight, CircleDashed, 
+  CheckCircle2, Volume2, ChevronUp, ChevronDown, Search, LayoutList, 
+  SortAsc, AlertTriangle, Loader2, Guitar, CloudDownload, Edit3, 
+  Filter, MoreVertical, Settings2, Check, ShieldCheck, Clock, Star, 
+  Zap, Sparkles, Info, TrendingUp, Hash 
+} from 'lucide-react';
 
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, formatKey, transposeKey, calculateSemitones } from '@/utils/keyUtils';
 import { cn } from '@/lib/utils';
@@ -12,16 +18,15 @@ import { Badge } from "@/components/ui/badge";
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
 import { RESOURCE_TYPES, DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import SetlistFilters, { FilterState, DEFAULT_FILTERS } from './SetlistFilters';
 import { calculateReadiness, syncToMasterRepertoire } from '@/utils/repertoireSync';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import SetlistMultiSelector from './SetlistMultiSelector';
 import { SheetLink } from './LinkDisplayOverlay';
 import { sortSongsByStrategy, analyzeEnergyFatigue } from '@/utils/SetlistGenerator';
 import SongRecommender from './SongRecommender';
 import { supabase } from '@/integrations/supabase/client';
-import MasteryRating from './MasteryRating';
+import SetlistRow from './SetlistRow';
+import SetlistMobileCard from './SetlistMobileCard';
 
 export interface UGChordsConfig {
   fontFamily: string;
@@ -146,10 +151,9 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   onUpdateKey,
   onTogglePlayed,
   onUpdateSong,
-  onSyncProData,
+  onUpdateSetlistSongs,
   onReorder,
   currentSongId,
-  onOpenAdmin,
   sortMode,
   setSortMode,
   activeFilters,
@@ -158,7 +162,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   setSearchTerm,
   showHeatmap,
   allSetlists,
-  onUpdateSetlistSongs,
   onOpenSortModal,
   onBulkVibeCheck,
   masterRepertoire = [],
@@ -188,17 +191,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       songs.sort((a, b) => calculateReadiness(b) - calculateReadiness(a));
     } else if (sortMode === 'work') {
       songs.sort((a, b) => calculateReadiness(a) - calculateReadiness(b));
-    } else if (sortMode === 'none') {
-      // Keep original order but filter by search
-      songs = rawSongs.filter(s =>
-        s.name.toLowerCase().includes(q) ||
-        s.artist?.toLowerCase().includes(q)
-      );
-    } else if (sortMode === 'manual') {
-      // Manual sort is handled by parent
-    } else if (sortMode.startsWith('energy')) {
-      songs = sortSongsByStrategy(songs, sortMode);
-    } else if (sortMode === 'zig-zag' || sortMode === 'wedding-ramp') {
+    } else if (sortMode.startsWith('energy') || sortMode === 'zig-zag' || sortMode === 'wedding-ramp') {
       songs = sortSongsByStrategy(songs, sortMode);
     }
 
@@ -278,8 +271,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     return `Set ${group}`;
   };
 
-  const isReorderingEnabled = sortMode === 'manual' && !searchTerm;
-
   const getHeatmapClass = (song: SetlistSong) => {
     if (!showHeatmap) return "";
     const readiness = calculateReadiness(song);
@@ -323,7 +314,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       for (let i = 0; i < songsToVibeCheck.length; i++) {
         const song = songsToVibeCheck[i];
         try {
-          // Increased delay to 4 seconds to be safe with free tier limits across rotated keys
           if (i > 0) await new Promise(resolve => setTimeout(resolve, 4000));
 
           const { data, error } = await supabase.functions.invoke('vibe-check', {
@@ -347,7 +337,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
             successCount++;
           }
         } catch (err) {
-          console.error(`Vibe check failed for ${song.name}:`, err);
           failCount++;
         }
         setVibeCheckProgress(Math.round(((i + 1) / songsToVibeCheck.length) * 100));
@@ -366,10 +355,6 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       setVibeCheckProgress(0);
     }
   };
-
-  const missingEnergyCount = useMemo(() => {
-    return rawSongs.filter(s => !s.energy_level && s.name && s.artist).length;
-  }, [rawSongs]);
 
   const getReadinessBreakdown = (song: SetlistSong) => {
     const items = [];
@@ -467,7 +452,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
               <TooltipTrigger asChild>
                 <Button 
                   onClick={handleVibeCheckAction}
-                  disabled={isVibeChecking || missingEnergyCount === 0}
+                  disabled={isVibeChecking || (rawSongs.filter(s => !s.energy_level && s.name && s.artist).length === 0)}
                   className={cn(
                     "h-11 px-6 rounded-2xl font-black uppercase tracking-widest text-[10px] gap-2.5 shadow-xl transition-all active:scale-95",
                     isVibeChecking ? "bg-purple-600/50 text-white cursor-wait" : "bg-purple-600 hover:bg-purple-50 text-white shadow-purple-600/20"
@@ -481,16 +466,11 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                   ) : (
                     <>
                       <Zap className="w-4 h-4" />
-                      Vibe Check ({missingEnergyCount})
+                      Vibe Check ({rawSongs.filter(s => !s.energy_level && s.name && s.artist).length})
                     </>
                   )}
                 </Button>
               </TooltipTrigger>
-              {missingEnergyCount === 0 && (
-                <TooltipContent className="bg-slate-900 text-white border-white/10 text-[10px] font-black uppercase">
-                  All tracks have an Energy Zone set.
-                </TooltipContent>
-              )}
             </Tooltip>
           </TooltipProvider>
           <div className="relative flex-1 sm:w-72 group">
@@ -507,10 +487,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
       {isFilterOpen && (
         <div className="animate-in fade-in slide-in-from-top-4 duration-300">
-          <SetlistFilters 
-            activeFilters={activeFilters} 
-            onFilterChange={setActiveFilters} 
-          />
+          <SetlistFilters activeFilters={activeFilters} onFilterChange={setActiveFilters} />
         </div>
       )}
 
@@ -544,161 +521,24 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                   <div className="h-px flex-1 bg-white/5" />
                 </div>
               )}
-              {groupedBySet[groupNum].map((song, idx) => {
-                const isSelected = currentSongId === song.id;
-                const readinessScore = calculateReadiness(song);
-                const isFullyReady = readinessScore === 100;
-                const hasAudio = !!song.audio_url;
-                const currentPref = song.key_preference || globalPreference;
-                const displayTargetKey = formatKey(song.targetKey || song.originalKey, currentPref);
-                const isProcessing = song.extraction_status === 'processing' || song.extraction_status === 'queued';
-                const isExtractionFailed = song.extraction_status === 'failed';
-
-                return (
-                  <div
-                    key={song.id}
-                    onClick={() => onEdit(song)}
-                    className={cn(
-                      "bg-slate-900/40 rounded-[2rem] border-2 transition-all p-5 flex flex-col gap-4 shadow-xl relative overflow-hidden",
-                      isSelected ? "border-indigo-500 bg-indigo-500/5 shadow-indigo-500/10" : "border-white/5",
-                      song.isPlayed && "opacity-50 grayscale-[0.2]",
-                      getHeatmapClass(song)
-                    )}
-                  >
-                    <div className={cn("absolute top-0 left-0 h-full transition-all duration-700 opacity-20", getEnergyBarClass(song.energy_level))} />
-                    <div className="flex items-start justify-between relative z-10">
-                      <div className="flex gap-4">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onTogglePlayed(song.id);
-                          }}
-                          className="mt-1"
-                        >
-                          {song.isPlayed ? (
-                            <div className="h-6 w-6 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
-                              <CheckCircle2 className="w-4 h-4" />
-                            </div>
-                          ) : (
-                            <div className="h-6 w-6 rounded-full border-2 border-white/10 bg-black/20" />
-                          )}
-                        </button>
-                        <div>
-                          <h4 className={cn("text-base font-black tracking-tight flex items-center gap-2 text-white", song.isPlayed && "line-through text-slate-500")}>
-                            {song.name}
-                            {isFullyReady && <CheckCircle2 className="w-4 h-4 text-emerald-500 fill-emerald-500/20" />}
-                            {isProcessing && <CloudDownload className="w-4 h-4 text-indigo-500 animate-bounce" />}
-                            {isExtractionFailed && <AlertTriangle className="w-4 h-4 text-red-500" />}
-                          </h4>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
-                            {song.artist || "Unknown Artist"}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="flex flex-col items-end">
-                          <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Ready</span>
-                          <span className={cn(
-                            "text-[10px] font-mono font-bold px-2.5 py-1 rounded-xl",
-                            readinessScore >= 90 ? "bg-emerald-600/20 text-emerald-400" : "bg-amber-600/20 text-amber-400"
-                          )}>
-                            {readinessScore}%
-                          </span>
-                        </div>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-slate-400 hover:bg-white/5">
-                              <MoreVertical className="w-5 h-5" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-56 p-2 rounded-2xl bg-slate-950 border-white/10">
-                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onUpdateSong(song.id, { isApproved: !song.isApproved }); showSuccess(`Song marked as ${song.isApproved ? 'unapproved' : 'approved'} for gig.`); }} className="h-11 rounded-xl text-xs font-bold uppercase">
-                              {song.isApproved ? <Check className="w-4 h-4 mr-3 text-emerald-500" /> : <ListMusic className="w-4 h-4 mr-3" />}
-                              {song.isApproved ? "Unapprove" : "Approve for Gig"}
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator className="bg-white/5" />
-                            <DropdownMenu>
-                              <DropdownMenuTrigger className="w-full">
-                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="h-11 rounded-xl text-xs font-bold uppercase">
-                                  <LayoutList className="w-4 h-4 mr-3 text-indigo-400" /> Move to Set...
-                                </DropdownMenuItem>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent side="left" className="bg-slate-950 border-white/10">
-                                {[1, 2, 3, 4, 99].map(num => (
-                                  <DropdownMenuItem
-                                    key={num}
-                                    onClick={async (e) => {
-                                      e.stopPropagation();
-                                      try {
-                                        await supabase.from('setlist_songs').update({ set_group: num }).eq('id', song.id);
-                                        showSuccess(`Moved to ${num === 99 ? 'Surplus' : `Set ${num}`}`);
-                                        onUpdateSong(song.id, { set_group: num });
-                                      } catch (err) {
-                                        showError("Failed to move set");
-                                      }
-                                    }}
-                                    className="h-10 rounded-lg text-[10px] font-black uppercase"
-                                  >
-                                    {num === 99 ? "Surplus" : `Set ${num}`}
-                                  </DropdownMenuItem>
-                                ))}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                            <DropdownMenuSeparator className="bg-white/5" />
-                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(song); }} className="h-11 rounded-xl text-xs font-bold uppercase">
-                              <Settings2 className="w-4 h-4 mr-3" /> Configure Studio
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator className="bg-white/5" />
-                            <DropdownMenuItem className="text-red-400 h-11 rounded-xl text-xs font-bold uppercase" onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(song.id); }}>
-                              <Trash2 className="w-4 h-4 mr-3" /> Remove Track
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between border-t border-white/5 pt-4 relative z-10">
-                      <div className="flex items-center gap-5">
-                        <div className="flex flex-col">
-                          <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Key</span>
-                          <div className={cn(
-                            "font-mono font-black text-[10px] px-3 py-1 rounded-xl text-white flex items-center gap-1.5 shadow-lg",
-                            song.isKeyConfirmed ? "bg-emerald-600 shadow-emerald-500/20" : "bg-indigo-600 shadow-indigo-500/20"
-                          )}>
-                            {displayTargetKey}
-                            {song.isKeyConfirmed && <Check className="w-3 h-3" />}
-                          </div>
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Mastery</span>
-                          <MasteryRating
-                            value={song.comfort_level || 0}
-                            onChange={(val) => onUpdateSong(song.id, { comfort_level: val })}
-                            size="sm"
-                          />
-                        </div>
-                      </div>
-                      <div className="flex gap-3">
-                        {hasAudio && <Volume2 className="w-4 h-4 text-indigo-400" />}
-                        <Button
-                          size="sm"
-                          className={cn(
-                            "h-10 px-5 text-[10px] font-black uppercase tracking-widest rounded-2xl gap-2.5 shadow-xl transition-all active:scale-95",
-                            !song.audio_url ? "bg-slate-800 text-slate-500" : isSelected ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30" : "bg-indigo-600 text-white hover:bg-indigo-500 shadow-indigo-500/20"
-                          )}
-                          disabled={!song.audio_url}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSelect(song);
-                          }}
-                        >
-                          {isSelected ? "Active" : "Perform"}
-                          <Play className={cn("w-3.5 h-3.5 fill-current", isSelected && "fill-indigo-400")} />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+              {groupedBySet[groupNum].map((song) => (
+                <SetlistMobileCard
+                  key={song.id}
+                  song={song}
+                  isSelected={currentSongId === song.id}
+                  readinessScore={calculateReadiness(song)}
+                  isFullyReady={calculateReadiness(song) === 100}
+                  currentPref={globalPreference}
+                  onTogglePlayed={onTogglePlayed}
+                  onEdit={onEdit}
+                  onSelect={onSelect}
+                  onUpdateSong={onUpdateSong}
+                  onUpdateKey={onUpdateKey}
+                  setDeleteConfirmId={setDeleteConfirmId}
+                  getHeatmapClass={getHeatmapClass}
+                  getEnergyBarClass={getEnergyBarClass}
+                />
+              ))}
             </React.Fragment>
           ))}
         </div>
@@ -712,10 +552,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                   <th className="py-5 px-8 text-[10px] font-black uppercase tracking-widest text-slate-500 text-left">Song / Resource Matrix</th>
                   <th className="py-5 px-8 text-[10px] font-black uppercase tracking-widest text-slate-500 w-32 text-center">Energy</th>
                   <th className="py-5 px-8 text-[10px] font-black uppercase tracking-widest text-slate-500 w-36 text-center">Mastery</th>
-                  <th 
-                    className="py-5 px-8 text-[10px] font-black uppercase tracking-widest text-slate-500 w-24 text-center cursor-pointer hover:text-indigo-400 transition-colors"
-                    onClick={() => setSortMode(sortMode === 'ready' ? 'work' : 'ready')}
-                  >
+                  <th className="py-5 px-8 text-[10px] font-black uppercase tracking-widest text-slate-500 w-24 text-center cursor-pointer hover:text-indigo-400 transition-colors" onClick={() => setSortMode(sortMode === 'ready' ? 'work' : 'ready')}>
                     <div className="flex items-center justify-center gap-1">
                       Ready
                       {sortMode === 'ready' && <ChevronDown className="w-3 h-3" />}
@@ -746,254 +583,33 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         </td>
                       </tr>
                     )}
-                    {groupedBySet[groupNum].map((song, idx) => {
-                      const isSelected = currentSongId === song.id;
-                      const readinessScore = calculateReadiness(song);
-                      const isFullyReady = readinessScore === 100;
-                      const hasAudio = !!song.audio_url;
-                      const currentPref = song.key_preference || globalPreference;
-                      const displayOrigKey = formatKey(song.originalKey, currentPref);
-                      const displayTargetKey = formatKey(song.targetKey || song.originalKey, currentPref);
-                      const isProcessing = song.extraction_status === 'processing' || song.extraction_status === 'queued';
-                      const isExtractionFailed = song.extraction_status === 'failed';
-
-                      return (
-                        <tr
-                          key={song.id}
-                          onClick={() => onEdit(song)}
-                          className={cn(
-                            "transition-all group relative cursor-pointer h-[90px]",
-                            isSelected ? "bg-indigo-500/5" : "hover:bg-white/[0.02]",
-                            song.isPlayed && "opacity-40 grayscale-[0.5]",
-                            getHeatmapClass(song)
-                          )}
-                        >
-                          <td className="px-8 text-center">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onTogglePlayed(song.id);
-                              }}
-                              className="transition-transform active:scale-90 inline-flex items-center justify-center"
-                            >
-                              {song.isPlayed ? (
-                                <div className="h-7 w-7 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
-                                  <CheckCircle2 className="w-4.5 h-4.5" />
-                                </div>
-                              ) : (
-                                <div className="h-7 w-7 rounded-full border-2 border-white/10 bg-black/20 flex items-center justify-center text-slate-600 group-hover:border-indigo-500/50 transition-colors">
-                                  <CircleDashed className="w-4.5 h-4.5" />
-                                </div>
-                              )}
-                            </button>
-                          </td>
-                          <td className="px-8 text-left">
-                            <div className="flex flex-col gap-1.5">
-                              <div className="flex items-center gap-4">
-                                <span className="text-[11px] font-mono font-black text-slate-600 min-w-[24px]">{(idx + 1).toString().padStart(2, '0')}</span>
-                                <h4 className={cn("text-lg font-black tracking-tight leading-none flex items-center gap-2.5 text-white", song.isPlayed && "line-through text-slate-500")}>
-                                  {song.name}
-                                  {isFullyReady && <CheckCircle2 className="w-4.5 h-4.5 text-emerald-500 fill-emerald-500/20" />}
-                                  {isProcessing && <CloudDownload className="w-4.5 h-4.5 text-indigo-500 animate-bounce" />}
-                                  {isExtractionFailed && <AlertTriangle className="w-4.5 h-4.5 text-red-500" />}
-                                </h4>
-                                {song.isMetadataConfirmed && <ShieldCheck className="w-4 h-4 text-indigo-500" />}
-                              </div>
-                              <div className="flex items-center gap-3 ml-[38px]">
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
-                                  {song.artist || "Unknown Artist"}
-                                </span>
-                                <span className="text-slate-700 text-[8px]">•</span>
-                                <span className="text-[10px] font-mono font-bold text-slate-500 flex items-center gap-2">
-                                  <Clock className="w-3.5 h-3.5" />
-                                  {Math.floor((song.duration_seconds || 0) / 60)}:{(Math.floor((song.duration_seconds || 0) % 60)).toString().padStart(2, '0')}
-                                </span>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-8 text-center">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <div className="flex flex-col items-center gap-1.5">
-                                    <div className="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden border border-white/5">
-                                      <div className={cn("h-full transition-all duration-700 shadow-[0_0_10px_rgba(0,0,0,0.5)]", getEnergyBarClass(song.energy_level))} />
-                                    </div>
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">
-                                      {song.energy_level || 'TBC'}
-                                    </span>
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent className="bg-slate-900 text-white border-white/10 text-[10px] font-black uppercase">
-                                  Energy Zone: {song.energy_level || 'Not Classified'}
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          </td>
-                          <td className="px-8 text-center">
-                            <div className="flex flex-col items-center gap-1.5">
-                              <MasteryRating
-                                value={song.comfort_level || 0}
-                                onChange={(val) => onUpdateSong(song.id, { comfort_level: val })}
-                                size="md"
-                              />
-                              <span className="text-[8px] font-black uppercase tracking-widest text-slate-600">Confidence</span>
-                            </div>
-                          </td>
-                          <td className="px-8 text-center">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <div className="flex flex-col items-center gap-1.5 cursor-help">
-                                    <span className={cn(
-                                      "text-[11px] font-mono font-bold px-3 py-1 rounded-xl flex items-center gap-2 shadow-lg",
-                                      readinessScore >= 90 ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/20" : "bg-amber-600/20 text-amber-400 border border-amber-500/20"
-                                    )}>
-                                      {readinessScore}%
-                                      <Info className="w-3 h-3 opacity-50" />
-                                    </span>
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent className="p-4 bg-slate-950 border-white/10 rounded-[1.5rem] shadow-2xl max-w-xs">
-                                  <div className="space-y-2">
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-3">Readiness Breakdown</p>
-                                    {getReadinessBreakdown(song).map((item, i) => (
-                                      <p key={i} className="text-[10px] font-bold text-slate-300 flex items-center gap-2.5">
-                                        {item}
-                                      </p>
-                                    ))}
-                                  </div>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          </td>
-                          <td className="px-8 text-center">
-                            <div className="flex flex-col items-center justify-center gap-1 h-full">
-                              <Button variant="ghost" size="icon" className={cn("h-8 w-8 transition-all flex items-center justify-center rounded-xl", isReorderingEnabled ? "text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10" : "text-slate-700 opacity-20 cursor-not-allowed")} onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'up'); }} disabled={!isReorderingEnabled || idx === 0}>
-                                <ChevronUp className="w-5 h-5" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className={cn("h-8 w-8 transition-all flex items-center justify-center rounded-xl", isReorderingEnabled ? "text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10" : "text-slate-700 opacity-20 cursor-not-allowed")} onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'down'); }} disabled={!isReorderingEnabled || idx === groupedBySet[groupNum].length - 1}>
-                                <ChevronDown className="w-5 h-5" />
-                              </Button>
-                            </div>
-                          </td>
-                          <td className="px-8 text-center">
-                            <div className="flex items-center justify-center gap-6 h-full">
-                              <div className="text-center min-w-[40px]">
-                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Orig</p>
-                                <span className="text-sm font-mono font-bold text-slate-300">{displayOrigKey}</span>
-                              </div>
-                              <div className="flex flex-col items-center justify-center opacity-20">
-                                <ArrowRight className="w-4 h-4 text-slate-400 mb-1" />
-                                <div className="h-px w-8 bg-white/20" />
-                              </div>
-                              <div className="text-center min-w-[40px] relative">
-                                <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1">Stage</p>
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <button
-                                      onClick={(e) => e.stopPropagation()}
-                                      className={cn(
-                                        "font-mono font-black text-sm px-3.5 py-1.5 rounded-xl shadow-2xl flex items-center justify-center gap-2 leading-none border transition-all hover:scale-105 active:scale-95",
-                                        song.isKeyConfirmed ? "bg-emerald-600 text-white border-emerald-400 shadow-emerald-500/20" : "bg-indigo-600 text-white border-indigo-400 shadow-indigo-500/20"
-                                      )}
-                                    >
-                                      {displayTargetKey}
-                                      {song.isKeyConfirmed ? <Check className="w-3.5 h-3.5" /> : <ChevronDown className="w-3 h-3 opacity-50" />}
-                                    </button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent className="bg-slate-950 border-white/10 text-white max-h-60 overflow-y-auto custom-scrollbar">
-                                    {(currentPref === 'sharps' ? ALL_KEYS_SHARP : ALL_KEYS_FLAT).map(k => (
-                                      <DropdownMenuItem
-                                        key={k}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          onUpdateKey(song.id, k);
-                                        }}
-                                        className="font-mono text-xs font-bold"
-                                      >
-                                        {k}
-                                      </DropdownMenuItem>
-                                    ))}
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-8 text-right pr-12">
-                            <div className="flex items-center justify-end gap-3 h-full">
-                              <SetlistMultiSelector
-                                songMasterId={song.id}
-                                allSetlists={allSetlists}
-                                songToAssign={song}
-                                onUpdateSetlistSongs={onUpdateSetlistSongs}
-                              />
-                              <Button variant="ghost" size="icon" className="h-10 w-10 rounded-2xl text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 transition-all inline-flex items-center justify-center" onClick={(e) => { e.stopPropagation(); onEdit(song); }}>
-                                <Edit3 className="w-5 h-5" />
-                              </Button>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-10 w-10 rounded-2xl text-slate-400 hover:bg-white/5">
-                                    <MoreVertical className="w-5 h-5" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-60 p-2 rounded-[1.5rem] bg-slate-950 border-white/10 shadow-2xl">
-                                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onUpdateSong(song.id, { isApproved: !song.isApproved }); showSuccess(`Song marked as ${song.isApproved ? 'unapproved' : 'approved'} for gig.`); }} className="h-12 rounded-xl text-xs font-bold uppercase">
-                                    {song.isApproved ? <Check className="w-4 h-4 mr-3 text-emerald-500" /> : <ListMusic className="w-4 h-4 mr-3" />}
-                                    {song.isApproved ? "Unapprove" : "Approve for Gig"}
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator className="bg-white/5" />
-                                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMoveToTop(song.id); }} disabled={!isReorderingEnabled || idx === 0} className="h-12 rounded-xl text-xs font-bold uppercase">
-                                    <ChevronUp className="w-4 h-4 mr-3 text-indigo-400" /> Move to Top
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMoveToBottom(song.id); }} disabled={!isReorderingEnabled || idx === groupedBySet[groupNum].length - 1} className="h-12 rounded-xl text-xs font-bold uppercase">
-                                    <ChevronDown className="w-4 h-4 mr-3 text-indigo-400" /> Move to Bottom
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator className="bg-white/5" />
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger className="w-full">
-                                      <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="h-12 rounded-xl text-xs font-bold uppercase">
-                                        <LayoutList className="w-4 h-4 mr-3 text-indigo-400" /> Move to Set...
-                                      </DropdownMenuItem>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent side="left" className="bg-slate-950 border-white/10">
-                                      {[1, 2, 3, 4, 99].map(num => (
-                                        <DropdownMenuItem
-                                          key={num}
-                                          onClick={async (e) => {
-                                            e.stopPropagation();
-                                            try {
-                                              await supabase.from('setlist_songs').update({ set_group: num }).eq('id', song.id);
-                                              showSuccess(`Moved to ${num === 99 ? 'Surplus' : `Set ${num}`}`);
-                                              // We need to trigger a refresh. Since we don't have a direct refresh prop,
-                                              // we rely on the parent's fetchSetlistsAndRepertoire which is called after onUpdateSong
-                                              onUpdateSong(song.id, { set_group: num });
-                                            } catch (err) {
-                                              showError("Failed to move set");
-                                            }
-                                          }}
-                                          className="h-10 rounded-lg text-[10px] font-black uppercase"
-                                        >
-                                          {num === 99 ? "Surplus" : `Set ${num}`}
-                                        </DropdownMenuItem>
-                                      ))}
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
-                                  <DropdownMenuSeparator className="bg-white/5" />
-                                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(song); }} className="h-12 rounded-xl text-xs font-bold uppercase">
-                                    <Settings2 className="w-4 h-4 mr-3" /> Configure Studio
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator className="bg-white/5" />
-                                  <DropdownMenuItem className="text-red-400 h-12 rounded-xl text-xs font-bold uppercase" onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(song.id); }}>
-                                    <Trash2 className="w-4 h-4 mr-3" /> Remove Track
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {groupedBySet[groupNum].map((song, idx) => (
+                      <SetlistRow
+                        key={song.id}
+                        song={song}
+                        isSelected={currentSongId === song.id}
+                        readinessScore={calculateReadiness(song)}
+                        isFullyReady={calculateReadiness(song) === 100}
+                        currentPref={globalPreference}
+                        idx={idx}
+                        onTogglePlayed={onTogglePlayed}
+                        onEdit={onEdit}
+                        onSelect={onSelect}
+                        onUpdateSong={onUpdateSong}
+                        onUpdateKey={onUpdateKey}
+                        onRemove={onRemove}
+                        allSetlists={allSetlists}
+                        onUpdateSetlistSongs={onUpdateSetlistSongs}
+                        isReorderingEnabled={sortMode === 'manual' && !searchTerm}
+                        handleMove={handleMove}
+                        handleMoveToTop={handleMoveToTop}
+                        handleMoveToBottom={handleMoveToBottom}
+                        setDeleteConfirmId={setDeleteConfirmId}
+                        getHeatmapClass={getHeatmapClass}
+                        getEnergyBarClass={getEnergyBarClass}
+                        getReadinessBreakdown={getReadinessBreakdown}
+                      />
+                    ))}
                   </React.Fragment>
                 ))}
               </tbody>
@@ -1004,11 +620,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
 
       {activeSetlistId && masterRepertoire.length > 0 && (
         <div className="mt-10">
-          <SongRecommender 
-            currentSongs={rawSongs} 
-            repertoire={masterRepertoire} 
-            onAddSong={(song) => onUpdateSetlistSongs(activeSetlistId, song, 'add')}
-          />
+          <SongRecommender currentSongs={rawSongs} repertoire={masterRepertoire} onAddSong={(song) => onUpdateSetlistSongs(activeSetlistId, song, 'add')} />
         </div>
       )}
 
