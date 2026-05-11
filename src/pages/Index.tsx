@@ -396,6 +396,57 @@ const Index = () => {
     } catch (err: any) { showError(`Failed to update setlist: ${err.message}`); }
   }, [fetchSetlistsAndRepertoire, allSetlists]);
 
+  const handleBulkVibeCheck = async () => {
+    const songsToVibeCheck = masterRepertoire.filter(s => !s.energy_level && s.name && s.artist);
+    if (songsToVibeCheck.length === 0) {
+      showInfo("All songs already have an Energy Zone.");
+      return;
+    }
+
+    showInfo(`Initiating AI Vibe Check for ${songsToVibeCheck.length} tracks...`);
+    
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < songsToVibeCheck.length; i++) {
+      const song = songsToVibeCheck[i];
+      try {
+        // Rate limiting delay to prevent quota issues
+        if (i > 0) await new Promise(resolve => setTimeout(resolve, 2500));
+
+        const { data, error } = await supabase.functions.invoke('vibe-check', {
+          body: {
+            title: song.name,
+            artist: song.artist,
+            bpm: song.bpm,
+            genre: song.genre,
+            userTags: song.user_tags
+          }
+        });
+
+        if (error) throw error;
+
+        if (data?.energy_level) {
+          await syncToMasterRepertoire(userId!, [{
+            id: song.master_id || song.id,
+            energy_level: data.energy_level,
+            genre: data.refined_genre || song.genre
+          }]);
+          successCount++;
+        }
+      } catch (err) {
+        failCount++;
+      }
+    }
+
+    await fetchSetlistsAndRepertoire();
+    if (successCount > 0) {
+      showSuccess(`Bulk Vibe Check Complete: ${successCount} tracks updated.`);
+    } else if (failCount > 0) {
+      showError(`Vibe Check failed for ${failCount} tracks.`);
+    }
+  };
+
   if (authLoading || isFetchingSettings || loading) {
     return <div className="h-screen flex items-center justify-center bg-slate-950"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>;
   }
@@ -440,13 +491,13 @@ const Index = () => {
             {activeSetlist && (
               <>
                 <SetlistStats songs={filteredAndSortedSongs} goalSeconds={activeSetlist.time_goal} onPlayAll={toggleAutoplay} isAutoplayActive={isAutoplayActive} />
-                <SetlistManager songs={filteredAndSortedSongs} onSelect={handleSelectSong} onEdit={handleEditSong} onUpdateKey={async (id, targetKey) => { const song = activeSetlist.songs.find(s => s.id === id); if (song) { const newPitch = calculateSemitones(song.originalKey || 'C', targetKey); await handleUpdateSongInSetlist(id, { targetKey, pitch: newPitch }); } }} onUpdateSong={handleUpdateSongInSetlist} onTogglePlayed={handleTogglePlayed} onReorder={handleReorderSongs} onUpdateSetlistSongs={handleUpdateSetlistSongs} onOpenSortModal={() => setIsSetlistSortModalOpen(true)} onBulkVibeCheck={async () => {}} masterRepertoire={masterRepertoire} activeSetlistId={activeSetlistId} isFilterOpen={isFilterOpen} setIsFilterOpen={setIsFilterOpen} sortMode={sortMode} setSortMode={setSortMode} activeFilters={activeFilters} setActiveFilters={setActiveFilters} searchTerm={searchTerm} setSearchTerm={setSearchTerm} showHeatmap={showHeatmap} allSetlists={allSetlists} onRemove={handleRemoveSongFromSetlist} onLinkAudio={() => {}} onSyncProData={async () => {}} />
+                <SetlistManager songs={filteredAndSortedSongs} onSelect={handleSelectSong} onEdit={handleEditSong} onUpdateKey={async (id, targetKey) => { const song = activeSetlist.songs.find(s => s.id === id); if (song) { const newPitch = calculateSemitones(song.originalKey || 'C', targetKey); await handleUpdateSongInSetlist(id, { targetKey, pitch: newPitch }); } }} onUpdateSong={handleUpdateSongInSetlist} onTogglePlayed={handleTogglePlayed} onReorder={handleReorderSongs} onUpdateSetlistSongs={handleUpdateSetlistSongs} onOpenSortModal={() => setIsSetlistSortModalOpen(true)} onBulkVibeCheck={handleBulkVibeCheck} masterRepertoire={masterRepertoire} activeSetlistId={activeSetlistId} isFilterOpen={isFilterOpen} setIsFilterOpen={setIsFilterOpen} sortMode={sortMode} setSortMode={setSortMode} activeFilters={activeFilters} setActiveFilters={setActiveFilters} searchTerm={searchTerm} setSearchTerm={setSearchTerm} showHeatmap={showHeatmap} allSetlists={allSetlists} onRemove={handleRemoveSongFromSetlist} onLinkAudio={() => {}} onSyncProData={async () => {}} />
               </>
             )}
           </TabsContent>
           
           <TabsContent value="repertoire" className="mt-0 space-y-12 animate-in fade-in duration-700 delay-400">
-            <RepertoireView repertoire={masterRepertoire} onEditSong={handleEditSong} allSetlists={allSetlists} onRefreshRepertoire={() => fetchSetlistsAndRepertoire()} searchTerm={searchTerm} setSearchTerm={setSearchTerm} sortMode={sortMode as any} setSortMode={setSortMode as any} activeFilters={activeFilters} setActiveFilters={setActiveFilters} onUpdateSetlistSongs={handleUpdateSetlistSongs} onDeleteSong={handleDeleteSong} onAddSong={() => {}} onOpenAdmin={() => setIsAdminPanelOpen(true)} activeSetlistId={activeSetlistId} />
+            <RepertoireView repertoire={masterRepertoire} onEditSong={handleEditSong} allSetlists={allSetlists} onRefreshRepertoire={() => fetchSetlistsAndRepertoire()} searchTerm={searchTerm} setSearchTerm={setSearchTerm} sortMode={sortMode as any} setSortMode={setSortMode as any} activeFilters={activeFilters} setActiveFilters={setActiveFilters} onUpdateSetlistSongs={handleUpdateSetlistSongs} onDeleteSong={handleDeleteSong} onAddSong={() => {}} onOpenAdmin={() => setIsAdminPanelOpen(true)} activeSetlistId={activeSetlistId} onBulkVibeCheck={handleBulkVibeCheck} />
           </TabsContent>
         </Tabs>
       </div>
