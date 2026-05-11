@@ -28,6 +28,8 @@ import { autoVibeCheck } from '@/utils/vibeUtils';
 
 export type StudioTab = 'config' | 'audio' | 'details' | 'charts' | 'lyrics' | 'visual' | 'library';
 
+const TABS: StudioTab[] = ['config', 'audio', 'details', 'charts', 'lyrics', 'visual', 'library'];
+
 interface SongStudioViewProps {
   gigId: string | 'library';
   songId: string | null;
@@ -72,14 +74,13 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
   const [formData, setFormData] = useState<Partial<SetlistSong>>({});
   const [activeTab, setActiveTab] = useState<StudioTab>(defaultTab || 'config');
   const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [activeChartType, setActiveChartType] = useState<'pdf' | 'leadsheet' | 'web' | 'ug'>('pdf');
   const [isProSyncOpen, setIsProSyncOpen] = useState(false); 
   
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
   const lastPendingUpdatesRef = useRef<Partial<SetlistSong>>({});
   const currentSongRef = useRef<SetlistSong | null>(null);
-
-  const TABS: StudioTab[] = ['config', 'audio', 'details', 'charts', 'lyrics', 'visual', 'library'];
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -104,6 +105,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     const targetSong = currentSongRef.current;
     if (!targetSong || !user) return;
 
+    setIsSaving(true);
     try {
       lastPendingUpdatesRef.current = {};
       const identifyingUpdates = {
@@ -117,7 +119,10 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
 
       setSong(syncedSong);
       setFormData(prev => ({ ...prev, ...currentUpdates, master_id: syncedSong.master_id }));
-    } catch (err: any) {}
+    } catch (err: any) {
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleAutoSave = useCallback((updates: Partial<SetlistSong>) => {
@@ -287,10 +292,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
       }
     } catch (e) {}
 
-    // Save the metadata first
     await activeAutoSave(updates);
-    
-    // Trigger automatic vibe check
     autoVibeCheck(user.id, { ...formData, ...updates, master_id: song?.master_id || song?.id });
     
     setIsProSyncOpen(false);
@@ -322,6 +324,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           allSetlists={allSetlists}
           onUpdateSetlistSongs={onUpdateSetlistSongs}
           onAutoSave={activeAutoSave}
+          isSaving={isSaving}
         />
       </header>
       

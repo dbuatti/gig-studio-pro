@@ -1,5 +1,4 @@
 // Bulk Populate YouTube Links Edge Function
-// Last Deploy: 2024-05-20T10:00:00Z
 // @ts-ignore: Deno runtime import
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 // @ts-ignore: Deno runtime import
@@ -40,15 +39,11 @@ serve(async (req) => {
       throw new Error("Invalid song list provided.");
     }
 
-    // console.log("[bulk-populate-youtube-links] Starting discovery for batch:", songIds.length); // Removed verbose log
-
     const results = [];
     const EXCLUDED_KEYWORDS = ['cover', 'tutorial', 'karaoke', 'lesson', 'instrumental', 'remix', 'mashup'];
 
     for (const id of songIds) {
-      // Basic UUID validation to prevent DB errors
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
-        // console.warn("[bulk-populate-youtube-links] Skipping invalid ID:", id); // Removed verbose log
         continue;
       }
 
@@ -64,7 +59,6 @@ serve(async (req) => {
 
         await supabaseAdmin.from('repertoire').update({ sync_status: 'SYNCING', last_sync_log: 'Discovery engine active...' }).eq('id', id);
 
-        // 1. Get Reference Duration from iTunes
         const itunesQuery = encodeURIComponent(`${song.artist} ${song.title}`);
         let refDurationSec = 0;
         try {
@@ -74,11 +68,8 @@ serve(async (req) => {
             const topItunes = itunesData.results?.[0];
             refDurationSec = topItunes ? Math.floor(topItunes.trackTimeMillis / 1000) : 0;
           }
-        } catch (e) {
-          // console.error("[bulk-populate-youtube-links] iTunes fetch failed:", e); // Removed verbose log
-        }
+        } catch (e) {}
 
-        // 2. Refined Multi-Pass Search
         const queries = [
           `${song.artist} - ${song.title} (Official Audio)`,
           `${song.artist} - ${song.title} (Official lyric)`,
@@ -155,7 +146,7 @@ serve(async (req) => {
         results.push({ id, status: 'ERROR', msg: err.message, song_id: id });
       }
 
-      await new Promise(r => setTimeout(r, 800)); // Rate limit buffer
+      await new Promise(r => setTimeout(r, 800));
     }
 
     return new Response(JSON.stringify({ 

@@ -27,6 +27,7 @@ interface SongStudioConsolidatedHeaderProps {
   allSetlists: Setlist[];
   onUpdateSetlistSongs?: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>;
   onAutoSave: (updates: Partial<SetlistSong>) => void;
+  isSaving?: boolean;
 }
 
 const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> = ({
@@ -42,19 +43,20 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
   gigId,
   allSetlists,
   onUpdateSetlistSongs,
-  onAutoSave
+  onAutoSave,
+  isSaving = false
 }) => {
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [showSynced, setShowSynced] = useState(false);
 
   useEffect(() => {
-    if (saveStatus === 'idle') return;
-    const timer = setTimeout(() => setSaveStatus('saved'), 800);
-    const hideTimer = setTimeout(() => setSaveStatus('idle'), 3000);
-    return () => {
-      clearTimeout(timer);
-      hideTimer && clearTimeout(hideTimer);
-    };
-  }, [formData]);
+    if (isSaving) {
+      setShowSynced(false);
+    } else if (!isSaving && formData.id) {
+      setShowSynced(true);
+      const timer = setTimeout(() => setShowSynced(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isSaving, formData.id]);
 
   const currentPref = formData.key_preference || globalKeyPreference;
   const displayTargetKey = formatKey(targetKey || formData.originalKey || 'C', currentPref === 'neutral' ? 'sharps' : currentPref);
@@ -80,12 +82,12 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
             <h2 className="text-lg font-black uppercase tracking-tight text-white truncate">
               {formData.name || "Untitled Track"}
             </h2>
-            {saveStatus !== 'idle' && (
+            {(isSaving || showSynced) && (
               <div className={cn(
                 "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all duration-500",
-                saveStatus === 'saving' ? "bg-indigo-500/10 text-indigo-400" : "bg-emerald-500/10 text-emerald-400"
+                isSaving ? "bg-indigo-500/10 text-indigo-400" : "bg-emerald-500/10 text-emerald-400"
               )}>
-                {saveStatus === 'saving' ? (
+                {isSaving ? (
                   <>
                     <Loader2 className="w-2.5 h-2.5 animate-spin" />
                     Syncing
