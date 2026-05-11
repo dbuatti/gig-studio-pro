@@ -267,7 +267,7 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
                   <Button 
                     onClick={handleBuildFullGig}
                     disabled={isBuilding}
-                    className="w-full h-14 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-xl shadow-emerald-600/20 gap-2"
+                    className="w-full h-14 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-xl shadow-indigo-600/20 gap-2"
                   >
                     {isBuilding ? <Loader2 className="w-4 h-4 animate-spin" /> : <LayoutGrid className="w-4 h-4" />}
                     Build Full Gig
