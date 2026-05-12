@@ -114,7 +114,7 @@ const Landing = () => {
           <div className="bg-secondary rounded-[3rem] border-8 border-border shadow-2xl overflow-hidden aspect-video relative group">
             <div className="absolute inset-0 bg-background/80 to-transparent" />
             <img 
-              src="https://images.unsplash.com/photo-1514525253361-bee8718a74a2?q=80&w=2000&auto=format&fit=crop" 
+              src="https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=2000&auto=format&fit=crop" 
               alt="Live Performance" 
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000"
             />
