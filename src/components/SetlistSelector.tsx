@@ -38,7 +38,7 @@ const SetlistSelector: React.FC<SetlistSelectorProps> = ({
       </div>
       
       <Select value={currentId} onValueChange={onSelect}>
-        <SelectTrigger className="h-8 min-w-[180px] border-none shadow-none focus:ring-0 text-sm font-bold bg-transparent text-foreground">
+        <SelectTrigger className="h-8 min-w-[140px] sm:min-w-[180px] border-none shadow-none focus:ring-0 text-sm font-bold bg-transparent text-foreground">
           <SelectValue placeholder="Select Setlist" />
         </SelectTrigger>
         <SelectContent className="bg-popover text-foreground border-border">

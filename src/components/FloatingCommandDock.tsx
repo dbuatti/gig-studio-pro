@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSettings } from '@/hooks/use-settings';
 import { compareNotes } from '@/utils/keyUtils';
 import { showError } from '@/utils/toast';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface FloatingCommandDockProps {
   onOpenSearch: () => void;
@@ -64,6 +65,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   isMenuOpen: isMenuOpenProp,
   onOpenPerformance,
 }) => {
+  const isMobile = useIsMobile();
   const [isOpen, setIsOpen] = useState<boolean>(() => {
     if (typeof window !== 'undefined') return localStorage.getItem('floating_dock_open') === 'true';
     return false;
@@ -78,8 +80,8 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     if (typeof window === 'undefined') return 'up';
     const windowWidth = window.innerWidth;
     const windowHeight = window.innerHeight;
-    const dockSize = 56;
-    const margin = 32;
+    const dockSize = isMobile ? 48 : 56;
+    const margin = isMobile ? 16 : 32;
     const currentLeft = margin + position.x;
     const currentBottom = margin - position.y;
     const centerX = currentLeft + dockSize / 2;
@@ -110,7 +112,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
 
     spaces.sort((a, b) => b.space - a.space);
     return spaces[0].dir;
-  }, [position]);
+  }, [position, isMobile]);
 
   const internalIsMenuOpen = isReaderMode ? isMenuOpenProp : isOpen;
   
@@ -181,7 +183,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   const primaryButtons = [
     {
       id: 'practice',
-      icon: isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />,
+      icon: isPlaying ? <Pause className="w-5 h-5 md:w-6 md:h-6" /> : <Play className="w-5 h-5 md:w-6 md:h-6" />,
       onClick: onTogglePlayback, 
       disabled: false, 
       tooltip: isPlaying ? "Pause [Space]" : "Play [Space]",
@@ -192,7 +194,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     },
     {
       id: 'performance',
-      icon: <Rocket className="w-5 h-5" />,
+      icon: <Rocket className="w-4 h-4 md:w-5 md:h-5" />,
       onClick: onOpenPerformance,
       disabled: !activeSongId,
       tooltip: "Stage Mode [P]",
@@ -200,7 +202,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     },
     {
       id: 'reader',
-      icon: <FileText className="w-5 h-5" />,
+      icon: <FileText className="w-4 h-4 md:w-5 md:h-5" />,
       onClick: () => onOpenReader(activeSongId || undefined),
       disabled: false, 
       tooltip: "Sheet Reader [R]",
@@ -208,7 +210,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
     },
     {
       id: 'search',
-      icon: <Search className="w-5 h-5" />,
+      icon: <Search className="w-4 h-4 md:w-5 md:h-5" />,
       onClick: onOpenSearch,
       disabled: false,
       tooltip: "Discovery Engine",
@@ -217,20 +219,20 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
   ];
 
   const secondaryButtons = [
-    { id: 'automation', icon: <Zap className="w-4 h-4" />, onClick: onOpenAdmin, tooltip: "Automation Hub", className: "bg-purple-600/20 text-purple-400 border-purple-500/30" },
-    { id: 'admin', icon: <ShieldCheck className="w-4 h-4" />, onClick: onOpenAdmin, tooltip: "Audit Matrix", className: "bg-red-900/40 text-red-400 border-red-500/30" },
-    { id: 'heatmap', icon: <Sparkles className="w-4 h-4" />, onClick: onToggleHeatmap, tooltip: "Toggle Heatmap [H]", className: cn(showHeatmap ? "bg-amber-500 text-black border-amber-400" : "bg-slate-800 text-amber-400 border-white/10") },
-    ...(isSafePitchEnabled ? [{ id: 'safe-pitch', icon: <ShieldAlert className="w-4 h-4" />, onClick: () => setIsSafePitchActive(!isSafePitchActive), tooltip: "Safe Pitch Mode", className: cn(isSafePitchActive ? "bg-emerald-600 text-white border-emerald-400" : "bg-slate-800 text-emerald-400 border-white/10") }] : []),
-    { id: 'preferences', icon: <Settings className="w-4 h-4" />, onClick: onOpenPreferences, tooltip: "Preferences", className: "bg-slate-800 text-slate-300 border-white/10" },
-    { id: 'user-guide', icon: <BookOpen className="w-4 h-4" />, onClick: onOpenUserGuide, tooltip: "User Guide", className: "bg-blue-600/20 text-blue-400 border-blue-500/30" },
+    { id: 'automation', icon: <Zap className="w-3.5 h-3.5 md:w-4 md:h-4" />, onClick: onOpenAdmin, tooltip: "Automation Hub", className: "bg-purple-600/20 text-purple-400 border-purple-500/30" },
+    { id: 'admin', icon: <ShieldCheck className="w-3.5 h-3.5 md:w-4 md:h-4" />, onClick: onOpenAdmin, tooltip: "Audit Matrix", className: "bg-red-900/40 text-red-400 border-red-500/30" },
+    { id: 'heatmap', icon: <Sparkles className="w-3.5 h-3.5 md:w-4 md:h-4" />, onClick: onToggleHeatmap, tooltip: "Toggle Heatmap [H]", className: cn(showHeatmap ? "bg-amber-500 text-black border-amber-400" : "bg-slate-800 text-amber-400 border-white/10") },
+    ...(isSafePitchEnabled ? [{ id: 'safe-pitch', icon: <ShieldAlert className="w-3.5 h-3.5 md:w-4 md:h-4" />, onClick: () => setIsSafePitchActive(!isSafePitchActive), tooltip: "Safe Pitch Mode", className: cn(isSafePitchActive ? "bg-emerald-600 text-white border-emerald-400" : "bg-slate-800 text-emerald-400 border-white/10") }] : []),
+    { id: 'preferences', icon: <Settings className="w-3.5 h-3.5 md:w-4 md:h-4" />, onClick: onOpenPreferences, tooltip: "Preferences", className: "bg-slate-800 text-slate-300 border-white/10" },
+    { id: 'user-guide', icon: <BookOpen className="w-3.5 h-3.5 md:w-4 md:h-4" />, onClick: onOpenUserGuide, tooltip: "User Guide", className: "bg-blue-600/20 text-blue-400 border-blue-500/30" },
   ];
 
   const getMenuClasses = (dir: MenuDirection) => {
     switch (dir) {
-      case 'up': return "flex-col-reverse mb-4";
-      case 'down': return "flex-col mt-4";
-      case 'left': return "flex-row-reverse mr-4";
-      case 'right': return "flex-row ml-4";
+      case 'up': return "flex-col-reverse mb-2 md:mb-4";
+      case 'down': return "flex-col mt-2 md:mt-4";
+      case 'left': return "flex-row-reverse mr-2 md:mr-4";
+      case 'right': return "flex-row ml-2 md:ml-4";
     }
   };
 
@@ -242,14 +244,14 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
         onDragEnd={handleDragEnd}
         style={{ x: position.x, y: position.y }}
         className={cn(
-          "fixed bottom-8 left-8 z-[300] flex items-center gap-4 touch-none cursor-grab active:cursor-grabbing",
+          "fixed bottom-4 left-4 md:bottom-8 md:left-8 z-[300] flex items-center gap-2 md:gap-4 touch-none cursor-grab active:cursor-grabbing",
           direction === 'up' && "flex-col-reverse",
           direction === 'down' && "flex-col",
           direction === 'left' && "flex-row-reverse",
           direction === 'right' && "flex-row"
         )}
       >
-        <div className="bg-slate-950/80 backdrop-blur-2xl p-2 rounded-full border border-white/10 shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] relative">
+        <div className="bg-slate-950/80 backdrop-blur-2xl p-1.5 md:p-2 rounded-full border border-white/10 shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] relative">
           <div className="absolute inset-0 rounded-full bg-indigo-500/10 blur-xl animate-pulse" />
           <Tooltip>
             <TooltipTrigger asChild>
@@ -258,11 +260,11 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                 size="icon"
                 onClick={handleToggleMenu}
                 className={cn(
-                  "h-14 w-14 rounded-full transition-all duration-500 border-2 shadow-xl relative z-10",
+                  "h-11 w-11 md:h-14 md:w-14 rounded-full transition-all duration-500 border-2 shadow-xl relative z-10",
                   internalIsMenuOpen ? "bg-indigo-600 text-white border-indigo-400 rotate-90" : "bg-slate-900 text-indigo-400 border-white/5"
                 )}
               >
-                {internalIsMenuOpen ? <X className="w-6 h-6" /> : <Command className="w-6 h-6" />}
+                {internalIsMenuOpen ? <X className="w-5 h-5 md:w-6 md:h-6" /> : <Command className="w-5 h-5 md:w-6 md:h-6" />}
               </Button>
             </TooltipTrigger>
             <TooltipContent side={direction === 'left' ? 'right' : direction === 'right' ? 'left' : direction === 'up' ? 'bottom' : 'top'}>Command Hub</TooltipContent>
@@ -275,10 +277,10 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
               initial={{ opacity: 0, scale: 0.9, y: direction === 'up' ? 20 : -20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: direction === 'up' ? 20 : -20 }}
-              className={cn("flex items-center gap-4", getMenuClasses(direction))}
+              className={cn("flex items-center gap-2 md:gap-4", getMenuClasses(direction))}
             >
               <div className={cn(
-                "flex items-center gap-3 p-3 bg-slate-950/90 rounded-[2.5rem] border border-white/10 shadow-2xl backdrop-blur-xl",
+                "flex items-center gap-2 md:gap-3 p-2 md:p-3 bg-slate-950/90 rounded-[2rem] md:rounded-[2.5rem] border border-white/10 shadow-2xl backdrop-blur-xl",
                 (direction === 'up' || direction === 'down') ? "flex-col" : "flex-row"
               )}>
                 {primaryButtons.map((btn) => (
@@ -288,7 +290,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                         variant="ghost"
                         size="icon"
                         onClick={() => { btn.onClick?.(); if (btn.id !== 'practice') handleToggleMenu(); }}
-                        className={cn("h-12 w-12 rounded-full border transition-all active:scale-90 disabled:opacity-10", btn.className)}
+                        className={cn("h-10 w-10 md:h-12 md:w-12 rounded-full border transition-all active:scale-90 disabled:opacity-10", btn.className)}
                         disabled={btn.disabled}
                       >
                         {btn.icon}
@@ -305,11 +307,11 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                       size="icon"
                       onClick={() => setIsSubMenuOpen(!isSubMenuOpen)}
                       className={cn(
-                        "h-12 w-12 rounded-full border transition-all",
+                        "h-10 w-10 md:h-12 md:w-12 rounded-full border transition-all",
                         isSubMenuOpen ? "bg-indigo-600 text-white border-indigo-400" : "bg-slate-900 text-slate-400 border-white/5"
                       )}
                     >
-                      {isSubMenuOpen ? <X className="w-5 h-5" /> : <Wrench className="w-5 h-5" />}
+                      {isSubMenuOpen ? <X className="w-4 h-4 md:w-5 md:h-5" /> : <Wrench className="w-4 h-4 md:w-5 md:h-5" />}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side={direction === 'left' ? 'right' : direction === 'right' ? 'left' : direction === 'up' ? 'bottom' : 'top'}>Utilities</TooltipContent>
@@ -323,7 +325,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                     animate={{ opacity: 1, scale: 1, x: 0 }}
                     exit={{ opacity: 0, scale: 0.8, x: direction === 'left' ? 20 : -20 }}
                     className={cn(
-                      "grid grid-cols-2 gap-2 p-3 bg-slate-950/90 rounded-[2rem] border border-white/10 shadow-2xl backdrop-blur-xl",
+                      "grid grid-cols-2 gap-1.5 md:gap-2 p-2 md:p-3 bg-slate-950/90 rounded-[1.5rem] md:rounded-[2rem] border border-white/10 shadow-2xl backdrop-blur-xl",
                       (direction === 'left' || direction === 'right') && "grid-flow-col"
                     )}
                   >
@@ -334,7 +336,7 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                             variant="ghost"
                             size="icon"
                             onClick={() => { btn.onClick(); if (btn.id !== 'heatmap' && btn.id !== 'safe-pitch') handleToggleMenu(); }}
-                            className={cn("h-10 w-10 rounded-full border transition-all hover:scale-110", btn.className)}
+                            className={cn("h-8 w-8 md:h-10 md:w-10 rounded-full border transition-all hover:scale-110", btn.className)}
                           >
                             {btn.icon}
                           </Button>

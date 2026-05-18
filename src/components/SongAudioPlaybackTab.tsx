@@ -89,34 +89,34 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
   const audioSourceUrl = formData.extraction_status === 'completed' && formData.audio_url ? formData.audio_url : formData.previewUrl;
 
   return (
-    <div className="space-y-6 md:space-y-12 animate-in fade-in duration-500">
+    <div className="space-y-6 md:space-y-12 animate-in fade-in duration-500 pb-12">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h3 className="text-sm md:text-lg font-black uppercase tracking-[0.2em] text-indigo-400">
+          <h3 className="text-xs md:text-lg font-black uppercase tracking-[0.2em] text-indigo-400">
             Audio Processing Matrix
           </h3>
-          <p className="text-xs md:text-sm text-slate-500 mt-1">
+          <p className="text-[10px] md:text-sm text-slate-500 mt-1">
             Real-time pitch and time-stretching engine active.
           </p>
         </div>
         <div className="flex items-center gap-2">
           {isProcessing && (
             <div className="flex items-center gap-2 text-indigo-400">
-              <CloudDownload className="w-4 h-4 animate-bounce" />
-              <span className="text-[9px] font-black uppercase">Extracting Audio...</span>
+              <CloudDownload className="w-3.5 h-3.5 md:w-4 md:h-4 animate-bounce" />
+              <span className="text-[8px] md:text-[9px] font-black uppercase">Extracting Audio...</span>
             </div>
           )}
           {isExtractionFailed && (
             <div className="flex items-center gap-2 text-red-400">
-              <AlertTriangle className="w-4 h-4" />
-              <span className="text-[9px] font-black uppercase">Extraction Failed</span>
+              <AlertTriangle className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              <span className="text-[8px] md:text-[9px] font-black uppercase">Extraction Failed</span>
             </div>
           )}
         </div>
       </header>
 
       <section className={cn(
-        "bg-slate-900/50 border border-white/5 space-y-6 md:space-y-12",
+        "bg-slate-900/50 border border-white/5 space-y-6 md:space-y-12 shadow-2xl",
         isMobile ? "p-6 rounded-3xl" : "p-12 rounded-[3rem]"
       )}>
         <div className={isMobile ? "h-24" : "h-40"}>
@@ -124,9 +124,9 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
         </div>
 
         {audioSourceUrl ? (
-          <div className="space-y-8">
-            <div className="space-y-4">
-              <div className="flex justify-between text-[10px] md:text-xs font-mono font-black text-slate-500 uppercase tracking-widest">
+          <div className="space-y-6 md:space-y-8">
+            <div className="space-y-3 md:space-y-4">
+              <div className="flex justify-between text-[9px] md:text-xs font-mono font-black text-slate-500 uppercase tracking-widest">
                 <span className="text-indigo-400">{formatTime((progress / 100) * duration)}</span>
                 <span className="hidden md:inline">Transport Master Clock</span>
                 <span>{formatTime(duration)}</span>
@@ -134,9 +134,9 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
               <Slider value={[progress]} max={100} step={0.1} onValueChange={([v]) => setProgress(v)} />
             </div>
             
-            <div className="flex items-center justify-center gap-8 md:gap-12">
-              <Button variant="ghost" size="icon" onClick={stopPlayback} className="h-12 w-12 md:h-20 md:w-20 rounded-full border border-white/5">
-                <RotateCcw className="w-5 h-5 md:w-8 md:h-8" />
+            <div className="flex items-center justify-center gap-6 md:gap-12">
+              <Button variant="ghost" size="icon" onClick={stopPlayback} className="h-10 w-10 md:h-20 md:w-20 rounded-full border border-white/5">
+                <RotateCcw className="w-4 h-4 md:w-8 md:h-8" />
               </Button>
               
               <Button 
@@ -144,37 +144,37 @@ const SongAudioPlaybackTab: React.FC<SongAudioPlaybackTabProps> = ({
                 onClick={togglePlayback} 
                 disabled={isLoadingAudio}
                 className={cn(
-                  "h-20 w-20 md:h-32 md:w-32 rounded-full shadow-2xl flex items-center justify-center transition-all",
+                  "h-16 w-16 md:h-32 md:w-32 rounded-full shadow-2xl flex items-center justify-center transition-all",
                   isLoadingAudio ? "bg-slate-600 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700"
                 )}
               >
                 {isLoadingAudio ? (
-                  <Loader2 className="w-8 h-8 md:w-12 md:h-12 animate-spin text-white" />
+                  <Loader2 className="w-6 h-6 md:w-12 md:h-12 animate-spin text-white" />
                 ) : isPlaying ? (
-                  <Pause className="w-8 h-8 md:w-12 md:h-12 text-white fill-current" />
+                  <Pause className="w-6 h-6 md:w-12 md:h-12 text-white fill-current" />
                 ) : (
-                  <Play className="w-8 h-8 md:w-12 md:h-12 text-white fill-current ml-1 md:ml-2" />
+                  <Play className="w-6 h-6 md:w-12 md:h-12 text-white fill-current ml-1 md:ml-2" />
                 )}
               </Button>
 
-              <div className="h-12 w-12 md:h-20 md:w-20" />
+              <div className="h-10 w-10 md:h-20 md:w-20" />
             </div>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-6 md:py-12 text-center space-y-6">
-            <div className="bg-indigo-600/10 p-6 rounded-full border border-indigo-500/20">
-              <Music className="w-8 h-8 text-indigo-400" />
+          <div className="flex flex-col items-center justify-center py-6 md:py-12 text-center space-y-4 md:space-y-6">
+            <div className="bg-indigo-600/10 p-4 md:p-6 rounded-full border border-indigo-500/20">
+              <Music className="w-6 h-6 md:w-8 md:h-8 text-indigo-400" />
             </div>
-            <p className="text-sm text-slate-500 max-w-sm px-4">
+            <p className="text-xs md:text-sm text-slate-500 max-w-sm px-4">
               Upload a master file or load the iTunes preview to start transposing.
             </p>
             {formData.previewUrl && (
               <Button 
                 onClick={handleLoadAudio} 
                 disabled={isLoadingAudio}
-                className="bg-indigo-600 font-black uppercase text-[10px] h-10 px-6 rounded-xl gap-2"
+                className="bg-indigo-600 font-black uppercase text-[9px] md:text-[10px] h-9 md:h-10 px-5 md:px-6 rounded-xl gap-2"
               >
-                {isLoadingAudio ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />} 
+                {isLoadingAudio ? <Loader2 className="w-3 h-3 md:w-3.5 md:h-3.5 animate-spin" /> : <Play className="w-3 h-3 md:w-3.5 md:h-3.5" />} 
                 {isLoadingAudio ? "Loading..." : "Load iTunes Preview"}
               </Button>
             )}

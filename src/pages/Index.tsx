@@ -454,8 +454,8 @@ const Index = () => {
     <div className="min-h-screen bg-slate-950 text-white flex flex-col relative overflow-hidden">
       <div className="absolute top-0 left-0 w-full h-[600px] bg-gradient-to-b from-indigo-600/10 to-transparent pointer-events-none" />
       
-      <div className="flex-1 flex flex-col p-6 md:p-12 lg:p-16 overflow-y-auto custom-scrollbar relative z-10">
-        <DashboardHeader 
+      <div className="flex-1 flex flex-col p-4 md:p-12 lg:p-16 overflow-y-auto custom-scrollbar relative z-10">
+        <DashboardHeader
           onOpenStorageAudit={() => setIsStorageAuditOpen(true)}
           onOpenAdmin={() => setIsAdminPanelOpen(true)}
           onOpenMDAudit={() => setIsMDAuditOpen(true)}

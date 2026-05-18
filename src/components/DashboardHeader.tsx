@@ -28,27 +28,27 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   onOpenUserGuide
 }) => {
   return (
-    <div className="space-y-12 mb-16 animate-in fade-in slide-in-from-top-4 duration-700">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
-        <div className="flex items-center gap-8">
-          <div className="bg-indigo-600 p-4 rounded-[2rem] shadow-2xl shadow-indigo-600/30">
-            <Command className="w-10 h-10 text-white" />
+    <div className="space-y-8 md:space-y-12 mb-8 md:mb-16 animate-in fade-in slide-in-from-top-4 duration-700">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 md:gap-8">
+        <div className="flex items-center gap-4 md:gap-8">
+          <div className="bg-indigo-600 p-3 md:p-4 rounded-2xl md:rounded-[2rem] shadow-2xl shadow-indigo-600/30">
+            <Command className="w-6 h-6 md:w-10 md:h-10 text-white" />
           </div>
           <div>
-            <h1 className="text-5xl font-black uppercase tracking-tighter leading-none">Gig Studio</h1>
-            <p className="text-slate-400 font-bold uppercase tracking-[0.4em] text-[11px] mt-3">
+            <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tighter leading-none">Gig Studio</h1>
+            <p className="text-slate-400 font-bold uppercase tracking-[0.2em] md:tracking-[0.4em] text-[9px] md:text-[11px] mt-2 md:mt-3">
               Professional Performance Matrix
             </p>
           </div>
         </div>
         
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3 md:gap-4 w-full md:w-auto">
           <Button 
             variant="outline" 
             onClick={onOpenStorageAudit} 
-            className="h-12 px-6 rounded-2xl text-amber-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[11px] gap-3"
+            className="flex-1 md:flex-none h-10 md:h-12 px-4 md:px-6 rounded-xl md:rounded-2xl text-amber-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[9px] md:text-[11px] gap-2 md:gap-3"
           >
-            <HardDrive className="w-5 h-5" /> Storage Audit
+            <HardDrive className="w-4 h-4 md:w-5 md:h-5" /> <span className="hidden sm:inline">Storage Audit</span><span className="sm:hidden">Storage</span>
           </Button>
           
           <SystemToolsDropdown 
@@ -64,18 +64,18 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
       </div>
 
       <div className="flex justify-center md:justify-start">
-        <TabsList className="grid w-full max-w-md grid-cols-2 h-16 bg-slate-900/50 p-2 rounded-[2rem] border border-white/5">
+        <TabsList className="grid w-full max-w-md grid-cols-2 h-14 md:h-16 bg-slate-900/50 p-1.5 md:p-2 rounded-2xl md:rounded-[2rem] border border-white/5">
           <TabsTrigger 
             value="gigs" 
-            className="text-sm font-black uppercase tracking-widest gap-3 h-12 rounded-2xl data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-2xl data-[state=active]:shadow-indigo-600/30"
+            className="text-xs md:text-sm font-black uppercase tracking-widest gap-2 md:gap-3 h-11 md:h-12 rounded-xl md:rounded-2xl data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-2xl data-[state=active]:shadow-indigo-600/30"
           >
-            <LayoutDashboard className="w-5 h-5" /> Gigs
+            <LayoutDashboard className="w-4 h-4 md:w-5 md:h-5" /> Gigs
           </TabsTrigger>
           <TabsTrigger 
             value="repertoire" 
-            className="text-sm font-black uppercase tracking-widest gap-3 h-12 rounded-2xl data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-2xl data-[state=active]:shadow-indigo-600/30"
+            className="text-xs md:text-sm font-black uppercase tracking-widest gap-2 md:gap-3 h-11 md:h-12 rounded-xl md:rounded-2xl data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-2xl data-[state=active]:shadow-indigo-600/30"
           >
-            <Library className="w-5 h-5" /> Repertoire
+            <Library className="w-4 h-4 md:w-5 md:h-5" /> Repertoire
           </TabsTrigger>
         </TabsList>
       </div>
