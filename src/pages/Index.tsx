@@ -15,9 +15,8 @@ import { autoVibeCheck } from '@/utils/vibeUtils';
 import * as Tone from 'tone';
 
 // UI Components
-import { Button } from '@/components/ui/button';
-import { Loader2, Settings2, Library, LayoutDashboard, Plus, Command, HardDrive } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Loader2 } from 'lucide-react';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 
 // Custom Components
 import SetlistManager, { SetlistSong, Setlist, EnergyZone } from '@/components/SetlistManager';
@@ -42,7 +41,7 @@ import GlobalSearchModal from '@/components/GlobalSearchModal';
 import GigPlannerModal from '@/components/GigPlannerModal';
 import MDAuditModal from '@/components/MDAuditModal';
 import ShortcutCheatSheet from '@/components/ShortcutCheatSheet';
-import SystemToolsDropdown from '@/components/SystemToolsDropdown';
+import DashboardHeader from '@/components/DashboardHeader';
 import StorageAuditModal from '@/components/StorageAuditModal';
 import { sortSongsByStrategy } from '@/utils/SetlistGenerator';
 
@@ -456,21 +455,16 @@ const Index = () => {
       <div className="absolute top-0 left-0 w-full h-[600px] bg-gradient-to-b from-indigo-600/10 to-transparent pointer-events-none" />
       
       <div className="flex-1 flex flex-col p-6 md:p-12 lg:p-16 overflow-y-auto custom-scrollbar relative z-10">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 mb-16 animate-in fade-in slide-in-from-top-4 duration-700">
-          <div className="flex items-center gap-8">
-            <div className="bg-indigo-600 p-4 rounded-[2rem] shadow-2xl shadow-indigo-600/30"><Command className="w-10 h-10 text-white" /></div>
-            <div>
-              <h1 className="text-5xl font-black uppercase tracking-tighter leading-none">Gig Studio</h1>
-              <p className="text-slate-400 font-bold uppercase tracking-[0.4em] text-[11px] mt-3">Professional Performance Matrix</p>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-4">
-            <Button variant="outline" onClick={() => setIsStorageAuditOpen(true)} className="h-12 px-6 rounded-2xl text-amber-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[11px] gap-3">
-              <HardDrive className="w-5 h-5" /> Storage Audit
-            </Button>
-            <SystemToolsDropdown onOpenAdmin={() => setIsAdminPanelOpen(true)} onOpenMDAudit={() => {}} onToggleShuffleAll={() => setIsShuffleAllMode(!isShuffleAllMode)} isShuffleAllMode={isShuffleAllMode} onOpenKeyMatrix={() => setIsKeyManagementOpen(true)} onOpenPreferences={() => setIsPreferencesOpen(true)} onOpenUserGuide={() => setIsUserGuideOpen(true)} />
-          </div>
-        </div>
+        <DashboardHeader 
+          onOpenStorageAudit={() => setIsStorageAuditOpen(true)}
+          onOpenAdmin={() => setIsAdminPanelOpen(true)}
+          onOpenMDAudit={() => setIsMDAuditOpen(true)}
+          onToggleShuffleAll={() => setIsShuffleAllMode(!isShuffleAllMode)}
+          isShuffleAllMode={isShuffleAllMode}
+          onOpenKeyMatrix={() => setIsKeyManagementOpen(true)}
+          onOpenPreferences={() => setIsPreferencesOpen(true)}
+          onOpenUserGuide={() => setIsUserGuideOpen(true)}
+        />
 
         {isGoalTrackerEnabled && <div className="mb-16 animate-in fade-in slide-in-from-top-6 duration-700 delay-100"><GoalTracker repertoire={masterRepertoire} onFilterApply={(f) => setActiveFilters(prev => ({...prev, ...f}))} /></div>}
 
@@ -481,11 +475,6 @@ const Index = () => {
         )}
 
         <Tabs value={activeDashboardView} onValueChange={(v) => setSearchParams({ view: v })} className="w-full">
-          <TabsList className="grid w-full max-w-md grid-cols-2 h-16 bg-slate-900/50 p-2 rounded-[2rem] mb-12 border border-white/5 animate-in fade-in slide-in-from-left-4 duration-700 delay-300">
-            <TabsTrigger value="gigs" className="text-sm font-black uppercase tracking-widest gap-3 h-12 rounded-2xl data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-2xl data-[state=active]:shadow-indigo-600/30"><LayoutDashboard className="w-5 h-5" /> Gigs</TabsTrigger>
-            <TabsTrigger value="repertoire" className="text-sm font-black uppercase tracking-widest gap-3 h-12 rounded-2xl data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-2xl data-[state=active]:shadow-indigo-600/30"><Library className="w-5 h-5" /> Repertoire</TabsTrigger>
-          </TabsList>
-
           <TabsContent value="gigs" className="mt-0 space-y-12 animate-in fade-in duration-700 delay-400">
             {activeSetlistId && <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-8"><SetlistSelector setlists={allSetlists} currentId={activeSetlistId} onSelect={setActiveSetlistId} onCreate={handleCreateSetlist} onDelete={handleDeleteSetlist} onDuplicate={handleDuplicateSetlist} onOpenGigPlanner={() => setIsGigPlannerOpen(true)} /></div>}
             {activeSetlist && (

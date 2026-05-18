@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { SetlistSong } from '@/components/SetlistManager';
 import { AudioEngineControls } from './use-tone-audio';
-import { showInfo, showSuccess } from '@/utils/toast';
+import { showInfo, showSuccess, showWarning } from '@/utils/toast';
 import * as Tone from 'tone';
 
 interface UseAutoplayProps {
@@ -34,6 +34,8 @@ export function useAutoplay({ audio, filteredSongs, masterRepertoire, isShuffleA
   }, [filteredSongs, activeSong, isShuffleAll, masterRepertoire]);
 
   const handleSelectSong = useCallback(async (song: SetlistSong, forceAutoplay = false) => {
+    if (isTransitioningRef.current) return;
+    
     isTransitioningRef.current = true;
     if (Tone.getContext().state !== 'running') await Tone.start();
 
@@ -100,6 +102,7 @@ export function useAutoplay({ audio, filteredSongs, masterRepertoire, isShuffleA
     const songs = songsRef.current;
     if (songs.length === 0) {
       isTransitioningRef.current = false;
+      setIsAutoplayActive(false);
       return;
     }
 
@@ -125,7 +128,10 @@ export function useAutoplay({ audio, filteredSongs, masterRepertoire, isShuffleA
       audio.stopPlayback();
       showInfo("Autoplay stopped");
     } else {
-      if (songsRef.current.length === 0) return;
+      if (songsRef.current.length === 0) {
+        showWarning("Setlist is empty.");
+        return;
+      }
       try { await Tone.start(); } catch (e) {}
       setIsAutoplayActive(true);
       handleSelectSong(songsRef.current[0], true);

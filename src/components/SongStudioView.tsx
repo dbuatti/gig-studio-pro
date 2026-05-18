@@ -24,6 +24,7 @@ import { extractKeyFromChords } from '@/utils/chordUtils';
 import ProSyncSearch from './ProSyncSearch'; 
 import { formatKey } from '@/utils/keyUtils';
 import SongStudioConsolidatedHeader from '@/components/SongStudioConsolidatedHeader';
+import StudioTabNav from '@/components/StudioTabNav';
 import { autoVibeCheck } from '@/utils/vibeUtils';
 
 export type StudioTab = 'config' | 'audio' | 'details' | 'charts' | 'lyrics' | 'visual' | 'library';
@@ -342,23 +343,11 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
         </div>
       )}
       
-      <nav className="h-16 bg-black/20 border-b border-white/5 flex items-center px-6 overflow-x-auto no-scrollbar shrink-0">
-        <div className="grid grid-cols-7 w-full">
-          {TABS.map((tab, i) => (
-            <button 
-              key={tab} 
-              onClick={() => setActiveTab(tab as any)} 
-              className={cn(
-                "text-[10px] font-black uppercase tracking-widest h-16 flex flex-col items-center justify-center border-b-4 transition-colors", 
-                activeTab === tab ? "text-indigo-400 border-indigo-50" : "text-slate-500 border-transparent hover:text-white"
-              )}
-            >
-              <span>{tab.toUpperCase()}</span>
-              <span className="text-[8px] opacity-40 mt-0.5">⌘{i + 1}</span>
-            </button>
-          ))}
-        </div>
-      </nav>
+      <StudioTabNav 
+        tabs={TABS}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+      />
       
       <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
         <StudioTabContent
