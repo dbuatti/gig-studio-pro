@@ -455,26 +455,26 @@ const Index = () => {
       <div className="absolute top-0 left-0 w-full h-[600px] bg-gradient-to-b from-indigo-600/10 to-transparent pointer-events-none" />
       
       <div className="flex-1 flex flex-col p-4 md:p-12 lg:p-16 overflow-y-auto custom-scrollbar relative z-10">
-        <DashboardHeader
-          onOpenStorageAudit={() => setIsStorageAuditOpen(true)}
-          onOpenAdmin={() => setIsAdminPanelOpen(true)}
-          onOpenMDAudit={() => setIsMDAuditOpen(true)}
-          onToggleShuffleAll={() => setIsShuffleAllMode(!isShuffleAllMode)}
-          isShuffleAllMode={isShuffleAllMode}
-          onOpenKeyMatrix={() => setIsKeyManagementOpen(true)}
-          onOpenPreferences={() => setIsPreferencesOpen(true)}
-          onOpenUserGuide={() => setIsUserGuideOpen(true)}
-        />
-
-        {isGoalTrackerEnabled && <div className="mb-16 animate-in fade-in slide-in-from-top-6 duration-700 delay-100"><GoalTracker repertoire={masterRepertoire} onFilterApply={(f) => setActiveFilters(prev => ({...prev, ...f}))} /></div>}
-
-        {activeDashboardView === 'gigs' && activeSong && (
-          <div className="mb-16 animate-in fade-in slide-in-from-top-8 duration-700 delay-200">
-            <ActiveSongBanner song={activeSong} isPlaying={audio.isPlaying} onTogglePlayback={audio.togglePlayback} onClear={() => { audio.stopPlayback(); }} isLoadingAudio={audio.isLoadingAudio} nextSongName={filteredAndSortedSongs[filteredAndSortedSongs.findIndex(s => s.id === activeSong.id) + 1]?.name} onNext={() => playNext(true)} onPrevious={() => {}} />
-          </div>
-        )}
-
         <Tabs value={activeDashboardView} onValueChange={(v) => setSearchParams({ view: v })} className="w-full">
+          <DashboardHeader
+            onOpenStorageAudit={() => setIsStorageAuditOpen(true)}
+            onOpenAdmin={() => setIsAdminPanelOpen(true)}
+            onOpenMDAudit={() => setIsMDAuditOpen(true)}
+            onToggleShuffleAll={() => setIsShuffleAllMode(!isShuffleAllMode)}
+            isShuffleAllMode={isShuffleAllMode}
+            onOpenKeyMatrix={() => setIsKeyManagementOpen(true)}
+            onOpenPreferences={() => setIsPreferencesOpen(true)}
+            onOpenUserGuide={() => setIsUserGuideOpen(true)}
+          />
+
+          {isGoalTrackerEnabled && <div className="mb-16 animate-in fade-in slide-in-from-top-6 duration-700 delay-100"><GoalTracker repertoire={masterRepertoire} onFilterApply={(f) => setActiveFilters(prev => ({...prev, ...f}))} /></div>}
+
+          {activeDashboardView === 'gigs' && activeSong && (
+            <div className="mb-16 animate-in fade-in slide-in-from-top-8 duration-700 delay-200">
+              <ActiveSongBanner song={activeSong} isPlaying={audio.isPlaying} onTogglePlayback={audio.togglePlayback} onClear={() => { audio.stopPlayback(); }} isLoadingAudio={audio.isLoadingAudio} nextSongName={filteredAndSortedSongs[filteredAndSortedSongs.findIndex(s => s.id === activeSong.id) + 1]?.name} onNext={() => playNext(true)} onPrevious={() => {}} />
+            </div>
+          )}
+
           <TabsContent value="gigs" className="mt-0 space-y-12 animate-in fade-in duration-700 delay-400">
             {activeSetlistId && <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-8"><SetlistSelector setlists={allSetlists} currentId={activeSetlistId} onSelect={setActiveSetlistId} onCreate={handleCreateSetlist} onDelete={handleDeleteSetlist} onDuplicate={handleDuplicateSetlist} onOpenGigPlanner={() => setIsGigPlannerOpen(true)} /></div>}
             {activeSetlist && (
