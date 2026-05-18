@@ -44,6 +44,7 @@ import MDAuditModal from '@/components/MDAuditModal';
 import ShortcutCheatSheet from '@/components/ShortcutCheatSheet';
 import DashboardHeader from '@/components/DashboardHeader';
 import StorageAuditModal from '@/components/StorageAuditModal';
+import RepertoireSummary from '@/components/RepertoireSummary';
 import { sortSongsByStrategy } from '@/utils/SetlistGenerator';
 
 const Index = () => {
@@ -479,6 +480,8 @@ const Index = () => {
             onOpenPreferences={() => setIsPreferencesOpen(true)}
             onOpenUserGuide={() => setIsUserGuideOpen(true)}
           />
+
+          <RepertoireSummary repertoire={masterRepertoire} />
 
           {isGoalTrackerEnabled && (
             <div className="mb-12 animate-in fade-in slide-in-from-top-6 duration-700 delay-100">
