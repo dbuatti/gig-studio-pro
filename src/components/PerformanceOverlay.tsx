@@ -678,7 +678,7 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
                     <p className="text-slate-500 max-xl mb-6 md:mb-20 text-sm md:text-2xl font-medium leading-relaxed">
                       External security prevents in-app display. Use the button below to launch in a secure dedicated performance window.
                     </p>
-                    <Button onClick={() => window.open(currentSong.pdfUrl, '_blank')} className="bg-indigo-600 hover:bg-indigo-700 h-16 md:h-24 px-8 md:px-20 font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-xs md:text-base rounded-2xl md:rounded-[2.5rem] shadow-2xl shadow-indigo-600/30 gap-4 md:gap-8">
+                    <Button onClick={() => window.open(currentSong.pdfUrl, '_blank')} className="bg-indigo-600 hover:bg-indigo-700 h-16 md:h-24 px-8 md:px-20 font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-xs md:base rounded-2xl md:rounded-[2.5rem] shadow-2xl shadow-indigo-600/30 gap-4 md:gap-8">
                       <ExternalLink className="w-6 h-6 md:w-10 md:h-10" /> Launch Chart
                     </Button>
                   </div>
