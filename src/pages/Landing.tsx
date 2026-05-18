@@ -112,13 +112,11 @@ const Landing = () => {
         {/* Dashboard Preview */}
         <div className="max-w-6xl mx-auto mt-24 px-4 animate-in fade-in zoom-in duration-1000 delay-500">
           <div className="bg-secondary rounded-[3rem] border-8 border-border shadow-2xl overflow-hidden aspect-video relative group">
-            <div className="absolute inset-0 bg-background/80 to-transparent" />
-            <img 
-              src="https://images.unsplash.com/photo-1514525253361-bee8718a340b?q=80&w=2000&auto=format&fit=crop" 
-              alt="Live Performance" 
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000"
-            />
-            <div className="absolute bottom-12 left-12 right-12 flex items-center justify-between">
+            <div className="absolute inset-0 bg-background/40 z-10" />
+            <div className="w-full h-full bg-slate-900 flex items-center justify-center">
+               <Waves className="w-32 h-32 text-indigo-600/20 animate-pulse" />
+            </div>
+            <div className="absolute bottom-12 left-12 right-12 flex items-center justify-between z-20">
               <div className="flex items-center gap-6">
                 <div className="h-16 w-16 bg-indigo-600 rounded-full flex items-center justify-center shadow-xl">
                   <Mic2 className="w-8 h-8 text-white" />

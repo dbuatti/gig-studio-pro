@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { 
   CheckCircle2, CircleDashed, CloudDownload, AlertTriangle, 
   ShieldCheck, Clock, ArrowRight, Check, ChevronDown, 
-  ChevronUp, Edit3, MoreVertical, ListMusic, Settings2, Trash2, LayoutList
+  ChevronUp, Edit3, MoreVertical, ListMusic, Settings2, Trash2, LayoutList,
+  Star, Zap, Info
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatKey, ALL_KEYS_SHARP, ALL_KEYS_FLAT } from '@/utils/keyUtils';
@@ -131,8 +132,8 @@ const SetlistRow: React.FC<SetlistRowProps> = ({
             <TooltipTrigger asChild>
               <div className="flex flex-col items-center gap-2 cursor-help">
                 <span className={cn(
-                  "text-xs font-mono font-black px-4 py-1.5 rounded-xl flex items-center gap-2.5 shadow-lg",
-                  readinessScore >= 90 ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/20" : "bg-amber-600/20 text-amber-400 border border-amber-500/20"
+                  "text-xs font-mono font-black px-4 py-1.5 rounded-xl flex items-center gap-2.5 shadow-lg border transition-all",
+                  readinessScore >= 90 ? "bg-emerald-600/20 text-emerald-400 border-emerald-500/20" : "bg-indigo-600/20 text-indigo-400 border-indigo-500/20"
                 )}>
                   {readinessScore}%
                 </span>

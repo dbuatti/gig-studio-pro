@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { 
   ArrowLeft, Play, Pause, Sparkles, Globe, 
   Check, Loader2, Save, Share2, MoreHorizontal,
-  CloudUpload, Activity, Music, X
+  CloudUpload, Activity, Music, X, ShieldCheck
 } from 'lucide-react';
 import { SetlistSong, Setlist } from './SetlistManager';
 import { cn } from '@/lib/utils';
@@ -84,6 +84,7 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
             <h2 className="text-base md:text-2xl font-black uppercase tracking-tight text-white truncate leading-none">
               {formData.name || "Untitled Track"}
             </h2>
+            {formData.isMetadataConfirmed && <ShieldCheck className="w-4 h-4 text-indigo-400 shrink-0" />}
             {(isSaving || showSynced) && (
               <div className={cn(
                 "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[8px] md:text-[9px] font-black uppercase tracking-widest transition-all duration-500 shrink-0",
@@ -140,7 +141,7 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
           )}
         >
           {isLoadingAudio ? (
-            <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" />
+            <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin text-white" />
           ) : isPlaying ? (
             <Pause className="w-4 h-4 md:w-5 md:h-5 fill-current" />
           ) : (
