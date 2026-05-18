@@ -30,7 +30,7 @@ const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-3xl w-[95vw] max-h-[85vh] bg-slate-950 border-white/10 text-white rounded-[2.5rem] p-0 overflow-hidden flex flex-col shadow-2xl">
+      <DialogContent className="max-w-3xl w-[95vw] max-h-[85vh] bg-slate-950 border-white/10 text-white rounded-[2rem] p-0 overflow-hidden flex flex-col shadow-2xl">
         <div className="p-8 bg-indigo-600 shrink-0 relative">
           <button 
             onClick={onClose}
@@ -52,17 +52,17 @@ const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
           </DialogHeader>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mt-8">
-            <TabsList className="grid w-full grid-cols-4 h-12 bg-black/20 p-1.5 rounded-2xl">
-              <TabsTrigger value="search" className="text-[10px] font-black uppercase tracking-widest gap-2 rounded-xl data-[state=active]:bg-white data-[state=active]:text-indigo-600">
+            <TabsList className="grid w-full grid-cols-4 h-12 bg-black/20 p-1.5 rounded-2xl border border-white/5">
+              <TabsTrigger value="search" className="text-[10px] font-black uppercase tracking-widest gap-2 rounded-xl data-[state=active]:bg-white data-[state=active]:text-indigo-600 transition-all">
                 <Search className="w-3.5 h-3.5" /> iTunes
               </TabsTrigger>
-              <TabsTrigger value="community" className="text-[10px] font-black uppercase tracking-widest gap-2 rounded-xl data-[state=active]:bg-white data-[state=active]:text-indigo-600">
+              <TabsTrigger value="community" className="text-[10px] font-black uppercase tracking-widest gap-2 rounded-xl data-[state=active]:bg-white data-[state=active]:text-indigo-600 transition-all">
                 <Globe className="w-3.5 h-3.5" /> Community
               </TabsTrigger>
-              <TabsTrigger value="suggestions" className="text-[10px] font-black uppercase tracking-widest gap-2 rounded-xl data-[state=active]:bg-white data-[state=active]:text-indigo-600">
+              <TabsTrigger value="suggestions" className="text-[10px] font-black uppercase tracking-widest gap-2 rounded-xl data-[state=active]:bg-white data-[state=active]:text-indigo-600 transition-all">
                 <Sparkles className="w-3.5 h-3.5" /> Discover
               </TabsTrigger>
-              <TabsTrigger value="repertoire" className="text-[10px] font-black uppercase tracking-widest gap-2 rounded-xl data-[state=active]:bg-white data-[state=active]:text-indigo-600">
+              <TabsTrigger value="repertoire" className="text-[10px] font-black uppercase tracking-widest gap-2 rounded-xl data-[state=active]:bg-white data-[state=active]:text-indigo-600 transition-all">
                 <Library className="w-3.5 h-3.5" /> Library
               </TabsTrigger>
             </TabsList>

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { 
   CheckCircle2, CircleDashed, CloudDownload, AlertTriangle, 
   ShieldCheck, Clock, ArrowRight, Check, ChevronDown, 
-  ChevronUp, Edit3, MoreVertical, ListMusic, Settings2, Trash2, LayoutList
+  ChevronUp, Edit3, MoreVertical, ListMusic, Settings2, Trash2, LayoutList, Library
 } from 'lucide-react';
 
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, formatKey, transposeKey, calculateSemitones } from '@/utils/keyUtils';
@@ -474,53 +474,67 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {sortedSetGroups.map(groupNum => (
-                  <React.Fragment key={groupNum}>
-                    {hasMultipleSets && (
-                      <tr className="bg-slate-900/60 border-y border-white/10">
-                        <td colSpan={8} className="py-4 px-10">
-                          <div className="flex items-center gap-4">
-                            <Badge className={cn(
-                              "h-8 px-5 rounded-full font-black uppercase tracking-widest text-[10px] gap-2.5",
-                              groupNum === 99 ? "bg-slate-800 text-slate-400 border-slate-700" : "bg-indigo-600 text-white"
-                            )}>
-                              {groupNum === 99 && <AlertTriangle className="w-3.5 h-3.5" />}
-                              {getSetLabel(groupNum)}
-                            </Badge>
-                            <div className="h-px flex-1 bg-white/10" />
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                    {groupedBySet[groupNum].map((song, idx) => (
-                      <SetlistRow
-                        key={song.id}
-                        song={song}
-                        isSelected={currentSongId === song.id}
-                        readinessScore={calculateReadiness(song)}
-                        isFullyReady={calculateReadiness(song) === 100}
-                        currentPref={globalPreference}
-                        idx={idx}
-                        onTogglePlayed={onTogglePlayed}
-                        onEdit={onEdit}
-                        onSelect={onSelect}
-                        onUpdateSong={onUpdateSong}
-                        onUpdateKey={onUpdateKey}
-                        onRemove={onRemove}
-                        allSetlists={allSetlists}
-                        onUpdateSetlistSongs={onUpdateSetlistSongs}
-                        isReorderingEnabled={sortMode === 'manual' && !searchTerm}
-                        handleMove={handleMove}
-                        handleMoveToTop={handleMoveToTop}
-                        handleMoveToBottom={handleMoveToBottom}
-                        setDeleteConfirmId={setDeleteConfirmId}
-                        getHeatmapClass={getHeatmapClass}
-                        getEnergyBarClass={getEnergyBarClass}
-                        getReadinessBreakdown={getReadinessBreakdown}
-                      />
-                    ))}
-                  </React.Fragment>
-                ))}
+                {processedSongs.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="py-40 text-center">
+                      <div className="flex flex-col items-center justify-center space-y-6 opacity-30">
+                        <Library className="w-20 h-20 text-indigo-500" />
+                        <div>
+                          <p className="text-2xl font-black uppercase tracking-tight">Setlist Empty</p>
+                          <p className="text-sm font-bold uppercase tracking-widest mt-2">Add tracks from your library to begin</p>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  sortedSetGroups.map(groupNum => (
+                    <React.Fragment key={groupNum}>
+                      {hasMultipleSets && (
+                        <tr className="bg-slate-900/60 border-y border-white/10">
+                          <td colSpan={8} className="py-4 px-10">
+                            <div className="flex items-center gap-4">
+                              <Badge className={cn(
+                                "h-8 px-5 rounded-full font-black uppercase tracking-widest text-[10px] gap-2.5",
+                                groupNum === 99 ? "bg-slate-800 text-slate-400 border-slate-700" : "bg-indigo-600 text-white"
+                              )}>
+                                {groupNum === 99 && <AlertTriangle className="w-3.5 h-3.5" />}
+                                {getSetLabel(groupNum)}
+                              </Badge>
+                              <div className="h-px flex-1 bg-white/10" />
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      {groupedBySet[groupNum].map((song, idx) => (
+                        <SetlistRow
+                          key={song.id}
+                          song={song}
+                          isSelected={currentSongId === song.id}
+                          readinessScore={calculateReadiness(song)}
+                          isFullyReady={calculateReadiness(song) === 100}
+                          currentPref={globalPreference}
+                          idx={idx}
+                          onTogglePlayed={onTogglePlayed}
+                          onEdit={onEdit}
+                          onSelect={onSelect}
+                          onUpdateSong={onUpdateSong}
+                          onUpdateKey={onUpdateKey}
+                          onRemove={onRemove}
+                          allSetlists={allSetlists}
+                          onUpdateSetlistSongs={onUpdateSetlistSongs}
+                          isReorderingEnabled={sortMode === 'manual' && !searchTerm}
+                          handleMove={handleMove}
+                          handleMoveToTop={handleMoveToTop}
+                          handleMoveToBottom={handleMoveToBottom}
+                          setDeleteConfirmId={setDeleteConfirmId}
+                          getHeatmapClass={getHeatmapClass}
+                          getEnergyBarClass={getEnergyBarClass}
+                          getReadinessBreakdown={getReadinessBreakdown}
+                        />
+                      ))}
+                    </React.Fragment>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

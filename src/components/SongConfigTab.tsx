@@ -86,10 +86,6 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
     setTargetKey(val);
   }, [setTargetKey]);
 
-  const handleTogglePitchLinked = useCallback(() => {
-    setIsPitchLinked(!isPitchLinked);
-  }, [isPitchLinked, setIsPitchLinked]);
-
   const formatTime = (seconds: number) => {
     if (!seconds || isNaN(seconds)) return "0:00";
     const mins = Math.floor(seconds / 60);
@@ -98,7 +94,6 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
   };
 
   const isProcessing = formData.extraction_status === 'processing' || formData.extraction_status === 'queued';
-  const isExtractionFailed = formData.extraction_status === 'failed';
   const audioSourceUrl = formData.extraction_status === 'completed' && formData.audio_url ? formData.audio_url : formData.previewUrl;
   const isStageKeyDisabled = preventStageKeyOverwrite && formData.isKeyConfirmed;
 
@@ -151,7 +146,7 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
                 <div className="p-1.5 md:p-2 bg-indigo-600/20 rounded-lg md:rounded-xl">
                   <Gauge className="w-4 h-4 md:w-5 md:h-5 text-indigo-400" />
                 </div>
-                <Label className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-indigo-400">
+                <Label className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400">
                   Audio Control
                 </Label>
               </div>
@@ -216,7 +211,7 @@ const SongConfigTab: React.FC<SongConfigTabProps> = ({
                 <div className="p-1.5 md:p-2 bg-emerald-600/20 rounded-lg md:rounded-xl">
                   <Zap className="w-4 h-4 md:w-5 md:h-5 text-emerald-400" />
                 </div>
-                <Label className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-emerald-400">
+                <Label className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] text-emerald-400">
                   Harmonic Engine
                 </Label>
               </div>
