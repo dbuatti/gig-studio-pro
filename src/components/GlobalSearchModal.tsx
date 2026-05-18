@@ -9,6 +9,7 @@ import GlobalLibrary from './GlobalLibrary';
 import SongSuggestions from './SongSuggestions';
 import MyLibrary from './MyLibrary';
 import { SetlistSong } from './SetlistManager';
+import { cn } from '@/lib/utils';
 
 interface GlobalSearchModalProps {
   isOpen: boolean;
@@ -29,7 +30,7 @@ const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-3xl w-[95vw] max-h-[85vh] bg-popover border-border text-foreground rounded-[2rem] p-0 overflow-hidden flex flex-col shadow-2xl">
+      <DialogContent className="max-w-3xl w-[95vw] max-h-[85vh] bg-slate-950 border-white/10 text-white rounded-[2.5rem] p-0 overflow-hidden flex flex-col shadow-2xl">
         <div className="p-8 bg-indigo-600 shrink-0 relative">
           <button 
             onClick={onClose}
@@ -50,26 +51,26 @@ const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
             </DialogDescription>
           </DialogHeader>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mt-6">
-            <TabsList className="grid w-full grid-cols-4 h-10 bg-white/10 p-1 rounded-xl">
-              <TabsTrigger value="search" className="text-[10px] font-black uppercase tracking-tight gap-1.5 rounded-lg">
-                <Search className="w-3 h-3" /> iTunes
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mt-8">
+            <TabsList className="grid w-full grid-cols-4 h-12 bg-black/20 p-1.5 rounded-2xl">
+              <TabsTrigger value="search" className="text-[10px] font-black uppercase tracking-widest gap-2 rounded-xl data-[state=active]:bg-white data-[state=active]:text-indigo-600">
+                <Search className="w-3.5 h-3.5" /> iTunes
               </TabsTrigger>
-              <TabsTrigger value="community" className="text-[10px] font-black uppercase tracking-tight gap-1.5 rounded-lg">
-                <Globe className="w-3 h-3" /> Community
+              <TabsTrigger value="community" className="text-[10px] font-black uppercase tracking-widest gap-2 rounded-xl data-[state=active]:bg-white data-[state=active]:text-indigo-600">
+                <Globe className="w-3.5 h-3.5" /> Community
               </TabsTrigger>
-              <TabsTrigger value="suggestions" className="text-[10px] font-black uppercase tracking-tight gap-1.5 rounded-lg">
-                <Sparkles className="w-3 h-3" /> Discover
+              <TabsTrigger value="suggestions" className="text-[10px] font-black uppercase tracking-widest gap-2 rounded-xl data-[state=active]:bg-white data-[state=active]:text-indigo-600">
+                <Sparkles className="w-3.5 h-3.5" /> Discover
               </TabsTrigger>
-              <TabsTrigger value="repertoire" className="text-[10px] font-black uppercase tracking-tight gap-1.5 rounded-lg">
-                <Library className="w-3 h-3" /> Library
+              <TabsTrigger value="repertoire" className="text-[10px] font-black uppercase tracking-widest gap-2 rounded-xl data-[state=active]:bg-white data-[state=active]:text-indigo-600">
+                <Library className="w-3.5 h-3.5" /> Library
               </TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
 
-        <div className="flex-1 overflow-hidden bg-secondary">
-          <div className="h-full overflow-y-auto p-6 custom-scrollbar">
+        <div className="flex-1 overflow-hidden bg-slate-950">
+          <div className="h-full overflow-y-auto p-8 custom-scrollbar">
             <Tabs value={activeTab} className="w-full">
               <TabsContent value="search" className="mt-0 outline-none">
                 <SongSearch 
@@ -95,8 +96,6 @@ const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                   repertoire={repertoire} 
                   onSelectSuggestion={(query) => {
                     setActiveTab("search");
-                    // The query is passed down to SongSearch automatically via state in a real app, 
-                    // but here we rely on the user seeing the result they clicked.
                   }}
                   onAddExistingSong={(song) => {
                     if (onAddExistingSong) onAddExistingSong(song);
@@ -118,12 +117,12 @@ const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
           </div>
         </div>
         
-        <div className="p-6 border-t border-border bg-card flex items-center justify-between shrink-0">
+        <div className="p-6 border-t border-white/5 bg-slate-900 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
-            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Global Discovery Matrix Active</span>
+            <Sparkles className="w-3.5 h-3.5 text-indigo-500 fill-indigo-500" />
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Global Discovery Matrix Active</span>
           </div>
-          <p className="text-[9px] font-mono text-muted-foreground uppercase">Sync Engine v4.5</p>
+          <p className="text-[9px] font-mono text-slate-700 uppercase">Sync Engine v4.5</p>
         </div>
       </DialogContent>
     </Dialog>

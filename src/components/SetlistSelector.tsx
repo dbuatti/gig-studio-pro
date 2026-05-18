@@ -3,8 +3,9 @@
 import React from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Plus, ListMusic, MoreVertical, Trash2, Copy, Sparkles, Layers } from 'lucide-react';
+import { Plus, ListMusic, MoreVertical, Trash2, Copy, Sparkles, Layers, ChevronDown } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { cn } from '@/lib/utils';
 
 interface SetlistSelectorProps {
   setlists: { id: string; name: string; stimulus_text?: string }[];
@@ -31,72 +32,74 @@ const SetlistSelector: React.FC<SetlistSelectorProps> = ({
   const hasStimulus = !!currentSetlist?.stimulus_text;
 
   return (
-    <div className="flex items-center gap-2 bg-card p-1.5 rounded-lg border border-border shadow-sm">
-      <div className="flex items-center gap-2 pl-2 border-r border-border pr-3">
-        <ListMusic className="w-4 h-4 text-indigo-600" />
-        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest hidden sm:inline">Active Gig</span>
+    <div className="flex items-center gap-3 bg-slate-900/50 p-2 rounded-2xl border border-white/5 shadow-2xl backdrop-blur-xl">
+      <div className="flex items-center gap-3 pl-3 border-r border-white/10 pr-4">
+        <div className="bg-indigo-600 p-1.5 rounded-lg shadow-lg shadow-indigo-600/20">
+          <ListMusic className="w-4 h-4 text-white" />
+        </div>
+        <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] hidden sm:inline">Active Gig</span>
       </div>
       
       <Select value={currentId} onValueChange={onSelect}>
-        <SelectTrigger className="h-8 min-w-[140px] sm:min-w-[180px] border-none shadow-none focus:ring-0 text-sm font-bold bg-transparent text-foreground">
+        <SelectTrigger className="h-10 min-w-[160px] sm:min-w-[220px] border-none shadow-none focus:ring-0 text-sm font-black uppercase tracking-tight bg-transparent text-white hover:text-indigo-400 transition-colors">
           <SelectValue placeholder="Select Setlist" />
         </SelectTrigger>
-        <SelectContent className="bg-popover text-foreground border-border">
+        <SelectContent className="bg-slate-950 text-white border-white/10 rounded-2xl shadow-2xl">
           {setlists.map(list => (
-            <SelectItem key={list.id} value={list.id} className="text-sm font-medium">
+            <SelectItem key={list.id} value={list.id} className="text-xs font-bold uppercase h-11 rounded-xl focus:bg-indigo-600 focus:text-white">
               {list.name}
             </SelectItem>
           ))}
         </SelectContent>
       </Select>
 
-      <div className="flex items-center gap-1 border-l border-border pl-2">
+      <div className="flex items-center gap-2 border-l border-white/10 pl-3">
         <Button
           variant="ghost"
           size="sm"
-          className="h-8 px-3 rounded-md text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 font-black uppercase tracking-widest text-[9px] gap-2"
+          className="h-10 px-4 rounded-xl text-indigo-400 hover:bg-indigo-600/10 font-black uppercase tracking-widest text-[9px] gap-2.5 transition-all"
           onClick={onOpenGigPlanner}
         >
-          <Sparkles className="w-3.5 h-3.5" />
+          <Sparkles className="w-4 h-4" />
           <span className="hidden lg:inline">Gig Planner</span>
         </Button>
 
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 rounded-md text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
+          className="h-10 w-10 rounded-xl text-indigo-400 hover:bg-indigo-600/10 transition-all"
           onClick={onCreate}
           title="Create New Setlist"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-5 h-5" />
         </Button>
         
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-md text-muted-foreground">
-              <MoreVertical className="w-4 h-4" />
+            <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl text-slate-500 hover:bg-white/5 transition-all">
+              <MoreVertical className="w-5 h-5" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="bg-popover text-foreground border-border">
+          <DropdownMenuContent align="end" className="bg-slate-950 text-white border-white/10 rounded-2xl shadow-2xl p-2">
             {hasStimulus && (
               <>
                 <DropdownMenuItem 
-                  className="cursor-pointer text-indigo-600 font-bold" 
+                  className="cursor-pointer text-indigo-400 font-bold uppercase text-[10px] h-11 rounded-xl" 
                   onClick={() => onOpenVariation?.()}
                 >
-                  <Layers className="w-4 h-4 mr-2" /> Create Variation
+                  <Layers className="w-4 h-4 mr-3" /> Create Variation
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
+                <DropdownMenuSeparator className="bg-white/5" />
               </>
             )}
             <DropdownMenuItem 
-              className="cursor-pointer" 
+              className="cursor-pointer font-bold uppercase text-[10px] h-11 rounded-xl" 
               onClick={() => onDuplicate?.(currentId)}
             >
-              <Copy className="w-4 h-4 mr-2" /> Duplicate Setlist
+              <Copy className="w-4 h-4 mr-3" /> Duplicate Setlist
             </DropdownMenuItem>
-            <DropdownMenuItem className="text-destructive focus:text-destructive cursor-pointer" onClick={() => onDelete(currentId)}>
-              <Trash2 className="w-4 h-4 mr-2" /> Delete Setlist
+            <DropdownMenuItem className="text-red-400 focus:text-red-300 focus:bg-red-400/10 cursor-pointer font-bold uppercase text-[10px] h-11 rounded-xl" onClick={() => onDelete(currentId)}>
+              <Trash2 className="w-4 h-4 mr-3" /> Delete Setlist
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

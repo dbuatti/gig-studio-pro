@@ -90,41 +90,41 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
 
   return (
     <TooltipProvider>
-      <div className="space-y-6 animate-in fade-in slide-in-from-top-2 duration-500 bg-secondary p-4 rounded-2xl border border-border">
-        <div className="flex flex-wrap items-center gap-3">
+      <div className="space-y-6 animate-in fade-in slide-in-from-top-2 duration-500 bg-slate-900/50 p-6 rounded-[2rem] border border-white/5 shadow-2xl backdrop-blur-xl">
+        <div className="flex flex-wrap items-center gap-4">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9 px-4 rounded-xl border-border bg-card text-indigo-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-sm">
-                <Star className="w-3.5 h-3.5 fill-indigo-600" /> <span className="hidden sm:inline">Views</span> <ChevronDown className="w-3 h-3 opacity-50" />
+              <Button variant="outline" size="sm" className="h-10 px-5 rounded-xl border-white/10 bg-slate-950 text-indigo-400 font-black uppercase text-[10px] tracking-widest gap-2.5 shadow-lg transition-all hover:bg-indigo-600 hover:text-white">
+                <Star className="w-4 h-4 fill-current" /> <span className="hidden sm:inline">Saved Views</span> <ChevronDown className="w-3.5 h-3.5 opacity-50" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-56 p-2 rounded-2xl bg-popover border-border text-foreground">
-              <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-muted-foreground px-3 py-2">Quick Toggles</DropdownMenuLabel>
+            <DropdownMenuContent align="start" className="w-60 p-2 rounded-2xl bg-slate-950 border-white/10 text-white shadow-2xl">
+              <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-slate-500 px-3 py-2">Quick Toggles</DropdownMenuLabel>
               {presets.map(p => (
                 <DropdownMenuItem 
                   key={p.id} 
                   onClick={() => onFilterChange(p.filters)}
-                  className="flex items-center justify-between rounded-xl h-10 px-3 cursor-pointer hover:bg-accent dark:hover:bg-secondary"
+                  className="flex items-center justify-between rounded-xl h-11 px-3 cursor-pointer hover:bg-white/5 group"
                 >
                   <span className="text-xs font-bold uppercase">{p.name}</span>
-                  <button onClick={(e) => deletePreset(p.id, e)} className="p-1 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Trash2 className="w-3.5 h-3.5" />
+                  <button onClick={(e) => deletePreset(p.id, e)} className="p-1.5 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </DropdownMenuItem>
               ))}
-              <DropdownMenuSeparator className="bg-border" />
-              <DropdownMenuItem onClick={savePreset} className="text-indigo-400 font-black uppercase text-[9px] tracking-widest h-10 px-3 cursor-pointer hover:bg-accent dark:hover:bg-secondary gap-2">
-                <Save className="w-3.5 h-3.5" /> Save Current View
+              <DropdownMenuSeparator className="bg-white/5" />
+              <DropdownMenuItem onClick={savePreset} className="text-indigo-400 font-black uppercase text-[9px] tracking-widest h-11 px-3 cursor-pointer hover:bg-indigo-600/10 gap-2.5">
+                <Save className="w-4 h-4" /> Save Current View
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <div className="h-6 w-px bg-border mx-1 hidden md:block" />
+          <div className="h-8 w-px bg-white/10 mx-1 hidden md:block" />
 
-          <div className="flex items-center gap-4 bg-card px-4 py-1.5 rounded-xl border border-border flex-1 min-w-[300px]">
-            <div className="flex items-center gap-2 shrink-0">
-               <AlertCircle className="w-3.5 h-3.5 text-orange-500" />
-               <span className="text-[10px] font-black uppercase text-muted-foreground whitespace-nowrap">Readiness: <span className="text-indigo-600 font-mono">≥{activeFilters.readiness}%</span></span>
+          <div className="flex items-center gap-6 bg-slate-950 px-6 py-2 rounded-xl border border-white/10 flex-1 min-w-[300px] shadow-inner">
+            <div className="flex items-center gap-2.5 shrink-0">
+               <AlertCircle className="w-4 h-4 text-orange-500" />
+               <span className="text-[10px] font-black uppercase text-slate-500 whitespace-nowrap">Readiness: <span className="text-indigo-400 font-mono">≥{activeFilters.readiness}%</span></span>
             </div>
             <Slider 
               value={[activeFilters.readiness]} 
@@ -135,431 +135,76 @@ const SetlistFilters: React.FC<SetlistFiltersProps> = ({ onFilterChange, activeF
             />
           </div>
 
-          <div className="h-6 w-px bg-border mx-1 hidden lg:block" />
+          <div className="h-8 w-px bg-white/10 mx-1 hidden lg:block" />
 
-          <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className={cn(
-                      "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.isConfirmed !== 'all' ? "bg-emerald-600 text-white shadow-lg" : "bg-card border-border text-muted-foreground"
-                    )}
-                  >
-                    <ShieldCheck className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent className="text-[10px] font-black uppercase">Key Verified</TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-popover border-border text-foreground">
-              <DropdownMenuRadioGroup value={activeFilters.isConfirmed} onValueChange={(v) => onFilterChange({ ...activeFilters, isConfirmed: v as any })}>
-                <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Status</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Verified Only</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-10 rounded-xl text-destructive">Unverified Only</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className={cn(
-                      "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.isApproved !== 'all' ? "bg-indigo-600 text-white shadow-lg" : "bg-card border-border text-muted-foreground"
-                    )}
-                  >
-                    <Check className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent className="text-[10px] font-black uppercase">Performance Approved</TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-popover border-border text-foreground">
-              <DropdownMenuRadioGroup value={activeFilters.isApproved} onValueChange={(v) => onFilterChange({ ...activeFilters, isApproved: v as any })}>
-                <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Approved Only</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-10 rounded-xl text-destructive">Unapproved Only</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className={cn(
-                      "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.hasAudio !== 'all' ? "bg-indigo-600 text-white shadow-lg" : "bg-card border-border text-muted-foreground"
-                    )}
-                  >
-                    <Music className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent className="text-[10px] font-black uppercase">Audio Status</TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-popover border-border text-foreground">
-              <DropdownMenuRadioGroup value={activeFilters.hasAudio} onValueChange={(v) => onFilterChange({ ...activeFilters, hasAudio: v as any })}>
-                <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="full" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Master Audio Only</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="itunes" className="text-xs font-bold uppercase h-10 rounded-xl text-indigo-400">iTunes Previews</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="none" className="text-xs font-bold uppercase h-10 rounded-xl text-destructive">Missing Audio</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className={cn(
-                      "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.hasVideo !== 'all' ? "bg-destructive text-white shadow-lg" : "bg-card border-border text-muted-foreground"
-                    )}
-                  >
-                    <Youtube className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent className="text-[10px] font-black uppercase">Video Link</TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-popover border-border text-foreground">
-              <DropdownMenuRadioGroup value={activeFilters.hasVideo} onValueChange={(v) => onFilterChange({ ...activeFilters, hasVideo: v as any })}>
-                <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Has Video</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-10 rounded-xl text-destructive">Missing Video</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className={cn(
-                      "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.hasPdf !== 'all' ? "bg-emerald-600 text-white shadow-lg" : "bg-card border-border text-muted-foreground"
-                    )}
-                  >
-                    <FileText className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent className="text-[10px] font-black uppercase">Sheet Music</TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-popover border-border text-foreground">
-              <DropdownMenuRadioGroup value={activeFilters.hasPdf} onValueChange={(v) => onFilterChange({ ...activeFilters, hasPdf: v as any })}>
-                <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Has PDF</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-10 rounded-xl text-destructive">Missing PDF</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className={cn(
-                      "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.hasUg !== 'all' ? "bg-orange-600 text-white shadow-lg" : "bg-card border-border text-muted-foreground"
-                    )}
-                  >
-                    <FileSearch className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent className="text-[10px] font-black uppercase">Ultimate Guitar</TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-popover border-border text-foreground">
-              <DropdownMenuRadioGroup value={activeFilters.hasUg} onValueChange={(v) => onFilterChange({ ...activeFilters, hasUg: v as any })}>
-                <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Has UG Link</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-10 rounded-xl text-destructive">Missing UG Link</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className={cn(
-                      "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.hasUgChords !== 'all' ? "bg-purple-600 text-white shadow-lg" : "bg-card border-border text-muted-foreground"
-                    )}
-                  >
-                    <Guitar className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent className="text-[10px] font-black uppercase">UG Chords Text</TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-popover border-border text-foreground">
-              <DropdownMenuRadioGroup value={activeFilters.hasUgChords} onValueChange={(v) => onFilterChange({ ...activeFilters, hasUgChords: v as any })}>
-                <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Has Chords Text</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-10 rounded-xl text-destructive">Missing Chords Text</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className={cn(
-                      "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.hasLyrics !== 'all' ? "bg-pink-600 text-white shadow-lg" : "bg-card border-border text-muted-foreground"
-                    )}
-                  >
-                    <Type className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent className="text-[10px] font-black uppercase">Lyrics</TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-popover border-border text-foreground">
-              <DropdownMenuRadioGroup value={activeFilters.hasLyrics} onValueChange={(v) => onFilterChange({ ...activeFilters, hasLyrics: v as any })}>
-                <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Has Lyrics</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-10 rounded-xl text-destructive">Missing Lyrics</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className={cn(
-                      "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.hasHighestNote !== 'all' ? "bg-blue-600 text-white shadow-lg" : "bg-card border-border text-muted-foreground"
-                    )}
-                  >
-                    <Music2 className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent className="text-[10px] font-black uppercase">Highest Note</TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-popover border-border text-foreground">
-              <DropdownMenuRadioGroup value={activeFilters.hasHighestNote} onValueChange={(v) => onFilterChange({ ...activeFilters, hasHighestNote: v as any })}>
-                <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Has Highest Note</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-10 rounded-xl text-destructive">Missing Highest Note</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className={cn(
-                      "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.hasOriginalKey !== 'all' ? "bg-amber-600 text-white shadow-lg" : "bg-card border-border text-muted-foreground"
-                    )}
-                  >
-                    <Hash className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent className="text-[10px] font-black uppercase">Original Key</TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-popover border-border text-foreground">
-              <DropdownMenuRadioGroup value={activeFilters.hasOriginalKey} onValueChange={(v) => onFilterChange({ ...activeFilters, hasOriginalKey: v as any })}>
-                <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">Has Original Key</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-10 rounded-xl text-destructive">Missing Original Key</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className={cn(
-                      "h-9 w-9 rounded-xl border transition-all",
-                      activeFilters.inSetlist !== 'all' ? "bg-indigo-600 text-white shadow-lg" : "bg-card border-border text-muted-foreground"
-                    )}
-                  >
-                    <ListMusic className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent className="text-[10px] font-black uppercase">In Active Setlist</TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent className="w-48 p-2 rounded-2xl bg-popover border-border text-foreground">
-              <DropdownMenuRadioGroup value={activeFilters.inSetlist} onValueChange={(v) => onFilterChange({ ...activeFilters, inSetlist: v as any })}>
-                <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-10 rounded-xl">All Songs</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-10 rounded-xl text-emerald-400">In Setlist</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-10 rounded-xl text-destructive">Not in Setlist</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex items-center gap-2">
+            {[
+              { id: 'isConfirmed', icon: ShieldCheck, label: 'Key Verified', color: 'bg-emerald-600' },
+              { id: 'isApproved', icon: Check, label: 'Approved', color: 'bg-indigo-600' },
+              { id: 'hasAudio', icon: Music, label: 'Audio Status', color: 'bg-indigo-600' },
+              { id: 'hasVideo', icon: Youtube, label: 'Video Link', color: 'bg-red-600' },
+              { id: 'hasPdf', icon: FileText, label: 'Sheet Music', color: 'bg-emerald-600' },
+              { id: 'hasUg', icon: FileSearch, label: 'Ultimate Guitar', color: 'bg-orange-600' },
+            ].map((filter) => (
+              <DropdownMenu key={filter.id}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DropdownMenuTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className={cn(
+                          "h-10 w-10 rounded-xl border transition-all",
+                          activeFilters[filter.id as keyof FilterState] !== 'all' ? `${filter.color} text-white shadow-lg` : "bg-slate-950 border-white/10 text-slate-500 hover:text-white"
+                        )}
+                      >
+                        <filter.icon className="w-4.5 h-4.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent className="text-[10px] font-black uppercase">{filter.label}</TooltipContent>
+                </Tooltip>
+                <DropdownMenuContent className="w-52 p-2 rounded-2xl bg-slate-950 border-white/10 text-white shadow-2xl">
+                  <DropdownMenuRadioGroup value={activeFilters[filter.id as keyof FilterState] as string} onValueChange={(v) => onFilterChange({ ...activeFilters, [filter.id]: v as any })}>
+                    <DropdownMenuRadioItem value="all" className="text-xs font-bold uppercase h-11 rounded-xl">All Songs</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="yes" className="text-xs font-bold uppercase h-11 rounded-xl text-emerald-400">Yes / Verified</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="no" className="text-xs font-bold uppercase h-11 rounded-xl text-red-400">No / Missing</DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ))}
+          </div>
 
           {!isDefault && (
             <Button 
               variant="ghost" 
               size="sm" 
               onClick={() => onFilterChange(DEFAULT_FILTERS)}
-              className="h-8 px-3 rounded-xl text-[9px] font-black uppercase tracking-widest text-destructive hover:bg-destructive/10 gap-2"
+              className="h-10 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest text-red-400 hover:bg-red-400/10 gap-2.5 transition-all"
             >
-              <X className="w-3 h-3" /> Clear
+              <X className="w-4 h-4" /> Reset Matrix
             </Button>
           )}
         </div>
 
         {!isDefault && (
-          <div className="flex flex-wrap gap-2 px-1">
-            <span className="text-[9px] font-black uppercase text-muted-foreground flex items-center gap-2 mr-2">
-              <ListFilter className="w-3 h-3" /> Active Criteria:
+          <div className="flex flex-wrap gap-2.5 px-1 pt-4 border-t border-white/5">
+            <span className="text-[9px] font-black uppercase text-slate-600 flex items-center gap-2 mr-2">
+              <ListFilter className="w-3.5 h-3.5" /> Active Criteria:
             </span>
-            {activeFilters.readiness > 0 && (
-              <Badge 
-                variant="secondary" 
-                className="bg-orange-50 text-orange-600 border-orange-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
-                onClick={() => onFilterChange({ ...activeFilters, readiness: 0 })}
-              >
-                Readiness: ≥{activeFilters.readiness}% <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
-              </Badge>
-            )}
-            {activeFilters.isConfirmed !== 'all' && (
-              <Badge 
-                variant="secondary" 
-                className="bg-emerald-50 text-emerald-600 border-emerald-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
-                onClick={() => onFilterChange({ ...activeFilters, isConfirmed: 'all' })}
-              >
-                Key Verified: {activeFilters.isConfirmed} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
-              </Badge>
-            )}
-            {activeFilters.isApproved !== 'all' && (
-              <Badge 
-                variant="secondary" 
-                className="bg-indigo-50 text-indigo-600 border-indigo-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
-                onClick={() => onFilterChange({ ...activeFilters, isApproved: 'all' })}
-              >
-                Approved: {activeFilters.isApproved} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
-              </Badge>
-            )}
-            {activeFilters.hasAudio !== 'all' && (
-              <Badge 
-                variant="secondary" 
-                className="bg-indigo-50 text-indigo-600 border-indigo-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
-                onClick={() => onFilterChange({ ...activeFilters, hasAudio: 'all' })}
-              >
-                Audio: {activeFilters.hasAudio} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
-              </Badge>
-            )}
-            {activeFilters.hasVideo !== 'all' && (
-              <Badge 
-                variant="secondary" 
-                className="bg-red-50 text-red-600 border-red-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
-                onClick={() => onFilterChange({ ...activeFilters, hasVideo: 'all' })}
-              >
-                Video: {activeFilters.hasVideo} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
-              </Badge>
-            )}
-            {activeFilters.hasPdf !== 'all' && (
-              <Badge 
-                variant="secondary" 
-                className="bg-emerald-50 text-emerald-600 border-emerald-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
-                onClick={() => onFilterChange({ ...activeFilters, hasPdf: 'all' })}
-              >
-                PDF: {activeFilters.hasPdf} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
-              </Badge>
-            )}
-            {activeFilters.hasUg !== 'all' && (
-              <Badge 
-                variant="secondary" 
-                className="bg-orange-50 text-orange-600 border-orange-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
-                onClick={() => onFilterChange({ ...activeFilters, hasUg: 'all' })}
-              >
-                UG: {activeFilters.hasUg} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
-              </Badge>
-            )}
-            {activeFilters.hasUgChords !== 'all' && (
-              <Badge 
-                variant="secondary" 
-                className="bg-purple-50 text-purple-600 border-purple-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
-                onClick={() => onFilterChange({ ...activeFilters, hasUgChords: 'all' })}
-              >
-                UG Chords: {activeFilters.hasUgChords} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
-              </Badge>
-            )}
-            {activeFilters.hasLyrics !== 'all' && (
-              <Badge 
-                variant="secondary" 
-                className="bg-pink-50 text-pink-600 border-pink-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
-                onClick={() => onFilterChange({ ...activeFilters, hasLyrics: 'all' })}
-              >
-                Lyrics: {activeFilters.hasLyrics} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
-              </Badge>
-            )}
-            {activeFilters.hasHighestNote !== 'all' && (
-              <Badge 
-                variant="secondary" 
-                className="bg-blue-50 text-blue-600 border-blue-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
-                onClick={() => onFilterChange({ ...activeFilters, hasHighestNote: 'all' })}
-              >
-                Highest Note: {activeFilters.hasHighestNote} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
-              </Badge>
-            )}
-            {activeFilters.hasOriginalKey !== 'all' && (
-              <Badge
-                variant="secondary"
-                className="bg-amber-50 text-amber-600 border-amber-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
-                onClick={() => onFilterChange({ ...activeFilters, hasOriginalKey: 'all' })}
-              >
-                Original Key: {activeFilters.hasOriginalKey} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
-              </Badge>
-            )}
-            {activeFilters.inSetlist !== 'all' && (
-              <Badge
-                variant="secondary"
-                className="bg-indigo-50 text-indigo-600 border-indigo-100 text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-all group"
-                onClick={() => onFilterChange({ ...activeFilters, inSetlist: 'all' })}
-              >
-                In Setlist: {activeFilters.inSetlist} <X className="w-2 h-2 ml-1.5 opacity-40 group-hover:opacity-100" />
-              </Badge>
-            )}
+            {Object.entries(activeFilters).map(([key, val]) => {
+              if (val === 'all' || (key === 'readiness' && val === 0)) return null;
+              return (
+                <Badge 
+                  key={key}
+                  variant="secondary" 
+                  className="bg-indigo-600/10 text-indigo-400 border-indigo-500/20 text-[9px] font-black uppercase px-3 py-1 rounded-lg cursor-pointer hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 transition-all group"
+                  onClick={() => onFilterChange({ ...activeFilters, [key]: key === 'readiness' ? 0 : 'all' })}
+                >
+                  {key.replace(/([A-Z])/g, ' $1')}: {val} <X className="w-2.5 h-2.5 ml-2 opacity-40 group-hover:opacity-100" />
+                </Badge>
+              );
+            })}
           </div>
         )}
       </div>
