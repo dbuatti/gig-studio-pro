@@ -92,19 +92,21 @@ const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({
                 variant="ghost"
                 size="icon"
                 onClick={onPrevious}
-                className="h-8 w-8 md:h-10 md:w-10 rounded-full hover:bg-white/10 text-slate-400"
+                className="h-8 w-8 md:h-10 md:w-10 rounded-full hover:bg-white/10 text-slate-400 transition-all active:scale-90"
                 title="Previous Song"
+                aria-label="Previous Song"
               >
                 <SkipBack className="w-4 h-4 md:w-5 md:h-5" />
               </Button>
 
-              <Button 
+              <Button
                 onClick={onTogglePlayback}
                 disabled={isLoadingAudio}
                 className={cn(
                   "h-12 w-12 md:h-16 md:w-16 rounded-xl md:rounded-2xl flex items-center justify-center shrink-0 shadow-lg transition-all active:scale-95",
                   isLoadingAudio ? "bg-slate-600 cursor-not-allowed" : isPlaying ? "bg-red-600 hover:bg-red-700 shadow-red-600/20" : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20"
                 )}
+                aria-label={isPlaying ? "Pause" : "Play"}
               >
                 {isLoadingAudio ? (
                   <Loader2 className="w-6 h-6 md:w-8 md:h-8 animate-spin text-white" />
@@ -119,8 +121,9 @@ const ActiveSongBanner: React.FC<ActiveSongBannerProps> = ({
                 variant="ghost"
                 size="icon"
                 onClick={onNext}
-                className="h-8 w-8 md:h-10 md:w-10 rounded-full hover:bg-white/10 text-slate-400"
+                className="h-8 w-8 md:h-10 md:w-10 rounded-full hover:bg-white/10 text-slate-400 transition-all active:scale-90"
                 title="Next Song"
+                aria-label="Next Song"
               >
                 <SkipForward className="w-4 h-4 md:w-5 md:h-5" />
               </Button>

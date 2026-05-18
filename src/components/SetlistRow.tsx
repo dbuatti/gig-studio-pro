@@ -68,6 +68,7 @@ const SetlistRow: React.FC<SetlistRowProps> = ({
         <button
           onClick={(e) => { e.stopPropagation(); onTogglePlayed(song.id); }}
           className="transition-transform active:scale-90 inline-flex items-center justify-center"
+          aria-label={song.isPlayed ? "Mark as unplayed" : "Mark as played"}
         >
           {song.isPlayed ? (
             <div className="h-7 w-7 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
@@ -80,6 +81,7 @@ const SetlistRow: React.FC<SetlistRowProps> = ({
           )}
         </button>
       </td>
+
       <td className="px-8 text-left">
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-4">
@@ -149,14 +151,29 @@ const SetlistRow: React.FC<SetlistRowProps> = ({
       </td>
       <td className="px-8 text-center">
         <div className="flex flex-col items-center justify-center gap-1 h-full">
-          <Button variant="ghost" size="icon" className={cn("h-8 w-8 transition-all flex items-center justify-center rounded-xl", isReorderingEnabled ? "text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10" : "text-slate-700 opacity-20 cursor-not-allowed")} onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'up'); }} disabled={!isReorderingEnabled}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn("h-8 w-8 transition-all flex items-center justify-center rounded-xl", isReorderingEnabled ? "text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10" : "text-slate-700 opacity-20 cursor-not-allowed")}
+            onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'up'); }}
+            disabled={!isReorderingEnabled}
+            aria-label="Move song up"
+          >
             <ChevronUp className="w-5 h-5" />
           </Button>
-          <Button variant="ghost" size="icon" className={cn("h-8 w-8 transition-all flex items-center justify-center rounded-xl", isReorderingEnabled ? "text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10" : "text-slate-700 opacity-20 cursor-not-allowed")} onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'down'); }} disabled={!isReorderingEnabled}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn("h-8 w-8 transition-all flex items-center justify-center rounded-xl", isReorderingEnabled ? "text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10" : "text-slate-700 opacity-20 cursor-not-allowed")}
+            onClick={(e) => { e.stopPropagation(); handleMove(song.id, 'down'); }}
+            disabled={!isReorderingEnabled}
+            aria-label="Move song down"
+          >
             <ChevronDown className="w-5 h-5" />
           </Button>
         </div>
       </td>
+
       <td className="px-8 text-center">
         <div className="flex items-center justify-center gap-6 h-full">
           <div className="text-center min-w-[40px]">

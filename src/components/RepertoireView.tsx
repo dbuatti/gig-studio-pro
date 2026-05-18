@@ -16,8 +16,9 @@ import { calculateReadiness } from '@/utils/repertoireSync';
 import SetlistMultiSelector from './SetlistMultiSelector';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { showSuccess } from '@/utils/toast';
-import SetlistFilters, { FilterState } from './SetlistFilters';
+import SetlistFilters, { FilterState, DEFAULT_FILTERS } from './SetlistFilters';
 import SetlistExporter from './SetlistExporter';
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import RepertoireSuggestions from './RepertoireSuggestions';
@@ -244,9 +245,22 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
       {isMobile ? (
         <div className="space-y-4">
           {filteredAndSortedRepertoire.length === 0 ? (
-            <div className="py-20 text-center opacity-30 bg-card rounded-[2rem] border-2 border-border">
-              <Library className="w-12 h-12 mx-auto mb-4" />
-              <p className="text-sm font-black uppercase tracking-widest">No Tracks Found</p>
+            <div className="py-20 text-center space-y-6 bg-slate-900/50 rounded-[2.5rem] border border-white/5 shadow-2xl animate-in fade-in zoom-in duration-700">
+              <Library className="w-16 h-16 mx-auto text-indigo-500 opacity-50" />
+              <div>
+                <h3 className="text-xl font-black uppercase tracking-tight">No Tracks Found</h3>
+                <p className="text-slate-400 max-w-xs mx-auto mt-2 font-medium">
+                  Try adjusting your search or filters to find what you're looking for.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => { setSearchTerm(""); setActiveFilters(DEFAULT_FILTERS); }}
+                className="h-12 px-6 rounded-xl border-white/10 bg-white/5 hover:bg-white/10 text-white font-black uppercase tracking-widest text-[10px]"
+              >
+                Clear All Filters
+              </Button>
+
             </div>
           ) : (
             filteredAndSortedRepertoire.map((song) => (
@@ -263,26 +277,42 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
           )}
         </div>
       ) : (
-        <div className="bg-card rounded-[2rem] border-4 border-border shadow-2xl overflow-hidden">
+        <div className="bg-slate-950/50 rounded-[2.5rem] border-4 border-white/5 shadow-2xl overflow-hidden backdrop-blur-xl">
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader className="sticky top-0 bg-secondary z-10">
-                <TableRow>
-                  <TableHead className="w-[40%] text-[10px] font-black uppercase tracking-widest">Song</TableHead>
-                  <TableHead className="w-[20%] text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground text-center">Readiness</TableHead>
-                  <TableHead className="w-[20%] text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-48 text-center">Harmonic Data</TableHead>
-                  <TableHead className="w-[20%] text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-40 text-right pr-10">Actions</TableHead>
+              <TableHeader className="sticky top-0 bg-slate-900/90 backdrop-blur-md z-10 border-b border-white/5">
+                <TableRow className="hover:bg-transparent border-none">
+                  <TableHead className="py-5 px-8 text-[10px] font-black uppercase tracking-widest text-slate-500 w-[40%]">Song / Artist</TableHead>
+                  <TableHead className="py-5 px-8 text-[10px] font-black uppercase tracking-widest text-slate-500 w-[20%] text-center">Readiness</TableHead>
+                  <TableHead className="py-5 px-8 text-[10px] font-black uppercase tracking-widest text-slate-500 w-[20%] text-center">Harmonic Data</TableHead>
+                  <TableHead className="py-5 px-8 text-[10px] font-black uppercase tracking-widest text-slate-500 w-[20%] text-right pr-12">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredAndSortedRepertoire.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="py-20 text-center opacity-30">
-                      <Library className="w-12 h-12 mx-auto mb-4" />
-                      <p className="text-sm font-black uppercase tracking-widest">No Tracks Found</p>
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell colSpan={4} className="py-32 text-center">
+                      <div className="flex flex-col items-center justify-center space-y-6 animate-in fade-in zoom-in duration-700">
+                        <Library className="w-20 h-20 text-indigo-500 opacity-50" />
+                        <div>
+                          <h3 className="text-2xl font-black uppercase tracking-tight">No Tracks Found</h3>
+                          <p className="text-slate-400 max-w-xs mx-auto mt-2 font-medium">
+                            Try adjusting your search or filters to find what you're looking for.
+                          </p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          onClick={() => { setSearchTerm(""); setActiveFilters(DEFAULT_FILTERS); }}
+                          className="h-14 px-8 rounded-2xl border-white/10 bg-white/5 hover:bg-white/10 text-white font-black uppercase tracking-widest text-[11px] gap-3"
+                        >
+                          Clear All Filters
+                        </Button>
+
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (
+
                   filteredAndSortedRepertoire.map((song) => {
                     const readinessScore = calculateReadiness(song);
                     const isFullyReady = readinessScore === 100;
@@ -297,22 +327,23 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                         key={song.id}
                         onClick={() => onEditSong(song, 'details')}
                         className={cn(
-                          "transition-all group relative cursor-pointer h-[80px]",
-                          "hover:bg-accent dark:hover:bg-secondary"
+                          "transition-all group relative cursor-pointer h-[90px] border-b border-white/5",
+                          "hover:bg-white/[0.02]"
                         )}
                       >
-                        <TableCell className="px-6 text-left">
-                          <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-3">
-                              <h4 className="text-base font-black tracking-tight leading-none flex items-center gap-2">
+                        <TableCell className="py-4 px-8 text-left">
+                          <div className="flex flex-col gap-1.5">
+                            <div className="flex items-center gap-4">
+                              <h4 className="text-lg font-black tracking-tight leading-none flex items-center gap-2.5 text-white">
                                 {song.name}
-                                {isFullyReady && <Check className="w-4 h-4 text-emerald-500 fill-emerald-500/20" />}
-                                {isProcessing && <CloudDownload className="w-4 h-4 text-indigo-500 animate-bounce" />}
-                                {isExtractionFailed && <AlertTriangle className="w-4 h-4 text-red-500" />}
+                                {isFullyReady && <Check className="w-4.5 h-4.5 text-emerald-500 fill-emerald-500/20" />}
+                                {isProcessing && <CloudDownload className="w-4.5 h-4.5 text-indigo-500 animate-bounce" />}
+                                {isExtractionFailed && <AlertTriangle className="w-4.5 h-4.5 text-red-500" />}
                               </h4>
+                              {song.isMetadataConfirmed && <ShieldCheck className="w-4 h-4 text-indigo-500" />}
                             </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest leading-none">
+                            <div className="flex items-center gap-3">
+                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
                                 {song.artist || "Unknown Artist"}
                               </span>
                             </div>
@@ -321,62 +352,65 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
                             )}
                           </div>
                         </TableCell>
-                        <TableCell className="px-6 text-center">
-                          <div className="flex flex-col items-center justify-center h-full">
-                            <p className={cn(
-                              "text-sm font-mono font-black",
-                              readinessScore >= 90 ? "text-emerald-400" : "text-indigo-400"
-                            )}>{readinessScore}%</p>
-                            {readinessScore === 100 && <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 mt-1" />}
+                        <TableCell className="py-4 px-8 text-center">
+                          <div className="flex flex-col items-center justify-center h-full gap-1.5">
+                            <span className={cn(
+                              "text-[11px] font-mono font-bold px-3 py-1 rounded-xl flex items-center gap-2 shadow-lg",
+                              readinessScore >= 90 ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/20" : "bg-indigo-600/20 text-indigo-400 border border-indigo-500/20"
+                            )}>
+                              {readinessScore}%
+                            </span>
+                            {readinessScore === 100 && <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />}
                           </div>
                         </TableCell>
-                        <TableCell className="px-6 text-center">
-                          <div className="flex items-center justify-center gap-4 h-full">
-                            <div className="text-center min-w-[32px]">
-                              <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mb-0.5">Orig</p>
-                              <span className="text-xs font-mono font-bold text-foreground">{displayOrigKey}</span>
+                        <TableCell className="py-4 px-8 text-center">
+                          <div className="flex items-center justify-center gap-6 h-full">
+                            <div className="text-center min-w-[40px]">
+                              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Orig</p>
+                              <span className="text-sm font-mono font-bold text-slate-300">{displayOrigKey}</span>
                             </div>
-                            <div className="flex flex-col items-center justify-center opacity-30">
-                              <ArrowRight className="w-3 h-3 text-muted-foreground mb-0.5" />
-                              <div className="h-px w-6 bg-border" />
+                            <div className="flex flex-col items-center justify-center opacity-20">
+                              <ArrowRight className="w-4 h-4 text-slate-400 mb-1" />
+                              <div className="h-px w-8 bg-white/20" />
                             </div>
-                            <div className="text-center min-w-[32px] relative">
-                              <p className="text-[8px] font-black text-indigo-500 uppercase tracking-widest mb-0.5">Stage</p>
+                            <div className="text-center min-w-[40px] relative">
+                              <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1">Stage</p>
                               <div className={cn(
-                                "font-mono font-black text-xs px-2.5 py-1 rounded-lg shadow-lg flex items-center justify-center gap-1.5 leading-none",
-                                song.isKeyConfirmed ? "bg-emerald-600 text-white shadow-emerald-500/20" : "bg-indigo-600 text-white shadow-indigo-500/20"
+                                "font-mono font-black text-sm px-3.5 py-1.5 rounded-xl shadow-2xl flex items-center justify-center gap-2 leading-none border transition-all",
+                                song.isKeyConfirmed ? "bg-emerald-600 text-white border-emerald-400 shadow-emerald-500/20" : "bg-indigo-600 text-white border-indigo-400 shadow-indigo-500/20"
                               )}>
                                 {displayTargetKey}
-                                {song.isKeyConfirmed && <Check className="w-3 h-3" />}
+                                {song.isKeyConfirmed && <Check className="w-3.5 h-3.5" />}
                               </div>
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="px-6 text-right pr-10">
-                          <div className="flex items-center justify-end gap-2 h-full">
+                        <TableCell className="py-4 px-8 text-right pr-12">
+                          <div className="flex items-center justify-end gap-3 h-full">
                             <SetlistMultiSelector
                               songMasterId={song.id}
                               allSetlists={allSetlists}
                               songToAssign={song}
                               onUpdateSetlistSongs={onUpdateSetlistSongs}
                             />
-                            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground hover:text-indigo-600 hover:bg-indigo-50 transition-colors inline-flex items-center justify-center" onClick={(e) => { e.stopPropagation(); onEditSong(song); }}>
-                              <Edit3 className="w-4 h-4" />
+                            <Button variant="ghost" size="icon" className="h-10 w-10 rounded-2xl text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 transition-all inline-flex items-center justify-center" onClick={(e) => { e.stopPropagation(); onEditSong(song); }}>
+                              <Edit3 className="w-5 h-5" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-9 w-9 rounded-xl text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors inline-flex items-center justify-center"
+                              className="h-10 w-10 rounded-2xl text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition-all inline-flex items-center justify-center"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setDeleteConfirmId(song.id);
                               }}
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-5 h-5" />
                             </Button>
                           </div>
                         </TableCell>
                       </TableRow>
+
                     );
                   })
                 )}

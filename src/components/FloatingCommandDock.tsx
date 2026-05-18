@@ -290,13 +290,14 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                         variant="ghost"
                         size="icon"
                         onClick={() => { btn.onClick?.(); if (btn.id !== 'practice') handleToggleMenu(); }}
-                        className={cn("h-10 w-10 md:h-12 md:w-12 rounded-full border transition-all active:scale-90 disabled:opacity-10", btn.className)}
+                        className={cn("h-10 w-10 md:h-12 md:w-12 rounded-full border transition-all active:scale-90 disabled:opacity-10 hover:scale-110", btn.className)}
                         disabled={btn.disabled}
+                        aria-label={btn.tooltip}
                       >
                         {btn.icon}
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent side={direction === 'left' ? 'right' : direction === 'right' ? 'left' : direction === 'up' ? 'bottom' : 'top'}>{btn.tooltip}</TooltipContent>
+                    <TooltipContent side={direction === 'left' ? 'right' : direction === 'right' ? 'left' : direction === 'up' ? 'bottom' : 'top'} className="text-[10px] font-black uppercase tracking-widest">{btn.tooltip}</TooltipContent>
                   </Tooltip>
                 ))}
 
@@ -307,15 +308,17 @@ const FloatingCommandDock: React.FC<FloatingCommandDockProps> = React.memo(({
                       size="icon"
                       onClick={() => setIsSubMenuOpen(!isSubMenuOpen)}
                       className={cn(
-                        "h-10 w-10 md:h-12 md:w-12 rounded-full border transition-all",
+                        "h-10 w-10 md:h-12 md:w-12 rounded-full border transition-all hover:scale-110",
                         isSubMenuOpen ? "bg-indigo-600 text-white border-indigo-400" : "bg-slate-900 text-slate-400 border-white/5"
                       )}
+                      aria-label={isSubMenuOpen ? "Close Utilities" : "Open Utilities"}
                     >
                       {isSubMenuOpen ? <X className="w-4 h-4 md:w-5 md:h-5" /> : <Wrench className="w-4 h-4 md:w-5 md:h-5" />}
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side={direction === 'left' ? 'right' : direction === 'right' ? 'left' : direction === 'up' ? 'bottom' : 'top'}>Utilities</TooltipContent>
+                  <TooltipContent side={direction === 'left' ? 'right' : direction === 'right' ? 'left' : direction === 'up' ? 'bottom' : 'top'} className="text-[10px] font-black uppercase tracking-widest">Utilities</TooltipContent>
                 </Tooltip>
+
               </div>
 
               <AnimatePresence>

@@ -15,8 +15,9 @@ import { autoVibeCheck } from '@/utils/vibeUtils';
 import * as Tone from 'tone';
 
 // UI Components
-import { Loader2 } from 'lucide-react';
+import { Loader2, Plus, Music2, Calendar } from 'lucide-react';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 
 // Custom Components
 import SetlistManager, { SetlistSong, Setlist, EnergyZone } from '@/components/SetlistManager';
@@ -456,7 +457,17 @@ const Index = () => {
       
       <div className="flex-1 flex flex-col p-4 md:p-12 lg:p-16 overflow-y-auto custom-scrollbar relative z-10">
         <Tabs value={activeDashboardView} onValueChange={(v) => setSearchParams({ view: v })} className="w-full">
+          <div className="mb-8 flex items-center justify-between">
+            <div className="space-y-1">
+              <h2 className="text-sm font-black uppercase tracking-[0.3em] text-indigo-400">Welcome Back</h2>
+              <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">
+                {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+              </p>
+            </div>
+          </div>
+
           <DashboardHeader
+
             onOpenStorageAudit={() => setIsStorageAuditOpen(true)}
             onOpenAdmin={() => setIsAdminPanelOpen(true)}
             onOpenMDAudit={() => setIsMDAuditOpen(true)}
@@ -469,7 +480,44 @@ const Index = () => {
 
           {isGoalTrackerEnabled && <div className="mb-16 animate-in fade-in slide-in-from-top-6 duration-700 delay-100"><GoalTracker repertoire={masterRepertoire} onFilterApply={(f) => setActiveFilters(prev => ({...prev, ...f}))} /></div>}
 
+          {activeDashboardView === 'gigs' && !activeSetlistId && !loading && (
+            <div className="flex flex-col items-center justify-center py-20 text-center space-y-6 animate-in fade-in zoom-in duration-700">
+              <div className="bg-slate-900/50 p-8 rounded-[2.5rem] border border-white/5 shadow-2xl">
+                <Calendar className="w-16 h-16 text-indigo-500 mx-auto mb-6 opacity-50" />
+                <h2 className="text-2xl font-black uppercase tracking-tight">No Gigs Found</h2>
+                <p className="text-slate-400 max-w-xs mx-auto mt-2 font-medium">
+                  Create your first setlist to start managing your performances.
+                </p>
+                <Button
+                  onClick={handleCreateSetlist}
+                  className="mt-8 h-14 px-8 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase tracking-widest gap-3 shadow-xl shadow-indigo-600/20 transition-all hover:scale-105"
+                >
+                  <Plus className="w-5 h-5" /> Create Setlist
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {activeDashboardView === 'repertoire' && masterRepertoire.length === 0 && !loading && (
+            <div className="flex flex-col items-center justify-center py-20 text-center space-y-6 animate-in fade-in zoom-in duration-700">
+              <div className="bg-slate-900/50 p-8 rounded-[2.5rem] border border-white/5 shadow-2xl">
+                <Music2 className="w-16 h-16 text-indigo-500 mx-auto mb-6 opacity-50" />
+                <h2 className="text-2xl font-black uppercase tracking-tight">Library is Empty</h2>
+                <p className="text-slate-400 max-w-xs mx-auto mt-2 font-medium">
+                  Add your first song to build your professional repertoire.
+                </p>
+                <Button
+                  onClick={() => setIsGlobalSearchOpen(true)}
+                  className="mt-8 h-14 px-8 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase tracking-widest gap-3 shadow-xl shadow-indigo-600/20 transition-all hover:scale-105"
+                >
+                  <Plus className="w-5 h-5" /> Add First Song
+                </Button>
+              </div>
+            </div>
+          )}
+
           {activeDashboardView === 'gigs' && activeSong && (
+
             <div className="mb-16 animate-in fade-in slide-in-from-top-8 duration-700 delay-200">
               <ActiveSongBanner song={activeSong} isPlaying={audio.isPlaying} onTogglePlayback={audio.togglePlayback} onClear={() => { audio.stopPlayback(); }} isLoadingAudio={audio.isLoadingAudio} nextSongName={filteredAndSortedSongs[filteredAndSortedSongs.findIndex(s => s.id === activeSong.id) + 1]?.name} onNext={() => playNext(true)} onPrevious={() => {}} />
             </div>
