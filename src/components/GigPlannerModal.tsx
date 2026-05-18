@@ -161,21 +161,21 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
         setTimeout(reset, 300);
       }
     }}>
-      <DialogContent className="max-w-5xl w-[95vw] h-[90vh] bg-slate-950 border-white/10 text-white rounded-[2.5rem] p-0 overflow-hidden flex flex-col shadow-2xl">
-        <div className="p-8 bg-indigo-600 shrink-0 relative">
+      <DialogContent className="max-w-5xl w-[95vw] h-[90vh] bg-slate-950 border-white/10 text-white rounded-[2rem] p-0 overflow-hidden flex flex-col shadow-2xl">
+        <div className="p-6 md:p-8 bg-indigo-600 shrink-0 relative">
           <button onClick={onClose} className="absolute top-6 right-6 p-2 rounded-full hover:bg-white/10 text-white/70 hover:text-white transition-colors">
             <X className="w-5 h-5" />
           </button>
           
           <div className="flex items-center gap-4 mb-2">
-            <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-md">
+            <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">
               <Sparkles className="w-6 h-6 text-white" />
             </div>
             <div>
-              <DialogTitle className="text-2xl font-black uppercase tracking-tight text-white">
+              <DialogTitle className="text-xl md:text-2xl font-black uppercase tracking-tight text-white">
                 Smart Gig Architect
               </DialogTitle>
-              <DialogDescription className="text-indigo-100 font-bold uppercase tracking-widest text-[10px]">
+              <DialogDescription className="text-indigo-100 font-bold uppercase tracking-widest text-[9px] md:text-[10px]">
                 AI-Powered Multi-Set Planning
               </DialogDescription>
             </div>
@@ -184,14 +184,14 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
 
         <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
           {!plan ? (
-            <div className="flex-1 p-8 flex flex-col gap-6">
+            <div className="flex-1 p-6 md:p-8 flex flex-col gap-6">
               <div className="space-y-3">
                 <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 flex items-center gap-2">
                   <Info className="w-3.5 h-3.5" /> Paste Gig Inquiry Email
                 </label>
                 <Textarea 
                   placeholder="Paste the email from the client here... (e.g. 'Hi, we're looking for a piano player for a 3-hour wedding cocktail hour. We love upbeat pop and some jazz standards...')"
-                  className="min-h-[300px] bg-slate-900/50 border-white/5 rounded-2xl p-6 text-sm font-medium focus:ring-indigo-500/50 resize-none custom-scrollbar"
+                  className="min-h-[250px] md:min-h-[300px] bg-slate-900/50 border-white/5 rounded-2xl p-4 md:p-6 text-sm font-medium focus:ring-indigo-500/50 resize-none custom-scrollbar"
                   value={emailText}
                   onChange={(e) => setEmailText(e.target.value)}
                 />
@@ -199,7 +199,7 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
               <Button 
                 onClick={handleGenerate}
                 disabled={isGenerating || !emailText.trim()}
-                className="h-16 bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-xl shadow-indigo-600/20 gap-3 transition-all active:scale-95"
+                className="h-14 md:h-16 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-xl shadow-indigo-600/20 gap-3 transition-all active:scale-95"
               >
                 {isGenerating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
                 Architect My Gig
@@ -207,7 +207,7 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
             </div>
           ) : (
             <>
-              <div className="w-full md:w-1/3 border-r border-white/5 p-8 bg-slate-900/30 flex flex-col gap-8 overflow-y-auto custom-scrollbar">
+              <div className="w-full md:w-1/3 border-r border-white/5 p-6 md:p-8 bg-slate-900/30 flex flex-col gap-6 md:gap-8 overflow-y-auto custom-scrollbar">
                 <div className="space-y-6">
                   <div>
                     <h3 className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-3">Proposed Event</h3>
@@ -283,14 +283,14 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
               </div>
 
               <div className="flex-1 flex flex-col overflow-hidden">
-                <div className="p-6 border-b border-white/5 bg-slate-900/50 flex items-center justify-between">
+                <div className="p-4 md:p-6 border-b border-white/5 bg-slate-900/50 flex items-center justify-between">
                   <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
                     <ListMusic className="w-4 h-4" /> Multi-Set Structure
                   </h3>
                 </div>
                 
-                <ScrollArea className="flex-1 p-6">
-                  <div className="space-y-10">
+                <ScrollArea className="flex-1 p-4 md:p-6">
+                  <div className="space-y-8 md:space-y-10">
                     {sortedGroups.map(groupNum => (
                       <div key={groupNum} className="space-y-4">
                         <div className="flex items-center gap-3">
@@ -311,14 +311,14 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
                               const isAdded = addedSongs.has(song.id);
                               
                               return (
-                                <div key={`${song.id}-${idx}`} className="flex items-center justify-between p-4 bg-white/5 border border-white/5 rounded-2xl group hover:border-indigo-500/30 transition-all">
-                                  <div className="flex items-center gap-4">
-                                    <div className="bg-indigo-600/20 p-2 rounded-xl text-indigo-400">
+                                <div key={`${song.id}-${idx}`} className="flex items-center justify-between p-3 md:p-4 bg-white/5 border border-white/5 rounded-2xl group hover:border-indigo-500/30 transition-all">
+                                  <div className="flex items-center gap-3 md:gap-4 min-w-0">
+                                    <div className="bg-indigo-600/20 p-2 rounded-xl text-indigo-400 shrink-0">
                                       <Music className="w-4 h-4" />
                                     </div>
-                                    <div>
-                                      <p className="text-xs font-black uppercase tracking-tight">{song.name}</p>
-                                      <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">{song.artist}</p>
+                                    <div className="min-w-0">
+                                      <p className="text-xs font-black uppercase tracking-tight truncate">{song.name}</p>
+                                      <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-0.5 truncate">{song.artist}</p>
                                     </div>
                                   </div>
                                   <Button 
@@ -326,12 +326,12 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
                                     disabled={isAdded}
                                     onClick={() => handleAddLibrary(song.id, groupNum)}
                                     className={cn(
-                                      "h-9 px-4 rounded-xl font-black uppercase tracking-widest text-[9px] gap-2 transition-all",
+                                      "h-8 md:h-9 px-3 md:px-4 rounded-xl font-black uppercase tracking-widest text-[9px] gap-2 transition-all shrink-0",
                                       isAdded ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/20" : "bg-indigo-600 hover:bg-indigo-500 text-white"
                                     )}
                                   >
                                     {isAdded ? <Check className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-                                    {isAdded ? "Added" : "Add to Gig"}
+                                    <span className="hidden xs:inline">{isAdded ? "Added" : "Add to Gig"}</span>
                                   </Button>
                                 </div>
                               );
@@ -340,23 +340,23 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
                               const inLibrary = repertoire.some(s => s.name.toLowerCase() === item.name.toLowerCase() && s.artist?.toLowerCase() === item.artist?.toLowerCase());
                               
                               return (
-                                <div key={`ext-${item.extIndex}`} className="flex items-center justify-between p-4 bg-indigo-600/5 border border-indigo-500/10 rounded-2xl group hover:border-indigo-500/30 transition-all">
-                                  <div className="flex items-center gap-4">
+                                <div key={`ext-${item.extIndex}`} className="flex items-center justify-between p-3 md:p-4 bg-indigo-600/5 border border-indigo-500/10 rounded-2xl group hover:border-indigo-500/30 transition-all">
+                                  <div className="flex items-center gap-3 md:gap-4 min-w-0">
                                     {item.artworkUrl ? (
-                                      <img src={item.artworkUrl} alt={item.name} className="w-10 h-10 rounded-xl shadow-lg" />
+                                      <img src={item.artworkUrl} alt={item.name} className="w-8 h-8 md:w-10 md:h-10 rounded-xl shadow-lg shrink-0" />
                                     ) : (
-                                      <div className="bg-purple-600/20 p-2 rounded-xl text-purple-400">
+                                      <div className="bg-purple-600/20 p-2 rounded-xl text-purple-400 shrink-0">
                                         <ExternalLink className="w-4 h-4" />
                                       </div>
                                     )}
-                                    <div>
-                                      <p className="text-xs font-black uppercase tracking-tight">{item.name}</p>
-                                      <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">{item.artist}</p>
+                                    <div className="min-w-0">
+                                      <p className="text-xs font-black uppercase tracking-tight truncate">{item.name}</p>
+                                      <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-0.5 truncate">{item.artist}</p>
                                     </div>
                                   </div>
-                                  <div className="flex items-center gap-3">
+                                  <div className="flex items-center gap-2 md:gap-3 shrink-0">
                                     {inLibrary && !isAdded && (
-                                      <Badge variant="outline" className="bg-amber-500/10 border-amber-500/20 text-amber-400 text-[8px] font-black uppercase">
+                                      <Badge variant="outline" className="hidden xs:inline-flex bg-amber-500/10 border-amber-500/20 text-amber-400 text-[8px] font-black uppercase">
                                         In Library
                                       </Badge>
                                     )}
@@ -365,12 +365,12 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
                                       disabled={isAdded}
                                       onClick={() => handleAddExternal(item, item.extIndex)}
                                       className={cn(
-                                        "h-9 px-4 rounded-xl font-black uppercase tracking-widest text-[9px] gap-2 transition-all",
+                                        "h-8 md:h-9 px-3 md:px-4 rounded-xl font-black uppercase tracking-widest text-[9px] gap-2 transition-all",
                                         isAdded ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/20" : "bg-purple-600 hover:bg-purple-50 text-white"
                                       )}
                                     >
                                       {isAdded ? <Check className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-                                      {isAdded ? "Added" : "Add to Library & Gig"}
+                                      <span className="hidden xs:inline">{isAdded ? "Added" : "Add to Library"}</span>
                                     </Button>
                                   </div>
                                 </div>

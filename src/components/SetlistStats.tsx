@@ -52,8 +52,8 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      <div className="bg-slate-900/50 p-6 rounded-[2rem] border border-white/5 shadow-xl backdrop-blur-xl relative overflow-hidden group">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+      <div className="bg-slate-900/50 p-5 md:p-6 rounded-2xl md:rounded-[2rem] border border-white/5 shadow-xl backdrop-blur-xl relative overflow-hidden group">
         <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
           <button 
             onClick={handleCopySetlist}
@@ -64,16 +64,16 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({
           </button>
         </div>
         <div className="flex items-center gap-4 mb-4">
-          <div className="bg-indigo-600/10 p-3 rounded-2xl text-indigo-400">
+          <div className="bg-indigo-600/10 p-2.5 md:p-3 rounded-xl md:rounded-2xl text-indigo-400">
             <Clock className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Total Duration</p>
-            <h3 className="text-2xl font-black text-white">{formatTime(totalSeconds)}</h3>
+            <p className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest">Total Duration</p>
+            <h3 className="text-xl md:text-2xl font-black text-white">{formatTime(totalSeconds)}</h3>
           </div>
         </div>
         <div className="space-y-2">
-          <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
+          <div className="flex justify-between text-[9px] md:text-[10px] font-black uppercase tracking-widest">
             <span className="text-slate-500">Goal: {formatTime(goalSeconds)}</span>
             <span className="text-indigo-400">{Math.round(progress)}%</span>
           </div>
@@ -81,16 +81,16 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({
         </div>
       </div>
 
-      <div className="bg-slate-900/50 p-6 rounded-[2rem] border border-white/5 shadow-xl backdrop-blur-xl relative group">
+      <div className="bg-slate-900/50 p-5 md:p-6 rounded-2xl md:rounded-[2rem] border border-white/5 shadow-xl backdrop-blur-xl relative group">
         <div className="absolute top-4 right-4">
           <Button 
             size="sm" 
             onClick={onPlayAll}
             className={cn(
-              "h-9 px-4 rounded-xl font-black uppercase tracking-widest text-[9px] gap-2 transition-all",
+              "h-8 md:h-9 px-3 md:px-4 rounded-lg md:rounded-xl font-black uppercase tracking-widest text-[8px] md:text-[9px] gap-2 transition-all",
               isAutoplayActive 
-                ? "bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/20" 
-                : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20"
+                ? "bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/20" 
+                : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/20"
             )}
           >
             {isAutoplayActive ? (
@@ -104,12 +104,12 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({
           </Button>
         </div>
         <div className="flex items-center gap-4 mb-4">
-          <div className="bg-emerald-600/10 p-3 rounded-2xl text-emerald-400">
+          <div className="bg-emerald-600/10 p-2.5 md:p-3 rounded-xl md:rounded-2xl text-emerald-400">
             <Music className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Track Count</p>
-            <h3 className="text-2xl font-black text-white">{songs.length} <span className="text-sm text-slate-500 font-bold">Songs</span></h3>
+            <p className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest">Track Count</p>
+            <h3 className="text-xl md:text-2xl font-black text-white">{songs.length} <span className="text-xs md:text-sm text-slate-500 font-bold">Songs</span></h3>
           </div>
         </div>
         <div className="flex gap-1.5">
@@ -120,14 +120,14 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({
         </div>
       </div>
 
-      <div className="bg-slate-900/50 p-6 rounded-[2rem] border border-white/5 shadow-xl backdrop-blur-xl">
+      <div className="bg-slate-900/50 p-5 md:p-6 rounded-2xl md:rounded-[2rem] border border-white/5 shadow-xl backdrop-blur-xl">
         <div className="flex items-center gap-4 mb-4">
-          <div className="bg-amber-600/10 p-3 rounded-2xl text-amber-400">
+          <div className="bg-amber-600/10 p-2.5 md:p-3 rounded-xl md:rounded-2xl text-amber-400">
             <Zap className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Energy Mix</p>
-            <h3 className="text-2xl font-black text-white">{energyCounts['Peak'] || 0} <span className="text-sm text-slate-500 font-bold">Peak</span></h3>
+            <p className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest">Energy Mix</p>
+            <h3 className="text-xl md:text-2xl font-black text-white">{energyCounts['Peak'] || 0} <span className="text-xs md:text-sm text-slate-500 font-bold">Peak</span></h3>
           </div>
         </div>
         <div className="flex h-1.5 w-full rounded-full overflow-hidden bg-slate-800">
@@ -138,14 +138,14 @@ const SetlistStats: React.FC<SetlistStatsProps> = ({
         </div>
       </div>
 
-      <div className="bg-slate-900/50 p-6 rounded-[2rem] border border-white/5 shadow-xl backdrop-blur-xl">
+      <div className="bg-slate-900/50 p-5 md:p-6 rounded-2xl md:rounded-[2rem] border border-white/5 shadow-xl backdrop-blur-xl">
         <div className="flex items-center gap-4 mb-4">
-          <div className="bg-purple-600/10 p-3 rounded-2xl text-purple-400">
+          <div className="bg-purple-600/10 p-2.5 md:p-3 rounded-xl md:rounded-2xl text-purple-400">
             <Target className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Avg Readiness</p>
-            <h3 className="text-2xl font-black text-white">
+            <p className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest">Avg Readiness</p>
+            <h3 className="text-xl md:text-2xl font-black text-white">
               {songs.length > 0 ? Math.round(songs.reduce((acc, s) => acc + calculateReadiness(s), 0) / songs.length) : 0}%
             </h3>
           </div>

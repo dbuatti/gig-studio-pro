@@ -34,8 +34,8 @@ interface MDAuditModalProps {
 const MDAuditModal: React.FC<MDAuditModalProps> = ({ isOpen, onClose, auditData, isLoading }) => {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-3xl w-[95vw] h-[85vh] bg-slate-950 border-white/10 text-white rounded-[2.5rem] p-0 overflow-hidden flex flex-col shadow-2xl">
-        <div className="p-8 bg-indigo-600 shrink-0 relative">
+      <DialogContent className="max-w-3xl w-[95vw] h-[85vh] bg-slate-950 border-white/10 text-white rounded-[2rem] p-0 overflow-hidden flex flex-col shadow-2xl">
+        <div className="p-6 md:p-8 bg-indigo-600 shrink-0 relative">
           <button 
             onClick={onClose}
             className="absolute top-6 right-6 p-2 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors"
@@ -44,14 +44,14 @@ const MDAuditModal: React.FC<MDAuditModalProps> = ({ isOpen, onClose, auditData,
           </button>
           
           <div className="flex items-center gap-4 mb-6">
-            <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-md">
+            <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">
               <Sparkles className="w-6 h-6 text-white" />
             </div>
             <div>
-              <DialogTitle className="text-2xl font-black uppercase tracking-tight text-white">
+              <DialogTitle className="text-xl md:text-2xl font-black uppercase tracking-tight text-white">
                 Musical Director Audit
               </DialogTitle>
-              <DialogDescription className="text-indigo-100 font-bold uppercase tracking-widest text-[10px] mt-1">
+              <DialogDescription className="text-indigo-100 font-bold uppercase tracking-widest text-[9px] md:text-[10px] mt-1">
                 AI-Powered Setlist Analysis & Optimization
               </DialogDescription>
             </div>
@@ -60,22 +60,22 @@ const MDAuditModal: React.FC<MDAuditModalProps> = ({ isOpen, onClose, auditData,
           {isLoading ? (
             <div className="flex items-center gap-3 text-white/80 animate-pulse">
               <Loader2 className="w-4 h-4 animate-spin" />
-              <span className="text-xs font-black uppercase tracking-widest">Analyzing setlist flow...</span>
+              <span className="text-[10px] md:text-xs font-black uppercase tracking-widest">Analyzing setlist flow...</span>
             </div>
           ) : auditData && (
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4 md:gap-6">
               <div className="flex flex-col">
-                <span className="text-[10px] font-black uppercase tracking-widest text-indigo-200 mb-2">Overall Flow Score</span>
-                <div className="flex items-center gap-4">
-                  <div className="text-5xl font-black tracking-tighter">{auditData.overallScore || 0}</div>
-                  <Progress value={auditData.overallScore || 0} className="w-32 h-2 bg-indigo-900" />
+                <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-indigo-200 mb-2">Overall Flow Score</span>
+                <div className="flex items-center gap-3 md:gap-4">
+                  <div className="text-3xl md:text-5xl font-black tracking-tighter">{auditData.overallScore || 0}</div>
+                  <Progress value={auditData.overallScore || 0} className="w-24 md:w-32 h-2 bg-indigo-900" />
                 </div>
               </div>
             </div>
           )}
         </div>
 
-        <ScrollArea className="flex-1 p-8 custom-scrollbar bg-slate-950">
+        <ScrollArea className="flex-1 p-6 md:p-8 custom-scrollbar bg-slate-950">
           {isLoading ? (
             <div className="space-y-8 py-10">
               {[1, 2, 3].map(i => (
@@ -86,12 +86,12 @@ const MDAuditModal: React.FC<MDAuditModalProps> = ({ isOpen, onClose, auditData,
               ))}
             </div>
           ) : auditData ? (
-            <div className="space-y-10 pb-10">
+            <div className="space-y-8 md:space-y-10 pb-10">
               <section className="space-y-4">
                 <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400 flex items-center gap-2">
                   <Info className="w-3.5 h-3.5" /> Executive Summary
                 </h3>
-                <div className="p-6 bg-white/5 border border-white/10 rounded-[2rem] text-sm font-medium leading-relaxed text-slate-300">
+                <div className="p-5 md:p-6 bg-white/5 border border-white/10 rounded-2xl md:rounded-[2rem] text-sm font-medium leading-relaxed text-slate-300">
                   {auditData.summary}
                 </div>
               </section>
@@ -103,7 +103,7 @@ const MDAuditModal: React.FC<MDAuditModalProps> = ({ isOpen, onClose, auditData,
                   </h3>
                   <div className="space-y-3">
                     {auditData.strengths?.map((item, i) => (
-                      <div key={i} className="p-5 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl">
+                      <div key={i} className="p-4 md:p-5 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl">
                         <h4 className="text-xs font-black uppercase tracking-tight text-emerald-400 mb-1">{item.title}</h4>
                         <p className="text-[11px] font-medium text-slate-400 leading-relaxed">{item.points}</p>
                       </div>
@@ -117,7 +117,7 @@ const MDAuditModal: React.FC<MDAuditModalProps> = ({ isOpen, onClose, auditData,
                   </h3>
                   <div className="space-y-3">
                     {auditData.weaknesses?.map((item, i) => (
-                      <div key={i} className="p-5 bg-amber-500/5 border border-amber-500/10 rounded-2xl">
+                      <div key={i} className="p-4 md:p-5 bg-amber-500/5 border border-amber-500/10 rounded-2xl">
                         <h4 className="text-xs font-black uppercase tracking-tight text-amber-400 mb-1">{item.title}</h4>
                         <p className="text-[11px] font-medium text-slate-400 leading-relaxed">{item.points}</p>
                       </div>

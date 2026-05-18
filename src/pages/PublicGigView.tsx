@@ -107,31 +107,31 @@ const PublicGigView = () => {
       className="min-h-screen font-sans selection:bg-indigo-500/30 flex flex-col"
       style={{ backgroundColor: colors.background, color: colors.text }}
     >
-      <header className="px-6 py-12 md:py-20 text-center relative overflow-hidden border-b border-border">
+      <header className="px-6 py-10 md:py-20 text-center relative overflow-hidden border-b border-border">
         <div 
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] blur-[120px] opacity-20 pointer-events-none rounded-full"
           style={{ background: colors.primary }}
         />
         
-        <div className="max-w-4xl mx-auto relative z-10 space-y-8">
-          <div className="flex flex-col items-center gap-6">
+        <div className="max-w-4xl mx-auto relative z-10 space-y-6 md:space-y-8">
+          <div className="flex flex-col items-center gap-4 md:gap-6">
             <div 
-              className="w-24 h-24 md:w-32 md:h-32 rounded-full border-4 flex items-center justify-center overflow-hidden bg-secondary shadow-2xl"
+              className="w-20 h-20 md:w-32 md:h-32 rounded-full border-4 flex items-center justify-center overflow-hidden bg-secondary shadow-2xl"
               style={{ borderColor: colors.border }}
             >
               {performer?.avatar_url ? (
                 <img src={performer.avatar_url} className="w-full h-full object-cover" />
               ) : (
-                <User className="w-12 h-12 text-muted-foreground" />
+                <User className="w-10 h-10 md:w-12 md:h-12 text-muted-foreground" />
               )}
             </div>
             <div className="space-y-2">
-              <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tighter">
+              <h1 className="text-2xl md:text-5xl font-black uppercase tracking-tighter">
                 {performer?.first_name} {performer?.last_name || 'Live'}
               </h1>
               <div className="flex items-center justify-center gap-3">
                 <span 
-                  className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-border"
+                  className="px-3 py-1 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-widest border border-border"
                   style={{ backgroundColor: `${colors.primary}20`, color: colors.primary }}
                 >
                   Code: {code}
@@ -140,35 +140,35 @@ const PublicGigView = () => {
             </div>
           </div>
 
-          <div className="bg-card/20 backdrop-blur-md rounded-[2.5rem] p-6 md:p-8 border border-border inline-flex flex-col items-center gap-2">
-            <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight">{setlist.name}</h2>
-            <p className="text-sm font-medium opacity-60">Tonight's Official Set Selection</p>
+          <div className="bg-card/20 backdrop-blur-md rounded-2xl md:rounded-[2.5rem] p-5 md:p-8 border border-border inline-flex flex-col items-center gap-2">
+            <h2 className="text-lg md:text-2xl font-black uppercase tracking-tight">{setlist.name}</h2>
+            <p className="text-xs md:text-sm font-medium opacity-60">Tonight's Official Set Selection</p>
           </div>
         </div>
       </header>
 
-      <main className="flex-1 max-w-4xl w-full mx-auto px-6 py-12 md:py-16">
+      <main className="flex-1 max-w-4xl w-full mx-auto px-4 md:px-6 py-8 md:py-16">
         <div className="space-y-6">
           <div className="flex items-center justify-between px-2">
-            <h3 className="text-[10px] font-black uppercase tracking-[0.4em] opacity-40">Running Order</h3>
-            <span className="text-[10px] font-black uppercase tracking-widest opacity-40">{songs.length} Tracks</span>
+            <h3 className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.4em] opacity-40">Running Order</h3>
+            <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest opacity-40">{songs.length} Tracks</span>
           </div>
 
-          <div className="grid grid-cols-1 gap-3">
+          <div className="grid grid-cols-1 gap-2 md:gap-3">
             {songs.map((song, idx) => (
               <div 
                 key={song.id}
-                className="group relative p-6 rounded-[1.5rem] bg-card/5 border border-border hover:bg-card/10 transition-all flex items-center justify-between"
+                className="group relative p-4 md:p-6 rounded-xl md:rounded-[1.5rem] bg-card/5 border border-border hover:bg-card/10 transition-all flex items-center justify-between"
               >
-                <div className="flex items-center gap-5 min-w-0">
-                  <span className="text-lg font-mono font-black opacity-20 w-8">
+                <div className="flex items-center gap-4 md:gap-5 min-w-0">
+                  <span className="text-base md:text-lg font-mono font-black opacity-20 w-6 md:w-8">
                     {(idx + 1).toString().padStart(2, '0')}
                   </span>
                   <div className="min-w-0">
-                    <h4 className="text-lg font-black uppercase tracking-tight truncate leading-tight group-hover:translate-x-1 transition-transform">
+                    <h4 className="text-base md:text-lg font-black uppercase tracking-tight truncate leading-tight group-hover:translate-x-1 transition-transform">
                       {song.name}
                     </h4>
-                    <p className="text-[10px] font-bold uppercase tracking-widest opacity-40 mt-1">
+                    <p className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest opacity-40 mt-1">
                       {song.artist || "Standard"}
                     </p>
                   </div>

@@ -104,34 +104,34 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
       )} 
       style={{ backgroundColor: colors.background, color: colors.text }}
     >
-      <header className={cn("px-4 text-center border-b border-border bg-gradient-to-b from-black/20 to-transparent", isPreview ? "py-8" : "py-20")}>
+      <header className={cn("px-4 text-center border-b border-border bg-gradient-to-b from-black/20 to-transparent", isPreview ? "py-8" : "py-12 md:py-20")}>
         <div className="max-w-7xl mx-auto space-y-6">
           <div 
             className={cn(
               "rounded-full mx-auto border-4 bg-secondary flex items-center justify-center overflow-hidden shadow-2xl transition-all",
-              isPreview ? "w-24 h-24" : "w-32 h-32 md:w-40 md:h-40"
+              isPreview ? "w-24 h-24" : "w-28 h-28 md:w-40 md:h-40"
             )}
             style={{ borderColor: colors.border }}
           >
             {profile.avatar_url ? (
               <img src={profile.avatar_url} alt={profile.first_name} className="w-full h-full object-cover" />
             ) : (
-              <User className="w-12 h-12 text-muted-foreground" />
+              <User className="w-10 h-10 md:w-12 md:h-12 text-muted-foreground" />
             )}
           </div>
           <div className="space-y-2">
-            <h1 className={cn("font-black uppercase tracking-tighter", isPreview ? "text-2xl" : "text-4xl md:text-6xl")} style={{ color: colors.text }}>
+            <h1 className={cn("font-black uppercase tracking-tighter", isPreview ? "text-2xl" : "text-3xl md:text-6xl")} style={{ color: colors.text }}>
               {profile.first_name} {profile.last_name || 'Artist'}
             </h1>
-            <p className={cn("font-medium opacity-60 tracking-tight max-w-2xl mx-auto", isPreview ? "text-sm" : "text-xl md:text-2xl")}>
+            <p className={cn("font-medium opacity-60 tracking-tight max-w-2xl mx-auto", isPreview ? "text-sm" : "text-lg md:text-2xl")}>
               {profile.repertoire_bio}
             </p>
           </div>
         </div>
       </header>
 
-      <main className={cn("max-w-7xl mx-auto px-6 pb-20", isPreview ? "py-6" : "py-12")}>
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-12">
+      <main className={cn("max-w-7xl mx-auto px-4 md:px-6 pb-20", isPreview ? "py-6" : "py-8 md:py-12")}>
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-8 md:mb-12">
           <div className="relative w-full md:w-64">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 opacity-40" style={{ color: colors.text }} />
             <Input 
@@ -171,12 +171,12 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
 
         <div>
           {processedSongs.length === 0 ? (
-            <div className="text-center py-20 opacity-30 border border-border rounded-[3rem]" style={{ borderColor: 'hsl(var(--border))' }}>
+            <div className="text-center py-20 opacity-30 border border-border rounded-[2rem] md:rounded-[3rem]" style={{ borderColor: 'hsl(var(--border))' }}>
               <Music className="w-12 h-12 mx-auto mb-4" style={{ color: colors.text }} />
               <p className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: colors.text }}>No Public Tracks Available</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-16">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 md:gap-x-12 gap-y-10 md:gap-y-16">
               {(groupedSongs as any[]).map((group) => (
                 <section key={sortMode === 'artist' ? group.artist : group.letter} className="space-y-4">
                   <h3 className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40 border-b border-border pb-2" style={{ color: colors.primary, borderColor: 'hsl(var(--border))' }}>
