@@ -15,7 +15,7 @@ import { autoVibeCheck } from '@/utils/vibeUtils';
 import * as Tone from 'tone';
 
 // UI Components
-import { Loader2, Plus, Music2, Calendar } from 'lucide-react';
+import { Loader2, Plus, Music2, Calendar, Sparkles } from 'lucide-react';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 
@@ -455,11 +455,14 @@ const Index = () => {
     <div className="min-h-screen bg-slate-950 text-white flex flex-col relative overflow-hidden">
       <div className="absolute top-0 left-0 w-full h-[600px] bg-gradient-to-b from-indigo-600/10 to-transparent pointer-events-none" />
       
-      <div className="flex-1 flex flex-col p-4 md:p-12 lg:p-16 overflow-y-auto custom-scrollbar relative z-10">
+      <div className="flex-1 flex flex-col p-4 md:p-10 lg:p-12 overflow-y-auto custom-scrollbar relative z-10">
         <Tabs value={activeDashboardView} onValueChange={(v) => setSearchParams({ view: v })} className="w-full">
-          <div className="mb-8 flex items-center justify-between">
-            <div className="space-y-1">
-              <h2 className="text-sm font-black uppercase tracking-[0.3em] text-indigo-400">Welcome Back</h2>
+          <div className="mb-10 flex items-center justify-between">
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-indigo-400" />
+                <h2 className="text-sm font-black uppercase tracking-[0.3em] text-indigo-400">Welcome Back</h2>
+              </div>
               <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">
                 {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
               </p>
@@ -467,7 +470,6 @@ const Index = () => {
           </div>
 
           <DashboardHeader
-
             onOpenStorageAudit={() => setIsStorageAuditOpen(true)}
             onOpenAdmin={() => setIsAdminPanelOpen(true)}
             onOpenMDAudit={() => setIsMDAuditOpen(true)}
@@ -478,11 +480,15 @@ const Index = () => {
             onOpenUserGuide={() => setIsUserGuideOpen(true)}
           />
 
-          {isGoalTrackerEnabled && <div className="mb-16 animate-in fade-in slide-in-from-top-6 duration-700 delay-100"><GoalTracker repertoire={masterRepertoire} onFilterApply={(f) => setActiveFilters(prev => ({...prev, ...f}))} /></div>}
+          {isGoalTrackerEnabled && (
+            <div className="mb-12 animate-in fade-in slide-in-from-top-6 duration-700 delay-100">
+              <GoalTracker repertoire={masterRepertoire} onFilterApply={(f) => setActiveFilters(prev => ({...prev, ...f}))} />
+            </div>
+          )}
 
           {activeDashboardView === 'gigs' && !activeSetlistId && !loading && (
-            <div className="flex flex-col items-center justify-center py-20 text-center space-y-6 animate-in fade-in zoom-in duration-700">
-              <div className="bg-slate-900/50 p-8 rounded-[2.5rem] border border-white/5 shadow-2xl">
+            <div className="flex flex-col items-center justify-center py-24 text-center space-y-6 animate-in fade-in zoom-in duration-700">
+              <div className="bg-slate-900/50 p-10 rounded-[3rem] border border-white/5 shadow-2xl">
                 <Calendar className="w-16 h-16 text-indigo-500 mx-auto mb-6 opacity-50" />
                 <h2 className="text-2xl font-black uppercase tracking-tight">No Gigs Found</h2>
                 <p className="text-slate-400 max-w-xs mx-auto mt-2 font-medium">
@@ -499,8 +505,8 @@ const Index = () => {
           )}
 
           {activeDashboardView === 'repertoire' && masterRepertoire.length === 0 && !loading && (
-            <div className="flex flex-col items-center justify-center py-20 text-center space-y-6 animate-in fade-in zoom-in duration-700">
-              <div className="bg-slate-900/50 p-8 rounded-[2.5rem] border border-white/5 shadow-2xl">
+            <div className="flex flex-col items-center justify-center py-24 text-center space-y-6 animate-in fade-in zoom-in duration-700">
+              <div className="bg-slate-900/50 p-10 rounded-[3rem] border border-white/5 shadow-2xl">
                 <Music2 className="w-16 h-16 text-indigo-500 mx-auto mb-6 opacity-50" />
                 <h2 className="text-2xl font-black uppercase tracking-tight">Library is Empty</h2>
                 <p className="text-slate-400 max-w-xs mx-auto mt-2 font-medium">
@@ -517,34 +523,154 @@ const Index = () => {
           )}
 
           {activeDashboardView === 'gigs' && activeSong && (
-
-            <div className="mb-16 animate-in fade-in slide-in-from-top-8 duration-700 delay-200">
-              <ActiveSongBanner song={activeSong} isPlaying={audio.isPlaying} onTogglePlayback={audio.togglePlayback} onClear={() => { audio.stopPlayback(); }} isLoadingAudio={audio.isLoadingAudio} nextSongName={filteredAndSortedSongs[filteredAndSortedSongs.findIndex(s => s.id === activeSong.id) + 1]?.name} onNext={() => playNext(true)} onPrevious={() => {}} />
+            <div className="mb-12 animate-in fade-in slide-in-from-top-8 duration-700 delay-200">
+              <ActiveSongBanner 
+                song={activeSong} 
+                isPlaying={audio.isPlaying} 
+                onTogglePlayback={audio.togglePlayback} 
+                onClear={() => { audio.stopPlayback(); }} 
+                isLoadingAudio={audio.isLoadingAudio} 
+                nextSongName={filteredAndSortedSongs[filteredAndSortedSongs.findIndex(s => s.id === activeSong.id) + 1]?.name} 
+                onNext={() => playNext(true)} 
+                onPrevious={() => {}} 
+              />
             </div>
           )}
 
-          <TabsContent value="gigs" className="mt-0 space-y-12 animate-in fade-in duration-700 delay-400">
-            {activeSetlistId && <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-8"><SetlistSelector setlists={allSetlists} currentId={activeSetlistId} onSelect={setActiveSetlistId} onCreate={handleCreateSetlist} onDelete={handleDeleteSetlist} onDuplicate={handleDuplicateSetlist} onOpenGigPlanner={() => setIsGigPlannerOpen(true)} /></div>}
+          <TabsContent value="gigs" className="mt-0 space-y-10 animate-in fade-in duration-700 delay-400">
+            {activeSetlistId && (
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+                <SetlistSelector 
+                  setlists={allSetlists} 
+                  currentId={activeSetlistId} 
+                  onSelect={setActiveSetlistId} 
+                  onCreate={handleCreateSetlist} 
+                  onDelete={handleDeleteSetlist} 
+                  onDuplicate={handleDuplicateSetlist} 
+                  onOpenGigPlanner={() => setIsGigPlannerOpen(true)} 
+                />
+              </div>
+            )}
             {activeSetlist && (
               <>
                 <SetlistStats songs={filteredAndSortedSongs} goalSeconds={activeSetlist.time_goal} onPlayAll={toggleAutoplay} isAutoplayActive={isAutoplayActive} />
-                <SetlistManager songs={filteredAndSortedSongs} onSelect={handleSelectSong} onEdit={handleEditSong} onUpdateKey={async (id, targetKey) => { const song = activeSetlist.songs.find(s => s.id === id); if (song) { const newPitch = calculateSemitones(song.originalKey || 'C', targetKey); await handleUpdateSongInSetlist(id, { targetKey, pitch: newPitch }); } }} onUpdateSong={handleUpdateSongInSetlist} onTogglePlayed={handleTogglePlayed} onReorder={handleReorderSongs} onUpdateSetlistSongs={handleUpdateSetlistSongs} onOpenSortModal={() => setIsSetlistSortModalOpen(true)} onBulkVibeCheck={handleBulkVibeCheck} masterRepertoire={masterRepertoire} activeSetlistId={activeSetlistId} isFilterOpen={isFilterOpen} setIsFilterOpen={setIsFilterOpen} sortMode={sortMode} setSortMode={setSortMode} activeFilters={activeFilters} setActiveFilters={setActiveFilters} searchTerm={searchTerm} setSearchTerm={setSearchTerm} showHeatmap={showHeatmap} allSetlists={allSetlists} onRemove={handleRemoveSongFromSetlist} onLinkAudio={() => {}} onSyncProData={async () => {}} />
+                <SetlistManager 
+                  songs={filteredAndSortedSongs} 
+                  onSelect={handleSelectSong} 
+                  onEdit={handleEditSong} 
+                  onUpdateKey={async (id, targetKey) => { 
+                    const song = activeSetlist.songs.find(s => s.id === id); 
+                    if (song) { 
+                      const newPitch = calculateSemitones(song.originalKey || 'C', targetKey); 
+                      await handleUpdateSongInSetlist(id, { targetKey, pitch: newPitch }); 
+                    } 
+                  }} 
+                  onUpdateSong={handleUpdateSongInSetlist} 
+                  onTogglePlayed={handleTogglePlayed} 
+                  onReorder={handleReorderSongs} 
+                  onUpdateSetlistSongs={handleUpdateSetlistSongs} 
+                  onOpenSortModal={() => setIsSetlistSortModalOpen(true)} 
+                  onBulkVibeCheck={handleBulkVibeCheck} 
+                  masterRepertoire={masterRepertoire} 
+                  activeSetlistId={activeSetlistId} 
+                  isFilterOpen={isFilterOpen} 
+                  setIsFilterOpen={setIsFilterOpen} 
+                  sortMode={sortMode} 
+                  setSortMode={setSortMode} 
+                  activeFilters={activeFilters} 
+                  setActiveFilters={setActiveFilters} 
+                  searchTerm={searchTerm} 
+                  setSearchTerm={setSearchTerm} 
+                  showHeatmap={showHeatmap} 
+                  allSetlists={allSetlists} 
+                  onRemove={handleRemoveSongFromSetlist} 
+                  onLinkAudio={() => {}} 
+                  onSyncProData={async () => {}} 
+                />
               </>
             )}
           </TabsContent>
           
-          <TabsContent value="repertoire" className="mt-0 space-y-12 animate-in fade-in duration-700 delay-400">
-            <RepertoireView repertoire={masterRepertoire} onEditSong={handleEditSong} allSetlists={allSetlists} onRefreshRepertoire={() => fetchSetlistsAndRepertoire()} searchTerm={searchTerm} setSearchTerm={setSearchTerm} sortMode={sortMode as any} setSortMode={setSortMode as any} activeFilters={activeFilters} setActiveFilters={setActiveFilters} onUpdateSetlistSongs={handleUpdateSetlistSongs} onDeleteSong={handleDeleteSong} onAddSong={() => {}} onOpenAdmin={() => setIsAdminPanelOpen(true)} activeSetlistId={activeSetlistId} onBulkVibeCheck={handleBulkVibeCheck} />
+          <TabsContent value="repertoire" className="mt-0 space-y-10 animate-in fade-in duration-700 delay-400">
+            <RepertoireView 
+              repertoire={masterRepertoire} 
+              onEditSong={handleEditSong} 
+              allSetlists={allSetlists} 
+              onRefreshRepertoire={() => fetchSetlistsAndRepertoire()} 
+              searchTerm={searchTerm} 
+              setSearchTerm={setSearchTerm} 
+              sortMode={sortMode as any} 
+              setSortMode={setSortMode as any} 
+              activeFilters={activeFilters} 
+              setActiveFilters={setActiveFilters} 
+              onUpdateSetlistSongs={handleUpdateSetlistSongs} 
+              onDeleteSong={handleDeleteSong} 
+              onAddSong={() => {}} 
+              onOpenAdmin={() => setIsAdminPanelOpen(true)} 
+              activeSetlistId={activeSetlistId} 
+              onBulkVibeCheck={handleBulkVibeCheck} 
+            />
           </TabsContent>
         </Tabs>
       </div>
 
-      <FloatingCommandDock onOpenSearch={() => setIsGlobalSearchOpen(true)} onOpenPractice={() => {}} onOpenReader={(id) => navigate(`/sheet-reader/${id || ''}`)} onOpenAdmin={() => setIsAdminPanelOpen(true)} onOpenPreferences={() => setIsPreferencesOpen(true)} onToggleHeatmap={() => setShowHeatmap(!showHeatmap)} onOpenUserGuide={() => setIsUserGuideOpen(true)} showHeatmap={showHeatmap} viewMode={activeDashboardView} hasPlayableSong={!!activeSong} isPlaying={audio.isPlaying} onTogglePlayback={audio.togglePlayback} activeSongId={activeSong?.id} onSetMenuOpen={setFloatingDockMenuOpen} isMenuOpen={floatingDockMenuOpen} onOpenPerformance={() => setIsPerformanceOverlayOpen(true)} hasReadableChart={!!activeSong} />
+      <FloatingCommandDock 
+        onOpenSearch={() => setIsGlobalSearchOpen(true)} 
+        onOpenPractice={() => {}} 
+        onOpenReader={(id) => navigate(`/sheet-reader/${id || ''}`)} 
+        onOpenAdmin={() => setIsAdminPanelOpen(true)} 
+        onOpenPreferences={() => setIsPreferencesOpen(true)} 
+        onToggleHeatmap={() => setShowHeatmap(!showHeatmap)} 
+        onOpenUserGuide={() => setIsUserGuideOpen(true)} 
+        showHeatmap={showHeatmap} 
+        viewMode={activeDashboardView} 
+        hasPlayableSong={!!activeSong} 
+        isPlaying={audio.isPlaying} 
+        onTogglePlayback={audio.togglePlayback} 
+        activeSongId={activeSong?.id} 
+        onSetMenuOpen={setFloatingDockMenuOpen} 
+        isMenuOpen={floatingDockMenuOpen} 
+        onOpenPerformance={() => setIsPerformanceOverlayOpen(true)} 
+        hasReadableChart={!!activeSong} 
+      />
 
-      <SongStudioModal isOpen={isSongStudioModalOpen} onClose={() => setIsSongStudioModalOpen(false)} gigId={songStudioModalGigId} songId={songStudioModalSongId} visibleSongs={activeDashboardView === 'gigs' ? filteredAndSortedSongs : masterRepertoire} allSetlists={allSetlists} masterRepertoire={masterRepertoire} defaultTab={songStudioDefaultTab} audioEngine={audio} preventStageKeyOverwrite={preventStageKeyOverwrite} />
+      <SongStudioModal 
+        isOpen={isSongStudioModalOpen} 
+        onClose={() => setIsSongStudioModalOpen(false)} 
+        gigId={songStudioModalGigId} 
+        songId={songStudioModalSongId} 
+        visibleSongs={activeDashboardView === 'gigs' ? filteredAndSortedSongs : masterRepertoire} 
+        allSetlists={allSetlists} 
+        masterRepertoire={masterRepertoire} 
+        defaultTab={songStudioDefaultTab} 
+        audioEngine={audio} 
+        preventStageKeyOverwrite={preventStageKeyOverwrite} 
+      />
 
       {isPerformanceOverlayOpen && activeSetlist && activeSong && (
-        <PerformanceOverlay songs={activeSetlist.songs} currentIndex={activeSetlist.songs.findIndex(s => s.id === activeSong.id)} isPlaying={audio.isPlaying} progress={audio.progress} duration={audio.duration} onTogglePlayback={audio.togglePlayback} onNext={() => playNext(true)} onPrevious={() => {}} onShuffle={() => {}} onClose={() => setIsPerformanceOverlayOpen(false)} onUpdateSong={handleUpdateSongInSetlist} onUpdateKey={async (id, targetKey) => { const song = activeSetlist.songs.find(s => s.id === id); if (song) { const newPitch = calculateSemitones(song.originalKey || 'C', targetKey); await handleUpdateSongInSetlist(id, { targetKey, pitch: newPitch }); } }} analyzer={audio.analyzer} gigId={activeSetlist.id} isLoadingAudio={audio.isLoadingAudio} />
+        <PerformanceOverlay 
+          songs={activeSetlist.songs} 
+          currentIndex={activeSetlist.songs.findIndex(s => s.id === activeSong.id)} 
+          isPlaying={audio.isPlaying} 
+          progress={audio.progress} 
+          duration={audio.duration} 
+          onTogglePlayback={audio.togglePlayback} 
+          onNext={() => playNext(true)} 
+          onPrevious={() => {}} 
+          onShuffle={() => {}} 
+          onClose={() => setIsPerformanceOverlayOpen(false)} 
+          onUpdateSong={handleUpdateSongInSetlist} 
+          onUpdateKey={async (id, targetKey) => { 
+            const song = activeSetlist.songs.find(s => s.id === id); 
+            if (song) { 
+              const newPitch = calculateSemitones(song.originalKey || 'C', targetKey); 
+              await handleUpdateSongInSetlist(id, { targetKey, pitch: newPitch }); 
+            } 
+          }} 
+          analyzer={audio.analyzer} 
+          gigId={activeSetlist.id} 
+          isLoadingAudio={audio.isLoadingAudio} 
+        />
       )}
 
       <AdminPanel isOpen={isAdminPanelOpen} onClose={() => setIsAdminPanelOpen(false)} onRefreshRepertoire={() => fetchSetlistsAndRepertoire()} repertoire={masterRepertoire} />

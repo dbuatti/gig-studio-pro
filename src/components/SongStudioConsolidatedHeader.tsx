@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { 
   ArrowLeft, Play, Pause, Sparkles, Globe, 
   Check, Loader2, Save, Share2, MoreHorizontal,
-  CloudUpload, Activity, Music
+  CloudUpload, Activity, Music, X
 } from 'lucide-react';
 import { SetlistSong, Setlist } from './SetlistManager';
 import { cn } from '@/lib/utils';
@@ -64,67 +64,67 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
   const displayTargetKey = formatKey(targetKey || formData.originalKey || 'C', currentPref === 'neutral' ? 'sharps' : currentPref);
 
   return (
-    <div className="bg-slate-950 border-b border-white/10 px-4 md:px-6 py-3 md:py-4 flex items-center justify-between gap-3 md:gap-4 shadow-2xl relative z-50 h-auto md:h-[72px]">
+    <div className="bg-slate-950 border-b border-white/10 px-4 md:px-8 py-4 md:py-5 flex items-center justify-between gap-4 md:gap-6 shadow-2xl relative z-50 h-auto md:h-[88px]">
       {/* Left: Back & Title */}
-      <div className="flex items-center gap-3 md:gap-4 min-w-0">
+      <div className="flex items-center gap-4 md:gap-6 min-w-0">
         <Button 
           variant="ghost" 
           size="icon" 
           onClick={onClose}
-          className="h-9 w-9 md:h-10 md:w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 shrink-0 transition-all active:scale-90"
+          className="h-10 w-10 md:h-12 md:w-12 rounded-2xl bg-white/5 hover:bg-white/10 text-slate-400 shrink-0 transition-all active:scale-90"
           title="Back to Dashboard"
         >
-          <ArrowLeft className="w-4 h-4 md:w-5 md:h-5" />
+          <ArrowLeft className="w-5 h-5 md:w-6 md:h-6" />
         </Button>
         
-        <div className="hidden sm:block h-8 w-px bg-white/10 mx-1" />
+        <div className="hidden sm:block h-10 w-px bg-white/10 mx-1" />
 
         <div className="min-w-0">
-          <div className="flex items-center gap-2 md:gap-3">
-            <h2 className="text-sm md:text-lg font-black uppercase tracking-tight text-white truncate">
+          <div className="flex items-center gap-3 md:gap-4">
+            <h2 className="text-base md:text-2xl font-black uppercase tracking-tight text-white truncate leading-none">
               {formData.name || "Untitled Track"}
             </h2>
             {(isSaving || showSynced) && (
               <div className={cn(
-                "flex items-center gap-1 px-2 py-0.5 rounded-full text-[7px] md:text-[8px] font-black uppercase tracking-widest transition-all duration-500 shrink-0",
+                "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[8px] md:text-[9px] font-black uppercase tracking-widest transition-all duration-500 shrink-0",
                 isSaving ? "bg-indigo-500/10 text-indigo-400" : "bg-emerald-500/10 text-emerald-400"
               )}>
                 {isSaving ? (
                   <>
-                    <Loader2 className="w-2 h-2 md:w-2.5 md:h-2.5 animate-spin" />
+                    <Loader2 className="w-2.5 h-2.5 md:w-3 md:h-3 animate-spin" />
                     <span className="hidden xs:inline">Syncing</span>
                   </>
                 ) : (
                   <>
-                    <Check className="w-2 h-2 md:w-2.5 md:h-2.5" />
+                    <Check className="w-2.5 h-2.5 md:w-3 md:h-3" />
                     <span className="hidden xs:inline">Synced</span>
                   </>
                 )}
               </div>
             )}
           </div>
-          <p className="text-[8px] md:text-[9px] font-bold text-slate-500 uppercase tracking-widest truncate">
+          <p className="text-[9px] md:text-[11px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-1.5 truncate">
             {formData.artist || "Unknown Artist"}
           </p>
         </div>
       </div>
 
       {/* Right: Controls */}
-      <div className="flex items-center gap-2 md:gap-4 shrink-0">
-        <div className="hidden lg:flex items-center gap-6 px-6 py-2 bg-white/5 rounded-2xl border border-white/5 mr-2 shadow-inner">
+      <div className="flex items-center gap-3 md:gap-6 shrink-0">
+        <div className="hidden lg:flex items-center gap-8 px-8 py-3 bg-white/5 rounded-[1.5rem] border border-white/5 mr-2 shadow-inner">
           <div className="text-center">
-            <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Stage Key</p>
-            <div className="flex items-center gap-1.5">
-              <Music className="w-3 h-3 text-indigo-400" />
-              <p className="text-sm font-mono font-black text-white">{displayTargetKey}</p>
+            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Stage Key</p>
+            <div className="flex items-center gap-2">
+              <Music className="w-3.5 h-3.5 text-indigo-400" />
+              <p className="text-lg font-mono font-black text-white leading-none">{displayTargetKey}</p>
             </div>
           </div>
-          <div className="w-px h-8 bg-white/10" />
+          <div className="w-px h-10 bg-white/10" />
           <div className="text-center">
-            <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Pitch Shift</p>
-            <div className="flex items-center gap-1.5">
-              <Activity className="w-3 h-3 text-emerald-400" />
-              <p className="text-sm font-mono font-black text-white">{pitch > 0 ? '+' : ''}{pitch}</p>
+            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Pitch Shift</p>
+            <div className="flex items-center gap-2">
+              <Activity className="w-3.5 h-3.5 text-emerald-400" />
+              <p className="text-lg font-mono font-black text-white leading-none">{pitch > 0 ? '+' : ''}{pitch}</p>
             </div>
           </div>
         </div>
@@ -133,30 +133,30 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
           onClick={onTogglePlayback}
           disabled={isLoadingAudio}
           className={cn(
-            "h-10 md:h-12 px-4 md:px-8 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-[9px] md:text-[10px] gap-2 md:gap-3 shadow-xl transition-all active:scale-95",
+            "h-11 md:h-14 px-5 md:px-10 rounded-2xl md:rounded-[1.5rem] font-black uppercase tracking-widest text-[10px] md:text-[11px] gap-3 md:gap-4 shadow-2xl transition-all active:scale-95",
             isPlaying 
-              ? "bg-red-600 hover:bg-red-700 shadow-red-600/20" 
-              : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20"
+              ? "bg-red-600 hover:bg-red-700 shadow-red-600/30" 
+              : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/30"
           )}
         >
           {isLoadingAudio ? (
-            <Loader2 className="w-3.5 h-3.5 md:w-4 md:h-4 animate-spin" />
+            <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" />
           ) : isPlaying ? (
-            <Pause className="w-3.5 h-3.5 md:w-4 md:h-4 fill-current" />
+            <Pause className="w-4 h-4 md:w-5 md:h-5 fill-current" />
           ) : (
-            <Play className="w-3.5 h-3.5 md:w-4 md:h-4 fill-current" />
+            <Play className="w-4 h-4 md:w-5 md:h-5 fill-current ml-1" />
           )}
           <span className="hidden xs:inline">{isPlaying ? "Stop" : "Preview"}</span>
         </Button>
 
-        <div className="flex items-center gap-1.5 md:gap-2">
+        <div className="flex items-center gap-2 md:gap-3">
           <Button 
             variant="outline" 
             size="sm" 
             onClick={onOpenProSync}
-            className="h-10 md:h-12 px-3 md:px-6 rounded-xl md:rounded-2xl text-indigo-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[9px] md:text-[10px] gap-2 md:gap-2.5"
+            className="h-11 md:h-14 px-4 md:px-8 rounded-2xl md:rounded-[1.5rem] text-indigo-400 border-white/10 bg-white/5 hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[10px] md:text-[11px] gap-3"
           >
-            <Sparkles className="w-3.5 h-3.5 md:w-4 md:h-4" /> <span className="hidden sm:inline">Pro Sync</span>
+            <Sparkles className="w-4 h-4 md:w-5 md:h-5" /> <span className="hidden sm:inline">Pro Sync</span>
           </Button>
 
           <SetlistMultiSelector

@@ -379,7 +379,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <SetlistControls 
         sortMode={sortMode}
         setSortMode={setSortMode}
@@ -401,13 +401,13 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       )}
 
       {energyFatigueIndices.length > 0 && (
-        <div className="p-5 bg-red-600/10 border border-red-500/20 rounded-[2rem] flex items-start gap-5 shadow-2xl shadow-red-900/10">
-          <div className="bg-red-600 p-2 rounded-xl shadow-lg shadow-red-600/20">
-            <AlertTriangle className="w-5 h-5 text-white" />
+        <div className="p-6 bg-red-600/10 border border-red-500/20 rounded-[2.5rem] flex items-start gap-6 shadow-2xl shadow-red-900/10">
+          <div className="bg-red-600 p-3 rounded-2xl shadow-lg shadow-red-900/20">
+            <AlertTriangle className="w-6 h-6 text-white" />
           </div>
           <div>
-            <p className="text-sm font-black uppercase tracking-tight text-red-400">Energy Fatigue Warning</p>
-            <p className="text-[11px] text-slate-400 mt-1.5 font-medium leading-relaxed max-w-2xl">
+            <p className="text-base font-black uppercase tracking-tight text-red-400">Energy Fatigue Warning</p>
+            <p className="text-sm text-slate-400 mt-2 font-medium leading-relaxed max-w-3xl">
               You have {energyFatigueIndices.length} high-energy clusters (3+ 'Peak' songs in a row). Consider adding a 'Pulse' or 'Ambient' track to prevent audience burnout.
             </p>
           </div>
@@ -415,16 +415,16 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       )}
 
       {isMobile ? (
-        <div className="space-y-4 px-1 pb-6">
+        <div className="space-y-6 px-1 pb-8">
           {sortedSetGroups.map(groupNum => (
             <React.Fragment key={groupNum}>
               {hasMultipleSets && (
-                <div className="flex items-center gap-3 py-2">
+                <div className="flex items-center gap-4 py-3">
                   <Badge className={cn(
-                    "h-7 px-4 rounded-full font-black uppercase tracking-widest text-[9px] gap-2",
+                    "h-8 px-5 rounded-full font-black uppercase tracking-widest text-[10px] gap-2.5",
                     groupNum === 99 ? "bg-slate-800 text-slate-400 border-slate-700" : "bg-indigo-600 text-white"
                   )}>
-                    {groupNum === 99 && <AlertTriangle className="w-3 h-3" />}
+                    {groupNum === 99 && <AlertTriangle className="w-3.5 h-3.5" />}
                     {getSetLabel(groupNum)}
                   </Badge>
                   <div className="h-px flex-1 bg-white/5" />
@@ -452,42 +452,42 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
           ))}
         </div>
       ) : (
-        <div className="bg-slate-950/50 rounded-[2.5rem] border-4 border-white/5 shadow-2xl overflow-hidden backdrop-blur-xl">
+        <div className="bg-slate-950/50 rounded-[3rem] border-4 border-white/5 shadow-2xl overflow-hidden backdrop-blur-xl">
           <div className="overflow-x-auto custom-scrollbar">
-            <table className="w-full border-collapse min-w-[1100px]">
+            <table className="w-full border-collapse min-w-[1200px]">
               <thead>
-                <tr className="bg-slate-900/80 border-b border-white/5">
-                  <th className="py-5 px-8 text-[10px] font-black uppercase tracking-widest text-slate-500 w-20 text-center">Sts</th>
-                  <th className="py-5 px-8 text-[10px] font-black uppercase tracking-widest text-slate-500 text-left">Song / Resource Matrix</th>
-                  <th className="py-5 px-8 text-[10px] font-black uppercase tracking-widest text-slate-500 w-32 text-center">Energy</th>
-                  <th className="py-5 px-8 text-[10px] font-black uppercase tracking-widest text-slate-500 w-36 text-center">Mastery</th>
-                  <th className="py-5 px-8 text-[10px] font-black uppercase tracking-widest text-slate-500 w-24 text-center cursor-pointer hover:text-indigo-400 transition-colors" onClick={() => setSortMode(sortMode === 'ready' ? 'work' : 'ready')}>
-                    <div className="flex items-center justify-center gap-1">
+                <tr className="bg-slate-900/90 border-b border-white/10">
+                  <th className="py-6 px-10 text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 w-24 text-center">Status</th>
+                  <th className="py-6 px-10 text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 text-left">Track Details</th>
+                  <th className="py-6 px-10 text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 w-36 text-center">Energy</th>
+                  <th className="py-6 px-10 text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 w-40 text-center">Mastery</th>
+                  <th className="py-6 px-10 text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 w-28 text-center cursor-pointer hover:text-indigo-400 transition-colors" onClick={() => setSortMode(sortMode === 'ready' ? 'work' : 'ready')}>
+                    <div className="flex items-center justify-center gap-1.5">
                       Ready
-                      {sortMode === 'ready' && <ChevronDown className="w-3 h-3" />}
-                      {sortMode === 'work' && <ChevronUp className="w-3 h-3" />}
+                      {sortMode === 'ready' && <ChevronDown className="w-3.5 h-3.5" />}
+                      {sortMode === 'work' && <ChevronUp className="w-3.5 h-3.5" />}
                     </div>
                   </th>
-                  <th className="py-5 px-8 text-[10px] font-black uppercase tracking-widest text-slate-500 w-28 text-center">Move</th>
-                  <th className="py-5 px-8 text-[10px] font-black uppercase tracking-widest text-slate-500 w-56 text-center">Harmonic Map</th>
-                  <th className="py-5 px-8 text-[10px] font-black uppercase tracking-widest text-slate-500 w-48 text-right pr-12">Command</th>
+                  <th className="py-6 px-10 text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 w-32 text-center">Order</th>
+                  <th className="py-6 px-10 text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 w-64 text-center">Harmonic Map</th>
+                  <th className="py-6 px-10 text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 w-56 text-right pr-14">Command</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
                 {sortedSetGroups.map(groupNum => (
                   <React.Fragment key={groupNum}>
                     {hasMultipleSets && (
-                      <tr className="bg-slate-900/40 border-y border-white/5">
-                        <td colSpan={8} className="py-3 px-8">
-                          <div className="flex items-center gap-3">
+                      <tr className="bg-slate-900/60 border-y border-white/10">
+                        <td colSpan={8} className="py-4 px-10">
+                          <div className="flex items-center gap-4">
                             <Badge className={cn(
-                              "h-7 px-4 rounded-full font-black uppercase tracking-widest text-[9px] gap-2",
+                              "h-8 px-5 rounded-full font-black uppercase tracking-widest text-[10px] gap-2.5",
                               groupNum === 99 ? "bg-slate-800 text-slate-400 border-slate-700" : "bg-indigo-600 text-white"
                             )}>
-                              {groupNum === 99 && <AlertTriangle className="w-3 h-3" />}
+                              {groupNum === 99 && <AlertTriangle className="w-3.5 h-3.5" />}
                               {getSetLabel(groupNum)}
                             </Badge>
-                            <div className="h-px flex-1 bg-white/5" />
+                            <div className="h-px flex-1 bg-white/10" />
                           </div>
                         </td>
                       </tr>
@@ -528,25 +528,25 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
       )}
 
       {activeSetlistId && masterRepertoire.length > 0 && (
-        <div className="mt-10">
+        <div className="mt-12">
           <SongRecommender currentSongs={rawSongs} repertoire={masterRepertoire} onAddSong={(song) => onUpdateSetlistSongs(activeSetlistId, song, 'add')} />
         </div>
       )}
 
       <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
-        <AlertDialogContent className="bg-slate-950 border-white/10 text-white rounded-[2.5rem] p-8 shadow-2xl">
+        <AlertDialogContent className="bg-slate-950 border-white/10 text-white rounded-[2.5rem] p-10 shadow-2xl">
           <AlertDialogHeader>
-            <div className="bg-red-600/10 w-16 h-16 rounded-[1.5rem] flex items-center justify-center text-red-500 mb-6 shadow-lg shadow-red-900/10">
-              <AlertTriangle className="w-8 h-8" />
+            <div className="bg-red-600/10 w-20 h-20 rounded-[2rem] flex items-center justify-center text-red-500 mb-8 shadow-lg shadow-red-900/10">
+              <AlertTriangle className="w-10 h-10" />
             </div>
-            <AlertDialogTitle className="text-2xl font-black uppercase tracking-tight">Remove Track?</AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-400 font-medium text-base leading-relaxed">
+            <AlertDialogTitle className="text-3xl font-black uppercase tracking-tight">Remove Track?</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-400 font-medium text-lg leading-relaxed">
               This will remove the song from your active setlist. The master record will remain in your library.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="mt-10 gap-4">
-            <AlertDialogCancel className="rounded-2xl border-white/5 bg-slate-900 hover:bg-slate-800 text-white font-black uppercase text-[11px] tracking-widest h-14 px-8">Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { if (deleteConfirmId) { onRemove(deleteConfirmId); setDeleteConfirmId(null); showSuccess("Track Removed"); } }} className="rounded-2xl bg-red-600 hover:bg-red-500 text-white font-black uppercase text-[11px] tracking-widest h-14 px-8 shadow-xl shadow-red-600/20">Confirm Removal</AlertDialogAction>
+          <AlertDialogFooter className="mt-12 gap-4">
+            <AlertDialogCancel className="rounded-2xl border-white/5 bg-slate-900 hover:bg-slate-800 text-white font-black uppercase text-xs tracking-widest h-16 px-10">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { if (deleteConfirmId) { onRemove(deleteConfirmId); setDeleteConfirmId(null); showSuccess("Track Removed"); } }} className="rounded-2xl bg-red-600 hover:bg-red-500 text-white font-black uppercase text-xs tracking-widest h-16 px-10 shadow-xl shadow-red-600/20">Confirm Removal</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
