@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Search, Library, Music, Settings2, Plus, Check, ShieldCheck,
-  Star, Filter, AlertTriangle, Loader2, CloudDownload, Edit3, ListMusic, ArrowRight, Trash2, Wand2, X
+  Star, Filter, AlertTriangle, Loader2, CloudDownload, Edit3, ListMusic, ArrowRight, Trash2, X
 } from 'lucide-react';
 import { SetlistSong } from './SetlistManager';
 import { cn } from "@/lib/utils";
@@ -15,13 +15,13 @@ import { useSettings } from '@/hooks/use-settings';
 import { calculateReadiness } from '@/utils/repertoireSync';
 import SetlistMultiSelector from './SetlistMultiSelector';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { showSuccess } from '@/utils/toast';
-import SetlistFilters, { FilterState, DEFAULT_FILTERS } from './SetlistFilters';
+import SetlistFilters, { FilterState } from './SetlistFilters';
 import SetlistExporter from './SetlistExporter';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import RepertoireSuggestions from './RepertoireSuggestions'; // NEW: Import RepertoireSuggestions
+import RepertoireSuggestions from './RepertoireSuggestions';
+import { filterAndSortRepertoire } from '@/utils/repertoireFilters';
 
 interface RepertoireViewProps {
   repertoire: SetlistSong[];
@@ -36,12 +36,11 @@ interface RepertoireViewProps {
   setSortMode: (mode: 'none' | 'ready' | 'work' | 'manual') => void;
   activeFilters: FilterState;
   setActiveFilters: (filters: FilterState) => void;
-  // Automation Hub Props
   onAutoLink?: () => Promise<void>;
   onGlobalAutoSync?: () => Promise<void>;
   onBulkRefreshAudio?: () => Promise<void>;
   onClearAutoLinks?: () => Promise<void>;
-  onBulkVibeCheck?: () => Promise<void>; // NEW PROP
+  onBulkVibeCheck?: () => Promise<void>;
   isBulkDownloading?: boolean;
   missingAudioCount?: number;
   onOpenAdmin?: () => void;
@@ -66,7 +65,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
   onGlobalAutoSync,
   onBulkRefreshAudio,
   onClearAutoLinks,
-  onBulkVibeCheck, // Destructure new prop
+  onBulkVibeCheck,
   isBulkDownloading,
   missingAudioCount,
   onOpenAdmin,
@@ -77,70 +76,20 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
+  const activeSetlistSongs = useMemo(() => {
+    if (!activeSetlistId) return [];
+    return allSetlists.find(l => l.id === activeSetlistId)?.songs || [];
+  }, [allSetlists, activeSetlistId]);
+
   const filteredAndSortedRepertoire = useMemo(() => {
-    let songs = [...repertoire];
-    const q = searchTerm.toLowerCase();
-
-    songs = songs.filter(s => {
-      const matchesSearch = s.name.toLowerCase().includes(q) ||
-                            s.artist?.toLowerCase().includes(q) ||
-                            s.user_tags?.some(tag => tag.toLowerCase().includes(q));
-      if (!matchesSearch) return false;
-      
-      const readiness = calculateReadiness(s);
-      const hasAudio = !!s.audio_url;
-      const hasItunesPreview = !!s.previewUrl && (s.previewUrl.includes('apple.com') || s.previewUrl.includes('itunes-assets'));
-      const hasVideo = !!s.youtubeUrl;
-      const hasPdf = !!s.pdfUrl || !!s.leadsheetUrl || !!s.sheet_music_url;
-      const hasUg = !!s.ugUrl;
-      const hasUgChords = !!s.ug_chords_text && s.ug_chords_text.trim().length > 0;
-      const hasLyrics = !!s.lyrics && s.lyrics.length > 20;
-
-      if (activeFilters.readiness > 0 && readiness < activeFilters.readiness) return false;
-      if (activeFilters.isConfirmed === 'yes' && !s.isKeyConfirmed) return false;
-      if (activeFilters.isConfirmed === 'no' && s.isKeyConfirmed) return false;
-      if (activeFilters.isApproved === 'yes' && !s.isApproved) return false;
-      if (activeFilters.isApproved === 'no' && s.isApproved) return false;
-      if (activeFilters.hasAudio === 'full' && !hasAudio) return false;
-      if (activeFilters.hasAudio === 'itunes' && !hasItunesPreview) return false;
-      if (activeFilters.hasAudio === 'none' && (hasAudio || hasItunesPreview)) return false;
-      if (activeFilters.hasVideo === 'yes' && !hasVideo) return false;
-      if (activeFilters.hasVideo === 'no' && hasVideo) return false;
-      if (activeFilters.hasChart === 'yes' && !(hasPdf || hasUg || hasUgChords)) return false;
-      if (activeFilters.hasChart === 'no' && (hasPdf || hasUg || hasUgChords)) return false;
-      if (activeFilters.hasPdf === 'yes' && !hasPdf) return false;
-      if (activeFilters.hasPdf === 'no' && hasPdf) return false;
-      if (activeFilters.hasUg === 'yes' && !hasUg) return false;
-      if (activeFilters.hasUg === 'no' && hasUg) return false;
-      if (activeFilters.hasUgChords === 'yes' && !hasUgChords) return false;
-      if (activeFilters.hasUgChords === 'no' && hasUgChords) return false;
-      if (activeFilters.hasLyrics === 'yes' && !hasLyrics) return false;
-      if (activeFilters.hasLyrics === 'no' && hasLyrics) return false;
-      if (activeFilters.hasHighestNote === 'yes' && !s.highest_note_original) return false; 
-      if (activeFilters.hasHighestNote === 'no' && s.highest_note_original) return false;
-      if (activeFilters.hasOriginalKey === 'yes' && (!s.originalKey || s.originalKey === 'TBC')) return false;
-      if (activeFilters.hasOriginalKey === 'no' && (s.originalKey && s.originalKey !== 'TBC')) return false;
-      
-      if (activeFilters.inSetlist !== 'all' && activeSetlistId) {
-        const activeSetlist = allSetlists.find(l => l.id === activeSetlistId);
-        const isInSetlist = activeSetlist?.songs.some(ss => ss.master_id === s.id);
-        if (activeFilters.inSetlist === 'yes' && !isInSetlist) return false;
-        if (activeFilters.inSetlist === 'no' && isInSetlist) return false;
-      }
-
-      return true;
-    });
-
-    if (sortMode === 'ready') {
-      songs.sort((a, b) => calculateReadiness(b) - calculateReadiness(a));
-    } else if (sortMode === 'work') {
-      songs.sort((a, b) => calculateReadiness(a) - calculateReadiness(b));
-    } else {
-      songs.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-    }
-
-    return songs;
-  }, [repertoire, searchTerm, sortMode, activeFilters]);
+    return filterAndSortRepertoire(
+      repertoire,
+      searchTerm,
+      activeFilters,
+      sortMode,
+      activeSetlistSongs
+    );
+  }, [repertoire, searchTerm, activeFilters, sortMode, activeSetlistSongs]);
 
   const handleAddNewSong = () => {
     const newSong: SetlistSong = {
@@ -191,10 +140,8 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
 
   return (
     <div className="space-y-8">
-      {/* NEW: Repertoire Suggestions at the very top */}
       <RepertoireSuggestions repertoire={repertoire} onAddSong={onAddSong} />
 
-      {/* Automation Hub at the top of Repertoire View */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-3 space-y-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -283,7 +230,7 @@ const RepertoireView: React.FC<RepertoireViewProps> = ({
             onGlobalAutoSync={onGlobalAutoSync}
             onBulkRefreshAudio={onBulkRefreshAudio}
             onClearAutoLinks={onClearAutoLinks}
-            onBulkVibeCheck={onBulkVibeCheck} // NEW: Pass Vibe Check handler
+            onBulkVibeCheck={onBulkVibeCheck}
             isBulkDownloading={false}
             missingAudioCount={missingAudioCount}
             onOpenAdmin={onOpenAdmin}

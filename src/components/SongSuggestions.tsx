@@ -1,22 +1,17 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Sparkles, Loader2, Music, Search, Target, CheckCircle2, ListPlus, XCircle, RotateCcw, X, Info, Lightbulb } from 'lucide-react'; 
+import React, { useEffect, useMemo } from 'react';
+import { Sparkles, Loader2, Music, Search, Target, ListPlus, XCircle, RotateCcw, Lightbulb, Clock, AlertCircle } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { supabase } from '@/integrations/supabase/client';
 import { SetlistSong } from './SetlistManager';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from '@/lib/utils';
 import { Label } from './ui/label';
-import { showError, showSuccess, showInfo } from '@/utils/toast';
+import { showSuccess } from '@/utils/toast';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-
-// Global session caches
-let sessionSuggestionsCache: any[] | null = null;
-let sessionIgnoredCache: any[] = [];
-let sessionInitialLoadAttempted = false;
+import { useSongSuggestions } from '@/hooks/use-song-suggestions';
 
 interface SongSuggestionsProps {
   repertoire: SetlistSong[];
@@ -25,246 +20,64 @@ interface SongSuggestionsProps {
 }
 
 const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectSuggestion, onAddExistingSong }) => {
-  const [rawSuggestions, setRawSuggestions] = useState<any[]>(sessionSuggestionsCache || []);
-  const [ignoredSuggestions, setIgnoredSuggestions] = useState<any[]>(sessionIgnoredCache);
-  const [isLoadingInitial, setIsLoadingInitial] = useState(true); 
-  const [isRefreshingSuggestions, setIsRefreshingSuggestions] = useState(false); 
-  const [seedSongId, setSeedSongId] = useState<string | null>(null);
-
-  // Robust normalization for comparisons to prevent crashes on null/undefined data
-  const getSongKey = useCallback((s: any) => {
-    if (!s) return "unknown-unknown";
-    
-    // Try to find a name/title from any common key or pattern
-    const keys = Object.keys(s);
-    const titleKey = keys.find(k => /title|name|song|track/i.test(k));
-    const artistKey = keys.find(k => /artist|band|group|performer/i.test(k));
-
-    let name = (s[titleKey || ''] || s.name || s.title || s.displayName || "").toString().trim().toLowerCase();
-    let artist = (s[artistKey || ''] || s.artist || s.artistName || s.displayArtist || "").toString().trim().toLowerCase();
-    
-    // If name is empty but ID looks like a title string, use it
-    if (!name && s.id && typeof s.id === 'string' && s.id !== "undefined") {
-      const parenMatch = s.id.match(/^(.+?)\s*\((.+?)\)$/);
-      if (parenMatch) {
-        name = parenMatch[1].trim().toLowerCase();
-        artist = parenMatch[2].trim().toLowerCase();
-      } else {
-        name = s.id.trim().toLowerCase();
-      }
-    }
-
-    if (!name && !artist) return "unknown-unknown";
-    return `${name}-${artist}`;
-  }, []);
-
-  const existingKeys = useMemo(() => {
-    return new Set(repertoire.map(s => getSongKey(s)));
-  }, [repertoire, getSongKey]);
-
-  const suggestions = useMemo(() => {
-    console.log("[SongSuggestions] Processing raw suggestions for display. Count:", rawSuggestions.length);
-    
-    const mapped = rawSuggestions
-      .map(s => {
-        let displayName = "";
-        let displayArtist = "";
-        let isDuplicate = false;
-
-        // 1. Handle structured fields (Preferred)
-        if (s.name || s.title) {
-          displayName = s.name || s.title;
-          displayArtist = s.artist || s.artistName || "Unknown Artist";
-        }
-
-        // 2. Handle ID-based suggestions (Lookup in repertoire or parse string)
-        if (!displayName && s.id && s.id !== "undefined") {
-          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.id);
-          
-          if (isUuid) {
-            const existingSong = repertoire.find(r => r.id === s.id || r.master_id === s.id);
-            if (existingSong) {
-              displayName = existingSong.name;
-              displayArtist = existingSong.artist || "Unknown Artist";
-              isDuplicate = true;
-            }
-          } else if (typeof s.id === 'string') {
-            const parenMatch = s.id.match(/^(.+?)\s*\((.+?)\)$/);
-            if (parenMatch) {
-              displayName = parenMatch[1].trim();
-              displayArtist = parenMatch[2].trim();
-            } else {
-              displayName = s.id.trim();
-            }
-          }
-        }
-
-        // 3. MAGIC EXTRACTION: If still empty, try to pull from the 'reason' field
-        if (!displayName && s.reason) {
-          const quoteMatch = s.reason.match(/['"]([^'"]+)['"]/);
-          if (quoteMatch) {
-            displayName = quoteMatch[1];
-          }
-        }
-
-        // Final fallback if still empty
-        if (!displayName) {
-          console.warn("[SongSuggestions] Failed to map suggestion object. Data:", JSON.stringify(s));
-          displayName = "Unknown Track";
-          displayArtist = "Unknown Artist";
-        }
-
-        // Check duplication after extraction
-        if (!isDuplicate) {
-          isDuplicate = existingKeys.has(getSongKey({ name: displayName, artist: displayArtist }));
-        }
-
-        return {
-          ...s,
-          displayName,
-          displayArtist: displayArtist || "Unknown Artist",
-          isDuplicate
-        };
-      })
-      .filter(s => {
-        // Filter out if it's already in the library
-        if (s.isDuplicate) return false;
-        
-        // Filter out if it's in the ignored list
-        const isIgnored = ignoredSuggestions.some(i => 
-          (i.id && i.id === s.id && i.id !== "undefined") || getSongKey(i) === getSongKey(s)
-        );
-        if (isIgnored) return false;
-
-        // Filter out literal "Unknown Track" failures
-        if (s.displayName === "Unknown Track") return false;
-
-        return true;
-      });
-
-    console.log("[SongSuggestions] Final display suggestions count:", mapped.length);
-    return mapped;
-  }, [rawSuggestions, repertoire, existingKeys, getSongKey, ignoredSuggestions]);
+  const [seedSongId, setSeedSongId] = React.useState<string | null>(null);
 
   const seedSong = useMemo(() => 
     repertoire.find(s => s.id === seedSongId), 
   [seedSongId, repertoire]);
 
-  const fetchSuggestions = useCallback(async (isRefresh = false, preserveExisting = false) => {
-    if (repertoire.length === 0) {
-      console.warn("[SongSuggestions] Repertoire is empty, skipping fetch.");
-      setIsLoadingInitial(false);
-      return;
-    }
-    
-    console.log("[SongSuggestions] Initiating fetch. isRefresh:", isRefresh, "preserveExisting:", preserveExisting);
-    
-    if (isRefresh) {
-      setIsRefreshingSuggestions(true);
-    } else {
-      setIsLoadingInitial(true);
-    }
-    
-    try {
-      const combinedIgnored = [
-        ...repertoire.map(s => ({ name: s.name, artist: s.artist })),
-        ...ignoredSuggestions
-      ];
-
-      const payload = { 
-        repertoire: repertoire.slice(0, 50).map(s => ({ name: s.name, artist: s.artist, genre: s.genre })),
-        seedSong: seedSong ? { name: seedSong.name, artist: seedSong.artist } : null,
-        ignored: combinedIgnored 
-      };
-
-      console.log("[SongSuggestions] Calling edge function 'suggest-songs' with payload:", payload);
-      
-      const { data, error } = await supabase.functions.invoke('suggest-songs', {
-        body: payload 
-      });
-
-      if (error) {
-        console.error("[SongSuggestions] Edge function error:", error);
-        throw error;
-      }
-      
-      console.log("[SongSuggestions] Edge function response data:", data);
-      
-      let newBatch = Array.isArray(data) ? data : (data?.suggestions || data?.songs || []);
-      
-      if (!Array.isArray(newBatch)) {
-        console.error("[SongSuggestions] AI response is not an array format:", newBatch);
-        newBatch = [];
-      }
-
-      console.log("[SongSuggestions] Received new batch of suggestions. Count:", newBatch.length);
-
-      if (preserveExisting) {
-        setRawSuggestions(prev => {
-          const combined = [...prev, ...newBatch];
-          const uniqueMap = new Map();
-          
-          combined.forEach(s => {
-            const key = (s.id && s.id !== "undefined") ? `id-${s.id}` : getSongKey(s);
-            const isIgnored = sessionIgnoredCache.some(i => (i.id && i.id === s.id && i.id !== "undefined") || getSongKey(i) === getSongKey(s));
-            const isDuplicate = existingKeys.has(getSongKey(s));
-            
-            if (!uniqueMap.has(key) && !isIgnored && !isDuplicate) {
-              uniqueMap.set(key, s);
-            }
-          });
-
-          const final = Array.from(uniqueMap.values()).slice(0, 10);
-          sessionSuggestionsCache = final;
-          return final;
-        });
-      } else {
-        setRawSuggestions(newBatch);
-        sessionSuggestionsCache = newBatch;
-      }
-      
-      sessionInitialLoadAttempted = true;
-    } catch (err: any) {
-      console.error("[SongSuggestions] Final catch block error:", err);
-      showError("Song suggestions temporarily unavailable.");
-    } finally {
-      console.log("[SongSuggestions] Fetch cycle complete.");
-      if (isRefresh) {
-        setIsRefreshingSuggestions(false);
-      } else {
-        setIsLoadingInitial(false);
-      }
-    }
-  }, [repertoire, seedSong, ignoredSuggestions, getSongKey, existingKeys]);
+  const {
+    suggestions,
+    isLoading,
+    error,
+    isQuotaError,
+    fetchSuggestions,
+    dismissSuggestion
+  } = useSongSuggestions({ repertoire, limit: 10 });
 
   useEffect(() => {
-    console.log("[SongSuggestions] useEffect triggered. Repertoire length:", repertoire.length, "Initial load attempted:", sessionInitialLoadAttempted);
-    if (repertoire.length > 0 && !sessionInitialLoadAttempted && rawSuggestions.length === 0) {
-      fetchSuggestions();
-    } else if (repertoire.length > 0) {
-      setIsLoadingInitial(false);
+    if (repertoire.length > 0 && suggestions.length === 0 && !isLoading && !error) {
+      fetchSuggestions(seedSong || undefined);
     }
-  }, [repertoire.length, fetchSuggestions, rawSuggestions.length]);
+  }, [repertoire.length, fetchSuggestions, suggestions.length, isLoading, error, seedSong]);
 
-  const handleDismissSuggestion = (song: any) => {
-    const targetId = song.id;
-    const targetKey = getSongKey(song);
-    
-    console.log("[SongSuggestions] Dismissing suggestion:", song.displayName);
-    
-    const newIgnored = [...ignoredSuggestions, song];
-    setIgnoredSuggestions(newIgnored);
-    sessionIgnoredCache = newIgnored;
-    
-    const filtered = rawSuggestions.filter(s => {
-      if (targetId && s.id && targetId !== "undefined") return s.id !== targetId;
-      return getSongKey(s) !== targetKey;
-    });
-
-    setRawSuggestions(filtered);
-    sessionSuggestionsCache = filtered;
-    
-    showSuccess(`Removed suggestion`);
+  const handleAdd = (song: any) => {
+    if (onAddExistingSong) {
+      onAddExistingSong({
+        id: crypto.randomUUID(),
+        name: song.name || song.title,
+        artist: song.artist || song.artistName || "Unknown Artist",
+        previewUrl: "",
+        pitch: 0,
+        originalKey: "C",
+        targetKey: "C",
+        isPlayed: false,
+        isSyncing: true,
+        isMetadataConfirmed: false,
+        isKeyConfirmed: false,
+        duration_seconds: 0,
+        notes: "",
+        lyrics: "",
+        resources: [],
+        user_tags: [],
+        is_pitch_linked: true,
+        isApproved: false,
+        preferred_reader: null,
+        ug_chords_config: DEFAULT_UG_CHORDS_CONFIG,
+        is_ug_chords_present: false,
+        highest_note_original: null,
+        is_ug_link_verified: false,
+        metadata_source: 'ai_suggestion',
+        sync_status: 'IDLE',
+        last_sync_log: null,
+        auto_synced: false,
+        is_sheet_verified: false,
+        sheet_music_url: null,
+        extraction_status: 'idle', 
+      });
+      dismissSuggestion(song);
+      showSuccess(`Added "${song.name || song.title}" to library`);
+    }
   };
 
   if (repertoire.length === 0) {
@@ -285,16 +98,24 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
               <Sparkles className="w-4 h-4 text-indigo-500" />
               <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">AI Discover Engine</span>
             </div>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => fetchSuggestions(true, false)} 
-              disabled={isRefreshingSuggestions}
-              className="h-7 text-[9px] font-black uppercase hover:bg-indigo-500/10 text-indigo-500 flex-shrink-0"
-            >
-              {isRefreshingSuggestions ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <RotateCcw className="w-3 h-3 mr-1" />} 
-              {isRefreshingSuggestions ? "Fetching..." : "Refresh"}
-            </Button>
+            <div className="flex items-center gap-2">
+              {error && (
+                <div className="flex items-center gap-2 px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                  {isQuotaError ? <Clock className="w-3 h-3 text-amber-500" /> : <AlertCircle className="w-3 h-3 text-amber-500" />}
+                  <span className="text-[8px] font-black uppercase text-amber-500">{isQuotaError ? "Quota Limit" : "Error"}</span>
+                </div>
+              )}
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => fetchSuggestions(seedSong || undefined)} 
+                disabled={isLoading}
+                className="h-7 text-[9px] font-black uppercase hover:bg-indigo-500/10 text-indigo-500 flex-shrink-0"
+              >
+                {isLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <RotateCcw className="w-3 h-3 mr-1" />} 
+                {isLoading ? "Fetching..." : "Refresh"}
+              </Button>
+            </div>
           </div>
 
           <div className="bg-card p-3 rounded-xl border border-border space-y-2">
@@ -304,14 +125,14 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
               </Label>
               {seedSongId && (
                 <button 
-                  onClick={() => { setSeedSongId(null); fetchSuggestions(true, false); }}
+                  onClick={() => { setSeedSongId(null); fetchSuggestions(); }}
                   className="text-[8px] font-black text-indigo-500 uppercase hover:text-indigo-600"
                 >
                   Clear Seed
                 </button>
               )}
             </div>
-            <Select value={seedSongId || "profile"} onValueChange={(val) => { setSeedSongId(val === "profile" ? null : val); fetchSuggestions(true, false); }}>
+            <Select value={seedSongId || "profile"} onValueChange={(val) => { setSeedSongId(val === "profile" ? null : val); fetchSuggestions(repertoire.find(s => s.id === val)); }}>
               <SelectTrigger className="h-8 text-[10px] font-bold bg-background border-border text-foreground">
                 <SelectValue placeholder="Suggest based on entire profile" />
               </SelectTrigger>
@@ -329,7 +150,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
 
         <ScrollArea className="h-[500px] px-4">
           <div className="space-y-4">
-            {isLoadingInitial && rawSuggestions.length === 0 ? (
+            {isLoading && suggestions.length === 0 ? (
               <div className="py-20 flex flex-col items-center gap-4 text-center">
                 <Loader2 className="w-8 h-8 animate-spin text-indigo-500 opacity-20" />
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
@@ -343,14 +164,13 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
                     key={i}
                     className="group p-6 border rounded-[2rem] transition-all shadow-sm relative overflow-hidden flex flex-col gap-5 bg-card border-border hover:border-indigo-500/30 hover:shadow-md"
                   >
-                    {/* Header: Title & Artist */}
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0 flex-1">
                         <h4 className="text-xl font-black tracking-tight text-slate-900 dark:text-white truncate">
-                          {song.displayName}
+                          {song.name || song.title}
                         </h4>
                         <p className="text-sm font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mt-1">
-                          {song.displayArtist}
+                          {song.artist || song.artistName || "Unknown Artist"}
                         </p>
                       </div>
                       
@@ -358,7 +178,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <button 
-                              onClick={() => handleDismissSuggestion(song)}
+                              onClick={() => dismissSuggestion(song)}
                               className="p-2 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                             >
                               <XCircle className="w-5 h-5" />
@@ -368,7 +188,7 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
                         </Tooltip>
                         
                         <button 
-                          onClick={() => onSelectSuggestion(`${song.displayArtist} ${song.displayName}`)}
+                          onClick={() => onSelectSuggestion(`${song.artist || song.artistName} ${song.name || song.title}`)}
                           className="p-2 rounded-xl bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-all"
                           title="Preview track"
                         >
@@ -377,7 +197,6 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
                       </div>
                     </div>
 
-                    {/* Content: Reason / Insight */}
                     <div className="space-y-3">
                       {song.reason && (
                         <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-border relative group-hover:border-indigo-500/20 transition-colors">
@@ -394,53 +213,21 @@ const SongSuggestions: React.FC<SongSuggestionsProps> = ({ repertoire, onSelectS
                       )}
                     </div>
 
-                    {/* Footer: Actions */}
-                    {onAddExistingSong && (
-                      <Button
-                        onClick={() => onAddExistingSong({
-                          id: crypto.randomUUID(),
-                          name: song.displayName,
-                          artist: song.displayArtist,
-                          previewUrl: "",
-                          pitch: 0,
-                          originalKey: "C",
-                          targetKey: "C",
-                          isPlayed: false,
-                          isSyncing: true,
-                          isMetadataConfirmed: false,
-                          isKeyConfirmed: false,
-                          duration_seconds: 0,
-                          notes: "",
-                          lyrics: "",
-                          resources: [],
-                          user_tags: [],
-                          is_pitch_linked: true,
-                          isApproved: false,
-                          preferred_reader: null,
-                          ug_chords_config: DEFAULT_UG_CHORDS_CONFIG,
-                          is_ug_chords_present: false,
-                          highest_note_original: null,
-                          is_ug_link_verified: false,
-                          metadata_source: null,
-                          sync_status: 'IDLE',
-                          last_sync_log: null,
-                          auto_synced: false,
-                          is_sheet_verified: false,
-                          sheet_music_url: null,
-                          extraction_status: 'idle', 
-                        })}
-                        className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-[11px] tracking-widest rounded-2xl gap-3 shadow-lg shadow-emerald-600/20 transition-all active:scale-[0.98]"
-                      >
-                        <ListPlus className="w-5 h-5" /> Add to Repertoire
-                      </Button>
-                    )}
+                    <Button
+                      onClick={() => handleAdd(song)}
+                      className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-[11px] tracking-widest rounded-2xl gap-3 shadow-lg shadow-emerald-600/20 transition-all active:scale-[0.98]"
+                    >
+                      <ListPlus className="w-5 h-5" /> Add to Repertoire
+                    </Button>
                   </div>
                 ))
               ) : (
-                <div className="py-20 text-center opacity-30">
-                  <Sparkles className="w-10 h-10 mb-4 mx-auto" />
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Discovery pool empty. Refresh to get new tracks.</p>
-                </div>
+                !isLoading && (
+                  <div className="py-20 text-center opacity-30">
+                    <Sparkles className="w-10 h-10 mb-4 mx-auto" />
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Discovery pool empty. Refresh to get new tracks.</p>
+                  </div>
+                )
               )
             )}
           </div>

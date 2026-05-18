@@ -1,14 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Sparkles, Plus, X, RotateCcw, Loader2, Music, Lightbulb, Check, AlertCircle, Clock } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { Sparkles, Plus, X, RotateCcw, Loader2, Clock, AlertCircle, Lightbulb } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { supabase } from '@/integrations/supabase/client';
 import { SetlistSong } from './SetlistManager';
-import { cn } from '@/lib/utils';
-import { showSuccess, showError, showInfo } from '@/utils/toast';
+import { showSuccess } from '@/utils/toast';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
+import { useSongSuggestions } from '@/hooks/use-song-suggestions';
 
 interface RepertoireSuggestionsProps {
   repertoire: SetlistSong[];
@@ -16,99 +15,20 @@ interface RepertoireSuggestionsProps {
 }
 
 const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoire, onAddSong }) => {
-  const [suggestions, setSuggestions] = useState<any[]>([]);
-  const [ignored, setIgnored] = useState<Set<string>>(new Set());
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isQuotaError, setIsQuotaError] = useState(false);
-
-  const normalize = (str: string = "") => {
-    return str
-      .toLowerCase()
-      .replace(/\(.*\)/g, '') 
-      .replace(/\[.*\]/g, '')
-      .replace(/\b(remastered|remaster|original|master|recording|live|version|radio edit|feat|ft)\b/g, '')
-      .replace(/[^a-z0-9]/g, '') 
-      .trim();
-  };
-
-  const getNormalizedKey = (name: string, artist: string) => {
-    const n = normalize(name);
-    const a = normalize(artist);
-    return `${n}-${a}`;
-  };
-
-  const existingKeys = useMemo(() => {
-    const keys = new Set(repertoire.map(s => getNormalizedKey(s.name, s.artist || "")));
-    return keys;
-  }, [repertoire]);
-
-  const fetchSuggestions = useCallback(async () => {
-    if (repertoire.length === 0) return;
-    
-    setIsLoading(true);
-    setError(null);
-    setIsQuotaError(false);
-
-    const payload = { 
-      repertoire: repertoire.slice(0, 50).map(s => ({ name: s.name, artist: s.artist })),
-      ignored: Array.from(ignored).map(key => ({ name: key.split('-')[0], artist: key.split('-')[1] }))
-    };
-
-    try {
-      const { data, error: fetchError } = await supabase.functions.invoke('suggest-songs', {
-        body: payload
-      });
-
-      if (fetchError) {
-        if (fetchError.status === 429 || (data && data.isQuotaError)) {
-          setIsQuotaError(true);
-          setError("AI Discovery is resting (Quota Limit).");
-        } else {
-          throw fetchError;
-        }
-        return;
-      }
-
-      if (data?.error) {
-        if (data.isQuotaError) {
-          setIsQuotaError(true);
-          setError("AI Discovery is resting (Quota Limit).");
-        } else {
-          setError(data.error);
-        }
-        return;
-      }
-
-      const rawBatch = Array.isArray(data) ? data : (data?.suggestions || []);
-      
-      const filtered = rawBatch.filter((s: any) => {
-        const songName = s.name || s.title || "";
-        const songArtist = s.artist || s.artistName || "";
-        const key = getNormalizedKey(songName, songArtist);
-        return !existingKeys.has(key) && !ignored.has(key) && key !== "-";
-      }).slice(0, 3);
-
-      setSuggestions(filtered);
-    } catch (err: any) {
-      console.error("[RepertoireDiscovery] Fetch error:", err);
-      setError("Discovery engine temporarily unavailable.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [repertoire, ignored, existingKeys]);
+  const {
+    suggestions,
+    isLoading,
+    error,
+    isQuotaError,
+    fetchSuggestions,
+    dismissSuggestion
+  } = useSongSuggestions({ repertoire, limit: 3 });
 
   useEffect(() => {
     if (repertoire.length > 0 && suggestions.length === 0 && !isLoading && !error) {
       fetchSuggestions();
     }
   }, [repertoire.length, fetchSuggestions, suggestions.length, isLoading, error]);
-
-  const handleDismiss = (song: any) => {
-    const key = getNormalizedKey(song.name || song.title, song.artist || song.artistName || "");
-    setIgnored(prev => new Set(prev).add(key));
-    setSuggestions(prev => prev.filter(s => getNormalizedKey(s.name || s.title, s.artist || s.artistName || "") !== key));
-  };
 
   const mapToSong = (s: any): SetlistSong => ({
     id: crypto.randomUUID(),
@@ -145,13 +65,13 @@ const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoir
 
   const handleAdd = (s: any) => {
     onAddSong(mapToSong(s));
-    setSuggestions(prev => prev.filter(item => item !== s));
+    dismissSuggestion(s);
     showSuccess(`Added "${s.name || s.title}" to library`);
   };
 
   const handleAddAll = () => {
     suggestions.forEach(s => onAddSong(mapToSong(s)));
-    setSuggestions([]);
+    suggestions.forEach(s => dismissSuggestion(s));
     showSuccess(`Added ${suggestions.length} songs to library`);
   };
 
@@ -179,7 +99,7 @@ const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoir
           <Button 
             variant="ghost" 
             size="sm" 
-            onClick={fetchSuggestions}
+            onClick={() => fetchSuggestions()}
             disabled={isLoading}
             className="h-8 px-3 text-[9px] font-black uppercase tracking-widest text-indigo-400 hover:bg-indigo-500/10 rounded-lg"
           >
@@ -212,7 +132,7 @@ const RepertoireSuggestions: React.FC<RepertoireSuggestionsProps> = ({ repertoir
                 </div>
                 <div className="flex gap-1 shrink-0">
                   <button 
-                    onClick={() => handleDismiss(song)}
+                    onClick={() => dismissSuggestion(song)}
                     className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-400/10 transition-colors"
                   >
                     <X className="w-3.5 h-3.5" />

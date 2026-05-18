@@ -106,6 +106,15 @@ const Index = () => {
     isShuffleAll: isShuffleAllMode 
   });
 
+  const nextSongName = useMemo(() => {
+    if (!activeSong || filteredAndSortedSongs.length === 0) return null;
+    const idx = filteredAndSortedSongs.findIndex(s => s.id === activeSong.id);
+    if (idx !== -1 && idx < filteredAndSortedSongs.length - 1) {
+      return filteredAndSortedSongs[idx + 1].name;
+    }
+    return null;
+  }, [activeSong, filteredAndSortedSongs]);
+
   const activeDashboardView = (searchParams.get('view') as 'gigs' | 'repertoire') || defaultDashboardView;
 
   useEffect(() => {
@@ -410,7 +419,6 @@ const Index = () => {
     for (let i = 0; i < songsToVibeCheck.length; i++) {
       const song = songsToVibeCheck[i];
       try {
-        // Rate limiting delay to prevent quota issues
         if (i > 0) await new Promise(resolve => setTimeout(resolve, 2500));
 
         const { data, error } = await supabase.functions.invoke('vibe-check', {
@@ -470,7 +478,16 @@ const Index = () => {
 
         {activeDashboardView === 'gigs' && activeSong && (
           <div className="mb-16 animate-in fade-in slide-in-from-top-8 duration-700 delay-200">
-            <ActiveSongBanner song={activeSong} isPlaying={audio.isPlaying} onTogglePlayback={audio.togglePlayback} onClear={() => { audio.stopPlayback(); }} isLoadingAudio={audio.isLoadingAudio} nextSongName={filteredAndSortedSongs[filteredAndSortedSongs.findIndex(s => s.id === activeSong.id) + 1]?.name} onNext={() => playNext(true)} onPrevious={() => {}} />
+            <ActiveSongBanner 
+              song={activeSong} 
+              isPlaying={audio.isPlaying} 
+              onTogglePlayback={audio.togglePlayback} 
+              onClear={() => { audio.stopPlayback(); }} 
+              isLoadingAudio={audio.isLoadingAudio} 
+              nextSongName={nextSongName} 
+              onNext={() => playNext(true)} 
+              onPrevious={() => {}} 
+            />
           </div>
         )}
 
