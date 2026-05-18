@@ -55,15 +55,11 @@ const LinkDisplayOverlay: React.FC<LinkDisplayOverlayProps> = ({
 
   const handleLinkClick = useCallback((link: SheetLink, e: React.MouseEvent) => {
     e.stopPropagation(); 
-    if (isEditingMode) {
-      return;
-    }
+    if (isEditingMode) return;
     onNavigateToPage(link.target_page, link.target_x, link.target_y);
     setFlashingTargetId(link.id);
     if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
-    flashTimeoutRef.current = setTimeout(() => {
-      setFlashingTargetId(null);
-    }, 1500);
+    flashTimeoutRef.current = setTimeout(() => setFlashingTargetId(null), 1500);
   }, [isEditingMode, onNavigateToPage]);
 
   const handleDeleteLink = useCallback(async (linkId: string, e: React.MouseEvent) => {
@@ -105,6 +101,8 @@ const LinkDisplayOverlay: React.FC<LinkDisplayOverlayProps> = ({
     const pageRect = pdfPageContentElement.getBoundingClientRect();
     const overlayWrapperRect = overlayWrapperElement.getBoundingClientRect();
 
+    if (pageRect.width === 0 || overlayWrapperRect.width === 0) return { display: 'none' };
+
     const absX = pageRect.left + point.x * pageRect.width;
     const absY = pageRect.top + point.y * pageRect.height;
 
@@ -114,12 +112,8 @@ const LinkDisplayOverlay: React.FC<LinkDisplayOverlayProps> = ({
     const dotLeftPct = (dotLeftPx / overlayWrapperRect.width) * 100;
     const dotTopPct = (dotTopPx / overlayWrapperRect.height) * 100;
 
-    const baseSize = {
-      'small': 16,
-      'medium': 24,
-      'large': 32,
-      'extra-large': 40,
-    }[link.link_size || globalLinkSize];
+    const sizeMap = { 'small': 16, 'medium': 24, 'large': 32, 'extra-large': 40 };
+    const baseSize = sizeMap[link.link_size || globalLinkSize] || 24;
 
     return {
       position: 'absolute',
@@ -140,7 +134,7 @@ const LinkDisplayOverlay: React.FC<LinkDisplayOverlayProps> = ({
       fontWeight: 'bold',
       boxShadow: '0 0 10px rgba(0,0,0,0.3)',
       cursor: isEditingMode ? 'grab' : 'pointer',
-      pointerEvents: 'auto', // CRITICAL: Ensure dots receive clicks
+      pointerEvents: 'auto',
     };
   }, [currentPage, pageContainerRef, overlayWrapperRef, globalLinkSize, isEditingMode]);
 
@@ -167,40 +161,24 @@ const LinkDisplayOverlay: React.FC<LinkDisplayOverlayProps> = ({
                   <ArrowRight className="w-3 h-3" />
                   {isEditingMode && (
                     <div className="absolute -top-8 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-auto"> 
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-6 w-6 bg-white/20 hover:bg-white/30 text-white rounded-full"
-                        onClick={(e) => handleEditLinkClick(link, e)} 
-                      >
+                      <Button variant="ghost" size="icon" className="h-6 w-6 bg-white/20 hover:bg-white/30 text-white rounded-full" onClick={(e) => handleEditLinkClick(link, e)}>
                         <Edit3 className="w-3 h-3" />
                       </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-6 w-6 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-full"
-                        onClick={(e) => handleDeleteLink(link.id, e)} 
-                      >
+                      <Button variant="ghost" size="icon" className="h-6 w-6 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-full" onClick={(e) => handleDeleteLink(link.id, e)}>
                         <Trash2 className="w-3 h-3" />
                       </Button>
                     </div>
                   )}
                 </div>
               </TooltipTrigger>
-              <TooltipContent className="text-[10px] font-black uppercase">
-                Link to Page {link.target_page}
-              </TooltipContent>
+              <TooltipContent className="text-[10px] font-black uppercase">Link to Page {link.target_page}</TooltipContent>
             </Tooltip>
           );
         }
 
         if (isTarget && isFlashing) {
           return (
-            <div
-              key={`target-${link.id}`}
-              className="absolute rounded-full bg-orange-600 border-2 border-orange-700 shadow-lg animate-pulse-once"
-              style={getLinkDotStyle(link, 'target', currentPage)}
-            />
+            <div key={`target-${link.id}`} className="absolute rounded-full bg-orange-600 border-2 border-orange-700 shadow-lg animate-pulse-once" style={getLinkDotStyle(link, 'target', currentPage)} />
           );
         }
         return null;

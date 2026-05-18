@@ -42,6 +42,7 @@ import KeyReminderPill from '@/components/KeyReminderPill';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useIsMobile } from '@/hooks/use-mobile';
 
+// Ensure worker is configured
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
 export type ChartType = 'pdf' | 'leadsheet' | 'chords';
@@ -56,7 +57,6 @@ const SheetReaderMode: React.FC = () => {
     keyPreference: globalKeyPreference,
     preventStageKeyOverwrite,
     disablePortraitPdfScroll,
-    setKeyPreference: setGlobalKeyPreference,
     ugChordsFontFamily,
     ugChordsFontSize,
     ugChordsChordBold,
@@ -74,13 +74,12 @@ const SheetReaderMode: React.FC = () => {
   const [isStudioPanelOpen, setIsStudioPanel] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isRepertoireSearchModalOpen, setIsRepertoireSearchModalOpen] = useState(false);
-  const [isInfoOverlayVisible, setIsInfoOverlayVisible] = useState(true);
   const [isAudioPlayerVisible, setIsAudioPlayerVisible] = useState(true);
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
   const [isZenMode, setIsZenMode] = useState(false); 
   const [showKeyReminder, setShowKeyReminder] = useState(false);
 
-  const currentSong = allSongs[currentIndex];
+  const currentSong = useMemo(() => allSongs[currentIndex] || null, [allSongs, currentIndex]);
 
   const totalSets = useMemo(() => {
     const sets = new Set(allSongs.map(s => s.set_group).filter(g => g && g !== 99));
@@ -111,9 +110,7 @@ const SheetReaderMode: React.FC = () => {
   const [isSetTransitionOpen, setIsSetTransitionOpen] = useState(false);
 
   const audioEngine = useToneAudio(true);
-  const {
-    isPlaying, stopPlayback, setPitch: setAudioPitch
-  } = audioEngine;
+  const { isPlaying, stopPlayback, setPitch: setAudioPitch } = audioEngine;
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);
@@ -123,9 +120,7 @@ const SheetReaderMode: React.FC = () => {
   const reminderTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const handleResize = () => {
-      setIsPortrait(window.innerHeight > window.innerWidth);
-    };
+    const handleResize = () => setIsPortrait(window.innerHeight > window.innerWidth);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -136,7 +131,6 @@ const SheetReaderMode: React.FC = () => {
     setPdfScale(null);
     setPdfDocument(null);
     setLinks([]);
-    
     if (chartContainerRef.current) {
       chartContainerRef.current.scrollTop = 0;
       chartContainerRef.current.scrollLeft = 0;
@@ -170,10 +164,7 @@ const SheetReaderMode: React.FC = () => {
           name: currentSong.name,
           artist: currentSong.artist
         }]);
-        
-        if (result[0]) {
-          handleLocalSongUpdate(currentSong.id, { ...result[0], master_id: masterId });
-        }
+        if (result[0]) handleLocalSongUpdate(currentSong.id, { ...result[0], master_id: masterId });
       } catch (err) {
         console.error("Sheet Reader Auto-save failed:", err);
       }
@@ -182,47 +173,28 @@ const SheetReaderMode: React.FC = () => {
     preventStageKeyOverwrite,
   });
 
-  const { 
-    pitch: effectivePitch,
-    targetKey: effectiveTargetKey,
-    setTargetKey, 
-    setPitch, 
-    isStageKeyLocked 
-  } = harmonicSync;
+  const { pitch: effectivePitch, targetKey: effectiveTargetKey, setTargetKey, setPitch, isStageKeyLocked } = harmonicSync;
 
   useEffect(() => {
     if (!currentSong || (selectedChartType !== 'pdf' && selectedChartType !== 'leadsheet')) {
       setShowKeyReminder(false);
       return;
     }
-
     setShowKeyReminder(true);
     if (reminderTimeoutRef.current) clearTimeout(reminderTimeoutRef.current);
-    reminderTimeoutRef.current = setTimeout(() => {
-      setShowKeyReminder(false);
-    }, 4000);
-
-    return () => {
-      if (reminderTimeoutRef.current) clearTimeout(reminderTimeoutRef.current);
-    };
+    reminderTimeoutRef.current = setTimeout(() => setShowKeyReminder(false), 4000);
+    return () => { if (reminderTimeoutRef.current) clearTimeout(reminderTimeoutRef.current); };
   }, [currentSong?.id, effectiveTargetKey, effectivePitch, selectedChartType]);
 
   const handleUpdateKey = useCallback(async (newTargetKey: string) => {
     if (!currentSong || !user) return;
-
     setTargetKey(newTargetKey); 
     setAudioPitch(calculateSemitones(currentSong.originalKey || 'C', newTargetKey));
-    
-    if (isStageKeyLocked) {
-      showInfo(`Stage Key temporarily set to ${newTargetKey}`);
-    } else {
-      showSuccess(`Stage Key set to ${newTargetKey}`);
-    }
+    if (isStageKeyLocked) showInfo(`Stage Key temporarily set to ${newTargetKey}`);
+    else showSuccess(`Stage Key set to ${newTargetKey}`);
   }, [currentSong, user, isStageKeyLocked, setTargetKey, setAudioPitch]);
 
-  useEffect(() => {
-    setAudioPitch(effectivePitch);
-  }, [effectivePitch, setAudioPitch]);
+  useEffect(() => { setAudioPitch(effectivePitch); }, [effectivePitch, setAudioPitch]);
 
   useEffect(() => {
     if (currentSong) {
@@ -230,142 +202,80 @@ const SheetReaderMode: React.FC = () => {
       audioEngine.setPitch(currentSong.pitch || 0);
       audioEngine.setTempo(currentSong.tempo || 1); 
       audioEngine.setFineTune(currentSong.fineTune || 0);
-
-      if (urlToLoad) {
-        audioEngine.loadFromUrl(urlToLoad, currentSong.pitch || 0);
-      } else {
-        audioEngine.resetEngine();
-      }
+      if (urlToLoad) audioEngine.loadFromUrl(urlToLoad, currentSong.pitch || 0);
+      else audioEngine.resetEngine();
     } else {
       audioEngine.resetEngine();
     }
-  }, [currentSong, audioEngine]);
+  }, [currentSong?.id]);
 
   const fetchSongs = useCallback(async () => {
     if (!user) return;
     setInitialLoading(true);
-
     try {
       const readerViewMode = sessionStorage.getItem('reader_view_mode');
       const readerSetlistId = sessionStorage.getItem('reader_setlist_id');
       const targetId = routeSongId || searchParams.get('id');
-
       const savedFilters = localStorage.getItem('gig_active_filters');
       const activeFilters = savedFilters ? JSON.parse(savedFilters) : DEFAULT_FILTERS;
       const searchTerm = (localStorage.getItem('gig_search_term') || "").toLowerCase();
       const sortMode = (localStorage.getItem('gig_sort_mode') as any) || 'none';
 
-      let currentViewSongs: SetlistSong[] = [];
-      let masterRepertoireList: SetlistSong[] = [];
-
-      const { data: masterData, error: masterError } = await supabase
-        .from('repertoire')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('title');
-      
+      const { data: masterData, error: masterError } = await supabase.from('repertoire').select('*').eq('user_id', user.id).order('title');
       if (masterError) throw masterError;
       
-      masterRepertoireList = (masterData || []).map((d: any) => ({
-        id: d.id,
-        master_id: d.id,
-        name: d.title,
-        artist: d.artist,
-        originalKey: d.original_key ?? 'TBC',
-        targetKey: d.target_key ?? d.original_key ?? 'TBC',
-        pitch: d.pitch ?? 0,
-        previewUrl: d.extraction_status === 'completed' && d.audio_url ? d.audio_url : d.preview_url,
-        youtubeUrl: d.youtube_url,
-        ugUrl: d.ug_url,
-        appleMusicUrl: d.apple_music_url,
-        pdfUrl: d.pdf_url,
-        leadsheetUrl: d.leadsheet_url,
-        bpm: d.bpm,
-        genre: d.genre,
-        isSyncing: false,
-        isMetadataConfirmed: d.is_metadata_confirmed,
-        isKeyConfirmed: d.is_key_confirmed,
-        notes: d.notes,
-        lyrics: d.lyrics,
-        resources: d.resources || [],
-        user_tags: d.user_tags || [],
-        is_pitch_linked: d.is_pitch_linked ?? true,
-        duration_seconds: d.duration_seconds,
-        key_preference: d.key_preference,
-        is_active: d.is_active,
-        isApproved: d.is_approved,
-        is_ready_to_sing: d.is_ready_to_sing,
-        preferred_reader: d.preferred_reader,
-        ug_chords_text: d.ug_chords_text,
-        ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
-        is_ug_chords_present: d.is_ug_chords_present,
-        highest_note_original: d.highest_note_original,
-        audio_url: d.audio_url,
-        extraction_status: d.extraction_status,
-        fineTune: d.fineTune,
-        tempo: d.tempo,
-        volume: d.volume,
+      const masterRepertoireList: SetlistSong[] = (masterData || []).map((d: any) => ({
+        id: d.id, master_id: d.id, name: d.title, artist: d.artist,
+        originalKey: d.original_key ?? 'TBC', targetKey: d.target_key ?? d.original_key ?? 'TBC',
+        pitch: d.pitch ?? 0, previewUrl: d.extraction_status === 'completed' && d.audio_url ? d.audio_url : d.preview_url,
+        youtubeUrl: d.youtube_url, ugUrl: d.ug_url, appleMusicUrl: d.apple_music_url,
+        pdfUrl: d.pdf_url, leadsheetUrl: d.leadsheet_url, bpm: d.bpm, genre: d.genre,
+        isSyncing: false, isMetadataConfirmed: d.is_metadata_confirmed, isKeyConfirmed: d.is_key_confirmed,
+        notes: d.notes, lyrics: d.lyrics, resources: d.resources || [], user_tags: d.user_tags || [],
+        is_pitch_linked: d.is_pitch_linked ?? true, duration_seconds: d.duration_seconds,
+        key_preference: d.key_preference, is_active: d.is_active, isApproved: d.is_approved,
+        is_ready_to_sing: d.is_ready_to_sing, preferred_reader: d.preferred_reader,
+        ug_chords_text: d.ug_chords_text, ug_chords_config: d.ug_chords_config || DEFAULT_UG_CHORDS_CONFIG,
+        is_ug_chords_present: d.is_ug_chords_present, highest_note_original: d.highest_note_original,
+        audio_url: d.audio_url, extraction_status: d.extraction_status,
+        fineTune: d.fineTune, tempo: d.tempo, volume: d.volume,
         energy_level: d.energy_level as EnergyZone,
         comfort_level: (d.comfort_level !== null && d.comfort_level <= 5) ? d.comfort_level * 20 : (d.comfort_level ?? 0),
         needs_improvement: d.needs_improvement ?? false,
+        sheet_music_url: d.sheet_music_url,
       }));
       setFullMasterRepertoire(masterRepertoireList);
 
+      let currentViewSongs: SetlistSong[] = masterRepertoireList;
       if (readerViewMode === 'gigs' && readerSetlistId) {
-        const { data: junctionData, error: junctionError } = await supabase
-          .from('setlist_songs')
-          .select('song_id, id, isPlayed, sort_order')
-          .eq('setlist_id', readerSetlistId)
-          .order('sort_order', { ascending: true });
-
-        if (junctionError) throw junctionError;
-
-        const activeSetlistSongsList = (junctionData || []).map((junction: any) => {
-          const masterSong = masterRepertoireList.find(m => m.id === junction.song_id);
-          if (!masterSong) return null;
-          return {
-            ...masterSong,
-            id: junction.id,
-            master_id: masterSong.id,
-            isPlayed: junction.isPlayed || false,
-          };
-        }).filter(Boolean) as SetlistSong[];
-        
-        setCurrentSetlistSongs(activeSetlistSongsList);
-        currentViewSongs = activeSetlistSongsList;
-      } else {
-        currentViewSongs = masterRepertoireList;
+        const { data: junctionData } = await supabase.from('setlist_songs').select('song_id, id, isPlayed, sort_order, set_group').eq('setlist_id', readerSetlistId).order('sort_order', { ascending: true });
+        if (junctionData) {
+          currentViewSongs = junctionData.map((j: any) => {
+            const master = masterRepertoireList.find(m => m.id === j.song_id);
+            return master ? { ...master, id: j.id, master_id: master.id, isPlayed: j.isPlayed || false, set_group: j.set_group || 1 } : null;
+          }).filter(Boolean) as SetlistSong[];
+          setCurrentSetlistSongs(currentViewSongs);
+        }
       }
 
-      let filteredSongs = currentViewSongs.filter(s => {
-        if (searchTerm && !s.name.toLowerCase().includes(searchTerm) && !s.artist?.toLowerCase().includes(searchTerm)) {
-          return false;
-        }
+      let filteredSongs: SetlistSong[] = currentViewSongs.filter(s => {
+        if (searchTerm && !s.name.toLowerCase().includes(searchTerm) && !s.artist?.toLowerCase().includes(searchTerm)) return false;
         const readiness = calculateReadiness(s);
         if (activeFilters.readiness > 0 && readiness < activeFilters.readiness) return false;
         return true;
       });
 
-      if (sortMode === 'ready') {
-        filteredSongs.sort((a, b) => calculateReadiness(b) - calculateReadiness(a));
-      } else if (sortMode === 'work') {
-        filteredSongs.sort((a, b) => calculateReadiness(a) - calculateReadiness(b));
-      } else if (sortMode.startsWith('energy') || sortMode === 'zig-zag' || sortMode === 'wedding-ramp') {
-        filteredSongs = sortSongsByStrategy(filteredSongs, sortMode);
-      }
+      if (sortMode === 'ready') filteredSongs.sort((a, b) => calculateReadiness(b) - calculateReadiness(a));
+      else if (sortMode === 'work') filteredSongs.sort((a, b) => calculateReadiness(a) - calculateReadiness(b));
+      else if (sortMode.startsWith('energy') || sortMode === 'zig-zag' || sortMode === 'wedding-ramp') filteredSongs = sortSongsByStrategy(filteredSongs, sortMode);
 
-      const readableSongs = filteredSongs.filter(s => 
-        s.pdfUrl || s.leadsheetUrl || s.ug_chords_text || s.sheet_music_url
-      );
-
+      const readableSongs = filteredSongs.filter(s => s.pdfUrl || s.leadsheetUrl || s.ug_chords_text || s.sheet_music_url);
       setAllSongs(readableSongs);
 
-      let initialIndex = 0;
       if (targetId) {
         const idx = readableSongs.findIndex(s => s.id === targetId || s.master_id === targetId);
-        if (idx !== -1) initialIndex = idx;
+        if (idx !== -1) setCurrentIndex(idx);
       }
-      setCurrentIndex(initialIndex);
     } catch (err: any) {
       showError(`Failed to load songs: ${err.message}`);
     } finally {
@@ -373,14 +283,7 @@ const SheetReaderMode: React.FC = () => {
     }
   }, [user, routeSongId, searchParams]);
 
-  useEffect(() => {
-    const fromDashboard = sessionStorage.getItem('from_dashboard');
-    if (!fromDashboard) {
-      navigate('/', { replace: true });
-      return;
-    }
-    fetchSongs();
-  }, [fetchSongs, navigate]);
+  useEffect(() => { fetchSongs(); }, [fetchSongs]);
 
   const fetchLinks = useCallback(async () => {
     if (!user || !currentSong?.master_id || selectedChartType === 'chords') {
@@ -388,32 +291,23 @@ const SheetReaderMode: React.FC = () => {
       return;
     }
     try {
-      const { data, error } = await supabase
-        .from('sheet_links')
-        .select('*')
-        .eq('song_id', currentSong.master_id)
-        .eq('user_id', user.id);
-      
+      const { data, error } = await supabase.from('sheet_links').select('*').eq('song_id', currentSong.master_id).eq('user_id', user.id);
       if (error) throw error;
       setLinks(data || []);
     } catch (err: any) {
-      showError("Failed to load links.");
+      console.error("Failed to load links:", err);
     }
   }, [user, currentSong?.master_id, selectedChartType]);
 
-  useEffect(() => {
-    fetchLinks();
-  }, [fetchLinks]);
+  useEffect(() => { fetchLinks(); }, [fetchLinks]);
 
   const getBestChartType = useCallback((song: SetlistSong): ChartType => {
     if (forceReaderResource === 'force-pdf' && song.pdfUrl) return 'pdf';
     if (forceReaderResource === 'force-ug' && (song.ugUrl || song.ug_chords_text)) return 'chords';
     if (forceReaderResource === 'force-chords' && song.ug_chords_text) return 'chords';
-
     if (song.preferred_reader === 'ug' && (song.ugUrl || song.ug_chords_text)) return 'chords';
     if (song.preferred_reader === 'ls' && song.leadsheetUrl) return 'leadsheet';
     if (song.preferred_reader === 'fn' && (song.pdfUrl || song.sheet_music_url)) return 'pdf';
-
     if (song.pdfUrl || song.sheet_music_url) return 'pdf';
     if (song.leadsheetUrl) return 'leadsheet';
     if (song.ug_chords_text) return 'chords';
@@ -437,37 +331,26 @@ const SheetReaderMode: React.FC = () => {
         setIsChartContentLoading(true);
       }
     }
-  }, [currentSong, getBestChartType, selectedChartType]);
+  }, [currentSong?.id, getBestChartType]);
 
   const handleNext = useCallback(() => {
     if (allSongs.length > 0) {
-      const currentSong = allSongs[currentIndex];
       const nextIndex = (currentIndex + 1) % allSongs.length;
       const nextSong = allSongs[nextIndex];
-
-      if (currentSong.set_group && nextSong.set_group && currentSong.set_group !== nextSong.set_group) {
+      if (currentSong?.set_group && nextSong.set_group && currentSong.set_group !== nextSong.set_group) {
         setIsSetTransitionOpen(true);
         return;
       }
-
       setCurrentIndex(nextIndex);
       stopPlayback();
-      if (chartContainerRef.current) {
-        chartContainerRef.current.scrollTop = 0;
-        chartContainerRef.current.scrollLeft = 0;
-      }
     }
-  }, [allSongs, currentIndex, stopPlayback]);
+  }, [allSongs, currentIndex, stopPlayback, currentSong]);
 
   const handleForceNext = useCallback(() => {
     if (allSongs.length > 0) {
       setCurrentIndex((prevIndex) => (prevIndex + 1) % allSongs.length);
       stopPlayback();
       setIsSetTransitionOpen(false);
-      if (chartContainerRef.current) {
-        chartContainerRef.current.scrollTop = 0;
-        chartContainerRef.current.scrollLeft = 0;
-      }
     }
   }, [allSongs, stopPlayback]);
 
@@ -477,10 +360,6 @@ const SheetReaderMode: React.FC = () => {
       setCurrentIndex(surplusIndex);
       stopPlayback();
       setIsSetTransitionOpen(false);
-      if (chartContainerRef.current) {
-        chartContainerRef.current.scrollTop = 0;
-        chartContainerRef.current.scrollLeft = 0;
-      }
     } else {
       showInfo("No surplus songs found.");
       handleForceNext();
@@ -491,91 +370,24 @@ const SheetReaderMode: React.FC = () => {
     if (allSongs.length > 0) {
       setCurrentIndex((prevIndex) => (prevIndex - 1 + allSongs.length) % allSongs.length);
       stopPlayback();
-      if (chartContainerRef.current) {
-        chartContainerRef.current.scrollTop = 0;
-        chartContainerRef.current.scrollLeft = 0;
-      }
     }
   }, [allSongs, stopPlayback]);
 
   const toggleZenMode = useCallback(() => {
     setIsZenMode(prev => !prev);
-    if (!isZenMode) {
-      setIsInfoOverlayVisible(false);
-      setIsAudioPlayerVisible(false);
-    } else {
-      setIsInfoOverlayVisible(true);
-      setIsAudioPlayerVisible(true);
-    }
+    setIsAudioPlayerVisible(isZenMode);
   }, [isZenMode]);
-
-  const onOpenCurrentSongStudio = useCallback(() => {
-    if (currentSong) setIsStudioPanel(true);
-  }, [currentSong]);
-
-  const handleSelectSongFromRepertoireSearch = useCallback((song: SetlistSong) => {
-    const idx = allSongs.findIndex(s => s.id === song.id || s.master_id === song.master_id);
-    if (idx !== -1) setCurrentIndex(idx);
-    else navigate(`/sheet-reader/${song.id}`);
-    stopPlayback();
-    setIsRepertoireSearchModalOpen(false);
-  }, [allSongs, navigate, stopPlayback]);
-
-  const onOpenRepertoireSearch = useCallback(() => {
-    setIsRepertoireSearchModalOpen(true);
-  }, []);
-
-  const onAddLink = useCallback(() => {
-    if (currentChartDisplayUrl && pdfDocument) setIsLinkEditorOpen(true);
-  }, [currentChartDisplayUrl, pdfDocument]);
-
-  const handleClose = useCallback(() => {
-    const mode = sessionStorage.getItem('reader_view_mode') || 'gigs';
-    navigate(`/?view=${mode}`);
-  }, [navigate]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      switch (e.key) {
-        case 'ArrowLeft':
-          e.preventDefault();
-          if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') setPdfCurrentPage(prev => Math.max(1, prev - 1)); 
-          else handlePrev();
-          break;
-        case 'ArrowRight':
-          e.preventDefault();
-          if (selectedChartType === 'pdf' || selectedChartType === 'leadsheet') setPdfCurrentPage(prev => Math.min(prev + 1, pdfNumPages || 999)); 
-          else handleNext();
-          break;
-        case 'z':
-        case 'Z':
-          e.preventDefault();
-          toggleZenMode();
-          break;
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handlePrev, handleNext, selectedChartType, pdfNumPages, toggleZenMode]);
 
   const calculatePdfScale = useCallback(async (pdf: PDFDocumentProxy, container: HTMLDivElement, pageNumber: number) => {
     if (!container || !pdf) return;
-    const containerWidth = container.clientWidth;
-    const containerHeight = container.clientHeight;
     try {
       const page = await pdf.getPage(pageNumber);
       const viewport = page.getViewport({ scale: 1 });
-      const pageWidth = viewport.width;
-      const pageHeight = viewport.height;
-      
-      const availableHeight = containerHeight * 0.98;
-      const availableWidth = containerWidth * 0.98;
-      const scaleX = availableWidth / pageWidth;
-      const scaleY = availableHeight / pageHeight;
+      const scaleX = (container.clientWidth * 0.98) / viewport.width;
+      const scaleY = (container.clientHeight * 0.98) / viewport.height;
       setPdfScale(Math.min(scaleX, scaleY));
     } catch (error) {
-      console.error("[SheetReaderMode] Error calculating PDF scale:", error);
+      console.error("[SheetReaderMode] Scale error:", error);
     }
   }, []);
 
@@ -594,7 +406,7 @@ const SheetReaderMode: React.FC = () => {
     const isLongSwipe = Math.abs(mx) > swipeThreshold;
     if (isLongSwipe || isFastSwipe) {
       navigatedRef.current = true; 
-      cancel(); 
+      if (typeof cancel === 'function') cancel(); 
       if (dx < 0) { 
         if (selectedChartType === 'chords') handleNext();
         else if (pdfCurrentPage < (pdfNumPages || 1)) setPdfCurrentPage(prev => prev + 1);
@@ -607,13 +419,8 @@ const SheetReaderMode: React.FC = () => {
     }
   }, { threshold: 5, filterTaps: true, axis: 'x' });
 
-  const handleNavigateToPage = useCallback((pageNumber: number) => {
-    setPdfCurrentPage(pageNumber);
-  }, []);
-
   const effectiveConfig = useMemo(() => {
     if (!currentSong) return DEFAULT_UG_CHORDS_CONFIG;
-    
     const baseConfig: UGChordsConfig = {
       fontFamily: ugChordsFontFamily,
       fontSize: ugChordsFontSize + 1, 
@@ -622,15 +429,9 @@ const SheetReaderMode: React.FC = () => {
       lineSpacing: ugChordsLineSpacing,
       textAlign: ugChordsTextAlign as any,
     };
-
     if (currentSong.ug_chords_config) {
-      return { 
-        ...baseConfig, 
-        ...currentSong.ug_chords_config,
-        fontSize: (currentSong.ug_chords_config.fontSize || ugChordsFontSize) + 1 
-      };
+      return { ...baseConfig, ...currentSong.ug_chords_config, fontSize: (currentSong.ug_chords_config.fontSize || ugChordsFontSize) + 1 };
     }
-
     return baseConfig;
   }, [currentSong, ugChordsFontFamily, ugChordsFontSize, ugChordsChordBold, ugChordsChordColor, ugChordsLineSpacing, ugChordsTextAlign]);
 
@@ -640,22 +441,19 @@ const SheetReaderMode: React.FC = () => {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-white relative">
-      <div className={cn("fixed left-0 top-0 h-full w-[300px] z-50 transition-transform duration-300", 
-        isSidebarOpen && !isZenMode ? "translate-x-0" : "-translate-x-full")}>
+      <div className={cn("fixed left-0 top-0 h-full w-[300px] z-50 transition-transform duration-300", isSidebarOpen && !isZenMode ? "translate-x-0" : "-translate-x-full")}>
         <SheetReaderSidebar songs={allSongs} currentIndex={currentIndex} onSelectSong={(idx) => { setCurrentIndex(idx); stopPlayback(); }} isFullScreen={isZenMode} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
       </div>
 
-      <main className={cn("flex-1 flex flex-col overflow-hidden transition-all duration-300", 
-        isSidebarOpen && !isZenMode && !isMobile && "ml-[300px]")}
-      >
+      <main className={cn("flex-1 flex flex-col overflow-hidden transition-all duration-300", isSidebarOpen && !isZenMode && !isMobile && "ml-[300px]")}>
         {isZenMode && <SongInfoOverlay song={currentSong} />}
         <AnimatePresence>
           {!isZenMode && (
             <SheetReaderHeader
               currentSong={currentSong}
-              onClose={handleClose} 
-              onOpenRepertoireSearch={onOpenRepertoireSearch}
-              onOpenCurrentSongStudio={onOpenCurrentSongStudio}
+              onClose={() => navigate(`/?view=${sessionStorage.getItem('reader_view_mode') || 'gigs'}`)} 
+              onOpenRepertoireSearch={() => setIsRepertoireSearchModalOpen(true)}
+              onOpenCurrentSongStudio={() => setIsStudioPanel(true)}
               isLoading={!currentSong}
               keyPreference={globalKeyPreference} 
               onUpdateKey={handleUpdateKey}
@@ -669,7 +467,7 @@ const SheetReaderMode: React.FC = () => {
               effectiveTargetKey={effectiveTargetKey}
               isAudioPlayerVisible={isAudioPlayerVisible}
               onToggleAudioPlayer={() => setIsAudioPlayerVisible(prev => !prev)}
-              onAddLink={onAddLink} 
+              onAddLink={() => currentChartDisplayUrl && pdfDocument && setIsLinkEditorOpen(true)} 
               onToggleLinkEditMode={() => setIsEditingLinksMode(prev => !prev)} 
               onOpenLinkSizeModal={() => setIsLinkSizeModalOpen(true)}
               isEditingLinksMode={isEditingLinksMode}
@@ -690,158 +488,67 @@ const SheetReaderMode: React.FC = () => {
           )}
           onClick={toggleZenMode} 
         >
-          <KeyReminderPill 
-            isVisible={showKeyReminder} 
-            targetKey={effectiveTargetKey} 
-            pitch={effectivePitch} 
-          />
+          <KeyReminderPill isVisible={showKeyReminder} targetKey={effectiveTargetKey} pitch={effectivePitch} />
 
           <animated.div 
             {...bind()}  
-            style={{ 
-              touchAction: 'none', 
-              width: '100%', 
-              height: '100%',
-              display: 'flex', 
-              justifyContent: 'center', 
-              alignItems: 'center',
-              padding: isZenMode ? '0' : isMobile ? '10px' : '20px',
-            }} 
+            style={{ touchAction: 'none', width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: isZenMode ? '0' : isMobile ? '10px' : '20px' }} 
             className="relative"
           >
             {currentSong ? (
               selectedChartType === 'chords' ? (
-                <UGChordsReader
-                  chordsText={currentSong.ug_chords_text || ""}
-                  config={effectiveConfig}
-                  isMobile={isMobile}
-                  originalKey={currentSong.originalKey}
-                  targetKey={effectiveTargetKey}
-                  readerKeyPreference={readerKeyPreference}
-                  onChartReady={() => setIsChartContentLoading(false)}
-                  isFullScreen={isZenMode} 
-                />
+                <UGChordsReader chordsText={currentSong.ug_chords_text || ""} config={effectiveConfig} isMobile={isMobile} originalKey={currentSong.originalKey} targetKey={effectiveTargetKey} readerKeyPreference={readerKeyPreference} onChartReady={() => setIsChartContentLoading(false)} isFullScreen={isZenMode} />
               ) : (
                 <div className="w-full h-full flex justify-center items-center relative"> 
-                  <Document
-                    file={currentChartDisplayUrl}
-                    onLoadSuccess={(pdf) => { 
-                      setPdfNumPages(pdf.numPages);
-                      setPdfDocument(pdf); 
-                      setIsChartContentLoading(false);
-                    }}
-                    loading={<Loader2 className="w-12 h-12 animate-spin text-indigo-500" />}
-                    className="flex items-center justify-center" 
-                  >
-                    <Page
-                      pageNumber={pdfCurrentPage}
-                      scale={pdfScale || 1} 
-                      renderAnnotationLayer={true}
-                      renderTextLayer={true}
-                      loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />}
-                      onRenderSuccess={() => setIsChartContentLoading(false)}
-                      inputRef={pageRef} 
-                    />
-                  </Document>
+                  {currentChartDisplayUrl ? (
+                    <Document
+                      file={currentChartDisplayUrl}
+                      onLoadSuccess={(pdf) => { setPdfNumPages(pdf.numPages); setPdfDocument(pdf); setIsChartContentLoading(false); }}
+                      loading={<Loader2 className="w-12 h-12 animate-spin text-indigo-500" />}
+                      className="flex items-center justify-center" 
+                    >
+                      <Page pageNumber={pdfCurrentPage} scale={pdfScale || 1} renderAnnotationLayer={true} renderTextLayer={true} loading={<Loader2 className="w-8 h-8 animate-spin text-indigo-400" />} onRenderSuccess={() => setIsChartContentLoading(false)} inputRef={pageRef} />
+                    </Document>
+                  ) : (
+                    <div className="text-slate-500 text-sm italic">No chart asset linked.</div>
+                  )}
                   <div className="absolute inset-0 z-30 pointer-events-none" ref={overlayWrapperRef}> 
-                    <LinkDisplayOverlay
-                      links={links}
-                      currentPage={pdfCurrentPage}
-                      onNavigateToPage={handleNavigateToPage}
-                      onLinkDeleted={fetchLinks} 
-                      isEditingMode={isEditingLinksMode}
-                      onEditLink={() => {}} 
-                      pageContainerRef={pageRef} 
-                      pdfScale={pdfScale}
-                      overlayWrapperRef={overlayWrapperRef} 
-                    />
+                    <LinkDisplayOverlay links={links} currentPage={pdfCurrentPage} onNavigateToPage={setPdfCurrentPage} onLinkDeleted={fetchLinks} isEditingMode={isEditingLinksMode} onEditLink={() => {}} pageContainerRef={pageRef} pdfScale={pdfScale || 1} overlayWrapperRef={overlayWrapperRef} />
                   </div>
                 </div>
               )
             ) : (
-              <div className="h-full w-full flex items-center justify-center text-slate-500 text-sm italic">
-                <p>No song selected.</p>
-              </div>
+              <div className="h-full w-full flex items-center justify-center text-slate-500 text-sm italic">No song selected.</div>
             )}
           </animated.div>
-          
           {isChartContentLoading && <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 z-20"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>}
         </div>
       </main>
 
-      <RepertoireSearchModal
-        isOpen={isRepertoireSearchModalOpen}
-        onClose={() => setIsRepertoireSearchModalOpen(false)}
-        masterRepertoire={fullMasterRepertoire}
-        currentSetlistSongs={currentSetlistSongs}
-        onSelectSong={handleSelectSongFromRepertoireSearch}
-      />
+      <RepertoireSearchModal isOpen={isRepertoireSearchModalOpen} onClose={() => setIsRepertoireSearchModalOpen(false)} masterRepertoire={fullMasterRepertoire} currentSetlistSongs={currentSetlistSongs} onSelectSong={(s) => { const idx = allSongs.findIndex(x => x.id === s.id || x.master_id === s.master_id); if (idx !== -1) setCurrentIndex(idx); else navigate(`/sheet-reader/${s.id}`); stopPlayback(); setIsRepertoireSearchModalOpen(false); }} />
 
       <AnimatePresence>
-        {!isZenMode && (
-          <SheetReaderAudioPlayer
-            currentSong={currentSong}
-            isPlaying={isPlaying}
-            progress={audioEngine.progress}
-            duration={audioEngine.duration}
-            onTogglePlayback={audioEngine.togglePlayback}
-            onNext={handleNext}
-            onPrevious={handlePrev}
-            onSeek={audioEngine.setProgress}
-            volume={audioEngine.volume}
-            setVolume={audioEngine.setVolume}
-            pitch={effectivePitch}
-            setPitch={setPitch}
-            isLoadingAudio={audioEngine.isLoadingAudio}
-            readerKeyPreference={readerKeyPreference}
-            effectiveTargetKey={effectiveTargetKey}
-            isPlayerVisible={isAudioPlayerVisible}
-          />
+        {!isZenMode && currentSong && (
+          <SheetReaderAudioPlayer currentSong={currentSong} isPlaying={isPlaying} progress={audioEngine.progress} duration={audioEngine.duration} onTogglePlayback={audioEngine.togglePlayback} onNext={handleNext} onPrevious={handlePrev} onSeek={audioEngine.setProgress} volume={audioEngine.volume} setVolume={audioEngine.setVolume} pitch={effectivePitch} setPitch={setPitch} isLoadingAudio={audioEngine.isLoadingAudio} readerKeyPreference={readerKeyPreference} effectiveTargetKey={effectiveTargetKey} isPlayerVisible={isAudioPlayerVisible} />
         )}
       </AnimatePresence>
 
-      {currentChartDisplayUrl && pdfDocument && (
-        <LinkEditorOverlay
-          isOpen={isLinkEditorOpen}
-          onClose={() => setIsLinkEditorOpen(false)}
-          songId={currentSong.master_id || currentSong.id}
-          chartUrl={currentChartDisplayUrl}
-          onLinkCreated={fetchLinks}
-        />
+      {currentChartDisplayUrl && pdfDocument && currentSong && (
+        <LinkEditorOverlay isOpen={isLinkEditorOpen} onClose={() => setIsLinkEditorOpen(false)} songId={currentSong.master_id || currentSong.id} chartUrl={currentChartDisplayUrl} onLinkCreated={fetchLinks} />
       )}
 
-      <LinkSizeModal
-        isOpen={isLinkSizeModalOpen}
-        onClose={() => setIsLinkSizeModalOpen(false)}
-        onLinkSizeUpdated={fetchLinks}
-      />
+      <LinkSizeModal isOpen={isLinkSizeModalOpen} onClose={() => setIsLinkSizeModalOpen(false)} onLinkSizeUpdated={fetchLinks} />
 
       <AlertDialog open={isSetTransitionOpen} onOpenChange={setIsSetTransitionOpen}>
         <AlertDialogContent className="bg-slate-950 border-white/10 text-white rounded-[2rem] p-8 shadow-2xl max-w-lg">
           <AlertDialogHeader>
-            <div className="bg-indigo-600/20 w-20 h-20 rounded-[1.5rem] flex items-center justify-center text-indigo-400 mb-6 mx-auto shadow-lg shadow-indigo-900/10">
-              <Sparkles className="w-10 h-10" />
-            </div>
+            <div className="bg-indigo-600/20 w-20 h-20 rounded-[1.5rem] flex items-center justify-center text-indigo-400 mb-6 mx-auto shadow-lg shadow-indigo-900/10"><Sparkles className="w-10 h-10" /></div>
             <AlertDialogTitle className="text-3xl font-black uppercase tracking-tight text-center">Set Complete!</AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-400 font-medium text-lg text-center leading-relaxed">
-              You've reached the end of <span className="text-indigo-400 font-bold">{currentSong?.set_group === 99 ? 'Surplus' : `Set ${currentSong?.set_group}`}</span>.
-              Ready for the next phase?
-            </AlertDialogDescription>
+            <AlertDialogDescription className="text-slate-400 font-medium text-lg text-center leading-relaxed">You've reached the end of <span className="text-indigo-400 font-bold">{currentSong?.set_group === 99 ? 'Surplus' : `Set ${currentSong?.set_group}`}</span>. Ready for the next phase?</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-10 flex-col sm:flex-row gap-4">
-            <Button
-              variant="outline"
-              onClick={handleJumpToSurplus}
-              className="flex-1 rounded-2xl border-white/5 bg-slate-900 hover:bg-slate-800 text-slate-300 font-black uppercase text-[11px] tracking-widest h-16 px-8"
-            >
-              Jump to Surplus
-            </Button>
-            <Button
-              onClick={handleForceNext}
-              className="flex-1 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase text-[11px] tracking-widest h-16 px-8 shadow-xl shadow-indigo-600/20"
-            >
-              Start Next Set
-            </Button>
+            <Button variant="outline" onClick={handleJumpToSurplus} className="flex-1 rounded-2xl border-white/5 bg-slate-900 hover:bg-slate-800 text-slate-300 font-black uppercase text-[11px] tracking-widest h-16 px-8">Jump to Surplus</Button>
+            <Button onClick={handleForceNext} className="flex-1 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase text-[11px] tracking-widest h-16 px-8 shadow-xl shadow-indigo-600/20">Start Next Set</Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
