@@ -5,7 +5,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { SetlistSong, EnergyZone, Setlist } from '@/components/SetlistManager';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Settings2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { DEFAULT_FILTERS } from '@/components/SetlistFilters';
@@ -27,14 +27,17 @@ import SheetReaderAudioPlayer from '@/components/SheetReaderAudioPlayer';
 import { sortSongsByStrategy } from '@/utils/SetlistGenerator';
 import { useDrag } from '@use-gesture/react';
 import { animated } from '@react-spring/web';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Button } from '@/components/ui/button';
 
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
-// Updated ChartType to match the database 'preferred_reader' values
 export type ChartType = 'fn' | 'ls' | 'ug';
 
 const AuditReaderMode: React.FC = () => {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { songId: routeSongId } = useParams<{ songId?: string }>();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
@@ -58,6 +61,7 @@ const AuditReaderMode: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isRepertoireSearchModalOpen, setIsRepertoireSearchModalOpen] = useState(false);
   const [isAudioPlayerVisible, setIsAudioPlayerVisible] = useState(true);
+  const [isRehearsalPanelOpen, setIsRehearsalPanelOpen] = useState(false);
 
   const currentSong = allSongs[currentIndex];
 
@@ -446,7 +450,7 @@ const AuditReaderMode: React.FC = () => {
       </div>
 
       <main className={cn("flex-1 flex flex-col overflow-hidden transition-all duration-300", 
-        isSidebarOpen && "ml-[300px]")}
+        isSidebarOpen && !isMobile && "ml-[300px]")}
       >
         <AuditReaderHeader
           currentSong={currentSong}
@@ -461,25 +465,25 @@ const AuditReaderMode: React.FC = () => {
           onSetlistChange={setSelectedSetlistId}
         />
 
-        <div className="flex-1 flex overflow-hidden mt-[72px]">
+        <div className="flex-1 flex overflow-hidden mt-14 md:mt-[72px]">
           <div
             ref={chartContainerRef}
             className={cn(
               "flex-1 bg-black relative overflow-auto",
-              isAudioPlayerVisible && currentSong ? "pb-24" : "pb-0"
+              isAudioPlayerVisible && currentSong ? "pb-20 md:pb-24" : "pb-0"
             )}
           >
             <animated.div 
               {...bind()}
               style={{ touchAction: 'none' }}
-              className="w-full h-full flex justify-center items-center p-8"
+              className="w-full h-full flex justify-center items-center p-4 md:p-8"
             >
               {currentSong ? (
                 selectedChartType === 'ug' ? (
                   <UGChordsReader
                     chordsText={currentSong.ug_chords_text || ""}
                     config={effectiveConfig}
-                    isMobile={false}
+                    isMobile={isMobile}
                     originalKey={currentSong.originalKey}
                     targetKey={currentSong.targetKey || currentSong.originalKey}
                     readerKeyPreference={readerKeyPreference}
@@ -518,9 +522,33 @@ const AuditReaderMode: React.FC = () => {
             </animated.div>
             
             {isChartContentLoading && <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 z-20"><Loader2 className="w-12 h-12 animate-spin text-indigo-500" /></div>}
+            
+            {isMobile && currentSong && (
+              <div className="absolute bottom-24 right-4 z-30">
+                <Sheet open={isRehearsalPanelOpen} onOpenChange={setIsRehearsalPanelOpen}>
+                  <SheetTrigger asChild>
+                    <Button size="icon" className="h-12 w-12 rounded-full bg-indigo-600 shadow-xl shadow-indigo-600/30">
+                      <Settings2 className="w-6 h-6" />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="bottom" className="h-[80vh] bg-slate-950 border-white/10 p-0 rounded-t-[2rem] overflow-hidden">
+                    <SheetHeader className="p-6 border-b border-white/5">
+                      <SheetTitle className="text-white font-black uppercase tracking-widest text-sm">Rehearsal Tools</SheetTitle>
+                    </SheetHeader>
+                    <RehearsalPanel
+                      song={currentSong}
+                      onUpdate={handleUpdateSong}
+                      keyPreference={readerKeyPreference}
+                      selectedChartType={selectedChartType}
+                      onChartTypeChange={handleChartTypeChange}
+                    />
+                  </SheetContent>
+                </Sheet>
+              </div>
+            )}
           </div>
 
-          {currentSong && (
+          {!isMobile && currentSong && (
             <RehearsalPanel
               song={currentSong}
               onUpdate={handleUpdateSong}

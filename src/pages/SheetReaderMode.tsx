@@ -40,6 +40,7 @@ import { sortSongsByStrategy } from '@/utils/SetlistGenerator';
 import SongInfoOverlay from '@/components/SongInfoOverlay';
 import KeyReminderPill from '@/components/KeyReminderPill';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useIsMobile } from '@/hooks/use-mobile';
 
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
@@ -47,8 +48,9 @@ export type ChartType = 'pdf' | 'leadsheet' | 'chords';
 
 const SheetReaderMode: React.FC = () => {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { songId: routeSongId } = useParams<{ songId?: string }>();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { 
     keyPreference: globalKeyPreference,
@@ -644,7 +646,7 @@ const SheetReaderMode: React.FC = () => {
       </div>
 
       <main className={cn("flex-1 flex flex-col overflow-hidden transition-all duration-300", 
-        isSidebarOpen && !isZenMode && "ml-[300px]")}
+        isSidebarOpen && !isZenMode && !isMobile && "ml-[300px]")}
       >
         {isZenMode && <SongInfoOverlay song={currentSong} />}
         <AnimatePresence>
@@ -682,8 +684,8 @@ const SheetReaderMode: React.FC = () => {
           ref={chartContainerRef}
           className={cn(
             "flex-1 bg-black relative transition-all duration-500",
-            isZenMode ? "mt-0" : "mt-[72px]", 
-            isAudioPlayerVisible && currentSong && !isZenMode ? "pb-24" : "pb-0", 
+            isZenMode ? "mt-0" : "mt-14 md:mt-[72px]", 
+            isAudioPlayerVisible && currentSong && !isZenMode ? "pb-20 md:pb-24" : "pb-0", 
             shouldDisableScroll ? "overflow-hidden" : "overflow-auto"
           )}
           onClick={toggleZenMode} 
@@ -703,7 +705,7 @@ const SheetReaderMode: React.FC = () => {
               display: 'flex', 
               justifyContent: 'center', 
               alignItems: 'center',
-              padding: isZenMode ? '0' : '20px',
+              padding: isZenMode ? '0' : isMobile ? '10px' : '20px',
             }} 
             className="relative"
           >
@@ -712,7 +714,7 @@ const SheetReaderMode: React.FC = () => {
                 <UGChordsReader
                   chordsText={currentSong.ug_chords_text || ""}
                   config={effectiveConfig}
-                  isMobile={false}
+                  isMobile={isMobile}
                   originalKey={currentSong.originalKey}
                   targetKey={effectiveTargetKey}
                   readerKeyPreference={readerKeyPreference}
@@ -767,17 +769,6 @@ const SheetReaderMode: React.FC = () => {
         </div>
       </main>
 
-      {isZenMode && isInfoOverlayVisible && currentSong && (
-        <FullScreenSongInfo
-          song={currentSong}
-          readerKeyPreference={readerKeyPreference}
-          onUpdateKey={handleUpdateKey}
-          setIsOverlayOpen={() => {}}
-          effectiveTargetKey={effectiveTargetKey}
-          onExitFullScreen={toggleZenMode}
-        />
-      )}
-
       <RepertoireSearchModal
         isOpen={isRepertoireSearchModalOpen}
         onClose={() => setIsRepertoireSearchModalOpen(false)}
@@ -826,7 +817,7 @@ const SheetReaderMode: React.FC = () => {
       />
 
       <AlertDialog open={isSetTransitionOpen} onOpenChange={setIsSetTransitionOpen}>
-        <AlertDialogContent className="bg-slate-950 border-white/10 text-white rounded-[2.5rem] p-8 shadow-2xl max-w-lg">
+        <AlertDialogContent className="bg-slate-950 border-white/10 text-white rounded-[2rem] p-8 shadow-2xl max-w-lg">
           <AlertDialogHeader>
             <div className="bg-indigo-600/20 w-20 h-20 rounded-[1.5rem] flex items-center justify-center text-indigo-400 mb-6 mx-auto shadow-lg shadow-indigo-900/10">
               <Sparkles className="w-10 h-10" />
