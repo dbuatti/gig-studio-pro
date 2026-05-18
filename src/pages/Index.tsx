@@ -499,7 +499,7 @@ const Index = () => {
                 </p>
                 <Button
                   onClick={handleCreateSetlist}
-                  className="mt-8 h-14 px-8 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase tracking-widest gap-3 shadow-xl shadow-indigo-600/20 transition-all hover:scale-105"
+                  className="mt-8 h-14 px-8 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest gap-3 shadow-xl shadow-indigo-600/20 transition-all hover:scale-105"
                 >
                   <Plus className="w-5 h-5" /> Create Setlist
                 </Button>
@@ -517,7 +517,7 @@ const Index = () => {
                 </p>
                 <Button
                   onClick={() => setIsGlobalSearchOpen(true)}
-                  className="mt-8 h-14 px-8 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase tracking-widest gap-3 shadow-xl shadow-indigo-600/20 transition-all hover:scale-105"
+                  className="mt-8 h-14 px-8 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest gap-3 shadow-xl shadow-indigo-600/20 transition-all hover:scale-105"
                 >
                   <Plus className="w-5 h-5" /> Add First Song
                 </Button>

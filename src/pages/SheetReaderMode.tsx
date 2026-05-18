@@ -539,7 +539,7 @@ const SheetReaderMode: React.FC = () => {
 
       <LinkSizeModal isOpen={isLinkSizeModalOpen} onClose={() => setIsLinkSizeModalOpen(false)} onLinkSizeUpdated={fetchLinks} />
 
-      <AlertDialog open={isSetTransitionOpen} onOpenChange={setIsSetTransitionOpen}>
+      <AlertDialog open={isSetTransitionOpen} onOpenChange={(setIsSetTransitionOpen)}>
         <AlertDialogContent className="bg-slate-950 border-white/10 text-white rounded-[2rem] p-8 shadow-2xl max-w-lg">
           <AlertDialogHeader>
             <div className="bg-indigo-600/20 w-20 h-20 rounded-[1.5rem] flex items-center justify-center text-indigo-400 mb-6 mx-auto shadow-lg shadow-indigo-900/10"><Sparkles className="w-10 h-10" /></div>
