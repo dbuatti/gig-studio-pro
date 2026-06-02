@@ -187,25 +187,40 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
 
-      const newSong: Partial<SetlistSong> = {
-        name: song.name,
-        artist: song.artist,
-        previewUrl: song.previewUrl,
-        appleMusicUrl: song.appleMusicUrl,
-        genre: song.genre,
-        duration_seconds: song.duration_seconds,
-        isMetadataConfirmed: true,
-      };
+      // Normalize strings to check if the song already exists in the master repertoire
+      const normalize = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+      const existingSong = repertoire.find(r => 
+        normalize(r.name) === normalize(song.name) && 
+        normalize(r.artist || '') === normalize(song.artist)
+      );
 
-      const synced = await syncToMasterRepertoire(user.id, [newSong]);
-      if (synced.length === 0) throw new Error("Failed to sync to master repertoire");
+      let songIdToInsert = "";
 
-      const syncedSong = synced[0];
+      if (existingSong) {
+        // Use the existing song from master repertoire
+        songIdToInsert = existingSong.master_id || existingSong.id;
+        showInfo(`Found "${song.name}" in your library. Adding with all saved assets!`);
+      } else {
+        // Create a new song in master repertoire
+        const newSong: Partial<SetlistSong> = {
+          name: song.name,
+          artist: song.artist,
+          previewUrl: song.previewUrl,
+          appleMusicUrl: song.appleMusicUrl,
+          genre: song.genre,
+          duration_seconds: song.duration_seconds,
+          isMetadataConfirmed: true,
+        };
+
+        const synced = await syncToMasterRepertoire(user.id, [newSong]);
+        if (synced.length === 0) throw new Error("Failed to sync to master repertoire");
+        songIdToInsert = synced[0].master_id || synced[0].id;
+      }
 
       // 2. Add to setlist under the specific subset
       const { error: insertError } = await supabase.from('setlist_songs').insert({
         setlist_id: setlistId,
-        song_id: syncedSong.master_id || syncedSong.id,
+        song_id: songIdToInsert,
         sort_order: subsetSongs.length,
         set_group: setGroup,
       });
@@ -340,7 +355,7 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
                           variant="ghost"
                           disabled={song.isAdding}
                           onClick={() => handleAddSong(index, song)}
-                          className="h-9 w-9 rounded-xl bg-indigo-600/10 hover:bg-indigo-600 text-indigo-400 hover:text-white border border-indigo-500/20 transition-all"
+                          className="h-9 w-9 rounded-xl bg-indigo-600/10 hover:bg-indigo-600 text-indigo-400 hover:text-white border-indigo-500/20 transition-all"
                         >
                           {song.isAdding ? (
                             <Loader2 className="w-4 h-4 animate-spin" />
