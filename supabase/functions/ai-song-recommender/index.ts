@@ -96,7 +96,7 @@ Example: [{"id": "uuid", "reason": "Perfect high-energy transition after the mid
 
         if (provider.type === 'google') {
           // @ts-ignore: Deno global
-          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${provider.key}`, {
+          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${provider.key}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -120,7 +120,7 @@ Example: [{"id": "uuid", "reason": "Perfect high-energy transition after the mid
               "Content-Type": "application/json"
             },
             body: JSON.stringify({
-              model: "google/gemini-2.0-flash-001",
+              model: "google/gemini-2.5-flash",
               messages: [{ role: "user", content: prompt }],
               response_format: { type: "json_object" },
               temperature: 0.7

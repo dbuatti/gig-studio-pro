@@ -56,7 +56,7 @@ serve(async (req) => {
         const provider = providers[Math.floor(Math.random() * providers.length)];
         const prompt = `Analyze this song for energy level: "${song.title}" by "${song.artist}". BPM: ${song.bpm}. Return ONLY JSON: {"energy_level": "Ambient"|"Pulse"|"Groove"|"Peak", "refined_genre": "string"}`;
 
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${provider.key}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${provider.key}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json", temperature: 0.1 } })
