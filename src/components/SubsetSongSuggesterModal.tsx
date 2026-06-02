@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Sparkles, Plus, Play, Pause, ExternalLink, Music, Check, AlertCircle } from 'lucide-react';
+import { Loader2, Sparkles, Plus, Play, Pause, ExternalLink, Music, Check, AlertCircle, Clock } from 'lucide-react';
 import { SetlistSong } from './SetlistManager';
 import { supabase } from '@/integrations/supabase/client';
 import { syncToMasterRepertoire } from '@/utils/repertoireSync';
@@ -49,6 +49,7 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
   const [suggestions, setSuggestions] = useState<SuggestedSong[]>([]);
   const [activePreviewUrl, setActivePreviewUrl] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [quotaError, setQuotaError] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -100,6 +101,7 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
 
     setIsLoading(true);
     setSuggestions([]);
+    setQuotaError(null);
     try {
       // 1. Call suggest-songs edge function with subset songs as context
       const payload = {
@@ -112,7 +114,22 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
         body: payload
       });
 
-      if (fetchError) throw fetchError;
+      if (fetchError) {
+        if (fetchError.status === 429) {
+          setQuotaError("AI Discovery is resting (Quota Limit). Please try again in a few minutes.");
+          return;
+        }
+        throw fetchError;
+      }
+
+      if (data?.error) {
+        if (data.isQuotaError) {
+          setQuotaError("AI Discovery is resting (Quota Limit). Please try again in a few minutes.");
+        } else {
+          showError(data.error);
+        }
+        return;
+      }
 
       const rawSuggestions = Array.isArray(data) ? data : (data?.suggestions || []);
       
@@ -228,6 +245,20 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
               <p className="text-xs font-black uppercase tracking-widest text-slate-400 animate-pulse">
                 Analyzing subset vibe & searching iTunes...
               </p>
+            </div>
+          ) : quotaError ? (
+            <div className="h-full flex flex-col items-center justify-center space-y-4 text-center p-6">
+              <Clock className="w-12 h-12 text-amber-500 animate-pulse" />
+              <p className="text-sm font-black uppercase tracking-tight text-amber-500">Quota Limit Reached</p>
+              <p className="text-xs text-slate-400 max-w-xs leading-relaxed">
+                {quotaError}
+              </p>
+              <Button 
+                onClick={fetchSuggestions}
+                className="mt-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase text-[10px] tracking-widest h-10 px-6 rounded-xl"
+              >
+                Try Again
+              </Button>
             </div>
           ) : suggestions.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center space-y-3 text-center p-6">
