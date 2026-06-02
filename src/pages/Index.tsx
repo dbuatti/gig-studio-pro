@@ -151,7 +151,7 @@ const Index = () => {
         const songs: SetlistSong[] = [];
         junctionData?.forEach(j => {
           const master = mappedRepertoire.find(r => r.id === j.song_id);
-          if (master) songs.push({ ...master, id: j.id, master_id: master.id, isPlayed: j.isPlayed || false, set_group: j.set_group || 1 });
+          if (master) songs.push({ ...master, id: j.id, master_id: master.id, isPlayed: j.isPlayed || false, set_group: j.set_group || 1, sort_order: j.sort_order });
         });
         setlistsWithSongs.push({ id: setlist.id, name: setlist.name, songs, time_goal: setlist.time_goal, set_names: setlist.set_names, stimulus_text: setlist.stimulus_text });
       }
@@ -248,6 +248,68 @@ const Index = () => {
       await fetchSetlistsAndRepertoire();
     } catch (err: any) { showError(`Update failed: ${err.message}`); }
   }, [activeSetlist, userId, fetchSetlistsAndRepertoire]);
+
+  const handleReshuffleSubset = async (groupNum: number) => {
+    if (!activeSetlist || !activeSetlistId) return;
+
+    const allSongs = [...activeSetlist.songs];
+    const subsetSongs = allSongs.filter(s => s.set_group === groupNum);
+    if (subsetSongs.length <= 1) {
+      showInfo("Add at least 2 songs to this subset to reshuffle its flow!");
+      return;
+    }
+
+    showInfo(`Reshuffling flow for Set ${groupNum}...`);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-setlist-sorter', {
+        body: {
+          songs: subsetSongs.map((s, idx) => ({
+            id: s.id,
+            name: s.name,
+            artist: s.artist,
+            bpm: s.bpm,
+            genre: s.genre,
+            energy_level: s.energy_level,
+            duration_seconds: s.duration_seconds,
+            readiness: calculateReadiness(s),
+            isLocked: false,
+            lockedPosition: null
+          })),
+          instruction: "Optimize the flow of this subset for a professional live performance, starting with a strong opener, building energy, and ending with a high-energy peak."
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.orderedIds) {
+        const newSubsetOrder = data.orderedIds
+          .map((id: string) => subsetSongs.find(s => s.id === id))
+          .filter(Boolean) as SetlistSong[];
+
+        const originalSortOrders = subsetSongs
+          .map(s => allSongs.findIndex(x => x.id === s.id))
+          .filter(idx => idx !== -1)
+          .map(idx => allSongs[idx].sort_order || 0)
+          .sort((a, b) => a - b);
+
+        for (let i = 0; i < newSubsetOrder.length; i++) {
+          const song = newSubsetOrder[i];
+          const targetSortOrder = originalSortOrders[i] !== undefined ? originalSortOrders[i] : i;
+          await supabase
+            .from('setlist_songs')
+            .update({ sort_order: targetSortOrder })
+            .eq('id', song.id);
+        }
+
+        await fetchSetlistsAndRepertoire();
+        showSuccess(`Set ${groupNum} flow optimized!`);
+      }
+    } catch (err: any) {
+      console.error("Subset Reshuffle Error:", err);
+      showError("Failed to reshuffle subset flow. Please try again.");
+    }
+  };
 
   const handleTogglePlayed = async (songId: string) => {
     const song = activeSetlist?.songs.find(s => s.id === songId);
@@ -632,6 +694,8 @@ const Index = () => {
                   onOpenSetReader={handleOpenSetReader}
                   onOpenSetKaraoke={handleOpenSetKaraoke}
                   onCompileSetSongs={handleCompileSetSongs}
+                  onReshuffleSubset={handleReshuffleSubset}
+                  onRefresh={fetchSetlistsAndRepertoire}
                 />
               </>
             )}

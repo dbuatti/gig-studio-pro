@@ -5,7 +5,7 @@ import {
   CheckCircle2, CircleDashed, CloudDownload, AlertTriangle,
   ShieldCheck, Clock, ArrowRight, Check, ChevronDown,
   ChevronUp, Edit3, MoreVertical, ListMusic, Settings2, Trash2, LayoutList, Library,
-  BookOpen, Tv, Sliders
+  BookOpen, Tv, Sliders, Loader2, RotateCcw, Plus
 } from 'lucide-react';
 
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, formatKey, transposeKey, calculateSemitones } from '@/utils/keyUtils';
@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { showSuccess, showError, showInfo } from '@/utils/toast';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
+import { SubsetSongSuggesterModal } from './SubsetSongSuggesterModal';
 import { useSettings, KeyPreference } from '@/hooks/use-settings';
 import { RESOURCE_TYPES, DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -101,6 +102,7 @@ export interface SetlistSong {
   links?: SheetLink[];
   energy_level?: EnergyZone;
   set_group?: number;
+  sort_order?: number;
 }
 
 export interface Setlist {
@@ -143,6 +145,8 @@ interface SetlistManagerProps {
   onOpenSetReader?: (groupNum: number) => void;
   onOpenSetKaraoke?: (groupNum: number) => void;
   onCompileSetSongs?: (groupNum: number) => void;
+  onReshuffleSubset?: (groupNum: number) => void;
+  onRefresh?: () => Promise<void>;
 }
 
 const SetlistManager: React.FC<SetlistManagerProps> = ({
@@ -172,7 +176,9 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   setIsFilterOpen,
   onOpenSetReader,
   onOpenSetKaraoke,
-  onCompileSetSongs
+  onCompileSetSongs,
+  onReshuffleSubset,
+  onRefresh
 }) => {
   const isMobile = useIsMobile();
   const { keyPreference: globalPreference } = useSettings();
@@ -180,6 +186,21 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [isVibeChecking, setIsVibeChecking] = useState(false);
   const [vibeCheckProgress, setVibeCheckProgress] = useState(0);
+  
+  // Subset practice & discovery states
+  const [reshufflingGroup, setReshufflingGroup] = useState<number | null>(null);
+  const [suggesterGroup, setSuggesterGroup] = useState<number | null>(null);
+
+  const handleReshuffle = async (groupNum: number) => {
+    if (onReshuffleSubset) {
+      setReshufflingGroup(groupNum);
+      try {
+        await onReshuffleSubset(groupNum);
+      } finally {
+        setReshufflingGroup(null);
+      }
+    }
+  };
 
   const processedSongs = useMemo(() => {
     let songs = [...rawSongs];
@@ -488,6 +509,33 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                   getEnergyBarClass={getEnergyBarClass}
                 />
               ))}
+              {groupNum !== 99 && (
+                <div className="flex items-center gap-2 px-2 pt-2 pb-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSuggesterGroup(groupNum)}
+                    className="flex-1 h-9 rounded-xl text-[10px] font-bold uppercase tracking-wider text-indigo-400 border-indigo-500/20 bg-indigo-500/5 hover:bg-indigo-500/10 gap-1.5"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Suggest Songs
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={reshufflingGroup === groupNum}
+                    onClick={() => handleReshuffle(groupNum)}
+                    className="flex-1 h-9 rounded-xl text-[10px] font-bold uppercase tracking-wider text-emerald-400 border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 gap-1.5"
+                  >
+                    {reshufflingGroup === groupNum ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <RotateCcw className="w-3.5 h-3.5" />
+                    )}
+                    Reshuffle
+                  </Button>
+                </div>
+              )}
             </React.Fragment>
           ))}
         </div>
@@ -606,6 +654,37 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                           getReadinessBreakdown={getReadinessBreakdown}
                         />
                       ))}
+                      {groupNum !== 99 && (
+                        <tr className="bg-slate-950/20 border-b border-white/5">
+                          <td colSpan={8} className="py-4 px-10">
+                            <div className="flex items-center gap-3">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setSuggesterGroup(groupNum)}
+                                className="h-9 px-4 rounded-xl text-xs font-bold uppercase tracking-wider text-indigo-400 border-indigo-500/20 bg-indigo-500/5 hover:bg-indigo-500/10 gap-2 transition-all"
+                              >
+                                <Plus className="w-4 h-4" />
+                                Suggest Songs for {getSetLabel(groupNum)}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={reshufflingGroup === groupNum}
+                                onClick={() => handleReshuffle(groupNum)}
+                                className="h-9 px-4 rounded-xl text-xs font-bold uppercase tracking-wider text-emerald-400 border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 gap-2 transition-all"
+                              >
+                                {reshufflingGroup === groupNum ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <RotateCcw className="w-4 h-4" />
+                                )}
+                                Reshuffle Flow
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
                     </React.Fragment>
                   ))
                 )}
@@ -638,6 +717,19 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <SubsetSongSuggesterModal
+        isOpen={suggesterGroup !== null}
+        onClose={() => setSuggesterGroup(null)}
+        subsetName={suggesterGroup !== null ? getSetLabel(suggesterGroup) : ""}
+        subsetSongs={suggesterGroup !== null ? groupedBySet[suggesterGroup] || [] : []}
+        repertoire={masterRepertoire}
+        setlistId={activeSetlistId || ""}
+        setGroup={suggesterGroup || 1}
+        onSongAdded={async () => {
+          if (onRefresh) await onRefresh();
+        }}
+      />
     </div>
   );
 };
