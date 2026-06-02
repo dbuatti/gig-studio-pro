@@ -138,9 +138,12 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
       for (const s of rawSuggestions) {
         const query = `${s.artist} ${s.name}`;
         try {
-          const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=1`);
+          const targetUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=1`;
+          const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+          const res = await fetch(proxyUrl);
           if (res.ok) {
-            const itunesData = await res.json();
+            const proxyData = await res.json();
+            const itunesData = JSON.parse(proxyData.contents);
             const track = itunesData.results?.[0];
             if (track) {
               enriched.push({

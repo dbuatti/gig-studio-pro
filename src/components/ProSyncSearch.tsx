@@ -25,9 +25,14 @@ const ProSyncSearch: React.FC<ProSyncSearchProps> = ({ isOpen, onClose, onSelect
 
     setIsLoading(true);
     try {
-      const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(searchQuery)}&entity=song&limit=25`);
-      const data = await response.json();
-      setResults(data.results || []);
+      const targetUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(searchQuery)}&entity=song&limit=25`;
+      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+      const response = await fetch(proxyUrl);
+      if (response.ok) {
+        const proxyData = await response.json();
+        const data = JSON.parse(proxyData.contents);
+        setResults(data.results || []);
+      }
     } catch (err) {
       // Error handled by toast in parent component
     } finally {

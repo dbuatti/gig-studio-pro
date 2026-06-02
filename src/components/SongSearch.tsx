@@ -39,9 +39,14 @@ export const SongSearch: React.FC<SongSearchProps> = ({ onSelectSong, onAddToSet
     setIsLoading(true);
     setExpandingId(null);
     try {
-      const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(searchTerm)}&entity=song&limit=15`);
-      const data = await response.json();
-      setResults(data.results || []);
+      const targetUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(searchTerm)}&entity=song&limit=15`;
+      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+      const response = await fetch(proxyUrl);
+      if (response.ok) {
+        const proxyData = await response.json();
+        const data = JSON.parse(proxyData.contents);
+        setResults(data.results || []);
+      }
     } catch (err) {
       // Handled silently
     } finally {
