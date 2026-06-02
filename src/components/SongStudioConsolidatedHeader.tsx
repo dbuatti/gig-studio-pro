@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { 
-  ArrowLeft, Play, Pause, Sparkles, Globe, 
+import {
+  ArrowLeft, Play, Pause, Sparkles, Globe,
   Check, Loader2, Save, Share2, MoreHorizontal,
-  CloudUpload, Activity, Music, X, ShieldCheck
+  CloudUpload, Activity, Music, X, ShieldCheck,
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { SetlistSong, Setlist } from './SetlistManager';
 import { cn } from '@/lib/utils';
@@ -29,6 +30,10 @@ interface SongStudioConsolidatedHeaderProps {
   onUpdateSetlistSongs?: (setlistId: string, song: SetlistSong, action: 'add' | 'remove') => Promise<void>;
   onAutoSave: (updates: Partial<SetlistSong>) => void;
   isSaving?: boolean;
+  currentIndex?: number;
+  totalSongs?: number;
+  onPrev?: () => void;
+  onNext?: () => void;
 }
 
 const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> = ({
@@ -45,7 +50,11 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
   allSetlists,
   onUpdateSetlistSongs,
   onAutoSave,
-  isSaving = false
+  isSaving = false,
+  currentIndex,
+  totalSongs,
+  onPrev,
+  onNext
 }) => {
   const isMobile = useIsMobile();
   const [showSynced, setShowSynced] = useState(false);
@@ -67,15 +76,43 @@ const SongStudioConsolidatedHeader: React.FC<SongStudioConsolidatedHeaderProps> 
     <div className="bg-slate-950 border-b border-white/10 px-4 md:px-8 py-4 md:py-5 flex items-center justify-between gap-4 md:gap-6 shadow-2xl relative z-50 h-auto md:h-[88px]">
       {/* Left: Back & Title */}
       <div className="flex items-center gap-4 md:gap-6 min-w-0">
-        <Button 
-          variant="ghost" 
-          size="icon" 
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={onClose}
           className="h-10 w-10 md:h-12 md:w-12 rounded-2xl bg-white/5 hover:bg-white/10 text-slate-400 shrink-0 transition-all active:scale-90"
           title="Back to Dashboard"
         >
           <ArrowLeft className="w-5 h-5 md:w-6 md:h-6" />
         </Button>
+
+        {currentIndex !== undefined && totalSongs !== undefined && totalSongs > 1 && (
+          <div className="flex items-center gap-1 bg-white/5 p-1 rounded-2xl border border-white/5 shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onPrev}
+              disabled={currentIndex === 0}
+              className="h-8 w-8 md:h-10 md:w-10 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 disabled:opacity-30 transition-all"
+              title="Previous Song (Left Arrow)"
+            >
+              <ChevronLeft className="w-4 h-4 md:w-5 md:h-5" />
+            </Button>
+            <span className="text-[10px] md:text-xs font-black text-slate-500 px-1 select-none">
+              {currentIndex + 1} / {totalSongs}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onNext}
+              disabled={currentIndex === totalSongs - 1}
+              className="h-8 w-8 md:h-10 md:w-10 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 disabled:opacity-30 transition-all"
+              title="Next Song (Right Arrow)"
+            >
+              <ChevronRight className="w-4 h-4 md:w-5 md:h-5" />
+            </Button>
+          </div>
+        )}
         
         <div className="hidden sm:block h-10 w-px bg-white/10 mx-1" />
 

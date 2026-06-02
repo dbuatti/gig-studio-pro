@@ -190,9 +190,49 @@ const Index = () => {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isStorageAuditOpen, setIsStorageAuditOpen] = useState(false);
 
+  // Set-level practice states
+  const [activeSetGroup, setActiveSetGroup] = useState<number | null>(null);
+  const [songStudioVisibleSongs, setSongStudioVisibleSongs] = useState<SetlistSong[] | null>(null);
+
+  const handleOpenSetReader = (groupNum: number) => {
+    const setSongs = filteredAndSortedSongs.filter(s => s.set_group === groupNum);
+    if (setSongs.length > 0) {
+      sessionStorage.setItem('reader_view_mode', 'gigs');
+      sessionStorage.setItem('reader_setlist_id', activeSetlistId || '');
+      navigate(`/sheet-reader/${setSongs[0].id}?set=${groupNum}`);
+    } else {
+      showWarning("No songs in this set.");
+    }
+  };
+
+  const handleOpenSetKaraoke = (groupNum: number) => {
+    const setSongs = filteredAndSortedSongs.filter(s => s.set_group === groupNum);
+    if (setSongs.length > 0) {
+      setActiveSetGroup(groupNum);
+      handleSelectSong(setSongs[0]);
+      setIsPerformanceOverlayOpen(true);
+    } else {
+      showWarning("No songs in this set.");
+    }
+  };
+
+  const handleCompileSetSongs = (groupNum: number) => {
+    const setSongs = filteredAndSortedSongs.filter(s => s.set_group === groupNum);
+    if (setSongs.length > 0) {
+      setSongStudioModalSongId(setSongs[0].master_id || setSongs[0].id);
+      setSongStudioModalGigId(activeDashboardView === 'gigs' ? activeSetlistId : 'library');
+      setSongStudioVisibleSongs(setSongs);
+      setIsSongStudioModalOpen(true);
+      setSongStudioDefaultTab('config');
+    } else {
+      showWarning("No songs in this set.");
+    }
+  };
+
   const handleEditSong = (song: SetlistSong, defaultTab?: StudioTab) => {
     setSongStudioModalSongId(song.master_id || song.id);
     setSongStudioModalGigId(activeDashboardView === 'gigs' ? activeSetlistId : 'library');
+    setSongStudioVisibleSongs(activeDashboardView === 'gigs' ? filteredAndSortedSongs : masterRepertoire);
     setIsSongStudioModalOpen(true);
     setSongStudioDefaultTab(defaultTab || 'config');
   };
@@ -557,38 +597,41 @@ const Index = () => {
             {activeSetlist && (
               <>
                 <SetlistStats songs={filteredAndSortedSongs} goalSeconds={activeSetlist.time_goal} onPlayAll={toggleAutoplay} isAutoplayActive={isAutoplayActive} />
-                <SetlistManager 
-                  songs={filteredAndSortedSongs} 
-                  onSelect={handleSelectSong} 
-                  onEdit={handleEditSong} 
-                  onUpdateKey={async (id, targetKey) => { 
-                    const song = activeSetlist.songs.find(s => s.id === id); 
-                    if (song) { 
-                      const newPitch = calculateSemitones(song.originalKey || 'C', targetKey); 
-                      await handleUpdateSongInSetlist(id, { targetKey, pitch: newPitch }); 
-                    } 
-                  }} 
-                  onUpdateSong={handleUpdateSongInSetlist} 
-                  onTogglePlayed={handleTogglePlayed} 
-                  onReorder={handleReorderSongs} 
-                  onUpdateSetlistSongs={handleUpdateSetlistSongs} 
-                  onOpenSortModal={() => setIsSetlistSortModalOpen(true)} 
-                  onBulkVibeCheck={handleBulkVibeCheck} 
-                  masterRepertoire={masterRepertoire} 
-                  activeSetlistId={activeSetlistId} 
-                  isFilterOpen={isFilterOpen} 
-                  setIsFilterOpen={setIsFilterOpen} 
-                  sortMode={sortMode} 
-                  setSortMode={setSortMode} 
-                  activeFilters={activeFilters} 
-                  setActiveFilters={setActiveFilters} 
-                  searchTerm={searchTerm} 
-                  setSearchTerm={setSearchTerm} 
-                  showHeatmap={showHeatmap} 
-                  allSetlists={allSetlists} 
-                  onRemove={handleRemoveSongFromSetlist} 
-                  onLinkAudio={() => {}} 
-                  onSyncProData={async () => {}} 
+                <SetlistManager
+                  songs={filteredAndSortedSongs}
+                  onSelect={handleSelectSong}
+                  onEdit={handleEditSong}
+                  onUpdateKey={async (id, targetKey) => {
+                    const song = activeSetlist.songs.find(s => s.id === id);
+                    if (song) {
+                      const newPitch = calculateSemitones(song.originalKey || 'C', targetKey);
+                      await handleUpdateSongInSetlist(id, { targetKey, pitch: newPitch });
+                    }
+                  }}
+                  onUpdateSong={handleUpdateSongInSetlist}
+                  onTogglePlayed={handleTogglePlayed}
+                  onReorder={handleReorderSongs}
+                  onUpdateSetlistSongs={handleUpdateSetlistSongs}
+                  onOpenSortModal={() => setIsSetlistSortModalOpen(true)}
+                  onBulkVibeCheck={handleBulkVibeCheck}
+                  masterRepertoire={masterRepertoire}
+                  activeSetlistId={activeSetlistId}
+                  isFilterOpen={isFilterOpen}
+                  setIsFilterOpen={setIsFilterOpen}
+                  sortMode={sortMode}
+                  setSortMode={setSortMode}
+                  activeFilters={activeFilters}
+                  setActiveFilters={setActiveFilters}
+                  searchTerm={searchTerm}
+                  setSearchTerm={setSearchTerm}
+                  showHeatmap={showHeatmap}
+                  allSetlists={allSetlists}
+                  onRemove={handleRemoveSongFromSetlist}
+                  onLinkAudio={() => {}}
+                  onSyncProData={async () => {}}
+                  onOpenSetReader={handleOpenSetReader}
+                  onOpenSetKaraoke={handleOpenSetKaraoke}
+                  onCompileSetSongs={handleCompileSetSongs}
                 />
               </>
             )}
@@ -637,42 +680,62 @@ const Index = () => {
         hasReadableChart={!!activeSong} 
       />
 
-      <SongStudioModal 
-        isOpen={isSongStudioModalOpen} 
-        onClose={() => setIsSongStudioModalOpen(false)} 
-        gigId={songStudioModalGigId} 
-        songId={songStudioModalSongId} 
-        visibleSongs={activeDashboardView === 'gigs' ? filteredAndSortedSongs : masterRepertoire} 
-        allSetlists={allSetlists} 
-        masterRepertoire={masterRepertoire} 
-        defaultTab={songStudioDefaultTab} 
-        audioEngine={audio} 
-        preventStageKeyOverwrite={preventStageKeyOverwrite} 
+      <SongStudioModal
+        isOpen={isSongStudioModalOpen}
+        onClose={() => setIsSongStudioModalOpen(false)}
+        gigId={songStudioModalGigId}
+        songId={songStudioModalSongId}
+        visibleSongs={songStudioVisibleSongs || (activeDashboardView === 'gigs' ? filteredAndSortedSongs : masterRepertoire)}
+        onSelectSong={(id) => setSongStudioModalSongId(id)}
+        allSetlists={allSetlists}
+        masterRepertoire={masterRepertoire}
+        defaultTab={songStudioDefaultTab}
+        audioEngine={audio}
+        preventStageKeyOverwrite={preventStageKeyOverwrite}
       />
 
       {isPerformanceOverlayOpen && activeSetlist && activeSong && (
-        <PerformanceOverlay 
-          songs={activeSetlist.songs} 
-          currentIndex={activeSetlist.songs.findIndex(s => s.id === activeSong.id)} 
-          isPlaying={audio.isPlaying} 
-          progress={audio.progress} 
-          duration={audio.duration} 
-          onTogglePlayback={audio.togglePlayback} 
-          onNext={() => playNext(true)} 
-          onPrevious={() => {}} 
-          onShuffle={() => {}} 
-          onClose={() => setIsPerformanceOverlayOpen(false)} 
-          onUpdateSong={handleUpdateSongInSetlist} 
-          onUpdateKey={async (id, targetKey) => { 
-            const song = activeSetlist.songs.find(s => s.id === id); 
-            if (song) { 
-              const newPitch = calculateSemitones(song.originalKey || 'C', targetKey); 
-              await handleUpdateSongInSetlist(id, { targetKey, pitch: newPitch }); 
-            } 
-          }} 
-          analyzer={audio.analyzer} 
-          gigId={activeSetlist.id} 
-          isLoadingAudio={audio.isLoadingAudio} 
+        <PerformanceOverlay
+          songs={activeSetGroup ? filteredAndSortedSongs.filter(s => s.set_group === activeSetGroup) : activeSetlist.songs}
+          currentIndex={(activeSetGroup ? filteredAndSortedSongs.filter(s => s.set_group === activeSetGroup) : activeSetlist.songs).findIndex(s => s.id === activeSong.id)}
+          isPlaying={audio.isPlaying}
+          progress={audio.progress}
+          duration={audio.duration}
+          onTogglePlayback={audio.togglePlayback}
+          onNext={() => {
+            const songs = activeSetGroup ? filteredAndSortedSongs.filter(s => s.set_group === activeSetGroup) : activeSetlist.songs;
+            const idx = songs.findIndex(s => s.id === activeSong.id);
+            if (idx !== -1 && idx < songs.length - 1) {
+              handleSelectSong(songs[idx + 1]);
+            } else if (songs.length > 0) {
+              handleSelectSong(songs[0]);
+            }
+          }}
+          onPrevious={() => {
+            const songs = activeSetGroup ? filteredAndSortedSongs.filter(s => s.set_group === activeSetGroup) : activeSetlist.songs;
+            const idx = songs.findIndex(s => s.id === activeSong.id);
+            if (idx > 0) {
+              handleSelectSong(songs[idx - 1]);
+            } else if (songs.length > 0) {
+              handleSelectSong(songs[songs.length - 1]);
+            }
+          }}
+          onShuffle={() => {}}
+          onClose={() => {
+            setIsPerformanceOverlayOpen(false);
+            setActiveSetGroup(null);
+          }}
+          onUpdateSong={handleUpdateSongInSetlist}
+          onUpdateKey={async (id, targetKey) => {
+            const song = activeSetlist.songs.find(s => s.id === id);
+            if (song) {
+              const newPitch = calculateSemitones(song.originalKey || 'C', targetKey);
+              await handleUpdateSongInSetlist(id, { targetKey, pitch: newPitch });
+            }
+          }}
+          analyzer={audio.analyzer}
+          gigId={activeSetlist.id}
+          isLoadingAudio={audio.isLoadingAudio}
         />
       )}
 

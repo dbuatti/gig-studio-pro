@@ -1,10 +1,11 @@
 "use client";
 import React, { useState, useMemo, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
-import { 
-  CheckCircle2, CircleDashed, CloudDownload, AlertTriangle, 
-  ShieldCheck, Clock, ArrowRight, Check, ChevronDown, 
-  ChevronUp, Edit3, MoreVertical, ListMusic, Settings2, Trash2, LayoutList, Library
+import {
+  CheckCircle2, CircleDashed, CloudDownload, AlertTriangle,
+  ShieldCheck, Clock, ArrowRight, Check, ChevronDown,
+  ChevronUp, Edit3, MoreVertical, ListMusic, Settings2, Trash2, LayoutList, Library,
+  BookOpen, Tv, Sliders
 } from 'lucide-react';
 
 import { ALL_KEYS_SHARP, ALL_KEYS_FLAT, formatKey, transposeKey, calculateSemitones } from '@/utils/keyUtils';
@@ -112,7 +113,7 @@ export interface Setlist {
 }
 
 interface SetlistManagerProps {
-  songs: SetlistSong[]; 
+  songs: SetlistSong[];
   onRemove: (id: string) => void;
   onSelect: (song: SetlistSong) => void;
   onEdit: (song: SetlistSong) => void;
@@ -139,6 +140,9 @@ interface SetlistManagerProps {
   activeSetlistId?: string | null;
   isFilterOpen: boolean;
   setIsFilterOpen: (open: boolean) => void;
+  onOpenSetReader?: (groupNum: number) => void;
+  onOpenSetKaraoke?: (groupNum: number) => void;
+  onCompileSetSongs?: (groupNum: number) => void;
 }
 
 const SetlistManager: React.FC<SetlistManagerProps> = ({
@@ -165,7 +169,10 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
   masterRepertoire = [],
   activeSetlistId,
   isFilterOpen,
-  setIsFilterOpen
+  setIsFilterOpen,
+  onOpenSetReader,
+  onOpenSetKaraoke,
+  onCompileSetSongs
 }) => {
   const isMobile = useIsMobile();
   const { keyPreference: globalPreference } = useSettings();
@@ -216,7 +223,7 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
     });
   }, [groupedBySet]);
 
-  const hasMultipleSets = sortedSetGroups.length > 1;
+  const hasMultipleSets = sortedSetGroups.length > 0;
 
   const energyFatigueIndices = useMemo(() => {
     if (sortMode !== 'manual' && sortMode !== 'none') return [];
@@ -419,15 +426,48 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
           {sortedSetGroups.map(groupNum => (
             <React.Fragment key={groupNum}>
               {hasMultipleSets && (
-                <div className="flex items-center gap-4 py-3">
-                  <Badge className={cn(
-                    "h-8 px-5 rounded-full font-black uppercase tracking-widest text-[10px] gap-2.5",
-                    groupNum === 99 ? "bg-slate-800 text-slate-400 border-slate-700" : "bg-indigo-600 text-white"
-                  )}>
-                    {groupNum === 99 && <AlertTriangle className="w-3.5 h-3.5" />}
-                    {getSetLabel(groupNum)}
-                  </Badge>
-                  <div className="h-px flex-1 bg-white/5" />
+                <div className="flex flex-col gap-2 py-3">
+                  <div className="flex items-center gap-4">
+                    <Badge className={cn(
+                      "h-8 px-5 rounded-full font-black uppercase tracking-widest text-[10px] gap-2.5",
+                      groupNum === 99 ? "bg-slate-800 text-slate-400 border-slate-700" : "bg-indigo-600 text-white"
+                    )}>
+                      {groupNum === 99 && <AlertTriangle className="w-3.5 h-3.5" />}
+                      {getSetLabel(groupNum)}
+                    </Badge>
+                    <div className="h-px flex-1 bg-white/5" />
+                  </div>
+                  {groupNum !== 99 && (
+                    <div className="flex items-center gap-1.5 overflow-x-auto py-1 no-scrollbar">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onOpenSetReader?.(groupNum)}
+                        className="h-8 px-3 rounded-xl text-[10px] font-bold uppercase tracking-wider text-indigo-400 border-indigo-500/20 bg-indigo-500/5 hover:bg-indigo-500/10 gap-1.5 shrink-0"
+                      >
+                        <BookOpen className="w-3 h-3" />
+                        Reader
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onOpenSetKaraoke?.(groupNum)}
+                        className="h-8 px-3 rounded-xl text-[10px] font-bold uppercase tracking-wider text-emerald-400 border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 gap-1.5 shrink-0"
+                      >
+                        <Tv className="w-3 h-3" />
+                        Karaoke
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onCompileSetSongs?.(groupNum)}
+                        className="h-8 px-3 rounded-xl text-[10px] font-bold uppercase tracking-wider text-amber-400 border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 gap-1.5 shrink-0"
+                      >
+                        <Sliders className="w-3 h-3" />
+                        Compile
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
               {groupedBySet[groupNum].map((song) => (
@@ -492,14 +532,48 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                       {hasMultipleSets && (
                         <tr className="bg-slate-900/60 border-y border-white/10">
                           <td colSpan={8} className="py-4 px-10">
-                            <div className="flex items-center gap-4">
-                              <Badge className={cn(
-                                "h-8 px-5 rounded-full font-black uppercase tracking-widest text-[10px] gap-2.5",
-                                groupNum === 99 ? "bg-slate-800 text-slate-400 border-slate-700" : "bg-indigo-600 text-white"
-                              )}>
-                                {groupNum === 99 && <AlertTriangle className="w-3.5 h-3.5" />}
-                                {getSetLabel(groupNum)}
-                              </Badge>
+                            <div className="flex items-center justify-between gap-4">
+                              <div className="flex items-center gap-4">
+                                <Badge className={cn(
+                                  "h-8 px-5 rounded-full font-black uppercase tracking-widest text-[10px] gap-2.5",
+                                  groupNum === 99 ? "bg-slate-800 text-slate-400 border-slate-700" : "bg-indigo-600 text-white"
+                                )}>
+                                  {groupNum === 99 && <AlertTriangle className="w-3.5 h-3.5" />}
+                                  {getSetLabel(groupNum)}
+                                </Badge>
+                                
+                                {groupNum !== 99 && (
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => onOpenSetReader?.(groupNum)}
+                                      className="h-8 px-3 rounded-xl text-xs font-bold uppercase tracking-wider text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 gap-1.5 transition-all"
+                                    >
+                                      <BookOpen className="w-3.5 h-3.5" />
+                                      Set Reader
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => onOpenSetKaraoke?.(groupNum)}
+                                      className="h-8 px-3 rounded-xl text-xs font-bold uppercase tracking-wider text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 gap-1.5 transition-all"
+                                    >
+                                      <Tv className="w-3.5 h-3.5" />
+                                      Set Karaoke
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => onCompileSetSongs?.(groupNum)}
+                                      className="h-8 px-3 rounded-xl text-xs font-bold uppercase tracking-wider text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 gap-1.5 transition-all"
+                                    >
+                                      <Sliders className="w-3.5 h-3.5" />
+                                      Compile Set
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
                               <div className="h-px flex-1 bg-white/10" />
                             </div>
                           </td>

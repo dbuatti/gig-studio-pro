@@ -247,6 +247,7 @@ const SheetReaderMode: React.FC = () => {
       setFullMasterRepertoire(masterRepertoireList);
 
       let currentViewSongs: SetlistSong[] = masterRepertoireList;
+      const setParam = searchParams.get('set');
       if (readerViewMode === 'gigs' && readerSetlistId) {
         const { data: junctionData } = await supabase.from('setlist_songs').select('song_id, id, isPlayed, sort_order, set_group').eq('setlist_id', readerSetlistId).order('sort_order', { ascending: true });
         if (junctionData) {
@@ -254,6 +255,12 @@ const SheetReaderMode: React.FC = () => {
             const master = masterRepertoireList.find(m => m.id === j.song_id);
             return master ? { ...master, id: j.id, master_id: master.id, isPlayed: j.isPlayed || false, set_group: j.set_group || 1 } : null;
           }).filter(Boolean) as SetlistSong[];
+          
+          if (setParam) {
+            const setNum = Number(setParam);
+            currentViewSongs = currentViewSongs.filter(s => s.set_group === setNum);
+          }
+          
           setCurrentSetlistSongs(currentViewSongs);
         }
       }

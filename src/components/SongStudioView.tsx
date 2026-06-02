@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Check, Sparkles, Loader2, AlertCircle, ShieldAlert, Globe, X } from 'lucide-react'; 
 import { supabase } from '@/integrations/supabase/client';
@@ -146,6 +146,36 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
     audio.stopPlayback();
     onClose();
   }, [onClose, audio, performSave]);
+
+  const currentIndex = useMemo(() => {
+    if (!visibleSongs || visibleSongs.length === 0 || !songId) return -1;
+    return visibleSongs.findIndex(s => s.id === songId || s.master_id === songId);
+  }, [visibleSongs, songId]);
+
+  const hasPrevious = currentIndex > 0;
+  const hasNext = currentIndex !== -1 && currentIndex < visibleSongs.length - 1;
+
+  const handlePrev = useCallback(() => {
+    if (hasPrevious && onSelectSong) {
+      const prevSong = visibleSongs[currentIndex - 1];
+      onSelectSong(prevSong.master_id || prevSong.id);
+    }
+  }, [hasPrevious, currentIndex, visibleSongs, onSelectSong]);
+
+  const handleNext = useCallback(() => {
+    if (hasNext && onSelectSong) {
+      const nextSong = visibleSongs[currentIndex + 1];
+      onSelectSong(nextSong.master_id || nextSong.id);
+    }
+  }, [hasNext, currentIndex, visibleSongs, onSelectSong]);
+
+  useKeyboardNavigation({
+    onNext: hasNext ? handleNext : undefined,
+    onPrev: hasPrevious ? handlePrev : undefined,
+    onClose: handleClose,
+    onPlayPause: audio.togglePlayback,
+    disabled: isProSyncOpen,
+  });
 
   const fetchData = async () => {
     if (!user) return;
@@ -326,6 +356,10 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           onUpdateSetlistSongs={onUpdateSetlistSongs}
           onAutoSave={activeAutoSave}
           isSaving={isSaving}
+          currentIndex={currentIndex !== -1 ? currentIndex : undefined}
+          totalSongs={visibleSongs?.length || undefined}
+          onPrev={handlePrev}
+          onNext={handleNext}
         />
       </header>
       
