@@ -66,29 +66,54 @@ serve(async (req) => {
     // Limit context to 50 songs to prevent token quota issues
     const contextRepertoire = repertoire.slice(0, 50);
 
+    // Analyze energy and genre profile of the subset
+    const energyProfile = contextRepertoire.reduce((acc: Record<string, number>, s: any) => {
+      const energy = s.energy_level || 'Unknown';
+      acc[energy] = (acc[energy] || 0) + 1;
+      return acc;
+    }, {});
+    const dominantEnergy = Object.entries(energyProfile).sort((a: [string, number], b: [string, number]) => b[1] - a[1])[0]?.[0] || 'Mixed';
+
+    const genreProfile = contextRepertoire.reduce((acc: Record<string, number>, s: any) => {
+      const genre = s.genre || 'Unknown';
+      if (genre !== 'Unknown') acc[genre] = (acc[genre] || 0) + 1;
+      return acc;
+    }, {});
+    const topGenres = Object.entries(genreProfile).sort((a: [string, number], b: [string, number]) => b[1] - a[1]).slice(0, 3).map(([g]) => g).join(', ') || 'Mixed';
+
+    const subsetName = (req as any).subsetName || 'General';
+
     const prompt = `You are a professional Musical Director for a high-end event band.
-    
-    ${seedSong ? `The user wants songs similar to: "${seedSong.name}" by ${seedSong.artist}.` : "The user wants songs that complement their existing repertoire."}
-    
-    CURRENT REPERTOIRE (DO NOT SUGGEST THESE):
-    ${contextRepertoire.map((s: any) => `- ${s.name} (${s.artist})`).join('\n')}
-    
+
+    ${seedSong ? `The user wants songs similar to: "${seedSong.name}" by ${seedSong.artist}.` : `The user wants songs for their set: "${subsetName}".`}
+
+    CURRENT SET VIBE PROFILE:
+    - Dominant Energy: ${dominantEnergy}
+    - Top Genres: ${topGenres}
+    - Total Songs in Set: ${contextRepertoire.length}
+
+    CURRENT SET SONGS (DO NOT SUGGEST THESE):
+    ${contextRepertoire.map((s: any) => `- ${s.name} (${s.artist}) [${s.energy_level || 'Unknown'} | ${s.genre || 'Unknown'}]`).join('\n')}
+
     TASK:
-    Suggest 8-10 NEW songs that would be perfect additions to this library. 
-    Focus on high-quality "pro" repertoire that fits the vibe of the existing list but provides fresh options.
-    
+    Suggest 8-10 NEW songs that perfectly match the "${subsetName}" set vibe.
+    The songs should match the dominant energy level "${dominantEnergy}" and genres like ${topGenres}.
+    Focus on high-quality "pro" repertoire that event bands actually play.
+
     CRITICAL RULES:
-    1. DO NOT suggest songs already in the repertoire list above.
+    1. DO NOT suggest songs already in the set list above.
     2. IGNORED LIST (ALSO DO NOT SUGGEST): ${ignored?.map((s: any) => s.name).join(', ') || 'None'}
     3. FORMAT: You MUST return a valid JSON array of objects.
-    4. Each object MUST have: "name", "artist", and "reason".
-    
+    4. Each object MUST have: "name", "artist", "reason", and "energy_level".
+    5. Energy level must be one of: Ambient, Pulse, Groove, Peak.
+
     OUTPUT FORMAT:
     [
       {
         "name": "Song Title",
         "artist": "Artist Name",
-        "reason": "Brief explanation of why this fits the vibe."
+        "reason": "Brief explanation of why this fits the ${subsetName} vibe.",
+        "energy_level": "Ambient"
       }
     ]`;
 

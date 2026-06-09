@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Sparkles, Plus, Play, Pause, ExternalLink, Music, Check, AlertCircle, Clock } from 'lucide-react';
+import { Loader2, Sparkles, Plus, Play, Pause, ExternalLink, Music, Check, AlertCircle, Clock, Zap, Ban } from 'lucide-react';
 import { SetlistSong } from './SetlistManager';
 import { supabase } from '@/integrations/supabase/client';
 import { syncToMasterRepertoire } from '@/utils/repertoireSync';
@@ -20,8 +20,10 @@ interface SuggestedSong {
   artworkUrl?: string;
   genre?: string;
   duration_seconds?: number;
+  energy_level?: string;
   isAdded?: boolean;
   isAdding?: boolean;
+  isDuplicate?: boolean;
 }
 
 interface SubsetSongSuggesterModalProps {
@@ -50,6 +52,7 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
   const [activePreviewUrl, setActivePreviewUrl] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [quotaError, setQuotaError] = useState<string | null>(null);
+  const [batchAdding, setBatchAdding] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -92,7 +95,7 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
     }
   };
 
-  const fetchSuggestions = async () => {
+    const fetchSuggestions = async () => {
     if (subsetSongs.length === 0) {
       showInfo("Add some songs to this subset first to get tailored suggestions!");
       onClose();
@@ -105,7 +108,13 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
     try {
       // 1. Call suggest-songs edge function with subset songs as context
       const payload = {
-        repertoire: subsetSongs.map(s => ({ name: s.name, artist: s.artist })),
+        repertoire: subsetSongs.map(s => ({ 
+          name: s.name, 
+          artist: s.artist,
+          energy_level: s.energy_level,
+          genre: s.genre 
+        })),
+        subsetName: subsetName,
         seedSong: null,
         ignored: []
       };
@@ -134,9 +143,16 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
       const rawSuggestions = Array.isArray(data) ? data : (data?.suggestions || []);
       
       // 2. Enrich suggestions with iTunes metadata
+      // Check for duplicates across all songs in the setlist
+      const normalize = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+      const existingKeys = new Set(subsetSongs.map(s => normalize(s.name)));
+      const repertoireKeys = new Set(repertoire.map(s => normalize(s.name)));
+
       const enriched: SuggestedSong[] = [];
       for (const s of rawSuggestions) {
         const query = `${s.artist} ${s.name}`;
+        const isDup = existingKeys.has(normalize(s.name)) || repertoireKeys.has(normalize(s.name));
+        
         try {
           const targetUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=1`;
           const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
@@ -155,6 +171,8 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
                 artworkUrl: track.artworkUrl100,
                 genre: track.primaryGenreName,
                 duration_seconds: Math.floor(track.trackTimeMillis / 1000),
+                energy_level: s.energy_level || 'Pulse',
+                isDuplicate: isDup,
               });
               continue;
             }
@@ -168,6 +186,8 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
           name: s.name,
           artist: s.artist,
           reason: s.reason || "Fits the subset vibe perfectly.",
+          energy_level: s.energy_level || 'Pulse',
+          isDuplicate: isDup,
         });
       }
 
@@ -181,6 +201,11 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
   };
 
   const handleAddSong = async (index: number, song: SuggestedSong) => {
+    if (song.isDuplicate) {
+      showInfo(`"${song.name}" is already in your set. Skipping duplicate.`);
+      return;
+    }
+    
     setSuggestions(prev => prev.map((s, i) => i === index ? { ...s, isAdding: true } : s));
     try {
       // 1. Sync to master repertoire
@@ -237,22 +262,110 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
     }
   };
 
+  const handleBatchAdd = async () => {
+    const validSuggestions = suggestions.filter(s => !s.isDuplicate && !s.isAdded);
+    if (validSuggestions.length === 0) {
+      showInfo("No new suggestions to add.");
+      return;
+    }
+
+    setBatchAdding(true);
+    let added = 0;
+    let failed = 0;
+
+    for (const song of validSuggestions) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) continue;
+
+        const normalize = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+        const existingSong = repertoire.find(r => 
+          normalize(r.name) === normalize(song.name) && 
+          normalize(r.artist || '') === normalize(song.artist)
+        );
+
+        let songIdToInsert = "";
+
+        if (existingSong) {
+          songIdToInsert = existingSong.master_id || existingSong.id;
+        } else {
+          const newSong: Partial<SetlistSong> = {
+            name: song.name,
+            artist: song.artist,
+            previewUrl: song.previewUrl,
+            appleMusicUrl: song.appleMusicUrl,
+            genre: song.genre,
+            duration_seconds: song.duration_seconds,
+            isMetadataConfirmed: true,
+          };
+
+          const synced = await syncToMasterRepertoire(user.id, [newSong]);
+          if (synced.length === 0) continue;
+          songIdToInsert = synced[0].master_id || synced[0].id;
+        }
+
+        const { error: insertError } = await supabase.from('setlist_songs').insert({
+          setlist_id: setlistId,
+          song_id: songIdToInsert,
+          sort_order: subsetSongs.length,
+          set_group: setGroup,
+        });
+
+        if (insertError) {
+          failed++;
+          continue;
+        }
+
+        added++;
+        setSuggestions(prev => prev.map(s => 
+          normalize(s.name) === normalize(song.name) ? { ...s, isAdded: true } : s
+        ));
+      } catch {
+        failed++;
+      }
+    }
+
+    setBatchAdding(false);
+    if (added > 0) {
+      showSuccess(`Added ${added} songs to ${subsetName}!${failed > 0 ? ` (${failed} failed)` : ''}`);
+      await onSongAdded();
+    } else {
+      showError("Failed to add any songs.");
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-[90vw] w-[650px] h-[80vh] p-0 bg-slate-950 border-white/10 overflow-hidden rounded-[2rem] shadow-2xl flex flex-col">
         <DialogHeader className="p-6 pb-4 border-b border-white/5 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-indigo-600/10 rounded-xl border border-indigo-500/20">
-              <Sparkles className="w-5 h-5 text-indigo-400" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-indigo-600/10 rounded-xl border border-indigo-500/20">
+                <Sparkles className="w-5 h-5 text-indigo-400" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-black uppercase tracking-tight text-white">
+                  Subset Discover
+                </DialogTitle>
+                <DialogDescription className="text-xs font-bold uppercase tracking-wider text-slate-500 mt-1">
+                  AI Suggestions matching "{subsetName}"
+                </DialogDescription>
+              </div>
             </div>
-            <div>
-              <DialogTitle className="text-xl font-black uppercase tracking-tight text-white">
-                Subset Discover
-              </DialogTitle>
-              <DialogDescription className="text-xs font-bold uppercase tracking-wider text-slate-500 mt-1">
-                AI Suggestions matching "{subsetName}"
-              </DialogDescription>
-            </div>
+            {!isLoading && suggestions.length > 0 && (
+              <Button
+                onClick={handleBatchAdd}
+                disabled={batchAdding || suggestions.filter(s => !s.isDuplicate && !s.isAdded).length === 0}
+                className="h-9 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase text-[10px] tracking-widest rounded-xl gap-2"
+              >
+                {batchAdding ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Plus className="w-3.5 h-3.5" />
+                )}
+                Add All {suggestions.filter(s => !s.isDuplicate && !s.isAdded).length > 0 && `(${suggestions.filter(s => !s.isDuplicate && !s.isAdded).length})`}
+              </Button>
+            )}
           </div>
         </DialogHeader>
 
@@ -318,12 +431,35 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
                     {/* Details */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <h4 className="text-sm font-black text-white truncate leading-tight">
-                            {song.name}
-                          </h4>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-black text-white truncate leading-tight">
+                              {song.name}
+                            </h4>
+                            {song.isDuplicate && (
+                              <span className="shrink-0 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[9px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1">
+                                <Ban className="w-3 h-3" />
+                                Duplicate
+                              </span>
+                            )}
+                            {song.energy_level && !song.isDuplicate && (
+                              <span className={cn(
+                                "shrink-0 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1",
+                                song.energy_level === 'Ambient' && "bg-blue-500/10 text-blue-400 border border-blue-500/20",
+                                song.energy_level === 'Pulse' && "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",
+                                song.energy_level === 'Groove' && "bg-orange-500/10 text-orange-400 border border-orange-500/20",
+                                song.energy_level === 'Peak' && "bg-red-500/10 text-red-400 border border-red-500/20",
+                              )}>
+                                <Zap className="w-3 h-3" />
+                                {song.energy_level}
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs font-bold text-slate-400 mt-0.5 truncate">
                             {song.artist}
+                            {song.genre && (
+                              <span className="text-slate-600 ml-2">• {song.genre}</span>
+                            )}
                           </p>
                         </div>
                         {song.appleMusicUrl && (
@@ -345,7 +481,11 @@ export const SubsetSongSuggesterModal: React.FC<SubsetSongSuggesterModalProps> =
 
                     {/* Add Button */}
                     <div className="shrink-0 self-center">
-                      {song.isAdded ? (
+                      {song.isDuplicate ? (
+                        <div className="h-9 w-9 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-500" title="Already in set">
+                          <Ban className="w-4 h-4" />
+                        </div>
+                      ) : song.isAdded ? (
                         <div className="h-9 w-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
                           <Check className="w-4 h-4" />
                         </div>
