@@ -129,7 +129,6 @@ const SetlistRow: React.FC<SetlistRowProps> = ({
       <td className="px-8 text-center">
         <div className="flex flex-col items-center gap-2">
           <MasteryRating value={song.comfort_level || 0} onChange={(val) => onUpdateSong(song.id, { comfort_level: val })} size="md" />
-          <span className="text-[9px] font-black uppercase tracking-widest text-slate-600">Confidence</span>
         </div>
       </td>
       <td className="px-8 text-center">
