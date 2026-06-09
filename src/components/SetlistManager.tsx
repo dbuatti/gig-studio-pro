@@ -658,14 +658,14 @@ const SetlistManager: React.FC<SetlistManagerProps> = ({
                         <tr className="bg-slate-950/20 border-b border-white/5">
                           <td colSpan={8} className="py-4 px-10">
                             <div className="flex items-center gap-3">
-                              <Button
+                                <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => setSuggesterGroup(groupNum)}
                                 className="h-9 px-4 rounded-xl text-xs font-bold uppercase tracking-wider text-indigo-400 border-indigo-500/20 bg-indigo-500/5 hover:bg-indigo-500/10 gap-2 transition-all"
                               >
-                                <Plus className="w-4 h-4" />
-                                Suggest Songs for {getSetLabel(groupNum)}
+                                <Sparkles className="w-4 h-4" />
+                                Discover for {getSetLabel(groupNum)}
                               </Button>
                               <Button
                                 variant="outline"
