@@ -121,6 +121,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
       setSong(syncedSong);
       setFormData(prev => ({ ...prev, ...currentUpdates, master_id: syncedSong.master_id }));
     } catch (err: any) {
+      console.error("Auto-save failed:", err);
     } finally {
       setIsSaving(false);
     }
@@ -253,6 +254,7 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
         await audio.loadFromUrl(audioUrl, targetSong.pitch ?? 0, true);
       }
     } catch (err: any) {
+      console.error("Failed to load song data:", err);
       onClose();
     } finally {
       setLoading(false);
@@ -321,7 +323,9 @@ const SongStudioView: React.FC<SongStudioViewProps> = ({
           updates.bpm = result.bpm?.toString() || updates.bpm;
         }
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error("Metadata enrichment failed:", e);
+    }
 
     await activeAutoSave(updates);
     autoVibeCheck(user.id, { ...formData, ...updates, master_id: song?.master_id || song?.id });

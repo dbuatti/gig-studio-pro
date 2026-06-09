@@ -39,8 +39,6 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire, onFilterApply }) 
     goalPdfsCount
   } = useSettings();
 
-  if (!isGoalTrackerEnabled) return null;
-
   const stats = useMemo((): GoalStat[] => {
     const todayStr = new Date().toLocaleDateString('en-CA');
 
@@ -139,6 +137,8 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({ repertoire, onFilterApply }) 
     const totalTarget = stats.reduce((acc, g) => acc + g.target, 0);
     return totalTarget > 0 ? (totalCurrent / totalTarget) * 100 : 0;
   }, [stats]);
+
+  if (!isGoalTrackerEnabled) return null;
 
   return (
     <div className="bg-card p-6 rounded-[2rem] border border-border shadow-2xl relative overflow-hidden mb-8 animate-in fade-in slide-in-from-top-4 duration-700">

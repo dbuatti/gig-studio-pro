@@ -56,7 +56,7 @@ export const calculateReadiness = (song: Partial<SetlistSong>): number => {
 
 export const syncToMasterRepertoire = async (userId: string, songsToSync: Partial<SetlistSong>[]): Promise<SetlistSong[]> => {
   const syncedSongs: SetlistSong[] = [];
-  console.log(`[repertoireSync] Syncing ${songsToSync.length} songs for user ${userId}`);
+  // Syncing songs to master repertoire
 
   for (const song of songsToSync) {
     try {

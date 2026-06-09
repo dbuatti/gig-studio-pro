@@ -16,10 +16,10 @@ export function useWakeLock(enabled: boolean) {
         setSentinel(lock);
         
         lock.addEventListener('release', () => {
-          console.log('[WakeLock] Screen Wake Lock was released');
+          // Wake lock was released
         });
         
-        console.log('[WakeLock] Screen Wake Lock is active');
+        // Wake lock acquired
       } catch (err: any) {
         console.error(`[WakeLock] ${err.name}, ${err.message}`);
       }

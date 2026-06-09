@@ -213,6 +213,7 @@ const UGChordsEditor: React.FC<UGChordsEditorProps> = ({
                 break;
               }
             } catch (jsonError) {
+              console.error("Failed to parse UG script data:", jsonError);
             }
           }
         }

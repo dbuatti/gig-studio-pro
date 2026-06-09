@@ -81,8 +81,6 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
       }));
   }, [processedSongs, sortMode]);
 
-  if (!profile) return null;
-
   const colors = useMemo(() => {
     if (profile.custom_theme) {
       const preset = themes.find(t => t.name === profile.custom_theme);
@@ -95,6 +93,8 @@ const PublicRepertoireView: React.FC<PublicRepertoireViewProps> = ({ profile, so
       border: 'hsl(var(--border))',
     };
   }, [profile.custom_theme, themes, theme]);
+
+  if (!profile) return null;
 
   return (
     <div 

@@ -21,7 +21,7 @@ export function AudioContextInitializer({ children }: { children: React.ReactNod
           // Remove the listener once the context is running
           document.removeEventListener('click', resumeContext);
           document.removeEventListener('keydown', resumeContext);
-          console.log("[AudioContextInitializer] AudioContext resumed.");
+          // AudioContext resumed successfully
         } catch (error) {
           console.error("[AudioContextInitializer] Failed to resume AudioContext:", error);
         }

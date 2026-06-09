@@ -101,6 +101,7 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
       await onAddLibrarySong(songId, setGroup);
       setAddedSongs(prev => new Set(prev).add(songId));
     } catch (err) {
+      showError("Failed to add library song.");
     }
   };
 
@@ -109,6 +110,7 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
       await onAddExternalSong(song, song.setGroup);
       setAddedSongs(prev => new Set(prev).add(`ext-${index}`));
     } catch (err) {
+      showError("Failed to add external song.");
     }
   };
 
@@ -120,6 +122,7 @@ const GigPlannerModal: React.FC<GigPlannerModalProps> = ({
       onClose();
       setTimeout(reset, 300);
     } catch (err) {
+      showError("Failed to build gig.");
     } finally {
       setIsBuilding(false);
     }

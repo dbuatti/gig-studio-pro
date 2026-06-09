@@ -49,7 +49,7 @@ const ImportSetlist: React.FC<ImportSetlistProps> = ({ onImport, isOpen, onClose
         title = parts[0];
         artist = parts[1];
       } else {
-        title = line.replace(/^\d+[\.\)\-\s]+/, '');
+        title = line.replace(/^\d+[.)\-\s]+/, '');
       }
 
       title = title.replace(/^["']|["']$/g, '').trim();

@@ -67,7 +67,10 @@ const PerformanceOverlay: React.FC<PerformanceOverlayProps> = ({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) return;
-      if (e.key === 'Escape') isShortcutLegendOpen ? setIsShortcutLegendOpen(false) : onClose();
+      if (e.key === 'Escape') {
+        if (isShortcutLegendOpen) setIsShortcutLegendOpen(false);
+        else onClose();
+      }
       if (e.code === 'Space') { e.preventDefault(); onTogglePlayback(); }
       if (e.key === 'ArrowLeft') onPrevious();
       if (e.key === 'ArrowRight') onNext();

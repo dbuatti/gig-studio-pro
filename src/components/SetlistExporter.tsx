@@ -80,6 +80,7 @@ const SetlistExporter: React.FC<SetlistExporterProps> = ({
       await action();
       showSuccess(successMsg);
     } catch (err) {
+      console.error("Action failed:", err);
     } finally {
       setter(false);
     }
