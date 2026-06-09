@@ -29,6 +29,7 @@ import { PDFDocumentProxy } from 'pdfjs-dist/types/src/display/api';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import { useDrag } from '@use-gesture/react';
+import { animated } from '@react-spring/web';
 import SheetReaderAudioPlayer from '@/components/SheetReaderAudioPlayer';
 import LinkEditorOverlay from '@/components/LinkEditorOverlay';
 import LinkDisplayOverlay, { SheetLink } from '@/components/LinkDisplayOverlay';
