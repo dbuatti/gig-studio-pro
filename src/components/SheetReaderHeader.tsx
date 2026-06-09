@@ -98,6 +98,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
             isSidebarOpen ? "bg-indigo-600 text-white hover:bg-indigo-700" : "bg-white/5 hover:bg-white/10 text-slate-400"
           )}
           title="Toggle Song List"
+          aria-label="Toggle song list sidebar"
         >
           <ListMusic className="w-4 h-4 md:w-5 md:h-5" />
         </Button>
@@ -109,6 +110,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
             onClick={onClose}
             className="h-9 w-9 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
             title="Back to Dashboard"
+            aria-label="Back to dashboard"
           >
             <ArrowLeft className="w-4 h-4" />
           </Button>
@@ -147,6 +149,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
               size="icon"
               onClick={() => setPitch(pitch - 1)}
               className="h-8 w-8 rounded-lg hover:bg-white/10 text-slate-400"
+              aria-label="Decrease pitch by 1 semitone"
             >
               <Minus className="w-3.5 h-3.5" />
             </Button>
@@ -184,6 +187,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
               size="icon"
               onClick={() => setPitch(pitch + 1)}
               className="h-8 w-8 rounded-lg hover:bg-white/10 text-slate-400"
+              aria-label="Increase pitch by 1 semitone"
             >
               <Plus className="w-3.5 h-3.5" />
             </Button>
@@ -193,7 +197,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
         {isMobile ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl bg-white/5 text-slate-400">
+              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl bg-white/5 text-slate-400" aria-label="Open song tools menu">
                 <MoreVertical className="w-5 h-5" />
               </Button>
             </DropdownMenuTrigger>
@@ -239,6 +243,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
               size="icon"
               onClick={onOpenCurrentSongStudio}
               className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
+              aria-label="Open song studio"
             >
               <Settings2 className="w-5 h-5" />
             </Button>
@@ -250,6 +255,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
                 "h-10 w-10 rounded-xl transition-all",
                 isAudioPlayerVisible ? "bg-indigo-600 text-white" : "bg-white/5 text-slate-400"
               )}
+              aria-label={isAudioPlayerVisible ? "Hide audio player" : "Show audio player"}
             >
               <Headphones className="w-5 h-5" />
             </Button>
@@ -258,6 +264,7 @@ const SheetReaderHeader: React.FC<SheetReaderHeaderProps> = ({
               size="icon"
               onClick={onOpenRepertoireSearch}
               className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
+              aria-label="Search library"
             >
               <Search className="w-5 h-5" />
             </Button>
