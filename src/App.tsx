@@ -9,7 +9,8 @@ import { BrowserRouter } from "react-router-dom";
 import { AuthProvider } from "@/components/AuthProvider";
 import { useTheme } from '@/hooks/use-theme';
 import React, { useEffect } from "react";
-import MainLayout from "@/components/MainLayout"; 
+import MainLayout from "@/components/MainLayout";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import { pdfjs } from 'react-pdf';
 
 // Configure PDF.js worker source globally
@@ -35,21 +36,23 @@ const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
 
 const App = () => {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <ThemeProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner position="top-center" />
-            <AudioContextInitializer>
-              <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-                <MainLayout />
-              </BrowserRouter>
-            </AudioContextInitializer>
-          </TooltipProvider>
-        </ThemeProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <ThemeProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner position="top-center" />
+              <AudioContextInitializer>
+                <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+                  <MainLayout />
+                </BrowserRouter>
+              </AudioContextInitializer>
+            </TooltipProvider>
+          </ThemeProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 };
 

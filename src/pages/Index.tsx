@@ -12,7 +12,6 @@ import { cn } from '@/lib/utils';
 import { syncToMasterRepertoire, calculateReadiness } from '@/utils/repertoireSync';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { autoVibeCheck } from '@/utils/vibeUtils';
-import * as Tone from 'tone';
 
 // UI Components
 import { Loader2, Plus, Music2, Calendar, Sparkles } from 'lucide-react';

@@ -5,7 +5,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { SetlistSong, EnergyZone, Setlist } from '@/components/SetlistManager';
-import { Loader2, Settings2, X } from 'lucide-react';
+import { Loader2, Settings2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DEFAULT_UG_CHORDS_CONFIG } from '@/utils/constants';
 import { DEFAULT_FILTERS } from '@/components/SetlistFilters';
