@@ -8,13 +8,7 @@ import { Button } from '@/components/ui/button';
 import { SetlistSong } from '@/components/SetlistManager';
 import { cn } from '@/lib/utils';
 import { MadeWithDyad } from '@/components/SupportBanner';
-
-const THEMES = [
-  { name: 'Vibrant Light', primary: '#9333ea', background: '#ffffff', text: '#1e1b4b', border: '#9333ea' },
-  { name: 'Dark Pro', primary: '#4f46e5', background: '#020617', text: '#ffffff', border: '#4f46e5' },
-  { name: 'Classic Black', primary: '#000000', background: '#000000', text: '#ffffff', border: '#ffffff' },
-  { name: 'Purple Energy', primary: '#c084fc', background: '#2e1065', text: '#f5f3ff', border: '#c084fc' },
-];
+import { PUBLIC_THEMES } from '@/utils/themes';
 
 const PublicGigView = () => {
   const { code } = useParams();
@@ -91,7 +85,7 @@ const PublicGigView = () => {
   
   const colors = useMemo(() => {
     if (performer?.custom_theme) {
-      const preset = THEMES.find(t => t.name === performer.custom_theme);
+      const preset = PUBLIC_THEMES.find(t => t.name === performer.custom_theme);
       if (preset) return preset;
     }
     return {
@@ -120,7 +114,7 @@ const PublicGigView = () => {
               style={{ borderColor: colors.border }}
             >
               {performer?.avatar_url ? (
-                <img src={performer.avatar_url} className="w-full h-full object-cover" />
+                <img src={performer.avatar_url} alt={`${performer?.first_name} ${performer?.last_name || ''}`} className="w-full h-full object-cover" />
               ) : (
                 <User className="w-10 h-10 md:w-12 md:h-12 text-muted-foreground" />
               )}

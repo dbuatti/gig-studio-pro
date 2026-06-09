@@ -17,16 +17,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useTheme } from '@/hooks/use-theme';
 import { useSettings } from '@/hooks/use-settings';
 import { useFollow } from '@/hooks/use-follow';
-
-const THEMES = [
-  { name: 'Vibrant Light', primary: '#9333ea', background: '#ffffff', text: '#1e1b4b', border: '#9333ea' },
-  { name: 'Dark Pro', primary: '#4f46e5', background: '#020617', text: '#ffffff', border: '#4f46e5' },
-  { name: 'Classic Black', primary: '#000000', background: '#000000', text: '#ffffff', border: '#ffffff' },
-  { name: 'Purple Energy', primary: '#c084fc', background: '#2e1065', text: '#f5f3ff', border: '#c084fc' },
-];
-
-const DEFAULT_COLORS_LIGHT = { primary: 'hsl(var(--primary))', background: 'hsl(var(--background))', text: 'hsl(var(--foreground))', border: 'hsl(var(--primary))' };
-const DEFAULT_COLORS_DARK = { primary: 'hsl(var(--primary))', background: 'hsl(var(--background))', text: 'hsl(var(--foreground))', border: 'hsl(var(--primary))' };
+import { PUBLIC_THEMES, DEFAULT_COLORS } from '@/utils/themes';
 
 const Profile = () => {
   const { user: currentUser } = useAuth();
@@ -52,7 +43,7 @@ const Profile = () => {
 
       if (!profileData && !pError) {
         const initialThemeName = theme === 'dark' ? 'Dark Pro' : 'Vibrant Light';
-        const initialThemePreset = THEMES.find(t => t.name === initialThemeName) || THEMES[0];
+        const initialThemePreset = PUBLIC_THEMES.find(t => t.name === initialThemeName) || PUBLIC_THEMES[0];
         const { data: newData, error: iError } = await supabase
           .from('profiles')
           .insert([{ 
@@ -130,7 +121,7 @@ const Profile = () => {
   );
 
   const thresholdFilteredSongs = songs.filter(s => (s.readiness_score || 0) >= (profile?.repertoire_threshold || 0));
-  const currentDefaultColors = theme === 'dark' ? DEFAULT_COLORS_DARK : DEFAULT_COLORS_LIGHT;
+  const currentDefaultColors = DEFAULT_COLORS;
   const profileColors = profile?.custom_colors || currentDefaultColors; 
   const isMyProfile = currentUser?.id === profile?.id;
 
@@ -316,7 +307,7 @@ const Profile = () => {
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Branding & Style</h4>
             
             <div className="grid grid-cols-2 gap-3">
-              {THEMES.map(themeOption => (
+              {PUBLIC_THEMES.map(themeOption => (
                 <Button 
                   key={themeOption.name}
                   variant="ghost" 
@@ -374,7 +365,7 @@ const Profile = () => {
 
           <div className="flex-1 bg-card rounded-[2.5rem] border-4 border-border shadow-2xl overflow-hidden relative">
             {profile?.is_repertoire_public ? (
-              <PublicRepertoireView profile={profile} songs={thresholdFilteredSongs} isPreview themes={THEMES} />
+              <PublicRepertoireView profile={profile} songs={thresholdFilteredSongs} isPreview themes={PUBLIC_THEMES} />
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-md text-center p-12">
                 <div className="w-20 h-20 rounded-full bg-secondary flex items-center justify-center mb-6">
