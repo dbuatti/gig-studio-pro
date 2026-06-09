@@ -24,8 +24,8 @@ const Profile = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [profile, setProfile] = useState<any>(null);
-  const [songs, setSongs] = useState<any[]>([]);
+  const [profile, setProfile] = useState<Record<string, unknown> | null>(null);
+  const [songs, setSongs] = useState<Record<string, unknown>[]>([]);
   const { theme } = useTheme();
   const { isFetchingSettings } = useSettings();
 
@@ -35,7 +35,7 @@ const Profile = () => {
     if (!currentUser) return;
     
     try {
-      let { data: profileData, error: pError } = await supabase
+      const { data: profileData, error: pError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', currentUser.id)
@@ -85,11 +85,11 @@ const Profile = () => {
     }
   }, [fetchData, isFetchingSettings]);
 
-  const handleUpdateLocal = (updates: any) => {
-    setProfile((prev: any) => ({ ...prev, ...updates }));
+  const handleUpdateLocal = (updates: Record<string, unknown>) => {
+    setProfile((prev: Record<string, unknown> | null) => ({ ...prev, ...updates }));
   };
 
-  const saveToDatabase = async (updates: any) => {
+  const saveToDatabase = async (updates: Record<string, unknown>) => {
     if (!currentUser) return;
     setSaving(true);
     try {
@@ -100,7 +100,7 @@ const Profile = () => {
 
       if (error) throw error;
       showSuccess("Settings Saved");
-    } catch (err: any) {
+    } catch (err: unknown) {
       showError("Save failed. Try again.");
     } finally {
       setSaving(false);

@@ -6,7 +6,7 @@ import { KeyPreference, transposeKey } from './keyUtils';
  * A robust regex for chords including suffixes like m6, maj7, etc.
  * Handles sharps, flats, and slash chords.
  */
-export const CHORD_REGEX = /(?<!\w)([A-G][#b]?)(m|maj|min|aug|dim|sus|add|M)?([0-9]{1,2})?(?:(sus|add|maj|min|dim|aug|[\+\-\^])[0-9]{1,2})*(\/[A-G][#b]?)?(?!\w)/g;
+export const CHORD_REGEX = /(?<!\w)([A-G][#b]?)(m|maj|min|aug|dim|sus|add|M)?([0-9]{1,2})?(?:(sus|add|maj|min|dim|aug|[-+^])[0-9]{1,2})*(\/[A-G][#b]?)?(?!\w)/g;
 
 /**
  * Determines if a line is likely a chord line.
@@ -25,7 +25,7 @@ export const isChordLine = (line: string): boolean => {
 
   for (const word of words) {
     // Check if the word matches the chord pattern exactly
-    if (word.match(/^([A-G][#b]?)(m|maj|min|aug|dim|sus|add|M)?([0-9]{1,2})?((sus|add|maj|min|dim|aug|[\+\-\^])[0-9]{1,2})*(\/[A-G][#b]?)?$/)) {
+    if (word.match(/^([A-G][#b]?)(m|maj|min|aug|dim|sus|add|M)?([0-9]{1,2})?((sus|add|maj|min|dim|aug|[-+^])[0-9]{1,2})*(\/[A-G][#b]?)?$/)) {
       chordCount++;
     } else if (word.length > 2 && !word.includes('|')) {
       // Longer words suggest it's a lyric line, but ignore bar lines

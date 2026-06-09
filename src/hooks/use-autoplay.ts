@@ -48,7 +48,7 @@ export function useAutoplay({ audio, filteredSongs, masterRepertoire, isShuffleA
         audio.stopPlayback();
         Tone.getTransport().stop();
         Tone.getTransport().cancel();
-      } catch (e) {}
+      } catch (e) { /* Audio cleanup failed, safe to ignore */ }
       
       await new Promise(resolve => setTimeout(resolve, 200));
       lastTriggerTimeRef.current = Date.now();
@@ -67,7 +67,7 @@ export function useAutoplay({ audio, filteredSongs, masterRepertoire, isShuffleA
                 audio.togglePlayback();
             }
         }
-      } catch (err) {}
+      } catch (err) { /* Playback start failed, safe to ignore */ }
       
       setTimeout(() => { isTransitioningRef.current = false; }, 1500); 
     } else {
@@ -132,7 +132,7 @@ export function useAutoplay({ audio, filteredSongs, masterRepertoire, isShuffleA
         showWarning("Setlist is empty.");
         return;
       }
-      try { await Tone.start(); } catch (e) {}
+      try { await Tone.start(); } catch (e) { /* Tone start failed, safe to ignore */ }
       setIsAutoplayActive(true);
       handleSelectSong(songsRef.current[0], true);
       showSuccess("Starting Setlist Autoplay");

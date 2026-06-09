@@ -119,7 +119,7 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
     if (!container || !pdfDocument) return; 
 
     const resizeObserver = new ResizeObserver(entries => {
-      for (let entry of entries) {
+      for (const entry of entries) {
         if (entry.target === container) {
           calculatePdfScale(pdfDocument, leftPageNum); 
         }
@@ -140,7 +140,7 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
     calculatePdfScale(pdf, 1); 
   }, [calculatePdfScale]);
 
-  const handleDocumentLoadError = useCallback((error: any) => {
+  const handleDocumentLoadError = useCallback((error: unknown) => {
     console.error("[LinkEditorOverlay] Error loading PDF:", error);
     setPdfError("Failed to load PDF. Please check the URL or file.");
   }, []);
@@ -164,7 +164,7 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
     } else {
       setTargetPoint(newPoint);
     }
-  }, [targetPoint, sourcePoint]);
+  }, []);
 
   const handleSaveLink = async () => {
     if (!user || !songId || !sourcePoint || !targetPoint) {
@@ -203,9 +203,9 @@ const LinkEditorOverlay: React.FC<LinkEditorOverlayProps> = ({
       }
       onLinkCreated();
       onClose();
-    } catch (err: any) {
-      console.error("[LinkEditorOverlay] Failed to save link:", err.message);
-      showError(`Failed to save link: ${err.message}`);
+    } catch (err: unknown) {
+      console.error("[LinkEditorOverlay] Failed to save link:", (err as Error).message);
+      showError(`Failed to save link: ${(err as Error).message}`);
     } finally {
       setIsCreatingLink(false);
     }

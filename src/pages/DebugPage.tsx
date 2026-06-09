@@ -107,7 +107,7 @@ const DebugPage: React.FC = () => {
           currentDebugSongId = newId;
           localStorage.setItem(DEBUG_SONG_ID_KEY, newId);
           showSuccess("Debug song created for linking tests!");
-        } catch (err: any) {
+        } catch (err: unknown) {
           showError("Failed to create debug song.");
           return;
         }
@@ -134,7 +134,7 @@ const DebugPage: React.FC = () => {
       
       if (error) throw error;
       setLinks(data || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       showError("Failed to load links.");
     }
   }, [user, debugSongId, testPdfUrl]);
@@ -174,8 +174,8 @@ const DebugPage: React.FC = () => {
       setPdfNumPages(null);
       setPdfScale(1.0);
       fetchLinks();
-    } catch (err: any) {
-      showError(`PDF upload failed: ${err.message}`);
+    } catch (err: unknown) {
+      showError(`PDF upload failed: ${(err as Error).message}`);
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {
@@ -191,9 +191,9 @@ const DebugPage: React.FC = () => {
     if (pdfContainerRef.current) {
       calculatePdfScale(pdf, pdfContainerRef.current, pdfCurrentPage);
     }
-  }, [pdfCurrentPage]);
+  }, [pdfCurrentPage, calculatePdfScale]);
 
-  const handleDocumentLoadError = useCallback((error: any) => {
+  const handleDocumentLoadError = useCallback((error: unknown) => {
     setPdfError("Failed to load PDF. Please check the URL or file.");
     setIsLoadingPdf(false);
   }, []);
@@ -224,7 +224,7 @@ const DebugPage: React.FC = () => {
     if (!container || !pdfDocument) return;
 
     const resizeObserver = new ResizeObserver(entries => {
-      for (let entry of entries) {
+      for (const entry of entries) {
         if (entry.target === container) {
           calculatePdfScale(pdfDocument, container, pdfCurrentPage);
         }
@@ -273,8 +273,8 @@ const DebugPage: React.FC = () => {
       if (error) throw error;
       showSuccess("All links deleted successfully.");
       setLinks([]);
-    } catch (err: any) {
-      showError(`Failed to delete all links: ${err.message}`);
+    } catch (err: unknown) {
+      showError(`Failed to delete all links: ${(err as Error).message}`);
     }
   };
 

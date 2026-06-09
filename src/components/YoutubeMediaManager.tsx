@@ -34,7 +34,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
 }) => {
   const { user } = useAuth();
   const [isSearchingYoutube, setIsSearchingYoutube] = useState(false);
-  const [ytResults, setYtResults] = useState<any[]>([]);
+  const [ytResults, setYtResults] = useState<Record<string, unknown>[]>([]);
   const [isQueuingExtraction, setIsQueuingExtraction] = useState(false); 
   const [lastQuery, setLastQuery] = useState("");
 
@@ -82,7 +82,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
         // Note: The proxy currently returns raw search results. 
         // For durations, we'd need a second proxy call or a more complex Edge Function.
         // For now, we map the basic search results.
-        const results = searchData.items.map((item: any) => ({
+        const results = searchData.items.map((item: Record<string, unknown>) => ({
           videoId: item.id.videoId,
           title: item.snippet.title,
           author: item.snippet.channelTitle,
@@ -111,9 +111,9 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
             const response = await fetch(`${instance}/api/v1/search?q=${encodeURIComponent(searchQuery)}`);
             if (!response.ok) continue;
             const data = await response.json();
-            const videos = data?.filter?.((i: any) => i.type === "video").slice(0, 10);
+            const videos = data?.filter?.((i: Record<string, unknown>) => i.type === "video").slice(0, 10);
             if (videos && videos.length > 0) {
-              setYtResults(videos.map((v: any) => ({
+              setYtResults(videos.map((v: Record<string, unknown>) => ({
                 videoId: v.videoId,
                 title: v.title,
                 author: v.author,
@@ -124,7 +124,7 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
               })));
               success = true;
             }
-          } catch (e) {}
+          } catch (e) { /* Instance failed, try next */ }
         }
         if (!success) showError("Global discovery engine congested.");
       } catch (e) {
@@ -182,8 +182,8 @@ const YoutubeMediaManager: React.FC<YoutubeMediaManagerProps> = ({
       showInfo("Background extraction queued. You can close this window; the audio will update automatically.");
       showSuccess("Task Queued Successfully");
       
-    } catch (err: any) {
-      showError(`Failed to queue extraction: ${err.message}`);
+    } catch (err: unknown) {
+      showError(`Failed to queue extraction: ${(err as Error).message}`);
     } finally {
       setIsQueuingExtraction(false); 
     }

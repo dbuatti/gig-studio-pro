@@ -14,9 +14,9 @@ const PublicGigView = () => {
   const { code } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [gigSession, setGigSession] = useState<any>(null);
-  const [setlist, setSetlist] = useState<any>(null);
-  const [performer, setPerformer] = useState<any>(null);
+  const [gigSession, setGigSession] = useState<Record<string, unknown> | null>(null);
+  const [setlist, setSetlist] = useState<Record<string, unknown> | null>(null);
+  const [performer, setPerformer] = useState<Record<string, unknown> | null>(null);
 
   useEffect(() => {
     const fetchGigData = async () => {
@@ -50,6 +50,7 @@ const PublicGigView = () => {
         setPerformer(profileData);
 
       } catch (err) {
+        /* Error handled silently, UI shows generic state */
       } finally {
         setLoading(false);
       }
@@ -57,6 +58,19 @@ const PublicGigView = () => {
 
     fetchGigData();
   }, [code]);
+
+  const colors = useMemo(() => {
+    if (performer?.custom_theme) {
+      const preset = PUBLIC_THEMES.find(t => t.name === performer.custom_theme);
+      if (preset) return preset;
+    }
+    return {
+      primary: 'hsl(var(--primary))',
+      background: 'hsl(var(--background))',
+      text: 'hsl(var(--foreground))',
+      border: 'hsl(var(--border))',
+    };
+  }, [performer?.custom_theme]);
 
   if (loading) {
     return (
@@ -82,19 +96,6 @@ const PublicGigView = () => {
   }
 
   const songs = ((setlist.songs as SetlistSong[]) || []).filter(s => s.is_ready_to_sing !== false);
-  
-  const colors = useMemo(() => {
-    if (performer?.custom_theme) {
-      const preset = PUBLIC_THEMES.find(t => t.name === performer.custom_theme);
-      if (preset) return preset;
-    }
-    return {
-      primary: 'hsl(var(--primary))',
-      background: 'hsl(var(--background))',
-      text: 'hsl(var(--foreground))',
-      border: 'hsl(var(--border))',
-    };
-  }, [performer?.custom_theme]);
 
   return (
     <div 

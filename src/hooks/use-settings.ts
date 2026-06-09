@@ -186,7 +186,7 @@ export function useSettings() {
           .from('profiles')
           .update({ [dbColumn]: value })
           .eq('id', user.id);
-      } catch (err) {}
+      } catch (err) { /* Save failed silently */ }
     }
   }, [user]);
 
@@ -198,8 +198,8 @@ export function useSettings() {
         .update({ link_size: newSize })
         .eq('user_id', user.id);
       if (error) throw error;
-    } catch (err: any) {
-      console.error("[useSettings] Failed to update all sheet links size:", err.message);
+    } catch (err: unknown) {
+      console.error("[useSettings] Failed to update all sheet links size:", (err as Error).message);
     }
   }, [user]);
 

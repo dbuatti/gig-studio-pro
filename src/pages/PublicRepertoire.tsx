@@ -11,8 +11,8 @@ import { PUBLIC_THEMES } from '@/utils/themes';
 
 const PublicRepertoire = () => {
   const { slug } = useParams();
-  const [profile, setProfile] = useState<any>(null);
-  const [songs, setSongs] = useState<any[]>([]);
+  const [profile, setProfile] = useState<Record<string, unknown> | null>(null);
+  const [songs, setSongs] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
   const { theme } = useTheme();
 
@@ -41,6 +41,7 @@ const PublicRepertoire = () => {
       if (sError) throw sError;
       setSongs(songData || []);
     } catch (err) {
+      /* Error handled silently, UI shows generic state */
     } finally {
       setLoading(false);
     }
